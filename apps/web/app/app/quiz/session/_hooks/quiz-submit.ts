@@ -21,11 +21,32 @@ export async function submitQuizSession(
   userId: string,
   draftId?: string,
 ) {
-  const answerArray = Array.from(answers.entries()).map(([qId, a]) => ({
-    questionId: qId,
-    selectedOptionId: a.selectedOptionId,
-    responseTimeMs: a.responseTimeMs,
-  }))
+  type AnswerEntry = {
+    questionId: string
+    selectedOptionId?: string
+    responseText?: string
+    blankIndex?: number
+    responseTimeMs: number
+  }
+  const answerArray = Array.from(answers.entries()).flatMap<AnswerEntry>(([qId, a]) => {
+    if (a.blankAnswers && a.blankAnswers.length > 0) {
+      // dialog_fill: fan out one entry per blank
+      return a.blankAnswers.map((b) => ({
+        questionId: qId,
+        blankIndex: b.index,
+        responseText: b.text,
+        responseTimeMs: a.responseTimeMs,
+      }))
+    }
+    if (a.responseText !== undefined) {
+      // short_answer: single entry with responseText
+      return [{ questionId: qId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
+    }
+    // MC (default): single entry with selectedOptionId
+    return [
+      { questionId: qId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs },
+    ]
+  })
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }

@@ -213,4 +213,66 @@ describe('batchSubmitQuiz', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[batchSubmitQuiz] Uncaught error:', expect.any(String))
     consoleSpy.mockRestore()
   })
+
+  it('serialises a short_answer entry to {question_id, response_text, response_time_ms}', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValueOnce({ data: BATCH_RPC_RESULT, error: null })
+
+    await batchSubmitQuiz({
+      sessionId: SESSION_ID,
+      answers: [{ questionId: Q1_ID, responseText: 'Paris', responseTimeMs: 1500 }],
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'batch_submit_quiz',
+      expect.objectContaining({
+        p_answers: [
+          {
+            question_id: Q1_ID,
+            selected_option: undefined,
+            response_text: 'Paris',
+            blank_index: undefined,
+            response_time_ms: 1500,
+          },
+        ],
+      }),
+    )
+  })
+
+  it('serialises a dialog_fill answer with 2 blanks to 2 entries each with blank_index and response_text', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValueOnce({ data: BATCH_RPC_RESULT, error: null })
+
+    await batchSubmitQuiz({
+      sessionId: SESSION_ID,
+      answers: [
+        { questionId: Q1_ID, blankIndex: 0, responseText: 'north', responseTimeMs: 2000 },
+        { questionId: Q1_ID, blankIndex: 1, responseText: 'south', responseTimeMs: 2000 },
+      ],
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'batch_submit_quiz',
+      expect.objectContaining({
+        p_answers: [
+          {
+            question_id: Q1_ID,
+            selected_option: undefined,
+            response_text: 'north',
+            blank_index: 0,
+            response_time_ms: 2000,
+          },
+          {
+            question_id: Q1_ID,
+            selected_option: undefined,
+            response_text: 'south',
+            blank_index: 1,
+            response_time_ms: 2000,
+          },
+        ],
+      }),
+    )
+  })
 })
