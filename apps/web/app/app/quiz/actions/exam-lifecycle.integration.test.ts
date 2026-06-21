@@ -101,6 +101,7 @@ describe('mock_exam lifecycle (app-layer integration)', () => {
       .select('id')
       .single()
     if (configErr) throw new Error(`exam_configs insert: ${configErr.message}`)
+    if (!config) throw new Error('exam_configs insert: no row returned')
 
     const { error: distErr } = await admin.from('exam_config_distributions').insert({
       exam_config_id: config.id,
