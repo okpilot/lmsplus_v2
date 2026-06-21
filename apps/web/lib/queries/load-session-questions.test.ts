@@ -60,12 +60,18 @@ describe('loadSessionQuestions', () => {
           question_text: 'What is VFR?',
           question_image_url: null,
           options: [{ id: 'a', text: 'Option A' }],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
         },
         {
           id: 'q1',
           question_text: 'What is IFR?',
           question_image_url: null,
           options: [{ id: 'a', text: 'Option A' }],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
         },
       ],
       error: null,
@@ -91,6 +97,9 @@ describe('loadSessionQuestions', () => {
             { id: 'a', text: 'Option A' },
             { id: 'b', text: 'Option B' },
           ],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
         },
       ],
       error: null,
@@ -109,6 +118,65 @@ describe('loadSessionQuestions', () => {
       { id: 'a', text: 'Option A' },
       { id: 'b', text: 'Option B' },
     ])
+  })
+
+  it('passes through question_type, dialog_template, and blanks_safe for a dialog_fill row', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-df',
+          question_text: 'Fill the blanks',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'dialog_fill',
+          dialog_template: 'Tower: {{1}} QNH, runway {{2}}.',
+          blanks_safe: [{ index: 1 }, { index: 2 }],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-df'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    const q = result.questions[0]!
+    expect(q.question_type).toBe('dialog_fill')
+    expect(q.dialog_template).toBe('Tower: {{1}} QNH, runway {{2}}.')
+    expect(q.blanks_safe).toEqual([{ index: 1 }, { index: 2 }])
+    // options is null from RPC — mapper converts to []
+    expect(q.options).toEqual([])
+  })
+
+  it('yields null blanks_safe and null dialog_template for a multiple_choice row', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-mc',
+          question_text: 'What is the MTOW limit?',
+          question_image_url: null,
+          question_number: '001',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [{ id: 'a', text: '5700 kg' }],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-mc'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    const q = result.questions[0]!
+    expect(q.question_type).toBe('multiple_choice')
+    expect(q.dialog_template).toBeNull()
+    expect(q.blanks_safe).toBeNull()
+    expect(q.options).toEqual([{ id: 'a', text: '5700 kg' }])
   })
 
   it('returns failure when RPC returns an error', async () => {

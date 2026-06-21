@@ -85,7 +85,12 @@ export type AnswerFeedback = {
   explanationImageUrl: string | null
 }
 
-export type DraftAnswer = { selectedOptionId: string; responseTimeMs: number }
+export type DraftAnswer = {
+  selectedOptionId?: string
+  responseText?: string
+  blankAnswers?: { index: number; text: string }[]
+  responseTimeMs: number
+}
 
 export type DraftData = {
   id: string

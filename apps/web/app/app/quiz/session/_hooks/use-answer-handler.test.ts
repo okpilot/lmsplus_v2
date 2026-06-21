@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -41,7 +42,7 @@ const SUCCESS_RESULT = {
  */
 function renderAnswerHandler(questionId = Q1_ID) {
   // We track the answers Map ourselves so the hook sees consistent state.
-  let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+  let answers = new Map<string, DraftAnswer>()
   const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
     answers = updater(answers)
   })
@@ -52,9 +53,7 @@ function renderAnswerHandler(questionId = Q1_ID) {
       getQuestionId: () => questionId,
       getAnswerStartTime: () => Date.now() - 500,
       answers,
-      setAnswers: setAnswers as React.Dispatch<
-        React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-      >,
+      setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
     }),
   )
 
@@ -131,9 +130,7 @@ describe('useAnswerHandler — successful answer selection', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers: getAnswers(),
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
       }),
     )
 
@@ -269,7 +266,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
     mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
     const onAnswerRecorded = vi.fn()
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -280,9 +277,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerRecorded,
       }),
     )
@@ -301,7 +296,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
     mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
     const onAnswerRecorded = vi.fn()
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -312,9 +307,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerRecorded,
       }),
     )
@@ -338,7 +331,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
     mockCheckAnswer.mockRejectedValue(new Error('network error'))
     const onAnswerRecorded = vi.fn()
 
-    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) =>
       updater(answers),
     )
@@ -349,9 +342,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerRecorded,
       }),
     )
@@ -379,7 +370,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
       throw new Error('sessionStorage quota exceeded')
     })
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -390,9 +381,7 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerRecorded: throwingCallback,
       }),
     )
@@ -421,7 +410,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
     mockCheckAnswer.mockRejectedValue(new Error('network error'))
     const onAnswerReverted = vi.fn()
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -432,9 +421,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerReverted,
       }),
     )
@@ -454,7 +441,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
     mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
     const onAnswerReverted = vi.fn()
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -465,9 +452,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerReverted,
       }),
     )
@@ -495,7 +480,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
     })
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -506,9 +491,7 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerReverted: throwingRevertCallback,
       }),
     )
@@ -592,9 +575,7 @@ describe('useAnswerHandler — handleSelectAnswer return value', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers: answeredAnswers,
-        setAnswers: vi.fn() as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: vi.fn() as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
       }),
     )
     await act(async () => {
@@ -633,7 +614,7 @@ describe('useAnswerHandler — initialFeedback', () => {
       ],
     ])
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>([
+    let answers = new Map<string, DraftAnswer>([
       [Q1_ID, { selectedOptionId: OPT_A, responseTimeMs: 800 }],
     ])
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
@@ -646,9 +627,7 @@ describe('useAnswerHandler — initialFeedback', () => {
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         initialFeedback: seedFeedback,
       }),
     )
@@ -672,7 +651,7 @@ describe('useAnswerHandler — initialFeedback', () => {
       ],
     ])
 
-    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>([
+    const answers = new Map<string, DraftAnswer>([
       [Q2_ID, { selectedOptionId: OPT_A, responseTimeMs: 600 }],
     ])
     const setAnswers = vi.fn()
@@ -683,9 +662,7 @@ describe('useAnswerHandler — initialFeedback', () => {
         getQuestionId: () => Q2_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         initialFeedback: seedFeedback,
       }),
     )
@@ -721,7 +698,7 @@ describe('useAnswerHandler — feedbackRef is updated eagerly before setFeedback
       capturedFeedback.push(new Map(feedback))
     })
 
-    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    let answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       answers = updater(answers)
     })
@@ -732,9 +709,7 @@ describe('useAnswerHandler — feedbackRef is updated eagerly before setFeedback
         getQuestionId: () => Q1_ID,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
         onAnswerRecorded,
       }),
     )
@@ -758,7 +733,7 @@ describe('useAnswerHandler — multiple questions', () => {
 
     // Render once per question ID by using a mutable ref inside the closure.
     let currentQuestion = Q1_ID
-    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       const next = updater(answers)
       for (const [k, v] of next) answers.set(k, v)
@@ -770,9 +745,7 @@ describe('useAnswerHandler — multiple questions', () => {
         getQuestionId: () => currentQuestion,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
       }),
     )
 
@@ -874,7 +847,7 @@ describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
 
     // Hook with a mutable question-ID getter so we can switch from Q1 to Q2
     let currentQuestion = Q1_ID
-    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       const next = updater(answers)
       for (const [k, v] of next) answers.set(k, v)
@@ -890,9 +863,7 @@ describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
         getQuestionId: () => currentQuestion,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
       }),
     )
 
@@ -1008,7 +979,7 @@ describe('useAnswerHandler — answering flag', () => {
 
     // Mutable question-ID getter so we can switch from Q1 to Q2 mid-flight
     let currentQuestion = Q1_ID
-    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const answers = new Map<string, DraftAnswer>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       const next = updater(answers)
       for (const [k, v] of next) answers.set(k, v)
@@ -1023,9 +994,7 @@ describe('useAnswerHandler — answering flag', () => {
         getQuestionId: () => currentQuestion,
         getAnswerStartTime: () => Date.now() - 500,
         answers,
-        setAnswers: setAnswers as React.Dispatch<
-          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
-        >,
+        setAnswers: setAnswers as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
       }),
     )
 

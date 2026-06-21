@@ -11,7 +11,9 @@ const BatchSubmitInput = z.object({
     .array(
       z.object({
         questionId: z.uuid(),
-        selectedOptionId: z.string(),
+        selectedOptionId: z.string().optional(),
+        responseText: z.string().optional(),
+        blankIndex: z.number().int().nonnegative().optional(),
         responseTimeMs: z.number().int().positive(),
       }),
     )
@@ -38,6 +40,8 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
     const p_answers = input.answers.map((a) => ({
       question_id: a.questionId,
       selected_option: a.selectedOptionId,
+      response_text: a.responseText,
+      blank_index: a.blankIndex,
       response_time_ms: a.responseTimeMs,
     }))
 

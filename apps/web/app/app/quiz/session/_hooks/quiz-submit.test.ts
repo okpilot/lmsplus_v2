@@ -71,7 +71,17 @@ const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 const USER_ID = 'test-user-id'
 
 function makeAnswers(
-  entries: Array<[string, { selectedOptionId: string; responseTimeMs: number }]>,
+  entries: Array<
+    [
+      string,
+      {
+        selectedOptionId?: string
+        responseText?: string
+        blankAnswers?: { index: number; text: string }[]
+        responseTimeMs: number
+      },
+    ]
+  >,
 ) {
   return new Map(entries)
 }
@@ -206,6 +216,44 @@ describe('submitQuizSession', () => {
     await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
+  it('submits a short_answer as a single entry with responseText', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const shortAnswerMap = makeAnswers([[Q1_ID, { responseText: 'Paris', responseTimeMs: 1200 }]])
+
+    await submitQuizSession(SESSION_ID, shortAnswerMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [{ questionId: Q1_ID, responseText: 'Paris', responseTimeMs: 1200 }],
+    })
+  })
+
+  it('submits a dialog_fill as one entry per blank with blankIndex', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const dialogFillMap = makeAnswers([
+      [
+        Q1_ID,
+        {
+          blankAnswers: [
+            { index: 0, text: 'north' },
+            { index: 1, text: 'south' },
+          ],
+          responseTimeMs: 2500,
+        },
+      ],
+    ])
+
+    await submitQuizSession(SESSION_ID, dialogFillMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [
+        { questionId: Q1_ID, blankIndex: 0, responseText: 'north', responseTimeMs: 2500 },
+        { questionId: Q1_ID, blankIndex: 1, responseText: 'south', responseTimeMs: 2500 },
+      ],
+    })
   })
 
   it('logs error when draft cleanup fails after successful submit', async () => {

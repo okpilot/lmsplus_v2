@@ -25,6 +25,15 @@
 - No doc updates needed when the hook/util is an internal implementation detail.
 - Document only if it becomes public API or is reused across multiple features.
 
+### RETURNS TABLE widened + sibling RPC added to a family (e.g. migs 118–121 Phase 2)
+1. RPC naming/summary table — update the changed RPC's one-liner to mention the new column count and new behavior; add the new sibling RPC as a separate entry.
+2. RPC detail section (changed RPC) — replace the `RETURNS TABLE` signature block; explain the structural reason for DROP+CREATE (RETURNS TABLE is not signature-compatible with CREATE OR REPLACE); document new columns + stripping guarantees; document any new security gate added (active-user gate, etc.).
+3. Insert a new RPC detail section for the sibling (new RPC) after its closest family member; include guard set, §15 carve-out if applicable, parameter list, return shape, and signature (no full body needed).
+4. §3 carve-out list ("Other functions sharing this carve-out") — add the new sibling to the list.
+5. Bulk dispatcher refactored (per-type helpers) — update the dispatcher's key-behavior bullets and SQL body; document internal helpers with REVOKE EXECUTE FROM PUBLIC in the key-behavior section; note Decision reference.
+6. Footer timestamp — prepend the new update entry.
+- Do NOT edit `.spec-workflow/steering/*.md` directly; flag any drift as DRIFT finding.
+
 ### Playwright E2E tests added
 1. `docs/plan.md` — mark the relevant phase complete; list the new specs, helpers (Mailpit, Supabase), and scripts (`pnpm e2e`, `e2e:ui`, `e2e:headed`); update the status line and footer.
 2. `MEMORY.md` — keep the Tests summary count accurate (unit + integration + E2E); note any newly configured tooling (e.g. `@playwright/test`).
