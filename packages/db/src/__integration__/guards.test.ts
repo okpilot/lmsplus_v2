@@ -54,4 +54,10 @@ describe('requireRpcRows', () => {
       'get_questions: expected an array result, got object',
     )
   })
+
+  it('throws a labelled error when the result is a primitive', () => {
+    expect(() => requireRpcRows(42, 'get_questions')).toThrow(
+      'get_questions: expected an array result, got number',
+    )
+  })
 })
