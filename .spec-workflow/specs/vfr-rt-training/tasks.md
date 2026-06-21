@@ -53,19 +53,19 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 2 — Backend for short_answer/dialog_fill (G1 + grader + recording)
 
-- [ ] **2.1 Migration — extend `get_quiz_questions` (DROP + recreate)**
+- [x] **2.1 Migration — extend `get_quiz_questions` (DROP + recreate)**
   - Files: `packages/db/migrations/NNN_get_quiz_questions_types.sql` (+ mirror). **`DROP FUNCTION IF EXISTS get_quiz_questions(uuid[])` then recreate** (RETURNS TABLE change — precedent `20260327000059_shuffle_answer_options.sql:5–8`). Add `question_type` + canonical-stripped `dialog_template` ({{n}}) + per-blank positions (index-only). Do NOT add `canonical_answer`/`accepted_synonyms`/`blanks_config`. Trace latest definition first; reuse mig 105/099b strip logic. Diff new SELECT vs answer-key set.
   - **Same task:** extend `apps/web/lib/queries/load-session-questions.ts` — `QuizQuestionRow` + `Question` type + mapper to pass `question_type`/`dialog_template`/`blanks_safe` through (the ONLY app caller; else columns are discarded).
   - _Requirements: R3.4, NFR-Security_
-- [ ] **2.2 Migration — non-MC per-question grader RPC (immediate feedback)**
+- [x] **2.2 Migration — non-MC per-question grader RPC (immediate feedback)**
   - Files: `packages/db/migrations/NNN_check_quiz_answer_ext.sql` (+ mirror). SECURITY DEFINER; grades short_answer (canonical+synonyms via `normalize_answer`) + dialog_fill (per-blank); returns `is_correct` (+granular), revealed canonical(s), explanation; mirror `check_quiz_answer` contract.
   - **Guard set (security.md 11c sibling audit vs `check_quiz_answer`/`submit_vfr_rt_exam_answers`/`start_quiz_session`):** auth.uid NULL→RAISE; **practice-mode whitelist `v_mode IN ('smart_review','quick_quiz')` else RAISE `unsupported_session_mode`** (mirrors mig 117 lines 73–74); active-caller gate (`users.deleted_at IS NULL`); session owner (`student_id=auth.uid()`); question-membership vs frozen `config.question_ids`; soft-delete filters; `SET search_path=public`.
   - _Requirements: R4.2–R4.5, R6, NFR-Security_
-- [ ] **2.3 Migration + client — record non-MC answers at session end via `batch_submit_quiz`** _(per N2, N3)_
+- [x] **2.3 Migration + client — record non-MC answers at session end via `batch_submit_quiz`** _(per N2, N3)_
   - Migration: refactor `batch_submit_quiz` to a thin dispatcher + per-type helper functions (N2 — do not inline-grow the 306-line body); make MC guards conditional; `short_answer` + `dialog_fill` helpers persist `response_text`/`blank_index` rows (mig 095 cols; `dialog_fill` = per-blank rows per N7); sibling-guard audit on every new helper.
   - Client (N3): widen `quiz/types.ts:DraftAnswer` (`responseText?`, `blankAnswers?:{index,text}[]`); `quiz/actions/batch-submit.ts` Zod `selectedOptionId` → `.optional()` + new fields, fix the map at `:38–42`; `quiz/session/_hooks/quiz-submit.ts:submitQuizSession` (`:24–28`) forwards them.
   - _Requirements: R4.6_
-- [ ] **2.4 Integration tests (CI-only) + plan.md count**
+- [x] **2.4 Integration tests (CI-only) + plan.md count**
   - `get_quiz_questions` returns new display fields, NO answer-key cols, stripped dialog; grader correct/incorrect (short + per-blank) + ALL guard rejections (unauth, non-whitelist mode, soft-deleted caller, non-owner, non-member); `batch_submit_quiz` persists non-MC rows. Update `docs/plan.md` integration count SAME commit.
   - _Requirements: R3.4, R4, R6_
 
