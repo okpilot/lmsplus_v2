@@ -15,7 +15,7 @@ export type QuizPendingAction = 'submit' | 'save' | 'discard' | null
 
 /** If the post-submit soft navigation hasn't unmounted this component within this window,
  * hard-navigate to the report so the student is never stranded on "Submitting…". (#909) */
-const NAV_FALLBACK_MS = 4000
+export const NAV_FALLBACK_MS = 4000
 
 export function useQuizSubmit(opts: {
   userId: string

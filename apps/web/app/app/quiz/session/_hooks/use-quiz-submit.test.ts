@@ -38,12 +38,9 @@ Object.defineProperty(window, 'location', {
   value: { assign: mockLocationAssign },
 })
 
-// Mirrors NAV_FALLBACK_MS in use-quiz-submit.ts (not exported).
-const NAV_FALLBACK_MS = 4000
-
 // ---- Subject under test ---------------------------------------------------
 
-import { useQuizSubmit } from './use-quiz-submit'
+import { NAV_FALLBACK_MS, useQuizSubmit } from './use-quiz-submit'
 
 // ---- Fixtures ------------------------------------------------------------
 
