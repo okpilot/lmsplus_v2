@@ -78,6 +78,16 @@ reviews:
           unit test — mocked clients can't see the real schema. New app-layer code only; not for
           packages/db migration PRs (they have their own integration suite).
 
+    # App-layer query helpers — same new-query-site integration-test policy (code-style.md §7 HARD)
+    - path: "apps/web/lib/queries/**/*.ts"
+      instructions: |
+        App-layer query helper. Enforce the new-query-site integration-test policy:
+        - Any NEW .from('<table>') or .rpc('<fn>') call site must ship a co-located
+          *.integration.test.ts exercising it against the real local Postgres (the integration
+          tier), not only mocked-client unit coverage — mocked clients can't see the real schema
+          (code-style.md §7 HARD). New app-layer code only; pre-existing uncovered sites are
+          tracked in the #926 backlog.
+
     # Hooks — small and focused
     - path: "apps/web/app/**/_hooks/use-*.ts"
       instructions: |
