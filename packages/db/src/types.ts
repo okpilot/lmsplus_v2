@@ -1429,9 +1429,9 @@ export type Database = {
       get_quiz_questions: {
         Args: { p_question_ids: string[] }
         Returns: {
-          blanks_safe: Json
+          blanks_safe: Json | null
           difficulty: string
-          dialog_template: string
+          dialog_template: string | null
           explanation_image_url: string
           explanation_text: string
           id: string

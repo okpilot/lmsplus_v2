@@ -249,7 +249,8 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
       p_question_ids: [saCorrectId],
     })
     if (startErr) throw new Error(`startSession (del): ${startErr.message}`)
-    const delSessionId = sd as string
+    if (typeof sd !== 'string') throw new Error('startSession (del): no session id')
+    const delSessionId = sd
     try {
       const { error: delErr } = await admin
         .from('users')
