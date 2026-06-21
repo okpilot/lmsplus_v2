@@ -142,15 +142,28 @@ describe('RPC: check_quiz_answer', () => {
     })
     if (startErr) throw new Error(`startSession (quick_quiz): ${startErr.message}`)
 
-    const { data, error } = await studentClient.rpc('check_quiz_answer', {
-      p_question_id: questionIds[0],
-      p_selected_option_id: 'b',
-      p_session_id: sessionId as string,
-    })
-    expect(error).toBeNull()
-    const result = data as CheckAnswerResult
-    expect(result.is_correct).toBe(true)
-    expect(result.correct_option_id).toBe('b')
+    try {
+      const { data, error } = await studentClient.rpc('check_quiz_answer', {
+        p_question_id: questionIds[0],
+        p_selected_option_id: 'b',
+        p_session_id: sessionId as string,
+      })
+      expect(error).toBeNull()
+      const result = data as CheckAnswerResult
+      expect(result.is_correct).toBe(true)
+      expect(result.correct_option_id).toBe('b')
+    } finally {
+      // Force-end + soft-delete the live practice session so it cannot leak into
+      // other tests' active-session views (mirrors the exam-mode block below).
+      // Never throw in finally.
+      const { error: endErr } = await admin
+        .from('quiz_sessions')
+        .update({ ended_at: new Date().toISOString(), deleted_at: new Date().toISOString() })
+        .eq('id', sessionId as string)
+      if (endErr) {
+        console.error('[quick_quiz cleanup] session left active:', endErr.message)
+      }
+    }
   })
 
   it('returns the question explanation fields', async () => {
