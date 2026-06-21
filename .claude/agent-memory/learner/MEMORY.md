@@ -86,6 +86,7 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent addit
 - **#925 Phase 4 (f85a8c8e/535ed164/6c1c3275):** vacuous-assertion PROMOTED → code-style.md §7; stale-hash-in-durable-files new count=1 WATCHING.
 - **#918 (64dbb921/9f6c5440):** 2 new WATCHING — `.single()` bare-access vs `!` review noise (same-artifact FP, not cross-commit); practice-mode vs exam-mode session cleanup distinction.
 - **#931 (0719746a/3e8bacf1):** "results array length" WATCHING count=1→2 RULE CANDIDATE (cross-commit: #930+#931); new WATCHING count=1 — mode-specific anti-cheat branch in lifecycle tests. All agents clean otherwise.
+- **#948 (205adef1):** All agents clean (memory-housekeeping commit). POSITIVE SIGNAL: curation brought all 3 over-budget MEMORY.md files under the injection budget in one pass; impl-critic APPROVED (0 findings). New count=1 WATCHING — `agent-memory.md` "25 KB" threshold ambiguous (SI 25,000 B vs IEC 25,600 B); semantic-reviewer SKIPPED on merits (25,600 B is authoritative per #948 acceptance criterion); clarification proposal logged in tracker-archive row 438.
 
 ## Durable knowledge (cross-agent)
 
