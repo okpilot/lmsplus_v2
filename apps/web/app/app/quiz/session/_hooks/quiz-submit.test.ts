@@ -305,7 +305,7 @@ describe('submitQuizSession', () => {
     }
   })
 
-  it('still returns success when draft cleanup stalls beyond the 2500 ms timeout', async () => {
+  it('still returns success when draft cleanup stalls beyond the configured timeout', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     // deleteDraft never resolves — simulates an auth/DB stall.
     mockDeleteDraft.mockReturnValue(new Promise(() => {}))
