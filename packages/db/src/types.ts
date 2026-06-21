@@ -1317,6 +1317,15 @@ export type Database = {
           has_tos: boolean
         }[]
       }
+      check_non_mc_answer: {
+        Args: {
+          p_blank_answers?: Json
+          p_question_id: string
+          p_response_text?: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       check_quiz_answer: {
         Args: {
           p_question_id: string
@@ -1429,14 +1438,14 @@ export type Database = {
       get_quiz_questions: {
         Args: { p_question_ids: string[] }
         Returns: {
-          blanks_safe: Json | null
+          blanks_safe: Json
           difficulty: string
-          dialog_template: string | null
+          dialog_template: string
           explanation_image_url: string
           explanation_text: string
           id: string
           lo_reference: string
-          options: Json | null
+          options: Json
           question_image_url: string
           question_number: string
           question_text: string

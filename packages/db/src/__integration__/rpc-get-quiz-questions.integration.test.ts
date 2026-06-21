@@ -4,6 +4,23 @@ import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
+// Guard a `.select('id').single()` result before reading `.id`: the row may be
+// null (no row) or shape-regressed. Accessing `.id` through an unguarded
+// `as unknown as { id: string }` cast would throw an opaque TypeError on null
+// instead of a descriptive error (code-style.md §5 — cast-guard applies in tests).
+function requireInsertedId(row: unknown, label: string): string {
+  if (
+    row === null ||
+    typeof row !== 'object' ||
+    !('id' in row) ||
+    typeof (row as { id: unknown }).id !== 'string' ||
+    (row as { id: string }).id.length === 0
+  ) {
+    throw new Error(`${label}: no id returned`)
+  }
+  return (row as { id: string }).id
+}
+
 // ---------------------------------------------------------------------------
 // Cross-org isolation — Vector EK tenant-scope (mig 118, #697 Phase 2)
 // ---------------------------------------------------------------------------
@@ -85,9 +102,7 @@ describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
       .select('id')
       .single()
     if (callerBankErr) throw new Error(`seed caller bank: ${callerBankErr.message}`)
-    callerBankId = (callerBank as unknown as { id: string }).id
-    if (typeof callerBankId !== 'string' || callerBankId.length === 0)
-      throw new Error('seed caller bank: no id returned')
+    callerBankId = requireInsertedId(callerBank, 'seed caller bank')
 
     // One active MC question in the caller's own org — used for non-vacuity proof.
     const { data: ownQ, error: ownQErr } = await admin
@@ -113,9 +128,7 @@ describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
       .select('id')
       .single()
     if (ownQErr) throw new Error(`seed caller question: ${ownQErr.message}`)
-    callerOwnQuestionId = (ownQ as unknown as { id: string }).id
-    if (typeof callerOwnQuestionId !== 'string' || callerOwnQuestionId.length === 0)
-      throw new Error('seed caller question: no id returned')
+    callerOwnQuestionId = requireInsertedId(ownQ, 'seed caller question')
 
     // ── Victim org ──────────────────────────────────────────────────────────
     victimOrgId = await createTestOrg({
@@ -151,9 +164,7 @@ describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
       .select('id')
       .single()
     if (victimBankErr) throw new Error(`seed victim bank: ${victimBankErr.message}`)
-    victimBankId = (victimBank as unknown as { id: string }).id
-    if (typeof victimBankId !== 'string' || victimBankId.length === 0)
-      throw new Error('seed victim bank: no id returned')
+    victimBankId = requireInsertedId(victimBank, 'seed victim bank')
 
     const { data: victimQ, error: victimQErr } = await admin
       .from('questions')
@@ -178,9 +189,7 @@ describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
       .select('id')
       .single()
     if (victimQErr) throw new Error(`seed victim question: ${victimQErr.message}`)
-    victimQuestionId = (victimQ as unknown as { id: string }).id
-    if (typeof victimQuestionId !== 'string' || victimQuestionId.length === 0)
-      throw new Error('seed victim question: no id returned')
+    victimQuestionId = requireInsertedId(victimQ, 'seed victim question')
   })
 
   afterAll(async () => {
@@ -258,11 +267,7 @@ async function insertQuestion(
 ): Promise<string> {
   const { data, error } = await admin.from('questions').insert(row).select('id').single()
   if (error) throw new Error(`insertQuestion: ${error.message}`)
-  const id = (data as unknown as { id: string }).id
-  if (typeof id !== 'string' || id.length === 0) {
-    throw new Error('insertQuestion: no id returned')
-  }
-  return id
+  return requireInsertedId(data, 'insertQuestion')
 }
 
 describe('RPC: get_quiz_questions — non-MC delivery + answer-key stripping (Vector EK)', () => {
@@ -329,7 +334,7 @@ describe('RPC: get_quiz_questions — non-MC delivery + answer-key stripping (Ve
       .select('id')
       .single()
     if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
-    bankId = (bank as unknown as { id: string }).id
+    bankId = requireInsertedId(bank, 'seed bank')
 
     const base = {
       organization_id: orgId,

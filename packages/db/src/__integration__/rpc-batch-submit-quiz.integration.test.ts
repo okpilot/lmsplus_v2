@@ -557,13 +557,56 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     // REVOKE EXECUTE ... FROM PUBLIC (mig 120): the helpers must not be callable
     // via PostgREST by an authenticated user — a direct call would bypass the
     // dispatcher's auth/owner/mode guards and forge graded rows.
+    // Signature-valid payloads (not `{}`): with the wrong argument shape
+    // PostgREST returns PGRST202 from overload resolution *before* the EXECUTE
+    // permission check, so the test would pass even if the REVOKE regressed
+    // (code-style.md §7 — negative assertions must be non-vacuous). Type-valid
+    // dummy values matching each helper's mig-120 signature force the call far
+    // enough to hit the permission check.
+    const dummyId = '00000000-0000-0000-0000-000000000000'
     const helpers = [
-      '_grade_record_mc',
-      '_grade_record_short_answer',
-      '_grade_record_dialog_fill',
+      {
+        fn: '_grade_record_mc',
+        args: {
+          p_session_id: dummyId,
+          p_student_id: studentId,
+          p_org_id: orgId,
+          p_question_id: mcId,
+          p_selected: 'a',
+          p_correct_option: 'a',
+          p_options: [],
+          p_response_time: 0,
+        },
+      },
+      {
+        fn: '_grade_record_short_answer',
+        args: {
+          p_session_id: dummyId,
+          p_student_id: studentId,
+          p_org_id: orgId,
+          p_question_id: mcId,
+          p_response_text: 'x',
+          p_canonical: 'x',
+          p_synonyms: [],
+          p_response_time: 0,
+        },
+      },
+      {
+        fn: '_grade_record_dialog_fill',
+        args: {
+          p_session_id: dummyId,
+          p_student_id: studentId,
+          p_org_id: orgId,
+          p_question_id: mcId,
+          p_blank_index: 0,
+          p_response_text: 'x',
+          p_blanks_config: [],
+          p_response_time: 0,
+        },
+      },
     ] as const
-    for (const fn of helpers) {
-      const { error } = await studentClient.rpc(fn, {})
+    for (const { fn, args } of helpers) {
+      const { error } = await studentClient.rpc(fn, args)
       // Either Postgres permission-denied (42501) or PostgREST function-not-found
       // (PGRST202, because the revoked function is not exposed in the schema cache).
       // Both prove the authenticated role cannot execute it. We assert it is NOT a
