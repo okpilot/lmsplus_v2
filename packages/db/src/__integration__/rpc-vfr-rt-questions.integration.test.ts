@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { requireRpcResult, requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAuthenticatedClient } from './setup'
 import {
   admin,
@@ -137,7 +138,10 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_subject_id: rtSubjectId,
     })
     if (error) throw new Error(`start session for questions tests: ${error.message}`)
-    const r = data as unknown as { session_id: string; question_ids: string[] }
+    const r = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      data,
+      'start_vfr_rt_exam_session',
+    )
     sessionId = r.session_id
     sessionQuestionIds = r.question_ids
   })
@@ -151,7 +155,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<{
+    const rows = requireRpcRows<{
       id: string
       question_type: string
       options: unknown
@@ -160,7 +164,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       canonical_answer?: unknown
       accepted_synonyms?: unknown
       blanks_config?: unknown
-    }>
+    }>(data, 'get_vfr_rt_exam_questions')
     expect(Array.isArray(rows)).toBe(true)
     expect(rows).toHaveLength(25)
 
@@ -180,7 +184,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<{ id: string }>
+    const rows = requireRpcRows<{ id: string }>(data, 'get_vfr_rt_exam_questions')
     expect(rows.map((r) => r.id)).toEqual(sessionQuestionIds)
   })
 
@@ -189,7 +193,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<Record<string, unknown>>
+    const rows = requireRpcRows<Record<string, unknown>>(data, 'get_vfr_rt_exam_questions')
     const row = rows.find((r) => r.id === saId)
     expect(row).toBeDefined()
     // These keys must be absent from the returned row entirely
@@ -204,7 +208,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<Record<string, unknown>>
+    const rows = requireRpcRows<Record<string, unknown>>(data, 'get_vfr_rt_exam_questions')
     const dfRow = rows.find((r) => r.id === dfId)
     expect(dfRow).toBeDefined()
 
@@ -234,7 +238,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<Record<string, unknown>>
+    const rows = requireRpcRows<Record<string, unknown>>(data, 'get_vfr_rt_exam_questions')
     const mcRow = rows.find((r) => r.id === mcId)
     expect(mcRow).toBeDefined()
     const opts = mcRow!.options as Array<Record<string, unknown>>
@@ -253,7 +257,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<Record<string, unknown>>
+    const rows = requireRpcRows<Record<string, unknown>>(data, 'get_vfr_rt_exam_questions')
     expect(rows).toHaveLength(25)
     for (const row of rows) {
       expect('explanation_text' in row).toBe(false)
@@ -296,7 +300,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_session_id: completedSessionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<Record<string, unknown>>
+    const rows = requireRpcRows<Record<string, unknown>>(data, 'get_vfr_rt_exam_questions')
     expect(rows).toHaveLength(3)
     // The frozen question order holds on the completed path too
     expect(rows.map((r) => r.id)).toEqual([saId, dfId, mcId])
@@ -334,7 +338,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
         p_session_id: sessionId,
       })
       expect(error).toBeNull()
-      const rows = data as unknown as Array<{ id: string }>
+      const rows = requireRpcRows<{ id: string }>(data, 'get_vfr_rt_exam_questions')
       expect(rows).toHaveLength(25)
       expect(rows.map((r) => r.id)).toContain(carveOutId)
     } finally {
@@ -378,7 +382,10 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p_subject_id: rtSubjectId,
     })
     expect(startErr).toBeNull()
-    const foreignSessionId = (startData as unknown as { session_id: string }).session_id
+    const foreignSessionId = requireRpcResult<{ session_id: string }>(
+      startData,
+      'start_vfr_rt_exam_session',
+    ).session_id
     expect(foreignSessionId).toBeTruthy()
 
     // Positive control: the owner can read their own session's questions.
@@ -542,7 +549,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
         p_session_id: mixedSessionId,
       })
       expect(error).toBeNull()
-      const rows = data as unknown as Array<{ id: string }>
+      const rows = requireRpcRows<{ id: string }>(data, 'get_vfr_rt_exam_questions')
       expect(rows).toHaveLength(1)
       expect(rows[0]!.id).toBe(saId)
       expect(rows.map((r) => r.id)).not.toContain(foreignQuestionId)

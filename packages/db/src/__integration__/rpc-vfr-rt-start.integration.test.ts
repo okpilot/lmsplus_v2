@@ -15,6 +15,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
 import { createTestOrg, createTestUser, getAuthenticatedClient } from './setup'
 import {
   admin,
@@ -377,13 +378,13 @@ describe('RPC: start_vfr_rt_exam_session', () => {
       p_subject_id: rtSubjectId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       session_id: string
       question_ids: string[]
       time_limit_seconds: number
       parts: { p1_end: number; p2_end: number; p3_end: number }
       started_at: string
-    }
+    }>(data, 'start_vfr_rt_exam_session')
     expect(result).toBeTruthy()
     expect(typeof result.session_id).toBe('string')
     expect(result.session_id).toMatch(
@@ -402,13 +403,19 @@ describe('RPC: start_vfr_rt_exam_session', () => {
       p_subject_id: rtSubjectId,
     })
     expect(err1).toBeNull()
-    const first = firstData as unknown as { session_id: string; question_ids: string[] }
+    const first = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      firstData,
+      'start_vfr_rt_exam_session',
+    )
 
     const { data: secondData, error: err2 } = await studentClient.rpc('start_vfr_rt_exam_session', {
       p_subject_id: rtSubjectId,
     })
     expect(err2).toBeNull()
-    const second = secondData as unknown as { session_id: string; question_ids: string[] }
+    const second = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      secondData,
+      'start_vfr_rt_exam_session',
+    )
 
     // Same session id
     expect(second.session_id).toBe(first.session_id)
@@ -430,7 +437,7 @@ describe('RPC: start_vfr_rt_exam_session', () => {
       { p_subject_id: rtSubjectId },
     )
     expect(activeErr).toBeNull()
-    const active = activeData as unknown as { session_id: string }
+    const active = requireRpcResult<{ session_id: string }>(activeData, 'start_vfr_rt_exam_session')
 
     // Force-end the session (simulate exam completion at DB level).
     const { data: closed, error: closeErr } = await admin
@@ -452,7 +459,10 @@ describe('RPC: start_vfr_rt_exam_session', () => {
       p_subject_id: rtSubjectId,
     })
     expect(newErr).toBeNull()
-    const newSession = newData as unknown as { session_id: string; question_ids: string[] }
+    const newSession = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      newData,
+      'start_vfr_rt_exam_session',
+    )
     expect(typeof newSession.session_id).toBe('string')
     expect(newSession.session_id).not.toBe(active.session_id)
     expect(Array.isArray(newSession.question_ids)).toBe(true)
