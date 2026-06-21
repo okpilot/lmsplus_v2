@@ -187,8 +187,10 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     expect(preVoidError?.message ?? '').toMatch(/code_not_found/i)
 
     // issue: dummy subject_id + dummy student_id → student_not_found (subject
-    // exists in the seed; ensureExamConfig means exam_config_required is not
-    // raised; the guard fires at the student-in-same-org lookup).
+    // exists in the seed; the dummy student UUID guarantees student_not_found,
+    // which fires BEFORE exam_config_required in the guard order (mig 087 L288 vs
+    // L307) — so ensureExamConfig in beforeAll is future-proofing, not strictly
+    // required for this assertion. The guard fires at the student-in-same-org lookup).
     const dummyStudentId = crypto.randomUUID()
     const { data: preIssueData, error: preIssueError } = await softDelAdminClient.rpc(
       'issue_internal_exam_code',
@@ -282,10 +284,11 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     expect(recordResult?.error?.message ?? '').toMatch(/not_admin|admin_not_found/i)
     expect(recordResult?.data).toBeNull()
 
-    // void_internal_exam_code must be rejected by the admin gate.
-    // invalid_reason fires AFTER not_admin (mig 084 L57-61) but BEFORE
-    // admin_not_found — the non-blank reason ensures the rejection is from the
-    // admin gate, not from the reason validation guard.
+    // void_internal_exam_code must be rejected by the admin gate. The soft-deleted
+    // admin hits not_admin FIRST (is_admin() deleted_at filter), so the reason
+    // string is irrelevant to THIS rejection — invalid_reason is never reached.
+    // (The non-blank reason matters only for the pre-delete POSITIVE control above,
+    // so the active admin passes the reason guard and reaches code_not_found.)
     expect(voidResult?.error).not.toBeNull()
     expect(voidResult?.error?.message ?? '').toMatch(/not_admin|admin_not_found/i)
     expect(voidResult?.data).toBeNull()
