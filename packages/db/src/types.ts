@@ -1429,7 +1429,9 @@ export type Database = {
       get_quiz_questions: {
         Args: { p_question_ids: string[] }
         Returns: {
+          blanks_safe: Json
           difficulty: string
+          dialog_template: string
           explanation_image_url: string
           explanation_text: string
           id: string
@@ -1438,6 +1440,7 @@ export type Database = {
           question_image_url: string
           question_number: string
           question_text: string
+          question_type: string
           subject_code: string
           subtopic_name: string
           topic_name: string
