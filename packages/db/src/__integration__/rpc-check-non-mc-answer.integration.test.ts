@@ -28,9 +28,6 @@ type CheckNonMcResult = {
 
 /** Runtime-guard the jsonb result (code-style.md §5 — cast guard applies in tests). */
 function asResult(data: unknown): CheckNonMcResult {
-  if (!data || typeof data !== 'object') {
-    throw new Error('check_non_mc_answer returned a non-object')
-  }
   return requireRpcResult<CheckNonMcResult>(data, 'check_non_mc_answer')
 }
 
