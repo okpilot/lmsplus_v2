@@ -104,12 +104,14 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
         userRow.role !== 'admin' ||
         userRow.deleted_at !== null
       ) {
-        const { error: updateError } = await admin
+        const { data: realigned, error: updateError } = await admin
           .from('users')
           .update({ organization_id: orgId, role: 'admin', deleted_at: null })
           .eq('id', existing.id)
+          .select('id')
         if (updateError)
           throw new Error(`beforeAll: realign user row failed: ${updateError.message}`)
+        if (!realigned?.length) throw new Error('beforeAll: realign user row affected 0 rows')
       }
     } else {
       // Create new auth user.
