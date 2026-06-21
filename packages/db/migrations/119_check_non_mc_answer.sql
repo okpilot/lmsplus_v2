@@ -255,8 +255,17 @@ BEGIN
       v_blank_results := v_blank_results || jsonb_build_array(v_blank_result_row);
     END LOOP;
 
-    -- Top-level is_correct = true iff ALL blanks are correct.
-    v_is_correct := v_all_correct;
+    -- Top-level is_correct = true iff EVERY blank in blanks_config was both
+    -- answered AND correct (full coverage) — not merely that all *submitted*
+    -- blanks were correct. A half-filled dialog must NOT read as "correct"
+    -- (mirrors the exam grader's full-config denominator, mig 113). The
+    -- DISTINCT count is duplicate-safe: two entries for one index can't fake
+    -- coverage of a missing one.
+    v_is_correct := v_all_correct AND (
+      SELECT count(DISTINCT (e->>'blank_index')::int)
+      FROM jsonb_array_elements(p_blank_answers) AS e
+      WHERE (e->>'blank_index') ~ '^\d{1,4}$'
+    ) = jsonb_array_length(v_blanks);
 
     RETURN jsonb_build_object(
       'is_correct',           v_is_correct,
