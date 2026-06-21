@@ -177,6 +177,17 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Admin permission required')
     })
 
+    it('surfaces an admin-permission error when the admin account is no longer active', async () => {
+      // admin_not_found is the backstop the RPC raises when the active-user
+      // re-select misses (a soft-deleted admin) — it must route to the same
+      // user-facing string as not_admin, not fall through to the generic message.
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'admin_not_found' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Admin permission required')
+    })
+
     it('surfaces a blank-reason error when the reason is whitespace-only', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })

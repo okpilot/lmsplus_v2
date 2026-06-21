@@ -141,31 +141,17 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
   })
 
   test.afterAll(async () => {
-    // Hard-delete the dedicated throwaway admin (auth + public.users row).
-    // This user has no meaningful FK children (no codes, sessions, or audit rows
-    // beyond what this spec may write — which are either rejected or rolled back).
-    // Two steps → error-accumulator pattern (code-style.md §7).
-    const errors: string[] = []
-
+    // Delete the auth user only: public.users.id REFERENCES auth.users(id)
+    // ON DELETE CASCADE (mig 001), so removing the auth user also removes the
+    // public.users row. Single step → no error-accumulator needed (code-style.md
+    // §7 exempts single-step cleanups). Deleting auth-FIRST (rather than the
+    // public.users row first) avoids orphaning the auth user if the row delete
+    // were ever blocked by a future FK child (e.g. an audit_events row written by
+    // a future RPC change that logs rejected admin calls).
     if (softDelAdminId) {
-      try {
-        const { error: deleteUserErr } = await admin.from('users').delete().eq('id', softDelAdminId)
-        if (deleteUserErr) throw new Error(`afterAll: delete users row: ${deleteUserErr.message}`)
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
-      }
-
-      if (errors.length === 0) {
-        try {
-          const { error: deleteAuthErr } = await admin.auth.admin.deleteUser(softDelAdminId)
-          if (deleteAuthErr) throw new Error(`afterAll: delete auth user: ${deleteAuthErr.message}`)
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : String(e))
-        }
-      }
+      const { error: deleteAuthErr } = await admin.auth.admin.deleteUser(softDelAdminId)
+      if (deleteAuthErr) throw new Error(`afterAll: delete auth user: ${deleteAuthErr.message}`)
     }
-
-    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test('soft-deleted admin JWT is rejected by all three internal-exam admin RPCs with no audit side effect (Vector EI)', async () => {
@@ -222,7 +208,7 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
       .select('id', { count: 'exact', head: true })
       .eq('actor_id', softDelAdminId)
     expect(preCountErr).toBeNull()
-    expect(typeof preCount).toBe('number')
+    expect(preCount).not.toBeNull()
 
     // ── Step 3: Soft-delete the admin + post-delete rejection assertions ─────
     //
@@ -280,8 +266,9 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     }
 
     // ── Step 4: Assert rejections (outside finally) ─────────────────────────
-
-    expect(restoreError).toBeNull()
+    // The security proof (did the RPCs reject the soft-deleted admin?) is the
+    // primary purpose — assert it BEFORE the infra restoreError check (Step 6) so
+    // a rejection regression yields the actionable CI failure, not restore noise.
 
     // record_internal_exam_code_emailed must be rejected by the admin gate.
     //
@@ -318,5 +305,11 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
       .eq('actor_id', softDelAdminId)
     expect(postCountErr).toBeNull()
     expect(postCount).toBe(preCount)
+
+    // ── Step 6: Infra check last ────────────────────────────────────────────
+    // The throwaway admin was restored (deleted_at cleared) in the finally above,
+    // so afterAll's cascade delete runs cleanly and a repeat run finds a clean
+    // state. Asserted last so a restore failure never masks the security proof.
+    expect(restoreError).toBeNull()
   })
 })

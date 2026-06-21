@@ -138,6 +138,14 @@ describe('issueInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Admin permission required')
     })
 
+    it('maps admin_not_found', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'admin_not_found' } })
+      const result = await issueInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Admin permission required')
+    })
+
     it('maps student_not_found', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'student_not_found' } })
