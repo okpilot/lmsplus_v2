@@ -320,10 +320,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     passed: boolean | null
   }
   function asBatchResult(data: unknown): BatchResult {
-    if (!data || typeof data !== 'object') {
-      throw new Error('batch_submit_quiz returned a non-object')
-    }
-    return data as BatchResult
+    return requireRpcResult<BatchResult>(data, 'batch_submit_quiz')
   }
 
   beforeAll(async () => {
