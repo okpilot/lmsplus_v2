@@ -64,7 +64,7 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     question_number: q.question_number,
     explanation_text: q.explanation_text,
     explanation_image_url: q.explanation_image_url,
-    options: (q.options as { id: string; text: string }[]) ?? [],
+    options: Array.isArray(q.options) ? (q.options as { id: string; text: string }[]) : [],
     question_type: q.question_type,
     dialog_template: q.dialog_template,
     blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
