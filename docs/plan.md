@@ -9,9 +9,9 @@
 
 **COMPLETE (Phases 0–4)** — closes the app-layer query test gap that let `.is('deleted_at', null)` on `easa_subjects` (no such column) ship to production and escape every gate except semantic-reviewer.
 
-- **Phases 0–1** (`fb2921c6`): integration harness (`apps/web/vitest.integration.config.ts`) + read-path coverage. Real `apps/web` query code vs real local Postgres; only `next/headers` cookies mocked; `signInAs` seats a real RLS session.
-- **Phase 2** (`f4c76c83`): full mutation-lifecycle coverage (quiz start/submit/check/complete/batch + exam + internal-exam) — asserts the Server Action contract, not RPC internals.
-- **Phase 3** (`248820da`): mechanical guards — `.claude/hooks/check-soft-delete-guard.mjs` (chain-aware; blocks `.is('deleted_at')` on the 7 no-soft-delete tables; pre-commit + CI) + biome `noRestrictedImports` blocking production import of `@repo/db/test-helpers`.
+- **Phases 0–1** (PR #927, squash `fb2921c6`): integration harness (`apps/web/vitest.integration.config.ts`) + read-path coverage. Real `apps/web` query code vs real local Postgres; only `next/headers` cookies mocked; `signInAs` seats a real RLS session.
+- **Phase 2** (PR #930, squash `f4c76c83`): full mutation-lifecycle coverage (quiz start/submit/check/complete/batch + exam + internal-exam) — asserts the Server Action contract, not RPC internals.
+- **Phase 3** (PR #934, squash `248820da`): mechanical guards — `.claude/hooks/check-soft-delete-guard.mjs` (chain-aware; blocks `.is('deleted_at')` on the 7 no-soft-delete tables; pre-commit + CI) + biome `noRestrictedImports` blocking production import of `@repo/db/test-helpers`.
 - **Phase 4**: promoted the learnings to binding rules — code-style.md §5 (column-existence + cast-guard-applies-to-tests) and §7 (HARD new-query-site integration-test policy + non-vacuous integration-assertion rule) + Decision 46.
 
 **Follow-ups:** #926 (P1/L — backfill ~40 uncovered app-layer sites), #933 (P2/M — schema-aware column guard generalizing the 7-table list), #938 (P2/M — §5 cast-guard sweep of the packages/db integration suite).
