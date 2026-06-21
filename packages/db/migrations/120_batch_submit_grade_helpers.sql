@@ -3,15 +3,21 @@
 -- below the 300-line cap and make it type-aware (#697, Phase 2 — short_answer
 -- + dialog_fill support).
 --
--- SECURITY NOTE — REVOKE FROM PUBLIC (new pattern).
--- CREATE [OR REPLACE] FUNCTION grants EXECUTE to PUBLIC by default. Helpers
--- prefixed with "_" are internal and must NOT be callable by authenticated
+-- SECURITY NOTE — REVOKE FROM PUBLIC, anon, authenticated (new pattern).
+-- CREATE [OR REPLACE] FUNCTION grants EXECUTE to PUBLIC by default, AND Supabase
+-- additionally grants EXECUTE on new public functions to anon/authenticated via
+-- ALTER DEFAULT PRIVILEGES (a separate grant from the PUBLIC one). Helpers
+-- prefixed with "_" are internal and must NOT be callable by anon/authenticated
 -- users via PostgREST — a direct call would bypass batch_submit_quiz's
--- auth/owner/mode guards, allowing a student to forge graded rows for any
--- question. Each helper therefore carries REVOKE EXECUTE ... FROM PUBLIC
--- immediately after its CREATE. The owning postgres role retains EXECUTE and
--- the dispatcher (also SECURITY DEFINER owned by postgres) can still call them.
--- DO NOT add GRANT EXECUTE ... TO authenticated on any helper in this file.
+-- auth/owner/mode guards (these helpers TRUST their p_student_id/p_session_id/
+-- p_org_id args and carry NO auth.uid() check of their own), allowing a student
+-- to forge graded rows for any question/session. REVOKE EXECUTE ... FROM PUBLIC
+-- alone is INSUFFICIENT — it leaves Supabase's explicit anon/authenticated grant
+-- intact (CI caught a direct authenticated call reaching the body, #952). Each
+-- helper therefore revokes EXECUTE from PUBLIC, anon, AND authenticated
+-- immediately after its CREATE. The owning postgres role retains EXECUTE and the
+-- dispatcher (also SECURITY DEFINER owned by postgres) can still call them.
+-- DO NOT add GRANT EXECUTE ... TO anon/authenticated on any helper in this file.
 --
 -- Depends on:
 --   mig 094  (question_type, canonical_answer, accepted_synonyms, blanks_config)
@@ -85,9 +91,10 @@ BEGIN
 END;
 $$;
 
--- SECURITY: revoke direct PostgREST access — only postgres (owner) may call.
--- See file-header note.
-REVOKE EXECUTE ON FUNCTION _grade_record_mc(uuid,uuid,uuid,uuid,text,text,jsonb,int) FROM PUBLIC;
+-- SECURITY: revoke anon/authenticated PostgREST access (Supabase default-grants
+--   both via ALTER DEFAULT PRIVILEGES) — the dispatcher calls these as the
+-- postgres owner. See file-header note.
+REVOKE EXECUTE ON FUNCTION _grade_record_mc(uuid,uuid,uuid,uuid,text,text,jsonb,int) FROM PUBLIC, anon, authenticated;
 
 -- ============================================================
 -- 2. _grade_record_short_answer
@@ -146,8 +153,10 @@ BEGIN
 END;
 $$;
 
--- SECURITY: revoke direct PostgREST access — only postgres (owner) may call.
-REVOKE EXECUTE ON FUNCTION _grade_record_short_answer(uuid,uuid,uuid,uuid,text,text,text[],int) FROM PUBLIC;
+-- SECURITY: revoke anon/authenticated PostgREST access (Supabase default-grants
+--   both via ALTER DEFAULT PRIVILEGES) — the dispatcher calls these as the
+-- postgres owner. See file-header note.
+REVOKE EXECUTE ON FUNCTION _grade_record_short_answer(uuid,uuid,uuid,uuid,text,text,text[],int) FROM PUBLIC, anon, authenticated;
 
 -- ============================================================
 -- 3. _grade_record_dialog_fill
@@ -227,5 +236,7 @@ BEGIN
 END;
 $$;
 
--- SECURITY: revoke direct PostgREST access — only postgres (owner) may call.
-REVOKE EXECUTE ON FUNCTION _grade_record_dialog_fill(uuid,uuid,uuid,uuid,int,text,jsonb,int) FROM PUBLIC;
+-- SECURITY: revoke anon/authenticated PostgREST access (Supabase default-grants
+--   both via ALTER DEFAULT PRIVILEGES) — the dispatcher calls these as the
+-- postgres owner. See file-header note.
+REVOKE EXECUTE ON FUNCTION _grade_record_dialog_fill(uuid,uuid,uuid,uuid,int,text,jsonb,int) FROM PUBLIC, anon, authenticated;
