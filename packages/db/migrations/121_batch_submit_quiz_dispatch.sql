@@ -86,7 +86,8 @@ BEGIN
     SELECT count(DISTINCT qsa.question_id)::int INTO v_answered
     FROM quiz_session_answers qsa WHERE qsa.session_id = p_session_id;
     -- §15 carve-out: no deleted_at filter — question_ids are immutable write-once
-    -- (trg_quiz_sessions_immutable_columns, mig 079); docs/security.md §15.
+    -- (trg_quiz_sessions_immutable_columns, mig 079); docs/security.md §15,
+    -- docs/database.md §3 "Scoring Soft-Deleted Questions".
     SELECT jsonb_agg(jsonb_build_object(
       'question_id',           qsa.question_id,
       'is_correct',            qsa.is_correct,
@@ -149,7 +150,8 @@ BEGIN
   END IF;
 
   -- §15 carve-out: no deleted_at filter — IDs from the immutable write-once
-  -- quiz_sessions.config.question_ids (mig 079); docs/security.md §15.
+  -- quiz_sessions.config.question_ids (mig 079); docs/security.md §15,
+  -- docs/database.md §3 "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT q.id, q.question_type,

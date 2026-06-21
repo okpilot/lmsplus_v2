@@ -234,6 +234,12 @@ BEGIN
         RAISE EXCEPTION 'invalid_blank_index';
       END IF;
 
+      -- Data-integrity guard mirroring the short_answer canonical NULL check
+      -- above: no schema CHECK enforces a non-null canonical per blank.
+      IF v_blank_canonical IS NULL THEN
+        RAISE EXCEPTION 'question_blank_missing_canonical';
+      END IF;
+
       v_norm        := normalize_answer(coalesce(v_blank_entry->>'response_text', ''));
       v_blank_correct := (v_norm <> '' AND (
         v_norm = COALESCE(normalize_answer(v_blank_canonical), '')

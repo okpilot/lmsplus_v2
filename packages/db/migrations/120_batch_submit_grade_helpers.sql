@@ -191,6 +191,14 @@ BEGIN
       p_blank_index, p_question_id;
   END IF;
 
+  -- Data-integrity guard mirroring _grade_record_short_answer's canonical NULL
+  -- check (line ~117): no schema CHECK enforces a non-null canonical per blank,
+  -- so a corrupt blanks_config entry would silently grade every answer wrong.
+  IF v_blank_canonical IS NULL THEN
+    RAISE EXCEPTION 'blank % of question % has no canonical answer',
+      p_blank_index, p_question_id;
+  END IF;
+
   -- coalesce to '' so a NULL/absent student answer grades as incorrect rather
   -- than yielding NULL is_correct (NOT NULL column → 23502). Mirrors the grader
   -- check_non_mc_answer (mig 119).
