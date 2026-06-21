@@ -85,9 +85,7 @@ BEGIN
   IF v_ended_at IS NOT NULL THEN
     SELECT count(DISTINCT qsa.question_id)::int INTO v_answered
     FROM quiz_session_answers qsa WHERE qsa.session_id = p_session_id;
-    -- §15 carve-out: no deleted_at filter — question_ids are immutable write-once
-    -- (trg_quiz_sessions_immutable_columns, mig 079); docs/security.md §15,
-    -- docs/database.md §3 "Scoring Soft-Deleted Questions".
+    -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.
     SELECT jsonb_agg(jsonb_build_object(
       'question_id',           qsa.question_id,
       'is_correct',            qsa.is_correct,
@@ -149,9 +147,7 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id (or question_id+blank_index) in answers payload';
   END IF;
 
-  -- §15 carve-out: no deleted_at filter — IDs from the immutable write-once
-  -- quiz_sessions.config.question_ids (mig 079); docs/security.md §15,
-  -- docs/database.md §3 "Scoring Soft-Deleted Questions".
+  -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT q.id, q.question_type,
@@ -233,6 +229,7 @@ BEGIN
   -- DISTINCT-question score aggregation: dialog_fill folds per-blank rows into partial
   -- credit (v_correct_credit = numeric sum, score numerator, Decision 47); v_correct_count
   -- = integer fully-correct question count stored in quiz_sessions.correct_count.
+  -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.
   WITH session_questions AS (
     SELECT q.id AS question_id,
            CASE WHEN q.question_type = 'dialog_fill'
