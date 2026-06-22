@@ -27,6 +27,8 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
       })
       if (result.success) {
         clearActiveSession(userId)
+        // Non-critical cleanup fired before the terminal nav; setLoading is a sync state
+        // update, so router.replace stays the last statement (code-style.md §6).
         clearDeploymentPin().catch(() => {})
         setLoading(false)
         router.replace('/app/quiz')
@@ -40,16 +42,21 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
     }
   }
 
-  function handleDiscard() {
+  async function handleDiscard() {
     if (loading) return
     setLoading(true)
     const captured = recovery
     clearActiveSession(userId)
+    // Non-critical cleanup: fire before the terminal nav (code-style.md §6).
     clearDeploymentPin().catch(() => {})
-    router.replace('/app/quiz')
+    // Critical: await the discard before navigating — a Server Action fired AFTER
+    // router.replace can cancel the soft-nav and strand the user (#568/#909; sweep #941).
     if (captured) {
-      discardQuiz({ sessionId: captured.sessionId, draftId: captured.draftId }).catch(() => {})
+      await discardQuiz({ sessionId: captured.sessionId, draftId: captured.draftId }).catch(
+        () => {},
+      )
     }
+    router.replace('/app/quiz')
   }
 
   return { loading, error, handleSave, handleDiscard }

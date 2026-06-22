@@ -96,6 +96,21 @@ reviews:
         - No useEffect for data fetching.
         - No direct Supabase calls.
 
+    # Terminal-navigation ordering — await Server Actions before terminal navigation (code-style.md §6)
+    - path: "apps/web/app/**/{_hooks,_components}/**"
+      instructions: |
+        Await Server Actions before terminal navigation:
+        - A terminal navigation is router.push()/router.replace()/window.location.assign() to a
+          different page; it must be the last statement on its path. router.refresh() is NOT
+          terminal (user stays in place) — exempt.
+        - Critical mutations (discardQuiz, deleteDraft) MUST be awaited before the terminal
+          navigation. Sequencing them before is insufficient — a slow action's revalidation can
+          cancel the pending soft-nav and strand the user (#568, #909).
+        - Non-critical fire-and-forget cleanup (clearDeploymentPin) must at least be fired before
+          the navigation so the navigation stays the last statement.
+        - Never invoke a Server Action after a terminal navigation (router.push/replace or
+          window.location.assign).
+
     # TypeScript — type safety
     - path: "**/*.ts"
       instructions: |
@@ -116,6 +131,13 @@ reviews:
           query helpers throw `Failed to fetch X: ${error.message}`; Server Actions console.error + return a
           generic message. Exempt PGRST116 (no rows) on .single()/.maybeSingle() expected-empty branches.
           Read-only test/setup helpers may wrap atomic chained reads in one try/catch.
+        - HTML/SVG/XML template builders: any function building an HTML/SVG/XML string via template
+          literals must escape caller-supplied or DB-derived `${...}` interpolations with an HTML-entity
+          escape helper (esc() or an equivalent entity-encoder) at the interpolation site — even when
+          current call sites are server-trusted (code-style.md §5).
+        - Never return a raw SDK `error.message` through an exported result type — from ANY source
+          (Postgres, Resend, Stripe, any third-party SDK). Log the raw error server-side (console.error)
+          and return a generic domain string or a closed error-literal union (code-style.md §5).
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"

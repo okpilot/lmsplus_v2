@@ -63,6 +63,8 @@ export function buildSaveHandler(
       })
       if (result.success) {
         clearActiveSession(userId)
+        // router.refresh() is non-terminal (user stays in place) — exempt from the
+        // await-before-terminal-nav rule (code-style.md §6).
         clearDeploymentPin().catch(() => {})
         router.refresh()
         setSession(null)
@@ -86,6 +88,8 @@ export function buildDiscardHandler(
   return function handleDiscard() {
     if (loading) return
     clearActiveSession(userId)
+    // No terminal navigation in this handler at all (the parent component navigates), so the
+    // await-before-terminal-nav rule (code-style.md §6) does not apply here.
     clearDeploymentPin().catch(() => {})
     if (session)
       discardQuiz({ sessionId: session.sessionId, draftId: session.draftId }).catch(() => {})
