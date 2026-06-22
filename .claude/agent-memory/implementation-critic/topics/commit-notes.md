@@ -1,0 +1,137 @@
+# implementation-critic — commit notes archive
+
+> Per-PR approval narrative and the positive-patterns log, relocated out of `MEMORY.md`
+> (#953 budget curation). The live tracker, durable knowledge, and false-positives stay in
+> `MEMORY.md`; this file holds the verbose per-commit detail. History also lives in `git log`.
+
+## Positive patterns
+
+- **VFR RT Phase 2 Task 2.2 (new check_non_mc_answer non-MC practice grader RPC): clean rule-11c sibling-guard clone + §15 membership-before-read ordering.** mig 119 + supabase mirror `20260621000200` byte-identical (`diff`). Genuinely NEW fn (CREATE OR REPLACE chain: only the staged files define it). Guard set mirrors LATEST check_quiz_answer (mig 117) EXACTLY: auth null → active-caller(users.deleted_at IS NULL) → owner+ended_at IS NULL+deleted_at(rule 11 multi-permissive scope) → practice whitelist IN('smart_review','quick_quiz') → config-shape explicit IS NULL → membership(=ANY frozen config.question_ids) → SET search_path=public + SECURITY DEFINER + GRANT EXECUTE only (no answer-key column-level grant). §15 CRITICAL invariant HOLDS: membership(L126) precedes the ONLY answer-key read(L138-153). Grading byte-faithful to submit_vfr_rt(mig 20260619000300 L160-207). ONLY finding: docs/security.md §15 RPC-list entry not yet present — correctly DEFERRED to doc-sync pass. SCOPE-SPLIT RULE: when a commit is intentionally migration-only, the central-doc cross-reference (security.md §15 list, RPC summary table) belongs to the doc-sync pass — do not flag as missing-from-this-commit ISSUE. APPROVED 2026-06-21, 0 CRITICAL/ISSUE.
+- **VFR RT Phase 2 Task 2.1 (extend get_quiz_questions for non-MC q-types): clean DROP+recreate + strip-precedent reuse + cast-guard.** mig 118 + supabase mirror `20260621000100` byte-identical (`diff`). DROP+CREATE for the RETURNS TABLE widen; 12 existing cols verbatim in mig-059 order + 3 new (question_type/dialog_template/blanks_safe). Phase-defeating LATERAL+GROUP BY correctly REPLACED by mig-105's correlated-subquery CASE. Strip logic byte-matches mig 105. NO answer-key cols selected. All guards preserved. Caller `load-session-questions.ts` uses `Array.isArray(q.blanks_safe) ? cast : null` (§5 cast-guard). APPROVED 2026-06-21, 0 findings.
+- **#925 Phase 4 C3 (coderabbit-sync + fixes commit): clean hash replacement + YAML placement + accuracy fixes.** All 5 dangling pre-squash hashes removed from code-style.md; both replacement squash refs (`fb2921c6`/`f4c76c83`) reachable on master. `.coderabbit.yaml` validates; new query-site instruction under `actions.ts` block, cast-guard instruction under `**/*.test.{ts,tsx}` block. Decision 46 edits accurate. APPROVED 2026-06-21.
+- **#925 Phase 4 C2 (docs-only commit): clean placement, preservation, no count-literal drift.** decisions.md Decision 46 correctly numbered/placed; footer prepends preserving prior chain. plan.md new section first `##`; integration-test count literals untouched. APPROVED 2026-06-21.
+- **#925 Phase 2 (quiz-action integration tests): clean paired-positive vacuity discipline + raw-coalescing guard.** 5 `.integration.test.ts`. Every cross-user/not-found negative paired with a positive proving the victim/own session resolves. batch-submit raw `toBeNull()`/`toBe(false)` (no in-test coalescing) guards source batch-submit.ts:73-74. §7 lifecycle test drives start→submit×3→complete through the action layer (66.67%, not echoed). APPROVED 2026-06-20, 2 SUGGESTIONs.
+- **#925 Phase 1 commit 1 (simple-read integration tests): clean count-isolation + RLS-vacuity reasoning.** `get_question_counts` SECURITY INVOKER scoped by `questions` tenant_isolation RLS → two orgs seeding 3 Qs each under shared easa_* refs → broken scope WOULD read 6, asserting 3 is non-vacuous. Omitting exam_configs `enabled:false` negative CORRECT (student_select_exam_configs USING already filters). APPROVED 2026-06-20.
+- **#925 Phase 0 app-layer DB integration tier: clean harness/plumbing.** `*.integration.test.ts` gated: unit vitest exclude + tsconfig exclude + dedicated tsconfig.integration.json. `@repo/db/test-helpers` re-export import-safe. `next/headers` cookie-jar mock hoist-safe; one globalThis jar so signInAs session persists. afterAll single internally-isolating cleanupTestData → §7 per-step-accumulator EXEMPT. APPROVED 2026-06-20, 2 SUGGESTIONs.
+- **#902 record-emailed E2E spec: clean hermiticity + non-vacuity pattern.** Per-step error-accumulator (2 independent try/catch/finally, sets cleared in finally), soft-delete of both internal_exam_codes + quiz_sessions with `.select('id')` + conditional log, EB existence proof before cross-org attack, consumed/voided seeding satisfies both pair-consistency CHECKs. APPROVED 2026-06-19.
+- **#915 EC E2E redesign: clean discrimination-control pattern for transport-dependent actions.** Dropping audit-count assertions was correct — the audit row requires a successful email send (RESEND_API_KEY absent in CI under NODE_ENV=production, resend.ts:29 fails closed → ok:false → 'Failed to send email' toast). NEXT_PUBLIC_APP_URL IS set in CI (e2e.yml:134/142), so the early-return guard at send-code-email.ts:42 does NOT fire — the discrimination control deterministically reaches 'Failed to send email' in CI. Regex /Code emailed to student|Failed to send email/ covers both local-configured and CI-no-key outcomes. Non-vacuity genuine. Voided seeding satisfies voided_pair_consistency. afterEach `.select('id')` + zero-row log per §5. APPROVED 2026-06-22, 0 CRITICAL/ISSUE.
+- **#945 EJ soft-deleted-admin answer-key spec: clean vacuity + hermiticity.** Two rejection regexes (`/forbidden|user not found/i`, `/forbidden|caller has no organization/i`) provably disjoint from the positive-control regex and each other. Dedicated throwaway admin distinct from EI's. Soft-delete asserts exactly 1 row; restore in finally, assert outside. afterAll cascade-delete (single step, §7 exempt). No audit-count check correctly dropped (read-only RPCs). APPROVED 2026-06-21.
+- **#864 has-image filter: clean mirror of calc-mode pattern.** DROP+CREATE targeted the 6-arg calc-mode overloads; all 3 bodies carried SECURITY INVOKER / SET search_path / STABLE/VOLATILE / status+deleted_at / auth.uid() verbatim; byte-identical two-dir mirror; imageMode threaded through both Zod schemas, both RPC wrappers, all 5 hooks, QuestionFilters. APPROVED 2026-06-14.
+- **#862 keyboard shortcuts: stale-closure ref pattern applied correctly.** `optsRef.current`/`highlightRef.current` set every render (outside the once-attached effect); `onKeyDown` reads via `.current`. Hooks before early return; `optionIds ?? []` safe; `enabled === false` strict-equality guard. APPROVED 2026-06-14.
+
+## Notes on PR-A3 sweep pattern
+
+- **Type-widening for DB-typed RPC columns (`n: number` in `get_question_counts`).** `exam-config/queries.ts` + `syllabus/queries.ts` apply `Number(row.n)` where DB types.ts declares `n: number`. `Number(n)` on a `number` is a harmless identity, correct at runtime if PostgREST sends a string. Do NOT flag the missing local type widening — the DB types are the contract.
+- **`(x != null ? Number(x) : null) ?? 0` is the correct pattern for nullable NUMERIC with a non-null fallback.** `quiz-report.ts` + `admin-quiz-report.ts` use this two-step form. Inner ternary handles null→null; outer `?? 0` is the pre-existing non-null default. Verified PR-A3.
+
+## Notes on PR-A2 sweep pattern
+
+- **GROUP 1 real-error tests omit console.error assertion.** upsert-subject/topic/subtopic real-error tests assert `result.success === false` + message but don't spy on `console.error`. Not flagged as ISSUE (plan only required the two behavioral outcomes); flagged as SUGGESTION.
+
+## Notes on middleware anti-cache headers + cookie-orphan fix (#446)
+
+- **Accepted trade-off on request-cookie propagation.** The old `response = NextResponse.next({ request })` in setAll propagated freshly-set request cookies into downstream Server Components. The mutate-in-place fix loses that path. Plan explicitly accepted this ("that benefit was already lost (orphaned response)"). Do NOT re-flag request-cookie propagation loss — documented trade-off.
+- **Duplicate not-throw test is a SUGGESTION-class finding, not ISSUE.** The added "does not throw when setAll is called without a headers argument" is semantically identical to the pre-existing "writes set-cookie headers...". Duplicate test cases are not flagged by Biome (contrast: named helpers → noUnusedVariables). Log as SUGGESTION only.
+
+## Notes on #533 loading-state commit 2 (answer-submit controls)
+
+- **Clean commit — all plan items verified.** Both AnswerOptions callers (quiz-main-panel + session-answer-block) thread `submitting`. `aria-busy={submitting || undefined}` emits no attribute when idle. `finish-quiz-dialog` `aria-busy` on Save for Later only (Submit uses text swap). `SessionRunner` unused (no callers) — no missed path. Internal-exam answer path goes through the same `session-answer-block.tsx` chain. False-positive guard: `finish-quiz-dialog.tsx` is 307 lines pre-existing; diff adds 7 lines — any file-size flag is on pre-existing bloat.
+
+## Notes on #533 Part C + regression fix (UNIT 1 + UNIT 2)
+
+- **consent-form canSubmit still includes `!isPending` — LoadingButton double-disables, behavior preserved.** `canSubmit = acceptedTos && acceptedPrivacy && !isPending` unchanged. With `loading={isPending}` AND `disabled={!canSubmit}`, LoadingButton computes `disabled={isPending || !canSubmit}` — functionally identical. Not a deviation.
+- **issue-code-form `canSubmit` refactor (remove `&& !isPending`) is behavior-preserving.** `canSubmit` guards `handleSubmit` (`if (!canSubmit) return`) AND the submit button. Since `loading={isPending}` already disables during pending, removing `&& !isPending` removes a redundant gate. The `if (!canSubmit) return` still covers double-submit.
+- **Files that retain `Button` alongside `LoadingButton` — correct.** All files still rendering a Cancel/Close button keep `Button`. Files that converted their ONLY button removed the import.
+- **quiz-main-panel `disabled={s.submitting}` revert is correct.** The previous `|| s.answering` blocked option clicks on the NEW question while the prior checkAnswer was in flight ("tracks answered count" test failed 1 vs 2). `lockedRef` prevents same-question double-submit; option-area disable is correctly scoped to session-level `s.submitting`.
+
+## Notes on #533 CR fix commit (CR-1/CR-2/CR-3)
+
+- **inFlightAnswers counter — nested try/finally pattern verified clean.** Outer try increments before the nested try; outer finally always decrements via `Math.max(0, n-1)`. Inner catch returns `false` then falls to outer finally. No double-decrement; counter cannot go negative.
+- **ConfirmPanel `busy` prop: `disabled={submitting}` retained, `aria-busy={busy||undefined}` scoped to own action.** Both call sites pass `busy={pendingAction === '<action>'}`. New test exercises `pendingAction==='save'` while submit-anyway panel open — attribute absent when wrong action pending.
+- **`h-7` is the genuine size="sm" class in button.tsx cva.** cva line 28: `sm: "h-7 ..."`. CR-3 assertion non-vacuous.
+
+## Notes on #789 recordAuthEvent wiring (commit 2)
+
+- **Client-level mock intercepts helper correctly.** Tests for all 4 action files mock `supabase.rpc` at the client object level. `recordAuthEvent` receives the same client and calls `supabase.rpc(...)` — `mockRpc` intercepts. No `vi.mock('@/lib/audit/record-auth-event')` needed.
+- **Plan description of MEMORY.md change was inaccurate (benign).** Plan said "typo correction"; actual was a new positive-signal bullet. Stale plan description, not a behavioral deviation.
+- **`toggle-student-status-mutations.ts` in `actions/` does not require own test.** §7 requires tests for new files in `_hooks/`/`_utils/`/`lib/`; `actions/` is not in that list. Existing `toggle-student-status.test.ts` covers both helpers end-to-end.
+
+## Notes on VFR RT Phase A migrations commit (#697)
+
+- **Large multi-migration commit (14 migrations): verbatim-copy diff approach.** For N verbatim-copy migrations with documented changes, run `diff <src> <dest>` to confirm ONLY documented changes appear — don't read both bodies line by line. Verified clean on #697.
+- **GDPR type widening for new nullable columns is a secondary change class.** New nullable columns (`response_text`, `blank_index`) → check 3 sites: SELECT string in the GDPR query, GdprExportPayload type (widen to `string | null`), test fixture (add fields as `null`). All 3 aligned in #697.
+- **tasks.md A.10 completed but checkbox not ticked.** Artifacts staged but checkbox not ticked. SUGGESTION class (workflows item).
+
+## Notes on #838 CR round-3 applies (legacy-mode whitelist + active-user gate)
+
+- **Mig 104 'not authenticated' (space) vs sibling 'not_authenticated' (underscore)** is a pre-existing divergence inherited from the copy source. Do not flag when the copy source is the source of truth. SUGGESTION only.
+- **`forceEndSession` inline (not try/finally) in whitelist tests** is safe: (a) `start_vfr_rt_exam_session` resumes idempotently; (b) `cleanupTestData` in afterAll hard-deletes all sessions by org_id. Hermetic without per-test try/finally.
+- **#838 review clean (0 CRITICAL, 0 ISSUE, 1 SUGGESTION)** — twin-file identity, guard placement, copy-source fidelity, test non-vacuity/hermiticity verified.
+- **Post-#838 fix-cycle commit APPROVED (0/0/1).** Mig 104 deleted_at guard test non-vacuous (rollback `ended_at IS NULL`), hermetic. Doc edits accurate (094–104 range, 15 files). plan.md 132→133. SUGGESTION: finally-block UPDATEs lack `.select('id')` — acceptable for cleanup per §5.
+- **PR #830 cloud-CR commit APPROVED (0/0/0).** Guard ordering verified in both RPCs. Twin-file identity. `submit_quiz_answer` block in database.md intentionally pre-#838 (prose bullets describe current model). vfr_rt rejection tests non-vacuous with narrowed whitelist. Exam-session cleanup uses `ended_at + deleted_at` soft-delete. plan.md both count lines updated. Code-block staleness pre-existing, not introduced.
+
+## Notes on agent-health.yml false-positive fix (#810)
+
+- **`var=$(cmd)` is exempt from `set -e`.** `set -euo pipefail` does NOT abort on a failing command substitution in a variable assignment. The old `|| true` after `xargs` was NOT load-bearing; removing it (replacing xargs with `trim()`) is safe.
+- **`trim()` placement in Check 3** — defined line 88 (before the while-loop), outside the loop. Correct hoisting.
+- **Check 4 security-auditor comment placement** — explanatory comment inside the while-loop body describes the `find` in the process substitution. Cosmetically misplaced — SUGGESTION only.
+
+## Notes on #796 spec-split (rpc-cross-tenant + audit-completeness)
+
+- **`cleanupFixtures` flagged_questions filter is student_id-unscoped by design.** Uses `.in('question_id', ...)` without student_id filter — intentionally broader. In the test DB only redteam seed users exist. Flagged ISSUE in review; may be accepted trade-off.
+- **`seedVictimResponses()` correctly belongs to the isolation spec, not the reports spec.** BY/BE/Q/X/CL3 tests in rpc-cross-tenant-reports.spec.ts seed their own fixtures. Do not flag the omission as missing non-vacuity seeding.
+- **force-token-refresh.ts helper is a Playwright E2E seam** — §7 Vitest test requirement does NOT apply to `e2e/redteam/helpers/*.ts`.
+
+## Notes on vfr-rt-spec-fixes (docs/697 branch, 2026-06-10)
+
+- **Spec cites stale "latest" migration identifier for batch_submit_quiz.** design.md + tasks.md named `20260430000012`; actual latest is `20260601000001_align_batch_submit_audit_metadata_keys.sql`. Flagged ISSUE. When a spec documents a "latest: <timestamp>" pointer, verify it's the most recent `CREATE OR REPLACE` before committing.
+- **Spec-specified guard message casing doesn't match cited precedent.** design.md mig 103 wrote `'session not found...'` (lowercase) citing `get_report_correct_options`; actual precedent uses capital 'S'. Test regex `/i` so no failure. When a spec says "same wording as X", grep X's RAISE string.
+- **discard.ts line count off by 1.** tasks.md said 104, actual 105. SUGGESTION.
+
+## Notes on redteam-e2e-coverage-batch (#784, #786, #788, #781)
+
+- **Spec-count drift in steering + decisions on new-spec batch** — adding 2 specs moves count 37→39. `tech.md` (3 places) + `docs/decisions.md` Decision 27. SUGGESTION (doc-updater handles post-commit).
+- **actor-liveness pre-check pattern confirmed.** rpc-record-auth-event.spec.ts beforeAll asserts all 3 RPC callers have `deleted_at IS NULL` before any test — prevents gate-2 pre-empting gate-3 assertions. Correct pattern.
+- **force-token-refresh.ts helper is a Playwright E2E seam, not a `_hooks/` util** — §7 does NOT apply to `e2e/redteam/helpers/*.ts`.
+- **CL2 non-vacuity acknowledged in plan as control, not the proof.** CL2 asserts error null + empty array for cross-org user with no sessions; CL3 is the non-vacuous ownership proof. Do not re-flag CL2.
+- **CT user.deactivated: soft-delete target without `.is('deleted_at', null)` guard is acceptable.** Service-role client doesn't enforce the soft-delete guard; afterEach restore uses `.not('deleted_at', 'is', null)`.
+- **RAISE-string casing verified for all 4 RPCs.** `record_auth_event` → `'not authenticated'`; `get_session_reports` → `'Not authenticated'`; `void_internal_exam_code` → `'not_authenticated'`. All anon assertions use case-insensitive regex.
+
+## Notes on #831 get_vfr_rt_exam_questions org-filter fix
+
+- **NULL-org guard doubles as NULL-user guard — confirmed again.** `SELECT u.organization_id INTO v_caller_org_id ... WHERE u.id = v_caller AND u.deleted_at IS NULL; IF v_caller_org_id IS NULL THEN RAISE` preserves the old EXISTS gate exactly. Mirrors mig 099 lines 67–71.
+- **questions.organization_id is NOT NULL (initial schema line 107).** `AND q.organization_id = v_caller_org_id` non-nullable both sides — no null-equality trap.
+- **adminUserId2 not pushed to the describe-scope `userIds` — correct by design.** Passed as `userIds: [adminUserId2]` in its own cleanupTestData call.
+
+## Notes on #869 batch_submit_quiz idempotent-replay output-contract test
+
+- **`score_percentage` serialization via jsonb RETURNS is a number, not a string.** `batch_submit_quiz` RETURNS jsonb; `v_score numeric(5,2)` in `jsonb_build_object` serializes as a JSON number. `toBe(100)`/`toBe(0)` correct. Do NOT flag as BIGINT/NUMERIC string-serialization (that applies to column-level SELECT reads, not RETURNS jsonb values). APPROVED 2026-06-19.
+- **`quick_quiz` leaves `passed` NULL** — mig 095c pass-mark gating (L247–257) only runs for mock_exam OR internal_exam. `v_passed` defaults NULL. Both `toBeNull()` correct.
+
+## Notes on PR #830 CR-local fixes (5 fixes, vfr_rt_exam race + test hardening)
+
+- **uq_vfr_rt_exam_session_active is the ONLY unique index that can fire on a `mode='vfr_rt_exam'` INSERT.** The three partial unique indexes predicate on mutually exclusive mode values; PK is `gen_random_uuid()`. Exception handler unambiguous; RETURN inside EXCEPTION exits before the audit INSERT.
+- **Fixture A correct_count = 34 verified from seed.** 8 SA + 9 dialog_fill ×2 blanks (18 rows) + 8 MC = 34 answer rows, all canonical → all true. Fixture B = 16 correct.
+- **`v_resume record` type is safe for EXCEPTION re-read SELECT.** Declared `record`; EXCEPTION SELECTs the same 4 columns used in RETURN. Type-safe.
+- **23505 test is hermetic post-cleanup.** Cleanup soft-deletes by student_id+org+subject+mode+IS NULL ended_at+IS NULL deleted_at. Happy-path after triggers its own fresh INSERT.
+
+## Notes on #326 attack-surface matrix registration (orphaned specs bookkeeping)
+
+- **Bookkeeping-only diff is comment/title changes only — no assertion/logic changes.** 3 spec files had ONLY `+` lines touching doc comments + describe/test titles. Zero assertion/logic changes confirmed.
+- **Old V/BE–BI labels correctly left in their original matrix rows.** Those rows reference sibling specs by filename — no edit needed. Grep of V/BE/BF/BG/BH/BI in the renamed files returns zero hits post-rename.
+- **Migration cite accuracy for bookkeeping PRs.** Matrix Notes cite line ranges (e.g. "L261-263") not exact lines; actual RAISE lines fall inside. Acceptable precision — do not flag range claims unless the RAISE string itself is wrong.
+
+## Notes on #833/#840 semantic-SUGGESTION fixes (mig 105 VOLATILE + cleanup.ts exam_configs + docs)
+
+- **VOLATILE drop confirmed clean.** `STABLE` removed from both mirrors (byte-identical via `cmp`); no TS caller, no integration test asserts volatility; not-yet-deployed migration.
+- **`exam_configs` FK order correct.** References `organizations(id)` — deleted BEFORE organizations (position 54 vs 56). `exam_config_distributions` is ON DELETE CASCADE → no explicit delete.
+- **`deleteOrLog` without `.select('id')` is the established cleanup.ts pattern.** All sibling calls omit the chain. `.select('id')` + zero-row-log only in `cleanupReferenceData` (different contract). Do not flag as §5 violation.
+- **Mig 094 GRANT confirmed.** `explanation_text` + `explanation_image_url` on lines 143–144 of the GRANT block.
+- **Line 2401 (pre-existing, outside diff) not inconsistent** — "revealed only via `get_vfr_rt_exam_results`" consistent with "only here among the VFR RT RPCs".
+
+## Notes on #832 verdict parser fix (run-security-auditor.sh)
+
+- **`set -euo pipefail` + non-zero function return in `if` condition is safe.** Bash exempts the condition of `if`/`while`/`until`. Both call sites in `if` positions. Do not flag as a `set -e` hazard.
+- **`${1:-}` guard is the correct `set -u` idiom for optional first argument.**
+- **Bash test scripts should use `set -u` only, NOT `set -e`.** The `|| actual=$?` exit-code capture works only when `set -e` is not active.
+- **Test false-pass risk via wrong path: exit 127 (file-not-found) ≠ expected 1 or 0 → FAIL.** All expected values are 0 or 1, so a bad hook path reports FAIL — cannot silently pass.
