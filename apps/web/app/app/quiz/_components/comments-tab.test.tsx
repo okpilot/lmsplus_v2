@@ -296,4 +296,40 @@ describe('CommentsTab', () => {
     await user.click(screen.getByRole('button', { name: 'Post' }))
     await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(2))
   })
+
+  it('allows a retry after the post handler throws', async () => {
+    // handleSubmit is an async function. When addComment throws, the finally
+    // block still runs (releasing the lock), but the rejected promise propagates
+    // out of handleSubmit. Because React discards the return value of onClick
+    // handlers, the rejection becomes an unhandled rejection at the Node process
+    // level. Intercept it with a process listener so Vitest does not fail the
+    // test on this expected network-error throw.
+    const suppressRejection = (reason: unknown) => {
+      if (reason instanceof Error && reason.message === 'network error') return
+      // Re-throw anything unexpected so it still fails the test.
+      throw reason
+    }
+    process.on('unhandledRejection', suppressRejection)
+
+    try {
+      mockAddComment.mockRejectedValueOnce(new Error('network error')).mockResolvedValueOnce(true)
+      const user = userEvent.setup()
+      render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+      const input = screen.getByPlaceholderText('Add a comment...')
+      await user.type(input, 'throw retry message')
+
+      // First attempt — throws. The finally block releases the lock.
+      await user.click(screen.getByRole('button', { name: 'Post' }))
+
+      // Wait for the button to become re-enabled: the finally block must have run.
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Post' })).not.toBeDisabled())
+
+      // Second attempt — succeeds. Confirms the lock was fully released.
+      await user.click(screen.getByRole('button', { name: 'Post' }))
+      await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(2))
+    } finally {
+      process.removeListener('unhandledRejection', suppressRejection)
+    }
+  })
 })
