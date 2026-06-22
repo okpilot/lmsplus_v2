@@ -37,10 +37,12 @@ export function useQuizSubmit(opts: {
     router: opts.router,
     setSubmitting: (v: boolean) => {
       setPendingAction(v ? action : null)
-      // Reset the re-entry lock when the action finishes without having succeeded
-      // (on success, onSuccess sets submitted.current = true first, so inFlight
-      // stays locked — terminal; on error, submitted is still false — retryable).
-      if (!v && !submitted.current) inFlight.current = false
+      // Reset the submit re-entry lock when the submit finishes without having
+      // succeeded (on success, onSuccess sets submitted.current = true first, so
+      // inFlight stays locked — terminal; on error, submitted is still false —
+      // retryable). Scoped to 'submit' so a save/discard completion can never
+      // reset an in-flight submit's lock (inFlight is only set by handleSubmit).
+      if (!v && action === 'submit' && !submitted.current) inFlight.current = false
     },
     setError,
   })

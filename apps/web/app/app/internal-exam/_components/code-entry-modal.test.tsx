@@ -215,4 +215,41 @@ describe('CodeEntryModal', () => {
     form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
     await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
   })
+
+  it('shows an error and allows a retry when sessionStorage write fails after a successful action response', async () => {
+    // The action succeeds but sessionStorage.setItem throws (e.g. quota exceeded or
+    // private-browsing restriction). The lock must reset (startedRef.current = false)
+    // so the student can retry, and the error banner must be shown.
+    mockStartInternalExam.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-abc',
+      questionIds: ['q-1'],
+      timeLimitSeconds: 1800,
+      passMark: 75,
+      startedAt: '2026-04-29T10:00:00.000Z',
+    })
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+
+    // Error banner shown — router must NOT have been called (no navigation on handoff failure).
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/unable to start internal exam/i),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+    // Lock is reset — student can retry; this time sessionStorage succeeds.
+    setItemSpy.mockRestore()
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+  })
 })

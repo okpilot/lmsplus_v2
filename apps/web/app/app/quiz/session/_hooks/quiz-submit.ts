@@ -137,6 +137,10 @@ export async function handleSubmitSession(opts: {
     opts.examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'
   if (opts.answers.size === 0 && !opts.isExam) {
     opts.setError('No answers to submit.')
+    // Release the caller's re-entry lock: this path never called setSubmitting(true),
+    // so without this the synchronous useRef gate in useQuizSubmit.handleSubmit would
+    // stay stuck and the student could never retry Submit in the same session.
+    opts.setSubmitting(false)
     return
   }
   if (opts.answers.size === 0 && opts.isExam) {
