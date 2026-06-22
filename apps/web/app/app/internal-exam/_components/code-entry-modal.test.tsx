@@ -152,4 +152,67 @@ describe('CodeEntryModal', () => {
     )
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
+
+  // ---- Synchronous re-entry guard -----------------------------------------
+
+  it('starts the exam once when the form is submitted twice before the action resolves', async () => {
+    // Never-resolving promise keeps isPending true so the button stays in the
+    // loading state, simulating a double-submit race.
+    mockStartInternalExam.mockReturnValue(new Promise(() => {}))
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+    // Dispatch two submit events back-to-back without awaiting the transition.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(1))
+  })
+
+  it('allows a retry after the action returns a failure response', async () => {
+    // First call fails, second call also fails — both must go through.
+    mockStartInternalExam
+      .mockResolvedValueOnce({ success: false, error: 'Code expired.' })
+      .mockResolvedValueOnce({ success: false, error: 'Code expired again.' })
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+
+    // First attempt — action returns a failure. Dispatch form submit and wait for
+    // the error alert to appear (confirming the action ran and setError was called).
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/code expired/i))
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+    // Lock resets on failure — second attempt dispatched after the alert confirms
+    // the transition settled must also invoke the action.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+  })
+
+  it('allows a retry after the action throws', async () => {
+    mockStartInternalExam
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce({ success: false, error: 'Code expired.' })
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+
+    // First attempt — action throws. Wait for the error alert (transition settled).
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i),
+    )
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+    // Lock resets after a throw — second attempt must proceed.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+  })
 })

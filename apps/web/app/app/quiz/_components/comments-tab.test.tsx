@@ -259,4 +259,41 @@ describe('CommentsTab', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByRole('button', { name: 'Post' })).not.toHaveAttribute('aria-busy')
   })
+
+  // ---- Synchronous re-entry guard -----------------------------------------
+
+  it('submits once when the button and Enter key fire simultaneously while a post is in flight', async () => {
+    // addComment never resolves so the component stays in the submitting state,
+    // simulating a concurrent click + Enter key race.
+    mockAddComment.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    const input = screen.getByPlaceholderText('Add a comment...')
+    await user.type(input, 'concurrent race')
+    // Fire click and Enter in the same tick to simulate a multi-source race.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    // Trigger the onKeyDown handler while the first submission is still in flight.
+    await user.keyboard('{Enter}')
+
+    expect(mockAddComment).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a failed post', async () => {
+    // First call fails (returns false), second call succeeds.
+    mockAddComment.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    const input = screen.getByPlaceholderText('Add a comment...')
+    await user.type(input, 'retry message')
+
+    // First attempt — fails.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(1))
+
+    // Lock should be released after failure — second attempt should go through.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(2))
+  })
 })

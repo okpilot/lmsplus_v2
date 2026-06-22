@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useComments } from '../session/_hooks/use-comments'
 import { getAvatarColor, getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
@@ -15,12 +15,16 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
   const { comments, isLoading, error, addComment, removeComment } = useComments(questionId)
   const [body, setBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
 
   async function handleSubmit() {
     if (!body.trim() || submitting) return
+    if (submittingRef.current) return
+    submittingRef.current = true
     setSubmitting(true)
     const ok = await addComment(body.trim())
     if (ok) setBody('')
+    submittingRef.current = false
     setSubmitting(false)
   }
 

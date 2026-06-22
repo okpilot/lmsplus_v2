@@ -24,6 +24,9 @@ export function useQuizSubmit(opts: {
   examMode?: DbQuizMode
 }) {
   const submitted = useRef(false)
+  // Synchronous one-shot re-entry guard for handleSubmit (multi-source: timer/click/keyboard).
+  // Separate from `submitted` (success flag) so failure resets the lock for retry.
+  const inFlight = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   // One action runs at a time (the dialog disables all buttons while any is pending),
   // so a single discriminator drives both per-button spinners and the derived `submitting`.
@@ -32,11 +35,19 @@ export function useQuizSubmit(opts: {
   const [error, setError] = useState<string | null>(null)
   const sharedFor = (action: Exclude<QuizPendingAction, null>) => ({
     router: opts.router,
-    setSubmitting: (v: boolean) => setPendingAction(v ? action : null),
+    setSubmitting: (v: boolean) => {
+      setPendingAction(v ? action : null)
+      // Reset the re-entry lock when the action finishes without having succeeded
+      // (on success, onSuccess sets submitted.current = true first, so inFlight
+      // stays locked — terminal; on error, submitted is still false — retryable).
+      if (!v && !submitted.current) inFlight.current = false
+    },
     setError,
   })
 
   function handleSubmit() {
+    if (inFlight.current || submitted.current) return
+    inFlight.current = true
     const pending = opts.pendingQuestionIdRef.current
     const safeAnswers =
       pending.size > 0
