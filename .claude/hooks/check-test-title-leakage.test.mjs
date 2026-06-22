@@ -144,6 +144,23 @@ test('extractAddedTitles handles the test() and test.each() function forms', () 
   )
 })
 
+test('extractAddedTitles detects a split-form title (it( and title on separate added lines)', () => {
+  const diff = ['@@ -0,0 +5,3 @@', '+  it(', "+    'maps admin_not_found',", '+    () => {})'].join(
+    '\n',
+  )
+  const found = extractAddedTitles(diff)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].title, 'maps admin_not_found')
+  assert.equal(found[0].line, 5) // attributed to the line where `it(` starts
+  assert.notEqual(analyzeTitle(found[0].title), null) // still flagged
+})
+
+test('extractAddedTitles does not join across a removed line', () => {
+  // A removed `it(` followed by an added title literal must NOT be stitched into a match.
+  const diff = ['@@ -5,1 +5,1 @@', '-  it(', "+    'maps admin_not_found',"].join('\n')
+  assert.deepEqual(extractAddedTitles(diff), [])
+})
+
 // --- splitByFile ----------------------------------------------------------
 
 test('splitByFile separates a multi-file diff by new path', () => {

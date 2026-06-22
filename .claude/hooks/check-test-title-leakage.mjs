@@ -103,10 +103,15 @@ export function analyzeTitle(title) {
 const TITLE_RE = /\b(it|test)(\.[A-Za-z0-9.()'"\s,[\]-]*)?\(\s*(['"`])((?:\\.|(?!\3).)*)\3/g
 
 /**
- * Extract every it()/test() title literal that appears on an ADDED diff line,
+ * Extract every it()/test() title literal that appears on ADDED diff lines,
  * with the new-file line number. Parses unified-diff text: hunk headers
- * (`@@ -a,b +c,d @@`) seed the new-file line counter; only `+` lines (excluding
- * the `+++` file header) are inspected.
+ * (`@@ -a,b +c,d @@`) seed the new-file line counter.
+ *
+ * A contiguous run of `+` lines is joined into one buffer before matching, so a
+ * split-form call — `it(` on one added line and the `'title'` literal on the
+ * next — is still detected (TITLE_RE's `\s*` between `(` and the quote spans the
+ * joined newline). The match is attributed to the source line where the
+ * `it(`/`test(` token starts (newlines before the match index index the run).
  *
  * @param {string} diffText output of `git diff … -U0`
  * @returns {{ line: number, title: string }[]}
@@ -114,28 +119,40 @@ const TITLE_RE = /\b(it|test)(\.[A-Za-z0-9.()'"\s,[\]-]*)?\(\s*(['"`])((?:\\.|(?
 export function extractAddedTitles(diffText) {
   const results = []
   let newLine = 0
+  /** @type {{ text: string, line: number }[]} current contiguous run of added lines */
+  let run = []
+  const flush = () => {
+    if (run.length === 0) return
+    const buffer = run.map((r) => r.text).join('\n')
+    TITLE_RE.lastIndex = 0
+    let m = TITLE_RE.exec(buffer)
+    while (m !== null) {
+      // The line of the match = the run entry at the count of newlines before it.
+      const nl = (buffer.slice(0, m.index).match(/\n/g) || []).length
+      results.push({ line: run[nl].line, title: m[4] })
+      m = TITLE_RE.exec(buffer)
+    }
+    run = []
+  }
   for (const raw of diffText.split('\n')) {
     if (raw.startsWith('@@')) {
+      flush() // a new hunk breaks the added run
       const m = /@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw)
       if (m) newLine = Number(m[1])
       continue
     }
     if (raw.startsWith('+++') || raw.startsWith('---')) continue
     if (raw.startsWith('+')) {
-      const content = raw.slice(1)
-      TITLE_RE.lastIndex = 0
-      let m = TITLE_RE.exec(content)
-      while (m !== null) {
-        results.push({ line: newLine, title: m[4] })
-        m = TITLE_RE.exec(content)
-      }
+      run.push({ text: raw.slice(1), line: newLine })
       newLine += 1
-    } else if (!raw.startsWith('-') && !raw.startsWith('\\')) {
-      // Context line — unreachable under -U0 (zero context), but kept so that
-      // removing -U0 in a future edit doesn't silently break line tracking.
-      newLine += 1
+    } else if (!raw.startsWith('\\')) {
+      // A removed line (or, only without -U0, a context line) breaks the added
+      // run. Context lines also advance the new-file counter; removed lines do not.
+      flush()
+      if (!raw.startsWith('-')) newLine += 1
     }
   }
+  flush()
   return results
 }
 
@@ -190,8 +207,14 @@ function collectOffendersStaged(args) {
     let diff = ''
     try {
       diff = git(['diff', '--cached', '--diff-filter=AM', '-U0', '--', file])
-    } catch {
-      continue // file deleted/renamed out of the index — nothing to check
+    } catch (err) {
+      // Fail CLOSED: a `git diff --cached` failure must not silently skip
+      // enforcement (a real git error would let a violating title through).
+      // A staged-deleted/renamed file does NOT error here — it yields an empty
+      // or deletion diff with no added lines — so reaching this catch means an
+      // actual git failure worth surfacing.
+      console.error(`✖ test-title guard: git diff --cached for ${file} failed: ${err.message}`)
+      exit(2)
     }
     for (const t of extractAddedTitles(diff)) {
       const label = analyzeTitle(t.title)
