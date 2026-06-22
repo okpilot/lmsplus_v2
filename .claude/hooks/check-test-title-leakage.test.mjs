@@ -144,6 +144,27 @@ test('extractAddedTitles handles the test() and test.each() function forms', () 
   )
 })
 
+test('extractAddedTitles handles the it.only/it.skip/test.concurrent modifier forms', () => {
+  // The guard must still catch a disallowed title behind a test modifier —
+  // `it.only`/`it.skip` are common in real test files. TITLE_RE's method-chain
+  // group spans the modifier; this pins it against a future regex regression.
+  const diff = [
+    '@@ -0,0 +1,3 @@',
+    "+  it.only('maps admin_error', () => {})",
+    "+  it.skip('forwards calcMode to startQuizSession', () => {})",
+    "+  test.concurrent('renders the chart', () => {})",
+  ].join('\n')
+  const found = extractAddedTitles(diff)
+  assert.deepEqual(
+    found.map((f) => f.title),
+    ['maps admin_error', 'forwards calcMode to startQuizSession', 'renders the chart'],
+  )
+  // The two disallowed titles are still flagged through the modifier; the third is clean.
+  assert.notEqual(analyzeTitle(found[0].title), null)
+  assert.notEqual(analyzeTitle(found[1].title), null)
+  assert.equal(analyzeTitle(found[2].title), null)
+})
+
 test('extractAddedTitles detects a split-form title (it( and title on separate added lines)', () => {
   const diff = ['@@ -0,0 +5,3 @@', '+  it(', "+    'maps admin_not_found',", '+    () => {})'].join(
     '\n',
