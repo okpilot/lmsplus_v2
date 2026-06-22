@@ -78,6 +78,9 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      - name: Wait for Supabase readiness
+        run: bash .github/scripts/wait-for-supabase.sh
+
       - name: Export Supabase env vars
         run: |
           eval "$(supabase status -o env)"
@@ -128,6 +131,9 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      - name: Wait for Supabase readiness
+        run: bash .github/scripts/wait-for-supabase.sh
+
       - name: Export Supabase env vars
         run: |
           eval "$(supabase status -o env)"
@@ -153,18 +159,6 @@ jobs:
 
       - name: Build app
         run: pnpm build
-
-      - name: Verify Supabase is healthy
-        run: |
-          echo "Checking Supabase API..."
-          curl -sf http://localhost:54321/auth/v1/health || {
-            echo "Supabase auth unhealthy — restarting..."
-            supabase stop && supabase start
-            sleep 5
-            curl -sf http://localhost:54321/auth/v1/health
-          }
-          echo "Supabase services:"
-          docker ps --format 'table {{.Names}}\t{{.Status}}' | grep supabase || true
 
       - name: Run Playwright tests
         run: pnpm --filter @repo/web e2e
