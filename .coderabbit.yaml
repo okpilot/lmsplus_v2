@@ -220,6 +220,10 @@ reviews:
           - 'matches <PascalCaseType>' or 'matches <internal helper>' — asserts
             congruence with internal type/helper. Describe externally observable
             behavior.
+          - 'maps <snake_case_token>' (e.g. 'maps admin_not_found', 'maps
+            question_type') — names a snake_case identifier (an error code like
+            an RPC RAISE/SDK code, or a DB field) instead of the user-facing
+            result. Describe what the user sees, not the token.
           Permitted (these are public contracts, not impl):
           - 'calls onClick when the button is clicked' — onClick is a public prop.
           - 'calls signInWithPassword on valid submit' — public SDK method.

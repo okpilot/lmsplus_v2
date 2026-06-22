@@ -5,11 +5,11 @@
 // shifts enforcement left from CR-local/code-reviewer (reactive, on the PR) to
 // authoring time (pre-commit) + the CI lint job.
 //
-// GRANDFATHERED + DIFF-SCOPED (decision recorded on #946): only titles ADDED or
-// MODIFIED in the change under inspection are checked. Pre-existing titles —
-// e.g. the many `maps <error_token>` titles already in issue-code.test.ts and
-// sibling action tests — are left untouched. A naive whole-file scan would block
-// commits repo-wide, so this guard reads `git diff` and inspects only `+` lines.
+// GRANDFATHERED + DIFF-SCOPED (decision recorded on #946): only titles on ADDED
+// (`+`) diff lines are checked. Pre-existing titles — e.g. the many
+// `maps <token>` titles already in issue-code.test.ts and sibling action tests —
+// are left untouched. A naive whole-file scan would block commits repo-wide, so
+// this guard reads `git diff` and inspects only `+` lines.
 //
 // Two modes:
 //   node check-test-title-leakage.mjs <file> [file ...]   # staged mode (lefthook): diff each file against the index's HEAD (`git diff --cached`)
@@ -131,7 +131,8 @@ export function extractAddedTitles(diffText) {
       }
       newLine += 1
     } else if (!raw.startsWith('-') && !raw.startsWith('\\')) {
-      // Context line (only present without -U0); advance the new-file counter.
+      // Context line — unreachable under -U0 (zero context), but kept so that
+      // removing -U0 in a future edit doesn't silently break line tracking.
       newLine += 1
     }
   }
@@ -144,47 +145,45 @@ function git(args) {
 
 const TEST_FILE_RE = /\.test\.(ts|tsx)$/
 
-/**
- * Collect added titles for each mode.
- * @returns {{ file: string, line: number, title: string, label: string }[]}
- */
-function collectOffenders(args) {
+/** Match each added title in a multi-file diff against §7 (file from each `diff --git` header). */
+function offendersFromDiff(diff) {
   const offenders = []
-  const baseIdx = args.indexOf('--base')
-  if (baseIdx !== -1) {
-    // CI mode: diff the whole PR range for test files only.
-    const base = args[baseIdx + 1]
-    if (!base) {
-      console.error('✖ test-title guard: --base requires a ref argument')
-      exit(2)
+  for (const { file, body } of splitByFile(diff)) {
+    for (const t of extractAddedTitles(body)) {
+      const label = analyzeTitle(t.title)
+      if (label) offenders.push({ file, line: t.line, title: t.title, label })
     }
-    let diff = ''
-    try {
-      diff = git([
-        'diff',
-        '--diff-filter=AM',
-        '-U0',
-        `${base}...HEAD`,
-        '--',
-        '*.test.ts',
-        '*.test.tsx',
-      ])
-    } catch (err) {
-      console.error(`✖ test-title guard: git diff against ${base} failed: ${err.message}`)
-      exit(2)
-    }
-    // git diff over multiple files emits `diff --git a/<f> b/<f>` separators.
-    for (const { file, body } of splitByFile(diff)) {
-      for (const t of extractAddedTitles(body)) {
-        const label = analyzeTitle(t.title)
-        if (label) offenders.push({ file, line: t.line, title: t.title, label })
-      }
-    }
-    return offenders
   }
-  // Staged mode (lefthook): one `git diff --cached` per passed test file.
-  const files = args.filter((p) => TEST_FILE_RE.test(p))
-  for (const file of files) {
+  return offenders
+}
+
+/** CI mode: diff the whole PR range (<base>...HEAD) for test files only. */
+function collectOffendersCI(base) {
+  if (!base) {
+    console.error('✖ test-title guard: --base requires a ref argument')
+    exit(2)
+  }
+  try {
+    const diff = git([
+      'diff',
+      '--diff-filter=AM',
+      '-U0',
+      `${base}...HEAD`,
+      '--',
+      '*.test.ts',
+      '*.test.tsx',
+    ])
+    return offendersFromDiff(diff)
+  } catch (err) {
+    console.error(`✖ test-title guard: git diff against ${base} failed: ${err.message}`)
+    exit(2)
+  }
+}
+
+/** Staged mode (lefthook): one `git diff --cached` per passed test file. */
+function collectOffendersStaged(args) {
+  const offenders = []
+  for (const file of args.filter((p) => TEST_FILE_RE.test(p))) {
     let diff = ''
     try {
       diff = git(['diff', '--cached', '--diff-filter=AM', '-U0', '--', file])
@@ -197,6 +196,16 @@ function collectOffenders(args) {
     }
   }
   return offenders
+}
+
+/**
+ * Dispatch to the CI (`--base <ref>`) or staged (file args) collector.
+ * @returns {{ file: string, line: number, title: string, label: string }[]}
+ */
+function collectOffenders(args) {
+  const baseIdx = args.indexOf('--base')
+  if (baseIdx !== -1) return collectOffendersCI(args[baseIdx + 1])
+  return collectOffendersStaged(args)
 }
 
 /**

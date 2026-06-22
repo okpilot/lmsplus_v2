@@ -100,6 +100,37 @@ test('extractAddedTitles handles double and template quotes', () => {
   )
 })
 
+test('extractAddedTitles handles escaped quotes inside a title', () => {
+  // The TITLE_RE `\\.` branch must consume an escaped delimiter so the title is
+  // not truncated — otherwise a violation could slip past as a false negative.
+  const diff = '@@ -0,0 +1 @@\n+  it("maps not_found when user\\"s token expired", () => {})'
+  const found = extractAddedTitles(diff)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].title, 'maps not_found when user\\"s token expired')
+  assert.notEqual(analyzeTitle(found[0].title), null) // the maps pattern still fires
+})
+
+test('extractAddedTitles handles the it.each(...) form', () => {
+  const diff = "@@ -0,0 +1 @@\n+  it.each([1, 2])('maps code_not_found for %s', () => {})"
+  const found = extractAddedTitles(diff)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].title, 'maps code_not_found for %s')
+})
+
+test('extractAddedTitles tracks line numbers across a second hunk', () => {
+  const diff = [
+    '@@ -1,0 +5,1 @@',
+    "+  it('maps first_token', () => {})",
+    '@@ -10,0 +20,1 @@',
+    "+  it('maps second_token', () => {})",
+  ].join('\n')
+  const found = extractAddedTitles(diff)
+  assert.deepEqual(found, [
+    { line: 5, title: 'maps first_token' },
+    { line: 20, title: 'maps second_token' }, // counter reset by the 2nd @@ header
+  ])
+})
+
 // --- splitByFile ----------------------------------------------------------
 
 test('splitByFile separates a multi-file diff by new path', () => {
