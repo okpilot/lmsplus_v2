@@ -81,7 +81,7 @@ lmsplusv2/
 - **Static analysis**: SonarCloud (CI), GitHub CodeQL (weekly + on PRs), Biome's 450+ built-in rules.
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories). A second **app-layer DB integration tier** (`apps/web/vitest.integration.config.ts`, `*.integration.test.ts`) runs the real `apps/web` query code against a real local Postgres under RLS — closing the mocked-client schema blind spot (#925).
-  - **E2E**: Playwright (10 specs covering login, quiz flow, admin tools, settings, consent).
+  - **E2E**: Playwright (17 specs covering login, quiz flow, admin tools, internal exams, settings, consent).
   - **Red-team**: 47 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling (error-path information disclosure).
 - **Type checking**: `tsc --noEmit` per package via `pnpm check-types`. Strict mode with `noUncheckedIndexedAccess`.
 
