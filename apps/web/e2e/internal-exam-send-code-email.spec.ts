@@ -3,28 +3,31 @@
  * Server-Action/UI half — issue #915).
  *
  * The RPC layer (record_internal_exam_code_emailed) + integration tests already
- * pin the data-layer guard (#902). This spec pins the Server Action's pre-send
- * UX guard through the real admin UI: the state check in send-code-email.ts
+ * pin the data-layer guard, including the "no audit row written for a stale
+ * code" guarantee (#902). This spec pins the Server Action's pre-send UX guard
+ * through the real admin UI: the state check in send-code-email.ts
  * (`if (consumedAt || voidedAt || isExpired) return 'Code is no longer active'`)
- * fires BEFORE sendEmail, and the success-only record_internal_exam_code_emailed
- * audit also never fires. Because this stack uses Resend (inbucket does NOT
- * capture Resend mail — and with no RESEND_API_KEY the resend.ts console-log
- * fallback runs, so even the happy-path control sends no real mail), audit-event
- * ABSENCE is the assertable "no email sent" proof here.
+ * rejects a voided/expired code with a specific toast, BEFORE any email or audit
+ * work.
  *
- * The audit row written on success is:
- *   event_type    = 'internal_exam.code_emailed'
- *   resource_type = 'internal_exam_code'
- *   resource_id   = <the code id>   (direct column, not metadata)
- * — see supabase/migrations/20260618000001_record_internal_exam_code_emailed.sql.
+ * Scope note — why this spec does NOT assert email delivery or audit writes:
+ * the audit row is only written after a SUCCESSFUL email send, and a successful
+ * send requires RESEND_API_KEY (absent in CI, where `pnpm start` runs with
+ * NODE_ENV=production so resend.ts fails closed). Delivery is therefore
+ * environment-dependent and not observable here; the no-email/no-audit guarantee
+ * is owned by the RPC layer (#902). This UI spec's job is the state guard: a
+ * stale code is rejected with "Code is no longer active", and an active code is
+ * NOT rejected by that guard (the discrimination control below makes the two
+ * negative tests non-vacuous — the rejection is caused by the code's state, not
+ * by a broken button or a generically-failing action).
  *
- * Seed dependency: apps/web/scripts/seed-exam-eval.ts. Uses admin
- * (admin@lmsplus.local) and the dedicated internal-exam student fixture
- * (e2e-internal-exam@lmsplus.local) — see helpers/supabase.ts.
+ * Seed dependency: apps/web/scripts/seed-e2e.ts. Uses admin (admin@lmsplus.local)
+ * and the dedicated internal-exam student fixture (e2e-internal-exam@lmsplus.local)
+ * — see helpers/supabase.ts.
  *
  * Auth: admin storage state is the default for this admin-e2e spec. A
- * service-role client (getAdminClient) drives the row lookups, the stale-state
- * mutations, and the audit-event reads.
+ * service-role client (getAdminClient) drives the row lookups and the
+ * stale-state mutations.
  */
 
 import { expect, type Page, test } from '@playwright/test'
@@ -38,7 +41,7 @@ import {
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
-const EMAILED_EVENT_TYPE = 'internal_exam.code_emailed'
+const STALE_CODE_TOAST = 'Code is no longer active'
 
 type AdminClient = ReturnType<typeof getAdminClient>
 
@@ -97,17 +100,6 @@ async function lookupAdminUserId(admin: AdminClient): Promise<string> {
   return data.id
 }
 
-/** Count audit events recorded for the email-sent action against a given code id. */
-async function countEmailedAuditEvents(admin: AdminClient, codeId: string): Promise<number> {
-  const { count, error } = await admin
-    .from('audit_events')
-    .select('id', { count: 'exact', head: true })
-    .eq('event_type', EMAILED_EVENT_TYPE)
-    .eq('resource_id', codeId)
-  if (error) throw new Error(`countEmailedAuditEvents: ${error.message}`)
-  return count ?? 0
-}
-
 test.describe('internal exam — send-code-email pre-send state guard', () => {
   test.setTimeout(120_000)
 
@@ -138,28 +130,26 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     }
   })
 
-  test('emails the code and records an audit event when the code is active', async ({
-    page: adminPage,
-  }) => {
+  test('accepts an active code past the pre-send state guard', async ({ page: adminPage }) => {
     const admin = getAdminClient()
     const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
-    const codeId = await lookupCodeId(admin, code)
-
-    const before = await countEmailedAuditEvents(admin, codeId)
+    await lookupCodeId(admin, code) // track for hermetic cleanup
 
     await adminPage.getByRole('button', { name: /send via email/i }).click()
 
-    await expect(adminPage.getByText('Code emailed to student')).toBeVisible({ timeout: 10_000 })
-
-    // Non-vacuity control: the active code DID record the emailed audit event,
-    // so a "0 events" assertion on a stale code proves the guard rejected,
-    // not that audit-writing is broken.
-    await expect
-      .poll(() => countEmailedAuditEvents(admin, codeId), { timeout: 10_000 })
-      .toBe(before + 1)
+    // Discrimination control: an ACTIVE code must NOT be rejected by the state
+    // guard. This makes the two stale-code tests non-vacuous — the rejection
+    // there is caused by the code's state, not by a broken button. We assert the
+    // action reached a post-guard terminal state (success when email is
+    // configured, send-failure otherwise — RESEND_API_KEY is absent in CI), and
+    // never the stale-guard message.
+    await expect(adminPage.getByText(/Code emailed to student|Failed to send email/)).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(adminPage.getByText(STALE_CODE_TOAST)).toHaveCount(0)
   })
 
-  test('refuses to email a voided code and records no audit event', async ({ page: adminPage }) => {
+  test('rejects a voided code with "Code is no longer active"', async ({ page: adminPage }) => {
     const admin = getAdminClient()
     const adminUserId = await lookupAdminUserId(admin)
 
@@ -176,19 +166,12 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     if (voidErr) throw new Error(`void update: ${voidErr.message}`)
     if (!voided?.length) throw new Error('void update: no row affected')
 
-    const before = await countEmailedAuditEvents(admin, codeId)
-
     await adminPage.getByRole('button', { name: /send via email/i }).click()
 
-    await expect(adminPage.getByText('Code is no longer active')).toBeVisible({ timeout: 10_000 })
-
-    // No emailed audit event was written for the voided code.
-    await expect.poll(() => countEmailedAuditEvents(admin, codeId), { timeout: 5_000 }).toBe(before)
+    await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
   })
 
-  test('refuses to email an expired code and records no audit event', async ({
-    page: adminPage,
-  }) => {
+  test('rejects an expired code with "Code is no longer active"', async ({ page: adminPage }) => {
     const admin = getAdminClient()
     const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
     const codeId = await lookupCodeId(admin, code)
@@ -202,13 +185,8 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     if (expireErr) throw new Error(`expire update: ${expireErr.message}`)
     if (!expired?.length) throw new Error('expire update: no row affected')
 
-    const before = await countEmailedAuditEvents(admin, codeId)
-
     await adminPage.getByRole('button', { name: /send via email/i }).click()
 
-    await expect(adminPage.getByText('Code is no longer active')).toBeVisible({ timeout: 10_000 })
-
-    // No emailed audit event was written for the expired code.
-    await expect.poll(() => countEmailedAuditEvents(admin, codeId), { timeout: 5_000 }).toBe(before)
+    await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
   })
 })
