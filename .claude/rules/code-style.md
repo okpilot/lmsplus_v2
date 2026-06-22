@@ -441,7 +441,8 @@ Any function that builds an HTML, SVG, or XML string via template literals must 
 // ❌ WRONG — DB-derived value interpolated raw into SVG markup
 return `<text x="10" y="20">${question.prompt}</text>`
 
-// ✅ CORRECT — escape at the interpolation site (esc() = the same entity-encode helper used by the seed/email builders)
+// ✅ CORRECT — escape at the interpolation site. esc() is a local HTML-entity escaper, not a shared export —
+// copy the inline pattern from an existing builder (seed-quiz-setup-eval.ts or email/templates/internal-exam-code.ts).
 return `<text x="10" y="20">${esc(question.prompt)}</text>`
 ```
 
