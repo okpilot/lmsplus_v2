@@ -349,7 +349,7 @@ if ((discarded?.length ?? 0) > 0) {
 
 Match the surrounding error posture:
 - **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
-- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages*).
+- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages Returned to Callers*).
 
 ```ts
 // ❌ WRONG — RLS-blocked read looks like an empty list
