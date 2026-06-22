@@ -566,6 +566,34 @@ function useExamNavigation() {
 
 The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it. Promoted at count=2 — `df5d354` (stale `currentIndex` in `handleSave` after a hook split) and `e137e93` (stale `feedback` Map read in `wrappedNavigateTo`'s checkpoint).
 
+### Await Server Actions Before Terminal Navigation
+
+A **terminal navigation** — `router.push(...)`, `router.replace(...)`, or `window.location.assign(...)` to a different page the user cannot return from by staying in place — must be the **last statement** on its path. `router.refresh()` is **not** terminal: it revalidates in place and the user stays, so a racing Server Action has no pending navigation to cancel.
+
+A Server Action that runs before a terminal navigation must not merely be *sequenced* before the call. A slow Server Action's App Router revalidation can cancel the pending soft navigation **even when invoked before** `router.push`, stranding the user on the current page.
+
+- **Critical mutations** — those that must *settle* before the user leaves (e.g. `discardQuiz`, `deleteDraft`): **await** them before the terminal navigation so the action resolves before the nav fires (an un-awaited or post-nav revalidation can cancel the pending soft-nav); make the handler `async` if needed. Sequencing-before is *not* sufficient — in #909 (`f1333974`/`d6e3ed17`) `deleteDraft` was already before `router.push` but, being a slow round-trip, resolved after it and cancelled the nav; the fix was to await.
+- **Non-critical fire-and-forget cleanup** (e.g. `clearDeploymentPin`): at minimum fire it **before** the terminal navigation so the navigation stays the last statement — in #568 (`68216d56`) firing `clearDeploymentPin` *after* `router.push` cancelled the soft nav. For slow non-critical cleanup, bound the await (`Promise.race([action(), timeout])`, clearing the timer in `.finally`) and pair with a `window.location.assign` hard-nav fallback.
+
+```ts
+// ❌ WRONG — a Server Action fired AFTER the terminal navigation can cancel the soft-nav
+router.replace('/app/quiz')
+discardQuiz({ sessionId, draftId }).catch(() => {})
+
+// ✅ CORRECT — await the critical mutation; non-critical cleanup fires before; nav is last
+clearDeploymentPin().catch(() => {})                       // non-critical: fire before nav
+await discardQuiz({ sessionId, draftId }).catch(() => {})  // critical: await to settle (best-effort)
+router.replace('/app/quiz')                                // terminal nav: last statement
+
+// ✅ CORRECT — no critical mutation; non-critical cleanup fires before, nav is last (save path)
+clearDeploymentPin().catch(() => {})
+router.push('/app/quiz')
+```
+
+The awaited mutation's `.catch(() => {})` above is intentional: the `await` is for **ordering** (let the action settle so it cannot cancel the nav), not a success guarantee — `discardQuiz` is best-effort cleanup, so we navigate regardless of its outcome. When the action's *success* is a precondition for navigating, branch on the error instead of swallowing it (don't `.catch(() => {})`).
+
+A sync React state update between the action and the navigation (e.g. `setLoading(false)`) is fine — it is not a Server Action and does not displace the navigation as the last effectful statement. Promoted at count=2 — #568 (`68216d56`), #909 (`f1333974`/`d6e3ed17`); sweep #941.
+
 ---
 
 ## 7. Testing Rules

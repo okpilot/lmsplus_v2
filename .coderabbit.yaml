@@ -96,6 +96,20 @@ reviews:
         - No useEffect for data fetching.
         - No direct Supabase calls.
 
+    # Terminal-navigation ordering — await Server Actions before router.push/replace (code-style.md §6)
+    - path: "apps/web/app/**/{_hooks,_components}/**"
+      instructions: |
+        Await Server Actions before terminal navigation:
+        - A terminal navigation is router.push()/router.replace()/window.location.assign() to a
+          different page; it must be the last statement on its path. router.refresh() is NOT
+          terminal (user stays in place) — exempt.
+        - Critical mutations (discardQuiz, deleteDraft) MUST be awaited before the terminal
+          navigation. Sequencing them before is insufficient — a slow action's revalidation can
+          cancel the pending soft-nav and strand the user (#568, #909).
+        - Non-critical fire-and-forget cleanup (clearDeploymentPin) must at least be fired before
+          the navigation so the navigation stays the last statement.
+        - Never invoke a Server Action after router.push/replace.
+
     # TypeScript — type safety
     - path: "**/*.ts"
       instructions: |

@@ -178,29 +178,34 @@ describe('useSessionRecovery — handleSave', () => {
 // ---- handleDiscard --------------------------------------------------------
 
 describe('useSessionRecovery — handleDiscard', () => {
-  it('clears the session and redirects to /app/quiz', () => {
+  it('clears the session and redirects to /app/quiz', async () => {
     const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
 
-    act(() => {
-      result.current.handleDiscard()
+    await act(async () => {
+      await result.current.handleDiscard()
     })
 
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-001')
     expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 
-  it('fires discardQuiz with sessionId and draftId in the background', async () => {
+  it('discards the session before redirecting to /app/quiz', async () => {
     const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
 
-    act(() => {
-      result.current.handleDiscard()
+    await act(async () => {
+      await result.current.handleDiscard()
     })
 
-    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledTimes(1))
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
     expect(mockDiscardQuiz).toHaveBeenCalledWith({
       sessionId: 'sess-001',
       draftId: 'draft-001',
     })
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+    // Both mocks were called above (toHaveBeenCalledTimes(1) already asserted), so [0] is defined.
+    expect(mockDiscardQuiz.mock.invocationCallOrder[0]!).toBeLessThan(
+      mockRouterReplace.mock.invocationCallOrder[0]!,
+    )
   })
 
   it('does not call discardQuiz when recovery is null', () => {
@@ -214,7 +219,7 @@ describe('useSessionRecovery — handleDiscard', () => {
   })
 
   it('is idempotent — a second call while loading is a no-op', async () => {
-    // Make discardQuiz hang so loading stays true
+    // Make discardQuiz hang so loading stays true during the first call
     let resolve: (v: unknown) => void
     mockDiscardQuiz.mockReturnValue(
       new Promise((r) => {
@@ -224,35 +229,37 @@ describe('useSessionRecovery — handleDiscard', () => {
 
     const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
 
-    act(() => {
+    // Start the async flow without awaiting the inner handleDiscard — it hangs at the await
+    await act(async () => {
       result.current.handleDiscard()
     })
 
-    // loading is now true; second call should be ignored
-    act(() => {
+    // loading is now true; second call returns immediately due to `if (loading) return`
+    await act(async () => {
       result.current.handleDiscard()
     })
 
-    // Resolve to clean up
-    resolve!({ success: true })
+    // Resolve the hanging discard and flush
+    await act(async () => {
+      resolve!({ success: true })
+    })
 
-    // discardQuiz and clearActiveSession called only once
-    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledTimes(1))
+    // discardQuiz and clearActiveSession called only once; router.replace fires after discard resolves
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledTimes(1))
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-    expect(mockRouterReplace).toHaveBeenCalledTimes(1)
   })
 
-  it('does not block the UI when discardQuiz rejects', async () => {
+  it('still redirects to /app/quiz when the discard fails', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('server error'))
     const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
 
-    act(() => {
-      result.current.handleDiscard()
+    await act(async () => {
+      await result.current.handleDiscard()
     })
 
-    // discardQuiz rejects, but no unhandled rejection propagates
+    // .catch swallows the rejection; redirect still fires after the failed discard
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledTimes(1))
-    // Redirect already happened regardless
     expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 })
