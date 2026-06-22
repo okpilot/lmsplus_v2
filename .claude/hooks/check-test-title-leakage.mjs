@@ -11,9 +11,9 @@
 // are left untouched. A naive whole-file scan would block commits repo-wide, so
 // this guard reads `git diff` and inspects only `+` lines.
 //
-// Two modes:
-//   node check-test-title-leakage.mjs <file> [file ...]   # staged mode (lefthook): diff each file against the index's HEAD (`git diff --cached`)
-//   node check-test-title-leakage.mjs --base <ref>          # CI mode: diff the whole range <ref>...HEAD for *.test.{ts,tsx}
+// Two modes (run from the repo root):
+//   node .claude/hooks/check-test-title-leakage.mjs <file> [file ...]   # staged mode (lefthook): diff each file against the index's HEAD (`git diff --cached`)
+//   node .claude/hooks/check-test-title-leakage.mjs --base <ref>          # CI mode: diff the whole range <ref>...HEAD for *.test.{ts,tsx}
 //
 // The §7 "Permitted" forms (`calls onClick`, `calls signInWithPassword on valid
 // submit`, `does not call the RPC when …`) are NOT matched by any pattern below:
