@@ -15,7 +15,6 @@ export {
   createTestOrg,
   createTestUser,
   getAdminClient,
-  getAnonClient,
   getAuthenticatedClient,
   type ReferenceIds,
   seedQuestions,
