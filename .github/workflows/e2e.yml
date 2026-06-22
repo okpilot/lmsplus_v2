@@ -129,6 +129,9 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321" >> $GITHUB_ENV
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> $GITHUB_ENV
+          # Server Actions (e.g. sendInternalExamCodeEmail) read this at runtime to build app links;
+          # must equal the Playwright baseURL so the email path runs instead of erroring out.
+          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> $GITHUB_ENV
 
       - name: Write .env.local for Next.js
         run: |
@@ -136,6 +139,7 @@ jobs:
             "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
             "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
+            "NEXT_PUBLIC_APP_URL=http://localhost:3000" \
             > apps/web/.env.local
 
       - name: Seed test data
