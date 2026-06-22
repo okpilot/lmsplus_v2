@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -51,6 +51,7 @@ export function CodeEntryModal({
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const startedRef = useRef(false)
 
   function handleClose(next: boolean) {
     if (!next) {
@@ -62,11 +63,13 @@ export function CodeEntryModal({
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (startedRef.current) return
     setError(null)
     if (!ALLOWED_RE.test(code)) {
       setError(`Code must be ${CODE_LENGTH} characters (letters and digits, no I/O/0/1).`)
       return
     }
+    startedRef.current = true
     startTransition(async () => {
       try {
         const result = await startInternalExam({ code })
@@ -91,16 +94,20 @@ export function CodeEntryModal({
             console.error('[code-entry-modal] sessionStorage handoff failed:', storageErr)
             // Internal exam cannot be discarded by design — surface the error
             // and let the recovery banner handle resume on next visit.
+            startedRef.current = false
             setError(
               'Unable to start internal exam right now. Please try again or refresh the page.',
             )
             return
           }
+          // Terminal — do not reset startedRef; the exam has started.
           router.push('/app/quiz/session')
           return
         }
+        startedRef.current = false
         setError(result.error)
       } catch {
+        startedRef.current = false
         setError('Something went wrong. Please try again.')
       }
     })

@@ -152,4 +152,110 @@ describe('CodeEntryModal', () => {
     )
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
+
+  // ---- Synchronous re-entry guard -----------------------------------------
+
+  it('starts the exam once when the form is submitted twice before the action resolves', async () => {
+    // Never-resolving promise keeps isPending true so the button stays in the
+    // loading state, simulating a double-submit race.
+    mockStartInternalExam.mockReturnValue(new Promise(() => {}))
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+    // Dispatch two submit events back-to-back without awaiting the transition.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(1))
+  })
+
+  it('allows a retry after the action returns a failure response', async () => {
+    // First call fails, second call also fails — both must go through.
+    mockStartInternalExam
+      .mockResolvedValueOnce({ success: false, error: 'Code expired.' })
+      .mockResolvedValueOnce({ success: false, error: 'Code expired again.' })
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+
+    // First attempt — action returns a failure. Dispatch form submit and wait for
+    // the error alert to appear (confirming the action ran and setError was called).
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/code expired/i))
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+    // Lock resets on failure — second attempt dispatched after the alert confirms
+    // the transition settled must also invoke the action.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+  })
+
+  it('allows a retry after the action throws', async () => {
+    mockStartInternalExam
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce({ success: false, error: 'Code expired.' })
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    await userEvent.type(input, 'ABCD2345')
+
+    const form = screen.getByTestId('code-entry-form')
+
+    // First attempt — action throws. Wait for the error alert (transition settled).
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i),
+    )
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+    // Lock resets after a throw — second attempt must proceed.
+    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows an error and allows a retry when sessionStorage write fails after a successful action response', async () => {
+    // The action succeeds but sessionStorage.setItem throws (e.g. quota exceeded or
+    // private-browsing restriction). The lock must reset (startedRef.current = false)
+    // so the student can retry, and the error banner must be shown.
+    mockStartInternalExam.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-abc',
+      questionIds: ['q-1'],
+      timeLimitSeconds: 1800,
+      passMark: 75,
+      startedAt: '2026-04-29T10:00:00.000Z',
+    })
+    // mockImplementationOnce throws on the FIRST setItem only; the retry's setItem
+    // falls through to the real impl. restore in finally so an assertion failure
+    // before the end can't leak the global prototype spy into later tests.
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+
+    try {
+      renderModal()
+      const input = screen.getByTestId('code-input') as HTMLInputElement
+      await userEvent.type(input, 'ABCD2345')
+
+      const form = screen.getByTestId('code-entry-form')
+      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+
+      // Error banner shown — router must NOT have been called (no navigation on handoff failure).
+      await waitFor(() =>
+        expect(screen.getByRole('alert')).toHaveTextContent(/unable to start internal exam/i),
+      )
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+
+      // Lock is reset — student can retry; this time sessionStorage succeeds.
+      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+      await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+    } finally {
+      setItemSpy.mockRestore()
+    }
+  })
 })

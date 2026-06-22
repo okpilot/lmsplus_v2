@@ -582,6 +582,32 @@ function useExamNavigation() {
 
 The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it. Promoted at count=2 — `df5d354` (stale `currentIndex` in `handleSave` after a hook split) and `e137e93` (stale `feedback` Map read in `wrappedNavigateTo`'s checkpoint).
 
+### Synchronous Re-Entry Guard for Multi-Source Async Handlers
+
+An async submit/close/finish handler that can fire from **more than one source** — a countdown/timer auto-fire, a manual button click, a keyboard shortcut, a form `onSubmit` — must gate re-entry with a **synchronous `useRef` one-shot lock**, checked-and-set before the first `await`/transition. Async React state — a `useState` loading flag, `useTransition`'s `isPending` — is **not** a valid re-entry lock: between the triggering event and the state commit there is a window where two sources both read the stale "not pending" value and both run the action (double submit, double RPC, double navigation). The on-screen `disabled={pending}` attribute only blocks the *button* path; a timer or programmatic caller bypasses it entirely.
+
+```tsx
+// ❌ WRONG — isPending/loading is async; a timer fire + a click in the same tick both pass
+const [isPending, startTransition] = useTransition()
+function handleSubmit() {
+  if (isPending) return          // stale until React commits — both callers proceed
+  startTransition(() => submit())
+}
+
+// ✅ CORRECT — useRef is synchronous; the second caller sees current=true immediately
+const submittedRef = useRef(false)
+function handleSubmit() {
+  if (submittedRef.current) return
+  submittedRef.current = true     // set before any await/transition
+  startTransition(async () => {
+    try { await submit() }
+    catch { submittedRef.current = false }   // reset ONLY on the retryable failure path
+  })
+}
+```
+
+Reset `ref.current = false` on the **retryable failure path** (a save/post the user can re-attempt, a rejected exam code). **Omit the reset** when the action is terminal — an exam start that navigates away, a final submit that closes the dialog — so a late duplicate can't re-fire after success. For a validator that early-returns *before* starting the action, set the ref **after** validation passes (never on the early-return), or a corrected re-attempt is wrongly blocked. Promoted at count=3 — quiz session hooks, the stale-closure ref-mirroring sibling above, and the VFR-RT runner Finish race (timer `onExpired` + manual click) in PR #923. The mechanical analog: prefer one `*Ref` one-shot over an `isPending`/`loading`-only guard on any handler reachable from a timer.
+
 ---
 
 ## 7. Testing Rules

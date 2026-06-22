@@ -258,6 +258,89 @@ describe('useQuizSubmit — clearError', () => {
   })
 })
 
+// ---- Synchronous re-entry guard for handleSubmit --------------------------
+
+describe('useQuizSubmit — handleSubmit re-entry guard', () => {
+  it('invokes the session handler once when timer and click fire simultaneously before the action resolves', async () => {
+    // Never-resolving promise keeps the action in flight so the guard is exercised.
+    mockHandleSubmitSession.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+
+    await act(async () => {
+      // Fire handleSubmit twice synchronously — second call must be suppressed.
+      result.current.handleSubmit()
+      result.current.handleSubmit()
+    })
+
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a submit attempt finishes without succeeding', async () => {
+    // Simulate an error path: action calls setSubmitting(true) then setSubmitting(false)
+    // without calling onSuccess (submitted stays false → lock resets).
+    let capturedSetSubmitting: ((v: boolean) => void) | undefined
+    mockHandleSubmitSession.mockImplementation(
+      async (opts: { setSubmitting: (v: boolean) => void }) => {
+        capturedSetSubmitting = opts.setSubmitting
+        opts.setSubmitting(true)
+        opts.setSubmitting(false) // failure path — submitted.current is still false
+      },
+    )
+
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+
+    // First attempt — action signals failure.
+    await act(async () => result.current.handleSubmit())
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+    // Ensure the captured setter was exercised.
+    expect(capturedSetSubmitting).toBeDefined()
+
+    // Lock should be reset — second attempt must go through.
+    await act(async () => result.current.handleSubmit())
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('allows a retry after a submit attempt rejects', async () => {
+    // Throw path: the action rejects before ever calling setSubmitting(false), so the
+    // lock can only be released by the finally handler (submitted stays false → retryable).
+    mockHandleSubmitSession
+      .mockImplementationOnce(async () => {
+        throw new Error('network')
+      })
+      .mockImplementationOnce(async () => {})
+
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+
+    // First attempt rejects — swallow so act() doesn't surface the rejection.
+    await act(async () => {
+      await result.current.handleSubmit()?.catch(() => {})
+    })
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+
+    // Lock released by finally → second attempt must go through.
+    await act(async () => result.current.handleSubmit())
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('remains locked after success so a concurrent timer fire does not double-submit', async () => {
+    // Simulate success path: onSuccess sets submitted.current = true, then the action
+    // navigates away without calling setSubmitting(false).
+    mockHandleSubmitSession.mockImplementation(async (opts: { onSuccess: () => void }) => {
+      opts.onSuccess() // sets submitted.current = true
+      // No setSubmitting(false) on success — terminal path.
+    })
+
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+
+    await act(async () => result.current.handleSubmit())
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+
+    // A second call after success must be suppressed (both submitted and inFlight guard it).
+    await act(async () => result.current.handleSubmit())
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+  })
+})
+
 // ---- pendingAction discriminator -----------------------------------------
 
 // The session functions are mocked, so they only flip pendingAction if the mock
