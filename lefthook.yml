@@ -27,6 +27,12 @@ pre-commit:
     soft-delete-guard:
       glob: "*.{ts,tsx}"
       run: node .claude/hooks/check-soft-delete-guard.mjs {staged_files}
+    # Forbid impl-detail leakage in NEWLY-added it()/test() titles (code-style.md §7, #946).
+    # Diff-scoped + grandfathered: the script reads `git diff --cached` and checks only
+    # added titles, so pre-existing `maps <token>` titles never block a commit.
+    test-title-leakage:
+      glob: "*.test.{ts,tsx}"
+      run: node .claude/hooks/check-test-title-leakage.mjs {staged_files}
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test

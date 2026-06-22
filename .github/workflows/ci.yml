@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0 # full history so the test-title guard (#946) can diff against the PR base
+          persist-credentials: false # the guard only reads git history; no step needs write access
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
         with:
@@ -46,6 +49,16 @@ jobs:
 
       - name: Soft-delete column guard — unit test
         run: node --test .claude/hooks/check-soft-delete-guard.test.mjs
+
+      # §7 test-title impl-leakage guard (#946). Diff-scoped + grandfathered:
+      # only titles ADDED in the PR are checked (PR events only — push to master
+      # has no PR base). fetch-depth:0 above makes the base SHA available.
+      - name: Test-title impl-leakage guard (PR diff, code-style.md §7)
+        if: github.event_name == 'pull_request'
+        run: node .claude/hooks/check-test-title-leakage.mjs --base ${{ github.event.pull_request.base.sha }}
+
+      - name: Test-title impl-leakage guard — unit test
+        run: node --test .claude/hooks/check-test-title-leakage.test.mjs
 
   type-check:
     name: Type Check

@@ -217,9 +217,14 @@ reviews:
           - '(activates|does not activate) the guard' — internal navigation/
             validation guard machinery. Describe the user-observable consequence
             (e.g., 'does not warn when no answers exist').
-          - 'matches <PascalCaseType>' or 'matches <internal helper>' — asserts
-            congruence with internal type/helper. Describe externally observable
-            behavior.
+          - 'matches <PascalCaseType>' (internal OR external library/standard
+            type, e.g. ZodError, AuthError) — names a type instead of describing
+            the result. Describe externally observable behavior (e.g. 'rejects
+            invalid input'), not the type it matches.
+          - 'maps <snake_case_token>' (e.g. 'maps admin_not_found', 'maps
+            question_type') — names a snake_case identifier (an error code like
+            an RPC RAISE/SDK code, or a DB field) instead of the user-facing
+            result. Describe what the user sees, not the token.
           Permitted (these are public contracts, not impl):
           - 'calls onClick when the button is clicked' — onClick is a public prop.
           - 'calls signInWithPassword on valid submit' — public SDK method.
