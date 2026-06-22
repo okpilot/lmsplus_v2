@@ -15,7 +15,9 @@
 # keys already exported to $GITHUB_ENV / .env.local stale against the new instance.)
 #
 # Tunable via env: SUPABASE_HEALTH_URL, SUPABASE_HEALTH_MAX_ATTEMPTS, SUPABASE_HEALTH_INTERVAL.
-# Default budget: 90s (45 × 2s) — Kong typically boots in well under 30s on GitHub runners.
+# Default budget: ~90s (45 × 2s) on the connection-refused path (Kong typically boots in
+# well under 30s on GitHub runners); each probe is independently capped at 5s via curl
+# --max-time so a wedged-but-listening endpoint is bounded rather than hanging the job.
 set -euo pipefail
 
 HEALTH_URL="${SUPABASE_HEALTH_URL:-http://localhost:54321/auth/v1/health}"
@@ -25,9 +27,11 @@ INTERVAL_SECONDS="${SUPABASE_HEALTH_INTERVAL:-2}"
 echo "Waiting for Supabase API readiness at ${HEALTH_URL} (max ${MAX_ATTEMPTS} attempts × ${INTERVAL_SECONDS}s)"
 attempt=1
 while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
-  # Guarded under `set -e`: a failed probe (curl exit 7/22 while Kong is still
+  # Guarded under `set -e`: a failed probe (curl exit 7/22/28 while Kong is still
   # booting) is the expected not-ready state, not a script-fatal error.
-  if curl -sf -o /dev/null "$HEALTH_URL"; then
+  # --max-time caps each probe so a wedged-but-listening Kong (accepts the TCP
+  # connection but never answers) can't hang the probe — and the job — forever.
+  if curl -sf --max-time 5 -o /dev/null "$HEALTH_URL"; then
     echo "✓ Supabase API ready (attempt ${attempt}/${MAX_ATTEMPTS})"
     exit 0
   fi
