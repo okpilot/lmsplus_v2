@@ -30,7 +30,7 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
   sleep "$INTERVAL_SECONDS"
 done
 
-echo "::error::Supabase API did not become ready within $((MAX_ATTEMPTS * INTERVAL_SECONDS))s — failing the job"
+echo "::error::Supabase API did not become ready within $((MAX_ATTEMPTS * INTERVAL_SECONDS))s (${MAX_ATTEMPTS} attempts × ${INTERVAL_SECONDS}s) — failing the job"
 # Container-state snapshot to aid diagnosing a genuine stuck/wedged startup.
 docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -i supabase || true
 exit 1
