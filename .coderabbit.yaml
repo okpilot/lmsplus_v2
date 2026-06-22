@@ -131,6 +131,13 @@ reviews:
           query helpers throw `Failed to fetch X: ${error.message}`; Server Actions console.error + return a
           generic message. Exempt PGRST116 (no rows) on .single()/.maybeSingle() expected-empty branches.
           Read-only test/setup helpers may wrap atomic chained reads in one try/catch.
+        - HTML/SVG/XML template builders: any function building an HTML/SVG/XML string via template
+          literals must escape caller-supplied or DB-derived `${...}` interpolations with an HTML-entity
+          escape helper (esc() or an equivalent entity-encoder) at the interpolation site — even when
+          current call sites are server-trusted (code-style.md §5).
+        - Never return a raw SDK `error.message` through an exported result type — from ANY source
+          (Postgres, Resend, Stripe, any third-party SDK). Log the raw error server-side (console.error)
+          and return a generic domain string or a closed error-literal union (code-style.md §5).
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"

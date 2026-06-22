@@ -336,7 +336,7 @@ describe('useQuizState — handleSubmit empty-answers guard', () => {
     // Simulate the empty-answers guard: handleSubmitSession calls setError when answers empty.
     // We replicate the guard by having the mock invoke setError via the passed opts.
     mockHandleSubmitSession.mockImplementation(
-      (opts: { answers: Map<unknown, unknown>; setError: (e: string | null) => void }) => {
+      async (opts: { answers: Map<unknown, unknown>; setError: (e: string | null) => void }) => {
         if (opts.answers.size === 0) opts.setError('No answers to submit.')
       },
     )
@@ -354,7 +354,7 @@ describe('useQuizState — handleSubmit empty-answers guard', () => {
 describe('useQuizState — handleSubmit', () => {
   it('navigates to the report page after a successful submission', async () => {
     mockHandleSubmitSession.mockImplementation(
-      (opts: {
+      async (opts: {
         router: { push: (url: string) => void }
         sessionId: string
         onSuccess: () => void
@@ -379,7 +379,10 @@ describe('useQuizState — handleSubmit', () => {
 
   it('shows error when submission fails', async () => {
     mockHandleSubmitSession.mockImplementation(
-      (opts: { setError: (e: string | null) => void; setSubmitting: (v: boolean) => void }) => {
+      async (opts: {
+        setError: (e: string | null) => void
+        setSubmitting: (v: boolean) => void
+      }) => {
         opts.setError('Session expired')
         opts.setSubmitting(false)
       },

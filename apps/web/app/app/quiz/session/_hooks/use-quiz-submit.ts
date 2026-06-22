@@ -24,6 +24,9 @@ export function useQuizSubmit(opts: {
   examMode?: DbQuizMode
 }) {
   const submitted = useRef(false)
+  // Synchronous one-shot re-entry guard for handleSubmit (multi-source: timer/click/keyboard).
+  // Separate from `submitted` (success flag) so failure resets the lock for retry.
+  const inFlight = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   // One action runs at a time (the dialog disables all buttons while any is pending),
   // so a single discriminator drives both per-button spinners and the derived `submitting`.
@@ -32,11 +35,21 @@ export function useQuizSubmit(opts: {
   const [error, setError] = useState<string | null>(null)
   const sharedFor = (action: Exclude<QuizPendingAction, null>) => ({
     router: opts.router,
-    setSubmitting: (v: boolean) => setPendingAction(v ? action : null),
+    setSubmitting: (v: boolean) => {
+      setPendingAction(v ? action : null)
+      // Reset the submit re-entry lock when the submit finishes without having
+      // succeeded (on success, onSuccess sets submitted.current = true first, so
+      // inFlight stays locked — terminal; on error, submitted is still false —
+      // retryable). Scoped to 'submit' so a save/discard completion can never
+      // reset an in-flight submit's lock (inFlight is only set by handleSubmit).
+      if (!v && action === 'submit' && !submitted.current) inFlight.current = false
+    },
     setError,
   })
 
   function handleSubmit() {
+    if (inFlight.current || submitted.current) return
+    inFlight.current = true
     const pending = opts.pendingQuestionIdRef.current
     const safeAnswers =
       pending.size > 0
@@ -54,6 +67,11 @@ export function useQuizSubmit(opts: {
         setShowFinishDialog(false)
       },
       ...sharedFor('submit'),
+    }).finally(() => {
+      // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
+      // so the student can retry. On success onSuccess set submitted.current = true first, so
+      // the lock intentionally stays engaged here (terminal — navigating to the report).
+      if (!submitted.current) inFlight.current = false
     })
   }
 

@@ -349,7 +349,7 @@ if ((discarded?.length ?? 0) > 0) {
 
 Match the surrounding error posture:
 - **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
-- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages*).
+- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages Returned to Callers*).
 
 ```ts
 // ❌ WRONG — RLS-blocked read looks like an empty list
@@ -420,8 +420,9 @@ scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage)
 
 Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number. **Precedent:** `quiz.ts` (total_time_ms), `profile.ts` (avg_score), `dashboard-stats.ts` (subject_count), `reports.ts` (total_count, answered_count, score_percentage).
 
-### Sanitize Error Messages in Server Actions
-Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
+### Sanitize Error Messages Returned to Callers
+
+Every `if (error)` block in a Server Action — or in any exported function or library/SDK wrapper that returns a result type with an `error` field — must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly through an exported result type — internal error strings from **any** source (Postgres, Resend, Stripe, or any third-party SDK) can expose internal implementation details; log the raw error server-side and return a generic domain string. (Promoted count=2 — Supabase 2026-03-12, Resend #901.)
 
 ```ts
 // ❌ WRONG — raw DB error leaked to client
@@ -433,6 +434,21 @@ if (error) {
   return { success: false, error: 'Failed to save question' }
 }
 ```
+
+### Escape Dynamic Values in HTML/SVG/XML Templates
+
+Any function that builds an HTML, SVG, or XML string via template literals must escape caller-supplied or DB-derived parameters with an HTML-entity escape helper (`esc()` or an equivalent entity-encoder) before interpolation — **even when current call sites are server-trusted**. Escape at the interpolation site, not at the call sites: a future caller passing untrusted input is the injection vector, and call-site escaping is invisible to the template author.
+
+```ts
+// ❌ WRONG — DB-derived value interpolated raw into SVG markup
+return `<text x="10" y="20">${question.prompt}</text>`
+
+// ✅ CORRECT — escape at the interpolation site. esc() is a local HTML-entity escaper, not a shared export —
+// copy the inline pattern from an existing builder (seed-quiz-setup-eval.ts or email/templates/internal-exam-code.ts).
+return `<text x="10" y="20">${esc(question.prompt)}</text>`
+```
+
+(Promoted count=2 — SVG seed `esc()` #890, email template `esc()` #901.)
 
 ### Log Every Error Path, Including Rollbacks
 Every error path — including compensating (rollback) paths — must emit `console.error` before returning. Secondary error paths are not exempt from observability. If a rollback fails silently, the system enters an inconsistent state with no server-side signal.
@@ -593,6 +609,32 @@ router.push('/app/quiz')
 The awaited mutation's `.catch(() => {})` above is intentional: the `await` is for **ordering** (let the action settle so it cannot cancel the nav), not a success guarantee — `discardQuiz` is best-effort cleanup, so we navigate regardless of its outcome. When the action's *success* is a precondition for navigating, branch on the error instead of swallowing it (don't `.catch(() => {})`).
 
 A sync React state update between the action and the navigation (e.g. `setLoading(false)`) is fine — it is not a Server Action and does not displace the navigation as the last effectful statement. Promoted at count=2 — #568 (`68216d56`), #909 (`f1333974`/`d6e3ed17`); sweep #941.
+
+### Synchronous Re-Entry Guard for Multi-Source Async Handlers
+
+An async submit/close/finish handler that can fire from **more than one source** — a countdown/timer auto-fire, a manual button click, a keyboard shortcut, a form `onSubmit` — must gate re-entry with a **synchronous `useRef` one-shot lock**, checked-and-set before the first `await`/transition. Async React state — a `useState` loading flag, `useTransition`'s `isPending` — is **not** a valid re-entry lock: between the triggering event and the state commit there is a window where two sources both read the stale "not pending" value and both run the action (double submit, double RPC, double navigation). The on-screen `disabled={pending}` attribute only blocks the *button* path; a timer or programmatic caller bypasses it entirely.
+
+```tsx
+// ❌ WRONG — isPending/loading is async; a timer fire + a click in the same tick both pass
+const [isPending, startTransition] = useTransition()
+function handleSubmit() {
+  if (isPending) return          // stale until React commits — both callers proceed
+  startTransition(() => submit())
+}
+
+// ✅ CORRECT — useRef is synchronous; the second caller sees current=true immediately
+const submittedRef = useRef(false)
+function handleSubmit() {
+  if (submittedRef.current) return
+  submittedRef.current = true     // set before any await/transition
+  startTransition(async () => {
+    try { await submit() }
+    catch { submittedRef.current = false }   // reset ONLY on the retryable failure path
+  })
+}
+```
+
+Reset `ref.current = false` on the **retryable failure path** (a save/post the user can re-attempt, a rejected exam code). **Omit the reset** when the action is terminal — an exam start that navigates away, a final submit that closes the dialog — so a late duplicate can't re-fire after success. For a validator that early-returns *before* starting the action, set the ref **after** validation passes (never on the early-return), or a corrected re-attempt is wrongly blocked. Promoted at count=3 — quiz session hooks, the stale-closure ref-mirroring sibling above, and the VFR-RT runner Finish race (timer `onExpired` + manual click) in PR #923. The mechanical analog: prefer one `*Ref` one-shot over an `isPending`/`loading`-only guard on any handler reachable from a timer.
 
 ---
 
