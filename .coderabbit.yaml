@@ -118,7 +118,7 @@ reviews:
           Read-only test/setup helpers may wrap atomic chained reads in one try/catch.
         - HTML/SVG/XML template builders: any function building an HTML/SVG/XML string via template
           literals must escape caller-supplied or DB-derived `${...}` interpolations with an HTML-entity
-          escape helper (esc()/escapeSvgAttr() or equivalent) at the interpolation site — even when
+          escape helper (esc() or an equivalent entity-encoder) at the interpolation site — even when
           current call sites are server-trusted (code-style.md §5).
         - Never return a raw SDK `error.message` through an exported result type — from ANY source
           (Postgres, Resend, Stripe, any third-party SDK). Log the raw error server-side (console.error)
