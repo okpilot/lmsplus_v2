@@ -139,7 +139,7 @@ jobs:
             "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
             "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
-            "NEXT_PUBLIC_APP_URL=http://localhost:3000" \
+            "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" \
             > apps/web/.env.local
 
       - name: Seed test data
