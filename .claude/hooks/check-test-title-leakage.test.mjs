@@ -161,6 +161,41 @@ test('extractAddedTitles does not join across a removed line', () => {
   assert.deepEqual(extractAddedTitles(diff), [])
 })
 
+test('extractAddedTitles does not false-positive when a non-whitespace added line separates it( from the title', () => {
+  // TITLE_RE uses \s* between `(` and the opening quote, so a non-whitespace
+  // line inside the run must NOT produce a match — the run is buffered but the
+  // regex boundary rejects it.
+  const diff = [
+    '@@ -0,0 +10,4 @@',
+    '+  it(',
+    '+    someCode()', // non-whitespace added line — NOT whitespace, so \s* cannot span it
+    "+    'maps admin_not_found',",
+    '+    () => {}))',
+  ].join('\n')
+  assert.deepEqual(extractAddedTitles(diff), [])
+})
+
+test('extractAddedTitles detects two split-form titles in one contiguous run with correct line attribution', () => {
+  // Both titles must be found and attributed to the line where their `it(` starts.
+  const diff = [
+    '@@ -0,0 +1,6 @@',
+    '+  it(',
+    "+    'maps admin_not_found',",
+    '+    () => {})',
+    '+  it(',
+    "+    'forwards calcMode to startQuizSession',",
+    '+    () => {})',
+  ].join('\n')
+  const found = extractAddedTitles(diff)
+  assert.equal(found.length, 2)
+  assert.equal(found[0].title, 'maps admin_not_found')
+  assert.equal(found[0].line, 1) // first `it(` is on new-file line 1
+  assert.equal(found[1].title, 'forwards calcMode to startQuizSession')
+  assert.equal(found[1].line, 4) // second `it(` starts on new-file line 4
+  assert.notEqual(analyzeTitle(found[0].title), null)
+  assert.notEqual(analyzeTitle(found[1].title), null)
+})
+
 // --- splitByFile ----------------------------------------------------------
 
 test('splitByFile separates a multi-file diff by new path', () => {
