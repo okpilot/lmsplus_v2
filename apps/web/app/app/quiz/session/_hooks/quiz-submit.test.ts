@@ -528,11 +528,11 @@ describe('handleSubmitSession', () => {
     }
   }
 
-  it('shows error when submitting with no answers', async () => {
+  it('shows an error and lets the student retry when there are no answers to submit', async () => {
     const opts = makeOpts({ answers: new Map() })
     await handleSubmitSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('No answers to submit.')
-    expect(opts.setSubmitting).not.toHaveBeenCalled()
+    expect(opts.setSubmitting).toHaveBeenCalledWith(false)
     expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
   })
 

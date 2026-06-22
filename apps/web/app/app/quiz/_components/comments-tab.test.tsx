@@ -137,6 +137,31 @@ describe('CommentsTab', () => {
     expect(mockRemoveComment).toHaveBeenCalledWith('c-own')
   })
 
+  it('logs an error and does not crash when the delete handler rejects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRemoveComment.mockRejectedValueOnce(new Error('network error'))
+    mockUseComments.mockReturnValue(
+      defaultHookState({
+        comments: [makeComment('c-own', { user_id: CURRENT_USER_ID })],
+      }),
+    )
+
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        '[CommentsTab] Failed to delete comment:',
+        expect.any(Error),
+      ),
+    )
+    // The UI should still be rendered — no unhandled rejection / crash
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+
+    consoleError.mockRestore()
+  })
+
   it('shows an error message when the hook reports an error', () => {
     mockUseComments.mockReturnValue(defaultHookState({ error: 'Failed to load comments' }))
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
@@ -258,5 +283,68 @@ describe('CommentsTab', () => {
   it('does not set aria-busy on the Post button when idle', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByRole('button', { name: 'Post' })).not.toHaveAttribute('aria-busy')
+  })
+
+  // ---- Synchronous re-entry guard -----------------------------------------
+
+  it('submits once when the button and Enter key fire simultaneously while a post is in flight', async () => {
+    // addComment never resolves so the component stays in the submitting state,
+    // simulating a concurrent click + Enter key race.
+    mockAddComment.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    const input = screen.getByPlaceholderText('Add a comment...')
+    await user.type(input, 'concurrent race')
+    // Fire click and Enter in the same tick to simulate a multi-source race.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    // Trigger the onKeyDown handler while the first submission is still in flight.
+    await user.keyboard('{Enter}')
+
+    expect(mockAddComment).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a failed post', async () => {
+    // First call fails (returns false), second call succeeds.
+    mockAddComment.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    const input = screen.getByPlaceholderText('Add a comment...')
+    await user.type(input, 'retry message')
+
+    // First attempt — fails.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(1))
+
+    // Lock should be released after failure — second attempt should go through.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(2))
+  })
+
+  it('allows a retry after the post handler throws', async () => {
+    // handleSubmit catches a rejected addComment locally (logging it), so the throw
+    // never escapes the click handler — assert it is logged and the lock is released.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockAddComment.mockRejectedValueOnce(new Error('network error')).mockResolvedValueOnce(true)
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    const input = screen.getByPlaceholderText('Add a comment...')
+    await user.type(input, 'throw retry message')
+
+    // First attempt — rejects. The catch logs it and the finally releases the lock.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Post' })).not.toBeDisabled())
+    expect(consoleError).toHaveBeenCalledWith(
+      '[CommentsTab] Failed to post comment:',
+      expect.any(Error),
+    )
+
+    // Second attempt — succeeds. Confirms the lock was fully released.
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockAddComment).toHaveBeenCalledTimes(2))
+
+    consoleError.mockRestore()
   })
 })
