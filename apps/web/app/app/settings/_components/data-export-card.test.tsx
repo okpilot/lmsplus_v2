@@ -57,8 +57,9 @@ beforeEach(() => {
 
 /**
  * Stub document.createElement so the anchor's .click() is a no-op (jsdom does not
- * implement navigation). Returns the spy so the caller can restore it in a finally
- * block — beforeEach uses resetAllMocks, which does NOT reinstate the original impl.
+ * implement navigation). Returns the spy so a test can restore the original
+ * mid-test if it needs the real createElement; cross-test cleanup is handled
+ * globally by restoreMocks (vitest.config.ts).
  */
 function stubLinkClick() {
   const originalCreateElement = document.createElement.bind(document)

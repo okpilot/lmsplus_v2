@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Restore every vi.spyOn spy to its original before each test. A per-test
+    // spy.mockRestore() is skipped when an earlier expect() throws, leaking the
+    // spy (installed on a prototype/global) into later tests; this flag closes
+    // that leak class globally so no per-file afterEach net is needed (#929).
+    restoreMocks: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
     // Integration tests run in a separate node-env tier against real Postgres

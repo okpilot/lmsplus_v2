@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -69,13 +69,6 @@ beforeEach(() => {
   sessionStorage.clear()
   mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
   mockReadActiveSession.mockReturnValue(null)
-})
-
-// Failure-safe spy cleanup: resetAllMocks does NOT detach vi.spyOn spies, and a
-// per-test mockRestore() is skipped if an assertion throws first. restoreAllMocks
-// runs on both pass and failure, so a spy can never leak into a later test.
-afterEach(() => {
-  vi.restoreAllMocks()
 })
 
 // ---- Guard: no parts selected --------------------------------------------
@@ -164,8 +157,8 @@ describe('useVfrRtStart — failure path', () => {
     await act(async () => result.current.handleStart())
     expect(result.current.error).toMatch(/unable to start/i)
     expect(mockRouterPush).not.toHaveBeenCalled()
-    // resetAllMocks resets impl but doesn't detach the spy — restore so it can't
-    // leak into later tests in this file (matches the confirm-spy restores below).
+    // restoreMocks (vitest.config.ts) auto-detaches spies before each test; this
+    // explicit restore is belt-and-suspenders, mirroring the confirm-spy restores below.
     setItemSpy.mockRestore()
   })
 })

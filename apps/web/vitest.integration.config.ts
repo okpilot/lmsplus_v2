@@ -8,6 +8,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Restore every vi.spyOn spy to its original before each test, mirroring the
+    // unit config — closes the assertion-throw spy-leak class here too (#929).
+    // Does not touch the vi.mock() module mocks below (those mock factories are
+    // unaffected by restoreMocks, which only restores spies).
+    restoreMocks: true,
     include: ['**/*.integration.test.ts'],
     exclude: ['node_modules', '.next'],
     // Mocks `next/headers`/`next/cache`/`next/navigation` once for the whole tier
