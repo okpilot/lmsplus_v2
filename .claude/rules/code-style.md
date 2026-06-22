@@ -610,7 +610,7 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 
 The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
 
-A mechanical guard enforces this at pre-commit + CI: `.claude/hooks/check-test-title-leakage.mjs` (#946). It is **diff-scoped and grandfathered** — it flags only `it()`/`test()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
+A mechanical guard enforces this at pre-commit + CI: the `check-test-title-leakage.mjs` hook (PR #946). It is **diff-scoped and grandfathered** — it flags only `it()` / `test()` / `it.each()` / `test.each()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
 
 ### Test Comments: Audit After Renaming
 
