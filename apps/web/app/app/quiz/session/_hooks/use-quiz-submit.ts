@@ -67,6 +67,11 @@ export function useQuizSubmit(opts: {
         setShowFinishDialog(false)
       },
       ...sharedFor('submit'),
+    }).finally(() => {
+      // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
+      // so the student can retry. On success onSuccess set submitted.current = true first, so
+      // the lock intentionally stays engaged here (terminal — navigating to the report).
+      if (!submitted.current) inFlight.current = false
     })
   }
 

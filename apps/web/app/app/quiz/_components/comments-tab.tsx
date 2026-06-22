@@ -22,10 +22,15 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
     if (submittingRef.current) return
     submittingRef.current = true
     setSubmitting(true)
-    const ok = await addComment(body.trim())
-    if (ok) setBody('')
-    submittingRef.current = false
-    setSubmitting(false)
+    try {
+      const ok = await addComment(body.trim())
+      if (ok) setBody('')
+    } finally {
+      // addComment awaits a Server Action that can reject (network/RSC failure); without
+      // finally the locks would stay engaged and the student could never retry the comment.
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   if (isLoading) return <CommentsSkeleton />

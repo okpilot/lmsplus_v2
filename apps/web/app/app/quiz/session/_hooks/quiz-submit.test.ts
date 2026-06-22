@@ -528,13 +528,10 @@ describe('handleSubmitSession', () => {
     }
   }
 
-  it('shows error and releases the submit lock when submitting with no answers', async () => {
+  it('shows an error and lets the student retry when there are no answers to submit', async () => {
     const opts = makeOpts({ answers: new Map() })
     await handleSubmitSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('No answers to submit.')
-    // Releases the caller's useRef re-entry lock (#924): without setSubmitting(false)
-    // the synchronous gate in useQuizSubmit.handleSubmit stays stuck and the student
-    // can never retry Submit in the same session.
     expect(opts.setSubmitting).toHaveBeenCalledWith(false)
     expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
   })
