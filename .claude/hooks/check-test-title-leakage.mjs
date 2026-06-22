@@ -1,0 +1,245 @@
+#!/usr/bin/env node
+// Mechanical guard (#946): forbid implementation-detail leakage in `it(...)` /
+// `test(...)` titles, per code-style.md §7 "Disallowed in `it(...)` titles".
+// The rule was tracked by the learner to count=5 across distinct commits; this
+// shifts enforcement left from CR-local/code-reviewer (reactive, on the PR) to
+// authoring time (pre-commit) + the CI lint job.
+//
+// GRANDFATHERED + DIFF-SCOPED (decision recorded on #946): only titles ADDED or
+// MODIFIED in the change under inspection are checked. Pre-existing titles —
+// e.g. the many `maps <error_token>` titles already in issue-code.test.ts and
+// sibling action tests — are left untouched. A naive whole-file scan would block
+// commits repo-wide, so this guard reads `git diff` and inspects only `+` lines.
+//
+// Two modes:
+//   node check-test-title-leakage.mjs <file> [file ...]   # staged mode (lefthook): diff each file against the index's HEAD (`git diff --cached`)
+//   node check-test-title-leakage.mjs --base <ref>          # CI mode: diff the whole range <ref>...HEAD for *.test.{ts,tsx}
+//
+// The §7 "Permitted" forms (`calls onClick`, `calls signInWithPassword on valid
+// submit`, `does not call the RPC when …`) are NOT matched by any pattern below:
+// they use the verbs `calls` / `does not call`, which none of the disallowed
+// patterns key on. The hook's unit test pins this (zero false positives on the
+// Permitted examples).
+
+import { execFileSync } from 'node:child_process'
+import { argv, exit } from 'node:process'
+import { pathToFileURL } from 'node:url'
+
+/**
+ * The §7 disallowed-title patterns. Each entry: a regex tested against the title
+ * text (the first string argument of `it(...)` / `test(...)`), plus a short
+ * human label naming the leak. Patterns are deliberately keyed on verbs/shapes
+ * that the §7 "Permitted" forms never use, so public props (`onClick`), public
+ * SDK methods (`signInWithPassword`), and RPC names at the integration boundary
+ * are not flagged.
+ */
+export const DISALLOWED_PATTERNS = [
+  {
+    // `forwards X to <InternalName>` — names an internal helper/hook/component.
+    // Matches a camelCase name (lowercase start with an internal capital, e.g.
+    // startQuizSession) or a PascalCase name (e.g. AnswerOptions) after `to`.
+    // Plural `forwards` only — the singular `forward` is natural-language
+    // navigation ("navigates forward to ResultsPage") and is not the §7 shape.
+    re: /\bforwards\b.*\bto\s+([a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*|[A-Z][A-Za-z0-9]+)\b/,
+    label:
+      'forwards X to <InternalName> — names an internal helper/hook/component; describe the outcome, not the call',
+  },
+  {
+    // `from <PascalCaseType>(Opts|Config|Args)` — names an internal input type.
+    re: /\bfrom\s+[A-Z][A-Za-z0-9]*(Opts|Config|Args)\b/,
+    label:
+      'from <PascalCaseType>(Opts|Config|Args) — names an internal type; describe the populated output, not the input type',
+  },
+  {
+    // `through <name>(` / `via <name>(` — names the function under test.
+    re: /\b(through|via)\s+[a-z][A-Za-z0-9]*\(/,
+    label:
+      'through/via <name>( — names the function under test; the enclosing describe() already provides that context',
+  },
+  {
+    // `(non-positive|typeof|isFinite|NaN) guard` — names a specific validator branch.
+    re: /\b(non-positive|typeof|isFinite|NaN)\s+guard\b/,
+    label:
+      '<branch> guard — names a specific || branch in a validator; describe what input is rejected, not which branch fires',
+  },
+  {
+    // `(activates|does not activate) the guard` — internal guard machinery.
+    re: /\b(activates|does not activate)\s+the\s+guard\b/,
+    label:
+      'activates/does not activate the guard — names internal guard machinery; describe the user-observable consequence',
+  },
+  {
+    // `matches <PascalCaseType>` — names a type (internal OR external library /
+    // standard, e.g. ZodError, AuthError) instead of describing the result. The
+    // §7 intent is behavior-first phrasing regardless of where the type is from.
+    re: /\bmatches\s+[A-Z][A-Za-z0-9]+/,
+    label:
+      'matches <Type> — names a type (internal or external) instead of the observable result; describe the behavior (e.g. "rejects invalid input"), not the type it matches',
+  },
+  {
+    // `maps <snake_case_token>` — a snake_case identifier (≥1 underscore): an
+    // error code (admin_not_found) or a DB field (question_type). Either names an
+    // internal token rather than the user-facing outcome of the mapping.
+    re: /\bmaps\s+[a-z][a-z0-9]*(_[a-z0-9]+)+\b/,
+    label:
+      'maps <snake_case_token> — names a snake_case identifier (error code or DB field) instead of the user-facing outcome; describe what the user sees, not the token',
+  },
+]
+
+/**
+ * Test a single title string against the §7 patterns.
+ * @param {string} title the it()/test() title text (without surrounding quotes)
+ * @returns {string | null} the matched rule label, or null if the title is clean
+ */
+export function analyzeTitle(title) {
+  for (const { re, label } of DISALLOWED_PATTERNS) {
+    if (re.test(title)) return label
+  }
+  return null
+}
+
+// Matches `it('…')`, `it("…")`, `test(`…`)`, `it.each(...)('…')` openings and
+// captures the title (group 4). Handles escaped quotes inside the title.
+const TITLE_RE = /\b(it|test)(\.[A-Za-z0-9.()'"\s,[\]-]*)?\(\s*(['"`])((?:\\.|(?!\3).)*)\3/g
+
+/**
+ * Extract every it()/test() title literal that appears on an ADDED diff line,
+ * with the new-file line number. Parses unified-diff text: hunk headers
+ * (`@@ -a,b +c,d @@`) seed the new-file line counter; only `+` lines (excluding
+ * the `+++` file header) are inspected.
+ *
+ * @param {string} diffText output of `git diff … -U0`
+ * @returns {{ line: number, title: string }[]}
+ */
+export function extractAddedTitles(diffText) {
+  const results = []
+  let newLine = 0
+  for (const raw of diffText.split('\n')) {
+    if (raw.startsWith('@@')) {
+      const m = /@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw)
+      if (m) newLine = Number(m[1])
+      continue
+    }
+    if (raw.startsWith('+++') || raw.startsWith('---')) continue
+    if (raw.startsWith('+')) {
+      const content = raw.slice(1)
+      TITLE_RE.lastIndex = 0
+      let m = TITLE_RE.exec(content)
+      while (m !== null) {
+        results.push({ line: newLine, title: m[4] })
+        m = TITLE_RE.exec(content)
+      }
+      newLine += 1
+    } else if (!raw.startsWith('-') && !raw.startsWith('\\')) {
+      // Context line (only present without -U0); advance the new-file counter.
+      newLine += 1
+    }
+  }
+  return results
+}
+
+function git(args) {
+  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+}
+
+const TEST_FILE_RE = /\.test\.(ts|tsx)$/
+
+/**
+ * Collect added titles for each mode.
+ * @returns {{ file: string, line: number, title: string, label: string }[]}
+ */
+function collectOffenders(args) {
+  const offenders = []
+  const baseIdx = args.indexOf('--base')
+  if (baseIdx !== -1) {
+    // CI mode: diff the whole PR range for test files only.
+    const base = args[baseIdx + 1]
+    if (!base) {
+      console.error('✖ test-title guard: --base requires a ref argument')
+      exit(2)
+    }
+    let diff = ''
+    try {
+      diff = git([
+        'diff',
+        '--diff-filter=AM',
+        '-U0',
+        `${base}...HEAD`,
+        '--',
+        '*.test.ts',
+        '*.test.tsx',
+      ])
+    } catch (err) {
+      console.error(`✖ test-title guard: git diff against ${base} failed: ${err.message}`)
+      exit(2)
+    }
+    // git diff over multiple files emits `diff --git a/<f> b/<f>` separators.
+    for (const { file, body } of splitByFile(diff)) {
+      for (const t of extractAddedTitles(body)) {
+        const label = analyzeTitle(t.title)
+        if (label) offenders.push({ file, line: t.line, title: t.title, label })
+      }
+    }
+    return offenders
+  }
+  // Staged mode (lefthook): one `git diff --cached` per passed test file.
+  const files = args.filter((p) => TEST_FILE_RE.test(p))
+  for (const file of files) {
+    let diff = ''
+    try {
+      diff = git(['diff', '--cached', '--diff-filter=AM', '-U0', '--', file])
+    } catch {
+      continue // file deleted/renamed out of the index — nothing to check
+    }
+    for (const t of extractAddedTitles(diff)) {
+      const label = analyzeTitle(t.title)
+      if (label) offenders.push({ file, line: t.line, title: t.title, label })
+    }
+  }
+  return offenders
+}
+
+/**
+ * Split a multi-file `git diff` into per-file bodies keyed by the new path.
+ * @param {string} diff
+ * @returns {{ file: string, body: string }[]}
+ */
+export function splitByFile(diff) {
+  const out = []
+  let current = null
+  for (const line of diff.split('\n')) {
+    const header = /^diff --git a\/.+ b\/(.+)$/.exec(line)
+    if (header) {
+      if (current) out.push(current)
+      current = { file: header[1], body: '' }
+    } else if (current) {
+      current.body += `${line}\n`
+    }
+  }
+  if (current) out.push(current)
+  return out
+}
+
+function main() {
+  const args = argv.slice(2)
+  const offenders = collectOffenders(args)
+  if (offenders.length > 0) {
+    console.error(
+      '✖ test-title impl-leakage guard (code-style.md §7): implementation detail in newly-added test title(s):',
+    )
+    for (const o of offenders) {
+      console.error(`  ${o.file}:${o.line}  '${o.title}'`)
+      console.error(`      → ${o.label}`)
+    }
+    console.error(
+      '\nRename to describe externally observable behavior. See code-style.md §7 "Disallowed in it(...) titles".',
+    )
+    exit(1)
+  }
+  console.log('✓ test-title impl-leakage guard: no new violating titles')
+}
+
+// Run only when executed directly (not when the test imports the helpers).
+if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
+  main()
+}

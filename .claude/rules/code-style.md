@@ -600,7 +600,8 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 | `through <camelCaseName>(` or `via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
 | `(non-positive\|typeof\|isFinite\|NaN) guard` | Names a specific `\|\|` branch in a validator. Describe what input is rejected, not which branch fires. |
 | `(activates\|does not activate) the guard` | Refers to internal navigation/validation guard machinery. Describe the user-observable consequence (e.g., "does not warn when no answers exist"). |
-| `matches <PascalCaseType>` / `matches <internal helper>` | Asserts congruence with an internal type/helper. Describe the externally observable behavior. |
+| `matches <PascalCaseType>` (internal helper OR external library/standard type, e.g. `ZodError`) | Names a type instead of describing the result. Describe the externally observable behavior (e.g. "rejects invalid input"), not the type it matches. |
+| `maps <snake_case_token>` (e.g. `maps admin_not_found`, `maps question_type`) | Names a snake_case identifier — an error code (RPC `RAISE`/SDK code) or a DB field — not the user-facing result. Describe what the user sees (e.g. "shows a not-found message when the student is soft-deleted"). |
 
 **Permitted** (these are *contracts*, not impl):
 - `it('calls onClick when the button is clicked', ...)` — `onClick` is a public prop / public callback contract.
@@ -608,6 +609,8 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 - `it('does not call the RPC when the input is empty', ...)` — describes the externally observable side-effect.
 
 The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
+
+A mechanical guard enforces this at pre-commit + CI: `.claude/hooks/check-test-title-leakage.mjs` (#946). It is **diff-scoped and grandfathered** — it flags only `it()`/`test()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
 
 ### Test Comments: Audit After Renaming
 
