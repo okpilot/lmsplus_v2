@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -89,13 +89,6 @@ beforeEach(() => {
   mockTopicTree.getSelectedSubtopicIds.mockReturnValue(['sub-1'])
   // Default: no existing session
   mockReadActiveSession.mockReturnValue(null)
-})
-
-// Failure-safe spy cleanup: resetAllMocks does NOT detach vi.spyOn spies, and a
-// per-test mockRestore() is skipped if an assertion throws first. restoreAllMocks
-// runs on both pass and failure, so a spy can never leak into a later test.
-afterEach(() => {
-  vi.restoreAllMocks()
 })
 
 // ---- Initial state -------------------------------------------------------
