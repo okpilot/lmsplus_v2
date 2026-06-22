@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# .github/scripts/wait-for-supabase.sh — issue #937
+# Readiness-gate the local Supabase API (Kong) before CI test/build steps, so a
+# slow gateway start (a 502 before Kong finishes booting) is waited out rather
+# than surfacing as a test failure. Gates BRING-UP ONLY — it runs before the test
+# runners, so real test/migration failures still fail on the first occurrence.
+#
+# `supabase start` already blocks on Postgres health (config.toml health_timeout),
+# so the psql-only migration-test job does not call this; only the jobs that drive
+# the REST API (integration-tests, e2e-tests, redteam, lighthouse) need the Kong gate.
+#
+# Wait-only by design — there is NO stop/start restart path. If Kong is not serving
+# within the budget it is a real failure, not a flake to re-run. (The previous inline
+# `supabase stop && supabase start` recovery masked wedged startups and left the JWT
+# keys already exported to $GITHUB_ENV / .env.local stale against the new instance.)
+#
+# Tunable via env: SUPABASE_HEALTH_URL, SUPABASE_HEALTH_MAX_ATTEMPTS, SUPABASE_HEALTH_INTERVAL.
+# Default budget: ~88s on the connection-refused path (45 probes, 44 × 2s sleeps between
+# them; Kong typically boots in well under 30s on GitHub runners). Each probe is capped at
+# 5s via curl --max-time, so a wedged-but-listening endpoint is bounded (worst case ~313s:
+# 45 × 5s + 44 × 2s) rather than hanging the job.
+set -euo pipefail
+
+HEALTH_URL="${SUPABASE_HEALTH_URL:-http://localhost:54321/auth/v1/health}"
+MAX_ATTEMPTS="${SUPABASE_HEALTH_MAX_ATTEMPTS:-45}"
+INTERVAL_SECONDS="${SUPABASE_HEALTH_INTERVAL:-2}"
+
+echo "Waiting for Supabase API readiness at ${HEALTH_URL} (up to ${MAX_ATTEMPTS} attempts, ${INTERVAL_SECONDS}s apart, 5s/probe)"
+attempt=1
+while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+  # Guarded under `set -e`: a failed probe (curl exit 7/22/28 while Kong is still
+  # booting) is the expected not-ready state, not a script-fatal error.
+  # --max-time caps each probe so a wedged-but-listening Kong (accepts the TCP
+  # connection but never answers) can't hang the probe — and the job — forever.
+  if curl -sf --max-time 5 -o /dev/null "$HEALTH_URL"; then
+    echo "✓ Supabase API ready (attempt ${attempt}/${MAX_ATTEMPTS})"
+    exit 0
+  fi
+  # Only sleep when another attempt remains — no wasted interval after the last probe.
+  if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+    echo "… not ready (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${INTERVAL_SECONDS}s"
+    sleep "$INTERVAL_SECONDS"
+  fi
+  attempt=$((attempt + 1))
+done
+
+echo "::error::Supabase API did not become ready after ${MAX_ATTEMPTS} attempts (${INTERVAL_SECONDS}s interval, 5s/probe) — failing the job"
+# Container-state snapshot to aid diagnosing a genuine stuck/wedged startup.
+docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -i supabase || true
+exit 1

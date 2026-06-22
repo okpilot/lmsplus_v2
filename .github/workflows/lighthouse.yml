@@ -44,6 +44,9 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      - name: Wait for Supabase readiness
+        run: bash .github/scripts/wait-for-supabase.sh
+
       - name: Export Supabase env vars
         run: |
           eval "$(supabase status -o env)"
