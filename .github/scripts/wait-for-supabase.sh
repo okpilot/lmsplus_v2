@@ -9,7 +9,13 @@
 # so the psql-only migration-test job does not call this; only the jobs that drive
 # the REST API (integration-tests, e2e-tests, redteam, lighthouse) need the Kong gate.
 #
+# Wait-only by design — there is NO stop/start restart path. If Kong is not serving
+# within the budget it is a real failure, not a flake to re-run. (The previous inline
+# `supabase stop && supabase start` recovery masked wedged startups and left the JWT
+# keys already exported to $GITHUB_ENV / .env.local stale against the new instance.)
+#
 # Tunable via env: SUPABASE_HEALTH_URL, SUPABASE_HEALTH_MAX_ATTEMPTS, SUPABASE_HEALTH_INTERVAL.
+# Default budget: 90s (45 × 2s) — Kong typically boots in well under 30s on GitHub runners.
 set -euo pipefail
 
 HEALTH_URL="${SUPABASE_HEALTH_URL:-http://localhost:54321/auth/v1/health}"
