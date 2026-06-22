@@ -15,16 +15,17 @@
 # keys already exported to $GITHUB_ENV / .env.local stale against the new instance.)
 #
 # Tunable via env: SUPABASE_HEALTH_URL, SUPABASE_HEALTH_MAX_ATTEMPTS, SUPABASE_HEALTH_INTERVAL.
-# Default budget: ~90s (45 × 2s) on the connection-refused path (Kong typically boots in
-# well under 30s on GitHub runners); each probe is independently capped at 5s via curl
-# --max-time so a wedged-but-listening endpoint is bounded rather than hanging the job.
+# Default budget: ~88s on the connection-refused path (45 probes, 44 × 2s sleeps between
+# them; Kong typically boots in well under 30s on GitHub runners). Each probe is capped at
+# 5s via curl --max-time, so a wedged-but-listening endpoint is bounded (worst case ~313s:
+# 45 × 5s + 44 × 2s) rather than hanging the job.
 set -euo pipefail
 
 HEALTH_URL="${SUPABASE_HEALTH_URL:-http://localhost:54321/auth/v1/health}"
 MAX_ATTEMPTS="${SUPABASE_HEALTH_MAX_ATTEMPTS:-45}"
 INTERVAL_SECONDS="${SUPABASE_HEALTH_INTERVAL:-2}"
 
-echo "Waiting for Supabase API readiness at ${HEALTH_URL} (max ${MAX_ATTEMPTS} attempts × ${INTERVAL_SECONDS}s)"
+echo "Waiting for Supabase API readiness at ${HEALTH_URL} (up to ${MAX_ATTEMPTS} attempts, ${INTERVAL_SECONDS}s apart, 5s/probe)"
 attempt=1
 while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
   # Guarded under `set -e`: a failed probe (curl exit 7/22/28 while Kong is still
@@ -35,12 +36,15 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
     echo "✓ Supabase API ready (attempt ${attempt}/${MAX_ATTEMPTS})"
     exit 0
   fi
-  echo "… not ready (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${INTERVAL_SECONDS}s"
+  # Only sleep when another attempt remains — no wasted interval after the last probe.
+  if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+    echo "… not ready (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${INTERVAL_SECONDS}s"
+    sleep "$INTERVAL_SECONDS"
+  fi
   attempt=$((attempt + 1))
-  sleep "$INTERVAL_SECONDS"
 done
 
-echo "::error::Supabase API did not become ready within $((MAX_ATTEMPTS * INTERVAL_SECONDS))s (${MAX_ATTEMPTS} attempts × ${INTERVAL_SECONDS}s) — failing the job"
+echo "::error::Supabase API did not become ready after ${MAX_ATTEMPTS} attempts (${INTERVAL_SECONDS}s interval, 5s/probe) — failing the job"
 # Container-state snapshot to aid diagnosing a genuine stuck/wedged startup.
 docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -i supabase || true
 exit 1
