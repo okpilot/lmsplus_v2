@@ -25,9 +25,14 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
     try {
       const ok = await addComment(body.trim())
       if (ok) setBody('')
+    } catch (err) {
+      // addComment awaits a Server Action that can reject (network/RSC failure). Catch it
+      // locally so it doesn't escape this click handler as an unhandled rejection; the
+      // comment text is preserved (setBody not cleared) so the student can retry.
+      console.error('[CommentsTab] Failed to post comment:', err)
     } finally {
-      // addComment awaits a Server Action that can reject (network/RSC failure); without
-      // finally the locks would stay engaged and the student could never retry the comment.
+      // Always release the locks — on success, the caught rejection, or an early return —
+      // otherwise the Post button would stay disabled and block retries.
       submittingRef.current = false
       setSubmitting(false)
     }
@@ -87,7 +92,13 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
                 {isOwn && (
                   <button
                     type="button"
-                    onClick={() => removeComment(c.id)}
+                    onClick={() => {
+                      // Catch so a rejected deleteComment Server Action doesn't escape this
+                      // handler as an unhandled rejection (same guard as handleSubmit above).
+                      removeComment(c.id).catch((err) =>
+                        console.error('[CommentsTab] Failed to delete comment:', err),
+                      )
+                    }}
                     className="mt-1 text-xs text-destructive hover:underline"
                   >
                     Delete
