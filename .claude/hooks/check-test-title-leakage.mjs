@@ -164,14 +164,17 @@ function collectOffendersCI(base) {
     exit(2)
   }
   try {
+    // git pathspec `*` already matches across `/` (no :(glob) magic), so a bare
+    // `*.test.ts` recurses into subdirs — but spell it `**/*.test.ts` so the
+    // recursion is explicit to a reader used to shell-glob (root-only) semantics.
     const diff = git([
       'diff',
       '--diff-filter=AM',
       '-U0',
       `${base}...HEAD`,
       '--',
-      '*.test.ts',
-      '*.test.tsx',
+      '**/*.test.ts',
+      '**/*.test.tsx',
     ])
     return offendersFromDiff(diff)
   } catch (err) {

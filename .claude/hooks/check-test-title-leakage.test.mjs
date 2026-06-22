@@ -131,6 +131,19 @@ test('extractAddedTitles tracks line numbers across a second hunk', () => {
   ])
 })
 
+test('extractAddedTitles handles the test() and test.each() function forms', () => {
+  const diff = [
+    '@@ -0,0 +1,2 @@',
+    "+  test('maps admin_error', () => {})",
+    "+  test.each([1])('matches ConfigOpts', () => {})",
+  ].join('\n')
+  const found = extractAddedTitles(diff)
+  assert.deepEqual(
+    found.map((f) => f.title),
+    ['maps admin_error', 'matches ConfigOpts'],
+  )
+})
+
 // --- splitByFile ----------------------------------------------------------
 
 test('splitByFile separates a multi-file diff by new path', () => {
@@ -147,4 +160,21 @@ test('splitByFile separates a multi-file diff by new path', () => {
   assert.equal(parts[0].file, 'a.test.ts')
   assert.equal(parts[1].file, 'b.test.ts')
   assert.equal(extractAddedTitles(parts[0].body)[0].title, 'maps x_y')
+})
+
+test('integration: detects only the violating title across multiple files', () => {
+  const diff = [
+    'diff --git a/a.test.ts b/a.test.ts',
+    '@@ -0,0 +1 @@',
+    "+  it('calls onClick when clicked', () => {})", // clean (permitted)
+    'diff --git a/b.test.ts b/b.test.ts',
+    '@@ -0,0 +1 @@',
+    "+  it('maps admin_error', () => {})", // violation
+  ].join('\n')
+  const violations = splitByFile(diff)
+    .flatMap((p) => extractAddedTitles(p.body).map((t) => ({ ...t, file: p.file })))
+    .filter((t) => analyzeTitle(t.title) !== null)
+  assert.equal(violations.length, 1)
+  assert.equal(violations[0].title, 'maps admin_error')
+  assert.equal(violations[0].file, 'b.test.ts')
 })
