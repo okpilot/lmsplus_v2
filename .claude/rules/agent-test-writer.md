@@ -29,7 +29,8 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Co-located `.test.ts` / `.test.tsx` files next to source files
 - Behavior-focused test names
 - Supabase client mocks using the project's established `vi.hoisted` + `buildChain` pattern
-- `vi.resetAllMocks()` in `beforeEach`
+- `vi.resetAllMocks()` in `beforeEach` — still required: it resets `vi.fn()` mock state (calls/return values), which `restoreMocks` does NOT touch.
+- Do NOT hand-add `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets. `restoreMocks: true` in both vitest configs (`vitest.config.ts` + `vitest.integration.config.ts`) already restores every `vi.spyOn` spy to its original before each test, globally and leak-safe even on assertion failure (#929). Per-test `spy.mockRestore()` is likewise redundant.
 - Tests that run and pass before being reported
 
 ## When Tests Reveal Bugs
