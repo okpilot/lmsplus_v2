@@ -228,28 +228,34 @@ describe('CodeEntryModal', () => {
       passMark: 75,
       startedAt: '2026-04-29T10:00:00.000Z',
     })
+    // mockImplementationOnce throws on the FIRST setItem only; the retry's setItem
+    // falls through to the real impl. restore in finally so an assertion failure
+    // before the end can't leak the global prototype spy into later tests.
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new DOMException('QuotaExceededError')
     })
 
-    renderModal()
-    const input = screen.getByTestId('code-input') as HTMLInputElement
-    await userEvent.type(input, 'ABCD2345')
+    try {
+      renderModal()
+      const input = screen.getByTestId('code-input') as HTMLInputElement
+      await userEvent.type(input, 'ABCD2345')
 
-    const form = screen.getByTestId('code-entry-form')
-    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+      const form = screen.getByTestId('code-entry-form')
+      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
 
-    // Error banner shown — router must NOT have been called (no navigation on handoff failure).
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(/unable to start internal exam/i),
-    )
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
+      // Error banner shown — router must NOT have been called (no navigation on handoff failure).
+      await waitFor(() =>
+        expect(screen.getByRole('alert')).toHaveTextContent(/unable to start internal exam/i),
+      )
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
 
-    // Lock is reset — student can retry; this time sessionStorage succeeds.
-    setItemSpy.mockRestore()
-    form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
-    await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+      // Lock is reset — student can retry; this time sessionStorage succeeds.
+      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+      await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+    } finally {
+      setItemSpy.mockRestore()
+    }
   })
 })
