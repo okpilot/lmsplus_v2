@@ -14,7 +14,9 @@
 - **Phase 3** (PR #934, squash `248820da`): mechanical guards — `.claude/hooks/check-soft-delete-guard.mjs` (chain-aware; blocks `.is('deleted_at')` on the 7 no-soft-delete tables; pre-commit + CI) + biome `noRestrictedImports` blocking production import of `@repo/db/test-helpers`.
 - **Phase 4**: promoted the learnings to binding rules — code-style.md §5 (column-existence + cast-guard-applies-to-tests) and §7 (HARD new-query-site integration-test policy + non-vacuous integration-assertion rule) + Decision 46.
 
-**Follow-ups:** #926 (P1/L — backfill ~40 uncovered app-layer sites), #933 (P2/M — schema-aware column guard generalizing the 7-table list), #938 (P2/M — §5 cast-guard sweep of the packages/db integration suite).
+**Follow-ups:** #926 (P1/L — backfill ~40 uncovered app-layer sites), #933 (P2/M — schema-aware column guard generalizing the 7-table list).
+
+**Completed:** #938 (P2/M — §5 cast-guard sweep of the packages/db integration suite): shared guard module (`guards.ts`/`guards.test.ts`) + ~52 cast→guard conversions across 8 integration test files. `requireRpcResult`/`requireRpcRows` assert the RPC/`.select()` result's null-ness/shape before the cast is consumed, turning an opaque `TypeError` on a null/shape regression into a clean labelled assertion failure (an `{ error }` check alone does not satisfy §5).
 
 ---
 

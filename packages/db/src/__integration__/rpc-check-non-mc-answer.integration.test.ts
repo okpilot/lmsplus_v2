@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -27,10 +28,7 @@ type CheckNonMcResult = {
 
 /** Runtime-guard the jsonb result (code-style.md §5 — cast guard applies in tests). */
 function asResult(data: unknown): CheckNonMcResult {
-  if (!data || typeof data !== 'object') {
-    throw new Error('check_non_mc_answer returned a non-object')
-  }
-  return data as CheckNonMcResult
+  return requireRpcResult<CheckNonMcResult>(data, 'check_non_mc_answer')
 }
 
 async function insertQuestion(
@@ -39,7 +37,7 @@ async function insertQuestion(
 ): Promise<string> {
   const { data, error } = await admin.from('questions').insert(row).select('id').single()
   if (error) throw new Error(`insertQuestion: ${error.message}`)
-  const id = (data as unknown as { id: string }).id
+  const id = requireRpcResult<{ id: string }>(data, 'insertQuestion').id
   if (typeof id !== 'string' || id.length === 0) throw new Error('insertQuestion: no id')
   return id
 }
@@ -107,7 +105,7 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
       .select('id')
       .single()
     if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
-    bankId = (bank as unknown as { id: string }).id
+    bankId = requireRpcResult<{ id: string }>(bank, 'question_banks insert').id
 
     const base = {
       organization_id: orgId,

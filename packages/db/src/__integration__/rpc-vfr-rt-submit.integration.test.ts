@@ -25,6 +25,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { requireRpcResult, requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 const admin = getAdminClient()
@@ -286,7 +287,10 @@ async function startSession(): Promise<{ sessionId: string; questionIds: string[
     p_subject_id: rtSubjectId,
   })
   if (error) throw new Error(`startSession: ${error.message}`)
-  const r = data as unknown as { session_id: string; question_ids: string[] }
+  const r = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+    data,
+    'start_vfr_rt_exam_session',
+  )
   if (!r.session_id) throw new Error('startSession: no session_id in result')
   return { sessionId: r.session_id, questionIds: r.question_ids }
 }
@@ -350,7 +354,7 @@ describe('RPC: submit_vfr_rt_exam_answers — happy path (all correct, all parts
     })
     expect(error).toBeNull()
 
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       session_id: string
       part1_pct: number
       part2_pct: number
@@ -358,7 +362,7 @@ describe('RPC: submit_vfr_rt_exam_answers — happy path (all correct, all parts
       passed_overall: boolean
       correct_count: number
       total_questions: number
-    }
+    }>(data, 'submit_vfr_rt_exam_answers')
     expect(result.session_id).toBe(sessionId)
     expect(Number(result.part1_pct)).toBe(100)
     expect(Number(result.part2_pct)).toBe(100)
@@ -412,12 +416,12 @@ describe('RPC: submit_vfr_rt_exam_answers — Part 2 fail only (second distinct 
       p_answers: answers,
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
-    }
+    }>(data, 'submit_vfr_rt_exam_answers')
     expect(Number(result.part1_pct)).toBe(100)
     expect(Number(result.part2_pct)).toBe(0)
     expect(Number(result.part3_pct)).toBe(100)
@@ -430,16 +434,17 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     const { sessionId, questionIds } = await startSession()
     const answers = buildAllCorrectAnswers(questionIds, saQuestions, dfQuestions, mcQuestions)
 
-    const { data: first } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
+    const { data: first, error: firstErr } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
       p_session_id: sessionId,
       p_answers: answers,
     })
-    const firstResult = first as unknown as {
+    expect(firstErr).toBeNull()
+    const firstResult = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
-    }
+    }>(first, 'submit_vfr_rt_exam_answers')
 
     // Count answer rows before second call
     const { data: rows1, error: rows1Err } = await admin
@@ -454,12 +459,12 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       p_answers: answers,
     })
     expect(err2).toBeNull()
-    const secondResult = second as unknown as {
+    const secondResult = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
-    }
+    }>(second, 'submit_vfr_rt_exam_answers')
 
     // Same per-part pcts
     expect(Number(secondResult.part1_pct)).toBe(Number(firstResult.part1_pct))
@@ -536,12 +541,12 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       p_answers: [{ question_id: firstSaId, response_text: saById[firstSaId]!.canonical }],
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
-    }
+    }>(data, 'submit_vfr_rt_exam_answers')
     // Part 1 has 8 questions; only 1 answered correctly → pct = 100/8 = 12.5
     expect(Number(result.part1_pct)).toBe(12.5)
     // Part 2 and Part 3 have zero answers → 0
@@ -591,14 +596,14 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       p_answers: [{ question_id: firstSaId, response_text: saById[firstSaId]!.canonical }],
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       expired: boolean
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
       correct_count: number
-    }
+    }>(data, 'submit_vfr_rt_exam_answers')
     expect(result.expired).toBe(true)
     expect(Number(result.part1_pct)).toBe(0)
     expect(Number(result.part2_pct)).toBe(0)
@@ -712,12 +717,12 @@ describe('RPC: get_question_authoring_fields', () => {
       p_question_id: saId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as Array<{
+    const rows = requireRpcRows<{
       canonical_answer: string
       accepted_synonyms: string[]
       dialog_template: string | null
       blanks_config: unknown[]
-    }>
+    }>(data, 'get_question_authoring_fields')
     expect(rows).toHaveLength(1)
     expect(rows[0]!.canonical_answer).toBe('visible_to_admin')
     expect(rows[0]!.accepted_synonyms).toContain('visible_syn')
@@ -757,7 +762,7 @@ describe('RPC: get_question_authoring_fields', () => {
         p_question_id: saId,
       })
       expect(error).toBeNull()
-      const rows = data as unknown as unknown[]
+      const rows = requireRpcRows<unknown>(data, 'get_question_authoring_fields')
       // Non-vacuity: the question row exists (confirmed above); the empty result
       // means the RPC's org filter correctly rejected the cross-org admin
       expect(rows).toHaveLength(0)

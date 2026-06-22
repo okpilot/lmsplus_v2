@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -112,7 +113,7 @@ describe('RPC: check_quiz_answer', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const result = data as CheckAnswerResult
+    const result = requireRpcResult<CheckAnswerResult>(data, 'check_quiz_answer')
     expect(result.is_correct).toBe(true)
     expect(result.correct_option_id).toBe('b')
   })
@@ -125,7 +126,7 @@ describe('RPC: check_quiz_answer', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const result = data as CheckAnswerResult
+    const result = requireRpcResult<CheckAnswerResult>(data, 'check_quiz_answer')
     expect(result.is_correct).toBe(false)
     // The key is still surfaced so the UI can reveal the right answer.
     expect(result.correct_option_id).toBe('b')
@@ -149,7 +150,7 @@ describe('RPC: check_quiz_answer', () => {
         p_session_id: sessionId as string,
       })
       expect(error).toBeNull()
-      const result = data as CheckAnswerResult
+      const result = requireRpcResult<CheckAnswerResult>(data, 'check_quiz_answer')
       expect(result.is_correct).toBe(true)
       expect(result.correct_option_id).toBe('b')
     } finally {
@@ -174,7 +175,7 @@ describe('RPC: check_quiz_answer', () => {
       p_session_id: sessionId,
     })
     expect(error).toBeNull()
-    const result = data as CheckAnswerResult
+    const result = requireRpcResult<CheckAnswerResult>(data, 'check_quiz_answer')
     expect(result.explanation_text).toBe('Explanation for question 1')
     expect(result.explanation_image_url).toBeNull()
   })

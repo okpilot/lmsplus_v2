@@ -20,6 +20,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 const admin = getAdminClient()
@@ -269,7 +270,10 @@ beforeAll(async () => {
       p_subject_id: rtSubjectId,
     })
     if (error) throw new Error(`start passing: ${error.message}`)
-    const r = data as unknown as { session_id: string; question_ids: string[] }
+    const r = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      data,
+      'start_vfr_rt_exam_session',
+    )
     passingSessionId = r.session_id
 
     const saById = Object.fromEntries(saQs.map((q) => [q.id, q]))
@@ -299,7 +303,10 @@ beforeAll(async () => {
       p_subject_id: rtSubjectId,
     })
     if (error) throw new Error(`start failing: ${error.message}`)
-    const r = data as unknown as { session_id: string; question_ids: string[] }
+    const r = requireRpcResult<{ session_id: string; question_ids: string[] }>(
+      data,
+      'start_vfr_rt_exam_session',
+    )
     failingSessionId = r.session_id
 
     const saById = Object.fromEntries(saQs.map((q) => [q.id, q]))
@@ -355,7 +362,10 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
       },
     )
     if (startErr) throw new Error(`start pre-completion: ${startErr.message}`)
-    const openSession = (startData as unknown as { session_id: string }).session_id
+    const openSession = requireRpcResult<{ session_id: string }>(
+      startData,
+      'start_vfr_rt_exam_session',
+    ).session_id
 
     const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: openSession,
@@ -474,7 +484,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
@@ -483,7 +493,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       correct_count: number
       total_questions: number
       questions: unknown[]
-    }
+    }>(data, 'get_vfr_rt_exam_results')
     expect(Number(result.part1_pct)).toBe(100)
     expect(Number(result.part2_pct)).toBe(100)
     expect(Number(result.part3_pct)).toBe(100)
@@ -501,10 +511,14 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
   })
 
   it('revealed key contains canonical_answer for short_answer questions', async () => {
-    const { data } = await studentClient.rpc('get_vfr_rt_exam_results', {
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: passingSessionId,
     })
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    expect(error).toBeNull()
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
     const saEntry = result.questions.find((q) => q.question_type === 'short_answer')
     expect(saEntry).toBeDefined()
     const key = saEntry!.key as Record<string, unknown>
@@ -515,10 +529,14 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
   })
 
   it('revealed key contains blanks for dialog_fill questions', async () => {
-    const { data } = await studentClient.rpc('get_vfr_rt_exam_results', {
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: passingSessionId,
     })
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    expect(error).toBeNull()
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
     const dfEntry = result.questions.find((q) => q.question_type === 'dialog_fill')
     expect(dfEntry).toBeDefined()
     const key = dfEntry!.key as Record<string, unknown>
@@ -531,10 +549,14 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
   })
 
   it('revealed key contains correct_option_id for multiple_choice questions', async () => {
-    const { data } = await studentClient.rpc('get_vfr_rt_exam_results', {
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: passingSessionId,
     })
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    expect(error).toBeNull()
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
     const mcEntry = result.questions.find((q) => q.question_type === 'multiple_choice')
     expect(mcEntry).toBeDefined()
     const key = mcEntry!.key as Record<string, unknown>
@@ -551,7 +573,10 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
 
     // short_answer: exactly one row, blank_index/selected_option_id null,
     // response_text === the submitted canonical, is_correct true.
@@ -611,7 +636,10 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
     expect(result.questions).toHaveLength(25)
 
     // Every entry carries both keys (present even when the value is null)
@@ -660,7 +688,10 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
 
     // explanation_text is NOT NULL by schema, so null passthrough is only
     // observable on explanation_image_url; dialog_fill questions are seeded
@@ -677,14 +708,14 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
       p_session_id: failingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       part1_pct: number
       part2_pct: number
       part3_pct: number
       passed_overall: boolean
       passed_per_part: { part1: boolean; part2: boolean; part3: boolean }
       correct_count: number
-    }
+    }>(data, 'get_vfr_rt_exam_results')
     expect(Number(result.part1_pct)).toBe(100)
     expect(Number(result.part2_pct)).toBe(0)
     expect(Number(result.part3_pct)).toBe(100)
@@ -705,7 +736,10 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
       p_session_id: failingSessionId,
     })
     expect(error).toBeNull()
-    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    const result = requireRpcResult<{ questions: Array<Record<string, unknown>> }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
     const dfEntry = result.questions.find((q) => q.question_type === 'dialog_fill')
     expect(dfEntry).toBeDefined()
     const dfAnswers = dfEntry!.answers as AnswerRow[]
@@ -769,13 +803,13 @@ describe('RPC: complete_overdue_exam_session — vfr_rt_exam mode', () => {
     })
     expect(error).toBeNull()
 
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       session_id: string
       score_percentage: number
       passed: boolean
       total_questions: number
       answered_count: number
-    }
+    }>(data, 'complete_overdue_exam_session')
     expect(result.session_id).toBe(overdueSessionId)
     expect(Number(result.total_questions)).toBe(25)
     // 1 correct SA out of 8 → part1 = 12.5%; parts 2+3 = 0 → passed = false

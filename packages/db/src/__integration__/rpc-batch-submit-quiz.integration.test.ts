@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -163,8 +164,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     expect(error).toBeNull()
 
     // batch_submit_quiz RETURNS jsonb — a single OBJECT, not an array.
-    // Cast with a runtime guard (code-style.md §5) before consuming.
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       results: Array<{
         question_id: string
         is_correct: boolean
@@ -175,10 +175,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
       total_questions: number
       answered_count: number
       passed: boolean | null
-    }
-    if (!result || typeof result !== 'object') {
-      throw new Error('batch_submit_quiz returned an invalid result structure')
-    }
+    }>(data, 'batch_submit_quiz')
     expect(Array.isArray(result.results)).toBe(true)
     expect(result.results).toHaveLength(1)
 
@@ -248,13 +245,10 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     })
     expect(error).toBeNull()
 
-    const result = data as unknown as {
+    const result = requireRpcResult<{
       results: Array<{ question_id: string; is_correct: boolean; correct_option_id: string }>
       passed: boolean | null
-    }
-    if (!result || typeof result !== 'object') {
-      throw new Error('batch_submit_quiz returned an invalid result structure')
-    }
+    }>(data, 'batch_submit_quiz')
     expect(Array.isArray(result.results)).toBe(true)
     expect(result.results).toHaveLength(1)
 
@@ -300,7 +294,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
   async function insertQuestion(row: Record<string, unknown>): Promise<string> {
     const { data, error } = await admin.from('questions').insert(row).select('id').single()
     if (error) throw new Error(`insertQuestion: ${error.message}`)
-    const id = (data as unknown as { id: string }).id
+    const id = requireRpcResult<{ id: string }>(data, 'insertQuestion').id
     if (typeof id !== 'string' || id.length === 0) throw new Error('insertQuestion: no id')
     return id
   }
@@ -326,10 +320,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     passed: boolean | null
   }
   function asBatchResult(data: unknown): BatchResult {
-    if (!data || typeof data !== 'object') {
-      throw new Error('batch_submit_quiz returned a non-object')
-    }
-    return data as BatchResult
+    return requireRpcResult<BatchResult>(data, 'batch_submit_quiz')
   }
 
   beforeAll(async () => {
@@ -376,7 +367,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
       .select('id')
       .single()
     if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
-    bankId = (bank as unknown as { id: string }).id
+    bankId = requireRpcResult<{ id: string }>(bank, 'question_banks insert').id
 
     const base = {
       organization_id: orgId,

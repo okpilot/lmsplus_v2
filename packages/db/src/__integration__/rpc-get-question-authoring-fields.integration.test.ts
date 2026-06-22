@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -179,7 +180,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
       p_question_id: mcQuestionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as AuthoringRow[]
+    const rows = requireRpcRows<AuthoringRow>(data, 'get_question_authoring_fields')
     expect(Array.isArray(rows)).toBe(true)
     // Non-vacuity: the row exists and carries the seeded key.
     expect(rows).toHaveLength(1)
@@ -191,7 +192,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
       p_question_id: saQuestionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as AuthoringRow[]
+    const rows = requireRpcRows<AuthoringRow>(data, 'get_question_authoring_fields')
     expect(rows).toHaveLength(1)
     expect(rows[0]?.correct_option_id).toBeNull()
     expect(rows[0]?.canonical_answer).toBe('wilco')
@@ -224,7 +225,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
       p_question_id: mcQuestionId,
     })
     expect(error).toBeNull()
-    const rows = data as unknown as AuthoringRow[]
+    const rows = requireRpcRows<AuthoringRow>(data, 'get_question_authoring_fields')
     expect(rows).toHaveLength(0)
   })
 
