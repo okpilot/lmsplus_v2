@@ -349,7 +349,7 @@ if ((discarded?.length ?? 0) > 0) {
 
 Match the surrounding error posture:
 - **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
-- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages*).
+- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages Returned to Callers*).
 
 ```ts
 // ❌ WRONG — RLS-blocked read looks like an empty list
@@ -420,8 +420,9 @@ scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage)
 
 Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number. **Precedent:** `quiz.ts` (total_time_ms), `profile.ts` (avg_score), `dashboard-stats.ts` (subject_count), `reports.ts` (total_count, answered_count, score_percentage).
 
-### Sanitize Error Messages in Server Actions
-Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
+### Sanitize Error Messages Returned to Callers
+
+Every `if (error)` block in a Server Action — or in any exported function or library/SDK wrapper that returns a result type with an `error` field — must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly through an exported result type — internal error strings from **any** source (Postgres, Resend, Stripe, or any third-party SDK) can expose internal implementation details; log the raw error server-side and return a generic domain string. (Promoted count=2 — Supabase 2026-03-12, Resend #901.)
 
 ```ts
 // ❌ WRONG — raw DB error leaked to client
@@ -433,6 +434,21 @@ if (error) {
   return { success: false, error: 'Failed to save question' }
 }
 ```
+
+### Escape Dynamic Values in HTML/SVG/XML Templates
+
+Any function that builds an HTML, SVG, or XML string via template literals must escape caller-supplied or DB-derived parameters with an HTML-entity escape helper (`esc()` or an equivalent entity-encoder) before interpolation — **even when current call sites are server-trusted**. Escape at the interpolation site, not at the call sites: a future caller passing untrusted input is the injection vector, and call-site escaping is invisible to the template author.
+
+```ts
+// ❌ WRONG — DB-derived value interpolated raw into SVG markup
+return `<text x="10" y="20">${question.prompt}</text>`
+
+// ✅ CORRECT — escape at the interpolation site. esc() is a local HTML-entity escaper, not a shared export —
+// copy the inline pattern from an existing builder (seed-quiz-setup-eval.ts or email/templates/internal-exam-code.ts).
+return `<text x="10" y="20">${esc(question.prompt)}</text>`
+```
+
+(Promoted count=2 — SVG seed `esc()` #890, email template `esc()` #901.)
 
 ### Log Every Error Path, Including Rollbacks
 Every error path — including compensating (rollback) paths — must emit `console.error` before returning. Secondary error paths are not exempt from observability. If a rollback fails silently, the system enters an inconsistent state with no server-side signal.
