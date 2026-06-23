@@ -679,7 +679,7 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 
 **Justified exceptions:** admin / org-wide RPCs behind `is_admin()` are exempt from per-caller ownership scoping; a function that reads no soft-deletable table needs no soft-delete filter; a function with no `audit_events` INSERT has no audit-subquery concern. `SET search_path = public` has no exceptions — every SECURITY DEFINER function requires it.
 
-**Promotion sweep finding (#883):** the count=3 promotion swept every SECURITY DEFINER RPC by family and found 4 legacy read-RPCs missing the active-user gate — `check_quiz_answer` (mig 029, HIGH — answer key), `get_report_correct_options` (mig 037, HIGH — `correct_option_id`), `get_quiz_questions` (mig 002, MEDIUM — explanations), `get_session_reports` (mig 091, MEDIUM — history). These are the four functions oldest enough to predate the mig-076 gate family. Fix tracked in #883 (migration + per-RPC soft-deleted-caller rejection tests).
+**Promotion sweep finding (#883) — CLOSED:** the count=3 promotion swept every SECURITY DEFINER RPC by family and found 4 legacy read-RPCs (oldest enough to predate the mig-076 gate family) missing the active-user gate. All four now have it: `check_quiz_answer` (added mig 117, #823), `get_report_correct_options` (added mig 114, #856), `get_quiz_questions` (added mig 118, Phase 2 — folded into the org-scope `SELECT … INTO`), and `get_session_reports` (added mig 122, this PR). mig 122 aliases `users u` (`u.id`) because `get_session_reports`'s `RETURNS TABLE` declares an `id` OUT param — an unqualified `id` in the gate would be ambiguous (42702 at execution, code-style.md §5(c)). Each is covered by a soft-deleted-caller rejection test.
 
 ---
 

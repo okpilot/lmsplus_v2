@@ -2339,7 +2339,7 @@ Returns one page of the admin's student roster joined with each student's sessio
 
 Returns paginated session reports for the authenticated student with subject name join. Used by the progress/session history page.
 
-**Security:** `SECURITY DEFINER` + `auth.uid()` check + `SET search_path = public`.
+**Security:** `SECURITY DEFINER` + `auth.uid()` check + active-user gate (a soft-deleted caller with a live JWT is rejected — `PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL`, mig 122, #883) + `SET search_path = public`.
 
 **Parameters:** `p_sort TEXT DEFAULT 'started_at'`, `p_dir TEXT DEFAULT 'desc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`
 
@@ -2349,7 +2349,7 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`).
 
-**Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471)
+**Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471); `20260623000100_get_session_reports_active_user_gate.sql` (migration 122 — added active-user gate, `u.id`-aliased to avoid 42702 vs the `id` OUT param, #883)
 
 ---
 
