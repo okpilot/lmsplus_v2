@@ -136,3 +136,11 @@
 - **`${1:-}` guard is the correct `set -u` idiom for optional first argument.**
 - **Bash test scripts should use `set -u` only, NOT `set -e`.** The `|| actual=$?` exit-code capture works only when `set -e` is not active.
 - **Test false-pass risk via wrong path: exit 127 (file-not-found) ≠ expected 1 or 0 → FAIL.** All expected values are 0 or 1, so a bad hook path reports FAIL — cannot silently pass.
+
+## Notes on #839 round-3 expiry-detection predicate broadening (migs 129/130 LIKE '%.expired')
+
+- **`event_type LIKE '%.expired'` is strictly safer than the prior enumeration — APPROVED clean.** Enumerated every dotted `event_type` literal in the migration tree: the ONLY three ending in `.expired` are `exam.expired` / `internal_exam.expired` / `vfr_rt_exam.expired`, all expiry-only. Completions emit `*.completed` (excluded). No non-expiry token ends in `.expired`.
+- **Scope safety = single owned session.** Lookup is `resource_type='quiz_session' AND resource_id = p_session_id AND event_type LIKE '%.expired'`. resource_id is one session already owned via the upstream `FOR UPDATE` owner SELECT. A session has one mode; every expiry writer (timer guards + mig 102 `complete_overdue_/empty_exam_session`, `v_event_type` CASE L138-142) keys event_type off that session's own `v_mode`. So the suffix match is semantically equivalent to the enumeration for any real session, and future-proof against a new timed mode. No cross-session/cross-tenant surface.
+- **SQL LIKE wildcard note:** `.` is a literal in LIKE (only `%`/`_` are wildcards); pattern has no `_`, so no accidental single-char match.
+- **Mirrors byte-identical** (`129≡20260623000800`, `130≡20260623000900` via `diff`). Diff touches only the comment block + one predicate line per file — no other body drift.
+- **`Number(answered_count)`/`Number(correct_count)` test coercion** mirrors the existing `Number(score_percentage)` + code-style §5 BIGINT/NUMERIC defensive posture. Not a deviation. NO new tracker row — clean approval, no recurring deviation.
