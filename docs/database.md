@@ -2659,6 +2659,7 @@ Helper RPC (migration 101). Normalizes free-text exam answers for grading compar
 3. Collapse hyphen/underscore runs to single space
 4. Strip punctuation `.`,`;`,`:`,`!`,`?`,`"`,`'`,`(`,`)`,`[`,`]`
 5. Collapse whitespace runs to single space
+6. Trim again (final trim, **mig 128 / #921**) — steps 4–5 can leave a stray edge space when punctuation was adjacent to a leading/trailing space (`". hello"` → `" hello"`); without this, grading penalizes a correct answer (comparison is `normalize_answer(response)` vs `normalize_answer(canonical)`). Wraps the outermost `regexp_replace` in `trim()`; CREATE OR REPLACE, no signature change. The TS mirror gains the matching final `.trim()` in the same change.
 
 **Deploy-time locale guard (mig 101):** The migration includes a DO-block that raises an exception if `lower('Č') <> 'č'` — catches misconfigured locales (e.g. tr_TR, C/POSIX) that fold Slovenian diacritics before the function is created, preventing silent answer miscount at runtime.
 
