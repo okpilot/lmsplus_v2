@@ -33,12 +33,13 @@ Every CR finding falls into exactly one of these classes. Severity labels (`triv
 
 ## Stop Conditions for the Loop
 
-CodeRabbit is an LLM. It does not converge — it can find a new nit on every round, and the same diff yields different findings run to run. A single quiet round is therefore NOT evidence the diff is clean. The loop ends when EITHER:
+CodeRabbit is an LLM. It does not converge — it can find a new nit on every round, and the same diff yields different findings run to run. A single quiet round is therefore weak evidence; multiple rounds sample the reviewer. But CR-local is only a **pre-push preview** of the cloud CodeRabbit that reviews the actual PR on push — and we never merge on a `CHANGES_REQUESTED`, so the cloud review is the authoritative CR gate. CR-local's job is to catch the cheap stuff before push, not to produce a stability proof a non-deterministic (and sometimes slow/timing-out) reviewer can't reliably give. The loop ends when EITHER:
 
-1. **Minimum-rounds floor met — N consecutive clean rounds.** A *clean round* = 0 findings, OR stylistic-only findings (`Aesthetic preference` / `Contradicts codebase pattern`) with zero APPLY verdicts.
-   - **N = 2** for a normal diff.
-   - **N = 3** when the diff touches a security path (the `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/`, `packages/db/`, `apps/web/app/app/quiz/actions/`, `apps/web/app/auth/`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
-   - Every floor round runs with `-c .coderabbit.yaml`. Any round carrying an APPLY verdict **resets the consecutive-clean counter to zero** (fix, then resume counting).
+1. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces the former consecutive-clean floor).** Run a **minimum of M rounds**, then stop on the first round **at or after** the minimum that has **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts).
+   - **M = 2** for a normal diff.
+   - **M = 3** when the diff touches a security path (the `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/`, `packages/db/`, `apps/web/app/app/quiz/actions/`, `apps/web/app/auth/`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
+   - An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one round** (fix the finding, then run one more round to confirm the fix surfaced nothing new). Rounds count cumulatively toward M; you simply cannot stop *on* a round that still carries an APPLY verdict, and cannot stop *before* round M.
+   - Every round runs with `-c .coderabbit.yaml`. The cloud CodeRabbit review on the pushed PR stays the strict authoritative gate regardless of how many local rounds ran.
 2. **4 fix commits driven by CR local** on the current branch — a hard ceiling that caps total effort even if the floor is unmet; escalate to user judgment rather than looping further.
 
 ## Handling Results
@@ -46,13 +47,13 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 ### DO
 - Run via `/crlocal` slash command — never call `coderabbit review` ad hoc; the command embeds the protocol.
 - **Always pass `-c .coderabbit.yaml`.** Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating `actions.ts` path_instructions was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it as belt-and-suspenders: it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if the file is absent. (Especially relevant post-Forgejo-migration, where the PR bot is gone and the CLI is the only CodeRabbit — the experiment confirms the CLI honors `.coderabbit.yaml` off-platform with no extra wiring.)
-- **Honor the minimum-rounds floor** (Stop Conditions §1): a single clean round never satisfies the gate — require N consecutive clean rounds (2 normal / 3 security-path), resetting on any APPLY verdict.
+- **Honor the minimum-rounds rule** (Stop Conditions §1): run at least M rounds (M=2 normal / 3 security-path), then stop on the first round at/after M with no apply-worthy findings. An APPLY verdict extends the loop by one round (fix + re-run); it does NOT reset to zero. Cloud CR on the pushed PR is the authoritative gate.
 - Read the source for every finding before triaging — CR's labels are LLM-generated, not authoritative.
 - Apply each APPLY-verdict finding in a focused commit (one subject per commit). Don't batch unrelated fixes.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
 - Re-run the review after each fix commit — fixes can surface new findings that weren't visible before.
 - For DEFER verdicts, file a GitHub Issue with the CR comment context (severity, file, line, suggestion).
-- Stop the loop the moment a stop condition trips (floor met, or 4-fix ceiling hit) — but NOT on a single clean round; report the running consecutive-clean count each round and tell the user which condition tripped.
+- Stop the loop the moment a stop condition trips (≥ M rounds run AND the latest round has no apply-worthy findings, or the 4-fix ceiling hit) — but NOT before round M; report the running round count each round (e.g. "round 2/2 min, last round clean → stop") and tell the user which condition tripped.
 - Treat findings labeled `nitpick / trivial` with the same source-reading rigour as `potential_issue / major`. Severity labels are unreliable.
 - When SKIPPING, give a concrete reason (cite the codebase pattern, point to a code-style rule, or explain the trade-off).
 
@@ -78,4 +79,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-06-18 (made `-c .coderabbit.yaml` config parity the default; added minimum-rounds floor — 2 consecutive clean rounds normally, 3 for security-path diffs — to counter CR non-determinism)*
+*Last updated: 2026-06-23 (replaced the consecutive-clean floor with minimum-rounds-met + last-round-clean — run ≥ M rounds [2 normal / 3 security-path], stop on the first round at/after M with no apply-worthy findings, an APPLY finding extends by one round instead of resetting; cloud CR on the PR is the authoritative gate, so a stability proof on the local preview is not required)*
