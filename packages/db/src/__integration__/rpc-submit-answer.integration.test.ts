@@ -374,4 +374,65 @@ describe('RPC: submit_quiz_answer', () => {
       }
     }
   })
+
+  it('accepts a submission for a question soft-deleted mid-session (§15 carve-out, #855)', async () => {
+    // #855 Option 1 (carve-out both): a question that was a frozen config.question_ids
+    // member at session start stays submittable even after an admin soft-deletes it
+    // mid-session — aligned with check_quiz_answer. Use a DEDICATED question (index 4,
+    // outside the default 0..3 slice) and restore in finally so the shared pool is not
+    // polluted for sibling tests.
+    const targetQuestion = questionIds[4]
+    if (!targetQuestion) throw new Error('expected at least 5 seeded questions')
+    const sessionId = await startSession([targetQuestion])
+
+    // Soft-delete the question AFTER the session froze its config.question_ids membership.
+    const { error: softDeleteErr } = await admin
+      .from('questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', targetQuestion)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      // Non-vacuity precondition: the question is genuinely soft-deleted, so a green
+      // result proves the carve-out — not that the question was still active.
+      const { data: precheck, error: precheckErr } = await admin
+        .from('questions')
+        .select('deleted_at')
+        .eq('id', targetQuestion)
+        .single()
+      if (precheckErr) throw new Error(`precheck: ${precheckErr.message}`)
+      expect(precheck?.deleted_at).not.toBeNull()
+
+      // The carve-out: submit still succeeds and reads the soft-deleted question's key.
+      const { data, error } = await studentClient.rpc('submit_quiz_answer', {
+        p_session_id: sessionId,
+        p_question_id: targetQuestion,
+        p_selected_option: 'b',
+        p_response_time_ms: 4000,
+      })
+      expect(error).toBeNull()
+      expect(data?.[0].is_correct).toBe(true)
+      expect(data?.[0].correct_option_id).toBe('b')
+
+      // The answer was actually recorded (the behavior under test, not just a no-op accept).
+      const { data: recorded, error: recordedErr } = await admin
+        .from('quiz_session_answers')
+        .select('is_correct')
+        .eq('session_id', sessionId)
+        .eq('question_id', targetQuestion)
+        .is('blank_index', null)
+        .single()
+      if (recordedErr) throw new Error(`recorded read: ${recordedErr.message}`)
+      expect(recorded?.is_correct).toBe(true)
+    } finally {
+      // Restore so afterAll cleanup and any sibling test see an active question.
+      const { error: restoreErr } = await admin
+        .from('questions')
+        .update({ deleted_at: null })
+        .eq('id', targetQuestion)
+      if (restoreErr) {
+        console.error('[#855 question restore] question row left soft-deleted:', restoreErr.message)
+      }
+    }
+  })
 })

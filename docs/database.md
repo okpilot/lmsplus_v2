@@ -643,7 +643,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `check_non_mc_answer` (mig 119), `batch_submit_quiz` (migs 120/121 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 114) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session. **This intentional divergence is documented in submit_quiz_answer's RPC section** — the difference reflects domain intent: immediate feedback (`check_quiz_answer`) serves live practice sessions, while the historical replay/report path preserves answers for soft-deleted questions; new submissions still require active, non-deleted questions.
+**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (mig 119), `batch_submit_quiz` (migs 120/121 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 114) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -713,7 +713,7 @@ verb_noun pattern:
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 114, #823)
   check_quiz_answer                ← read, verify MC answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 117, #823); practice-mode only (smart_review/quick_quiz)
   check_non_mc_answer              ← read, verify short_answer or dialog_fill answer (immediate feedback); returns canonical + per-blank results; §15 carve-out; practice-mode only (smart_review/quick_quiz); SECURITY DEFINER; sibling of check_quiz_answer (mig 119, #697 Phase 2)
-  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823)
+  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823); §15 frozen-config carve-out — no deleted_at filter on the question lookup (mig 123, #855)
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (mig 121, #697 Phase 2); per-type dispatch to internal helpers (_grade_record_mc/_short_answer/_dialog_fill, mig 120, REVOKE EXECUTE FROM PUBLIC, anon, authenticated); DISTINCT-question partial-credit scoring for dialog_fill (Decision 47); last_active_at stamped by trigger on quiz_sessions.ended_at update (mig 092); reads from questions.correct_option_id for MC grading (mig 121, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
@@ -880,9 +880,9 @@ GRANT EXECUTE ON FUNCTION get_quiz_questions(uuid[]) TO authenticated;
 
 This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
 
-**Security (migration 036, updated mig 112 #823, hardened mig 112 PR #856):**
+**Security (migration 036, updated mig 112 #823, hardened mig 112 PR #856, §15 carve-out mig 123 #855):**
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
-- Soft-delete guard: `deleted_at IS NULL` prevents submitting to a discarded (soft-deleted) session.
+- Soft-delete guard (session only): the session lookup filters `qs.deleted_at IS NULL` so a discarded (soft-deleted) session is rejected. The **question** lookup, by contrast, omits the `deleted_at` filter under the §15 frozen-config carve-out (mig 123, #855) — a question valid at session start stays submittable even if soft-deleted mid-session, aligned with `check_quiz_answer`.
 - Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array (which no longer carries `correct`, stripped by `trg_sanitize_question_options`). Prevents attackers from submitting arbitrary strings as option IDs.
 - Correctness check: reads `questions.correct_option_id` (mig 112 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
 - Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam submission goes exclusively through `batch_submit_quiz`; `vfr_rt_exam` goes through `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
@@ -957,7 +957,10 @@ BEGIN
   END IF;
 
   -- Get correct answer, explanation, and full options array (service-level access).
-  -- deleted_at filter applied: active sessions should only reference active questions.
+  -- §15 carve-out (mig 123, #855): NO deleted_at filter — the question is reached only
+  -- via the immutable write-once config.question_ids (membership verified above), so a
+  -- question soft-deleted mid-session stays submittable, aligned with check_quiz_answer.
+  -- See docs/database.md §3 "Scoring Soft-Deleted Questions" and docs/security.md §15.
   SELECT
     q.correct_option_id,  -- mig 112 #823: read the REVOKE-gated column, not options[].correct
     q.explanation_text,
@@ -965,8 +968,7 @@ BEGIN
     q.options
   INTO v_correct_option, v_expl_text, v_expl_image_url, v_options
   FROM questions q
-  WHERE q.id = p_question_id
-    AND q.deleted_at IS NULL;
+  WHERE q.id = p_question_id;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'question not found';
