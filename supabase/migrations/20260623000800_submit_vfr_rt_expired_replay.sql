@@ -269,18 +269,21 @@ BEGIN
     -- Idempotent replay: return the previously-computed result; write nothing.
     v_correct_count := coalesce(v_correct_count, 0);
     v_passed        := coalesce(v_passed, false);
-    -- #839: a replay of an expired submit must re-emit expired:true (the fresh
-    -- timer-expiry path above returns it). The audit lookup detects expiry from ANY
-    -- origin: the timer-expiry path (writes the audit event, inserts no answer rows
-    -- → zeroed replay) AND complete_overdue_/complete_empty_exam_session (mig 102,
-    -- same event_type), where an overdue-WITH-answers session keeps its rows →
-    -- non-zero replay, still correctly flagged expired. audit_events is append-only
-    -- — no deleted_at filter.
+    -- #839: re-emit expired:true on idempotent replay (the fresh timer-expiry path
+    -- above returns it). Match ANY '<mode>.expired' audit event for this already-owned
+    -- session (resource_id = p_session_id, scoped by the FOR UPDATE owner SELECT above).
+    -- Only expiry paths write '*.expired' — the timer path here + complete_overdue_/
+    -- empty_exam_session (mig 102), all mode-keyed (a vfr_rt session always emits
+    -- 'vfr_rt_exam.expired'); non-overdue completions write '*.completed', which the
+    -- suffix match excludes. Mode-agnostic so a new timed mode can't silently regress
+    -- this (the #839 bug class). The timer path inserts no answer rows (→ zeroed replay);
+    -- an overdue-WITH-answers completion (mig 102) keeps its rows → non-zero replay,
+    -- still correctly flagged. audit_events is append-only — no deleted_at filter.
     SELECT EXISTS (
       SELECT 1 FROM audit_events
       WHERE resource_type = 'quiz_session'
         AND resource_id = p_session_id
-        AND event_type = 'vfr_rt_exam.expired'
+        AND event_type LIKE '%.expired'
     ) INTO v_replay_expired;
   ELSE
     SELECT count(*) FILTER (WHERE qsa.is_correct)::int INTO v_correct_count

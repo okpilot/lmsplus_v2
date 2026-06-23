@@ -109,24 +109,22 @@ BEGIN
     FROM quiz_session_answers qsa
     JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
-    -- #839: re-add expired flag on replay (see header). The audit lookup detects
-    -- expiry from ANY origin: the timer-expiry guard below (inserts no answer rows
-    -- → replay returns results=[] + zeros) AND complete_overdue_/empty_exam_session
-    -- (mig 102), where an overdue-WITH-answers session keeps its quiz_session_answers
-    -- rows → replay returns those rows + non-zero counts, still correctly flagged
-    -- expired:true. The unconditional read above (L99-111) handles both. audit_events
-    -- is append-only — no deleted_at filter.
-    -- Event-type set is COMPLETE for this function: the mode whitelist above
-    -- (L93) rejects vfr_rt_exam, and every expiry writer (this function's timer
-    -- guard + complete_overdue_/empty_exam_session, mig 102) keys event_type on
-    -- the session's mode — so a session this function can replay only ever carries
-    -- 'exam.expired' or 'internal_exam.expired'. 'vfr_rt_exam.expired' is handled
-    -- by the sibling submit_vfr_rt_exam_answers (mig 129), not here.
+    -- #839: re-emit expired:true on idempotent replay. Match ANY '<mode>.expired'
+    -- audit event for this already-owned session (resource_id = p_session_id, scoped
+    -- by the FOR UPDATE owner SELECT above). Only expiry paths write '*.expired' — the
+    -- timer guard below + complete_overdue_/empty_exam_session (mig 102), all mode-keyed
+    -- ('exam.expired' / 'internal_exam.expired' for this function's whitelisted modes);
+    -- non-overdue completions write '*.completed', which the suffix match excludes. The
+    -- suffix match is mode-agnostic so a new timed mode can't silently regress this (the
+    -- #839 bug class). The expiry path inserts no answer rows (→ zeroed replay), but an
+    -- overdue-WITH-answers completion (mig 102) keeps its rows → non-zero replay, still
+    -- correctly flagged; the unconditional read above (L99-111) handles both.
+    -- audit_events is append-only — no deleted_at filter.
     SELECT EXISTS (
       SELECT 1 FROM audit_events
       WHERE resource_type = 'quiz_session'
         AND resource_id = p_session_id
-        AND event_type IN ('exam.expired', 'internal_exam.expired')
+        AND event_type LIKE '%.expired'
     ) INTO v_replay_expired;
     RETURN jsonb_build_object(
       'results', COALESCE(v_results, '[]'::jsonb),

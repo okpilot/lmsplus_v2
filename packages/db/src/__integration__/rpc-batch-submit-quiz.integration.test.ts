@@ -664,8 +664,8 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     // Clean boolean true (EXISTS, not a count) and otherwise the identical zeroed payload.
     expect(replayResult.expired).toBe(true)
     expect(replayResult.results).toEqual([])
-    expect(replayResult.answered_count).toBe(0)
-    expect(replayResult.correct_count).toBe(0)
+    expect(Number(replayResult.answered_count)).toBe(0)
+    expect(Number(replayResult.correct_count)).toBe(0)
     expect(Number(replayResult.score_percentage)).toBe(0)
     expect(replayResult.passed).toBe(false)
   })
