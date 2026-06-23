@@ -209,4 +209,40 @@ describe('getSessionReports (app-layer integration)', () => {
       expect(bSet.has(session.id)).toBe(false)
     }
   })
+
+  it('rejects a soft-deleted caller and does not leak their session history (#883)', async () => {
+    // Positive control (non-vacuous): while active, B sees their own 3 sessions —
+    // so a missing active-user gate would return them.
+    await signInAs(emailB, password)
+    const active = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
+    expect(active.ok).toBe(true)
+    if (!active.ok) throw new Error(active.error)
+    expect(active.totalCount).toBe(3)
+
+    // Soft-delete B (deactivation does NOT cascade to quiz_sessions, so the per-session
+    // ownership filter still matches). The active-user gate (mig 122) fires first and must
+    // refuse even B's own owned, completed sessions.
+    const { error: softDeleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentBId)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      await signInAs(emailB, password)
+      const r = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
+      expect(r.ok).toBe(false)
+      // The raw RAISE ('user not found or inactive') must be sanitized to the
+      // generic domain string — never leaked to the caller (reports.ts).
+      if (!r.ok) expect(r.error).toBe('Failed to load reports')
+    } finally {
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentBId)
+      if (restoreErr) {
+        console.error('[#883 soft-delete restore] studentB left soft-deleted:', restoreErr.message)
+      }
+    }
+  })
 })
