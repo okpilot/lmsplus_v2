@@ -616,4 +616,57 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
       expect(denied, `helper ${fn} error was ${code}: ${error?.message}`).toBe(true)
     }
   })
+
+  it('re-flags an expired exam as expired on retry, not as a zero-score completion', async () => {
+    // #839: the idempotent-replay branch used to DROP the expired flag, so a retry
+    // of an expired submit looked like a normal 0-score completion. The replay now
+    // detects the 'exam.expired' / 'internal_exam.expired' audit event and re-returns
+    // expired:true. Service-role INSERT with a backdated started_at trips the
+    // timer-expiry guard on first submit (mig 079 exempts service_role from the
+    // immutability trigger on INSERT), avoiding a 30-minute real wait.
+    const oldStartedAt = new Date(Date.now() - (1800 + 60) * 1000).toISOString()
+    const { data: inserted, error: insErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'mock_exam',
+        subject_id: refs.subjectId,
+        config: { question_ids: [mcId], pass_mark: 75 },
+        total_questions: 1,
+        time_limit_seconds: 1800,
+        started_at: oldStartedAt,
+      })
+      .select('id')
+      .single()
+    if (insErr) throw new Error(`backdated session insert: ${insErr.message}`)
+    const expiredSessionId = requireRpcResult<{ id: string }>(inserted, 'quiz_sessions insert').id
+    const answers = [{ question_id: mcId, selected_option: 'b', response_time_ms: 1000 }]
+
+    // First submit trips the expiry guard (fresh path → expired:true).
+    const { data: first, error: firstErr } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: expiredSessionId,
+      p_answers: answers,
+    })
+    expect(firstErr).toBeNull()
+    expect(requireRpcResult<{ expired?: boolean }>(first, 'batch_submit_quiz').expired).toBe(true)
+
+    // Retry of the now-ended session hits the idempotent-replay branch.
+    const { data: replay, error: replayErr } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: expiredSessionId,
+      p_answers: answers,
+    })
+    expect(replayErr).toBeNull()
+    const replayResult = requireRpcResult<BatchResult & { expired?: boolean }>(
+      replay,
+      'batch_submit_quiz',
+    )
+    // Clean boolean true (EXISTS, not a count) and otherwise the identical zeroed payload.
+    expect(replayResult.expired).toBe(true)
+    expect(replayResult.results).toEqual([])
+    expect(Number(replayResult.answered_count)).toBe(0)
+    expect(Number(replayResult.correct_count)).toBe(0)
+    expect(Number(replayResult.score_percentage)).toBe(0)
+    expect(replayResult.passed).toBe(false)
+  })
 })

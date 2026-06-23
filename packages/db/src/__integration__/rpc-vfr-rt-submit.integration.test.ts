@@ -584,7 +584,7 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       .select('id')
       .single()
     if (insErr) throw new Error(`backdated session insert: ${insErr.message}`)
-    const expiredSessionId = inserted.id as string
+    const expiredSessionId = requireRpcResult<{ id: string }>(inserted, 'quiz_sessions insert').id
 
     // Now attempt to submit answers — must hit the expiry guard, not grade
     const saById = Object.fromEntries(saQuestions.map((q) => [q.id, q]))
@@ -619,6 +619,73 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     expect(evErr).toBeNull()
     const types = (events ?? []).map((e: { event_type: string }) => e.event_type)
     expect(types).toContain('vfr_rt_exam.expired')
+  })
+
+  it('re-flags an expired exam as expired on retry, not as a zero-score completion', async () => {
+    // #839: the idempotent-replay branch used to DROP the expired flag, so a retry
+    // of an expired submit looked like a normal 0-score completion. The replay now
+    // detects the 'vfr_rt_exam.expired' audit event and re-returns expired:true.
+    // Same backdated-session setup as the timer-expiry test above.
+    const { sessionId: templateSession, questionIds } = await startSession()
+    await forceEndSession(templateSession)
+
+    const oldStartedAt = new Date(Date.now() - (1800 + 60) * 1000).toISOString()
+    const { data: inserted, error: insErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'vfr_rt_exam',
+        subject_id: rtSubjectId,
+        config: { question_ids: questionIds },
+        total_questions: 25,
+        time_limit_seconds: 1800,
+        started_at: oldStartedAt,
+      })
+      .select('id')
+      .single()
+    if (insErr) throw new Error(`backdated session insert: ${insErr.message}`)
+    const expiredSessionId = requireRpcResult<{ id: string }>(inserted, 'quiz_sessions insert').id
+
+    const saById = Object.fromEntries(saQuestions.map((q) => [q.id, q]))
+    const firstSaId = questionIds.find((id) => saById[id] !== undefined)
+    if (!firstSaId) throw new Error('no SA question in frozen list')
+    const answers = [{ question_id: firstSaId, response_text: saById[firstSaId]!.canonical }]
+
+    // First submit trips the expiry guard (fresh path → expired:true).
+    const { data: first, error: firstErr } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
+      p_session_id: expiredSessionId,
+      p_answers: answers,
+    })
+    expect(firstErr).toBeNull()
+    expect(
+      requireRpcResult<{ expired?: boolean }>(first, 'submit_vfr_rt_exam_answers').expired,
+    ).toBe(true)
+
+    // Retry of the now-ended session hits the idempotent-replay branch.
+    const { data: replay, error: replayErr } = await studentClient.rpc(
+      'submit_vfr_rt_exam_answers',
+      {
+        p_session_id: expiredSessionId,
+        p_answers: answers,
+      },
+    )
+    expect(replayErr).toBeNull()
+    const replayResult = requireRpcResult<{
+      expired?: boolean
+      part1_pct: number
+      part2_pct: number
+      part3_pct: number
+      passed_overall: boolean
+      correct_count: number
+    }>(replay, 'submit_vfr_rt_exam_answers')
+    // Clean boolean true (EXISTS, not a count) and otherwise the identical zeroed payload.
+    expect(replayResult.expired).toBe(true)
+    expect(Number(replayResult.part1_pct)).toBe(0)
+    expect(Number(replayResult.part2_pct)).toBe(0)
+    expect(Number(replayResult.part3_pct)).toBe(0)
+    expect(replayResult.passed_overall).toBe(false)
+    expect(Number(replayResult.correct_count)).toBe(0)
   })
 })
 
