@@ -104,19 +104,20 @@ describe('Constraint regression — mig 125 dialog_fill delimiter guard', () => 
     } finally {
       insertedQuestionIds.length = 0
     }
-    if (errors.length === 0) {
-      try {
-        if (orgId) await cleanupTestData({ admin, orgId, userIds })
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
-      }
+    // Always attempt every independent cleanup step (CR #978) — the error
+    // accumulator below reports all failures together, so attempting ref
+    // cleanup after a failed test cleanup cannot mask the real cause. Order is
+    // FK-correct: cleanupTestData (removes the org's questions) before
+    // cleanupReferenceData (removes the FK-parent subject/topic).
+    try {
+      if (orgId) await cleanupTestData({ admin, orgId, userIds })
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     }
-    if (errors.length === 0) {
-      try {
-        await cleanupReferenceData({ admin, refs: [refs] })
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
-      }
+    try {
+      await cleanupReferenceData({ admin, refs: [refs] })
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
@@ -166,8 +167,10 @@ describe('Constraint regression — mig 125 dialog_fill delimiter guard', () => 
       created_by: adminUserId,
     })
     expect(error).not.toBeNull()
-    // 23514 = check_violation (questions_dialog_fill_blanks_delimiter_free)
+    // 23514 = check_violation — pin the EXACT constraint, not any CHECK on
+    // questions (CR #978): the constraint name is in the PostgREST error message.
     expect(error?.code).toBe('23514')
+    expect(error?.message).toContain('questions_dialog_fill_blanks_delimiter_free')
   })
 
   it('rejects a dialog_fill question whose synonym contains a pipe character', async () => {
@@ -214,8 +217,10 @@ describe('Constraint regression — mig 125 dialog_fill delimiter guard', () => 
       created_by: adminUserId,
     })
     expect(error).not.toBeNull()
-    // 23514 = check_violation (questions_dialog_fill_blanks_delimiter_free)
+    // 23514 = check_violation — pin the EXACT constraint, not any CHECK on
+    // questions (CR #978): the constraint name is in the PostgREST error message.
     expect(error?.code).toBe('23514')
+    expect(error?.message).toContain('questions_dialog_fill_blanks_delimiter_free')
   })
 
   it('rejects a dialog_fill question whose template leaves a stray brace after stripping tokens', async () => {
@@ -266,7 +271,9 @@ describe('Constraint regression — mig 125 dialog_fill delimiter guard', () => 
       created_by: adminUserId,
     })
     expect(error).not.toBeNull()
-    // 23514 = check_violation (questions_dialog_fill_template_wellformed)
+    // 23514 = check_violation — pin the EXACT constraint (CR #978): the
+    // constraint name is in the PostgREST error message.
     expect(error?.code).toBe('23514')
+    expect(error?.message).toContain('questions_dialog_fill_template_wellformed')
   })
 })
