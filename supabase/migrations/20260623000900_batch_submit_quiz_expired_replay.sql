@@ -113,6 +113,12 @@ BEGIN
     -- no answer rows, so an expired replay returns results=[] + zeros, identical
     -- to the fresh-expiry payload once the flag is restored. audit_events is
     -- append-only — no deleted_at filter.
+    -- Event-type set is COMPLETE for this function: the mode whitelist above
+    -- (L93) rejects vfr_rt_exam, and every expiry writer (this function's timer
+    -- guard + complete_overdue_/empty_exam_session, mig 102) keys event_type on
+    -- the session's mode — so a session this function can replay only ever carries
+    -- 'exam.expired' or 'internal_exam.expired'. 'vfr_rt_exam.expired' is handled
+    -- by the sibling submit_vfr_rt_exam_answers (mig 129), not here.
     SELECT EXISTS (
       SELECT 1 FROM audit_events
       WHERE resource_type = 'quiz_session'
