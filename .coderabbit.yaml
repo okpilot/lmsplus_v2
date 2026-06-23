@@ -160,7 +160,11 @@ reviews:
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no UPDATE or DELETE policies.
         - audit_events is append-only. No UPDATE/DELETE policies. Ever.
         - SECURITY DEFINER functions: auth.uid() check + SET search_path = public.
-        - Max 300 lines per migration file.
+        - Max 300 lines per migration file. EXCEPTION: a migration whose entire content is a
+          single CREATE OR REPLACE FUNCTION (or another single, atomic, unsplittable DDL object)
+          may exceed 300 lines — a plpgsql function body cannot be split across files, and our
+          single-function SECURITY DEFINER RPC redefinitions run ~300-330 lines. Do NOT flag a single-function redefinition for
+          length; only flag multi-statement migrations that could be split by concern. (code-style.md §1.)
         - Audit-event INSERT subqueries: every INSERT INTO audit_events block inside a
           SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/
           question/membership FK lookup used to populate actor_id, actor_role, or

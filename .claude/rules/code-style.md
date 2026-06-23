@@ -17,6 +17,8 @@
 | Hook (`use*.ts`) | 80 lines | Split or extract logic to util |
 | SQL migration file | 300 lines | Split into multiple migrations |
 
+**Exception — single unsplittable DDL object.** The 300-line migration cap targets *multi-statement* migrations that can be split by concern. A migration whose entire content is **one** `CREATE OR REPLACE FUNCTION` (or another single, atomic DDL object) may exceed 300 lines: a plpgsql function body cannot be split across migration files, and our single-function SECURITY DEFINER RPC redefinitions sit right at or over the cap (e.g. `submit_vfr_rt_exam_answers` mig 129 = 330, `batch_submit_quiz` mig 130 = 329, mig 124 = 313; the base bodies migs 100/113/121 are ~300). Keep the *header* comment minimal and push long rationale to the commit message / `docs/database.md`, but do not split or strip the function body to satisfy the cap. The reviewer (and CodeRabbit, via `.coderabbit.yaml`) treats a single-function redefinition over 300 lines as this documented exception, not a violation. (Promoted from the learner tracker at count=5; CR-requested formalization, #980.)
+
 **The golden rule:** if you need to scroll to understand a file, it's too long.
 
 A page file should look like this:
