@@ -960,6 +960,7 @@ BEGIN
   -- §15 carve-out (mig 123, #855): NO deleted_at filter — the question is reached only
   -- via the immutable write-once config.question_ids (membership verified above), so a
   -- question soft-deleted mid-session stays submittable, aligned with check_quiz_answer.
+  -- See docs/database.md §3 "Scoring Soft-Deleted Questions" and docs/security.md §15.
   SELECT
     q.correct_option_id,  -- mig 112 #823: read the REVOKE-gated column, not options[].correct
     q.explanation_text,
