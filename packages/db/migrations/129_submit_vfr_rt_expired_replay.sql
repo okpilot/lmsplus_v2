@@ -269,12 +269,13 @@ BEGIN
     -- Idempotent replay: return the previously-computed result; write nothing.
     v_correct_count := coalesce(v_correct_count, 0);
     v_passed        := coalesce(v_passed, false);
-    -- #839: a replay of an expired submit must return the SAME {expired:true}
-    -- payload as the original fresh-expiry response (above). The expiry path writes
-    -- a 'vfr_rt_exam.expired' audit event but no answer rows, so the replay is
-    -- otherwise indistinguishable from a 0-score completion. The audit lookup also
-    -- catches expiry via complete_overdue_/complete_empty_exam_session (mig 102,
-    -- same event_type). audit_events is append-only — no deleted_at filter.
+    -- #839: a replay of an expired submit must re-emit expired:true (the fresh
+    -- timer-expiry path above returns it). The audit lookup detects expiry from ANY
+    -- origin: the timer-expiry path (writes the audit event, inserts no answer rows
+    -- → zeroed replay) AND complete_overdue_/complete_empty_exam_session (mig 102,
+    -- same event_type), where an overdue-WITH-answers session keeps its rows →
+    -- non-zero replay, still correctly flagged expired. audit_events is append-only
+    -- — no deleted_at filter.
     SELECT EXISTS (
       SELECT 1 FROM audit_events
       WHERE resource_type = 'quiz_session'

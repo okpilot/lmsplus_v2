@@ -109,10 +109,13 @@ BEGIN
     FROM quiz_session_answers qsa
     JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
-    -- #839: re-add expired flag on replay (see header). The expiry path inserts
-    -- no answer rows, so an expired replay returns results=[] + zeros, identical
-    -- to the fresh-expiry payload once the flag is restored. audit_events is
-    -- append-only — no deleted_at filter.
+    -- #839: re-add expired flag on replay (see header). The audit lookup detects
+    -- expiry from ANY origin: the timer-expiry guard below (inserts no answer rows
+    -- → replay returns results=[] + zeros) AND complete_overdue_/empty_exam_session
+    -- (mig 102), where an overdue-WITH-answers session keeps its quiz_session_answers
+    -- rows → replay returns those rows + non-zero counts, still correctly flagged
+    -- expired:true. The unconditional read above (L99-111) handles both. audit_events
+    -- is append-only — no deleted_at filter.
     -- Event-type set is COMPLETE for this function: the mode whitelist above
     -- (L93) rejects vfr_rt_exam, and every expiry writer (this function's timer
     -- guard + complete_overdue_/empty_exam_session, mig 102) keys event_type on

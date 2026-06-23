@@ -584,7 +584,7 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       .select('id')
       .single()
     if (insErr) throw new Error(`backdated session insert: ${insErr.message}`)
-    const expiredSessionId = inserted.id as string
+    const expiredSessionId = requireRpcResult<{ id: string }>(inserted, 'quiz_sessions insert').id
 
     // Now attempt to submit answers — must hit the expiry guard, not grade
     const saById = Object.fromEntries(saQuestions.map((q) => [q.id, q]))
@@ -645,7 +645,7 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       .select('id')
       .single()
     if (insErr) throw new Error(`backdated session insert: ${insErr.message}`)
-    const expiredSessionId = inserted.id as string
+    const expiredSessionId = requireRpcResult<{ id: string }>(inserted, 'quiz_sessions insert').id
 
     const saById = Object.fromEntries(saQuestions.map((q) => [q.id, q]))
     const firstSaId = questionIds.find((id) => saById[id] !== undefined)
