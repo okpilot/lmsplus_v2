@@ -232,6 +232,10 @@ CREATE TABLE questions (
 
 All grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b / 114, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('correct_option_id, ...')` from an authenticated client returns 42501 (permission denied). Because the gate re-GRANTs an explicit column list, any column added after mig 094 must be granted to `authenticated` separately or SECURITY INVOKER readers fail with 42501 — `has_calculations` (mig 107) adds `GRANT SELECT (has_calculations) ON questions TO authenticated` so the SECURITY INVOKER `_filtered_question_pool` can read it (#837). Migration 109 does NOT add `correct_option_id` to the grant list, so it remains privileged.
 
+**dialog_fill delimiter guard (mig 125, #951):** Two CHECK constraints reject `dialog_fill` rows whose answer values carry the token delimiters `{ } | ;` (the structural delimiters of the `{{n|canonical;syn1;syn2}}` grammar — a value cannot represent them):
+- `questions_dialog_fill_template_wellformed` — after `regexp_replace` strips every well-formed `{{n|value}}` token from `dialog_template` (value region `[^{}|]*`), no stray brace may remain. This is the **student-leak guard**: a `}`/`|` inside a token value would otherwise break the server-side strip regex in `get_quiz_questions` / `get_vfr_rt_exam_questions` and leave a partial answer key in the student-facing template. It is a **superset of the hardened strip's residue** — any value the strip cannot fully clean is rejected at INSERT, so the CHECK and the strip are co-dependent (do not weaken either independently).
+- `questions_dialog_fill_blanks_delimiter_free` — every `blanks_config` canonical/synonym is delimiter-free, enforced via the `IMMUTABLE PARALLEL SAFE` helper `dialog_fill_blanks_delimiter_free(jsonb)`. This is an authoring-hygiene / consistency invariant (keeps template tokens and `blanks_config` delimiter-free in lockstep), NOT a direct leak path — `blanks_safe` is index-only, so `blanks_config` values never reach students.
+
 **Indexes:** Partial index on `(question_type, subject_id)` WHERE `deleted_at IS NULL AND status = 'active'` supports VFR RT part-based sampling (mig 094).
 
 -- Note: status='archived' is replaced by deleted_at IS NOT NULL
@@ -708,7 +712,7 @@ Use Postgres functions (RPCs) for:
 
 ```
 verb_noun pattern:
-  get_quiz_questions         ← read, strips correct answers; widened in mig 118 to 15 RETURNS TABLE columns (+ question_type, dialog_template [tokens stripped to {{n}}], blanks_safe [index-only]) + active-user gate (security.md rule 12); supports multiple_choice, short_answer, dialog_fill
+  get_quiz_questions         ← read, strips correct answers; widened in mig 118 to 15 RETURNS TABLE columns (+ question_type, dialog_template [tokens stripped to {{n}}], blanks_safe [index-only]) + active-user gate (security.md rule 12); supports multiple_choice, short_answer, dialog_fill; dialog_fill strip delimiter-hardened (mig 126) behind the mig-125 delimiter CHECK (#951)
   get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); active-user gate (mig 114, #856); reads from questions.correct_option_id (mig 114, #823)
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 114, #823)
   check_quiz_answer                ← read, verify MC answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 117, #823); practice-mode only (smart_review/quick_quiz)
@@ -727,7 +731,7 @@ verb_noun pattern:
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
-  get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840)
+  get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840); dialog_fill strip delimiter-hardened (mig 127) behind the mig-125 delimiter CHECK (#951)
   submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session; reads from questions.correct_option_id for MC grading (mig 113, #823)
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
@@ -790,7 +794,7 @@ Widened in **mig 118** (supabase `20260621000100`) to support non-MC question ty
 **Answer-key stripping guarantees (security.md rule 1):**
 - `multiple_choice` — options projected to `{id, text}` only (correct flag dropped), shuffled `ORDER BY random()` inside a correlated subquery.
 - `short_answer` — `options` column returns NULL; `canonical_answer` and `accepted_synonyms` are never selected.
-- `dialog_fill` — `dialog_template` has every `{{n|canonical; syn...}}` token rewritten to `{{n}}` via `regexp_replace`; `blanks_safe` is `[{index}]` only (`blanks_config` canonicals/synonyms stripped).
+- `dialog_fill` — `dialog_template` has every `{{n|canonical; syn...}}` token rewritten to `{{n}}` via `regexp_replace`; `blanks_safe` is `[{index}]` only (`blanks_config` canonicals/synonyms stripped). The strip regex was **delimiter-hardened in mig 126/127 (#951)** — the value class `(?:[^}]|\}(?!\}))*` anchors on `}}` so a stray `}` in a value cannot terminate the strip early; paired with the mig-125 `questions_dialog_fill_template_wellformed` CHECK that forbids such values at INSERT.
 
 ```sql
 -- Migration 118 — DROP + CREATE (RETURNS TABLE widened)
@@ -853,8 +857,10 @@ BEGIN
     q.question_number,
     q.question_type,
     -- dialog_fill only: rewrite {{n|...}} tokens to {{n}} markers.
+    -- Value class hardened in mig 126 (#951): (?:[^}]|\}(?!\})) anchors on '}}'
+    -- so a stray '}' in a value cannot end the strip early and leak a key.
     CASE WHEN q.question_type = 'dialog_fill' THEN
-      regexp_replace(q.dialog_template, '\{\{(\d+)\|[^}]*\}\}', '{{\1}}', 'g')
+      regexp_replace(q.dialog_template, '\{\{(\d+)\|(?:[^}]|\}(?!\}))*\}\}', '{{\1}}', 'g')
     ELSE NULL END AS dialog_template,
     -- dialog_fill only: blank positions, canonicals/synonyms stripped.
     CASE WHEN q.question_type = 'dialog_fill' THEN
