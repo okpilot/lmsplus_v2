@@ -232,6 +232,9 @@ describe('getSessionReports (app-layer integration)', () => {
       await signInAs(emailB, password)
       const r = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
       expect(r.ok).toBe(false)
+      // The raw RAISE ('user not found or inactive') must be sanitized to the
+      // generic domain string — never leaked to the caller (reports.ts).
+      if (!r.ok) expect(r.error).toBe('Failed to load reports')
     } finally {
       const { error: restoreErr } = await admin
         .from('users')
