@@ -36,10 +36,17 @@
 -- rejected at INSERT here, so it can never be stored. The CHECK and the strip
 -- are co-dependent; do NOT weaken either independently.
 --
--- Prod safety: zero dialog_fill rows exist on prod (VFR RT question data not
--- imported), and `supabase db reset` applies this migration before any seed, so
--- the ADD CONSTRAINT validates against an empty table. All integration-test
--- fixtures use delimiter-free values (S5-ABC, S5-XYZ, ...), so none trip it.
+-- Prod safety: prod has zero dialog_fill rows (VFR RT question data not yet
+-- imported), so every existing questions row passes both CHECKs via the
+-- `question_type <> 'dialog_fill'` short-circuit. ADD CONSTRAINT still scans the
+-- table once under a brief ACCESS EXCLUSIVE lock, but `questions` is a small,
+-- admin-authored reference table with near-zero write traffic (students only
+-- READ via RPCs), so the scan is sub-second and harmless in a deploy window —
+-- plain ADD CONSTRAINT (matching every other CHECK in the repo) over the
+-- NOT VALID + VALIDATE split, which is a large/high-write-table optimization not
+-- warranted here. (Locally, `supabase db reset` applies this before any seed, so
+-- it validates an empty table.) All integration-test fixtures use delimiter-free
+-- values (S5-ABC, S5-XYZ, ...), so none trip it.
 --
 -- security.md rule 1 (answer-key stripping). Not SECURITY DEFINER (no auth /
 -- search_path concern); the helper reads only its jsonb argument via
