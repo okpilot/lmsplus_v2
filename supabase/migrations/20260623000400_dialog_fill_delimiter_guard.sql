@@ -46,13 +46,15 @@
 -- pg_catalog built-ins.
 
 -- IMMUTABLE PARALLEL SAFE: depends only on its argument, no table reads — same
--- shape as normalize_answer (mig 101). NB: jsonb_array_elements_text raises
--- 22023 on a non-array scalar, so the synonyms SRF argument is wrapped in a
--- CASE that substitutes '[]'::jsonb when synonyms is absent or not an array.
--- Without it a malformed synonyms value would abort an INSERT as 22023 instead
--- of the constraint-violation 23514 the tests assert. Delimiter scope only:
--- a non-array synonyms is treated as "no synonyms to scan", not rejected here
--- (the type-discriminator CHECK + future authoring own full shape enforcement).
+-- shape as normalize_answer (mig 101). NB: jsonb_array_elements / _text raise
+-- 22023 on a non-array scalar, so BOTH set-returning calls — the OUTER blanks
+-- array (p_blanks) and the INNER synonyms array (e->'synonyms') — wrap their
+-- argument in a CASE that substitutes '[]'::jsonb when the value is absent or
+-- not an array. This makes the helper a TOTAL function over any jsonb input
+-- (never raises 22023). Delimiter scope only: a non-array blanks_config or a
+-- non-array synonyms is treated as "nothing to scan", not rejected here — the
+-- type-discriminator CHECK (mig 094, jsonb_array_length(blanks_config) > 0) and
+-- future authoring own full shape enforcement.
 CREATE OR REPLACE FUNCTION dialog_fill_blanks_delimiter_free(p_blanks jsonb)
 RETURNS boolean
 LANGUAGE sql
@@ -61,7 +63,12 @@ PARALLEL SAFE
 AS $$
   SELECT NOT EXISTS (
     SELECT 1
-    FROM jsonb_array_elements(coalesce(p_blanks, '[]'::jsonb)) AS e
+    FROM jsonb_array_elements(
+           CASE WHEN jsonb_typeof(p_blanks) = 'array'
+                THEN p_blanks
+                ELSE '[]'::jsonb
+           END
+         ) AS e
     WHERE (e->>'canonical') ~ '[{}|;]'
        OR EXISTS (
          SELECT 1
