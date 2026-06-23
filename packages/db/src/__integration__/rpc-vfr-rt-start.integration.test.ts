@@ -113,6 +113,14 @@ describe('SQL function: normalize_answer', () => {
     ['š', 'š'],
     ['ž', 'ž'],
     ['', ''],
+    // Final-trim cases (#921): punctuation adjacent to an edge space must not
+    // leave a stray edge space, or grading penalizes a correct answer. Mirrors
+    // the TS normalizeAnswer() table — parity is contractual (mig 128).
+    ['. hello', 'hello'],
+    ['hello .', 'hello'],
+    ['. hello .', 'hello'],
+    ['  .  hello  ', 'hello'],
+    ['  .  ', ''],
   ])('normalizes %j to %j', async (input: string, expected: string) => {
     const result = await callNormalizeAnswer(input)
     expect(result).toBe(expected)

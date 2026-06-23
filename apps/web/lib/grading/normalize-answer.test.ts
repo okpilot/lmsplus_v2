@@ -10,6 +10,13 @@ describe('normalizeAnswer', () => {
     ['foo, bar!', 'foo bar'],
     ['HELLO World', 'hello world'],
     ['a   b', 'a b'],
+    // Final-trim cases (#921): punctuation adjacent to an edge space must not
+    // leave a stray edge space, or grading penalizes a correct answer.
+    ['. hello', 'hello'],
+    ['hello .', 'hello'],
+    ['. hello .', 'hello'],
+    ['  .  hello  ', 'hello'],
+    ['  .  ', ''],
   ])('normalizes %j to %j', (input, expected) => {
     expect(normalizeAnswer(input)).toBe(expected)
   })
