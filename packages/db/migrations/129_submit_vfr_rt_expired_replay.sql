@@ -35,7 +35,9 @@ DECLARE
   v_ended_at timestamptz; v_correct_count int; v_passed boolean; v_already_ended boolean;
   v_time_limit int; v_started_at timestamptz;
   v_session_question_ids uuid[];
-  v_replay_expired boolean := false;  -- #839: re-add expired flag on replay
+  v_replay_expired boolean := false;  -- #839: re-add expired flag on replay.
+  -- ASSIGN ONLY inside `IF v_already_ended` below: the final RETURN is SHARED with
+  -- the fresh-completion path, which must never carry expired (it stays false there).
   -- per-entry loop state
   v_answer jsonb; v_qid_text text; v_question_id uuid;
   v_selected text; v_response_text text; v_blank_text text; v_blank_index int; v_rt_text text;
