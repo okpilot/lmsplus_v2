@@ -214,6 +214,32 @@ describe('batchSubmitQuiz', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns expired as false on the normal (non-expired) grade path', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    // RPC returns no `expired` field — the action must default it to false
+    mockRpc.mockResolvedValueOnce({ data: BATCH_RPC_RESULT, error: null })
+
+    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
+
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.expired).toBe(false)
+  })
+
+  it('surfaces expired as true when the RPC signals timer-expiry on replay', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValueOnce({
+      data: { ...BATCH_RPC_RESULT, expired: true },
+      error: null,
+    })
+
+    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
+
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.expired).toBe(true)
+  })
+
   it('serialises a short_answer entry to {question_id, response_text, response_time_ms}', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValueOnce({ data: BATCH_RPC_RESULT, error: null })
