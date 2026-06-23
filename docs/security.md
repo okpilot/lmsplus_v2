@@ -336,6 +336,8 @@ $$;
 
 Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
 
+**dialog_fill answer-key strip (mig 105/118; hardened mig 125-127, #951):** For `dialog_fill` questions the student-facing `dialog_template` carries `{{n|canonical;syn1;syn2}}` tokens; the serving RPCs (`get_quiz_questions`, `get_vfr_rt_exam_questions`) rewrite each token to a plain `{{n}}` marker via `regexp_replace` so canonicals/synonyms never reach the student (`blanks_safe` is emitted index-only). The token delimiters `{ } | ;` are structural and a value cannot represent them, so an unescaped `}` in a value used to terminate the strip early and leak a partial key. Two layers close this (#951): (1) the **mig-125 `questions_dialog_fill_template_wellformed` CHECK** rejects, at INSERT, any dialog_fill row whose template tokens contain a stray `}`/`|` — the primary leak guard; and (2) the **strip regex is delimiter-hardened** (mig 126/127, value class `(?:[^}]|\}(?!\}))*` anchors on `}}`) as in-RPC defense-in-depth. The CHECK is a superset of the hardened strip's residue, so the two are co-dependent — do not weaken either independently.
+
 ### Post-Session Exception: Report RPCs (Mig 109, #823)
 
 Post-session report queries may read the `correct_option_id` from questions server-side, provided:
