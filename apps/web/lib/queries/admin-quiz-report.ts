@@ -85,7 +85,11 @@ export async function getAdminQuizReportSummary(
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    // Admin reports are MC-only (one item per question), so items === questions.
+    // KNOWN LIMITATION (#991): the generic admin session route can reach non-MC
+    // sessions, which this path does not yet support — answeredCount is the raw
+    // answer-ROW count, so for a non-MC session answeredQuestions is inflated (rows,
+    // not distinct questions). MC sessions (the only non-dormant producer today) are
+    // correct: one answer row per question ⇒ rows === questions === items.
     answeredQuestions: answeredCount ?? session.total_questions,
     answeredItems: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
@@ -146,11 +150,12 @@ export async function getAdminQuizReportQuestions(opts: {
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  // Row-based .range() pagination is safe here ONLY because the admin report feed is
-  // MC-only (one answer row per question, no per-blank rows). The student path
-  // (quiz-report-questions.ts) paginates by distinct question_id to stop a dialog_fill
-  // question's blanks straddling a page boundary; if non-MC ever reaches this admin
-  // path, mirror that pages-of-questions approach here.
+  // KNOWN LIMITATION (#991): row-based .range() pagination is correct ONLY for MC
+  // sessions (one answer row per question). The generic admin session route CAN reach
+  // non-MC sessions, where a dialog_fill question's per-blank rows straddle a page
+  // boundary and duplicate the questionId across pages. Proper fix = mirror the student
+  // path's distinct-question pagination (quiz-report-questions.ts) AND add an admin
+  // answer-keys RPC. Unreachable today: the non-MC producer (/app/vfr-rt) is dormant.
   const { data: answersData, error: answersError } = await adminClient
     .from('quiz_session_answers')
     .select('question_id, selected_option_id, is_correct, response_time_ms')
