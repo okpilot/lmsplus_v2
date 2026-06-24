@@ -378,6 +378,8 @@ CREATE TABLE quiz_session_answers (
 
 **Answer shape discriminator (mig 095):** Exactly one of `(selected_option_id, response_text)` must be set per row. `blank_index` is non-null only for `dialog_fill` (multiple rows per question). `UNIQUE NULLS NOT DISTINCT` allows multiple rows per `(session_id, question_id)` when `blank_index` differs (blank_index NULL for MC/short_answer, int for dialog_fill). Supports both old one-row-per-question and new per-blank-per-question semantics.
 
+**`blank_index` ⇔ `dialog_fill` write-time trigger (mig 131, #828):** A `BEFORE INSERT` trigger `trg_enforce_blank_index_shape_qsa` (mirrored on `student_responses` as `trg_enforce_blank_index_shape_sr`) enforces the biconditional `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` by reading the answered question's type — something the single-row `*_answer_shape_check` CHECK structurally cannot do (a CHECK cannot read another table). It rejects a non-`dialog_fill` row carrying a `blank_index`, and a `dialog_fill` row missing one. Shared trigger function `enforce_answer_blank_index_shape()` is **SECURITY INVOKER** (repo trigger convention — every answer insert originates inside a postgres-owned SECURITY DEFINER grading RPC, so the `questions` read runs as postgres and bypasses RLS) with **no `deleted_at` filter** (the question is reached via the session's frozen write-once `config.question_ids`; soft-deleted questions are still scored — §15 carve-out, see §3). Closes the gap where a future inserter or admin-form/import bug could persist a malformed `blank_index`.
+
 ### student_responses
 ```sql
 -- Immutable. Every answer ever given, across all contexts.
@@ -404,7 +406,7 @@ CREATE TABLE student_responses (
 );
 ```
 
-**Answer shape discriminator (mig 095):** Mirrors `quiz_session_answers` constraint. Legacy callers omit `blank_index` (lands as NULL); rows conflict on the old `(session_id, question_id)` constraint semantics unchanged. New dialog_fill paths supply per-blank rows.
+**Answer shape discriminator (mig 095):** Mirrors `quiz_session_answers` constraint. Legacy callers omit `blank_index` (lands as NULL); rows conflict on the old `(session_id, question_id)` constraint semantics unchanged. New dialog_fill paths supply per-blank rows. The `blank_index` ⇔ `dialog_fill` write-time trigger (mig 131, #828) applies here too via `trg_enforce_blank_index_shape_sr` — see the `quiz_session_answers` note above.
 
 ### fsrs_cards
 ```sql
