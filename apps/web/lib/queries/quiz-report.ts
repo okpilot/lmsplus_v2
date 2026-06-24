@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { fetchAllRows } from '@/lib/supabase-paginate'
 
 // Fields shared by every question variant in the report. The per-type variants
 // below extend this with their type-specific shape (MC options, short-answer
@@ -120,22 +121,30 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
-  // Fetch the answer rows' question_id to derive two counts:
+  // Derive two counts from the session's answer rows:
   //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
-  //  - answeredQuestions = distinct questions answered (for the Skipped stat)
-  // A single session's answer rows are bounded (≤ ~50 questions × a few blanks ≪ 1000),
-  // so this non-paginated fetch is safe — no fetchAllRows / truncation concern.
-  const { data: answerRowsData, error: answerRowsError } = await supabase
-    .from('quiz_session_answers')
-    .select('question_id')
-    .eq('session_id', sessionId)
+  //  - answeredQuestions = distinct questions answered (denominator for Skipped)
+  // dialog_fill stores one row per blank and a session can hold up to 500 questions
+  // (quick_quiz cap) × up to 50 blanks, so this can exceed PostgREST's 1000-row cap —
+  // page through with fetchAllRows so the counts never silently truncate.
+  const { data: answerRows, error: answerRowsError } = await fetchAllRows<{ question_id: string }>(
+    () =>
+      supabase
+        .from('quiz_session_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId),
+    (from, to) =>
+      supabase
+        .from('quiz_session_answers')
+        .select('question_id')
+        .eq('session_id', sessionId)
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
   if (answerRowsError) {
     console.error('[getQuizReportSummary] Answer rows query error:', answerRowsError.message)
     return null
   }
-  const answerRows = Array.isArray(answerRowsData)
-    ? (answerRowsData as { question_id: string }[])
-    : []
   const answeredItems = answerRows.length
   const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 

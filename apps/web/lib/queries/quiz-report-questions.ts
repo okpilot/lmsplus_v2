@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { fetchAllRows } from '@/lib/supabase-paginate'
 import { rpc } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
@@ -95,19 +96,28 @@ export async function getQuizReportQuestions(opts: {
   // the session's DISTINCT question_ids in display order (answered_at — the order
   // the report has always used), slice that list to the page window, then fetch
   // ALL answer rows for those questions. totalCount = distinct question count.
-  const { data: orderRowsData, error: orderError } = await supabase
-    .from('quiz_session_answers')
-    .select('question_id, answered_at')
-    .eq('session_id', sessionId)
-    .order('answered_at', { ascending: true })
-    .order('id')
-
+  // Page through ALL answer rows: dialog_fill stores one row per blank and a session can
+  // hold up to 500 questions × up to 50 blanks, exceeding PostgREST's 1000-row cap. A single
+  // .select() would silently truncate, dropping question_ids from the order/total.
+  const { data: orderRows, error: orderError } = await fetchAllRows<{ question_id: string }>(
+    () =>
+      supabase
+        .from('quiz_session_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId),
+    (from, to) =>
+      supabase
+        .from('quiz_session_answers')
+        .select('question_id, answered_at')
+        .eq('session_id', sessionId)
+        .order('answered_at', { ascending: true })
+        .order('id')
+        .range(from, to),
+  )
   if (orderError) {
     console.error('[getQuizReportQuestions] Order query error:', orderError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
-
-  const orderRows = Array.isArray(orderRowsData) ? (orderRowsData as { question_id: string }[]) : []
   const orderedQuestionIds = buildDistinctQuestionOrder(orderRows)
   const total = orderedQuestionIds.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
