@@ -86,10 +86,12 @@ export async function getAdminQuizReportSummary(
     subjectName,
     totalQuestions: session.total_questions,
     // KNOWN LIMITATION (#991): the generic admin session route can reach non-MC
-    // sessions, which this path does not yet support — answeredCount is the raw
-    // answer-ROW count, so for a non-MC session answeredQuestions is inflated (rows,
-    // not distinct questions). MC sessions (the only non-dormant producer today) are
-    // correct: one answer row per question ⇒ rows === questions === items.
+    // sessions, which this path does not yet support. answeredCount is the raw
+    // answer-ROW count. For a non-MC session that makes answeredItems correct (items
+    // === rows: one row per blank for dialog_fill) but answeredQuestions WRONG — it
+    // should be COUNT(DISTINCT question_id), not the row count. MC sessions (the only
+    // non-dormant producer today) are correct on both: one row per question ⇒ rows ===
+    // questions === items.
     answeredQuestions: answeredCount ?? session.total_questions,
     answeredItems: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
