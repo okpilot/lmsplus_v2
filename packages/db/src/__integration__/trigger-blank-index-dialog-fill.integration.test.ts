@@ -187,7 +187,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
     expect(error).toBeNull()
   })
 
-  it('rejects a short_answer answer carrying a blank_index (passes CHECK, trips trigger)', async () => {
+  it('rejects a short_answer answer carrying a blank_index', async () => {
     const { error } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,
       question_id: saQId,
@@ -200,7 +200,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
     expect(error?.message).toMatch(BLANK_FORBIDDEN_MSG)
   })
 
-  it('rejects a dialog_fill answer missing its blank_index (passes CHECK, trips trigger)', async () => {
+  it('rejects a dialog_fill answer missing its blank_index', async () => {
     const { error } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,
       question_id: dfQId,
@@ -241,14 +241,14 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
     expect(error).toBeNull()
   })
 
-  it('rejects a short_answer student_response carrying a blank_index (passes CHECK, trips trigger)', async () => {
+  it('rejects a short_answer student_response carrying a blank_index', async () => {
     const { error } = await admin.from('student_responses').insert({
       organization_id: orgId,
       student_id: studentId,
       question_id: saQId,
       session_id: sessionId,
       response_text: 'wilco',
-      blank_index: 1,
+      blank_index: 1, // CHECK text-branch allows blank_index >= 0; the trigger rejects it.
       is_correct: true,
       response_time_ms: 1000,
     })
@@ -256,13 +256,13 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
     expect(error?.message).toMatch(BLANK_FORBIDDEN_MSG)
   })
 
-  it('rejects a dialog_fill student_response missing its blank_index (passes CHECK, trips trigger)', async () => {
+  it('rejects a dialog_fill student_response missing its blank_index', async () => {
     const { error } = await admin.from('student_responses').insert({
       organization_id: orgId,
       student_id: studentId,
       question_id: dfQId,
       session_id: sessionId,
-      response_text: 'two seven',
+      response_text: 'two seven', // CHECK text-branch allows blank_index NULL; the trigger rejects it.
       is_correct: true,
       response_time_ms: 1000,
     })
