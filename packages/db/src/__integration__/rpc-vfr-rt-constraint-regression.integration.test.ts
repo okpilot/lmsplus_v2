@@ -501,7 +501,7 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
         question_text: 'BlankIdx fixture question',
         explanation_text: 'Explanation',
         question_type: 'dialog_fill',
-        dialog_template: 'Cleared to land runway {{1|wilco}}.',
+        dialog_template: 'Cleared to land runway {{0|wilco}}.',
         blanks_config: [{ index: 0, canonical: 'wilco' }],
         accepted_synonyms: [],
         options: [],
