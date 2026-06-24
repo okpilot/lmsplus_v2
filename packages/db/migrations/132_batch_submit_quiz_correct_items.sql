@@ -1,7 +1,8 @@
 -- Migration 132: batch_submit_quiz — correct_count now counts correct items
 -- (blank-rows), unifying study with exam submit_vfr_rt_exam_answers. Replay
 -- branch returns the stored column → consistent by construction.
--- VERBATIM from mig 130; the ONLY change is the v_correct_count expression.
+-- Body is mig 130's, with two changes: the v_correct_count expression, and the
+-- replay-path §15 citation corrected to quiz_session_answers.question_id.
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,
   p_answers    jsonb
@@ -81,7 +82,9 @@ BEGIN
   IF v_ended_at IS NOT NULL THEN
     SELECT count(DISTINCT qsa.question_id)::int INTO v_answered
     FROM quiz_session_answers qsa WHERE qsa.session_id = p_session_id;
-    -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.
+    -- §15 carve-out: no deleted_at filter — replay reads questions via the immutable,
+    -- append-only quiz_session_answers.question_id write-once FK (not config.question_ids);
+    -- docs/security.md §15, docs/database.md §3.
     SELECT jsonb_agg(jsonb_build_object(
       'question_id',           qsa.question_id,
       'is_correct',            qsa.is_correct,
