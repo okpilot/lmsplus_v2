@@ -116,7 +116,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
           ...base,
           question_text: `DF ${suffix}?`,
           question_type: 'dialog_fill',
-          dialog_template: 'Cleared to land runway {{1|two seven}}.',
+          dialog_template: 'Cleared to land runway {{0|two seven}}.',
           blanks_config: [{ index: 0, canonical: 'two seven' }],
           options: [],
         },
