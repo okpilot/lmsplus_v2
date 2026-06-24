@@ -1686,6 +1686,19 @@ Same return shape as `get_report_correct_options` but scoped by organization ins
 
 **Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`.
 
+#### `get_report_answer_keys` — non-MC answer keys for reports
+
+Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4).
+
+**Returns:** `(question_id uuid, question_type text, blank_index int, answer_key text)` —
+- `short_answer`: one row per question, `blank_index = NULL`, `answer_key = canonical_answer`.
+- `dialog_fill`: one row **per blank** (`blank_index` from `blanks_config` `'index'`, `answer_key` from `'canonical'`).
+- `multiple_choice`: no rows.
+
+**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
+
+**Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
+
 #### `check_quiz_answer` — verify answer + return explanation
 
 Verifies a student's answer for a question during an active quiz session. Returns correctness, correct option ID, and explanation. Requires session ownership.
