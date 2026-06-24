@@ -19,6 +19,18 @@ type AnswerKeyRow = {
   answer_key: string | null
 }
 
+// Distinct question_ids from the answered-order rows, first-answer order preserved.
+function buildDistinctQuestionOrder(orderRows: { question_id: string }[]): string[] {
+  const seen = new Set<string>()
+  const ordered: string[] = []
+  for (const r of orderRows) {
+    if (seen.has(r.question_id)) continue
+    seen.add(r.question_id)
+    ordered.push(r.question_id)
+  }
+  return ordered
+}
+
 // Collapse the flat answer-key rows into a per-question map the builder consumes.
 function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEntry> {
   const map = new Map<string, AnswerKeyEntry>()
@@ -96,17 +108,7 @@ export async function getQuizReportQuestions(opts: {
   }
 
   const orderRows = Array.isArray(orderRowsData) ? (orderRowsData as { question_id: string }[]) : []
-
-  // Distinct question_ids, first-answer order preserved.
-  const orderedQuestionIds: string[] = []
-  const seen = new Set<string>()
-  for (const r of orderRows) {
-    if (!seen.has(r.question_id)) {
-      seen.add(r.question_id)
-      orderedQuestionIds.push(r.question_id)
-    }
-  }
-
+  const orderedQuestionIds = buildDistinctQuestionOrder(orderRows)
   const total = orderedQuestionIds.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -138,8 +140,6 @@ export async function getQuizReportQuestions(opts: {
     return { ok: true, questions: [], totalCount: total }
   }
 
-  const questionIds = pageQuestionIds
-
   // Direct SELECT is safe: ended_at guard above blocks mid-session access, and
   // options no longer carries the answer key — `correct` is stripped at the DB
   // write layer (#823), so the key never reaches buildReportQuestions. The
@@ -151,7 +151,7 @@ export async function getQuizReportQuestions(opts: {
     .select(
       'id, question_text, question_number, options, explanation_text, explanation_image_url, question_image_url, question_type',
     )
-    .in('id', questionIds)
+    .in('id', pageQuestionIds)
 
   if (questionsError) {
     console.error('[getQuizReportQuestions] Questions query error:', questionsError.message)
@@ -159,10 +159,7 @@ export async function getQuizReportQuestions(opts: {
   }
 
   const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
-  const questionMap = new Map<string, QuestionRow>()
-  for (const q of questions) {
-    questionMap.set(q.id, q)
-  }
+  const questionMap = new Map<string, QuestionRow>(questions.map((q) => [q.id, q]))
 
   const { data: correctData, error: rpcError } = await supabase.rpc('get_report_correct_options', {
     p_session_id: sessionId,
@@ -174,10 +171,9 @@ export async function getQuizReportQuestions(opts: {
   const correctRows = Array.isArray(correctData)
     ? (correctData as { question_id: string; correct_option_id: string }[])
     : []
-  const correctMap = new Map<string, string>()
-  for (const row of correctRows) {
-    correctMap.set(row.question_id, row.correct_option_id)
-  }
+  const correctMap = new Map<string, string>(
+    correctRows.map((row) => [row.question_id, row.correct_option_id]),
+  )
 
   // Non-MC answer keys (short_answer canonical, dialog_fill per-blank canonicals).
   // Returns zero rows for all-MC sessions (e.g. internal_exam) — not an error.

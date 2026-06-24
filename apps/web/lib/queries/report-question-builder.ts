@@ -38,6 +38,26 @@ export type AnswerKeyEntry =
   | { type: 'short_answer'; canonical: string | null }
   | { type: 'dialog_fill'; canonicalByIndex: Map<number, string> }
 
+// Group answer rows by question_id, preserving first-seen order. Returns the
+// per-question row groups plus the first-seen order array.
+function groupAnswersByQuestion(answers: AnswerRow[]): {
+  grouped: Map<string, AnswerRow[]>
+  order: string[]
+} {
+  const order: string[] = []
+  const grouped = new Map<string, AnswerRow[]>()
+  for (const answer of answers) {
+    const existing = grouped.get(answer.question_id)
+    if (existing) {
+      existing.push(answer)
+    } else {
+      grouped.set(answer.question_id, [answer])
+      order.push(answer.question_id)
+    }
+  }
+  return { grouped, order }
+}
+
 /**
  * Group the session's answer rows by question and project each into the
  * discriminated QuizReportQuestion variant. ONE report entry per question:
@@ -55,18 +75,7 @@ export function buildReportQuestions(
   correctMap: Map<string, string>,
   answerKeyMap: Map<string, AnswerKeyEntry> = new Map(),
 ): QuizReportQuestion[] {
-  // Group answer rows by question_id, preserving first-seen order.
-  const order: string[] = []
-  const grouped = new Map<string, AnswerRow[]>()
-  for (const answer of answers) {
-    const existing = grouped.get(answer.question_id)
-    if (existing) {
-      existing.push(answer)
-    } else {
-      grouped.set(answer.question_id, [answer])
-      order.push(answer.question_id)
-    }
-  }
+  const { grouped, order } = groupAnswersByQuestion(answers)
 
   return order.map((questionId) => {
     const rows = grouped.get(questionId) ?? []
