@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CheckNonMcAnswerSchema,
   isDialogFillRpcResult,
   isShortAnswerRpcResult,
   toClientBlanks,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
+
+const QID = '00000000-0000-4000-a000-000000000001'
+const SID = '00000000-0000-4000-a000-000000000002'
 
 // ---- isShortAnswerRpcResult -------------------------------------------------
 
@@ -108,7 +112,8 @@ describe('isDialogFillRpcResult', () => {
     ).toBe(true)
   })
 
-  it('accepts an empty blanks array', () => {
+  it('rejects an empty blanks array', () => {
+    // A dialog_fill always has ≥1 blank; an empty array is a malformed result.
     expect(
       isDialogFillRpcResult({
         is_correct: true,
@@ -117,7 +122,7 @@ describe('isDialogFillRpcResult', () => {
         explanation_text: null,
         explanation_image_url: null,
       }),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('rejects when correct_answer is not null', () => {
@@ -257,5 +262,68 @@ describe('toClientBlanks', () => {
     expect(result[0]?.index).toBe(5)
     expect(result[0]?.isCorrect).toBe(false)
     expect(result[0]?.canonical).toBe('echo')
+  })
+})
+
+// ---- CheckNonMcAnswerSchema (client-input guardrail) ------------------------
+
+describe('CheckNonMcAnswerSchema', () => {
+  it('accepts a short_answer payload', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        responseText: 'cleared to land',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('accepts a dialog_fill payload', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        blankAnswers: [{ index: 0, text: 'cleared to land' }],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects a mixed payload carrying both responseText and blankAnswers', () => {
+    // `.strict()` on both members stops z.union from stripping the extra key and
+    // silently grading a hybrid as short_answer.
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        responseText: 'cleared to land',
+        blankAnswers: [{ index: 0, text: 'cleared to land' }],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects an empty blankAnswers array', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        blankAnswers: [],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a payload carrying neither answer field', () => {
+    expect(CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects a non-uuid questionId', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: 'not-a-uuid',
+        sessionId: SID,
+        responseText: 'x',
+      }).success,
+    ).toBe(false)
   })
 })

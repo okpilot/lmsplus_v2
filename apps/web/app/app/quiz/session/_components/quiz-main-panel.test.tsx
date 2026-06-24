@@ -350,7 +350,7 @@ describe('QuizMainPanel', () => {
       expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
     })
 
-    it('passes submitting and disabled to ShortAnswerInput correctly', () => {
+    it('shows the short-answer loading state while a per-answer check is in flight', () => {
       const s = makeState({
         question: {
           id: 'q-sa',
@@ -369,13 +369,13 @@ describe('QuizMainPanel', () => {
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       const input = screen.getByTestId('short-answer-input')
-      // disabled comes from s.submitting (session-level), not s.answering (per-question RPC)
+      // A session-level submit is not in flight, so the field stays editable...
       expect(input).toHaveAttribute('data-disabled', 'false')
-      // submitting comes from s.answering — drives the spinner
+      // ...but the per-answer check is running, so the spinner shows.
       expect(input).toHaveAttribute('data-submitting', 'true')
     })
 
-    it('shows short_answer feedback (isCorrect + correctAnswer) after submit', () => {
+    it('shows incorrect short-answer feedback with the revealed correct answer', () => {
       const s = makeState({
         question: {
           id: 'q-sa',
@@ -432,7 +432,7 @@ describe('QuizMainPanel', () => {
       expect(input).toHaveAttribute('data-is-correct', '')
     })
 
-    it('passes submitted flag to DialogFillInput when existingAnswer is present', () => {
+    it('locks dialog-fill submission when an answer already exists', () => {
       const s = makeState({
         question: {
           id: 'q-df',

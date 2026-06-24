@@ -220,8 +220,16 @@ describe('isValidFeedbackEntry', () => {
   })
 
   it('rejects a feedback entry with an unknown questionType tag', () => {
+    // Explanation fields present so the entry clears the explanations guard and
+    // actually reaches the questionType switch's default (unknown-tag) branch.
     expect(
-      isValidFeedbackEntry({ questionType: 'essay', isCorrect: true, correctAnswer: null }),
+      isValidFeedbackEntry({
+        questionType: 'essay',
+        isCorrect: true,
+        correctAnswer: null,
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
     ).toBe(false)
   })
 

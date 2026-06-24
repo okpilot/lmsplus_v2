@@ -115,6 +115,10 @@ export function isDialogFillRpcResult(value: unknown): value is DialogFillRpcRes
     typeof v.is_correct === 'boolean' &&
     v.correct_answer === null &&
     Array.isArray(v.blanks) &&
+    // A dialog_fill always has ≥1 blank (input is `blankAnswers.min(1)`), so an
+    // empty blanks array is a malformed RPC result — reject it rather than
+    // returning success with no per-blank feedback.
+    v.blanks.length > 0 &&
     v.blanks.every(isDialogBlankRow) &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)

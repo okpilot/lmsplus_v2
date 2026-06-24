@@ -1097,7 +1097,7 @@ describe('useAnswerHandler — handleTextAnswer (short_answer)', () => {
 
   it('returns true on success and false on failure', async () => {
     mockCheckNonMcAnswer.mockResolvedValueOnce(SA_SUCCESS)
-    const { result, getAnswers } = renderAnswerHandler()
+    const { result } = renderAnswerHandler()
 
     let returnVal: boolean | undefined
     await act(async () => {
@@ -1105,13 +1105,17 @@ describe('useAnswerHandler — handleTextAnswer (short_answer)', () => {
     })
     expect(returnVal).toBe(true)
 
-    // Ensure answer slot is reset for next call
-    getAnswers().delete(Q1_ID)
+    // A fresh hook instance for the failure case: the first instance keeps Q1_ID
+    // locked (no rerender clears it), so a second call on it would short-circuit
+    // at the lock guard and never reach the rejected RPC. The `calledTimes(2)`
+    // assertion proves the failure path actually ran the RPC.
+    const { result: failureResult } = renderAnswerHandler()
     mockCheckNonMcAnswer.mockRejectedValueOnce(new Error('fail'))
     await act(async () => {
-      returnVal = await result.current.handleTextAnswer('wrong')
+      returnVal = await failureResult.current.handleTextAnswer('wrong')
     })
     expect(returnVal).toBe(false)
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledTimes(2)
   })
 })
 
