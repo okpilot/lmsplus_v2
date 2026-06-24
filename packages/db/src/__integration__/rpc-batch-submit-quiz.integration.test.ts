@@ -544,6 +544,42 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     expect(scored?.is_correct).toBe(true)
   })
 
+  it('sums correct items across MC, short_answer, and dialog_fill in a mixed-type session', async () => {
+    // Regression guard for mig 132: correct_count = sum of correct blank-rows across
+    // ALL question types. A mixed session with 1 MC (correct=1 item), 1 short_answer
+    // (correct=1 item), and 1 dialog_fill answered 2-of-3 blanks correctly (2 items)
+    // must produce correct_count=4, not 2 (all-or-nothing) or 3 (fully-correct questions).
+    // answered_count=3 (3 distinct question_ids in session_questions → graded join).
+    // score_percentage = (1.0 + 1.0 + 2/3) / 3 * 100 = 88.89 (quick_quiz: ÷ answered).
+    const sessionId = await startSession([mcId, shortAnswerId, dialogFillId])
+    const { data, error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: [
+        // MC: correct answer b (1 correct item)
+        { question_id: mcId, selected_option: 'b', response_time_ms: 1000 },
+        // short_answer: canonical answer (1 correct item)
+        { question_id: shortAnswerId, response_text: SA_CANONICAL, response_time_ms: 1000 },
+        // dialog_fill 2-of-3 blanks correct (2 correct items, 1 wrong)
+        { question_id: dialogFillId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
+        { question_id: dialogFillId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
+        {
+          question_id: dialogFillId,
+          blank_index: 2,
+          response_text: 'wrong',
+          response_time_ms: 1000,
+        },
+      ],
+    })
+    expect(error).toBeNull()
+    const result = asBatchResult(data)
+    // 3 distinct questions answered (MC + SA + DF each counted once)
+    expect(result.answered_count).toBe(3)
+    // 1 (MC) + 1 (SA) + 2 (DF blanks) = 4 correct items
+    expect(result.correct_count).toBe(4)
+    // (1.0 + 1.0 + 0.6667) / 3 * 100 = 88.89 (quick_quiz ÷ answered)
+    expect(Number(result.score_percentage)).toBeCloseTo(88.89, 2)
+  })
+
   it('forbids a direct authenticated call to the internal _grade_record_* helpers (42501)', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 120, fixed #952):
     // the helpers must not be callable via PostgREST by an authenticated user —
