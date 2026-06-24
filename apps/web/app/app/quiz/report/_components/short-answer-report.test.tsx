@@ -42,4 +42,11 @@ describe('ShortAnswerReport', () => {
     render(<ShortAnswerReport responseText={null} canonicalAnswer="anything" isCorrect={false} />)
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('does not show the expected row when the answer is wrong but no canonical is available', () => {
+    render(
+      <ShortAnswerReport responseText="wrong answer" canonicalAnswer={null} isCorrect={false} />,
+    )
+    expect(screen.queryByText('Expected:')).not.toBeInTheDocument()
+  })
 })

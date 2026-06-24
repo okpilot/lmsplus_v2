@@ -235,6 +235,70 @@ describe('buildReportQuestions', () => {
     expect(sa.isCorrect).toBe(true)
   })
 
+  it('sets canonicalAnswer to null when the short-answer question has no key in the answerKeyMap', () => {
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 3000,
+        response_text: 'wrong answer',
+      },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'Read back the phrase.',
+          question_number: null,
+          question_type: 'short_answer',
+          options: [],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: null,
+        },
+      ],
+    ])
+    // Empty answerKeyMap — simulates an all-MC session where get_report_answer_keys
+    // returns zero rows, or a race where the RPC omits a question's key.
+    const result = buildReportQuestions(answers, questionMap, new Map(), new Map())
+    const sa = asShortAnswer(result[0])
+    expect(sa.canonicalAnswer).toBeNull()
+    expect(sa.isCorrect).toBe(false)
+    expect(sa.responseText).toBe('wrong answer')
+  })
+
+  it('sets responseText to null for a short-answer question with no typed response', () => {
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 1500,
+        response_text: null,
+      },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'Read back the phrase.',
+          question_number: null,
+          question_type: 'short_answer',
+          options: [],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: null,
+        },
+      ],
+    ])
+    const result = buildReportQuestions(answers, questionMap, new Map(), new Map())
+    const sa = asShortAnswer(result[0])
+    expect(sa.responseText).toBeNull()
+  })
+
   it('collapses multiple dialog-fill blank rows into one entry per question', () => {
     // Three answer rows for ONE dialog_fill question (one per blank).
     const answers: AnswerRow[] = [
