@@ -532,6 +532,28 @@ describe('saveDraft', () => {
     })
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
+
+  it('rejects a draft whose short answer exceeds the 500-character limit', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { responseText: 'a'.repeat(501), responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose dialog blank text exceeds the 200-character limit', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { blankAnswers: [{ index: 0, text: 'a'.repeat(201) }], responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
 })
 
 // ---- saveDraft — update path (draftId provided) ----------------------------
