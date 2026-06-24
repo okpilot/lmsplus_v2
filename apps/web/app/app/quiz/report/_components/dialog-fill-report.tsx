@@ -35,11 +35,15 @@ export function DialogFillReport({ blanks, correctCount, totalBlanks }: Props) {
                 ? blank.responseText
                 : '—'}
             </span>
+            {/* Row-level aria-label (report-question-row) only announces the
+                question's OVERALL state; this conveys each blank's result to
+                screen readers, mirroring options-list's per-item status text. */}
+            <span className="sr-only">{blank.isCorrect ? 'Correct' : 'Incorrect'}</span>
             {blank.isCorrect ? (
-              <Check size={12} aria-hidden className="ml-1 flex-shrink-0" />
+              <Check size={12} aria-hidden className="ml-1 shrink-0" />
             ) : (
               <>
-                <X size={12} aria-hidden className="ml-1 flex-shrink-0" />
+                <X size={12} aria-hidden className="ml-1 shrink-0" />
                 {blank.canonical && (
                   <span className="text-green-600">(expected: {blank.canonical})</span>
                 )}

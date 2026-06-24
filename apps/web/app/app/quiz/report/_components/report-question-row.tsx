@@ -31,7 +31,7 @@ export function ReportQuestionRow({
   return (
     <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0">
+        <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
             <span
               role="img"
@@ -55,7 +55,7 @@ export function ReportQuestionRow({
           <div className="flex items-baseline gap-2">
             <span className="text-xs font-medium text-muted-foreground">{label}</span>
             <span className="text-sm">{question.questionText}</span>
-            <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="text-xs text-muted-foreground">
                 {formatMsDuration(question.responseTimeMs)}
               </span>

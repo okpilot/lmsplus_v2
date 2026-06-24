@@ -29,13 +29,13 @@ export function OptionsList({ options, correctOptionId, selectedOptionId }: Opti
             <span>{option.text}</span>
             {isCorrect && (
               <>
-                <Check size={12} aria-hidden className="ml-1 flex-shrink-0" />
+                <Check size={12} aria-hidden className="ml-1 shrink-0" />
                 <span>Correct</span>
               </>
             )}
             {isSelected && !isCorrect && (
               <>
-                <X size={12} aria-hidden className="ml-1 flex-shrink-0" />
+                <X size={12} aria-hidden className="ml-1 shrink-0" />
                 <span>Your answer</span>
               </>
             )}

@@ -49,4 +49,10 @@ describe('DialogFillReport', () => {
     render(<DialogFillReport blanks={emptyBlank} correctCount={0} totalBlanks={1} />)
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('announces each blank result to screen readers', () => {
+    render(<DialogFillReport blanks={partialBlanks} correctCount={1} totalBlanks={2} />)
+    expect(screen.getByText('Correct')).toBeInTheDocument()
+    expect(screen.getByText('Incorrect')).toBeInTheDocument()
+  })
 })
