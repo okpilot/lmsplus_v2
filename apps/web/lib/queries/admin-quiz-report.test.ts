@@ -339,6 +339,30 @@ describe('getAdminQuizReportQuestions', () => {
     expect(result.totalCount).toBe(5)
   })
 
+  it('returns ok:true with empty questions when page is zero', async () => {
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: 5, data: null },
+    )
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 0 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions).toHaveLength(0)
+    expect(result.totalCount).toBe(5)
+  })
+
+  it('returns ok:true with empty questions when page is negative', async () => {
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: 5, data: null },
+    )
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: -3 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions).toHaveLength(0)
+    expect(result.totalCount).toBe(5)
+  })
+
   it('returns paginated questions with correct totalCount', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },

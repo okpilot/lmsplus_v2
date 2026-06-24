@@ -478,6 +478,34 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(5)
   })
 
+  it('returns empty questions with the total when page is zero', async () => {
+    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: fiveQuestions },
+    )
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 0 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions).toHaveLength(0)
+    expect(result.totalCount).toBe(5)
+  })
+
+  it('returns empty questions with the total when page is negative', async () => {
+    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: fiveQuestions },
+    )
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: -5 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions).toHaveLength(0)
+    expect(result.totalCount).toBe(5)
+  })
+
   it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
