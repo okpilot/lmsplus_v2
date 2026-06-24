@@ -33,7 +33,10 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
   switch (r.questionType) {
     case 'multiple_choice':
     case undefined:
-      return typeof r.correctOptionId === 'string'
+      // Require a non-empty correctOptionId so this load-path validation matches
+      // the sessionStorage rehydrate path (isValidFeedbackEntry → isNonEmptyString);
+      // otherwise an entry could load here but be voided on rehydrate.
+      return typeof r.correctOptionId === 'string' && r.correctOptionId !== ''
         ? { questionType: 'multiple_choice', correctOptionId: r.correctOptionId, ...base }
         : null
     case 'short_answer':

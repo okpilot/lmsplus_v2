@@ -108,4 +108,50 @@ describe('rowToDraftData — feedback normalization', () => {
     )
     expect(draft.feedback).toBeUndefined()
   })
+
+  it('drops an MC entry with an empty-string correctOptionId', () => {
+    // Symmetry with the sessionStorage rehydrate path, which requires a
+    // non-empty correctOptionId — an empty string voids the whole record.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            isCorrect: true,
+            correctOptionId: '',
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects the whole feedback record when the column is an array instead of an object', () => {
+    // toFeedbackRecord guards Array.isArray(v) — an array is not a valid record.
+    const draft = rowToDraftData(buildRow({ feedback: [] }))
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a short_answer entry whose correctAnswer is neither null nor a string', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: { questionType: 'short_answer', isCorrect: true, correctAnswer: 42 },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a dialog_fill entry whose blanks field is not an array', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: { questionType: 'dialog_fill', isCorrect: true, blanks: 'not-an-array' },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
 })
