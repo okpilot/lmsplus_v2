@@ -109,7 +109,10 @@ describe('checkNonMcAnswer (app-layer integration)', () => {
     dialogId = await insertNonMcQuestion({
       question_text: 'Complete the ATC exchange.',
       question_type: 'dialog_fill',
-      dialog_template: '[atc] {{0}} runway {{1}}.',
+      // Markers must be {{index|canonical;synonym}} (mig 125 delimiter guard +
+      // questions_dialog_fill_template_wellformed CHECK); get_quiz_questions
+      // strips the `|...` answer before sending to the client.
+      dialog_template: '[atc] {{0|cleared to land}} runway {{1|27;two seven}}.',
       blanks_config: [
         { index: 0, canonical: 'cleared to land', synonyms: [] },
         { index: 1, canonical: '27', synonyms: ['two seven'] },
