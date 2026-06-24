@@ -59,8 +59,10 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
       // Deep per-element blanks check applied here too (symmetric with the
       // localStorage path in quiz-session-validators isValidDialogFillFeedback):
       // a single malformed blank voids the whole record rather than casting a
-      // partially-typed array through.
-      return Array.isArray(r.blanks) && r.blanks.every(isDialogBlankResult)
+      // partially-typed array through. `length > 0` matches that validator, the
+      // save schema (draft-schema .min(1)) and the RPC guard (isDialogFillRpcResult)
+      // — an empty blanks array is corrupt, since dialog_fill always grades ≥1 blank.
+      return Array.isArray(r.blanks) && r.blanks.length > 0 && r.blanks.every(isDialogBlankResult)
         ? { questionType: 'dialog_fill', blanks: r.blanks as DialogBlankResult[], ...base }
         : null
     default:

@@ -185,4 +185,23 @@ describe('rowToDraftData — feedback normalization', () => {
     )
     expect(draft.feedback).toBeUndefined()
   })
+
+  it('rejects a dialog_fill entry whose blanks array is empty', () => {
+    // A dialog_fill always grades ≥1 blank, so an empty array on a legacy/persisted
+    // row is corrupt — voided here just as the rehydrate validator and save schema do.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'dialog_fill',
+            isCorrect: true,
+            blanks: [],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
 })

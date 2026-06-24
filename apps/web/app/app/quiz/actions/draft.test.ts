@@ -504,6 +504,69 @@ describe('saveDraft', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
+  it('rejects a dialog_fill feedback entry whose blanks array is empty', async () => {
+    // C3 parity: feedback.dialog_fill.blanks .min(1) — added in the same commit that
+    // added .min(1) to answers.blankAnswers; empty feedback blanks are corrupt.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a dialog_fill feedback entry that carries more than 50 blanks', async () => {
+    // C3: feedback.dialog_fill.blanks .max(50) — mirrors the answers.blankAnswers cap.
+    setupAuthenticatedUser()
+    const blanks = Array.from({ length: 51 }, (_, i) => ({
+      index: i,
+      isCorrect: true,
+      canonical: 'x',
+    }))
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: true,
+          blanks,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a dialog_fill feedback entry whose blanks contain a repeated index', async () => {
+    // C3: feedback.dialog_fill.blanks superRefine duplicate-index check — mirrors answers.blankAnswers.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [
+            { index: 0, isCorrect: true, canonical: 'cleared' },
+            { index: 0, isCorrect: false, canonical: 'runway 27' },
+          ],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('rejects a draft whose dialog answer repeats a blank index', async () => {
     setupAuthenticatedUser()
     const result = await saveDraft({
