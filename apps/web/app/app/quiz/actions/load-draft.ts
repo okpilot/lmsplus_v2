@@ -29,6 +29,9 @@ function isFeedbackEntry(e: unknown): boolean {
     case 'short_answer':
       return r.correctAnswer === null || typeof r.correctAnswer === 'string'
     case 'dialog_fill':
+      // Shallow check is deliberate here: this guards the trusted-ish DB draft row.
+      // The localStorage path (quiz-session-validators isValidDialogFillFeedback)
+      // does the deep per-blank shape check, since that source is client-writable.
       return Array.isArray(r.blanks)
     default:
       return false
