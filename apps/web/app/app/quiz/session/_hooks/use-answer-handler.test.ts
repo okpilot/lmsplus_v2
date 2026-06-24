@@ -4,12 +4,17 @@ import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockCheckAnswer } = vi.hoisted(() => ({
+const { mockCheckAnswer, mockCheckNonMcAnswer } = vi.hoisted(() => ({
   mockCheckAnswer: vi.fn(),
+  mockCheckNonMcAnswer: vi.fn(),
 }))
 
 vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
+}))
+
+vi.mock('../../actions/check-non-mc-answer', () => ({
+  checkNonMcAnswer: (...args: unknown[]) => mockCheckNonMcAnswer(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -1024,5 +1029,177 @@ describe('useAnswerHandler — answering flag', () => {
       resolveQ2(SUCCESS_RESULT)
     })
     expect(result.current.answering).toBe(false)
+  })
+})
+
+// ---- handleTextAnswer (short_answer path) ------------------------------------
+
+describe('useAnswerHandler — handleTextAnswer (short_answer)', () => {
+  const SA_SUCCESS = {
+    success: true as const,
+    questionType: 'short_answer' as const,
+    isCorrect: true,
+    correctAnswer: 'cleared to land',
+    explanationText: null,
+    explanationImageUrl: null,
+  }
+
+  it('stores the answer in the answers map with responseText after a successful check', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleTextAnswer('cleared to land')
+    })
+
+    expect(getAnswers().get(Q1_ID)?.responseText).toBe('cleared to land')
+  })
+
+  it('populates feedback with questionType short_answer and isCorrect', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleTextAnswer('cleared to land')
+    })
+
+    const fb = result.current.feedback.get(Q1_ID)
+    expect(fb?.questionType).toBe('short_answer')
+    expect(fb?.isCorrect).toBe(true)
+    if (fb?.questionType === 'short_answer') {
+      expect(fb.correctAnswer).toBe('cleared to land')
+    }
+  })
+
+  it('reverts the answer and sets error message when checkNonMcAnswer fails', async () => {
+    mockCheckNonMcAnswer.mockRejectedValue(new Error('network error'))
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleTextAnswer('anything')
+    })
+
+    expect(getAnswers().has(Q1_ID)).toBe(false)
+    expect(result.current.error).toBe('Failed to check answer. Please try again.')
+  })
+
+  it('reverts and sets error when checkNonMcAnswer returns success: false', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Session ended' })
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleTextAnswer('test')
+    })
+
+    expect(getAnswers().has(Q1_ID)).toBe(false)
+    expect(result.current.error).toBe('Failed to check answer. Please try again.')
+  })
+
+  it('returns true on success and false on failure', async () => {
+    mockCheckNonMcAnswer.mockResolvedValueOnce(SA_SUCCESS)
+    const { result, getAnswers } = renderAnswerHandler()
+
+    let returnVal: boolean | undefined
+    await act(async () => {
+      returnVal = await result.current.handleTextAnswer('cleared to land')
+    })
+    expect(returnVal).toBe(true)
+
+    // Ensure answer slot is reset for next call
+    getAnswers().delete(Q1_ID)
+    mockCheckNonMcAnswer.mockRejectedValueOnce(new Error('fail'))
+    await act(async () => {
+      returnVal = await result.current.handleTextAnswer('wrong')
+    })
+    expect(returnVal).toBe(false)
+  })
+})
+
+// ---- handleDialogFillAnswer (dialog_fill path) --------------------------------
+
+describe('useAnswerHandler — handleDialogFillAnswer (dialog_fill)', () => {
+  const BLANK_ANSWERS = [
+    { index: 0, text: 'alpha' },
+    { index: 1, text: '27' },
+  ]
+
+  const DF_SUCCESS = {
+    success: true as const,
+    questionType: 'dialog_fill' as const,
+    isCorrect: false,
+    blanks: [
+      { index: 0, isCorrect: true, canonical: 'alpha' },
+      { index: 1, isCorrect: false, canonical: '27' },
+    ],
+    explanationText: null,
+    explanationImageUrl: null,
+  }
+
+  it('stores the answer in the answers map with blankAnswers after a successful check', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleDialogFillAnswer(BLANK_ANSWERS)
+    })
+
+    expect(getAnswers().get(Q1_ID)?.blankAnswers).toEqual(BLANK_ANSWERS)
+  })
+
+  it('populates feedback with questionType dialog_fill and per-blank results', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleDialogFillAnswer(BLANK_ANSWERS)
+    })
+
+    const fb = result.current.feedback.get(Q1_ID)
+    expect(fb?.questionType).toBe('dialog_fill')
+    if (fb?.questionType === 'dialog_fill') {
+      expect(fb.blanks).toHaveLength(2)
+      expect(fb.blanks[1]?.canonical).toBe('27')
+    }
+  })
+
+  it('reverts the answer and sets error when checkNonMcAnswer fails', async () => {
+    mockCheckNonMcAnswer.mockRejectedValue(new Error('network error'))
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleDialogFillAnswer(BLANK_ANSWERS)
+    })
+
+    expect(getAnswers().has(Q1_ID)).toBe(false)
+    expect(result.current.error).toBe('Failed to check answer. Please try again.')
+  })
+
+  it('does not re-submit a question that is already answered', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
+    const { result, getAnswers } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleDialogFillAnswer(BLANK_ANSWERS)
+    })
+
+    // answer is now in map — second call must be blocked
+    const answeredAnswers = getAnswers()
+    const { result: result2 } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers: answeredAnswers,
+        setAnswers: vi.fn() as React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
+      }),
+    )
+
+    let returnVal: boolean | undefined
+    await act(async () => {
+      returnVal = await result2.current.handleDialogFillAnswer(BLANK_ANSWERS)
+    })
+    expect(returnVal).toBe(false)
+    // Only one call from the first attempt
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledTimes(1)
   })
 })

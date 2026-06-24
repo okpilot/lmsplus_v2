@@ -71,11 +71,11 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 3 — Runner renders + grades short_answer/dialog_fill
 
-- [ ] **3.1 `ShortAnswerInput` + `DialogFillInput` (+ tests)** — shared `_components/`; ≤150 lines each; co-located tests. Dialog parser salvaged-from-#923-or-fresh (decide at plan-validation). _Requirements: R3.2, R3.3_
-- [ ] **3.2 Type dispatch + answer-pipeline type surgery**
+- [x] **3.1 `ShortAnswerInput` + `DialogFillInput` (+ tests)** — shared `_components/`; ≤150 lines each; co-located tests. Dialog parser salvaged-from-#923-or-fresh (decide at plan-validation). _Requirements: R3.2, R3.3_
+- [x] **3.2 Type dispatch + answer-pipeline type surgery**
   - `quiz/session/_components/quiz-main-panel.tsx` dispatch on `question_type` (MC unchanged). Widen `quiz/types.ts` `DraftAnswer` + `AnswerFeedback` to discriminated unions; `use-answer-handler.ts` add `handleTextAnswer`/generalize (currently `handleSelectAnswer(optionId:string)`); update `answer-handler-helpers.ts:recordAnswerFeedback`.
   - _Requirements: R3.1, R3.5_
-- [ ] **3.3 Non-MC immediate-feedback Server Action (+ test)** — calls 2.2 RPC; Zod discriminated-union input; co-located test (correct/wrong/per-blank/error); uniform contract with MC. _Requirements: R4.1–R4.4, NFR-Security_
+- [x] **3.3 Non-MC immediate-feedback Server Action (+ test)** — calls 2.2 RPC; Zod discriminated-union input; co-located test (correct/wrong/per-blank/error); uniform contract with MC. _Requirements: R4.1–R4.4, NFR-Security_
   - _Eval:_ short_answer + dialog_fill display, answer, immediate correctness + reveal + explanation; MC still works.
 
 ## Phase 4 — Report renders short_answer/dialog_fill (G4)

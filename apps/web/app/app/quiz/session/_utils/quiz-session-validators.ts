@@ -36,34 +36,36 @@ function hasValidExplanations(r: Record<string, unknown>): boolean {
   return isNullableString(r.explanationText) && isNullableString(r.explanationImageUrl)
 }
 
+function isValidDialogFillFeedback(blanks: unknown): boolean {
+  return (
+    Array.isArray(blanks) &&
+    blanks.every(
+      (b) =>
+        typeof b === 'object' &&
+        b !== null &&
+        typeof (b as Record<string, unknown>).index === 'number' &&
+        typeof (b as Record<string, unknown>).isCorrect === 'boolean' &&
+        typeof (b as Record<string, unknown>).canonical === 'string',
+    )
+  )
+}
+
 export function isValidFeedbackEntry(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
   if (typeof r.isCorrect !== 'boolean' || !hasValidExplanations(r)) return false
 
   // Dispatch on the questionType discriminant. Legacy persisted MC feedback
-  // predates the tag (no `questionType`), so an untagged entry carrying a
-  // non-empty `correctOptionId` is still accepted as multiple_choice.
+  // predates the tag (no `questionType`), so an untagged entry (case undefined)
+  // carrying a non-empty `correctOptionId` is still accepted as multiple_choice.
   switch (r.questionType) {
     case 'multiple_choice':
+    case undefined:
       return isNonEmptyString(r.correctOptionId)
     case 'short_answer':
       return isNullableString(r.correctAnswer)
     case 'dialog_fill':
-      return (
-        Array.isArray(r.blanks) &&
-        r.blanks.every(
-          (b) =>
-            typeof b === 'object' &&
-            b !== null &&
-            typeof (b as Record<string, unknown>).index === 'number' &&
-            typeof (b as Record<string, unknown>).isCorrect === 'boolean' &&
-            typeof (b as Record<string, unknown>).canonical === 'string',
-        )
-      )
-    case undefined:
-      // Legacy untagged MC feedback.
-      return isNonEmptyString(r.correctOptionId)
+      return isValidDialogFillFeedback(r.blanks)
     default:
       return false
   }
