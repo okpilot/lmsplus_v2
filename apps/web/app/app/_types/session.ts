@@ -1,3 +1,5 @@
+export type QuestionType = 'multiple_choice' | 'short_answer' | 'dialog_fill'
+
 export type SessionQuestion = {
   id: string
   question_text: string
@@ -6,6 +8,13 @@ export type SessionQuestion = {
   options: { id: string; text: string }[]
   explanation_text: string | null
   explanation_image_url: string | null
+  // Populated by loadSessionQuestions (get_quiz_questions RPC) for every
+  // question — non-nullable so the runner can discriminate on question_type
+  // without a fallback. dialog_template/blanks_safe are non-null only for the
+  // matching type; multiple_choice carries (null, null).
+  question_type: QuestionType
+  dialog_template: string | null
+  blanks_safe: { index: number }[] | null
 }
 
 export type AnswerResult =

@@ -78,12 +78,62 @@ export type CheckAnswerResult =
     }
   | { success: false; error: string }
 
-export type AnswerFeedback = {
+// Per-blank grading result for dialog_fill (from check_non_mc_answer's
+// `blanks` array). `canonical` is the revealed correct answer for that blank.
+export type DialogBlankResult = {
+  index: number
   isCorrect: boolean
-  correctOptionId: string
-  explanationText: string | null
-  explanationImageUrl: string | null
+  canonical: string
 }
+
+// Discriminated on `questionType` (camelCase TS-layer tag). The question ROW
+// keeps snake_case `question_type` — this asymmetry is intentional: the row is
+// the DB contract, the feedback union is the client contract.
+//
+// The multiple_choice variant's shape is byte-identical to the legacy
+// AnswerFeedback (only the discriminant is added) so existing MC consumers and
+// persisted localStorage/draft rows keep working.
+export type AnswerFeedback =
+  | {
+      questionType: 'multiple_choice'
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | {
+      questionType: 'short_answer'
+      isCorrect: boolean
+      correctAnswer: string | null
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | {
+      questionType: 'dialog_fill'
+      isCorrect: boolean
+      blanks: DialogBlankResult[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+
+export type CheckNonMcAnswerResult =
+  | {
+      success: true
+      questionType: 'short_answer'
+      isCorrect: boolean
+      correctAnswer: string | null
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | {
+      success: true
+      questionType: 'dialog_fill'
+      isCorrect: boolean
+      blanks: DialogBlankResult[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | { success: false; error: string }
 
 export type DraftAnswer = {
   selectedOptionId?: string

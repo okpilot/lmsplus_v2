@@ -1,57 +1,9 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
 import type { DraftResult } from '../types'
 import { insertNewDraft, updateExistingDraft } from './draft-helpers'
-
-const SaveDraftInput = z
-  .object({
-    draftId: z.uuid().optional(),
-    sessionId: z.uuid(),
-    questionIds: z.array(z.uuid()).min(1),
-    answers: z.record(
-      z.string(),
-      z.object({
-        selectedOptionId: z.string().min(1),
-        responseTimeMs: z.number().int().nonnegative(),
-      }),
-    ),
-    currentIndex: z.number().int().nonnegative(),
-    subjectName: z.string().max(100).optional(),
-    subjectCode: z.string().max(10).optional(),
-    feedback: z
-      .record(
-        z.string(),
-        z.object({
-          isCorrect: z.boolean(),
-          correctOptionId: z.string().min(1),
-          explanationText: z.string().nullable(),
-          explanationImageUrl: z.string().nullable(),
-        }),
-      )
-      .optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.currentIndex >= data.questionIds.length) {
-      ctx.addIssue({
-        // 'custom' is the Zod v4 literal for ZodIssueCode.custom
-        code: 'custom',
-        path: ['currentIndex'],
-        message: 'Current index out of range',
-      })
-    }
-    const questionIdSet = new Set(data.questionIds)
-    for (const key of Object.keys(data.answers)) {
-      if (!questionIdSet.has(key)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['answers', key],
-          message: `Answer key "${key}" is not in questionIds`,
-        })
-      }
-    }
-  })
+import { SaveDraftInput, type SaveDraftInputParsed } from './draft-schema'
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {
   try {
@@ -62,7 +14,7 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-    let input: z.infer<typeof SaveDraftInput>
+    let input: SaveDraftInputParsed
     try {
       input = SaveDraftInput.parse(raw)
     } catch {

@@ -48,6 +48,7 @@ describe('useQuizPersistence', () => {
       [
         'q1',
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: null,

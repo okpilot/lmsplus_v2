@@ -4,21 +4,81 @@ export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+function isNullableString(v: unknown): boolean {
+  return v === null || typeof v === 'string'
+}
+
+function isNonNegativeInt(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0
+}
+
+function isValidBlankAnswers(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length === 0) return false
+  return v.every(
+    (b) =>
+      typeof b === 'object' &&
+      b !== null &&
+      isNonNegativeInt((b as Record<string, unknown>).index) &&
+      isNonEmptyString((b as Record<string, unknown>).text),
+  )
+}
+
 export function isValidDraftAnswer(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
-  return isNonEmptyString(r.selectedOptionId) && typeof r.responseTimeMs === 'number'
+  if (!Number.isInteger(r.responseTimeMs) || (r.responseTimeMs as number) < 0) return false
+  // Exactly one answer SHAPE must be present by key, then that shape must be
+  // valid — mirrors draft.ts's Zod .refine, which rejects a hybrid even when the
+  // second payload is itself malformed.
+  const hasSelectedOption = r.selectedOptionId !== undefined
+  const hasResponseText = r.responseText !== undefined
+  const hasBlankAnswers = r.blankAnswers !== undefined
+  if ([hasSelectedOption, hasResponseText, hasBlankAnswers].filter(Boolean).length !== 1) {
+    return false
+  }
+  if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
+  if (hasResponseText) return isNonEmptyString(r.responseText)
+  return isValidBlankAnswers(r.blankAnswers)
+}
+
+function hasValidExplanations(r: Record<string, unknown>): boolean {
+  return isNullableString(r.explanationText) && isNullableString(r.explanationImageUrl)
+}
+
+function isValidDialogFillFeedback(blanks: unknown): boolean {
+  return (
+    Array.isArray(blanks) &&
+    blanks.length > 0 &&
+    blanks.every(
+      (b) =>
+        typeof b === 'object' &&
+        b !== null &&
+        isNonNegativeInt((b as Record<string, unknown>).index) &&
+        typeof (b as Record<string, unknown>).isCorrect === 'boolean' &&
+        typeof (b as Record<string, unknown>).canonical === 'string',
+    )
+  )
 }
 
 export function isValidFeedbackEntry(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
-  return (
-    typeof r.isCorrect === 'boolean' &&
-    isNonEmptyString(r.correctOptionId) &&
-    (r.explanationText === null || typeof r.explanationText === 'string') &&
-    (r.explanationImageUrl === null || typeof r.explanationImageUrl === 'string')
-  )
+  if (typeof r.isCorrect !== 'boolean' || !hasValidExplanations(r)) return false
+
+  // Dispatch on the questionType discriminant. Legacy persisted MC feedback
+  // predates the tag (no `questionType`), so an untagged entry (case undefined)
+  // carrying a non-empty `correctOptionId` is still accepted as multiple_choice.
+  switch (r.questionType) {
+    case 'multiple_choice':
+    case undefined:
+      return isNonEmptyString(r.correctOptionId)
+    case 'short_answer':
+      return isNullableString(r.correctAnswer)
+    case 'dialog_fill':
+      return isValidDialogFillFeedback(r.blanks)
+    default:
+      return false
+  }
 }
 
 export function isValidRecordOf(val: unknown, check: (v: unknown) => boolean): boolean {

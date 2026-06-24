@@ -14,6 +14,7 @@ function makeDraftAnswer(): DraftAnswer {
 
 function makeFeedback(): AnswerFeedback {
   return {
+    questionType: 'multiple_choice',
     isCorrect: true,
     correctOptionId: 'opt-a',
     explanationText: null,

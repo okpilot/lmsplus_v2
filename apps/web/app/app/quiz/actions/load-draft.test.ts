@@ -124,13 +124,43 @@ describe('loadDrafts', () => {
     expect(chain.limit).toHaveBeenCalledWith(MAX_DRAFTS)
   })
 
-  it('maps feedback column to DraftData.feedback when present', async () => {
+  it('normalizes legacy untagged MC feedback to the tagged multiple_choice variant', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    // Pre-discriminant drafts persisted MC feedback with no `questionType`.
     const feedbackData = {
       q1: {
         isCorrect: true,
         correctOptionId: 'opt-a',
         explanationText: 'Pressure altitude ignores temperature.',
+        explanationImageUrl: null,
+      },
+    }
+    mockFrom.mockReturnValue(
+      buildSelectChain({ data: [buildDraftRow({ feedback: feedbackData })], error: null }),
+    )
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toEqual({
+      q1: { questionType: 'multiple_choice', ...feedbackData.q1 },
+    })
+  })
+
+  it('maps tagged short_answer and dialog_fill feedback on recovery', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    const feedbackData = {
+      q1: {
+        questionType: 'short_answer',
+        isCorrect: true,
+        correctAnswer: 'cleared to land',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+      q2: {
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 0, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
         explanationImageUrl: null,
       },
     }
@@ -184,7 +214,9 @@ describe('loadDrafts', () => {
 
     const result = await loadDrafts()
 
-    expect(result.drafts[0]!.feedback).toEqual(feedbackData)
+    expect(result.drafts[0]!.feedback).toEqual({
+      q1: { questionType: 'multiple_choice', ...feedbackData.q1 },
+    })
     consoleSpy.mockRestore()
   })
 

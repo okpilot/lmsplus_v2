@@ -9,8 +9,11 @@ const Q1_ID = '00000000-0000-4000-a000-000000000011'
 const Q2_ID = '00000000-0000-4000-a000-000000000022'
 const OPT_A = 'opt-a'
 
-function makeFeedback(overrides?: Partial<AnswerFeedback>): AnswerFeedback {
+type McFeedback = Extract<AnswerFeedback, { questionType: 'multiple_choice' }>
+
+function makeFeedback(overrides?: Partial<McFeedback>): AnswerFeedback {
   return {
+    questionType: 'multiple_choice',
     isCorrect: true,
     correctOptionId: OPT_A,
     explanationText: null,

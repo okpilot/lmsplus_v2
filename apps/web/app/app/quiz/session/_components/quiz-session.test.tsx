@@ -295,6 +295,9 @@ const QUESTIONS = [
       { id: 'a', text: 'A force' },
       { id: 'b', text: 'A moment' },
     ],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
   {
     id: 'q2',
@@ -307,6 +310,9 @@ const QUESTIONS = [
       { id: 'c', text: 'Resistance' },
       { id: 'd', text: 'Thrust' },
     ],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
   {
     id: 'q3',
@@ -319,6 +325,9 @@ const QUESTIONS = [
       { id: 'e', text: 'Gravity force' },
       { id: 'f', text: 'Mass' },
     ],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
 ]
 

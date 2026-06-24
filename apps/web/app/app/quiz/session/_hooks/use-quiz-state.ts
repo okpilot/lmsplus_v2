@@ -69,6 +69,8 @@ export function useQuizState(opts: QuizStateOpts) {
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
     handleSelectAnswer: p.handleSelectAnswer,
+    handleTextAnswer: p.handleTextAnswer,
+    handleDialogFillAnswer: p.handleDialogFillAnswer,
     navigateTo: p.navigateTo,
     navigate: p.navigate,
     togglePin: () => togglePinById(questionId),

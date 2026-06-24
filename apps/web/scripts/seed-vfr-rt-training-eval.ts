@@ -6,10 +6,13 @@
  * - Admin user   (admin@lmsplus.local / admin123!)
  * - Student user (student@lmsplus.local / student123!)
  * - A question bank for the VFR RT pool
- * - A pool of 10 ACTIVE multiple_choice questions under topic P3_MC
+ * - 10 ACTIVE multiple_choice questions under topic P3_MC      (Part 3)
+ * - 5  ACTIVE short_answer  questions under topic P1_ACRONYMS  (Part 1)
+ * - 3  ACTIVE dialog_fill   questions under topic P2_DIALOG    (Part 2)
  *
- * NO exam_config row — Phase 1 is training-only (quick_quiz study mode).
- * Non-MC question types (short_answer / dialog_fill) are added in Phase 3.
+ * NO exam_config row — training-only (quick_quiz study mode).
+ * Phase 3 wires the non-MC types into the reused /app/quiz Study runner; pick a
+ * Part on /app/vfr-rt to drill that type (P1 → short_answer, P2 → dialog_fill).
  *
  * The RT subject (code 'RT') and its three topics (P1_ACRONYMS / P2_DIALOG / P3_MC)
  * are seeded by migrations 097/098, so this script only looks them up.
@@ -173,6 +176,88 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
 ]
 
+type ShortAnswer = {
+  num: string
+  text: string
+  canonical: string
+  synonyms: string[]
+}
+
+// Part 1 — short_answer. Free-text graded against canonical + synonyms.
+// Grading normalizes case/punctuation/whitespace (normalize_answer, mig 101/128),
+// so the answers below match regardless of capitalisation; type a wrong answer to
+// see the incorrect state, and the canonical is revealed in the feedback either way.
+const SHORT_ANSWER: ShortAnswer[] = [
+  {
+    num: 'VRT-P1-001',
+    text: "What single word means 'I have received all of your last transmission'?",
+    canonical: 'roger',
+    synonyms: [],
+  },
+  {
+    num: 'VRT-P1-002',
+    text: "Give the phonetic alphabet word for the letter 'G'.",
+    canonical: 'golf',
+    synonyms: [],
+  },
+  {
+    num: 'VRT-P1-003',
+    text: 'What word indicates that the proposed action is approved?',
+    canonical: 'approved',
+    synonyms: [],
+  },
+  {
+    num: 'VRT-P1-004',
+    text: 'What word asks the other station to wait and that you will call them back?',
+    canonical: 'standby',
+    synonyms: ['stand by'], // demonstrates a synonym: "stand by" also grades correct
+  },
+  {
+    num: 'VRT-P1-005',
+    text: "What phonetic alphabet word represents the letter 'Q'?",
+    canonical: 'quebec',
+    synonyms: [],
+  },
+]
+
+type DialogFill = {
+  num: string
+  text: string
+  // Tokens are {{index|canonical;synonym}} (the `|...` is stripped before the
+  // template reaches the student — get_quiz_questions, mig 126). blanks_config
+  // drives grading and must agree with the marker indices.
+  template: string
+  blanks: { index: number; canonical: string; synonyms: string[] }[]
+}
+
+// Part 2 — dialog_fill. Fill the blanks in an ATC exchange.
+const DIALOG_FILL: DialogFill[] = [
+  {
+    num: 'VRT-P2-001',
+    text: 'Complete the tower transmission (landing clearance).',
+    template: 'TOWER: Golf Alpha Bravo, {{0|cleared to land}} runway {{1|27;two seven}}.',
+    blanks: [
+      { index: 0, canonical: 'cleared to land', synonyms: [] },
+      { index: 1, canonical: '27', synonyms: ['two seven'] }, // either "27" or "two seven"
+    ],
+  },
+  {
+    num: 'VRT-P2-002',
+    text: 'Complete the pilot readback (altimeter setting).',
+    template: 'PILOT: {{0|QNH}} {{1|one zero one three}}, Golf Alpha Bravo.',
+    blanks: [
+      { index: 0, canonical: 'QNH', synonyms: [] },
+      { index: 1, canonical: 'one zero one three', synonyms: [] },
+    ],
+  },
+  {
+    num: 'VRT-P2-003',
+    text: 'Complete the tower instruction (frequency change).',
+    template: 'TOWER: Golf Alpha Bravo, contact Approach on {{0|one one eight decimal three}}.',
+    blanks: [{ index: 0, canonical: 'one one eight decimal three', synonyms: [] }],
+  },
+]
+
 // ---- helpers ------------------------------------------------------------------
 
 async function createAuthUser(email: string, password: string): Promise<string> {
@@ -273,6 +358,8 @@ async function seed(): Promise<void> {
 
   // RT subject + topics are migration-seeded; look them up.
   const rtSubjectId = await lookupId('easa_subjects', 'code', 'RT')
+  const p1TopicId = await lookupId('easa_topics', 'code', 'P1_ACRONYMS')
+  const p2TopicId = await lookupId('easa_topics', 'code', 'P2_DIALOG')
   const p3TopicId = await lookupId('easa_topics', 'code', 'P3_MC')
 
   const bankId = await ensureBank(org.id, adminId)
@@ -307,14 +394,57 @@ async function seed(): Promise<void> {
     if (added) inserted++
   }
 
-  console.log('VFR RT Training eval seed complete (Phase 1 — MC only).')
+  // Part 1 — short_answer (graded against canonical_answer + accepted_synonyms)
+  for (const q of SHORT_ANSWER) {
+    const added = await insertQuestionIfMissing(bankId, {
+      ...base,
+      question_number: q.num,
+      topic_id: p1TopicId,
+      question_type: 'short_answer',
+      question_text: q.text,
+      options: [],
+      canonical_answer: q.canonical,
+      accepted_synonyms: q.synonyms,
+      dialog_template: null,
+      blanks_config: [],
+      correct_option_id: null,
+    })
+    if (added) inserted++
+  }
+
+  // Part 2 — dialog_fill (per-blank keys in blanks_config; template `|...` stripped
+  // by get_quiz_questions before the student sees it)
+  for (const q of DIALOG_FILL) {
+    const added = await insertQuestionIfMissing(bankId, {
+      ...base,
+      question_number: q.num,
+      topic_id: p2TopicId,
+      question_type: 'dialog_fill',
+      question_text: q.text,
+      options: [],
+      canonical_answer: null,
+      accepted_synonyms: [],
+      dialog_template: q.template,
+      blanks_config: q.blanks,
+      correct_option_id: null,
+    })
+    if (added) inserted++
+  }
+
+  const total = MULTIPLE_CHOICE.length + SHORT_ANSWER.length + DIALOG_FILL.length
+  console.log('VFR RT Training eval seed complete (MC + short_answer + dialog_fill).')
   console.log(`  Org:              Egmont Aviation (${org.id})`)
   console.log(`  Admin:            ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`)
   console.log(`  Student:          ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
   console.log(`  RT subject:       ${rtSubjectId}`)
-  console.log(`  P3_MC topic:      ${p3TopicId}`)
-  console.log(`  Questions added:  ${inserted} of ${MULTIPLE_CHOICE.length} MC questions`)
+  console.log(
+    `  Topics:           P1_ACRONYMS=${p1TopicId} P2_DIALOG=${p2TopicId} P3_MC=${p3TopicId}`,
+  )
+  console.log(
+    `  Questions added:  ${inserted} (of ${total}: ${MULTIPLE_CHOICE.length} MC + ${SHORT_ANSWER.length} short_answer + ${DIALOG_FILL.length} dialog_fill)`,
+  )
   console.log('  No exam_config — training uses /app/vfr-rt (quick_quiz study mode)')
+  console.log('  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice')
   console.log('  Start at:         http://localhost:3000/app/vfr-rt')
 }
 

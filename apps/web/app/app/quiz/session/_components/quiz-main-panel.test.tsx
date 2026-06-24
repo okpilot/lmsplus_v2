@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizState } from '../_hooks/use-quiz-state'
 
@@ -43,6 +44,76 @@ vi.mock('./quiz-tab-content', () => ({
   QuizTabContent: () => <div data-testid="quiz-tab-content" />,
 }))
 
+// Fixed payloads the mock inputs fire so a handler swap (text vs dialog) is detectable.
+const SHORT_ANSWER_PAYLOAD = 'cleared to land'
+const DIALOG_FILL_PAYLOAD = [{ index: 0, text: 'alpha' }]
+
+vi.mock('./short-answer-input', () => ({
+  ShortAnswerInput: ({
+    onSubmit,
+    disabled,
+    submitting,
+    submittedText,
+    isCorrect,
+    correctAnswer,
+  }: {
+    onSubmit: (text: string) => void
+    disabled: boolean
+    submitting?: boolean
+    submittedText?: string | null
+    isCorrect?: boolean | null
+    correctAnswer?: string | null
+  }) => (
+    <div
+      data-testid="short-answer-input"
+      data-disabled={String(disabled)}
+      data-submitting={String(submitting ?? false)}
+      data-submitted-text={submittedText ?? ''}
+      data-is-correct={String(isCorrect ?? '')}
+      data-correct-answer={correctAnswer ?? ''}
+    >
+      <button
+        type="button"
+        data-testid="short-answer-submit"
+        onClick={() => onSubmit(SHORT_ANSWER_PAYLOAD)}
+      >
+        submit
+      </button>
+    </div>
+  ),
+}))
+
+vi.mock('./dialog-fill-input', () => ({
+  DialogFillInput: ({
+    onSubmit,
+    disabled,
+    submitting,
+    submitted,
+  }: {
+    template: string
+    onSubmit: (blanks: { index: number; text: string }[]) => void
+    disabled: boolean
+    submitting?: boolean
+    submitted?: boolean
+    blanks?: { index: number; isCorrect: boolean; canonical: string }[]
+  }) => (
+    <div
+      data-testid="dialog-fill-input"
+      data-disabled={String(disabled)}
+      data-submitting={String(submitting ?? false)}
+      data-submitted={String(submitted ?? false)}
+    >
+      <button
+        type="button"
+        data-testid="dialog-fill-submit"
+        onClick={() => onSubmit(DIALOG_FILL_PAYLOAD)}
+      >
+        submit
+      </button>
+    </div>
+  ),
+}))
+
 // ---- Subject under test ----------------------------------------------------
 
 import { QuizMainPanel } from './quiz-main-panel'
@@ -71,6 +142,8 @@ function makeState(overrides: Partial<QuizState> = {}): QuizState {
     pinnedQuestions: new Set<string>(),
     isPinned: false,
     handleSelectAnswer: vi.fn(),
+    handleTextAnswer: vi.fn(),
+    handleDialogFillAnswer: vi.fn(),
     navigateTo: vi.fn(),
     navigate: vi.fn(),
     togglePin: vi.fn(),
@@ -166,6 +239,243 @@ describe('QuizMainPanel', () => {
       )
       // QuizTabContent is rendered instead of AnswerOptions — callback not wired up
       expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('answer input per question type', () => {
+    it('shows a free-text answer field for a short_answer question', () => {
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'What does ATC say?',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('short-answer-input')).toBeInTheDocument()
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
+    })
+
+    it('submits the typed text answer for a short_answer question', async () => {
+      const handleTextAnswer = vi.fn()
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'What does ATC say?',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+        handleTextAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      await userEvent.click(screen.getByTestId('short-answer-submit'))
+      expect(handleTextAnswer).toHaveBeenCalledWith('cleared to land')
+    })
+
+    it('submits the filled blanks for a dialog_fill question', async () => {
+      const handleDialogFillAnswer = vi.fn()
+      const s = makeState({
+        question: {
+          id: 'q-df',
+          question_text: 'Complete the ATC dialog',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}} runway {{1}}.',
+          blanks_safe: [{ index: 0 }, { index: 1 }],
+        },
+        handleDialogFillAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      await userEvent.click(screen.getByTestId('dialog-fill-submit'))
+      expect(handleDialogFillAnswer).toHaveBeenCalledWith([{ index: 0, text: 'alpha' }])
+    })
+
+    it('shows a fill-in-the-blanks dialog field for a dialog_fill question', () => {
+      const s = makeState({
+        question: {
+          id: 'q-df2',
+          question_text: 'Complete the ATC dialog',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}} runway {{1}}.',
+          blanks_safe: [{ index: 0 }, { index: 1 }],
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+    })
+
+    it('shows multiple-choice options for a multiple_choice question', () => {
+      const s = makeState({
+        question: {
+          id: 'q-mc',
+          question_text: 'What is lift?',
+          question_image_url: null,
+          question_number: '050-01-01-001',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [{ id: 'a', text: 'A force' }],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('answer-options')).toBeInTheDocument()
+      expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
+    })
+
+    it('shows the short-answer loading state while a per-answer check is in flight', () => {
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'short q',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+        answering: true,
+        submitting: false,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      const input = screen.getByTestId('short-answer-input')
+      // A session-level submit is not in flight, so the field stays editable...
+      expect(input).toHaveAttribute('data-disabled', 'false')
+      // ...but the per-answer check is running, so the spinner shows.
+      expect(input).toHaveAttribute('data-submitting', 'true')
+    })
+
+    it('shows incorrect short-answer feedback with the revealed correct answer', () => {
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'short q',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+        existingAnswer: { responseText: 'cleared', responseTimeMs: 400 },
+        currentFeedback: {
+          questionType: 'short_answer',
+          isCorrect: false,
+          correctAnswer: 'cleared to land',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      const input = screen.getByTestId('short-answer-input')
+      expect(input).toHaveAttribute('data-submitted-text', 'cleared')
+      expect(input).toHaveAttribute('data-is-correct', 'false')
+      expect(input).toHaveAttribute('data-correct-answer', 'cleared to land')
+    })
+
+    it('does not reveal a grading outcome when the recorded feedback is for another question type', () => {
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'short q',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+        currentFeedback: {
+          questionType: 'multiple_choice',
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      const input = screen.getByTestId('short-answer-input')
+      expect(input).toHaveAttribute('data-is-correct', '')
+    })
+
+    it('shows an unsupported-type notice for a non-MC question in exam mode', () => {
+      const s = makeState({
+        isExam: true,
+        question: {
+          id: 'q-sa',
+          question_text: 'What does ATC say?',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'This question type is not yet supported in exam mode.',
+      )
+    })
+
+    it('locks dialog-fill submission when an answer already exists', () => {
+      const s = makeState({
+        question: {
+          id: 'q-df',
+          question_text: 'dialog q',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}}.',
+          blanks_safe: [{ index: 0 }],
+        },
+        existingAnswer: {
+          blankAnswers: [{ index: 0, text: 'alpha' }],
+          responseTimeMs: 600,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('dialog-fill-input')).toHaveAttribute('data-submitted', 'true')
     })
   })
 

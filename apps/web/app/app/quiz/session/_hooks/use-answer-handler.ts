@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { type CheckResult, handleAnswerError, recordAnswerFeedback } from './answer-handler-helpers'
+import {
+  type AttemptInput,
+  buildAnswerHandlers,
+  type CheckResult,
+  handleAnswerError,
+  recordAnswerFeedback,
+} from './answer-handler-helpers'
 
 type AnswerHandlerOpts = {
   sessionId: string
@@ -18,22 +23,14 @@ type AnswerHandlerOpts = {
 }
 
 export function useAnswerHandler(opts: AnswerHandlerOpts) {
-  const {
-    sessionId,
-    getQuestionId,
-    getAnswerStartTime,
-    answers,
-    setAnswers,
-    initialFeedback,
-    onAnswerRecorded,
-    onAnswerReverted,
-  } = opts
+  const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers } = opts
+  const { initialFeedback, onAnswerRecorded, onAnswerReverted } = opts
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(
     () => initialFeedback ?? new Map(),
   )
   const [error, setError] = useState<string | null>(null)
-  // > 0 while one or more per-question checkAnswer RPCs are in flight. Drives the
-  // Submit Answer spinner AND (since #886) keeps the footer submit button mounted.
+  // > 0 while one or more per-question check RPCs are in flight. Drives the
+  // Submit spinner AND (since #886) keeps the footer submit button mounted.
   // A counter, not a boolean: if the user navigates mid-RPC and answers the next
   // question before the first settles, both are in flight — the counter stays
   // positive until the LAST settles, so the first settle can't clear the loading
@@ -47,16 +44,12 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const feedbackRef = useRef(feedback)
   feedbackRef.current = feedback
 
-  async function handleSelectAnswer(optionId: string): Promise<boolean> {
+  async function runAttempt(input: AttemptInput): Promise<boolean> {
     const questionId = getQuestionId()
     if (lockedRef.current.has(questionId) || answers.has(questionId)) return false
     lockedRef.current.add(questionId)
-    const elapsed = Date.now() - getAnswerStartTime()
     setAnswers((p) => {
-      const next = new Map(p).set(questionId, {
-        selectedOptionId: optionId,
-        responseTimeMs: elapsed,
-      })
+      const next = new Map(p).set(questionId, input.draft)
       answersRef.current = next
       return next
     })
@@ -68,9 +61,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     try {
       let result: CheckResult
       try {
-        const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
-        if (!r.success) throw new Error(r.error)
-        result = r
+        result = await input.check(questionId)
       } catch {
         handleAnswerError(
           questionId,
@@ -86,13 +77,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
       setError(null)
       try {
-        onAnswerRecorded?.(
-          new Map(answersRef.current).set(questionId, {
-            selectedOptionId: optionId,
-            responseTimeMs: elapsed,
-          }),
-          nextFeedback,
-        )
+        onAnswerRecorded?.(new Map(answersRef.current).set(questionId, input.draft), nextFeedback)
       } catch (err) {
         console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
       }
@@ -108,6 +93,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     }
   }
 
+  const handlers = buildAnswerHandlers({ sessionId, getAnswerStartTime, runAttempt })
+
   // Clear ref lock reactively after state update propagates — not data fetching
   useEffect(() => {
     for (const locked of lockedRef.current) {
@@ -119,7 +106,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     feedback,
     error,
     answering,
-    handleSelectAnswer,
+    ...handlers,
     clearError: () => setError(null),
     pendingQuestionIdRef,
   }

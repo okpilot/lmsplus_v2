@@ -340,6 +340,7 @@ describe('saveDraft', () => {
 
     const feedbackPayload = {
       [Q1_ID]: {
+        questionType: 'multiple_choice',
         isCorrect: true,
         correctOptionId: 'opt-a',
         explanationText: 'Lift equals weight in level flight.',
@@ -354,7 +355,60 @@ describe('saveDraft', () => {
     expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
   })
 
-  it('does not include feedback key in insert row when feedback is omitted', async () => {
+  it('persists short_answer and dialog_fill answers + feedback on save', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const answers = {
+      [Q1_ID]: { responseText: 'cleared to land', responseTimeMs: 2000 },
+      [Q2_ID]: {
+        blankAnswers: [{ index: 0, text: 'cleared' }],
+        responseTimeMs: 3000,
+      },
+    }
+    const feedbackPayload = {
+      [Q1_ID]: {
+        questionType: 'short_answer',
+        isCorrect: true,
+        correctAnswer: 'cleared to land',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+      [Q2_ID]: {
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 0, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, answers, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg!.answers).toEqual(answers)
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined
     let callIndex = 0
@@ -379,7 +433,7 @@ describe('saveDraft', () => {
     const result = await saveDraft(VALID_DRAFT_INPUT)
 
     expect(result).toEqual({ success: true })
-    expect(capturedInsertArg).not.toHaveProperty('feedback')
+    expect(capturedInsertArg!.feedback).toEqual({})
   })
 
   it('rejects a feedback entry where isCorrect is not a boolean', async () => {
@@ -411,6 +465,157 @@ describe('saveDraft', () => {
     })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
+  it('rejects feedback whose keys are not present in questionIds', async () => {
+    setupAuthenticatedUser()
+    const staleQuestionId = '00000000-0000-4000-a000-000000000099'
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [staleQuestionId]: {
+          questionType: 'multiple_choice',
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
+  it('rejects a dialog_fill feedback entry whose blank index exceeds 9999', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [{ index: 10000, isCorrect: false, canonical: 'cleared' }],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
+  it('rejects a dialog_fill feedback entry whose blanks array is empty', async () => {
+    // C3 parity: feedback.dialog_fill.blanks .min(1) — added in the same commit that
+    // added .min(1) to answers.blankAnswers; empty feedback blanks are corrupt.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a dialog_fill feedback entry that carries more than 50 blanks', async () => {
+    // C3: feedback.dialog_fill.blanks .max(50) — mirrors the answers.blankAnswers cap.
+    setupAuthenticatedUser()
+    const blanks = Array.from({ length: 51 }, (_, i) => ({
+      index: i,
+      isCorrect: true,
+      canonical: 'x',
+    }))
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: true,
+          blanks,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a dialog_fill feedback entry whose blanks contain a repeated index', async () => {
+    // C3: feedback.dialog_fill.blanks superRefine duplicate-index check — mirrors answers.blankAnswers.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [
+            { index: 0, isCorrect: true, canonical: 'cleared' },
+            { index: 0, isCorrect: false, canonical: 'runway 27' },
+          ],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose dialog answer repeats a blank index', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          blankAnswers: [
+            { index: 0, text: 'cleared' },
+            { index: 0, text: 'again' },
+          ],
+          responseTimeMs: 2000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose dialog answer carries more than 50 blanks', async () => {
+    setupAuthenticatedUser()
+    const blankAnswers = Array.from({ length: 51 }, (_, i) => ({ index: i, text: 'x' }))
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { blankAnswers, responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose short answer exceeds the 500-character limit', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { responseText: 'a'.repeat(501), responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose dialog blank text exceeds the 200-character limit', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { blankAnswers: [{ index: 0, text: 'a'.repeat(201) }], responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 })
 
@@ -523,6 +728,7 @@ describe('saveDraft — update path', () => {
 
     const feedbackPayload = {
       [Q1_ID]: {
+        questionType: 'multiple_choice',
         isCorrect: false,
         correctOptionId: 'opt-b',
         explanationText: null,
@@ -540,7 +746,7 @@ describe('saveDraft — update path', () => {
     expect(capturedUpdateArg!.feedback).toEqual(feedbackPayload)
   })
 
-  it('omits feedback key from update payload when feedback is not provided', async () => {
+  it('writes an empty feedback object to the update payload when feedback is omitted', async () => {
     setupAuthenticatedUser()
 
     let capturedUpdateArg: Record<string, unknown> | undefined
@@ -557,7 +763,7 @@ describe('saveDraft — update path', () => {
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
-    expect(capturedUpdateArg).not.toHaveProperty('feedback')
+    expect(capturedUpdateArg!.feedback).toEqual({})
   })
 
   it('returns generic failure when the update helper throws an unexpected error', async () => {

@@ -128,7 +128,11 @@ export function QuizSession(props: QuizSessionProps) {
         flagLoading={isToggling(s.questionId)}
         // Stay mounted through the in-flight per-question RPC, else the button
         // unmounts before the spinner paints (#886). No-op in exam mode (answering=false).
-        showSubmit={canSubmitAnswer || s.answering}
+        // MC-only: non-MC inputs own their own full-width submit, so the footer
+        // button must not flash as an inert no-op while a non-MC answer is in flight.
+        showSubmit={
+          canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
+        }
         pendingOptionId={pendingOptionId}
         onToggleFlag={() => toggleFlag(s.questionId)}
       />

@@ -1,6 +1,6 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
-import type { DraftResult } from '../types'
+import type { AnswerFeedback, DraftAnswer, DraftResult } from '../types'
 
 type QuizDraftInsert = Database['public']['Tables']['quiz_drafts']['Insert']
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -9,16 +9,8 @@ type SaveDraftParsed = {
   draftId?: string
   sessionId: string
   questionIds: string[]
-  answers: Record<string, { selectedOptionId: string; responseTimeMs: number }>
-  feedback?: Record<
-    string,
-    {
-      isCorrect: boolean
-      correctOptionId: string
-      explanationText: string | null
-      explanationImageUrl: string | null
-    }
-  >
+  answers: Record<string, DraftAnswer>
+  feedback: Record<string, AnswerFeedback>
   currentIndex: number
   subjectName?: string
   subjectCode?: string
@@ -50,7 +42,7 @@ export async function updateExistingDraft(
     answers: input.answers as Json,
     current_index: input.currentIndex,
     session_config: sessionConfig(input) as Json,
-    ...(input.feedback !== undefined ? { feedback: input.feedback as Json } : {}),
+    feedback: input.feedback as Json,
   }
   const { data, error } = await supabase
     .from('quiz_drafts')
@@ -92,7 +84,7 @@ export async function insertNewDraft(
     question_ids: input.questionIds,
     answers: input.answers as Json,
     current_index: input.currentIndex,
-    ...(input.feedback !== undefined ? { feedback: input.feedback as Json } : {}),
+    feedback: input.feedback as Json,
   }
   const { error } = await supabase.from('quiz_drafts').insert(row)
   if (error) {
