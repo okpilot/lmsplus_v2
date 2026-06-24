@@ -48,6 +48,7 @@ function hasValidExplanations(r: Record<string, unknown>): boolean {
 function isValidDialogFillFeedback(blanks: unknown): boolean {
   return (
     Array.isArray(blanks) &&
+    blanks.length > 0 &&
     blanks.every(
       (b) =>
         typeof b === 'object' &&

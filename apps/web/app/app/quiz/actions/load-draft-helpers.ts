@@ -8,11 +8,12 @@ type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
 
 function isSessionConfig(v: unknown): v is SessionConfig {
-  return (
-    typeof v === 'object' &&
-    v !== null &&
-    typeof (v as Record<string, unknown>).sessionId === 'string'
-  )
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  if (typeof r.sessionId !== 'string') return false
+  if (r.subjectName !== undefined && typeof r.subjectName !== 'string') return false
+  if (r.subjectCode !== undefined && typeof r.subjectCode !== 'string') return false
+  return true
 }
 
 function isDialogBlankResult(b: unknown): boolean {

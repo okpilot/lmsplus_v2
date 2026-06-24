@@ -76,13 +76,32 @@ export const SaveDraftInput = z
           z.object({
             questionType: z.literal('dialog_fill'),
             isCorrect: z.boolean(),
-            blanks: z.array(
-              z.object({
-                index: z.number().int().min(0).max(9999),
-                isCorrect: z.boolean(),
-                canonical: z.string(),
+            blanks: z
+              .array(
+                z.object({
+                  index: z.number().int().min(0).max(9999),
+                  isCorrect: z.boolean(),
+                  canonical: z.string(),
+                }),
+              )
+              // A dialog_fill always grades ≥1 blank, so empty feedback is corrupt —
+              // parity with the rehydrate validator (isValidDialogFillFeedback) and the
+              // RPC guard (isDialogFillRpcResult), both of which require length > 0.
+              .min(1)
+              .max(50)
+              .superRefine((blanks, ctx) => {
+                const seen = new Set<number>()
+                for (const [position, b] of blanks.entries()) {
+                  if (seen.has(b.index)) {
+                    ctx.addIssue({
+                      code: 'custom',
+                      path: [position, 'index'],
+                      message: 'Duplicate blank index',
+                    })
+                  }
+                  seen.add(b.index)
+                }
               }),
-            ),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),

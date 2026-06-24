@@ -38,8 +38,11 @@ export function DialogLine({ line, values, onChange, disabled, results, locked }
           return <span key={`t-${i}`}>{seg.value}</span>
         }
         const result = results[seg.index]
+        // Map position `i` disambiguates a template that repeats the same blank
+        // index; segment list is stable per render, so the index part is safe.
         return (
-          <span key={`b-${seg.index}`} className="inline-flex flex-col">
+          // biome-ignore lint/suspicious/noArrayIndexKey: stable parsed segments
+          <span key={`b-${i}-${seg.index}`} className="inline-flex flex-col">
             <input
               type="text"
               value={values[seg.index] ?? ''}

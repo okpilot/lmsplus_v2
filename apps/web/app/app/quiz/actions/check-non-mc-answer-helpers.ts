@@ -64,7 +64,12 @@ export async function verifySessionMembership(
     .is('ended_at', null)
     .is('deleted_at', null)
     .single()
-  if (error || !session) return 'Session not found'
+  if (error) {
+    if (error.code === 'PGRST116') return 'Session not found'
+    console.error('[checkNonMcAnswer] Session lookup error:', error.message)
+    return 'Could not check answer'
+  }
+  if (!session) return 'Session not found'
   const config = (session as unknown as { config: { question_ids: unknown } }).config
   const qIds = config?.question_ids
   if (!Array.isArray(qIds) || !qIds.includes(opts.questionId)) return 'Question not in session'

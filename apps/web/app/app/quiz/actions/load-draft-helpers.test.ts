@@ -36,6 +36,20 @@ describe('rowToDraftData — session_config', () => {
     )
     consoleSpy.mockRestore()
   })
+
+  it('falls back to an empty sessionId and logs when subjectName is not a string', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(
+      buildRow({ session_config: { sessionId: 'sess-abc', subjectName: 42 } }),
+    )
+    expect(draft.sessionId).toBe('')
+    expect(draft.subjectName).toBeUndefined()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[rowToDraftData] Malformed session_config on draft',
+      'draft-1',
+    )
+    consoleSpy.mockRestore()
+  })
 })
 
 describe('rowToDraftData — feedback normalization', () => {

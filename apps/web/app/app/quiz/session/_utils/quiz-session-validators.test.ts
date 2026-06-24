@@ -264,6 +264,18 @@ describe('isValidFeedbackEntry', () => {
     ).toBe(false)
   })
 
+  it('rejects a dialog_fill feedback entry with an empty blanks array', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'dialog_fill',
+        isCorrect: true,
+        blanks: [],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects a dialog_fill feedback entry whose blanks is not an array', () => {
     expect(
       isValidFeedbackEntry({

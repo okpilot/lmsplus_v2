@@ -126,9 +126,26 @@ describe('checkNonMcAnswer', () => {
 
   it('returns failure when the session is not found', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildSessionChain({ data: null, error: { message: 'no rows' } }))
+    mockFrom.mockReturnValue(
+      buildSessionChain({ data: null, error: { code: 'PGRST116', message: 'no rows' } }),
+    )
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({ success: false, error: 'Session not found' })
+  })
+
+  it('returns a generic failure and logs when the session lookup hits a real error', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(
+      buildSessionChain({ data: null, error: { code: '08006', message: 'connection failure' } }),
+    )
+    const result = await checkNonMcAnswer(SHORT_INPUT)
+    expect(result).toEqual({ success: false, error: 'Could not check answer' })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[checkNonMcAnswer] Session lookup error:',
+      'connection failure',
+    )
+    consoleSpy.mockRestore()
   })
 
   it('returns failure when the question is not in the session', async () => {
