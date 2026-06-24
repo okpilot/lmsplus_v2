@@ -59,6 +59,9 @@ async function insertNonMcQuestion(row: Record<string, unknown>): Promise<string
       difficulty: 'medium',
       status: 'active',
       created_by: studentAId,
+      // questions.explanation_text is NOT NULL — give every fixture a default so
+      // the dialog_fill / out-of-session inserts (which don't override it) are valid.
+      explanation_text: 'Integration test explanation.',
       ...row,
     })
     .select('id')
