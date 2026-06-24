@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
-import { isQuestionAnswered, ReportAnswerBody } from './report-answer-body'
+import { ReportAnswerBody } from './report-answer-body'
 
 const mcQuestion: QuizReportQuestion = {
   questionId: 'q1',
@@ -64,35 +64,5 @@ describe('ReportAnswerBody', () => {
   it('renders the blank fraction for a dialog-fill question', () => {
     render(<ReportAnswerBody question={dialogQuestion} />)
     expect(screen.getByText('1 / 2 blanks correct')).toBeInTheDocument()
-  })
-})
-
-describe('isQuestionAnswered', () => {
-  it('treats a multiple-choice selection that matches an option as answered', () => {
-    expect(isQuestionAnswered(mcQuestion)).toBe(true)
-  })
-
-  it('treats a multiple-choice question with no matching selection as unanswered', () => {
-    expect(isQuestionAnswered({ ...mcQuestion, selectedOptionId: 'nope' })).toBe(false)
-  })
-
-  it('treats a non-empty short-answer response as answered', () => {
-    expect(isQuestionAnswered(shortAnswerQuestion)).toBe(true)
-  })
-
-  it('treats a blank short-answer response as unanswered', () => {
-    expect(isQuestionAnswered({ ...shortAnswerQuestion, responseText: '   ' })).toBe(false)
-  })
-
-  it('treats a dialog with at least one filled blank as answered', () => {
-    expect(isQuestionAnswered(dialogQuestion)).toBe(true)
-  })
-
-  it('treats a dialog with all blanks empty as unanswered', () => {
-    const empty: QuizReportQuestion = {
-      ...dialogQuestion,
-      blanks: [{ index: 0, responseText: null, canonical: 'x', isCorrect: false }],
-    }
-    expect(isQuestionAnswered(empty)).toBe(false)
   })
 })

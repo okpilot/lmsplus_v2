@@ -5,8 +5,9 @@ import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import { isQuestionAnswered } from '@/lib/queries/report-question-builder'
 import { formatMsDuration } from './format-duration'
-import { isQuestionAnswered, ReportAnswerBody } from './report-answer-body'
+import { ReportAnswerBody } from './report-answer-body'
 import { useReportFlag } from './report-flag-context'
 
 export function ReportQuestionRow({

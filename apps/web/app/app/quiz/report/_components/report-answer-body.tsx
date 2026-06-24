@@ -32,15 +32,3 @@ export function ReportAnswerBody({ question }: { question: QuizReportQuestion })
     />
   )
 }
-
-// "Answered" differs per type: MC needs a selected option present in the list;
-// short_answer needs response text; dialog_fill needs at least one filled blank.
-export function isQuestionAnswered(question: QuizReportQuestion): boolean {
-  if (question.questionType === 'multiple_choice') {
-    return question.options.some((o) => o.id === question.selectedOptionId)
-  }
-  if (question.questionType === 'short_answer') {
-    return question.responseText !== null && question.responseText.trim().length > 0
-  }
-  return question.blanks.some((b) => b.responseText !== null && b.responseText.trim().length > 0)
-}
