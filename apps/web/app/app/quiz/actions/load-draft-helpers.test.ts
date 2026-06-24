@@ -154,4 +154,21 @@ describe('rowToDraftData — feedback normalization', () => {
     )
     expect(draft.feedback).toBeUndefined()
   })
+
+  it('rejects a dialog_fill entry whose blank element is malformed', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'dialog_fill',
+            isCorrect: true,
+            blanks: [{ index: 0, isCorrect: 'no', canonical: 'x' }],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
 })

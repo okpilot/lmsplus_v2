@@ -408,7 +408,7 @@ describe('saveDraft', () => {
     expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
   })
 
-  it('does not include feedback key in insert row when feedback is omitted', async () => {
+  it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined
     let callIndex = 0
@@ -433,7 +433,7 @@ describe('saveDraft', () => {
     const result = await saveDraft(VALID_DRAFT_INPUT)
 
     expect(result).toEqual({ success: true })
-    expect(capturedInsertArg).not.toHaveProperty('feedback')
+    expect(capturedInsertArg!.feedback).toEqual({})
   })
 
   it('rejects a feedback entry where isCorrect is not a boolean', async () => {
@@ -614,7 +614,7 @@ describe('saveDraft — update path', () => {
     expect(capturedUpdateArg!.feedback).toEqual(feedbackPayload)
   })
 
-  it('omits feedback key from update payload when feedback is not provided', async () => {
+  it('writes an empty feedback object to the update payload when feedback is omitted', async () => {
     setupAuthenticatedUser()
 
     let capturedUpdateArg: Record<string, unknown> | undefined
@@ -631,7 +631,7 @@ describe('saveDraft — update path', () => {
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
-    expect(capturedUpdateArg).not.toHaveProperty('feedback')
+    expect(capturedUpdateArg!.feedback).toEqual({})
   })
 
   it('returns generic failure when the update helper throws an unexpected error', async () => {

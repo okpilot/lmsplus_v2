@@ -8,13 +8,17 @@ function isNullableString(v: unknown): boolean {
   return v === null || typeof v === 'string'
 }
 
+function isNonNegativeInt(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0
+}
+
 function isValidBlankAnswers(v: unknown): boolean {
   if (!Array.isArray(v) || v.length === 0) return false
   return v.every(
     (b) =>
       typeof b === 'object' &&
       b !== null &&
-      typeof (b as Record<string, unknown>).index === 'number' &&
+      isNonNegativeInt((b as Record<string, unknown>).index) &&
       isNonEmptyString((b as Record<string, unknown>).text),
   )
 }
@@ -22,16 +26,19 @@ function isValidBlankAnswers(v: unknown): boolean {
 export function isValidDraftAnswer(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
-  // Mirror draft.ts's Zod: responseTimeMs is a non-negative integer.
   if (!Number.isInteger(r.responseTimeMs) || (r.responseTimeMs as number) < 0) return false
-  // Exactly one of the three answer shapes carries the payload (MC / short /
-  // dialog) — a hybrid carrying two is rejected, matching the Zod .refine.
-  const payloadCount = [
-    isNonEmptyString(r.selectedOptionId),
-    isNonEmptyString(r.responseText),
-    isValidBlankAnswers(r.blankAnswers),
-  ].filter(Boolean).length
-  return payloadCount === 1
+  // Exactly one answer SHAPE must be present by key, then that shape must be
+  // valid — mirrors draft.ts's Zod .refine, which rejects a hybrid even when the
+  // second payload is itself malformed.
+  const hasSelectedOption = r.selectedOptionId !== undefined
+  const hasResponseText = r.responseText !== undefined
+  const hasBlankAnswers = r.blankAnswers !== undefined
+  if ([hasSelectedOption, hasResponseText, hasBlankAnswers].filter(Boolean).length !== 1) {
+    return false
+  }
+  if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
+  if (hasResponseText) return isNonEmptyString(r.responseText)
+  return isValidBlankAnswers(r.blankAnswers)
 }
 
 function hasValidExplanations(r: Record<string, unknown>): boolean {
@@ -45,7 +52,7 @@ function isValidDialogFillFeedback(blanks: unknown): boolean {
       (b) =>
         typeof b === 'object' &&
         b !== null &&
-        typeof (b as Record<string, unknown>).index === 'number' &&
+        isNonNegativeInt((b as Record<string, unknown>).index) &&
         typeof (b as Record<string, unknown>).isCorrect === 'boolean' &&
         typeof (b as Record<string, unknown>).canonical === 'string',
     )

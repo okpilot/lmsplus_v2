@@ -29,8 +29,9 @@ describe('ShortAnswerInput', () => {
     expect(onSubmit).toHaveBeenCalledWith('cleared to land')
   })
 
-  it('shows a spinner and disables Submit while the answer is being checked', () => {
+  it('shows a spinner and disables Submit while the answer is being checked', async () => {
     render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} submitting />)
+    await userEvent.type(screen.getByTestId('short-answer-input'), 'roger')
     const button = screen.getByRole('button', { name: /submit answer/i })
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')

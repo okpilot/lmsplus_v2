@@ -99,11 +99,42 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ blankAnswers: [{ index: 0 }], responseTimeMs: 1500 })).toBe(false)
   })
 
+  it('rejects a dialog_fill draft whose blank index is NaN', () => {
+    expect(
+      isValidDraftAnswer({
+        blankAnswers: [{ index: Number.NaN, text: 'x' }],
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a dialog_fill draft whose blank index is negative', () => {
+    expect(
+      isValidDraftAnswer({ blankAnswers: [{ index: -1, text: 'x' }], responseTimeMs: 1500 }),
+    ).toBe(false)
+  })
+
+  it('rejects a dialog_fill draft whose blank index is fractional', () => {
+    expect(
+      isValidDraftAnswer({ blankAnswers: [{ index: 1.5, text: 'x' }], responseTimeMs: 1500 }),
+    ).toBe(false)
+  })
+
   it('rejects a draft carrying two answer payloads at once', () => {
     expect(
       isValidDraftAnswer({
         selectedOptionId: 'opt-a',
         responseText: 'cleared to land',
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a hybrid draft with a selected option and a malformed blankAnswers payload', () => {
+    expect(
+      isValidDraftAnswer({
+        selectedOptionId: 'opt-a',
+        blankAnswers: [{ index: 0, text: 'x' }],
         responseTimeMs: 1500,
       }),
     ).toBe(false)
@@ -239,6 +270,30 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'dialog_fill',
         isCorrect: true,
         blanks: 'not-an-array',
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a dialog_fill feedback entry whose blank index is fractional', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 1.5, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a dialog_fill feedback entry whose blank index is negative', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: -1, isCorrect: true, canonical: 'cleared' }],
         explanationText: null,
         explanationImageUrl: null,
       }),

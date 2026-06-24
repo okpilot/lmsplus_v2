@@ -15,6 +15,17 @@ function isSessionConfig(v: unknown): v is SessionConfig {
   )
 }
 
+function isDialogBlankResult(b: unknown): boolean {
+  if (typeof b !== 'object' || b === null) return false
+  const r = b as Record<string, unknown>
+  return (
+    Number.isInteger(r.index) &&
+    (r.index as number) >= 0 &&
+    typeof r.isCorrect === 'boolean' &&
+    typeof r.canonical === 'string'
+  )
+}
+
 // Validates a persisted feedback entry and returns a tagged AnswerFeedback, or
 // null if malformed. Legacy pre-discriminant MC feedback has no `questionType`
 // (case undefined) but carries a string `correctOptionId`; it is normalized to
@@ -44,10 +55,11 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
         ? { questionType: 'short_answer', correctAnswer: r.correctAnswer as string | null, ...base }
         : null
     case 'dialog_fill':
-      // Shallow blanks check is deliberate: this guards the trusted-ish DB draft
-      // row. The localStorage path (quiz-session-validators isValidDialogFillFeedback)
-      // does the deep per-blank shape check, since that source is client-writable.
-      return Array.isArray(r.blanks)
+      // Deep per-element blanks check applied here too (symmetric with the
+      // localStorage path in quiz-session-validators isValidDialogFillFeedback):
+      // a single malformed blank voids the whole record rather than casting a
+      // partially-typed array through.
+      return Array.isArray(r.blanks) && r.blanks.every(isDialogBlankResult)
         ? { questionType: 'dialog_fill', blanks: r.blanks as DialogBlankResult[], ...base }
         : null
     default:

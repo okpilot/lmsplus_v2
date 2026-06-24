@@ -82,7 +82,7 @@ beforeEach(() => {
 // ---- buildAnswerHandlers — handleSelectAnswer --------------------------------
 
 describe('buildAnswerHandlers — handleSelectAnswer', () => {
-  it('calls runAttempt with a draft containing selectedOptionId', async () => {
+  it('records the selected option as the draft answer', async () => {
     mockCheckAnswer.mockResolvedValue(MC_SUCCESS)
     const { handlers, capturedAttempts } = makeHandlers()
 
@@ -105,7 +105,7 @@ describe('buildAnswerHandlers — handleSelectAnswer', () => {
     })
   })
 
-  it('shapes the CheckResult with questionType multiple_choice', async () => {
+  it('returns multiple-choice feedback for a selected option', async () => {
     mockCheckAnswer.mockResolvedValue(MC_SUCCESS)
     const { capturedAttempts } = makeHandlers()
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
@@ -141,7 +141,7 @@ describe('buildAnswerHandlers — handleSelectAnswer', () => {
 // ---- buildAnswerHandlers — handleTextAnswer ---------------------------------
 
 describe('buildAnswerHandlers — handleTextAnswer', () => {
-  it('calls runAttempt with a draft containing responseText', async () => {
+  it('records the typed text as the draft answer', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
     const { handlers, capturedAttempts } = makeHandlers()
 
@@ -164,7 +164,7 @@ describe('buildAnswerHandlers — handleTextAnswer', () => {
     })
   })
 
-  it('returns the short_answer feedback from the check closure', async () => {
+  it('returns short-answer feedback after a successful check', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
     let capturedResult: AnswerFeedback | null = null
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
@@ -226,7 +226,7 @@ describe('buildAnswerHandlers — handleDialogFillAnswer', () => {
     { index: 1, text: '27' },
   ]
 
-  it('calls runAttempt with a draft containing blankAnswers', async () => {
+  it('records the dialog blanks as the draft answer', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
     const { handlers, capturedAttempts } = makeHandlers()
 
@@ -249,7 +249,7 @@ describe('buildAnswerHandlers — handleDialogFillAnswer', () => {
     })
   })
 
-  it('returns the dialog_fill feedback including per-blank results', async () => {
+  it('returns dialog-fill feedback with per-blank results', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
     let capturedResult: AnswerFeedback | null = null
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
@@ -350,7 +350,7 @@ describe('recordAnswerFeedback', () => {
     expect(returned.get(Q_ID)).toEqual(newResult)
   })
 
-  it('stores the full discriminated union shape for dialog_fill', () => {
+  it('stores dialog-fill feedback with per-blank results', () => {
     const initial = new Map<string, AnswerFeedback>()
     const feedbackRef = { current: initial } as React.MutableRefObject<Map<string, AnswerFeedback>>
     const setFeedback = vi.fn()

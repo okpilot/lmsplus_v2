@@ -326,4 +326,24 @@ describe('CheckNonMcAnswerSchema', () => {
       }).success,
     ).toBe(false)
   })
+
+  it('rejects duplicate blank indices', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        blankAnswers: [
+          { index: 0, text: 'a' },
+          { index: 0, text: 'b' },
+        ],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects more than the maximum number of blanks', () => {
+    const blankAnswers = Array.from({ length: 51 }, (_, i) => ({ index: i, text: 'x' }))
+    expect(
+      CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, blankAnswers }).success,
+    ).toBe(false)
+  })
 })

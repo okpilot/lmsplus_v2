@@ -1044,7 +1044,7 @@ describe('useAnswerHandler — handleTextAnswer (short_answer)', () => {
     explanationImageUrl: null,
   }
 
-  it('stores the answer in the answers map with responseText after a successful check', async () => {
+  it('records the submitted short answer after a successful check', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
     const { result, getAnswers } = renderAnswerHandler()
 
@@ -1055,7 +1055,7 @@ describe('useAnswerHandler — handleTextAnswer (short_answer)', () => {
     expect(getAnswers().get(Q1_ID)?.responseText).toBe('cleared to land')
   })
 
-  it('populates feedback with questionType short_answer and isCorrect', async () => {
+  it('reveals short-answer correctness after a successful check', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(SA_SUCCESS)
     const { result } = renderAnswerHandler()
 
@@ -1139,7 +1139,7 @@ describe('useAnswerHandler — handleDialogFillAnswer (dialog_fill)', () => {
     explanationImageUrl: null,
   }
 
-  it('stores the answer in the answers map with blankAnswers after a successful check', async () => {
+  it('records the submitted dialog blanks after a successful check', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
     const { result, getAnswers } = renderAnswerHandler()
 
@@ -1150,7 +1150,7 @@ describe('useAnswerHandler — handleDialogFillAnswer (dialog_fill)', () => {
     expect(getAnswers().get(Q1_ID)?.blankAnswers).toEqual(BLANK_ANSWERS)
   })
 
-  it('populates feedback with questionType dialog_fill and per-blank results', async () => {
+  it('reveals per-blank dialog correctness after a successful check', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(DF_SUCCESS)
     const { result } = renderAnswerHandler()
 

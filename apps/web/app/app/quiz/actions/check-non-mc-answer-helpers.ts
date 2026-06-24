@@ -6,6 +6,8 @@ import { z } from 'zod'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
+const MAX_DIALOG_BLANKS = 50
+
 // `.strict()` rejects a mixed payload ({responseText, blankAnswers}) instead of
 // letting z.union strip the extra key and grade it as short_answer.
 const ShortAnswerInput = z
@@ -27,7 +29,21 @@ const DialogFillInput = z
           text: z.string().trim().min(1).max(200),
         }),
       )
-      .min(1),
+      .min(1)
+      .max(MAX_DIALOG_BLANKS)
+      .superRefine((answers, ctx) => {
+        const seen = new Set<number>()
+        for (const [position, a] of answers.entries()) {
+          if (seen.has(a.index)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [position, 'index'],
+              message: 'Duplicate blank index',
+            })
+          }
+          seen.add(a.index)
+        }
+      }),
   })
   .strict()
 

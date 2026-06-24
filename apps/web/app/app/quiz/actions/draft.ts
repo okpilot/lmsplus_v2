@@ -56,7 +56,7 @@ const SaveDraftInput = z
             isCorrect: z.boolean(),
             blanks: z.array(
               z.object({
-                index: z.number().int(),
+                index: z.number().int().min(0).max(9999),
                 isCorrect: z.boolean(),
                 canonical: z.string(),
               }),
@@ -66,7 +66,7 @@ const SaveDraftInput = z
           }),
         ]),
       )
-      .optional(),
+      .default({}),
   })
   .superRefine((data, ctx) => {
     if (data.currentIndex >= data.questionIds.length) {
