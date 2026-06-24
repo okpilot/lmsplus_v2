@@ -112,7 +112,10 @@ export async function getQuizReportQuestions(opts: {
   const total = orderedQuestionIds.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  if (total === 0 || page > totalPages) {
+  // page < 1 would make `from` negative and slice the tail — reject it like an
+  // out-of-range page. Callers route through parsePageParam (clamps ≥1), so this
+  // is defense-in-depth for direct/library callers.
+  if (page < 1 || total === 0 || page > totalPages) {
     return { ok: true, questions: [], totalCount: total }
   }
 

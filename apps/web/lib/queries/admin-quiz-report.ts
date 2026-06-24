@@ -145,7 +145,10 @@ export async function getAdminQuizReportQuestions(opts: {
   const total = totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  if (total === 0 || page > totalPages) {
+  // page < 1 would make `from` negative and slice the tail — reject it like an
+  // out-of-range page (mirrors quiz-report-questions.ts). Defense-in-depth: callers
+  // route through parsePageParam (clamps ≥1).
+  if (page < 1 || total === 0 || page > totalPages) {
     return { ok: true, questions: [], totalCount: total }
   }
 
