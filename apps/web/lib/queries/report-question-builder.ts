@@ -140,6 +140,10 @@ function buildDialogFill(
   // submitted-row count; building from rows alone would show "2/2" for a 2-of-3 dialog
   // and wrongly flip isCorrect to true. Fall back to the submitted rows only when no
   // answer keys are present (all-MC session, or a keyless race) — preserves prior behavior.
+  // Staleness boundary: if blanks_config is edited AFTER the student answered, this follows
+  // the CURRENT config while the stored score reflects the answer-time config, so a submitted
+  // answer to a since-removed blank is dropped here. Live config edits to answered dialog
+  // questions are not a supported flow (same answer-time-vs-current skew the score already has).
   const indices =
     canonicalByIndex.size > 0
       ? [...canonicalByIndex.keys()].sort((a, b) => a - b)
