@@ -239,9 +239,9 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
   // (vitest still runs afterAll if beforeAll throws) — unassigned `let` would make the
   // cleanup throw a SECOND error and mask the real setup failure.
   let nmOrgId = ''
-  let nmAdminId: string
-  let nmStudentId: string
-  let nmOtherStudentId: string
+  let nmAdminId = ''
+  let nmStudentId = ''
+  let nmOtherStudentId = ''
   let nmRefs: ReferenceIds | null = null
   let nmBankId: string
   let nmStudentClient: Awaited<ReturnType<typeof getAuthenticatedClient>>
@@ -381,7 +381,9 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
         await cleanupTestData({
           admin,
           orgId: nmOrgId,
-          userIds: [nmAdminId, nmStudentId, nmOtherStudentId],
+          // Filter unset sentinels: a mid-beforeAll failure can leave some user
+          // ids as '' (declared above), and passing those to cleanup would error.
+          userIds: [nmAdminId, nmStudentId, nmOtherStudentId].filter((id) => id.length > 0),
         })
       } catch (e) {
         errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
