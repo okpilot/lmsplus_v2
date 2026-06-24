@@ -80,12 +80,32 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 4 — Report renders short_answer/dialog_fill (G4)
 
+> **Scoring & display model — CONFIRMED 2026-06-24 (user design decision).** Multi-blank
+> questions use **partial credit, equal per-question weight** in BOTH study and exam: each
+> blank = 1/N of its question, and every question (1 blank, 9 blanks, or MC) is worth 1.0.
+> **Extends to Part 3's drag types (Phases 5/6):** `ordering` and `diagram_label` are also worth
+> 1.0/question with partial credit, but — per N7 — they store **one JSON row per question** (not
+> per-blank rows), so their fraction (items in correct position / zones correctly labeled) is computed
+> **from the JSON inside their Phase 5/6 grade helper**, not by counting answer rows.
+> **No score-math migration needed** — `batch_submit_quiz` (study, `dispatch:229–262`) and
+> `submit_vfr_rt_exam_answers` (exam Part 2 = `avg(LEAST(correct_rows/total_blanks,1))`,
+> `expired_replay:258–262`) already implement it. Phase 4 is DISPLAY + one consistency tweak:
+> - **3-state per-question result** for non-MC: fully correct / **partial ("X/N blanks correct")** /
+>   none — NOT the current binary ✓/✗ (`is_correct = fraction==1.0`). Per-blank rows carry the data;
+>   derive the count from them in the builder (task 4.2). Lead the UI with the partial `score_percentage`.
+> - **`correct_count` mode inconsistency to resolve:** study counts fully-correct *questions*
+>   (`dispatch:262`); exam counts correct *blank-rows* (`expired_replay:289`) — so an 8/9 dialog adds
+>   8 to exam but 0 to study. Under "same model both", align the **exam** scorer to fully-correct
+>   *questions* (small backend migration, zero prod data — no RT exam content live) OR reconcile in
+>   the report UI. Decide at Phase 4 plan-validation.
+
 - [ ] **4.1 Post-session canonical delivery (SECURITY DEFINER) + query extension** _(per N1, N4, N10)_
   - Decide DECISION at plan-validation: extend `get_report_correct_options` vs new RPC. If extending: its guards (owner + active-user + `ended_at IS NOT NULL`) are ALREADY correct (no change); but the RETURNS TABLE change requires **DROP+recreate** (N1) + widen the TS cast at `quiz-report-questions.ts:115–116` to a per-type union; preserve the §15 carve-out comment (N10). Add `response_text, blank_index` to the `.select()` at `quiz-report-questions.ts:65` (N4) and `question_type` + non-MC review data.
   - _Requirements: R5.4_
 - [ ] **4.2 Report types + builder + `isAnswered` fix + pagination** _(per N7)_
   - `lib/queries/quiz-report.ts` — `QuizReportQuestion` → discriminated union on `question_type`; `AnswerRow` += `response_text`/`blank_index`. `lib/queries/report-question-builder.ts` — stop `correctOptionId ?? ''`; populate per type. `report-question-row.tsx:28` — fix `isAnswered` to check `response_text`/`blank_index` for non-MC (else "Not answered" regression).
   - **Pagination (N7):** change `quiz-report-questions.ts:43–68` count + page-slice to DISTINCT `question_id` (pages-of-questions), since `dialog_fill` writes per-blank rows. Add a co-located test with a mixed MC + multi-blank `dialog_fill` session asserting correct page count.
+  - **Row aggregation (duplicate-key fix) — confirmed in local eval 2026-06-24.** `buildReportQuestions` (`report-question-builder.ts:26`) currently maps **one output `QuizReportQuestion` per answer ROW**. A `dialog_fill` question stores **one row per blank**, so it yields N rows with the SAME `questionId` → **duplicate React keys** in `question-breakdown.tsx:25` (`key={q.questionId}`) AND each blank renders as a separate "question". Fix: **group answer rows by `question_id`** → ONE `QuizReportQuestion` per question, carrying the per-blank results (consumed by `DialogFillReport` in 4.3). NB this is separate from the N7 page-slice fix: even paging on DISTINCT `question_id`, the builder must still collapse the per-blank rows it receives. Eval evidence: a 3-question dialog session rendered 5 rows + threw the duplicate-key console error — **scoring itself was correct** (session stored `total_questions=3, correct_count=1, score=33.33%`, full-coverage per Decision 47), so this is a **display-layer** defect only, not a grading bug.
   - _Requirements: R5.1, R5.5_
 - [ ] **4.3 Report row dispatch + sub-renderers (+ tests)** — `report-question-row.tsx` dispatch; keep `OptionsList` (MC); NEW `ShortAnswerReport`, `DialogFillReport` (+ tests). _Requirements: R5.2, R5.3_
   - _Eval:_ report shows P1+P2 with answer vs correct + explanation; MC report unchanged.
