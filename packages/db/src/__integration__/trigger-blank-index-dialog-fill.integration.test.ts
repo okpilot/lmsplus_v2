@@ -19,6 +19,15 @@ import { createTestOrg, createTestUser, getAdminClient } from './setup'
 //     rejects because dialog_fill requires a blank_index)
 // The ACCEPT controls confirm the trigger does not over-reject legitimate shapes.
 
+// Expected RAISE prose from the trigger (mig 131), shared by the reject cases on
+// both tables. Asserting on the MESSAGE — not SQLSTATE — is intentional: the
+// trigger raises 'check_violation' (23514), the SAME code as the mig-095
+// answer_shape_check, so only the message distinguishes a trigger rejection from a
+// CHECK rejection (the non-vacuity this suite exists to prove). Keep these in sync
+// with the RAISE text in 131_enforce_blank_index_dialog_fill.sql.
+const BLANK_FORBIDDEN_MSG = /blank_index must be NULL/i
+const BLANK_REQUIRED_MSG = /blank_index is required for dialog_fill/i
+
 describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () => {
   const admin = getAdminClient()
   const suffix = Date.now()
@@ -188,7 +197,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
       response_time_ms: 1000,
     })
     expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/blank_index must be NULL/i)
+    expect(error?.message).toMatch(BLANK_FORBIDDEN_MSG)
   })
 
   it('rejects a dialog_fill answer missing its blank_index (passes CHECK, trips trigger)', async () => {
@@ -200,7 +209,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
       response_time_ms: 1000,
     })
     expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/blank_index is required for dialog_fill/i)
+    expect(error?.message).toMatch(BLANK_REQUIRED_MSG)
   })
 
   // ---- student_responses (same trigger, second table) ----
@@ -244,7 +253,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
       response_time_ms: 1000,
     })
     expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/blank_index must be NULL/i)
+    expect(error?.message).toMatch(BLANK_FORBIDDEN_MSG)
   })
 
   it('rejects a dialog_fill student_response missing its blank_index (passes CHECK, trips trigger)', async () => {
@@ -258,6 +267,6 @@ describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () =>
       response_time_ms: 1000,
     })
     expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/blank_index is required for dialog_fill/i)
+    expect(error?.message).toMatch(BLANK_REQUIRED_MSG)
   })
 })
