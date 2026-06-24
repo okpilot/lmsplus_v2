@@ -266,6 +266,28 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     expect(byIndex.get(2)).toBe(DF_B2)
   })
 
+  // ── dialog_fill keys are driven by blanks_config, not by submitted rows ──────
+  it('returns every configured blank row when only a subset of blanks was answered', async () => {
+    // Submit ONLY blank 0. The RPC expands blanks_config (CROSS JOIN LATERAL), so
+    // unanswered blanks 1 and 2 must still appear with their canonicals — the exact
+    // invariant Phase 4's "unanswered blanks still render" report behavior depends on.
+    const sessionId = await completeSession(
+      studentClient,
+      [dfId],
+      [{ question_id: dfId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 }],
+    )
+    const { data, error } = await studentClient.rpc('get_report_answer_keys', {
+      p_session_id: sessionId,
+    })
+    expect(error).toBeNull()
+    const rows = asRows(data)
+    expect(rows).toHaveLength(3)
+    const byIndex = new Map(rows.map((r) => [r.blank_index, r.answer_key]))
+    expect(byIndex.get(0)).toBe(DF_B0)
+    expect(byIndex.get(1)).toBe(DF_B1)
+    expect(byIndex.get(2)).toBe(DF_B2)
+  })
+
   // ── all-MC session returns nothing (not an error) ───────────────────────────
   it('returns zero rows and no error for an all-MC completed session', async () => {
     const sessionId = await completeSession(

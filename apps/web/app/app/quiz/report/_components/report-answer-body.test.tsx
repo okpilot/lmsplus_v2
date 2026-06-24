@@ -24,7 +24,9 @@ const shortAnswerQuestion: QuizReportQuestion = {
   questionNumber: null,
   questionType: 'short_answer',
   isCorrect: true,
-  responseText: 'mayday',
+  // Distinct from canonicalAnswer so the assertion verifies the RESPONSE renders,
+  // not a value that happens to equal the canonical.
+  responseText: 'pan-pan',
   canonicalAnswer: 'mayday',
   explanationText: null,
   explanationImageUrl: null,
@@ -58,7 +60,7 @@ describe('ReportAnswerBody', () => {
 
   it('renders the student response for a short-answer question', () => {
     render(<ReportAnswerBody question={shortAnswerQuestion} />)
-    expect(screen.getByText('mayday')).toBeInTheDocument()
+    expect(screen.getByText('pan-pan')).toBeInTheDocument()
   })
 
   it('renders the blank fraction for a dialog-fill question', () => {

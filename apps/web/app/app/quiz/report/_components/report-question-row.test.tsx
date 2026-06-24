@@ -391,8 +391,10 @@ describe('ReportQuestionRow', () => {
       expect(screen.getByText('cleared for takeoff')).toBeInTheDocument()
     })
 
-    it('treats an empty short-answer response as not answered', () => {
-      render(<ReportQuestionRow question={makeShortAnswer({ responseText: '' })} index={0} />)
+    it('treats a whitespace-only short-answer response as not answered', () => {
+      // Whitespace (not '') exercises the .trim() branch of isQuestionAnswered —
+      // an empty string would pass even if trimming were removed.
+      render(<ReportQuestionRow question={makeShortAnswer({ responseText: '   ' })} index={0} />)
       expect(screen.getByText('Not answered')).toBeInTheDocument()
     })
   })
