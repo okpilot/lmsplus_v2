@@ -55,6 +55,7 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import {
+  examReportUrl,
   handleDiscardSession,
   handleSaveSession,
   handleSubmitSession,
@@ -104,6 +105,15 @@ function makeRouter() {
   return { push: mockRouterPush }
 }
 
+/** A promise whose resolution is controlled externally, for asserting call ordering. */
+function makeDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 // ---- Lifecycle -----------------------------------------------------------
 
 beforeEach(() => {
@@ -111,6 +121,24 @@ beforeEach(() => {
   mockDeleteDraft.mockResolvedValue({ success: true })
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockSubmitEmptyExamSession.mockResolvedValue({ success: true, sessionId: SESSION_ID })
+})
+
+// ---- examReportUrl -------------------------------------------------------
+
+describe('examReportUrl', () => {
+  it('points internal exams at the internal-exam report namespace', () => {
+    expect(examReportUrl('internal_exam', SESSION_ID)).toBe(
+      `/app/internal-exam/report?session=${SESSION_ID}`,
+    )
+  })
+
+  it('points practice exams at the quiz report namespace', () => {
+    expect(examReportUrl('mock_exam', SESSION_ID)).toBe(`/app/quiz/report?session=${SESSION_ID}`)
+  })
+
+  it('points study mode at the quiz report namespace when no mode is given', () => {
+    expect(examReportUrl(undefined, SESSION_ID)).toBe(`/app/quiz/report?session=${SESSION_ID}`)
+  })
 })
 
 // ---- submitQuizSession ---------------------------------------------------
@@ -268,15 +296,30 @@ describe('submitQuizSession', () => {
       // Submit still succeeds despite cleanup failure
       expect(result.success).toBe(true)
 
-      // Fire-and-forget: give the microtask queue time to reject
-      await Promise.resolve()
-
       expect(consoleSpy).toHaveBeenCalledWith(
         '[submitQuizSession] Draft cleanup failed:',
         cleanupError,
       )
     } finally {
       consoleSpy.mockRestore()
+    }
+  })
+
+  it('still returns success when draft cleanup stalls beyond the configured timeout', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    // deleteDraft never resolves — simulates an auth/DB stall.
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+
+    vi.useFakeTimers()
+    try {
+      const pending = submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
+      // Advance past DRAFT_CLEANUP_TIMEOUT_MS (2500 ms) so the timeout leg of
+      // Promise.race wins, unblocking submitQuizSession to return the result.
+      await vi.runAllTimersAsync()
+      const result = await pending
+      expect(result.success).toBe(true)
+    } finally {
+      vi.useRealTimers()
     }
   })
 })
@@ -549,6 +592,38 @@ describe('handleSubmitSession', () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+  })
+
+  it('does not navigate to the report until draft cleanup has settled', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const deferred = makeDeferred<{ success: true }>()
+    mockDeleteDraft.mockReturnValue(deferred.promise)
+    const opts = makeOpts({ draftId: DRAFT_ID })
+
+    const pending = handleSubmitSession(opts)
+    // Let batch-submit + clearDeploymentPin resolve, but deleteDraft is still in flight.
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(opts.router.push).not.toHaveBeenCalled()
+
+    deferred.resolve({ success: true })
+    await pending
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+  })
+
+  it('does not navigate on a zero-answer exam until deployment-pin cleanup has settled', async () => {
+    const deferred = makeDeferred<undefined>()
+    mockClearDeploymentPin.mockReturnValue(deferred.promise)
+    const opts = makeOpts({ answers: new Map(), isExam: true, examMode: 'internal_exam' })
+
+    const pending = handleSubmitSession(opts)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(opts.router.push).not.toHaveBeenCalled()
+
+    deferred.resolve(undefined)
+    await pending
     expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
   })
 

@@ -16,6 +16,9 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
+  // Pure URL builder — use the real behaviour so the safety-net assertions are meaningful.
+  examReportUrl: (examMode: string | undefined, sessionId: string) =>
+    `${examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'}?session=${sessionId}`,
 }))
 
 const { mockRouterPush } = vi.hoisted(() => ({
@@ -26,9 +29,18 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }))
 
+// jsdom's window.location is not fully writable, so replace it with a mockable stub.
+// Held in a named ref because a vi.fn() reached only via Object.defineProperty is not in
+// Vitest's mock registry, so vi.resetAllMocks() does not clear it — reset it explicitly.
+const mockLocationAssign = vi.fn()
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: mockLocationAssign },
+})
+
 // ---- Subject under test ---------------------------------------------------
 
-import { useQuizSubmit } from './use-quiz-submit'
+import { NAV_FALLBACK_MS, useQuizSubmit } from './use-quiz-submit'
 
 // ---- Fixtures ------------------------------------------------------------
 
@@ -70,6 +82,7 @@ function makeDefaultOpts(overrides?: Partial<Parameters<typeof useQuizSubmit>[0]
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockLocationAssign.mockReset()
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)
@@ -387,5 +400,85 @@ describe('useQuizSubmit — pendingAction discriminator', () => {
     const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
     await act(async () => result.current.handleDiscard())
     expect(result.current.pendingAction).toBe('discard')
+  })
+})
+
+// ---- handleSubmit — navigation safety net (#909) -------------------------
+
+type SubmitOpts = { onSuccess: () => void }
+
+describe('useQuizSubmit — navigation safety net', () => {
+  it('navigates to the report when the soft navigation stalls after submitting', async () => {
+    vi.useFakeTimers()
+    try {
+      mockHandleSubmitSession.mockImplementation(async (opts: SubmitOpts) => opts.onSuccess())
+      const { result } = renderHook(() =>
+        useQuizSubmit(makeDefaultOpts({ examMode: 'internal_exam' })),
+      )
+      await act(async () => result.current.handleSubmit())
+
+      act(() => {
+        vi.advanceTimersByTime(NAV_FALLBACK_MS + 1)
+      })
+      expect(window.location.assign).toHaveBeenCalledWith(
+        `/app/internal-exam/report?session=${SESSION_ID}`,
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('navigates to the quiz report when the soft navigation stalls in quiz mode', async () => {
+    vi.useFakeTimers()
+    try {
+      mockHandleSubmitSession.mockImplementation(async (opts: SubmitOpts) => opts.onSuccess())
+      const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ examMode: undefined })))
+      await act(async () => result.current.handleSubmit())
+
+      act(() => {
+        vi.advanceTimersByTime(NAV_FALLBACK_MS + 1)
+      })
+      expect(window.location.assign).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not redirect again after the student leaves the session page', async () => {
+    vi.useFakeTimers()
+    try {
+      mockHandleSubmitSession.mockImplementation(async (opts: SubmitOpts) => opts.onSuccess())
+      const { result, unmount } = renderHook(() =>
+        useQuizSubmit(makeDefaultOpts({ examMode: 'internal_exam' })),
+      )
+      await act(async () => result.current.handleSubmit())
+
+      unmount()
+      act(() => {
+        vi.advanceTimersByTime(NAV_FALLBACK_MS + 1)
+      })
+      expect(window.location.assign).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not navigate to the report when submission fails', async () => {
+    vi.useFakeTimers()
+    try {
+      // Failure path: handleSubmitSession never calls onSuccess.
+      mockHandleSubmitSession.mockResolvedValue(undefined)
+      const { result } = renderHook(() =>
+        useQuizSubmit(makeDefaultOpts({ examMode: 'internal_exam' })),
+      )
+      await act(async () => result.current.handleSubmit())
+
+      act(() => {
+        vi.advanceTimersByTime(NAV_FALLBACK_MS + 1)
+      })
+      expect(window.location.assign).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
