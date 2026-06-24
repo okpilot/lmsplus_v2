@@ -4,55 +4,11 @@ import { rpc } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
 import {
-  type AnswerKeyEntry,
-  type AnswerRow,
-  buildReportQuestions,
-  type QuestionRow,
-} from './report-question-builder'
-
-// One row per non-MC answer key from get_report_answer_keys.
-//  - short_answer: blank_index NULL, answer_key = the canonical answer.
-//  - dialog_fill:  one row per blank, blank_index set, answer_key = blank canonical.
-type AnswerKeyRow = {
-  question_id: string
-  question_type: string
-  blank_index: number | null
-  answer_key: string | null
-}
-
-// Distinct question_ids from the answered-order rows, first-answer order preserved.
-function buildDistinctQuestionOrder(orderRows: { question_id: string }[]): string[] {
-  const seen = new Set<string>()
-  const ordered: string[] = []
-  for (const r of orderRows) {
-    if (seen.has(r.question_id)) continue
-    seen.add(r.question_id)
-    ordered.push(r.question_id)
-  }
-  return ordered
-}
-
-// Collapse the flat answer-key rows into a per-question map the builder consumes.
-function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEntry> {
-  const map = new Map<string, AnswerKeyEntry>()
-  for (const row of rows) {
-    if (row.question_type === 'dialog_fill') {
-      const existing = map.get(row.question_id)
-      const entry: AnswerKeyEntry =
-        existing?.type === 'dialog_fill'
-          ? existing
-          : { type: 'dialog_fill', canonicalByIndex: new Map<number, string>() }
-      if (row.blank_index !== null && row.answer_key !== null) {
-        entry.canonicalByIndex.set(row.blank_index, row.answer_key)
-      }
-      map.set(row.question_id, entry)
-    } else {
-      // short_answer (and any future single-key type)
-      map.set(row.question_id, { type: 'short_answer', canonical: row.answer_key })
-    }
-  }
-  return map
-}
+  type AnswerKeyRow,
+  buildAnswerKeyMap,
+  buildDistinctQuestionOrder,
+} from './quiz-report-helpers'
+import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
 
 export async function getQuizReportQuestions(opts: {
   sessionId: string
