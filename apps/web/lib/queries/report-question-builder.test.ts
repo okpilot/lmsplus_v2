@@ -450,6 +450,70 @@ describe('buildReportQuestions', () => {
     expect(df.isCorrect).toBe(true)
   })
 
+  it('renders an omitted dialog blank as unanswered using the answer-key config', () => {
+    // Only 2 of the question's 3 configured blanks were submitted (index 2 omitted).
+    // The report must still show 3 blanks (the score is computed against the config's
+    // total_blanks), with the missing blank rendered unanswered and isCorrect false —
+    // not "2/2 correct".
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'cleared',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'climb',
+        blank_index: 1,
+      },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'Fill the readback.',
+          question_number: null,
+          question_type: 'dialog_fill',
+          options: [],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: null,
+        },
+      ],
+    ])
+    const answerKeyMap = new Map<string, AnswerKeyEntry>([
+      [
+        'q1',
+        {
+          type: 'dialog_fill',
+          canonicalByIndex: new Map([
+            [0, 'cleared'],
+            [1, 'climb'],
+            [2, 'roger'],
+          ]),
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map(), answerKeyMap)
+    const df = asDialog(result[0])
+    expect(df.totalBlanks).toBe(3)
+    expect(df.correctCount).toBe(2)
+    expect(df.isCorrect).toBe(false)
+    expect(df.blanks.map((b) => b.index)).toEqual([0, 1, 2])
+    const omitted = df.blanks[2]
+    expect(omitted?.responseText).toBeNull()
+    expect(omitted?.isCorrect).toBe(false)
+    expect(omitted?.canonical).toBe('roger')
+  })
+
   it('preserves first-answer order across mixed question types', () => {
     const answers: AnswerRow[] = [
       { question_id: 'qB', selected_option_id: 'o1', is_correct: true, response_time_ms: 1000 },

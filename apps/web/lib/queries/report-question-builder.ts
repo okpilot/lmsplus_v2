@@ -132,14 +132,27 @@ function buildDialogFill(
 ): QuizReportQuestion {
   const canonicalByIndex =
     key?.type === 'dialog_fill' ? key.canonicalByIndex : new Map<number, string>()
-  const blanks: DialogFillBlankResult[] = rows
-    .map((r) => ({
-      index: r.blank_index ?? 0,
-      responseText: r.response_text ?? null,
-      canonical: canonicalByIndex.get(r.blank_index ?? 0) ?? null,
-      isCorrect: r.is_correct,
-    }))
-    .sort((a, b) => a.index - b.index)
+  const rowByIndex = new Map(rows.map((r) => [r.blank_index ?? 0, r]))
+  // Drive the blank set from the question's full config — get_report_answer_keys
+  // (mig 133) returns every blanks_config entry — so an omitted blank still renders
+  // as unanswered (responseText null, isCorrect false). This matches batch_submit_quiz
+  // (mig 132), which scores dialog questions against the config's total_blanks, NOT the
+  // submitted-row count; building from rows alone would show "2/2" for a 2-of-3 dialog
+  // and wrongly flip isCorrect to true. Fall back to the submitted rows only when no
+  // answer keys are present (all-MC session, or a keyless race) — preserves prior behavior.
+  const indices =
+    canonicalByIndex.size > 0
+      ? [...canonicalByIndex.keys()].sort((a, b) => a - b)
+      : [...rowByIndex.keys()].sort((a, b) => a - b)
+  const blanks: DialogFillBlankResult[] = indices.map((index) => {
+    const row = rowByIndex.get(index)
+    return {
+      index,
+      responseText: row?.response_text ?? null,
+      canonical: canonicalByIndex.get(index) ?? null,
+      isCorrect: row?.is_correct ?? false,
+    }
+  })
 
   const correctCount = blanks.filter((b) => b.isCorrect).length
   return {

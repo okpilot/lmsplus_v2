@@ -237,6 +237,7 @@ describe('getAdminQuizReportSummary', () => {
     mockFromSequence({ data: completedSession }, { count: null, data: null }, { data: null })
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result!.answeredItems).toBe(completedSession.total_questions)
+    expect(result!.answeredQuestions).toBe(completedSession.total_questions)
   })
 
   it('returns null when the answered-count query returns an error', async () => {

@@ -235,11 +235,14 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
   const nmAdminEmail = `int-qrq-nm-admin-${nmSuffix}@test.local`
   const nmPassword = 'test-pass-123'
 
-  let nmOrgId: string
+  // Sentinels so a mid-beforeAll failure leaves these falsy-checkable in afterAll
+  // (vitest still runs afterAll if beforeAll throws) — unassigned `let` would make the
+  // cleanup throw a SECOND error and mask the real setup failure.
+  let nmOrgId = ''
   let nmAdminId: string
   let nmStudentId: string
   let nmOtherStudentId: string
-  let nmRefs: ReferenceIds
+  let nmRefs: ReferenceIds | null = null
   let nmBankId: string
   let nmStudentClient: Awaited<ReturnType<typeof getAuthenticatedClient>>
   let nmSessionId: string
@@ -372,16 +375,23 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
 
   afterAll(async () => {
     const errors: string[] = []
-    try {
-      await cleanupTestData({
-        admin,
-        orgId: nmOrgId,
-        userIds: [nmAdminId, nmStudentId, nmOtherStudentId],
-      })
-    } catch (e) {
-      errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
+    // Presence guard: skip if beforeAll failed before assigning nmOrgId.
+    if (nmOrgId) {
+      try {
+        await cleanupTestData({
+          admin,
+          orgId: nmOrgId,
+          userIds: [nmAdminId, nmStudentId, nmOtherStudentId],
+        })
+      } catch (e) {
+        errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
-    if (errors.length === 0) {
+    // FK-ordering gate (code-style.md §7 dependent step): cleanupReferenceData deletes the
+    // seeded easa_subjects/easa_topics that are FK parents of the questions cleanupTestData
+    // removes — keep it gated behind a clean test cleanup (errors.length === 0) to avoid a
+    // 23503 FK violation. The nmRefs presence guard adds the mid-beforeAll-failure case.
+    if (nmRefs && errors.length === 0) {
       try {
         await cleanupReferenceData({ admin, refs: [nmRefs] })
       } catch (e) {

@@ -46,12 +46,15 @@ async function insertQuestion(
 
 describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   const admin = getAdminClient()
-  let orgId: string
+  // Sentinels so a mid-beforeAll failure leaves these falsy-checkable in afterAll
+  // (vitest still runs afterAll if beforeAll throws) — an unassigned `let orgId: string`
+  // would make the cleanup throw a SECOND error and mask the real setup failure.
+  let orgId = ''
   let adminUserId: string
   let studentId: string
   let bankId: string
   let studentClient: SupabaseClient
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
   const suffix = Date.now()
 
@@ -156,8 +159,33 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    // Per-step error accumulator (code-style.md §7): each step isolated, errors collected,
+    // surfaced together at the end so one failure can't skip the next. Sentinel presence
+    // guards (`if (orgId)` / `if (refs)`) keep a mid-beforeAll failure from running a step
+    // against unassigned state and throwing a second, masking error.
+    const errors: string[] = []
+
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+
+    // FK-ordering gate (code-style.md §7 dependent step): cleanupReferenceData deletes the
+    // seeded easa_subjects/easa_topics that are FK parents of the questions cleanupTestData
+    // removes, so it must stay gated behind a clean test cleanup (errors.length === 0) to
+    // avoid a 23503 FK violation. The presence guard adds the mid-beforeAll-failure case.
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   /**
@@ -173,8 +201,9 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   ): Promise<string> {
     const { data: sd, error: startErr } = await client.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
-      p_subject_id: refs.subjectId,
-      p_topic_id: refs.topicId,
+      // refs is assigned in beforeAll; completeSession only runs inside tests, after it.
+      p_subject_id: refs!.subjectId,
+      p_topic_id: refs!.topicId,
       p_question_ids: qIds,
     })
     if (startErr) throw new Error(`startSession: ${startErr.message}`)
@@ -363,8 +392,9 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   it('rejects a still-in-progress session that has not ended', async () => {
     const { data: sd, error: startErr } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
-      p_subject_id: refs.subjectId,
-      p_topic_id: refs.topicId,
+      // refs is assigned in beforeAll; this test runs after it.
+      p_subject_id: refs!.subjectId,
+      p_topic_id: refs!.topicId,
       p_question_ids: [saId],
     })
     if (startErr) throw new Error(`startSession: ${startErr.message}`)
