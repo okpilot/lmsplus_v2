@@ -109,16 +109,19 @@ describe('getQuizReportSummary', () => {
     expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('returns summary with answered count from quiz_session_answers', async () => {
-    // session query, answered count query (head: true)
-    mockFromSequence({ data: sessionRow }, { count: 2, data: null })
+  it('reports both item and question answer counts from quiz_session_answers', async () => {
+    // session query, then the answer-rows fetch (question_id rows). q1 appears
+    // twice (a 2-blank dialog) and q2 once → 3 items, 2 distinct questions.
+    const answerRows = [{ question_id: 'q1' }, { question_id: 'q1' }, { question_id: 'q2' }]
+    mockFromSequence({ data: sessionRow }, { data: answerRows })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
     expect(summary!.sessionId).toBe('sess-1')
     expect(summary!.mode).toBe('quick_quiz')
     expect(summary!.subjectName).toBeNull()
     expect(summary!.totalQuestions).toBe(2)
-    expect(summary!.answeredCount).toBe(2)
+    expect(summary!.answeredItems).toBe(3)
+    expect(summary!.answeredQuestions).toBe(2)
     expect(summary!.correctCount).toBe(1)
     expect(summary!.scorePercentage).toBe(50)
     expect(summary!.startedAt).toBe('2026-03-12T10:00:00Z')
@@ -126,18 +129,24 @@ describe('getQuizReportSummary', () => {
   })
 
   it('summary does not include questions field', async () => {
-    mockFromSequence({ data: sessionRow }, { count: 2, data: null })
+    mockFromSequence({ data: sessionRow }, { data: [{ question_id: 'q1' }, { question_id: 'q2' }] })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
     expect(summary).not.toHaveProperty('questions')
   })
 
+  it('returns null when the answer-rows query fails', async () => {
+    mockFromSequence({ data: sessionRow }, { data: null, error: { message: 'db error' } })
+    const summary = await getQuizReportSummary('sess-1')
+    expect(summary).toBeNull()
+  })
+
   it('resolves subject name when subject_id is present', async () => {
     const sessionWithSubject = { ...sessionRow, subject_id: 'sub-1' }
-    // session query, answered count query, subject query
+    // session query, answer-rows query, subject query
     mockFromSequence(
       { data: sessionWithSubject },
-      { count: 2, data: null },
+      { data: [{ question_id: 'q1' }, { question_id: 'q2' }] },
       { data: { name: 'Meteorology' } },
     )
     const summary = await getQuizReportSummary('sess-1')
@@ -148,7 +157,7 @@ describe('getQuizReportSummary', () => {
     const sessionWithSubject = { ...sessionRow, subject_id: 'sub-1' }
     mockFromSequence(
       { data: sessionWithSubject },
-      { count: 2, data: null },
+      { data: [{ question_id: 'q1' }, { question_id: 'q2' }] },
       { data: null, error: { message: 'relation not found' } },
     )
     const summary = await getQuizReportSummary('sess-1')
@@ -158,23 +167,30 @@ describe('getQuizReportSummary', () => {
 
   it('falls back to zero scorePercentage when session score_percentage is null', async () => {
     const sessionWithNullScore = { ...sessionRow, score_percentage: null }
-    mockFromSequence({ data: sessionWithNullScore }, { count: 2, data: null })
+    mockFromSequence(
+      { data: sessionWithNullScore },
+      { data: [{ question_id: 'q1' }, { question_id: 'q2' }] },
+    )
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
     expect(summary!.scorePercentage).toBe(0)
   })
 
-  it('falls back to total_questions answeredCount when count is null', async () => {
-    mockFromSequence({ data: sessionRow }, { count: null, data: null })
+  it('reports zero answered items and questions when no answers exist', async () => {
+    mockFromSequence({ data: sessionRow }, { data: [] })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
-    expect(summary!.answeredCount).toBe(sessionRow.total_questions)
+    expect(summary!.answeredItems).toBe(0)
+    expect(summary!.answeredQuestions).toBe(0)
   })
 
   it('coerces string wire value for score_percentage to number', async () => {
     // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
     const sessionWithStringScore = { ...sessionRow, score_percentage: '73.33' }
-    mockFromSequence({ data: sessionWithStringScore }, { count: 2, data: null })
+    mockFromSequence(
+      { data: sessionWithStringScore },
+      { data: [{ question_id: 'q1' }, { question_id: 'q2' }] },
+    )
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
     expect(summary!.scorePercentage).toBe(73.33)

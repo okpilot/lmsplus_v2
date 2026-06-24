@@ -22,6 +22,7 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { QuizReportQuestion } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
 import { getQuizReportQuestions } from './quiz-report-questions'
 
@@ -48,18 +49,47 @@ function mockFromSequence(...responses: unknown[]) {
   mockFrom.mockImplementation(() => buildChain(responses[call++] ?? { data: null }))
 }
 
+/**
+ * Dispatch RPC mocks by name so both report RPCs can be stubbed independently.
+ * get_report_correct_options → MC keys; get_report_answer_keys → non-MC canonicals.
+ */
+function mockRpcByName(map: {
+  correct?: { data: unknown; error?: unknown }
+  keys?: { data: unknown; error?: unknown }
+}) {
+  mockRpc.mockImplementation((name: string) => {
+    if (name === 'get_report_correct_options') return Promise.resolve(map.correct ?? { data: [] })
+    if (name === 'get_report_answer_keys') return Promise.resolve(map.keys ?? { data: [] })
+    return Promise.resolve({ data: [] })
+  })
+}
+
+// Narrow a union result to the MC variant for asserting MC-only fields.
+function asMc(q: QuizReportQuestion | undefined) {
+  if (q?.questionType !== 'multiple_choice') {
+    throw new Error('expected a multiple_choice report question')
+  }
+  return q
+}
+
+// Narrow to the dialog_fill variant.
+function asDialog(q: QuizReportQuestion | undefined) {
+  if (q?.questionType !== 'dialog_fill') {
+    throw new Error('expected a dialog_fill report question')
+  }
+  return q
+}
+
 // ---- Fixtures -------------------------------------------------------------
 
 const sessionRow = {
   id: 'sess-1',
   mode: 'quick_quiz',
-  subject_id: null as string | null,
-  started_at: '2026-03-12T10:00:00Z',
   ended_at: '2026-03-12T10:05:00Z',
-  total_questions: 2,
-  correct_count: 1,
-  score_percentage: 50,
 }
+
+// Two distinct answered questions, in answered order.
+const orderRows = [{ question_id: 'q1' }, { question_id: 'q2' }]
 
 const answersData = [
   {
@@ -81,6 +111,7 @@ const questionsData = [
     id: 'q1',
     question_text: 'What is lift?',
     question_number: '050-01-001',
+    question_type: 'multiple_choice',
     options: [
       { id: 'opt-a', text: 'Upward force' },
       { id: 'opt-b', text: 'Downward force' },
@@ -92,6 +123,7 @@ const questionsData = [
     id: 'q2',
     question_text: 'What is drag?',
     question_number: '050-01-002',
+    question_type: 'multiple_choice',
     options: [
       { id: 'opt-c', text: 'Forward force' },
       { id: 'opt-d', text: 'Opposing force' },
@@ -152,15 +184,14 @@ describe('getQuizReportQuestions', () => {
     expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('returns paginated questions with totalCount', async () => {
-    // session row, count query, answers, questions
+  it('returns one entry per answered question with a distinct-question total', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+    mockRpcByName({ correct: { data: correctOptionsData } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
@@ -172,16 +203,16 @@ describe('getQuizReportQuestions', () => {
   it('maps question details correctly', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+    mockRpcByName({ correct: { data: correctOptionsData } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q1 = result.questions[0]!
+    const q1 = asMc(result.questions[0])
     expect(q1.questionId).toBe('q1')
     expect(q1.questionText).toBe('What is lift?')
     expect(q1.isCorrect).toBe(true)
@@ -196,23 +227,23 @@ describe('getQuizReportQuestions', () => {
   it('identifies incorrect answers and correct option', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+    mockRpcByName({ correct: { data: correctOptionsData } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q2 = result.questions[1]!
+    const q2 = asMc(result.questions[1])
     expect(q2.isCorrect).toBe(false)
     expect(q2.selectedOptionId).toBe('opt-c')
     expect(q2.correctOptionId).toBe('opt-d')
   })
 
   it('returns ok:true with empty questions array when no answers on page', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 0 })
+    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { data: [] })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
@@ -221,10 +252,10 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(0)
   })
 
-  it('returns error when count query fails', async () => {
+  it('returns error when the question-order query fails', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: null, error: { message: 'db error' } },
+      { data: null, error: { message: 'db error' } },
     )
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
@@ -234,34 +265,53 @@ describe('getQuizReportQuestions', () => {
   it('returns error when correct-options RPC returns an error', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } })
+    mockRpcByName({ correct: { data: null, error: { message: 'rpc failed' } } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(false)
   })
 
-  it('does not call the correct-options RPC when answers array is empty', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 0 })
+  it('returns error when the answer-keys RPC returns an error', async () => {
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: orderRows },
+      { data: answersData },
+      { data: questionsData },
+    )
+    mockRpcByName({
+      correct: { data: correctOptionsData },
+      keys: { data: null, error: { message: 'keys rpc failed' } },
+    })
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(false)
+  })
+
+  it('does not call either report RPC when no questions were answered', async () => {
+    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { data: [] })
     await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('calls correct-options RPC with the session id', async () => {
+  it('calls both report RPCs with the session id', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+    mockRpcByName({ correct: { data: correctOptionsData } })
 
     await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
 
     expect(mockRpc).toHaveBeenCalledWith('get_report_correct_options', {
+      p_session_id: 'sess-1',
+    })
+    expect(mockRpc).toHaveBeenCalledWith('get_report_answer_keys', {
       p_session_id: 'sess-1',
     })
   })
@@ -269,7 +319,7 @@ describe('getQuizReportQuestions', () => {
   it('falls back to empty correctOptionId when RPC returns no match', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       {
         data: [
@@ -277,33 +327,34 @@ describe('getQuizReportQuestions', () => {
             id: 'q1',
             question_text: 'What is lift?',
             question_number: '050-01-001',
+            question_type: 'multiple_choice',
             options: [{ id: 'opt-a', text: 'Upward force' }],
             explanation_text: null,
           },
         ],
       },
     )
-    mockRpc.mockResolvedValueOnce({ data: [] })
+    mockRpcByName({ correct: { data: [] } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.correctOptionId).toBe('')
+    expect(asMc(result.questions[0]).correctOptionId).toBe('')
   })
 
   it('handles missing question data gracefully with fallback values', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       { data: [] }, // no questions found
     )
-    mockRpc.mockResolvedValueOnce({ data: [] })
+    mockRpcByName({ correct: { data: [] } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q = result.questions[0]!
+    const q = asMc(result.questions[0])
     expect(q.questionText).toBe('')
     expect(q.questionNumber).toBeNull()
     expect(q.correctOptionId).toBe('')
@@ -313,17 +364,17 @@ describe('getQuizReportQuestions', () => {
   it('passes response time through to the result', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 2 },
+      { data: orderRows },
       { data: answersData },
       { data: questionsData },
     )
-    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+    mockRpcByName({ correct: { data: correctOptionsData } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.responseTimeMs).toBe(3000)
-    expect(result.questions[1]!.responseTimeMs).toBe(5000)
+    expect(result.questions[0]?.responseTimeMs).toBe(3000)
+    expect(result.questions[1]?.responseTimeMs).toBe(5000)
   })
 
   it('strips the correct field from options so it is never exposed in the result', async () => {
@@ -332,6 +383,7 @@ describe('getQuizReportQuestions', () => {
         id: 'q1',
         question_text: 'What is lift?',
         question_number: '050-01-001',
+        question_type: 'multiple_choice',
         options: [
           { id: 'opt-a', text: 'Upward force', correct: true },
           { id: 'opt-b', text: 'Downward force', correct: false },
@@ -341,16 +393,16 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       { data: questionsWithCorrectField },
     )
-    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+    mockRpcByName({ correct: { data: [correctOptionsData[0]] } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const options = result.questions[0]!.options
+    const options = asMc(result.questions[0]).options
     expect(options).toHaveLength(2)
     expect(options[0]).toEqual({ id: 'opt-a', text: 'Upward force' })
     expect(options[1]).toEqual({ id: 'opt-b', text: 'Downward force' })
@@ -364,6 +416,7 @@ describe('getQuizReportQuestions', () => {
         id: 'q1',
         question_text: 'What is lift?',
         question_number: '050-01-001',
+        question_type: 'multiple_choice',
         options: [{ id: 'opt-a', text: 'Upward force' }],
         explanation_text: 'Lift is perpendicular to relative wind.',
         explanation_image_url: 'https://cdn.example.com/lift-diagram.png',
@@ -371,16 +424,16 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       { data: questionsWithImage },
     )
-    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+    mockRpcByName({ correct: { data: [correctOptionsData[0]] } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.explanationImageUrl).toBe(
+    expect(result.questions[0]?.explanationImageUrl).toBe(
       'https://cdn.example.com/lift-diagram.png',
     )
   })
@@ -391,6 +444,7 @@ describe('getQuizReportQuestions', () => {
         id: 'q1',
         question_text: 'What is lift?',
         question_number: '050-01-001',
+        question_type: 'multiple_choice',
         options: [{ id: 'opt-a', text: 'Upward force' }],
         explanation_text: 'Some explanation',
         explanation_image_url: null,
@@ -398,20 +452,24 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       { data: questionsNoImage },
     )
-    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+    mockRpcByName({ correct: { data: [correctOptionsData[0]] } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.explanationImageUrl).toBeNull()
+    expect(result.questions[0]?.explanationImageUrl).toBeNull()
   })
 
-  it('returns empty questions with correct totalCount when page exceeds total pages', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 5 })
+  it('returns empty questions with the distinct-question total when page exceeds total pages', async () => {
+    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: fiveQuestions },
+    )
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 99 })
     expect(result.ok).toBe(true)
@@ -423,7 +481,7 @@ describe('getQuizReportQuestions', () => {
   it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { count: 1 },
+      { data: [{ question_id: 'q1' }] },
       { data: [answersData[0]] },
       {
         data: [
@@ -431,6 +489,7 @@ describe('getQuizReportQuestions', () => {
             id: 'q1',
             question_text: 'What is lift?',
             question_number: '050-01-001',
+            question_type: 'multiple_choice',
             options: [{ id: 'opt-a', text: 'Upward force' }],
             explanation_text: null,
             explanation_image_url: null,
@@ -439,12 +498,104 @@ describe('getQuizReportQuestions', () => {
       },
     )
     // RPC returns null (non-array) — the Array.isArray guard must treat this as []
-    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+    mockRpcByName({ correct: { data: null, error: null } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.correctOptionId).toBe('')
+    expect(asMc(result.questions[0]).correctOptionId).toBe('')
+  })
+
+  it('collapses a multi-blank dialog question into one entry and counts it once toward the total', async () => {
+    // Mixed: one MC (q1) + one 3-blank dialog_fill (q2). The dialog's 3 answer
+    // rows must collapse to ONE report entry, and totalCount must count distinct
+    // questions (2), not rows (4).
+    const mixedOrderRows = [{ question_id: 'q1' }, { question_id: 'q2' }]
+    const mixedAnswers = [
+      {
+        question_id: 'q1',
+        selected_option_id: 'opt-a',
+        is_correct: true,
+        response_time_ms: 3000,
+      },
+      {
+        question_id: 'q2',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 4000,
+        response_text: 'cleared',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q2',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 4000,
+        response_text: 'wrong',
+        blank_index: 1,
+      },
+      {
+        question_id: 'q2',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 4000,
+        response_text: 'roger',
+        blank_index: 2,
+      },
+    ]
+    const mixedQuestions = [
+      {
+        id: 'q1',
+        question_text: 'What is lift?',
+        question_number: '050-01-001',
+        question_type: 'multiple_choice',
+        options: [{ id: 'opt-a', text: 'Upward force' }],
+        explanation_text: null,
+      },
+      {
+        id: 'q2',
+        question_text: 'Fill the readback',
+        question_number: '092-02-001',
+        question_type: 'dialog_fill',
+        options: [],
+        explanation_text: null,
+      },
+    ]
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: mixedOrderRows },
+      { data: mixedAnswers },
+      { data: mixedQuestions },
+    )
+    mockRpcByName({
+      correct: { data: [{ question_id: 'q1', correct_option_id: 'opt-a' }] },
+      keys: {
+        data: [
+          {
+            question_id: 'q2',
+            question_type: 'dialog_fill',
+            blank_index: 0,
+            answer_key: 'cleared',
+          },
+          { question_id: 'q2', question_type: 'dialog_fill', blank_index: 1, answer_key: 'climb' },
+          { question_id: 'q2', question_type: 'dialog_fill', blank_index: 2, answer_key: 'roger' },
+        ],
+      },
+    })
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    // 2 distinct questions, not 4 answer rows.
+    expect(result.questions).toHaveLength(2)
+    expect(result.totalCount).toBe(2)
+    const dialog = asDialog(result.questions[1])
+    expect(dialog.blanks).toHaveLength(3)
+    expect(dialog.correctCount).toBe(2)
+    expect(dialog.totalBlanks).toBe(3)
+    expect(dialog.isCorrect).toBe(false)
+    // Per-blank canonical surfaces for the wrong blank.
+    expect(dialog.blanks[1]?.canonical).toBe('climb')
   })
 
   it('uses PAGE_SIZE = 10', () => {

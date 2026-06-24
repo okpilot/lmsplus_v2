@@ -36,6 +36,7 @@ function makeQuestion(id: string, text: string): QuizReportQuestion {
     questionId: id,
     questionText: text,
     questionNumber: null,
+    questionType: 'multiple_choice',
     isCorrect: true,
     selectedOptionId: 'opt-a',
     correctOptionId: 'opt-a',

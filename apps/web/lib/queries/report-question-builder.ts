@@ -1,4 +1,8 @@
-import type { QuizReportQuestion } from './quiz-report'
+import type {
+  DialogFillBlankResult,
+  QuizReportQuestion,
+  QuizReportQuestionCommon,
+} from './quiz-report'
 
 export type AnswerRow = {
   question_id: string
@@ -6,6 +10,11 @@ export type AnswerRow = {
   selected_option_id: string | null
   is_correct: boolean
   response_time_ms: number
+  // Non-MC fields (Phase 4). response_text carries the student's typed answer
+  // (short_answer = the whole answer; dialog_fill = one blank's answer).
+  response_text?: string | null
+  // Per-blank index for dialog_fill rows; null/absent for MC and short_answer.
+  blank_index?: number | null
 }
 
 export type QuestionRow = {
@@ -16,29 +25,120 @@ export type QuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   question_image_url: string | null
+  // Discriminator (mig 094, on `questions`). Null/absent on the admin MC-only
+  // feed (which omits the column) → defaulted to 'multiple_choice'.
+  question_type?: string | null
 }
 
+// Per-question answer-key payload from get_report_answer_keys.
+//  - short_answer: a single canonical string (canonical).
+//  - dialog_fill:  a Map from blank index → canonical string.
+//  - MC questions are absent (their key comes from get_report_correct_options).
+export type AnswerKeyEntry =
+  | { type: 'short_answer'; canonical: string | null }
+  | { type: 'dialog_fill'; canonicalByIndex: Map<number, string> }
+
+/**
+ * Group the session's answer rows by question and project each into the
+ * discriminated QuizReportQuestion variant. ONE report entry per question:
+ *  - multiple_choice / short_answer: a single answer row.
+ *  - dialog_fill: N rows (one per blank) collapsed into a single entry with
+ *    a per-blank results array sorted by blank_index ascending.
+ *
+ * A row with no question_type defaults to 'multiple_choice' (the admin MC-only
+ * feed relies on this). Questions with zero answer rows do not appear — by
+ * design; the summary's Skipped count conveys them.
+ */
 export function buildReportQuestions(
   answers: AnswerRow[],
   questionMap: Map<string, QuestionRow>,
   correctMap: Map<string, string>,
+  answerKeyMap: Map<string, AnswerKeyEntry> = new Map(),
 ): QuizReportQuestion[] {
-  return answers.map((answer) => {
-    const question = questionMap.get(answer.question_id)
-    const options = question?.options ?? []
+  // Group answer rows by question_id, preserving first-seen order.
+  const order: string[] = []
+  const grouped = new Map<string, AnswerRow[]>()
+  for (const answer of answers) {
+    const existing = grouped.get(answer.question_id)
+    if (existing) {
+      existing.push(answer)
+    } else {
+      grouped.set(answer.question_id, [answer])
+      order.push(answer.question_id)
+    }
+  }
 
-    return {
-      questionId: answer.question_id,
+  return order.map((questionId) => {
+    const rows = grouped.get(questionId) ?? []
+    const question = questionMap.get(questionId)
+    // Discriminate on the question's type (mig 094). The admin MC-only feed
+    // omits the column, so absent → 'multiple_choice'.
+    const type = question?.question_type ?? 'multiple_choice'
+
+    const common: QuizReportQuestionCommon = {
+      questionId,
       questionText: question?.question_text ?? '',
       questionNumber: question?.question_number ?? null,
-      isCorrect: answer.is_correct,
-      selectedOptionId: answer.selected_option_id,
-      correctOptionId: correctMap.get(answer.question_id) ?? '',
-      options: options.map((o) => ({ id: o.id, text: o.text })),
       explanationText: question?.explanation_text ?? null,
       explanationImageUrl: question?.explanation_image_url ?? null,
       questionImageUrl: question?.question_image_url ?? null,
-      responseTimeMs: answer.response_time_ms,
+      // dialog_fill rows share one response time per blank; take the first row's.
+      responseTimeMs: rows[0]?.response_time_ms ?? 0,
+    }
+
+    if (type === 'short_answer') {
+      const row = rows[0]
+      const key = answerKeyMap.get(questionId)
+      return {
+        ...common,
+        questionType: 'short_answer' as const,
+        isCorrect: row?.is_correct ?? false,
+        responseText: row?.response_text ?? null,
+        canonicalAnswer: key?.type === 'short_answer' ? key.canonical : null,
+      }
+    }
+
+    if (type === 'dialog_fill') {
+      return buildDialogFill(common, rows, answerKeyMap.get(questionId))
+    }
+
+    // multiple_choice (default)
+    const row = rows[0]
+    const options = question?.options ?? []
+    return {
+      ...common,
+      questionType: 'multiple_choice' as const,
+      isCorrect: row?.is_correct ?? false,
+      selectedOptionId: row?.selected_option_id ?? null,
+      correctOptionId: correctMap.get(questionId) ?? '',
+      options: options.map((o) => ({ id: o.id, text: o.text })),
     }
   })
+}
+
+function buildDialogFill(
+  common: QuizReportQuestionCommon,
+  rows: AnswerRow[],
+  key: AnswerKeyEntry | undefined,
+): QuizReportQuestion {
+  const canonicalByIndex =
+    key?.type === 'dialog_fill' ? key.canonicalByIndex : new Map<number, string>()
+  const blanks: DialogFillBlankResult[] = rows
+    .map((r) => ({
+      index: r.blank_index ?? 0,
+      responseText: r.response_text ?? null,
+      canonical: canonicalByIndex.get(r.blank_index ?? 0) ?? null,
+      isCorrect: r.is_correct,
+    }))
+    .sort((a, b) => a.index - b.index)
+
+  const correctCount = blanks.filter((b) => b.isCorrect).length
+  return {
+    ...common,
+    questionType: 'dialog_fill',
+    isCorrect: blanks.length > 0 && correctCount === blanks.length,
+    blanks,
+    correctCount,
+    totalBlanks: blanks.length,
+  }
 }

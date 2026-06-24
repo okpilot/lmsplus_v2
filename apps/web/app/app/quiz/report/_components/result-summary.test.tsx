@@ -13,7 +13,8 @@ function makeSummary(overrides: Partial<QuizReportSummary> = {}): QuizReportSumm
     mode: 'quick_quiz',
     subjectName: '050 — Meteorology',
     totalQuestions: 10,
-    answeredCount: 10,
+    answeredQuestions: 10,
+    answeredItems: 10,
     correctCount: 7,
     scorePercentage: 70,
     startedAt: '2026-03-12T10:00:00Z',
@@ -51,23 +52,49 @@ describe('ResultSummary', () => {
   })
 
   describe('correct count', () => {
-    it('displays correct / answered in the stats', () => {
-      render(<ResultSummary summary={makeSummary({ correctCount: 7, answeredCount: 10 })} />)
+    it('displays correct over answered items in the stats', () => {
+      // Correct denominator is item-level (answeredItems): dialog_fill blanks count as items.
+      render(<ResultSummary summary={makeSummary({ correctCount: 7, answeredItems: 10 })} />)
       expect(screen.getAllByText('7 / 10').length).toBeGreaterThan(0)
+    })
+
+    it('uses answered items, not distinct questions, as the correct denominator', () => {
+      // 5 questions but 12 items (e.g. dialog blanks); 9 correct items → "9 / 12".
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            correctCount: 9,
+            answeredItems: 12,
+            answeredQuestions: 5,
+            totalQuestions: 5,
+          })}
+        />,
+      )
+      expect(screen.getAllByText('9 / 12').length).toBeGreaterThan(0)
     })
   })
 
   describe('skipped questions', () => {
     it('shows zero skipped when all questions were answered', () => {
-      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredCount: 10 })} />)
+      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredQuestions: 10 })} />)
       // skipped = 10 - 10 = 0
       expect(screen.getByText('0')).toBeInTheDocument()
     })
 
     it('shows the number of unanswered questions as skipped', () => {
-      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredCount: 7 })} />)
+      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredQuestions: 7 })} />)
       // skipped = 10 - 7 = 3
       expect(screen.getByText('3')).toBeInTheDocument()
+    })
+
+    it('counts skipped at the question level even when items exceed questions', () => {
+      // 10 questions, 8 distinct answered (2 skipped), 15 items — skipped uses questions.
+      render(
+        <ResultSummary
+          summary={makeSummary({ totalQuestions: 10, answeredQuestions: 8, answeredItems: 15 })}
+        />,
+      )
+      expect(screen.getByText('2')).toBeInTheDocument()
     })
   })
 

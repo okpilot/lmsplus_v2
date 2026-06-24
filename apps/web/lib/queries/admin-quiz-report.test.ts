@@ -16,7 +16,17 @@ vi.mock('@repo/db/admin', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import { getAdminQuizReportQuestions, getAdminQuizReportSummary } from './admin-quiz-report'
+import type { QuizReportQuestion } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
+
+// Admin reports are MC-only; narrow the discriminated union to the MC variant
+// so the type-specific MC fields (options, correctOptionId) are accessible.
+function asMc(q: QuizReportQuestion | undefined) {
+  if (q?.questionType !== 'multiple_choice') {
+    throw new Error('expected a multiple_choice report question')
+  }
+  return q
+}
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -153,7 +163,8 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.sessionId).toBe('sess-1')
     expect(result!.mode).toBe('quick_quiz')
     expect(result!.totalQuestions).toBe(5)
-    expect(result!.answeredCount).toBe(4)
+    expect(result!.answeredItems).toBe(4)
+    expect(result!.answeredQuestions).toBe(4)
     expect(result!.correctCount).toBe(3)
     expect(result!.scorePercentage).toBe(60)
     expect(result!.startedAt).toBe('2026-03-12T10:00:00Z')
@@ -222,10 +233,10 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.scorePercentage).toBe(0)
   })
 
-  it('falls back to total_questions answeredCount when count is null', async () => {
+  it('falls back to total_questions answered items when count is null', async () => {
     mockFromSequence({ data: completedSession }, { count: null, data: null }, { data: null })
     const result = await getAdminQuizReportSummary('sess-1')
-    expect(result!.answeredCount).toBe(completedSession.total_questions)
+    expect(result!.answeredItems).toBe(completedSession.total_questions)
   })
 
   it('returns null when the answered-count query returns an error', async () => {
@@ -355,7 +366,7 @@ describe('getAdminQuizReportQuestions', () => {
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q1 = result.questions[0]!
+    const q1 = asMc(result.questions[0])
     expect(q1.questionId).toBe('q1')
     expect(q1.questionText).toBe('What is lift?')
     expect(q1.questionNumber).toBe('050-01-001')
@@ -383,7 +394,7 @@ describe('getAdminQuizReportQuestions', () => {
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q2 = result.questions[1]!
+    const q2 = asMc(result.questions[1])
     expect(q2.isCorrect).toBe(false)
     expect(q2.selectedOptionId).toBe('opt-c')
     expect(q2.correctOptionId).toBe('opt-d')
@@ -460,7 +471,7 @@ describe('getAdminQuizReportQuestions', () => {
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.questions[0]!.correctOptionId).toBe('')
+    expect(asMc(result.questions[0]).correctOptionId).toBe('')
   })
 
   it('handles missing question data gracefully with fallback empty values', async () => {
@@ -475,7 +486,7 @@ describe('getAdminQuizReportQuestions', () => {
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const q = result.questions[0]!
+    const q = asMc(result.questions[0])
     expect(q.questionText).toBe('')
     expect(q.questionNumber).toBeNull()
     expect(q.options).toEqual([])

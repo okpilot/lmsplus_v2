@@ -85,7 +85,9 @@ export async function getAdminQuizReportSummary(
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    answeredCount: answeredCount ?? session.total_questions,
+    // Admin reports are MC-only (one item per question), so items === questions.
+    answeredQuestions: answeredCount ?? session.total_questions,
+    answeredItems: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,
@@ -144,6 +146,11 @@ export async function getAdminQuizReportQuestions(opts: {
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
+  // Row-based .range() pagination is safe here ONLY because the admin report feed is
+  // MC-only (one answer row per question, no per-blank rows). The student path
+  // (quiz-report-questions.ts) paginates by distinct question_id to stop a dialog_fill
+  // question's blanks straddling a page boundary; if non-MC ever reaches this admin
+  // path, mirror that pages-of-questions approach here.
   const { data: answersData, error: answersError } = await adminClient
     .from('quiz_session_answers')
     .select('question_id, selected_option_id, is_correct, response_time_ms')

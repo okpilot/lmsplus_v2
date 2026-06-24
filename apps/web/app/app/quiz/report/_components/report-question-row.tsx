@@ -6,7 +6,7 @@ import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { formatMsDuration } from './format-duration'
-import { OptionsList } from './options-list'
+import { isQuestionAnswered, ReportAnswerBody } from './report-answer-body'
 import { useReportFlag } from './report-flag-context'
 
 export function ReportQuestionRow({
@@ -25,7 +25,7 @@ export function ReportQuestionRow({
 
   const label = question.questionNumber ?? `Q${index + 1}`
   const hasExplanation = Boolean(question.explanationText || question.explanationImageUrl)
-  const isAnswered = question.options.some((o) => o.id === question.selectedOptionId)
+  const isAnswered = isQuestionAnswered(question)
 
   return (
     <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
@@ -94,11 +94,7 @@ export function ReportQuestionRow({
 
           {!isAnswered && <p className="mt-1 text-xs text-muted-foreground">Not answered</p>}
 
-          <OptionsList
-            options={question.options}
-            correctOptionId={question.correctOptionId}
-            selectedOptionId={question.selectedOptionId}
-          />
+          <ReportAnswerBody question={question} />
 
           {hasExplanation && (
             <div className="mt-2">
