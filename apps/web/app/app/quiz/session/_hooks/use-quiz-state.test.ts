@@ -72,6 +72,9 @@ const THREE_QUESTIONS = [
     explanation_text: null,
     explanation_image_url: null,
     options: [],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
   {
     id: Q2_ID,
@@ -81,6 +84,9 @@ const THREE_QUESTIONS = [
     explanation_text: null,
     explanation_image_url: null,
     options: [],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
   {
     id: Q3_ID,
@@ -90,6 +96,9 @@ const THREE_QUESTIONS = [
     explanation_text: null,
     explanation_image_url: null,
     options: [],
+    question_type: 'multiple_choice' as const,
+    dialog_template: null,
+    blanks_safe: null,
   },
 ]
 
@@ -303,6 +312,7 @@ describe('useQuizState — answer selection', () => {
       [
         Q1_ID,
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: 'Recovered explanation',
@@ -323,9 +333,10 @@ describe('useQuizState — answer selection', () => {
     )
 
     // currentFeedback is feedback.get(questionId) for the current question (Q1 at index 0)
-    expect(result.current.currentFeedback?.isCorrect).toBe(true)
-    expect(result.current.currentFeedback?.correctOptionId).toBe('opt-a')
-    expect(result.current.currentFeedback?.explanationText).toBe('Recovered explanation')
+    const fb = result.current.currentFeedback
+    expect(fb?.isCorrect).toBe(true)
+    expect(fb?.questionType === 'multiple_choice' ? fb.correctOptionId : null).toBe('opt-a')
+    expect(fb?.explanationText).toBe('Recovered explanation')
   })
 })
 
@@ -798,6 +809,7 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
       [
         Q1_ID,
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: null,

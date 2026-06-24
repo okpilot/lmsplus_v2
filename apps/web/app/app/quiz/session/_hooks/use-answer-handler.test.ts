@@ -90,7 +90,7 @@ describe('useAnswerHandler — successful answer selection', () => {
 
     const fb = result.current.feedback.get(Q1_ID)
     expect(fb?.isCorrect).toBe(true)
-    expect(fb?.correctOptionId).toBe(OPT_A)
+    expect(fb?.questionType === 'multiple_choice' ? fb.correctOptionId : null).toBe(OPT_A)
   })
 
   it('stores explanationText and explanationImageUrl from the RPC in feedback', async () => {
@@ -606,6 +606,7 @@ describe('useAnswerHandler — initialFeedback', () => {
       [
         Q1_ID,
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: OPT_A,
           explanationText: 'Seed explanation',
@@ -634,7 +635,7 @@ describe('useAnswerHandler — initialFeedback', () => {
 
     const fb = result.current.feedback.get(Q1_ID)
     expect(fb?.isCorrect).toBe(true)
-    expect(fb?.correctOptionId).toBe(OPT_A)
+    expect(fb?.questionType === 'multiple_choice' ? fb.correctOptionId : null).toBe(OPT_A)
     expect(fb?.explanationText).toBe('Seed explanation')
   })
 
@@ -643,6 +644,7 @@ describe('useAnswerHandler — initialFeedback', () => {
       [
         Q2_ID,
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: false,
           correctOptionId: OPT_B,
           explanationText: null,
@@ -671,7 +673,7 @@ describe('useAnswerHandler — initialFeedback', () => {
     expect(mockCheckAnswer).not.toHaveBeenCalled()
     const fb = result.current.feedback.get(Q2_ID)
     expect(fb?.isCorrect).toBe(false)
-    expect(fb?.correctOptionId).toBe(OPT_B)
+    expect(fb?.questionType === 'multiple_choice' ? fb.correctOptionId : null).toBe(OPT_B)
   })
 
   it('starts with an empty feedback map when initialFeedback is not provided', () => {

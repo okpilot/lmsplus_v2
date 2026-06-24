@@ -340,6 +340,7 @@ describe('saveDraft', () => {
 
     const feedbackPayload = {
       [Q1_ID]: {
+        questionType: 'multiple_choice',
         isCorrect: true,
         correctOptionId: 'opt-a',
         explanationText: 'Lift equals weight in level flight.',
@@ -351,6 +352,59 @@ describe('saveDraft', () => {
 
     expect(result).toEqual({ success: true })
     expect(capturedInsertArg).toBeDefined()
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('persists short_answer and dialog_fill answers + feedback on save', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const answers = {
+      [Q1_ID]: { responseText: 'cleared to land', responseTimeMs: 2000 },
+      [Q2_ID]: {
+        blankAnswers: [{ index: 0, text: 'cleared' }],
+        responseTimeMs: 3000,
+      },
+    }
+    const feedbackPayload = {
+      [Q1_ID]: {
+        questionType: 'short_answer',
+        isCorrect: true,
+        correctAnswer: 'cleared to land',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+      [Q2_ID]: {
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 0, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, answers, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg!.answers).toEqual(answers)
     expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
   })
 
@@ -523,6 +577,7 @@ describe('saveDraft — update path', () => {
 
     const feedbackPayload = {
       [Q1_ID]: {
+        questionType: 'multiple_choice',
         isCorrect: false,
         correctOptionId: 'opt-b',
         explanationText: null,

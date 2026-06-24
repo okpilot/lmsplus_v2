@@ -111,6 +111,9 @@ function makeQuestions() {
       explanation_text: null,
       explanation_image_url: null,
       options: [{ id: 'opt-a', text: 'Option A' }],
+      question_type: 'multiple_choice' as const,
+      dialog_template: null,
+      blanks_safe: null,
     },
     {
       id: 'q2',
@@ -120,6 +123,9 @@ function makeQuestions() {
       explanation_text: null,
       explanation_image_url: null,
       options: [{ id: 'opt-b', text: 'Option B' }],
+      question_type: 'multiple_choice' as const,
+      dialog_template: null,
+      blanks_safe: null,
     },
   ]
 }

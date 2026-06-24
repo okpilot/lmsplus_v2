@@ -37,6 +37,7 @@ const DRAFT_WITH_FEEDBACK = {
   ...DRAFT,
   feedback: {
     q1: {
+      questionType: 'multiple_choice' as const,
       isCorrect: true,
       correctOptionId: 'opt-a',
       explanationText: 'Correct — lift equals weight in level flight.',

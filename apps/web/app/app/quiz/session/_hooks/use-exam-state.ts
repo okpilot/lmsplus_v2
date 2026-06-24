@@ -56,6 +56,13 @@ export function useExamPipeline(opts: {
     return Promise.resolve(recorded)
   }
 
+  // Non-MC types (short_answer / dialog_fill) are practice-only — the
+  // check_non_mc_answer RPC rejects exam-mode sessions, and exam questions are
+  // MC. These exist only to keep the exam/study pipeline return shapes unioned
+  // (use-quiz-state.ts: `p = isExam ? exam : study`). They are never reached:
+  // QuizMainPanel renders the text/dialog inputs only in study mode.
+  const noopNonMcHandler = (): Promise<boolean> => Promise.resolve(false)
+
   return {
     answers,
     feedback: emptyFeedbackRef.current,
@@ -63,6 +70,8 @@ export function useExamPipeline(opts: {
     // an in-flight answer to show a spinner for.
     answering: false,
     handleSelectAnswer,
+    handleTextAnswer: noopNonMcHandler,
+    handleDialogFillAnswer: noopNonMcHandler,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,

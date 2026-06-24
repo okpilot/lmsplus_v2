@@ -20,6 +20,9 @@ const QUESTIONS: SessionQuestion[] = [
       { id: 'b', text: 'A weight' },
       { id: 'c', text: 'A drag' },
     ],
+    question_type: 'multiple_choice',
+    dialog_template: null,
+    blanks_safe: null,
   },
   {
     id: 'q2',
@@ -32,6 +35,9 @@ const QUESTIONS: SessionQuestion[] = [
       { id: 'd', text: 'Air resistance' },
       { id: 'e', text: 'Thrust' },
     ],
+    question_type: 'multiple_choice',
+    dialog_template: null,
+    blanks_safe: null,
   },
 ]
 

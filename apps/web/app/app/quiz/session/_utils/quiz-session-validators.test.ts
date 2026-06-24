@@ -76,6 +76,28 @@ describe('isValidDraftAnswer', () => {
   it('returns false for an array', () => {
     expect(isValidDraftAnswer(['opt-a', 500])).toBe(false)
   })
+
+  it('accepts a short_answer draft carrying responseText', () => {
+    expect(isValidDraftAnswer({ responseText: 'cleared to land', responseTimeMs: 1500 })).toBe(true)
+  })
+
+  it('accepts a dialog_fill draft carrying blankAnswers', () => {
+    expect(
+      isValidDraftAnswer({ blankAnswers: [{ index: 0, text: 'cleared' }], responseTimeMs: 1500 }),
+    ).toBe(true)
+  })
+
+  it('rejects a draft with no answer payload at all', () => {
+    expect(isValidDraftAnswer({ responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects a dialog_fill draft with an empty blankAnswers array', () => {
+    expect(isValidDraftAnswer({ blankAnswers: [], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects a dialog_fill draft whose blank entry lacks text', () => {
+    expect(isValidDraftAnswer({ blankAnswers: [{ index: 0 }], responseTimeMs: 1500 })).toBe(false)
+  })
 })
 
 describe('isValidFeedbackEntry', () => {
@@ -140,6 +162,61 @@ describe('isValidFeedbackEntry', () => {
 
   it('returns false for a non-object primitive', () => {
     expect(isValidFeedbackEntry('feedback')).toBe(false)
+  })
+
+  it('accepts a tagged multiple_choice feedback entry', () => {
+    expect(isValidFeedbackEntry({ ...validEntry, questionType: 'multiple_choice' })).toBe(true)
+  })
+
+  it('accepts a short_answer feedback entry with a nullable correct answer', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'short_answer',
+        isCorrect: true,
+        correctAnswer: 'cleared to land',
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'short_answer',
+        isCorrect: false,
+        correctAnswer: null,
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('accepts a dialog_fill feedback entry with per-blank results', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 0, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects a feedback entry with an unknown questionType tag', () => {
+    expect(
+      isValidFeedbackEntry({ questionType: 'essay', isCorrect: true, correctAnswer: null }),
+    ).toBe(false)
+  })
+
+  it('rejects a dialog_fill feedback entry whose blanks is not an array', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'dialog_fill',
+        isCorrect: true,
+        blanks: 'not-an-array',
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
   })
 })
 

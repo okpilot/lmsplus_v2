@@ -12,10 +12,23 @@ const SaveDraftInput = z
     questionIds: z.array(z.uuid()).min(1),
     answers: z.record(
       z.string(),
-      z.object({
-        selectedOptionId: z.string().min(1),
-        responseTimeMs: z.number().int().nonnegative(),
-      }),
+      z
+        .object({
+          selectedOptionId: z.string().min(1).optional(),
+          responseText: z.string().min(1).optional(),
+          blankAnswers: z
+            .array(z.object({ index: z.number().int().min(0).max(9999), text: z.string().min(1) }))
+            .min(1)
+            .optional(),
+          responseTimeMs: z.number().int().nonnegative(),
+        })
+        // Exactly one answer payload must be present (MC / short / dialog).
+        .refine(
+          (a) =>
+            [a.selectedOptionId, a.responseText, a.blankAnswers].filter((x) => x !== undefined)
+              .length === 1,
+          { message: 'Draft answer must carry exactly one answer payload' },
+        ),
     ),
     currentIndex: z.number().int().nonnegative(),
     subjectName: z.string().max(100).optional(),
@@ -23,12 +36,35 @@ const SaveDraftInput = z
     feedback: z
       .record(
         z.string(),
-        z.object({
-          isCorrect: z.boolean(),
-          correctOptionId: z.string().min(1),
-          explanationText: z.string().nullable(),
-          explanationImageUrl: z.string().nullable(),
-        }),
+        z.discriminatedUnion('questionType', [
+          z.object({
+            questionType: z.literal('multiple_choice'),
+            isCorrect: z.boolean(),
+            correctOptionId: z.string().min(1),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+          z.object({
+            questionType: z.literal('short_answer'),
+            isCorrect: z.boolean(),
+            correctAnswer: z.string().nullable(),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+          z.object({
+            questionType: z.literal('dialog_fill'),
+            isCorrect: z.boolean(),
+            blanks: z.array(
+              z.object({
+                index: z.number().int(),
+                isCorrect: z.boolean(),
+                canonical: z.string(),
+              }),
+            ),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+        ]),
       )
       .optional(),
   })

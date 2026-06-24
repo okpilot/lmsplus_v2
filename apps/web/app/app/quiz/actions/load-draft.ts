@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { Database } from '@repo/db/types'
-import type { AnswerFeedback, DraftData, LoadDraftsResult } from '../types'
+import type { AnswerFeedback, DraftAnswer, DraftData, LoadDraftsResult } from '../types'
 import { MAX_DRAFTS } from './draft-helpers'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
@@ -16,15 +16,28 @@ function isSessionConfig(v: unknown): v is SessionConfig {
   )
 }
 
+function isFeedbackEntry(e: unknown): boolean {
+  if (typeof e !== 'object' || e === null) return false
+  const r = e as Record<string, unknown>
+  if (typeof r.isCorrect !== 'boolean') return false
+  // Tag-aware, with a legacy fallback: pre-discriminant MC feedback has no
+  // `questionType` but carries a string `correctOptionId`.
+  switch (r.questionType) {
+    case 'multiple_choice':
+    case undefined:
+      return typeof r.correctOptionId === 'string'
+    case 'short_answer':
+      return r.correctAnswer === null || typeof r.correctAnswer === 'string'
+    case 'dialog_fill':
+      return Array.isArray(r.blanks)
+    default:
+      return false
+  }
+}
+
 function isFeedbackRecord(v: unknown): v is Record<string, AnswerFeedback> {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
-  return Object.values(v).every(
-    (e) =>
-      typeof e === 'object' &&
-      e !== null &&
-      typeof (e as Record<string, unknown>).isCorrect === 'boolean' &&
-      typeof (e as Record<string, unknown>).correctOptionId === 'string',
-  )
+  return Object.values(v).every(isFeedbackEntry)
 }
 
 function rowToDraftData(row: QuizDraftRow): DraftData {
@@ -37,7 +50,7 @@ function rowToDraftData(row: QuizDraftRow): DraftData {
       id: row.id,
       sessionId: '',
       questionIds: row.question_ids,
-      answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+      answers: row.answers as Record<string, DraftAnswer>,
       feedback: feedback ?? undefined,
       currentIndex: row.current_index,
       subjectName: undefined,

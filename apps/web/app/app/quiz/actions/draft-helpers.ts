@@ -1,6 +1,6 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
-import type { DraftResult } from '../types'
+import type { AnswerFeedback, DraftAnswer, DraftResult } from '../types'
 
 type QuizDraftInsert = Database['public']['Tables']['quiz_drafts']['Insert']
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -9,16 +9,8 @@ type SaveDraftParsed = {
   draftId?: string
   sessionId: string
   questionIds: string[]
-  answers: Record<string, { selectedOptionId: string; responseTimeMs: number }>
-  feedback?: Record<
-    string,
-    {
-      isCorrect: boolean
-      correctOptionId: string
-      explanationText: string | null
-      explanationImageUrl: string | null
-    }
-  >
+  answers: Record<string, DraftAnswer>
+  feedback?: Record<string, AnswerFeedback>
   currentIndex: number
   subjectName?: string
   subjectCode?: string

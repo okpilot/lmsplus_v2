@@ -1,10 +1,70 @@
+import { checkAnswer } from '../../actions/check-answer'
+import { checkNonMcAnswer } from '../../actions/check-non-mc-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
-export type CheckResult = {
-  isCorrect: boolean
-  correctOptionId: string
-  explanationText: string | null
-  explanationImageUrl: string | null
+// CheckResult is the already-shaped discriminated feedback the handlers build
+// from each Server Action result (MC / short_answer / dialog_fill). It is
+// structurally an AnswerFeedback variant, so recordAnswerFeedback stores it
+// directly — the per-type construction lives in these builders, keyed off the
+// questionType tag.
+export type CheckResult = AnswerFeedback
+
+// One per-answer attempt: optimistic draft + a check that returns the
+// already-shaped discriminated feedback, or throws on failure.
+export type AttemptInput = {
+  draft: DraftAnswer
+  check: (questionId: string) => Promise<CheckResult>
+}
+
+// Builds the three per-type submit handlers. Each wraps a Server Action call in
+// the shared optimistic/lock/revert machinery via `runAttempt`. Pure given its
+// args — keeps the hook body lean (code-style.md §1 hook cap).
+export function buildAnswerHandlers(deps: {
+  sessionId: string
+  getAnswerStartTime: () => number
+  runAttempt: (input: AttemptInput) => Promise<boolean>
+}) {
+  const { sessionId, getAnswerStartTime, runAttempt } = deps
+
+  function handleSelectAnswer(optionId: string): Promise<boolean> {
+    const responseTimeMs = Date.now() - getAnswerStartTime()
+    return runAttempt({
+      draft: { selectedOptionId: optionId, responseTimeMs },
+      check: async (questionId) => {
+        const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
+        if (!r.success) throw new Error(r.error)
+        return { questionType: 'multiple_choice', ...r }
+      },
+    })
+  }
+
+  function handleTextAnswer(text: string): Promise<boolean> {
+    const responseTimeMs = Date.now() - getAnswerStartTime()
+    return runAttempt({
+      draft: { responseText: text, responseTimeMs },
+      check: async (questionId) => {
+        const r = await checkNonMcAnswer({ questionId, sessionId, responseText: text })
+        if (!r.success || r.questionType !== 'short_answer') throw new Error('check failed')
+        return r
+      },
+    })
+  }
+
+  function handleDialogFillAnswer(
+    blankAnswers: { index: number; text: string }[],
+  ): Promise<boolean> {
+    const responseTimeMs = Date.now() - getAnswerStartTime()
+    return runAttempt({
+      draft: { blankAnswers, responseTimeMs },
+      check: async (questionId) => {
+        const r = await checkNonMcAnswer({ questionId, sessionId, blankAnswers })
+        if (!r.success || r.questionType !== 'dialog_fill') throw new Error('check failed')
+        return r
+      },
+    })
+  }
+
+  return { handleSelectAnswer, handleTextAnswer, handleDialogFillAnswer }
 }
 
 export function recordAnswerFeedback(
@@ -13,12 +73,7 @@ export function recordAnswerFeedback(
   feedbackRef: React.MutableRefObject<Map<string, AnswerFeedback>>,
   setFeedback: React.Dispatch<React.SetStateAction<Map<string, AnswerFeedback>>>,
 ): Map<string, AnswerFeedback> {
-  const next = new Map(feedbackRef.current).set(questionId, {
-    isCorrect: result.isCorrect,
-    correctOptionId: result.correctOptionId,
-    explanationText: result.explanationText,
-    explanationImageUrl: result.explanationImageUrl,
-  })
+  const next = new Map(feedbackRef.current).set(questionId, result)
   feedbackRef.current = next
   setFeedback(next)
   return next

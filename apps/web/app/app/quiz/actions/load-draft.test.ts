@@ -143,6 +143,33 @@ describe('loadDrafts', () => {
     expect(result.drafts[0]!.feedback).toEqual(feedbackData)
   })
 
+  it('maps tagged short_answer and dialog_fill feedback on recovery', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    const feedbackData = {
+      q1: {
+        questionType: 'short_answer',
+        isCorrect: true,
+        correctAnswer: 'cleared to land',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+      q2: {
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [{ index: 0, isCorrect: true, canonical: 'cleared' }],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+    mockFrom.mockReturnValue(
+      buildSelectChain({ data: [buildDraftRow({ feedback: feedbackData })], error: null }),
+    )
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toEqual(feedbackData)
+  })
+
   it('returns feedback as undefined when the feedback column is null', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
     mockFrom.mockReturnValue(

@@ -1398,4 +1398,15 @@ Pivots VFR RT from the rejected bespoke mock-exam UI (parked PR #923) to a **tra
 
 **Next:** #925 testing deep-dive (P0 — app-layer DB read-path integration tier) BEFORE Phases 2/5/6 (which add migrations and share the same blind spot). Then Phase 2 (backend non-MC question types).
 
+## VFR RT Training — Phase 3 (Study runner renders + grades non-MC) — 2026-06-24
+
+**Branch:** `feat/vfr-rt-training-phase3`. Spec: `.spec-workflow/specs/vfr-rt-training/` tasks 3.1–3.3. Tracks #697. No migration (Phase 2 shipped the backend grader).
+
+Wires the reused `/app/quiz` Study runner to render and immediately grade the two text question types delivered by Phase 2 (`short_answer`, `dialog_fill`) via the `check_non_mc_answer` RPC.
+
+- **New `checkNonMcAnswer` Server Action** (`quiz/actions/check-non-mc-answer.ts` + `-helpers.ts`): Zod discriminated union (short_answer / dialog_fill), session ownership + membership guard mirroring `check-answer.ts`, RPC-result runtime type guards paired with the cast (§5). Translates the client `{index,text}` blanks to the RPC's `{blank_index,response_text}` shape.
+- **Two new input components** (`short-answer-input.tsx`, `dialog-fill-input.tsx` + `dialog-line.tsx` sub-renderer) in the Study idiom (submit affordance + post-submit reveal). `parseDialogDisplay` salvaged from the parked PR #923.
+- **`AnswerFeedback` widened to a discriminated union** on a camelCase `questionType` tag (MC variant byte-identical + discriminant). `SessionQuestion` gains the 3 required fields (`question_type`/`dialog_template`/`blanks_safe`) the loader already populates. Persistence contract (`draft.ts` Zod, `load-draft.ts` guard, `draft-helpers.ts` type, validators) widened so non-MC feedback round-trips localStorage + the draft row.
+- **Tests:** co-located unit tests for the action + both inputs + the parser + dialog-line, widened validator/draft tests, and a new app-layer integration test (`check-non-mc-answer.integration.test.ts`, the #925 tier) exercising both grading paths + guards against real Postgres. The MC `Integration suite NNN` literal above tracks the separate `packages/db` tier and is unchanged.
+
 *Last updated: 2026-06-20 — VFR RT Training Phase 1 (`/app/vfr-rt` page + nav, MC-only, reuses quiz Study UI); Decision 45.*

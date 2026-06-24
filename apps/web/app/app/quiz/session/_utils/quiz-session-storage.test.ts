@@ -294,6 +294,7 @@ describe('writeActiveSession + readActiveSession', () => {
     const session = makeSession({
       feedback: {
         q1: {
+          questionType: 'multiple_choice',
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: 'Because lift.',
@@ -672,6 +673,7 @@ describe('buildActiveSession', () => {
       [
         'q1',
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: 'Because lift.',
@@ -681,6 +683,7 @@ describe('buildActiveSession', () => {
       [
         'q2',
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: false,
           correctOptionId: 'opt-b',
           explanationText: null,
@@ -693,12 +696,14 @@ describe('buildActiveSession', () => {
 
     expect(result.feedback).toEqual({
       q1: {
+        questionType: 'multiple_choice',
         isCorrect: true,
         correctOptionId: 'opt-a',
         explanationText: 'Because lift.',
         explanationImageUrl: null,
       },
       q2: {
+        questionType: 'multiple_choice',
         isCorrect: false,
         correctOptionId: 'opt-b',
         explanationText: null,

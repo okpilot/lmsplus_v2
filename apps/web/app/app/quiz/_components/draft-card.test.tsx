@@ -47,12 +47,14 @@ const DRAFT_WITH_FEEDBACK: DraftData = {
   ...DRAFT,
   feedback: {
     q1: {
+      questionType: 'multiple_choice',
       isCorrect: true,
       correctOptionId: 'opt-a',
       explanationText: 'Dew point rises as humidity increases.',
       explanationImageUrl: null,
     },
     q2: {
+      questionType: 'multiple_choice',
       isCorrect: false,
       correctOptionId: 'opt-c',
       explanationText: null,

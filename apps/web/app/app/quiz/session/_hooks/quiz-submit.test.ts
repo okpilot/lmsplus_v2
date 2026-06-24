@@ -509,6 +509,7 @@ describe('saveQuizDraft', () => {
       [
         Q1_ID,
         {
+          questionType: 'multiple_choice' as const,
           isCorrect: true,
           correctOptionId: 'opt-a',
           explanationText: 'Because lift.',
@@ -530,6 +531,7 @@ describe('saveQuizDraft', () => {
     const [called] = mockSaveDraft.mock.calls[0]!
     expect(called.feedback).not.toBeInstanceOf(Map)
     expect(called.feedback[Q1_ID]).toEqual({
+      questionType: 'multiple_choice',
       isCorrect: true,
       correctOptionId: 'opt-a',
       explanationText: 'Because lift.',

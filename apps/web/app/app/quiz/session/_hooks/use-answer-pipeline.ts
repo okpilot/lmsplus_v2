@@ -14,6 +14,8 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     error: answerError,
     answering,
     handleSelectAnswer,
+    handleTextAnswer,
+    handleDialogFillAnswer,
     clearError: clearAnswerError,
     pendingQuestionIdRef,
   } = useAnswerHandler({
@@ -65,6 +67,8 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     feedback,
     answering,
     handleSelectAnswer,
+    handleTextAnswer,
+    handleDialogFillAnswer,
     navigateTo,
     navigate,
     submitted,
