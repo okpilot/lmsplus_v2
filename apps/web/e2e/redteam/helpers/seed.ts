@@ -478,11 +478,16 @@ export async function seedVictimResponses(): Promise<VictimResponseFixture> {
   }
 
   // Select up to 8 active, non-deleted egmont questions (deterministic order).
+  // Restrict to multiple_choice: the rows below are MC-shaped (selected_option_id,
+  // no blank_index), and the blank_index⇔dialog_fill trigger (mig 131, #828) would
+  // reject a dialog_fill question inserted with a NULL blank_index. Today egmont seeds
+  // MC-only, but this keeps the helper correct if dialog_fill is ever added there.
   const { data: questions, error: questionsError } = await admin
     .from('questions')
     .select('id, subject_id')
     .eq('organization_id', orgId)
     .eq('status', 'active')
+    .eq('question_type', 'multiple_choice')
     .is('deleted_at', null)
     .order('id', { ascending: true })
     .limit(8)

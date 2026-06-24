@@ -459,7 +459,15 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
       topicName: `BlankIdx Topic ${suffix}`,
     })
 
-    // Seed a single short_answer question (text-response type — the branch under test).
+    // Seed a single dialog_fill question. dialog_fill is the question type whose
+    // per-blank rows legitimately carry a blank_index (the scenario these tests
+    // describe — a negative blank_index inflating dialog_fill correct-row counts).
+    // It must be dialog_fill (not short_answer) so the blank_index ⇔ dialog_fill
+    // write-time trigger (mig 131, #828) ACCEPTS a non-NULL blank_index — leaving
+    // the mig-095 `blank_index >= 0` answer-shape CHECK (added by commit 13dce467)
+    // as the constraint under
+    // test for the -1 rejection (a short_answer row may carry no blank_index at all
+    // under mig 131, so it could never reach that CHECK).
     const { data: bankRow, error: bankLookupErr } = await admin
       .from('question_banks')
       .select('id')
@@ -493,8 +501,9 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
         topic_id: refs.topicId,
         question_text: 'BlankIdx fixture question',
         explanation_text: 'Explanation',
-        question_type: 'short_answer',
-        canonical_answer: 'wilco',
+        question_type: 'dialog_fill',
+        dialog_template: 'Cleared to land runway {{0|wilco}}.',
+        blanks_config: [{ index: 0, canonical: 'wilco' }],
         accepted_synonyms: [],
         options: [],
         difficulty: 'medium',
