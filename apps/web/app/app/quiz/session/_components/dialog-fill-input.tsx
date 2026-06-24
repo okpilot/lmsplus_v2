@@ -1,9 +1,8 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { parseDialogDisplay } from '../_utils/parse-dialog-display'
-import { type BlankResult, DialogLine } from './dialog-line'
+import { DialogLine } from './dialog-line'
+import { useDialogFillInput } from './use-dialog-fill-input'
 
 type DialogFillInputProps = {
   /** Stripped dialog template (`{{n}}` markers) from get_quiz_questions. */
@@ -27,36 +26,16 @@ export function DialogFillInput({
   submitted = false,
   blanks,
 }: DialogFillInputProps) {
-  const lines = useMemo(() => parseDialogDisplay(template), [template])
-  const blankIndices = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          lines.flatMap((l) => l.segments.filter((s) => s.type === 'blank').map((s) => s.index)),
-        ),
-      ),
-    [lines],
+  const { lines, values, results, allFilled, handleChange, collectSubmission } = useDialogFillInput(
+    template,
+    blanks,
   )
-  const [values, setValues] = useState<Record<number, string>>({})
-
-  const results: Record<number, BlankResult> = useMemo(() => {
-    const map: Record<number, BlankResult> = {}
-    for (const b of blanks ?? []) map[b.index] = { isCorrect: b.isCorrect, canonical: b.canonical }
-    return map
-  }, [blanks])
 
   const locked = submitted
-  const showResult = locked && (blanks?.length ?? 0) > 0
-  const allFilled =
-    blankIndices.length > 0 && blankIndices.every((i) => (values[i] ?? '').trim().length > 0)
-
-  function handleChange(index: number, value: string) {
-    setValues((prev) => ({ ...prev, [index]: value }))
-  }
 
   function handleSubmit() {
-    if (!allFilled) return
-    onSubmit(blankIndices.map((i) => ({ index: i, text: (values[i] ?? '').trim() })))
+    const payload = collectSubmission()
+    if (payload) onSubmit(payload)
   }
 
   return (
@@ -77,7 +56,7 @@ export function DialogFillInput({
         ))}
       </div>
 
-      {!showResult && (
+      {!locked && (
         <button
           type="button"
           disabled={!allFilled || disabled || submitting}

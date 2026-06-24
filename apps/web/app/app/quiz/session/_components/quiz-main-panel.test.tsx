@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizState } from '../_hooks/use-quiz-state'
 
@@ -43,8 +44,13 @@ vi.mock('./quiz-tab-content', () => ({
   QuizTabContent: () => <div data-testid="quiz-tab-content" />,
 }))
 
+// Fixed payloads the mock inputs fire so a handler swap (text vs dialog) is detectable.
+const SHORT_ANSWER_PAYLOAD = 'cleared to land'
+const DIALOG_FILL_PAYLOAD = [{ index: 0, text: 'alpha' }]
+
 vi.mock('./short-answer-input', () => ({
   ShortAnswerInput: ({
+    onSubmit,
     disabled,
     submitting,
     submittedText,
@@ -65,12 +71,21 @@ vi.mock('./short-answer-input', () => ({
       data-submitted-text={submittedText ?? ''}
       data-is-correct={String(isCorrect ?? '')}
       data-correct-answer={correctAnswer ?? ''}
-    />
+    >
+      <button
+        type="button"
+        data-testid="short-answer-submit"
+        onClick={() => onSubmit(SHORT_ANSWER_PAYLOAD)}
+      >
+        submit
+      </button>
+    </div>
   ),
 }))
 
 vi.mock('./dialog-fill-input', () => ({
   DialogFillInput: ({
+    onSubmit,
     disabled,
     submitting,
     submitted,
@@ -87,7 +102,15 @@ vi.mock('./dialog-fill-input', () => ({
       data-disabled={String(disabled)}
       data-submitting={String(submitting ?? false)}
       data-submitted={String(submitted ?? false)}
-    />
+    >
+      <button
+        type="button"
+        data-testid="dialog-fill-submit"
+        onClick={() => onSubmit(DIALOG_FILL_PAYLOAD)}
+      >
+        submit
+      </button>
+    </div>
   ),
 }))
 
@@ -119,6 +142,8 @@ function makeState(overrides: Partial<QuizState> = {}): QuizState {
     pinnedQuestions: new Set<string>(),
     isPinned: false,
     handleSelectAnswer: vi.fn(),
+    handleTextAnswer: vi.fn(),
+    handleDialogFillAnswer: vi.fn(),
     navigateTo: vi.fn(),
     navigate: vi.fn(),
     togglePin: vi.fn(),
@@ -217,8 +242,8 @@ describe('QuizMainPanel', () => {
     })
   })
 
-  describe('AnswerInput type dispatch', () => {
-    it('renders ShortAnswerInput instead of AnswerOptions for short_answer questions', () => {
+  describe('answer input per question type', () => {
+    it('shows a free-text answer field for a short_answer question', () => {
       const s = makeState({
         question: {
           id: 'q-sa',
@@ -239,10 +264,54 @@ describe('QuizMainPanel', () => {
       expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
     })
 
-    it('renders DialogFillInput instead of AnswerOptions for dialog_fill questions', () => {
+    it('submits the typed text answer for a short_answer question', async () => {
+      const handleTextAnswer = vi.fn()
+      const s = makeState({
+        question: {
+          id: 'q-sa',
+          question_text: 'What does ATC say?',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+        handleTextAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      await userEvent.click(screen.getByTestId('short-answer-submit'))
+      expect(handleTextAnswer).toHaveBeenCalledWith('cleared to land')
+    })
+
+    it('submits the filled blanks for a dialog_fill question', async () => {
+      const handleDialogFillAnswer = vi.fn()
       const s = makeState({
         question: {
           id: 'q-df',
+          question_text: 'Complete the ATC dialog',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}} runway {{1}}.',
+          blanks_safe: [{ index: 0 }, { index: 1 }],
+        },
+        handleDialogFillAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      await userEvent.click(screen.getByTestId('dialog-fill-submit'))
+      expect(handleDialogFillAnswer).toHaveBeenCalledWith([{ index: 0, text: 'alpha' }])
+    })
+
+    it('shows a fill-in-the-blanks dialog field for a dialog_fill question', () => {
+      const s = makeState({
+        question: {
+          id: 'q-df2',
           question_text: 'Complete the ATC dialog',
           question_image_url: null,
           question_number: '050-01-01-003',
@@ -260,7 +329,7 @@ describe('QuizMainPanel', () => {
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
     })
 
-    it('renders AnswerOptions for multiple_choice questions (default path)', () => {
+    it('shows multiple-choice options for a multiple_choice question', () => {
       const s = makeState({
         question: {
           id: 'q-mc',
@@ -336,8 +405,7 @@ describe('QuizMainPanel', () => {
       expect(input).toHaveAttribute('data-correct-answer', 'cleared to land')
     })
 
-    it('does not pass short_answer feedback when currentFeedback is a different type', () => {
-      // Type-guard: if feedback is MC, short_answer input gets null for isCorrect/correctAnswer
+    it('does not reveal a grading outcome when the recorded feedback is for another question type', () => {
       const s = makeState({
         question: {
           id: 'q-sa',
@@ -361,7 +429,6 @@ describe('QuizMainPanel', () => {
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       const input = screen.getByTestId('short-answer-input')
-      // feedback is MC type — short_answer gets null guard, so data-is-correct is ''
       expect(input).toHaveAttribute('data-is-correct', '')
     })
 

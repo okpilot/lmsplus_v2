@@ -33,7 +33,10 @@ export function buildAnswerHandlers(deps: {
       check: async (questionId) => {
         const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
         if (!r.success) throw new Error(r.error)
-        return { questionType: 'multiple_choice', ...r }
+        // Strip the server-action success flag so it doesn't leak into the
+        // persisted AnswerFeedback (which carries no `success` field).
+        const { success: _success, ...feedback } = r
+        return { questionType: 'multiple_choice', ...feedback }
       },
     })
   }
@@ -45,7 +48,9 @@ export function buildAnswerHandlers(deps: {
       check: async (questionId) => {
         const r = await checkNonMcAnswer({ questionId, sessionId, responseText: text })
         if (!r.success || r.questionType !== 'short_answer') throw new Error('check failed')
-        return r
+        // feedback already carries questionType; drop the success flag.
+        const { success: _success, ...feedback } = r
+        return feedback
       },
     })
   }
@@ -59,7 +64,9 @@ export function buildAnswerHandlers(deps: {
       check: async (questionId) => {
         const r = await checkNonMcAnswer({ questionId, sessionId, blankAnswers })
         if (!r.success || r.questionType !== 'dialog_fill') throw new Error('check failed')
-        return r
+        // feedback already carries questionType; drop the success flag.
+        const { success: _success, ...feedback } = r
+        return feedback
       },
     })
   }

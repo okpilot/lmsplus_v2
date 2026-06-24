@@ -1,10 +1,11 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
+import type { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckNonMcAnswerResult } from '../types'
 import {
+  CheckNonMcAnswerSchema,
   type DialogFillRpcResult,
   isDialogFillRpcResult,
   isShortAnswerRpcResult,
@@ -13,22 +14,6 @@ import {
   toRpcBlankAnswers,
   verifySessionMembership,
 } from './check-non-mc-answer-helpers'
-
-const ShortAnswerInput = z.object({
-  questionId: z.uuid(),
-  sessionId: z.uuid(),
-  responseText: z.string().min(1),
-})
-
-const DialogFillInput = z.object({
-  questionId: z.uuid(),
-  sessionId: z.uuid(),
-  blankAnswers: z
-    .array(z.object({ index: z.number().int().min(0).max(9999), text: z.string().min(1) }))
-    .min(1),
-})
-
-const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput])
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()

@@ -180,6 +180,30 @@ describe('isDialogFillRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects when a blank row has a fractional index', () => {
+    expect(
+      isDialogFillRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: [{ index: 1.5, is_correct: true, canonical: 'x' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when a blank row has a negative index', () => {
+    expect(
+      isDialogFillRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: [{ index: -1, is_correct: true, canonical: 'x' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects null input', () => {
     expect(isDialogFillRpcResult(null)).toBe(false)
   })

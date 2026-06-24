@@ -2,8 +2,36 @@
 // Hoisted out of check-non-mc-answer.ts to keep the action under the 100-line
 // server-action cap (code-style.md §1).
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
+
+// `.strict()` rejects a mixed payload ({responseText, blankAnswers}) instead of
+// letting z.union strip the extra key and grade it as short_answer.
+const ShortAnswerInput = z
+  .object({
+    questionId: z.uuid(),
+    sessionId: z.uuid(),
+    responseText: z.string().trim().min(1).max(500),
+  })
+  .strict()
+
+const DialogFillInput = z
+  .object({
+    questionId: z.uuid(),
+    sessionId: z.uuid(),
+    blankAnswers: z
+      .array(
+        z.object({
+          index: z.number().int().min(0).max(9999),
+          text: z.string().trim().min(1).max(200),
+        }),
+      )
+      .min(1),
+  })
+  .strict()
+
+export const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput])
 
 // Defense-in-depth session ownership + membership check (mirrors check-answer.ts).
 // The RPC self-guards, but the action fails fast on a foreign/closed session or a
@@ -58,7 +86,9 @@ function isDialogBlankRow(v: unknown): v is DialogBlankRpcRow {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
   return (
-    typeof r.index === 'number' &&
+    Number.isInteger(r.index) &&
+    (r.index as number) >= 0 &&
+    (r.index as number) <= 9999 &&
     typeof r.is_correct === 'boolean' &&
     typeof r.canonical === 'string'
   )

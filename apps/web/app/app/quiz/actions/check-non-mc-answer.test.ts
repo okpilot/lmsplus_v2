@@ -217,4 +217,48 @@ describe('checkNonMcAnswer', () => {
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
+
+  it('rejects a payload carrying both a response text and blank answers', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({
+      ...SHORT_INPUT,
+      blankAnswers: [{ index: 0, text: 'cleared' }],
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a response text longer than the cap', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({ ...SHORT_INPUT, responseText: 'x'.repeat(501) })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a whitespace-only response text', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({ ...SHORT_INPUT, responseText: '   ' })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a blank answer longer than the cap', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({
+      ...DIALOG_INPUT,
+      blankAnswers: [{ index: 0, text: 'y'.repeat(201) }],
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a whitespace-only blank answer', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({
+      ...DIALOG_INPUT,
+      blankAnswers: [{ index: 0, text: '   ' }],
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
 })

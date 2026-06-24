@@ -22,14 +22,16 @@ function isValidBlankAnswers(v: unknown): boolean {
 export function isValidDraftAnswer(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
-  if (typeof r.responseTimeMs !== 'number') return false
+  // Mirror draft.ts's Zod: responseTimeMs is a non-negative integer.
+  if (!Number.isInteger(r.responseTimeMs) || (r.responseTimeMs as number) < 0) return false
   // Exactly one of the three answer shapes carries the payload (MC / short /
-  // dialog). The others are absent for that question type.
-  return (
-    isNonEmptyString(r.selectedOptionId) ||
-    isNonEmptyString(r.responseText) ||
-    isValidBlankAnswers(r.blankAnswers)
-  )
+  // dialog) — a hybrid carrying two is rejected, matching the Zod .refine.
+  const payloadCount = [
+    isNonEmptyString(r.selectedOptionId),
+    isNonEmptyString(r.responseText),
+    isValidBlankAnswers(r.blankAnswers),
+  ].filter(Boolean).length
+  return payloadCount === 1
 }
 
 function hasValidExplanations(r: Record<string, unknown>): boolean {

@@ -49,6 +49,11 @@ describe('DialogFillInput', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('hides Submit once submitted even while grading results are still pending', () => {
+    render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} submitted />)
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+  })
+
   it('locks inputs, hides Submit, and reveals canonicals for wrong blanks after submit', () => {
     render(
       <DialogFillInput

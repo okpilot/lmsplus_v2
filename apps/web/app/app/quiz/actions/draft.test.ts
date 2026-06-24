@@ -466,6 +466,25 @@ describe('saveDraft', () => {
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
+
+  it('rejects feedback whose keys are not present in questionIds', async () => {
+    setupAuthenticatedUser()
+    const staleQuestionId = '00000000-0000-4000-a000-000000000099'
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [staleQuestionId]: {
+          questionType: 'multiple_choice',
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
 })
 
 // ---- saveDraft — update path (draftId provided) ----------------------------

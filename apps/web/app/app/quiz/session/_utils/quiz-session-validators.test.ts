@@ -98,6 +98,24 @@ describe('isValidDraftAnswer', () => {
   it('rejects a dialog_fill draft whose blank entry lacks text', () => {
     expect(isValidDraftAnswer({ blankAnswers: [{ index: 0 }], responseTimeMs: 1500 })).toBe(false)
   })
+
+  it('rejects a draft carrying two answer payloads at once', () => {
+    expect(
+      isValidDraftAnswer({
+        selectedOptionId: 'opt-a',
+        responseText: 'cleared to land',
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a fractional responseTimeMs', () => {
+    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: 12.5 })).toBe(false)
+  })
+
+  it('rejects a negative responseTimeMs', () => {
+    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: -1 })).toBe(false)
+  })
 })
 
 describe('isValidFeedbackEntry', () => {

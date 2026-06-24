@@ -55,7 +55,7 @@ export function ShortAnswerInput({
         </p>
       )}
 
-      {!showResult && (
+      {!locked && (
         <button
           type="button"
           disabled={!trimmed || disabled || submitting}

@@ -87,6 +87,15 @@ const SaveDraftInput = z
         })
       }
     }
+    for (const key of Object.keys(data.feedback ?? {})) {
+      if (!questionIdSet.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['feedback', key],
+          message: `Feedback key "${key}" is not in questionIds`,
+        })
+      }
+    }
   })
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {

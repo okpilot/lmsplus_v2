@@ -36,6 +36,19 @@ describe('ShortAnswerInput', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('hides Submit once an answer is submitted even while grading is still pending', () => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="cleared to land"
+        isCorrect={null}
+        correctAnswer={null}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+  })
+
   it('locks the field and hides Submit once an answer has been submitted', () => {
     render(
       <ShortAnswerInput
