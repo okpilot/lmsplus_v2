@@ -1,5 +1,11 @@
+import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { buildSubmitPayload, deriveBlankIndices, toBlankResults } from './use-dialog-fill-input'
+import {
+  buildSubmitPayload,
+  deriveBlankIndices,
+  toBlankResults,
+  useDialogFillInput,
+} from './use-dialog-fill-input'
 
 const TEMPLATE = '[atc] {{0}} runway {{1}}.'
 
@@ -46,5 +52,37 @@ describe('buildSubmitPayload', () => {
 
   it('emits an empty string for a blank with no recorded value', () => {
     expect(buildSubmitPayload([0], {})).toEqual([{ index: 0, text: '' }])
+  })
+})
+
+describe('useDialogFillInput', () => {
+  it('starts with no submission available until every blank is filled', () => {
+    const { result } = renderHook(() => useDialogFillInput(TEMPLATE, undefined))
+    expect(result.current.allFilled).toBe(false)
+    expect(result.current.collectSubmission()).toBeNull()
+  })
+
+  it('offers the trimmed submission once every blank is filled', () => {
+    const { result } = renderHook(() => useDialogFillInput(TEMPLATE, undefined))
+    act(() => result.current.handleChange(0, '  cleared  '))
+    act(() => result.current.handleChange(1, '27'))
+    expect(result.current.allFilled).toBe(true)
+    expect(result.current.collectSubmission()).toEqual([
+      { index: 0, text: 'cleared' },
+      { index: 1, text: '27' },
+    ])
+  })
+
+  it('withholds the submission while any blank is still empty', () => {
+    const { result } = renderHook(() => useDialogFillInput(TEMPLATE, undefined))
+    act(() => result.current.handleChange(0, 'cleared'))
+    expect(result.current.allFilled).toBe(false)
+    expect(result.current.collectSubmission()).toBeNull()
+  })
+
+  it('begins empty on a fresh mount of the same template', () => {
+    const { result } = renderHook(() => useDialogFillInput(TEMPLATE, undefined))
+    expect(result.current.allFilled).toBe(false)
+    expect(result.current.values).toEqual({})
   })
 })

@@ -19,6 +19,20 @@ const SaveDraftInput = z
           blankAnswers: z
             .array(z.object({ index: z.number().int().min(0).max(9999), text: z.string().min(1) }))
             .min(1)
+            .max(50)
+            .superRefine((answers, ctx) => {
+              const seen = new Set<number>()
+              for (const [position, a] of answers.entries()) {
+                if (seen.has(a.index)) {
+                  ctx.addIssue({
+                    code: 'custom',
+                    path: [position, 'index'],
+                    message: 'Duplicate blank index',
+                  })
+                }
+                seen.add(a.index)
+              }
+            })
             .optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })

@@ -89,4 +89,35 @@ describe('ShortAnswerInput', () => {
     )
     expect(screen.queryByTestId('revealed-answer')).not.toBeInTheDocument()
   })
+
+  it('announces a correct result to screen readers once graded', () => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="cleared to land"
+        isCorrect
+        correctAnswer="cleared to land"
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Correct')
+  })
+
+  it('announces an incorrect result to screen readers once graded', () => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="go around"
+        isCorrect={false}
+        correctAnswer="cleared to land"
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Incorrect')
+  })
+
+  it('does not announce a result before an answer is graded', () => {
+    render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} />)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
 })

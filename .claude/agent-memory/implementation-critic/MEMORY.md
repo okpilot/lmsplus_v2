@@ -72,6 +72,7 @@
 - **Red-team seed `selected_option_id: 'a'` with `is_correct: true`** — intentional; `get_student_mastery_stats` reads `sr.is_correct` directly, never re-derives from selected_option_id. 'a' is cosmetic (#673).
 - **Red-team spec with no `afterEach` is hermetic** when each test seeds NEW unique rows and doesn't mutate shared beforeAll state — confirmed rpc-void-internal-exam-code.spec.ts (#518/#638): DD/DE leave code rows un-voided (RPC rejects before write); DF/DG/CD/positive touch only own rows. Do not flag as hermiticity violation.
 - **try/finally hermiticity hardening for org-transfer tests (#768)** — seed-insert + transfer UPDATE inside `try` + `let ... = null` before `try` is correct when a mid-test throw could strand shared state. Finally must use `console.error`, not `expect()`. Clean on #768.
+- **`blanks.every(b => b.isCorrect)` vacuous-true on `[]` is unreachable in the dialog-fill a11y path.** `dialog-fill-input.tsx` `allBlanksCorrect = graded && blanks.every(...)` would announce sr-only "Correct" for an empty `blanks` array. But `graded = locked && blanks != null`, and the grading path (`check-non-mc-answer-helpers.ts`) derives `blanks` from the template's blank indices — a dialog_fill question requires ≥1 `{{n}}` marker (mig 131 `blank_index ⇔ dialog_fill` trigger), so feedback always has ≥1 entry. Even the degenerate case is sr-only-text-only (no scoring/data impact). Do not flag as a missing empty-guard. Verified on the Phase 3 round-4 commit `56678b99`.
 
 ## Topic pointers
 

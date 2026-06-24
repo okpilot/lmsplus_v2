@@ -20,6 +20,15 @@ function AnswerInput({
   keyboardHighlightedId,
 }: Pick<QuizMainPanelProps, 's' | 'onSelectionChange' | 'keyboardHighlightedId'>) {
   if (!s.question) return null
+
+  if (s.isExam && s.question.question_type !== 'multiple_choice') {
+    return (
+      <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        This question type is not yet supported in exam mode.
+      </div>
+    )
+  }
+
   const feedback = s.currentFeedback
 
   if (s.question.question_type === 'short_answer') {

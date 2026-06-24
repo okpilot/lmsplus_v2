@@ -485,6 +485,53 @@ describe('saveDraft', () => {
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
+
+  it('rejects a dialog_fill feedback entry whose blank index exceeds 9999', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'dialog_fill',
+          isCorrect: false,
+          blanks: [{ index: 10000, isCorrect: false, canonical: 'cleared' }],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
+  it('rejects a draft whose dialog answer repeats a blank index', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          blankAnswers: [
+            { index: 0, text: 'cleared' },
+            { index: 0, text: 'again' },
+          ],
+          responseTimeMs: 2000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a draft whose dialog answer carries more than 50 blanks', async () => {
+    setupAuthenticatedUser()
+    const blankAnswers = Array.from({ length: 51 }, (_, i) => ({ index: i, text: 'x' }))
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { blankAnswers, responseTimeMs: 2000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
 })
 
 // ---- saveDraft — update path (draftId provided) ----------------------------

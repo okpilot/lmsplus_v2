@@ -432,6 +432,29 @@ describe('QuizMainPanel', () => {
       expect(input).toHaveAttribute('data-is-correct', '')
     })
 
+    it('shows an unsupported-type notice for a non-MC question in exam mode', () => {
+      const s = makeState({
+        isExam: true,
+        question: {
+          id: 'q-sa',
+          question_text: 'What does ATC say?',
+          question_image_url: null,
+          question_number: '050-01-01-002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'short_answer',
+          dialog_template: null,
+          blanks_safe: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'This question type is not yet supported in exam mode.',
+      )
+    })
+
     it('locks dialog-fill submission when an answer already exists', () => {
       const s = makeState({
         question: {

@@ -32,6 +32,8 @@ export function DialogFillInput({
   )
 
   const locked = submitted
+  const graded = locked && blanks != null
+  const allBlanksCorrect = graded && blanks.every((b) => b.isCorrect)
 
   function handleSubmit() {
     const payload = collectSubmission()
@@ -55,6 +57,12 @@ export function DialogFillInput({
           />
         ))}
       </div>
+
+      {graded && (
+        <p role="status" aria-live="polite" className="sr-only">
+          {allBlanksCorrect ? 'Correct' : 'Incorrect'}
+        </p>
+      )}
 
       {!locked && (
         <button

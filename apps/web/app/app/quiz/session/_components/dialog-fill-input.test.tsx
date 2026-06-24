@@ -72,4 +72,41 @@ describe('DialogFillInput', () => {
     expect(screen.queryByTestId('blank-canonical-0')).not.toBeInTheDocument()
     expect(screen.getByTestId('blank-canonical-1')).toHaveTextContent('27')
   })
+
+  it('announces an incorrect result to screen readers when any blank is wrong', () => {
+    render(
+      <DialogFillInput
+        template={TEMPLATE}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        blanks={[
+          { index: 0, isCorrect: true, canonical: 'cleared to land' },
+          { index: 1, isCorrect: false, canonical: '27' },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Incorrect')
+  })
+
+  it('announces a correct result to screen readers when every blank is right', () => {
+    render(
+      <DialogFillInput
+        template={TEMPLATE}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        blanks={[
+          { index: 0, isCorrect: true, canonical: 'cleared to land' },
+          { index: 1, isCorrect: true, canonical: '27' },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Correct')
+  })
+
+  it('does not announce a result before grading results arrive', () => {
+    render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} submitted />)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
 })

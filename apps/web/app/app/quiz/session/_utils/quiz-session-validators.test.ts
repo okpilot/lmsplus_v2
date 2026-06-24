@@ -130,7 +130,7 @@ describe('isValidDraftAnswer', () => {
     ).toBe(false)
   })
 
-  it('rejects a hybrid draft with a selected option and a malformed blankAnswers payload', () => {
+  it('rejects a hybrid draft carrying both a selected option and blank answers', () => {
     expect(
       isValidDraftAnswer({
         selectedOptionId: 'opt-a',

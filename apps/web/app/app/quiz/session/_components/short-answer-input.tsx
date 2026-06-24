@@ -49,6 +49,12 @@ export function ShortAnswerInput({
         }`}
       />
 
+      {showResult && (
+        <p role="status" aria-live="polite" className="sr-only">
+          {isCorrect ? 'Correct' : 'Incorrect'}
+        </p>
+      )}
+
       {showResult && !isCorrect && correctAnswer != null && (
         <p className="text-sm text-muted-foreground" data-testid="revealed-answer">
           Correct answer: <span className="font-medium text-foreground">{correctAnswer}</span>

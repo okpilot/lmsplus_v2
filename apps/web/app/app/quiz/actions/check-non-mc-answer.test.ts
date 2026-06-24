@@ -208,11 +208,9 @@ describe('checkNonMcAnswer', () => {
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 
-  it('returns a generic failure when the RPC result fails the type guard', async () => {
+  it('returns a generic failure when the short_answer RPC returns an unexpected shape', async () => {
     setupAuthenticatedUser()
     setupValidSession()
-    // A dialog-shaped result (blanks is an array) does not satisfy the
-    // short_answer guard, which requires blanks === null.
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
