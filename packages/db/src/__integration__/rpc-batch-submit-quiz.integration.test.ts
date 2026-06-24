@@ -480,7 +480,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     // score isolates the partial-credit math: correct_credit = LEAST(2/3,1) =
     // 0.6667, answered = 1 → round(0.6667*100,2) = 66.67. An all-or-nothing
     // grader would yield 0.00; a per-row grader would yield 66.67 only via the
-    // partial-credit roll-up. correct_count = 0 (question not fully correct).
+    // partial-credit roll-up. correct_count = 2 (two of the three blank items correct).
     const sessionId = await startSession([dialogFillId])
     const { data, error } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
@@ -499,7 +499,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     const result = asBatchResult(data)
     expect(Number(result.score_percentage)).toBeCloseTo(66.67, 2)
     expect(result.answered_count).toBe(1)
-    expect(result.correct_count).toBe(0)
+    expect(result.correct_count).toBe(2)
     // results[] carries ONE entry per answer-payload element (per blank for
     // dialog_fill, not per question), each reflecting that blank's correctness.
     // The 3 blank entries here are 2 correct + 1 wrong.
@@ -509,7 +509,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     expect(dfResults.filter((r) => !r.is_correct)).toHaveLength(1)
   })
 
-  it('counts correct_count as fully-correct questions only (3-blank df fully correct → 1)', async () => {
+  it('awards one credit per correct blank when every blank of a dialog question is right', async () => {
     const sessionId = await startSession([dialogFillId])
     const { data, error } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
@@ -521,7 +521,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
     })
     expect(error).toBeNull()
     const result = asBatchResult(data)
-    expect(result.correct_count).toBe(1)
+    expect(result.correct_count).toBe(3)
     expect(Number(result.score_percentage)).toBeCloseTo(100, 2)
     // All 3 per-blank result entries are correct.
     const dfResults = result.results.filter((r) => r.question_id === dialogFillId)
