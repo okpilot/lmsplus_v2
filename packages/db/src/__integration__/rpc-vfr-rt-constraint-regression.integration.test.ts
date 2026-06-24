@@ -464,7 +464,8 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
     // describe — a negative blank_index inflating dialog_fill correct-row counts).
     // It must be dialog_fill (not short_answer) so the blank_index ⇔ dialog_fill
     // write-time trigger (mig 131, #828) ACCEPTS a non-NULL blank_index — leaving
-    // the mig-113 `blank_index >= 0` answer-shape CHECK as the constraint under
+    // the mig-095 `blank_index >= 0` answer-shape CHECK (added by commit 13dce467)
+    // as the constraint under
     // test for the -1 rejection (a short_answer row may carry no blank_index at all
     // under mig 131, so it could never reach that CHECK).
     const { data: bankRow, error: bankLookupErr } = await admin
