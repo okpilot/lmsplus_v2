@@ -84,6 +84,11 @@ export function OrderingInput({
   const allCorrect = graded && order.every((it, i) => it.id === correctOrder[i])
 
   function handleDragEnd(event: DragEndEvent) {
+    // Defense-in-depth: a touch begun before the RPC resolved can still fire
+    // onDragEnd after `submitting` flips true (TouchSensor has a 250ms activation
+    // delay), so ignore drops once locked or mid-check — the displayed order must
+    // not diverge from the sequence the server actually graded.
+    if (locked || submitting) return
     const { active, over } = event
     if (!over || active.id === over.id) return
     setOrder((prev) => {

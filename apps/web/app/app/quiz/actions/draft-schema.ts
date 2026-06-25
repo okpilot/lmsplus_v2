@@ -116,7 +116,8 @@ export const SaveDraftInput = z
             // texts — four-way parity with the rehydrate validator
             // (isValidFeedbackEntry), the DB-load validator (toFeedbackEntry), and
             // the RPC guard (isOrderingRpcResult), which all require non-empty strings.
-            correctOrder: z.array(z.string().min(1)).min(2),
+            // .max(50) mirrors the sibling blanks-feedback cap (item count is DB-bounded).
+            correctOrder: z.array(z.string().min(1)).min(2).max(50),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),
