@@ -64,10 +64,20 @@ function AnswerInput({
 
   if (s.question.question_type === 'ordering') {
     const fb = feedback?.questionType === 'ordering' ? feedback : null
+    // Defensive: an ordering question must carry items. Null/empty can only arise
+    // from a data-import bug (prod data always has ≥2 items, CHECK-enforced); show a
+    // refresh prompt rather than a blank, submittable drag area.
+    if (!s.question.ordering_items?.length) {
+      return (
+        <div role="alert" className="text-sm text-muted-foreground">
+          This question could not be loaded. Please refresh the page.
+        </div>
+      )
+    }
     return (
       <OrderingInput
         key={s.question.id}
-        items={s.question.ordering_items ?? []}
+        items={s.question.ordering_items}
         onSubmit={s.handleOrderingAnswer}
         disabled={s.submitting}
         submitting={s.answering}
