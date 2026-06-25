@@ -44,7 +44,15 @@ import {
 } from './helpers/seed'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Fail fast (matches server-action-unauthenticated.spec.ts): a missing anon key must
+// surface as a deterministic setup error at load — not a misleading RPC/auth failure
+// inside EN1 (where the '' fallback would build a client that then fails opaquely).
+if (!ANON_KEY) {
+  throw new Error(
+    'rpc-report-answer-keys.spec: NEXT_PUBLIC_SUPABASE_ANON_KEY is required (set it in apps/web/.env.local)',
+  )
+}
 const RPC = 'get_report_answer_keys'
 
 // Dedicated throwaway student for EN4 — NOT the shared redteam-victim@. Soft-deleting
