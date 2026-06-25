@@ -16,6 +16,15 @@ export const E2E_REDTEAM_CODE_PREFIX = 'RT'
 export const E2E_XSS_MARKER = '[E2E_XSS]'
 export const E2E_REDTEAM_UNAUTH_COMMENT_MARKER = '[E2E_REDTEAM] unauth-read fixture'
 export const E2E_REDTEAM_COMMENT_IDOR_MARKER = '[E2E_REDTEAM] comment-idor fixture'
+// get_report_answer_keys spec (#989): marks the non-MC fixture questions it inserts
+// (egmont is MC-only) so cleanup/maintenance can target them by question_number/text.
+export const E2E_REDTEAM_EN_MARKER = '[E2E_REDTEAM_EN]'
+// get_report_answer_keys spec (#989) EN4: the dedicated, reused throwaway student
+// whose soft-delete proves the active-user gate. Exported so cleanup/maintenance can
+// target it (kept distinct from the shared redteam-victim@ to bound soft-delete blast radius).
+export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_EMAIL =
+  'redteam-softdel-report-keys-student@lmsplus.local'
+export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-keys-student-2026!'
 // user_consents isolation spec (#384): document_version markers for the rows it seeds.
 export const USER_CONSENTS_SEED_VERSION = 'redteam-x-1.0'
 export const USER_CONSENTS_SELF_VERSION = 'redteam-x-self'

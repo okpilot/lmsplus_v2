@@ -275,6 +275,24 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('check_non_mc_answer rejects unauthenticated callers (Vector EM, #983)', async () => {
+    // SECURITY DEFINER (mig 119); the auth.uid() IS NULL guard raises
+    // 'not_authenticated' (snake_case, NO space — distinct from the report RPCs'
+    // 'Not authenticated') as the very first statement, before the active-caller
+    // gate, the session-ownership SELECT, and any answer-key column read. So a
+    // real-looking session id need not exist for the anon caller to be rejected,
+    // and the short_answer/dialog_fill canonicals are never reachable anon.
+    const { data, error } = await unauthClient.rpc('check_non_mc_answer', {
+      p_question_id: knownQuestionId,
+      p_session_id: knownSessionId,
+      p_response_text: 'cleared to land',
+      p_blank_answers: null,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   test('get_question_authoring_fields rejects unauthenticated callers (Vector DT, #825)', async () => {
     // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not authenticated'
     // (mig 094b — note the SPACE, not the underscore the vfr_rt RPCs use) before
