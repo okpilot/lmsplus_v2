@@ -27,7 +27,15 @@ export function buildOrdering(
   key: AnswerKeyEntry | undefined,
 ): QuizReportQuestion {
   const canonicalBySlot = key?.type === 'ordering' ? key.canonicalBySlot : new Map<number, string>()
-  const rowBySlot = new Map(rows.map((r) => [r.blank_index ?? 0, r]))
+  // Ordering rows always carry a non-null blank_index (per-slot storage, enforced
+  // by the mig-135 trigger). Filter any null-index row out rather than coercing it
+  // to slot 0 — a stray row must not overwrite the real first slot; the canonical
+  // path below still renders the missing slot as unanswered.
+  const rowBySlot = new Map(
+    rows
+      .filter((r): r is AnswerRow & { blank_index: number } => r.blank_index != null)
+      .map((r) => [r.blank_index, r]),
+  )
   const slotIndices = resolveSlotIndices(canonicalBySlot, rowBySlot)
   const slots: OrderingSlotResult[] = slotIndices.map((position) => {
     const row = rowBySlot.get(position)

@@ -50,7 +50,7 @@ describe('OrderingInput', () => {
         onSubmit={vi.fn()}
         disabled={false}
         submitted
-        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+        correctOrder={['mayday', 'nature', 'callsign']}
       />,
     )
     expect(screen.getByTestId('ordering-item-mayday')).toHaveAttribute('data-result', 'correct')
@@ -65,7 +65,7 @@ describe('OrderingInput', () => {
         onSubmit={vi.fn()}
         disabled={false}
         submitted
-        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+        correctOrder={['mayday', 'nature', 'callsign']}
       />,
     )
     // slot 1 (callsign) is wrong — its canonical is revealed
@@ -81,7 +81,7 @@ describe('OrderingInput', () => {
         onSubmit={vi.fn()}
         disabled={false}
         submitted
-        correctOrder={['MAYDAY MAYDAY MAYDAY', 'Speedbird 123', 'engine failure']}
+        correctOrder={['mayday', 'callsign', 'nature']}
       />,
     )
     expect(screen.getByTestId('ordering-result')).toHaveTextContent('Correct')
@@ -94,7 +94,7 @@ describe('OrderingInput', () => {
         onSubmit={vi.fn()}
         disabled={false}
         submitted
-        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+        correctOrder={['mayday', 'nature', 'callsign']}
       />,
     )
     expect(screen.getByTestId('ordering-result')).toHaveTextContent('Incorrect')

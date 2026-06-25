@@ -64,7 +64,6 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     { id: 'item-z', text: 'forced landing' },
   ]
   const CANONICAL_IDS = ITEMS.map((i) => i.id)
-  const CANONICAL_TEXTS = ITEMS.map((i) => i.text)
   const SA_CANONICAL = 'wilco'
 
   beforeAll(async () => {
@@ -175,11 +174,11 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(result.is_correct).toBe(true)
     expect(result.correct_answer).toBeNull()
     expect(result.blanks).toBeNull()
-    expect(result.correct_order).toEqual(CANONICAL_TEXTS)
+    expect(result.correct_order).toEqual(CANONICAL_IDS)
     expect(result.explanation_text).toBe('Ordering explanation')
   })
 
-  it('grades a permuted order as is_correct:false but still reveals the canonical text order', async () => {
+  it('grades a permuted order as is_correct:false but still reveals the canonical id order', async () => {
     // Swap the first two ids → not the canonical sequence.
     const permuted = [CANONICAL_IDS[1], CANONICAL_IDS[0], CANONICAL_IDS[2], CANONICAL_IDS[3]]
     const sessionId = await startSession(studentClient, [orderingId])
@@ -191,7 +190,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error).toBeNull()
     const result = asResult(data)
     expect(result.is_correct).toBe(false)
-    expect(result.correct_order).toEqual(CANONICAL_TEXTS)
+    expect(result.correct_order).toEqual(CANONICAL_IDS)
   })
 
   it('grades a wrong-length order as is_correct:false (full-coverage rule)', async () => {
@@ -207,7 +206,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error).toBeNull()
     const result = asResult(data)
     expect(result.is_correct).toBe(false)
-    expect(result.correct_order).toEqual(CANONICAL_TEXTS)
+    expect(result.correct_order).toEqual(CANONICAL_IDS)
   })
 
   // ── guard rejections ────────────────────────────────────────────────────────

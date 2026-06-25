@@ -71,7 +71,7 @@ const ORDERING_RPC_RESULT = {
   is_correct: false,
   correct_answer: null,
   blanks: null,
-  correct_order: ['MAYDAY', 'aircraft callsign', 'nature of distress'],
+  correct_order: ['itm-mayday', 'itm-callsign', 'itm-nature'],
   explanation_text: 'Distress before urgency.',
   explanation_image_url: null,
 }
@@ -240,7 +240,7 @@ describe('checkNonMcAnswer', () => {
       success: true,
       questionType: 'ordering',
       isCorrect: false,
-      correctOrder: ['MAYDAY', 'aircraft callsign', 'nature of distress'],
+      correctOrder: ['itm-mayday', 'itm-callsign', 'itm-nature'],
       explanationText: 'Distress before urgency.',
       explanationImageUrl: null,
     })

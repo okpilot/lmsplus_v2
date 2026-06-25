@@ -85,7 +85,10 @@ export function isValidFeedbackEntry(v: unknown): boolean {
     case 'ordering':
       return (
         Array.isArray(r.correctOrder) &&
-        r.correctOrder.length > 0 &&
+        // An ordering question always has ≥2 items, so the canonical order is ≥2
+        // — four-way parity with the save schema (draft-schema .min(2)), the RPC
+        // guard (isOrderingRpcResult) and the DB-load path (toFeedbackEntry).
+        r.correctOrder.length >= 2 &&
         r.correctOrder.every(isNonEmptyString)
       )
     default:

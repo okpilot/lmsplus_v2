@@ -48,7 +48,10 @@ function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
     // short_answer: single entry with responseText
     return [{ questionId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
   }
-  if (a.order && a.order.length > 0) return fanOutOrderingAnswer(questionId, a)
+  // ordering: any array (including empty) is an ordering answer — route it here so
+  // an empty order produces zero entries rather than falling through to the MC
+  // default and emitting a bogus `{ selectedOptionId: undefined }`.
+  if (Array.isArray(a.order)) return fanOutOrderingAnswer(questionId, a)
   // MC (default): single entry with selectedOptionId
   return [{ questionId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs }]
 }

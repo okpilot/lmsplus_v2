@@ -275,8 +275,10 @@ BEGIN
       END LOOP;
     END IF;
 
-    -- Revealed canonical order = the item TEXTs in canonical array order.
-    SELECT jsonb_agg(ord.elem->>'text' ORDER BY ord.idx)
+    -- Revealed canonical order = the item IDs in canonical array order. Ids are
+    -- unambiguous; two items may share display text, so the client compares
+    -- submitted ids against these per slot and maps each id back to its text.
+    SELECT jsonb_agg(ord.elem->>'id' ORDER BY ord.idx)
     INTO v_correct_order
     FROM jsonb_array_elements(v_ordering_items) WITH ORDINALITY AS ord(elem, idx);
 

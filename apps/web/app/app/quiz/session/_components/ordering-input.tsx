@@ -32,7 +32,9 @@ type OrderingInputProps = {
   submitting?: boolean
   /** Whether an answer has been submitted (locks dragging + drives reveal). */
   submitted?: boolean
-  /** Canonical order (item texts) once submitted, used to mark each slot. */
+  /** Canonical order (item ids) once submitted, used to mark each slot. Ids are
+   *  compared (unambiguous); the correct item's display text is resolved locally
+   *  from `items`. */
   correctOrder?: string[]
 }
 
@@ -54,7 +56,9 @@ export function OrderingInput({
 
   const locked = submitted
   const graded = locked && correctOrder != null
-  const allCorrect = graded && order.every((it, i) => it.text === correctOrder[i])
+  // Compare by id (the grader reveals canonical ids); map ids back to display text.
+  const idToText = new Map(items.map((it) => [it.id, it.text]))
+  const allCorrect = graded && order.every((it, i) => it.id === correctOrder[i])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -73,7 +77,7 @@ export function OrderingInput({
 
   function slotResult(index: number): 'correct' | 'incorrect' | undefined {
     if (!graded) return undefined
-    return order[index]?.text === correctOrder[index] ? 'correct' : 'incorrect'
+    return order[index]?.id === correctOrder[index] ? 'correct' : 'incorrect'
   }
 
   return (
@@ -88,7 +92,7 @@ export function OrderingInput({
                 text={it.text}
                 disabled={locked || disabled}
                 result={slotResult(i)}
-                canonical={graded ? correctOrder[i] : undefined}
+                canonical={graded ? idToText.get(correctOrder[i] ?? '') : undefined}
               />
             ))}
           </ol>

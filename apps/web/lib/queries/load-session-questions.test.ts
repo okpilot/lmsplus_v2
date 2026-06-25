@@ -150,7 +150,7 @@ describe('loadSessionQuestions', () => {
     expect(q.options).toEqual([])
   })
 
-  it('maps the shuffled ordering items into ordering_items for an ordering row', async () => {
+  it('provides the orderable items for an ordering question', async () => {
     mockRpc.mockResolvedValue({
       data: [
         {
@@ -188,7 +188,7 @@ describe('loadSessionQuestions', () => {
     expect(q.blanks_safe).toBeNull()
   })
 
-  it('yields null ordering_items when the RPC omits the shuffled items', async () => {
+  it('provides no orderable items when the RPC omits them', async () => {
     mockRpc.mockResolvedValue({
       data: [
         {

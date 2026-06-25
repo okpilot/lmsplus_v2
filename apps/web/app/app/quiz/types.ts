@@ -118,6 +118,7 @@ export type AnswerFeedback =
   | {
       questionType: 'ordering'
       isCorrect: boolean
+      /** Canonical order as item ids (unambiguous; the client maps ids → text). */
       correctOrder: string[]
       explanationText: string | null
       explanationImageUrl: string | null
@@ -144,6 +145,7 @@ export type CheckNonMcAnswerResult =
       success: true
       questionType: 'ordering'
       isCorrect: boolean
+      /** Canonical order as item ids (unambiguous; the client maps ids → text). */
       correctOrder: string[]
       explanationText: string | null
       explanationImageUrl: string | null

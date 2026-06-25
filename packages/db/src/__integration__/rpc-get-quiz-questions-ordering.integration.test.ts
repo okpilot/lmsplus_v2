@@ -177,6 +177,22 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect((items as OrderingItem[]).map((i) => i.text).sort()).toEqual(
       ORDERING_ITEMS.map((i) => i.text).sort(),
     )
+    // Security: the delivered order must be SHUFFLED, not canonical — the canonical
+    // sequence IS the answer key. Set equality alone would pass even if the RPC
+    // leaked ordering_items in canonical order. Resample until at least one delivery
+    // differs from canonical (4 items → P(canonical)=1/24; 8 samples → ~5.6e-12).
+    const canonicalIds = ORDERING_ITEMS.map((i) => i.id).join('|')
+    let sawNonCanonical = (items as OrderingItem[]).map((i) => i.id).join('|') !== canonicalIds
+    for (let attempt = 0; attempt < 7 && !sawNonCanonical; attempt++) {
+      const retry = await fetchRow([orderingId], orderingId)
+      if (!Array.isArray(retry.ordering_items_shuffled)) {
+        throw new Error('ordering_items_shuffled is not an array')
+      }
+      sawNonCanonical =
+        (retry.ordering_items_shuffled as OrderingItem[]).map((i) => i.id).join('|') !==
+        canonicalIds
+    }
+    expect(sawNonCanonical).toBe(true)
     // No raw answer-key column surfaces on the delivered row.
     expect('ordering_items' in row).toBe(false)
   })

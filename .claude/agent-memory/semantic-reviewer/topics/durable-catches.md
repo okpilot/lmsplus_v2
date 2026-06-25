@@ -46,6 +46,7 @@
 - **types.ts nullability:** manually authored RPC `Returns` entries must mirror Postgres nullability — `NUMERIC/TEXT/TIMESTAMPTZ` without NOT NULL → `T | null`.
 
 ### React / Next.js correctness
+- **Ordering display: compare by id, not text (SUGGESTION-level, count=1).** `OrderingInput` (Phase 5.3) computes per-slot visual correctness via `it.text === correctOrder[i]` — text-based. The authoritative grader (`_grade_record_ordering`, `check_non_mc_answer`) compares by item id. If two items in one question share identical text, the display could disagree with the server's stored `is_correct`. Current seed data has all-distinct texts per question, so no runtime divergence today. The display is cosmetic (server's stored `is_correct` drives the report). Raise to ISSUE if question authoring allows duplicate texts within one question.
 - **Re-throw redirect errors:** any catch wrapping `redirect()`/`notFound()` must `isRedirectError(error)` re-throw (Server Components AND client-component Server Action callers — project has `rethrow-redirect.ts`). Bare `catch{}` turns a redirect into a 500/stale render.
 - **Stale-closure on locks/Maps:** deleting from a `lockedRef` in a catch before `setAnswers` propagates opens a double-submit window — release via `useEffect` keyed on the `answers` prop, not synchronously.
 - **`new Map()` / `new Set()` in a render return** = new ref each render → downstream dep-array thrash; use a stable `useRef`.

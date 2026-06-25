@@ -800,51 +800,58 @@ $$;
 
 #### `get_quiz_questions` — strips correct answers
 
-Widened in **mig 118** (supabase `20260621000100`) to support non-MC question types (`short_answer`, `dialog_fill`) for the VFR RT training practice quiz. The previous body used `CROSS JOIN LATERAL jsonb_array_elements(q.options)`, which silently dropped every row whose `options` is `'[]'` (i.e. all non-MC rows). The correlated-subquery `CASE` form from mig 105 replaces it.
+Widened in **mig 118** (supabase `20260621000100`) to support non-MC question types (`short_answer`, `dialog_fill`) for the VFR RT training practice quiz. The previous body used `CROSS JOIN LATERAL jsonb_array_elements(q.options)`, which silently dropped every row whose `options` is `'[]'` (i.e. all non-MC rows). The correlated-subquery `CASE` form from mig 105 replaces it. Widened again in **mig 136** (VFR RT Phase 5) to add a 16th column `ordering_items_shuffled` for the `ordering` question type.
 
-**Signature change:** `DROP FUNCTION IF EXISTS` required before `CREATE FUNCTION` (RETURNS TABLE widened — same precedent as mig 059 and mig 105).
+**Signature change:** `DROP FUNCTION IF EXISTS` required before `CREATE FUNCTION` (RETURNS TABLE widened — same precedent as mig 059, mig 105, and mig 118).
 
-**Active-user gate added (mig 118):** Soft-deleted callers are rejected (`user_not_found_or_inactive`) before the question SELECT — closes the rule-12 gap identified in #883. Mirrors `get_vfr_rt_exam_questions` (mig 105) and `check_quiz_answer` (mig 117).
+**Active-user gate added (mig 118):** Soft-deleted callers are rejected (`user_not_found_or_inactive`) before the question SELECT — closes the rule-12 gap identified in #883. Mirrors `get_vfr_rt_exam_questions` (mig 105) and `check_quiz_answer` (mig 117). Also note: mig 136 uses the `SELECT … INTO v_org_id FROM users u WHERE u.id = auth.uid()` tenant-scope form (org-scoped read with alias) rather than the `PERFORM 1` active-user-only form; both forms satisfy the same guard.
 
 **Answer-key stripping guarantees (security.md rule 1):**
 - `multiple_choice` — options projected to `{id, text}` only (correct flag dropped), shuffled `ORDER BY random()` inside a correlated subquery.
 - `short_answer` — `options` column returns NULL; `canonical_answer` and `accepted_synonyms` are never selected.
 - `dialog_fill` — `dialog_template` has every `{{n|canonical; syn...}}` token rewritten to `{{n}}` via `regexp_replace`; `blanks_safe` is `[{index}]` only (`blanks_config` canonicals/synonyms stripped). The strip regex was **delimiter-hardened in mig 126/127 (#951)** — the value class `(?:[^}]|\}(?!\}))*` anchors on `}}` so a stray `}` in a value cannot terminate the strip early; paired with the mig-125 `questions_dialog_fill_template_wellformed` CHECK that forbids such values at INSERT.
+- `ordering` — `ordering_items_shuffled` delivers `[{id, text}]` in randomised order (`ORDER BY random()`). The canonical sequence IS the stored array order of `questions.ordering_items`; shuffling destroys it. `ordering_items` itself is REVOKE-gated from `authenticated` (mig 094 omission), so SECURITY DEFINER is the only path. Item `id` values are opaque and non-sequential (seed invariant), so the id ordering cannot reveal the canonical sequence. NULL for non-ordering types.
 
 ```sql
--- Migration 118 — DROP + CREATE (RETURNS TABLE widened)
+-- Migration 136 — DROP + CREATE (RETURNS TABLE widened, 16th column added)
 DROP FUNCTION IF EXISTS get_quiz_questions(uuid[]);
 
 CREATE FUNCTION get_quiz_questions(p_question_ids uuid[])
 RETURNS TABLE (
-  id                    uuid,
-  question_text         text,
-  question_image_url    text,
-  options               jsonb,    -- MC only: [{id, text}] shuffled; NULL for non-MC
-  subject_code          text,
-  topic_name            text,
-  subtopic_name         text,
-  lo_reference          text,
-  difficulty            text,
-  explanation_text      text,
-  explanation_image_url text,
-  question_number       text,
-  question_type         text,     -- 'multiple_choice' | 'short_answer' | 'dialog_fill'
-  dialog_template       text,     -- dialog_fill only: {{n}} markers (canonicals stripped); NULL otherwise
-  blanks_safe           jsonb     -- dialog_fill only: [{index}] (canonicals stripped); NULL otherwise
+  id                      uuid,
+  question_text           text,
+  question_image_url      text,
+  options                 jsonb,    -- MC only: [{id, text}] shuffled; NULL for non-MC
+  subject_code            text,
+  topic_name              text,
+  subtopic_name           text,
+  lo_reference            text,
+  difficulty              text,
+  explanation_text        text,
+  explanation_image_url   text,
+  question_number         text,
+  question_type           text,     -- 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  dialog_template         text,     -- dialog_fill only: {{n}} markers (canonicals stripped); NULL otherwise
+  blanks_safe             jsonb,    -- dialog_fill only: [{index}] (canonicals stripped); NULL otherwise
+  ordering_items_shuffled jsonb     -- ordering only: [{id, text}] shuffled (canonical order hidden); NULL otherwise
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_org_id uuid;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Active-user gate (security.md rule 12 / #883): soft-deleted callers rejected.
-  PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL;
-  IF NOT FOUND THEN
+  -- Active-user + tenant-scope gate (security.md rules 11/12 / #883, #831):
+  -- resolve the caller's org in one deleted_at-filtered read — rejects a
+  -- soft-deleted caller AND scopes the questions read below.
+  SELECT u.organization_id INTO v_org_id
+  FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL;
+  IF v_org_id IS NULL THEN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
@@ -881,12 +888,22 @@ BEGIN
     CASE WHEN q.question_type = 'dialog_fill' THEN
       (SELECT jsonb_agg(jsonb_build_object('index', (b->>'index')::int) ORDER BY (b->>'index')::int)
        FROM jsonb_array_elements(q.blanks_config) AS b)
-    ELSE NULL END AS blanks_safe
+    ELSE NULL END AS blanks_safe,
+    -- ordering only: {id, text} items SHUFFLED (canonical order is the stored
+    -- array order — shuffling hides it). No answer key projected. NULL for non-ordering.
+    CASE WHEN q.question_type = 'ordering' THEN
+      (SELECT jsonb_agg(
+         jsonb_build_object('id', e->>'id', 'text', e->>'text')
+         ORDER BY random()
+       )
+       FROM jsonb_array_elements(q.ordering_items) AS e)
+    ELSE NULL END AS ordering_items_shuffled
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
   JOIN easa_topics    t  ON t.id = q.topic_id
   LEFT JOIN easa_subtopics st ON st.id = q.subtopic_id
   WHERE q.id = ANY(p_question_ids)
+    AND q.organization_id = v_org_id
     AND q.deleted_at IS NULL
     AND q.status = 'active';
 END;
@@ -895,7 +912,7 @@ $$;
 GRANT EXECUTE ON FUNCTION get_quiz_questions(uuid[]) TO authenticated;
 ```
 
-**Randomization (migration 059):** MC options are returned in random order via `ORDER BY random()`. Non-MC types have no options array, so the CASE returns NULL.
+**Randomization:** MC options and ordering items are returned in random order via `ORDER BY random()`. Non-MC/non-ordering types have no options array; non-ordering types have no ordering items — both CASE branches return NULL.
 
 #### `submit_quiz_answer` — atomic answer submission (deprecated: use `batch_submit_quiz`)
 
@@ -1703,14 +1720,15 @@ Same return shape as `get_report_correct_options` but scoped by organization ins
 
 #### `get_report_answer_keys` — non-MC answer keys for reports
 
-Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4).
+Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4); extended in **mig 140** (VFR RT Phase 5) with an `ordering` branch.
 
 **Returns:** `(question_id uuid, question_type text, blank_index int, answer_key text)` —
 - `short_answer`: one row per question, `blank_index = NULL`, `answer_key = canonical_answer`.
 - `dialog_fill`: one row **per blank** (`blank_index` from `blanks_config` `'index'`, `answer_key` from `'canonical'`).
+- `ordering`: one row **per slot** — `blank_index` = 0-based slot index (from `WITH ORDINALITY`, `idx - 1`), `answer_key` = the canonical item TEXT at that slot (the stored array order of `questions.ordering_items`). `ordering_items` is REVOKE-gated from `authenticated`; SECURITY DEFINER bypasses the gate, scoped to the owning student's own completed session.
 - `multiple_choice`: no rows.
 
-**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
+**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
 
 **Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
 
@@ -1841,9 +1859,11 @@ END;
 $$;
 ```
 
-#### `check_non_mc_answer` — immediate-feedback grader for short_answer and dialog_fill (mig 119)
+#### `check_non_mc_answer` — immediate-feedback grader for short_answer, dialog_fill, and ordering (migs 119/137)
 
-Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Companion to `check_quiz_answer` (mig 117): that RPC handles `multiple_choice`; this one handles `short_answer` and `dialog_fill`. Both are practice-mode-only immediate-feedback graders.
+Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mig 137** (VFR RT Phase 5) to add `ordering` grading and a 5th parameter `p_order`. Companion to `check_quiz_answer` (mig 117): that RPC handles `multiple_choice`; this one handles `short_answer`, `dialog_fill`, and `ordering`. All are practice-mode-only immediate-feedback graders.
+
+**Signature change (mig 137):** `DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb)` then `CREATE FUNCTION` with the 5-arg signature (CREATE OR REPLACE cannot change the argument list; the old 4-arg overload is removed to avoid ambiguous-call errors).
 
 **Guard set (mirrors `check_quiz_answer` exactly — security.md rule 11c sibling-guard consistency):**
 1. Auth check — `auth.uid()` NULL raises `not_authenticated`.
@@ -1861,33 +1881,39 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Companion to `ch
 ```json
 {
   "is_correct": true,
-  "correct_answer": "Wilco",          // short_answer: canonical; null for dialog_fill
-  "blanks": [                          // dialog_fill: per-blank results; null for short_answer
+  "correct_answer": "Wilco",          // short_answer: canonical text; null for dialog_fill and ordering
+  "blanks": [                          // dialog_fill: per-blank results; null for short_answer and ordering
     { "index": 0, "is_correct": true, "canonical": "Wilco" },
     { "index": 1, "is_correct": false, "canonical": "Negative" }
   ],
+  "correct_order": ["id-a", "id-b"],  // ordering: canonical item IDs in array order; null for short_answer and dialog_fill
   "explanation_text": "...",
   "explanation_image_url": null
 }
 ```
 
 **Grading semantics:**
-- `short_answer` — `p_response_text` required, `p_blank_answers` must be NULL. Uses `normalize_answer()` (mig 101) for case/whitespace/punctuation-insensitive comparison against `canonical_answer` and `accepted_synonyms`.
-- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100).
+- `short_answer` — `p_response_text` required, `p_blank_answers` and `p_order` must be NULL. Uses `normalize_answer()` (mig 101) for case/whitespace/punctuation-insensitive comparison against `canonical_answer` and `accepted_synonyms`.
+- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text` and `p_order` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100).
+- `ordering` — `p_order` (jsonb array of item IDs in the student's submitted sequence) required, `p_response_text` and `p_blank_answers` must be NULL. Correct iff the submitted ID sequence equals the canonical stored array order of `ordering_items`, element-for-element (binary — partial credit is a batch-submit/report concern, not immediate feedback's signal). The revealed `correct_order` is an array of **canonical item IDs** (not texts) because two items may share display text; the client maps each id back to its text for display.
 
 **Parameters:**
 - `p_question_id` — UUID of the question being answered
 - `p_session_id` — UUID of the active quiz session
-- `p_response_text` — student's free-text answer (`short_answer` only; NULL for `dialog_fill`)
-- `p_blank_answers` — array of `{blank_index, response_text}` objects (`dialog_fill` only; NULL for `short_answer`)
+- `p_response_text` — student's free-text answer (`short_answer` only; DEFAULT NULL)
+- `p_blank_answers` — array of `{blank_index, response_text}` objects (`dialog_fill` only; DEFAULT NULL)
+- `p_order` — array of item IDs in student's submitted sequence (`ordering` only; DEFAULT NULL)
 
 **Signature:**
 ```sql
-CREATE OR REPLACE FUNCTION check_non_mc_answer(
-  p_question_id  uuid,
-  p_session_id   uuid,
-  p_response_text text DEFAULT NULL,
-  p_blank_answers jsonb DEFAULT NULL
+DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb);
+
+CREATE FUNCTION check_non_mc_answer(
+  p_question_id   uuid,
+  p_session_id    uuid,
+  p_response_text text  DEFAULT NULL,
+  p_blank_answers jsonb DEFAULT NULL,
+  p_order         jsonb DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -1895,7 +1921,7 @@ SECURITY DEFINER
 SET search_path = public
 ```
 
-`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb) TO authenticated;`
+`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb) TO authenticated;`
 
 ---
 

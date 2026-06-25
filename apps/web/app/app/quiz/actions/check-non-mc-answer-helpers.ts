@@ -172,9 +172,9 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     v.blanks === null &&
     Array.isArray(v.correct_order) &&
     // An ordering question always has ≥2 items (input is `order.min(2)` and the
-    // CHECK enforces `>= 2` items), so an empty correct_order is a malformed RPC
-    // result — reject it rather than returning success with no revealed order.
-    v.correct_order.length > 0 &&
+    // CHECK enforces `>= 2` items), so a correct_order shorter than 2 is a
+    // malformed RPC result — reject it rather than returning success.
+    v.correct_order.length >= 2 &&
     // Non-empty strings — four-way parity with isValidFeedbackEntry (rehydrate)
     // and toFeedbackEntry (DB-load), which both require s.length > 0.
     v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
