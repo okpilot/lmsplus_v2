@@ -82,7 +82,7 @@ lmsplusv2/
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories). A second **app-layer DB integration tier** (`apps/web/vitest.integration.config.ts`, `*.integration.test.ts`) runs the real `apps/web` query code against a real local Postgres under RLS — closing the mocked-client schema blind spot (#925).
   - **E2E**: Playwright (17 specs covering login, quiz flow, admin tools, internal exams, settings, consent).
-  - **Red-team**: 47 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling (error-path information disclosure).
+  - **Red-team**: 48 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling (error-path information disclosure).
 - **Type checking**: `tsc --noEmit` per package via `pnpm check-types`. Strict mode with `noUncheckedIndexedAccess`.
 
 ### Version Control & Collaboration
@@ -143,7 +143,7 @@ lmsplusv2/
 - **Audit trail**: Append-only `audit_events` table for CAA compliance. `user_consents` append-only for GDPR proof.
 - **GDPR**: Consent audit trail with versioned re-consent. Data export (self-service + admin). Erasure declined under EASA Part ORA (Article 17(3)(b) exemption).
 - **Threat model**: exam answer exposure, cross-tenant data access, PII leaks, audit record tampering, service role key exposure, session replay.
-- **Red-team testing**: 47 adversarial Playwright specs covering RLS bypass, RPC boundary breach, session forgery, race conditions, audit tampering, draft injection, SQL fuzzing of RPC text params, XSS in cross-user rendering, response-header validation, audit-event completeness, error-path information disclosure (OWASP A10).
+- **Red-team testing**: 48 adversarial Playwright specs covering RLS bypass, RPC boundary breach, session forgery, race conditions, audit tampering, draft injection, SQL fuzzing of RPC text params, XSS in cross-user rendering, response-header validation, audit-event completeness, error-path information disclosure (OWASP A10).
 
 ### Scalability & Reliability
 
@@ -180,7 +180,7 @@ lmsplusv2/
 
 12. **GDPR consent gate with version-based re-consent** (Decision 32): Append-only `user_consents` table. Cookie-based middleware check (no DB hit per request). Version bump in `lib/consent/versions.ts` triggers re-consent.
 
-13. **Red-team adversarial security testing** (Decision 27): 47 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling.
+13. **Red-team adversarial security testing** (Decision 27): 48 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling.
 
 14. **Server-side pagination with server-side sort/filter** (Decision 34): All paginated lists use Supabase `.range()` with `{ count: 'exact' }`, URL-driven `?page=N&sort=field&dir=asc|desc`, and the shared `PaginationBar` component. Sorting and filtering MUST be server-side when combined with pagination — client-side sort on a paginated subset returns incorrect results. Page sizes: 10 for student-facing pages, 25 for admin pages. Out-of-range pages redirect to the last valid page. First established in admin questions (PR #463), now standardized app-wide.
 

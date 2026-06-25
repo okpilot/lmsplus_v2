@@ -349,7 +349,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     // with 'user not found or inactive' — proving a deactivated account with a still
     // valid JWT cannot keep reading answer keys. Patterns EI/EJ
     // (rpc-admin-authoring-report-soft-deleted.spec.ts) for the student-facing path.
-    let softDelStudentId: string
+    let softDelStudentId = ''
     let softDelStudentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
 
     test.beforeAll(async () => {
@@ -475,6 +475,12 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
         if (restoreErr) restoreError = restoreErr.message
         else if ((restored?.length ?? 0) === 0) restoreError = 'restore matched no rows'
       }
+
+      // Reachability guard: result is set only if the soft-delete + post-delete RPC
+      // call both ran. The try has no catch, so an in-try assertion failure already
+      // fails the test before reaching here — but this makes "the security probe
+      // actually ran" explicit, so the proof below can never pass vacuously.
+      expect(result).not.toBeNull()
 
       // Security proof first: the active-user gate rejects and no key is leaked.
       expect(result?.error).not.toBeNull()
