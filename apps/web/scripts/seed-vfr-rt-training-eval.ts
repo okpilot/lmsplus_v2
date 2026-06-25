@@ -9,10 +9,12 @@
  * - 10 ACTIVE multiple_choice questions under topic P3_MC      (Part 3)
  * - 5  ACTIVE short_answer  questions under topic P1_ACRONYMS  (Part 1)
  * - 3  ACTIVE dialog_fill   questions under topic P2_DIALOG    (Part 2)
+ * - 2  ACTIVE ordering      questions under topic P3_MC        (Part 3, drag-to-order)
  *
  * NO exam_config row — training-only (quick_quiz study mode).
- * Phase 3 wires the non-MC types into the reused /app/quiz Study runner; pick a
- * Part on /app/vfr-rt to drill that type (P1 → short_answer, P2 → dialog_fill).
+ * Phases 3/5 wire the non-MC types into the reused /app/quiz Study runner; pick a
+ * Part on /app/vfr-rt to drill that type (P1 → short_answer, P2 → dialog_fill,
+ * P3 → multiple_choice + ordering).
  *
  * The RT subject (code 'RT') and its three topics (P1_ACRONYMS / P2_DIALOG / P3_MC)
  * are seeded by migrations 097/098, so this script only looks them up.
@@ -323,6 +325,42 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
   return data.id
 }
 
+type Ordering = {
+  num: string
+  text: string
+  // { id, text } in CANONICAL order — the array order IS the answer key.
+  // IDs are OPAQUE and non-sequential (not 1..N, and an alphabetical id sort does
+  // NOT match the canonical order), so neither the id nor a naive sort leaks the
+  // correct sequence; get_quiz_questions (mig 136) delivers the items shuffled.
+  items: { id: string; text: string }[]
+}
+
+// Part 3 — ordering. Drag the elements into the correct radiotelephony sequence.
+const ORDERING: Ordering[] = [
+  {
+    num: 'VRT-P3-ORD-MAYDAY',
+    text: 'Put the parts of a MAYDAY distress call in the correct spoken order.',
+    items: [
+      { id: 'distress', text: 'MAYDAY MAYDAY MAYDAY' },
+      { id: 'station', text: 'name of the station addressed' },
+      { id: 'callsign', text: 'aircraft callsign' },
+      { id: 'nature', text: 'nature of the emergency' },
+      { id: 'intentions', text: 'intentions of the pilot in command' },
+    ],
+  },
+  {
+    num: 'VRT-P3-ORD-POSREP',
+    text: 'Put the elements of a VFR position report in the correct order.',
+    items: [
+      { id: 'ident', text: 'aircraft callsign' },
+      { id: 'where', text: 'present position' },
+      { id: 'when', text: 'time over the position' },
+      { id: 'altitude', text: 'flight level or altitude' },
+      { id: 'next', text: 'next reporting point and estimate' },
+    ],
+  },
+]
+
 type QuestionRow = Record<string, unknown> & { question_number: string }
 
 async function insertQuestionIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
@@ -431,8 +469,28 @@ async function seed(): Promise<void> {
     if (added) inserted++
   }
 
-  const total = MULTIPLE_CHOICE.length + SHORT_ANSWER.length + DIALOG_FILL.length
-  console.log('VFR RT Training eval seed complete (MC + short_answer + dialog_fill).')
+  // Part 3 — ordering (canonical sequence in ordering_items; delivered shuffled by
+  // get_quiz_questions; graded per-slot with partial credit by batch_submit_quiz)
+  for (const q of ORDERING) {
+    const added = await insertQuestionIfMissing(bankId, {
+      ...base,
+      question_number: q.num,
+      topic_id: p3TopicId,
+      question_type: 'ordering',
+      question_text: q.text,
+      options: [],
+      canonical_answer: null,
+      accepted_synonyms: [],
+      dialog_template: null,
+      blanks_config: [],
+      ordering_items: q.items,
+      correct_option_id: null,
+    })
+    if (added) inserted++
+  }
+
+  const total = MULTIPLE_CHOICE.length + SHORT_ANSWER.length + DIALOG_FILL.length + ORDERING.length
+  console.log('VFR RT Training eval seed complete (MC + short_answer + dialog_fill + ordering).')
   console.log(`  Org:              Egmont Aviation (${org.id})`)
   console.log(`  Admin:            ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`)
   console.log(`  Student:          ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
@@ -441,10 +499,12 @@ async function seed(): Promise<void> {
     `  Topics:           P1_ACRONYMS=${p1TopicId} P2_DIALOG=${p2TopicId} P3_MC=${p3TopicId}`,
   )
   console.log(
-    `  Questions added:  ${inserted} (of ${total}: ${MULTIPLE_CHOICE.length} MC + ${SHORT_ANSWER.length} short_answer + ${DIALOG_FILL.length} dialog_fill)`,
+    `  Questions added:  ${inserted} (of ${total}: ${MULTIPLE_CHOICE.length} MC + ${SHORT_ANSWER.length} short_answer + ${DIALOG_FILL.length} dialog_fill + ${ORDERING.length} ordering)`,
   )
   console.log('  No exam_config — training uses /app/vfr-rt (quick_quiz study mode)')
-  console.log('  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice')
+  console.log(
+    '  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice + ordering (drag)',
+  )
   console.log('  Start at:         http://localhost:3000/app/vfr-rt')
 }
 
