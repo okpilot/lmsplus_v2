@@ -7,9 +7,8 @@ import { ShortAnswerReport } from './short-answer-report'
 // Renders the per-type answer body for one report question, narrowing the
 // discriminated union to the matching sub-renderer (MC / short_answer /
 // ordering / dialog_fill). Each of the four variants has its own explicit
-// guard; the trailing `return null` is an unreachable safety net so a future
-// variant renders nothing rather than being silently mis-rendered as another
-// type.
+// guard; the trailing `never` exhaustiveness check causes a compile-time error
+// if a future QuizReportQuestion variant is added without a matching branch.
 export function ReportAnswerBody({ question }: { question: QuizReportQuestion }) {
   if (question.questionType === 'multiple_choice') {
     return (
@@ -47,5 +46,6 @@ export function ReportAnswerBody({ question }: { question: QuizReportQuestion })
       />
     )
   }
-  return null
+  const _exhaustive: never = question
+  return _exhaustive
 }

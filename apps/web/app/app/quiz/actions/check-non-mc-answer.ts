@@ -5,7 +5,6 @@ import type { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckNonMcAnswerResult } from '../types'
 import {
-  CheckNonMcAnswerSchema,
   type DialogFillRpcResult,
   isDialogFillRpcResult,
   isOrderingRpcResult,
@@ -16,6 +15,7 @@ import {
   toRpcBlankAnswers,
   verifySessionMembership,
 } from './check-non-mc-answer-helpers'
+import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()

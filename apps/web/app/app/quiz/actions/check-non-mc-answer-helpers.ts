@@ -1,62 +1,9 @@
 // Runtime type guards + input mapper for the check_non_mc_answer Server Action.
-// Hoisted out of check-non-mc-answer.ts to keep the action under the 100-line
-// server-action cap (code-style.md §1).
+// Zod input schemas live in check-non-mc-answer-schema.ts (hoisted to keep both
+// files under the 100/200-line caps — code-style.md §1).
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
-
-const MAX_DIALOG_BLANKS = 50
-
-// `.strict()` rejects a mixed payload ({responseText, blankAnswers}) instead of
-// letting z.union strip the extra key and grade it as short_answer.
-const ShortAnswerInput = z
-  .object({
-    questionId: z.uuid(),
-    sessionId: z.uuid(),
-    responseText: z.string().trim().min(1).max(500),
-  })
-  .strict()
-
-const DialogFillInput = z
-  .object({
-    questionId: z.uuid(),
-    sessionId: z.uuid(),
-    blankAnswers: z
-      .array(
-        z.object({
-          index: z.number().int().min(0).max(9999),
-          text: z.string().trim().min(1).max(200),
-        }),
-      )
-      .min(1)
-      .max(MAX_DIALOG_BLANKS)
-      .superRefine((answers, ctx) => {
-        const seen = new Set<number>()
-        for (const [position, a] of answers.entries()) {
-          if (seen.has(a.index)) {
-            ctx.addIssue({
-              code: 'custom',
-              path: [position, 'index'],
-              message: 'Duplicate blank index',
-            })
-          }
-          seen.add(a.index)
-        }
-      }),
-  })
-  .strict()
-
-const OrderingInput = z
-  .object({
-    questionId: z.uuid(),
-    sessionId: z.uuid(),
-    // Bound array + element length (parity with DialogFillInput blankAnswers caps) — client input.
-    order: z.array(z.string().min(1).max(200)).min(2).max(50),
-  })
-  .strict()
-
-export const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput, OrderingInput])
 
 // Defense-in-depth session ownership + membership check (mirrors check-answer.ts).
 // The RPC self-guards, but the action fails fast on a foreign/closed session or a
@@ -179,6 +126,8 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     // Non-empty strings — four-way parity with isValidFeedbackEntry (rehydrate)
     // and toFeedbackEntry (DB-load), which both require s.length > 0.
     v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
+    // A canonical order is a permutation — duplicate ids mean a malformed RPC result.
+    new Set(v.correct_order).size === v.correct_order.length &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)
   )

@@ -2,7 +2,7 @@
 // Action file under the 100-line cap (code-style.md §1).
 //
 // The answer-payload bounds mirror the grading schema (CheckNonMcAnswerSchema in
-// check-non-mc-answer-helpers.ts) — responseText `.trim().min(1).max(500)` and
+// check-non-mc-answer-schema.ts) — responseText `.trim().min(1).max(500)` and
 // each dialog blank's text `.trim().min(1).max(200)`, plus blankAnswers `.max(50)`
 // + duplicate-index rejection — so a draft can never persist a payload the grader
 // would later reject on resume.
@@ -44,7 +44,13 @@ export const SaveDraftInput = z
             .optional(),
           // Bound the array + element length (parity with blankAnswers .max(50) /
           // text .max(200)) — client input parsed in a Server Action; ids are short.
-          order: z.array(z.string().min(1).max(200)).min(2).max(50).optional(),
+          // An ordering answer is a permutation, so duplicate ids are invalid.
+          order: z
+            .array(z.string().min(1).max(200))
+            .min(2)
+            .max(50)
+            .refine((ids) => new Set(ids).size === ids.length, 'Ordering ids must be unique')
+            .optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
         // Exactly one answer payload must be present (MC / short / dialog / ordering).
@@ -117,7 +123,12 @@ export const SaveDraftInput = z
             // (isValidFeedbackEntry), the DB-load validator (toFeedbackEntry), and
             // the RPC guard (isOrderingRpcResult), which all require non-empty strings.
             // .max(50) mirrors the sibling blanks-feedback cap (item count is DB-bounded).
-            correctOrder: z.array(z.string().min(1)).min(2).max(50),
+            // A canonical order is a permutation — duplicate ids mean corrupt feedback.
+            correctOrder: z
+              .array(z.string().min(1))
+              .min(2)
+              .max(50)
+              .refine((ids) => new Set(ids).size === ids.length, 'Ordering ids must be unique'),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),
