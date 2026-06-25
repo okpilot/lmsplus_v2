@@ -187,6 +187,8 @@ export function isQuestionAnswered(question: QuizReportQuestion): boolean {
     return question.responseText !== null && question.responseText.trim().length > 0
   }
   if (question.questionType === 'ordering') {
+    // response_text is the resolved item text — always non-empty per
+    // _grade_record_ordering's guard (it throws on empty/null before INSERT).
     return question.slots.some((s) => s.responseText !== null && s.responseText.trim().length > 0)
   }
   return question.blanks.some((b) => b.responseText !== null && b.responseText.trim().length > 0)

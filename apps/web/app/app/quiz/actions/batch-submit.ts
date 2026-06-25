@@ -11,7 +11,11 @@ const BatchSubmitInput = z.object({
     .array(
       z.object({
         questionId: z.uuid(),
-        selectedOptionId: z.string().optional(),
+        // .min(1): for ordering fan-out this carries the item id passed to
+        // _grade_record_ordering(p_item_id) — an empty string would pass Zod and
+        // throw inside the RPC instead of failing cleanly here (parity with the
+        // OrderingInput element .min(1) in check-non-mc-answer-helpers.ts).
+        selectedOptionId: z.string().min(1).optional(),
         responseText: z.string().optional(),
         blankIndex: z.number().int().nonnegative().optional(),
         responseTimeMs: z.number().int().positive(),
