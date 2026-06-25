@@ -259,7 +259,7 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     // PGRST202 from overload resolution BEFORE the EXECUTE permission check, so the
     // assertion would pass vacuously even if the REVOKE regressed (code-style.md §7).
     const dummyId = '00000000-0000-0000-0000-000000000000'
-    const { error } = await studentClient.rpc('_grade_record_ordering', {
+    const payload = {
       p_session_id: dummyId,
       p_student_id: studentId,
       p_org_id: orgId,
@@ -268,7 +268,15 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
       p_item_id: CANONICAL_IDS[0],
       p_ordering_items: ITEMS,
       p_response_time: 0,
-    })
+    }
+    // Positive control (§7 non-vacuity): the admin (service-role) call must resolve the
+    // signature — it will fail later (FK/owner), but NOT with PGRST202 — so a PGRST202 in
+    // the authenticated call below genuinely means REVOKE, not an argument-shape drift.
+    const { error: signatureErr } = await admin.rpc('_grade_record_ordering', payload)
+    expect(signatureErr?.code, `signature must resolve: ${signatureErr?.message}`).not.toBe(
+      'PGRST202',
+    )
+    const { error } = await studentClient.rpc('_grade_record_ordering', payload)
     expect(error, '_grade_record_ordering must be uncallable by authenticated').not.toBeNull()
     const code = (error as { code?: string }).code
     const message = (error?.message ?? '').toLowerCase()

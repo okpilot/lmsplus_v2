@@ -42,7 +42,9 @@ export function isValidDraftAnswer(v: unknown): boolean {
   if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
   if (hasResponseText) return isNonEmptyString(r.responseText)
   if (hasOrder) {
-    return Array.isArray(r.order) && r.order.length > 0 && r.order.every(isNonEmptyString)
+    // An ordering question always has ≥2 items, so a submitted order is ≥2 — parity
+    // with the save schema (draft-schema `order: z.array(...).min(2)`).
+    return Array.isArray(r.order) && r.order.length >= 2 && r.order.every(isNonEmptyString)
   }
   return isValidBlankAnswers(r.blankAnswers)
 }

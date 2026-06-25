@@ -104,4 +104,32 @@ describe('OrderingInput', () => {
     render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitted />)
     expect(screen.queryByTestId('ordering-result')).not.toBeInTheDocument()
   })
+
+  it('restores the student submitted sequence when revisiting an answered question', () => {
+    // On revisit the runner remounts with `items` in delivery (shuffled) order. The
+    // component must render the student's prior arrangement (submittedOrder) so the
+    // per-slot badges line up against the items the student actually placed.
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        submittedOrder={['nature', 'mayday', 'callsign']}
+        correctOrder={['nature', 'mayday', 'callsign']}
+      />,
+    )
+    const rendered = screen
+      .getAllByTestId(/^ordering-item-/)
+      .map((el) => el.getAttribute('data-testid'))
+    expect(rendered).toEqual([
+      'ordering-item-nature',
+      'ordering-item-mayday',
+      'ordering-item-callsign',
+    ])
+    // submittedOrder matches correctOrder → every slot is marked correct.
+    for (const id of ['nature', 'mayday', 'callsign']) {
+      expect(screen.getByTestId(`ordering-item-${id}`)).toHaveAttribute('data-result', 'correct')
+    }
+  })
 })

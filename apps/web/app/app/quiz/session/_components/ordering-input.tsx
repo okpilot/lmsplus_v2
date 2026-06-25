@@ -36,6 +36,26 @@ type OrderingInputProps = {
    *  compared (unambiguous); the correct item's display text is resolved locally
    *  from `items`. */
   correctOrder?: string[]
+  /** The student's previously submitted id sequence. On revisiting an answered
+   *  question the runner remounts with `items` in delivery (shuffled) order; this
+   *  restores the student's arrangement so the per-slot badges align correctly. */
+  submittedOrder?: string[]
+}
+
+/** Restore the student's submitted sequence (by id) when revisiting an answered
+ *  question; otherwise show the delivered order. Falls back to delivery order if the
+ *  submitted ids don't fully resolve against the delivered items. */
+function orderFromSubmitted(
+  items: OrderingItem[],
+  submitted: boolean,
+  submittedOrder?: string[],
+): OrderingItem[] {
+  if (!submitted || !submittedOrder || submittedOrder.length !== items.length) return items
+  const byId = new Map(items.map((it) => [it.id, it]))
+  const restored = submittedOrder
+    .map((id) => byId.get(id))
+    .filter((it): it is OrderingItem => it != null)
+  return restored.length === items.length ? restored : items
 }
 
 export function OrderingInput({
@@ -45,8 +65,11 @@ export function OrderingInput({
   submitting = false,
   submitted = false,
   correctOrder,
+  submittedOrder,
 }: OrderingInputProps) {
-  const [order, setOrder] = useState<OrderingItem[]>(items)
+  const [order, setOrder] = useState<OrderingItem[]>(() =>
+    orderFromSubmitted(items, submitted, submittedOrder),
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor),

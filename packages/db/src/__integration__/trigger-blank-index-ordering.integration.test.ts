@@ -33,14 +33,14 @@ describe('Trigger: enforce blank_index <=> dialog_fill OR ordering on answer ins
   const admin = getAdminClient()
   const suffix = Date.now()
 
-  let orgId: string
+  let orgId = ''
   let studentId: string
   let bankId: string
   let sessionId: string
   let mcQId: string
   let saQId: string
   let orderingQId: string
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
 
   beforeAll(async () => {
@@ -149,8 +149,25 @@ describe('Trigger: enforce blank_index <=> dialog_fill OR ordering on answer ins
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   // ---- quiz_session_answers ----

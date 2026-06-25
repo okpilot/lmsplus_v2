@@ -29,11 +29,11 @@ type OrderingItem = { id: string; text: string }
 
 describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key)', () => {
   const admin = getAdminClient()
-  let orgId: string
+  let orgId = ''
   let adminUserId: string
   let bankId: string
   let studentClient: SupabaseClient
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
   const suffix = Date.now()
 
@@ -123,8 +123,25 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   type QuizQuestionRow = {

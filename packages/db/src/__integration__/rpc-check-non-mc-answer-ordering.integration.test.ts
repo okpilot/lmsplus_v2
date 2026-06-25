@@ -44,12 +44,12 @@ async function insertQuestion(
 
 describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   const admin = getAdminClient()
-  let orgId: string
+  let orgId = ''
   let adminUserId: string
   let studentId: string
   let bankId: string
   let studentClient: SupabaseClient
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
   const suffix = Date.now()
 
@@ -140,8 +140,25 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   /** Start a smart_review session pinning the given question ids. */
@@ -223,13 +240,14 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   })
 
   it('rejects a mock_exam session with unsupported_session_mode', async () => {
+    // refs is assigned in beforeAll; non-null by the time any test runs.
     const { data: sessRow, error: sessErr } = await admin
       .from('quiz_sessions')
       .insert({
         organization_id: orgId,
         student_id: studentId,
         mode: 'mock_exam',
-        subject_id: refs.subjectId,
+        subject_id: refs!.subjectId,
         config: { question_ids: [orderingId] },
         total_questions: 1,
         started_at: new Date().toISOString(),
@@ -263,7 +281,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
         organization_id: orgId,
         student_id: studentId,
         mode: 'internal_exam',
-        subject_id: refs.subjectId,
+        subject_id: refs!.subjectId,
         config: { question_ids: [orderingId] },
         total_questions: 1,
         started_at: new Date().toISOString(),
