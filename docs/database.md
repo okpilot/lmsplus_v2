@@ -897,6 +897,8 @@ This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards c
 - Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `batch_submit_quiz` (mig 095c).
 - **Idempotency gate (migration 112, #856):** A duplicate submission (same session + question, possibly different option) skips the answer row insert (ON CONFLICT DO NOTHING on blank_index-aware unique key) and re-reads the persisted `is_correct` instead of accepting the duplicate option. This preserves consistency between the stored answer and the FSRS state: a retry never flips `last_was_correct`, preventing divergence between the append-only answer log and the FSRS signal.
 
+> **⚠️ Abridged illustrative excerpt — NOT the deployed definition, does not compile as-is.** This snippet shows the core membership/correctness/idempotency flow only. It intentionally omits guards the live function carries (the active-user gate and the mode whitelist described above) and is missing variable declarations its body references (the active-user gate, mode-whitelist, and idempotency-branch locals, including `v_answer_inserted`). The authoritative, compiling definition is the latest `CREATE OR REPLACE FUNCTION submit_quiz_answer` migration (mig 123, #855; see the migration ledger and §15). A full fix would require transcribing that migration verbatim — declaring every referenced variable and including the active-user + mode-whitelist RAISE blocks — and re-syncing on every subsequent redefinition; the marker is kept instead to avoid a second source of truth that drifts.
+
 ```sql
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
   p_session_id        uuid,
