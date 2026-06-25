@@ -22,6 +22,14 @@ export type DialogFillBlankResult = {
   isCorrect: boolean
 }
 
+// One report entry per SLOT (position) of an ordering question.
+export type OrderingSlotResult = {
+  position: number
+  responseText: string | null
+  canonicalText: string | null
+  isCorrect: boolean
+}
+
 // Discriminated union on `questionType`. Consumers MUST narrow on it before
 // touching any type-specific field (MC `options`, short_answer `responseText`,
 // dialog_fill `blanks`). The MC variant is the default the builder emits when a
@@ -49,6 +57,15 @@ export type QuizReportQuestion =
       // Number of correct blanks and total blanks, for the 3-state partial display.
       correctCount: number
       totalBlanks: number
+    })
+  | (QuizReportQuestionCommon & {
+      questionType: 'ordering'
+      // True only when every slot is in its correct position.
+      isCorrect: boolean
+      slots: OrderingSlotResult[]
+      // Number of correct positions and total items, for the 3-state partial display.
+      correctCount: number
+      totalItems: number
     })
 
 export type QuizReportSummary = {

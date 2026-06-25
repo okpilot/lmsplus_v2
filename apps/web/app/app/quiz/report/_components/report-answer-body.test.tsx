@@ -52,6 +52,24 @@ const dialogQuestion: QuizReportQuestion = {
   responseTimeMs: 3000,
 }
 
+const orderingQuestion: QuizReportQuestion = {
+  questionId: 'q4',
+  questionText: 'Order the distress call.',
+  questionNumber: null,
+  questionType: 'ordering',
+  isCorrect: false,
+  slots: [
+    { position: 0, responseText: 'mayday', canonicalText: 'mayday', isCorrect: true },
+    { position: 1, responseText: 'callsign', canonicalText: 'position', isCorrect: false },
+  ],
+  correctCount: 1,
+  totalItems: 2,
+  explanationText: null,
+  explanationImageUrl: null,
+  questionImageUrl: null,
+  responseTimeMs: 4000,
+}
+
 describe('ReportAnswerBody', () => {
   it('renders the option list for a multiple-choice question', () => {
     render(<ReportAnswerBody question={mcQuestion} />)
@@ -66,5 +84,10 @@ describe('ReportAnswerBody', () => {
   it('renders the blank fraction for a dialog-fill question', () => {
     render(<ReportAnswerBody question={dialogQuestion} />)
     expect(screen.getByText('1 / 2 blanks correct')).toBeInTheDocument()
+  })
+
+  it('renders the position fraction for an ordering question', () => {
+    render(<ReportAnswerBody question={orderingQuestion} />)
+    expect(screen.getByText('1 / 2 positions correct')).toBeInTheDocument()
   })
 })

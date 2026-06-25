@@ -1,0 +1,107 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { OrderingInput } from './ordering-input'
+
+const ITEMS = [
+  { id: 'mayday', text: 'MAYDAY MAYDAY MAYDAY' },
+  { id: 'callsign', text: 'Speedbird 123' },
+  { id: 'nature', text: 'engine failure' },
+]
+
+beforeEach(() => {
+  vi.resetAllMocks()
+})
+
+describe('OrderingInput', () => {
+  it('renders one row per item in the delivered order', () => {
+    render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} />)
+    expect(screen.getByTestId('ordering-item-mayday')).toHaveTextContent('MAYDAY MAYDAY MAYDAY')
+    expect(screen.getByTestId('ordering-item-callsign')).toHaveTextContent('Speedbird 123')
+    expect(screen.getByTestId('ordering-item-nature')).toHaveTextContent('engine failure')
+  })
+
+  it('submits the current item ids in their displayed order', async () => {
+    const onSubmit = vi.fn()
+    render(<OrderingInput items={ITEMS} onSubmit={onSubmit} disabled={false} />)
+    await userEvent.click(screen.getByRole('button', { name: /submit answer/i }))
+    expect(onSubmit).toHaveBeenCalledWith(['mayday', 'callsign', 'nature'])
+  })
+
+  it('shows a spinner and disables Submit while the answer is being checked', () => {
+    render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitting />)
+    const button = screen.getByRole('button', { name: /submit answer/i })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('hides Submit and removes drag handles once submitted', () => {
+    render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitted />)
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reorder/i })).not.toBeInTheDocument()
+  })
+
+  it('marks each slot correct or incorrect against the canonical order after submit', () => {
+    // Student order = ITEMS (mayday, callsign, nature). Canonical swaps the last two,
+    // so slot 0 matches, slots 1 and 2 do not.
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+      />,
+    )
+    expect(screen.getByTestId('ordering-item-mayday')).toHaveAttribute('data-result', 'correct')
+    expect(screen.getByTestId('ordering-item-callsign')).toHaveAttribute('data-result', 'incorrect')
+    expect(screen.getByTestId('ordering-item-nature')).toHaveAttribute('data-result', 'incorrect')
+  })
+
+  it('reveals the canonical text for a wrong slot', () => {
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+      />,
+    )
+    // slot 1 (callsign) is wrong — its canonical is revealed
+    expect(screen.getByTestId('ordering-canonical-callsign')).toHaveTextContent('engine failure')
+    // slot 0 (mayday) is correct — no canonical reveal
+    expect(screen.queryByTestId('ordering-canonical-mayday')).not.toBeInTheDocument()
+  })
+
+  it('announces a correct result to screen readers when every slot matches', () => {
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        correctOrder={['MAYDAY MAYDAY MAYDAY', 'Speedbird 123', 'engine failure']}
+      />,
+    )
+    expect(screen.getByTestId('ordering-result')).toHaveTextContent('Correct')
+  })
+
+  it('announces an incorrect result to screen readers when any slot is wrong', () => {
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        correctOrder={['MAYDAY MAYDAY MAYDAY', 'engine failure', 'Speedbird 123']}
+      />,
+    )
+    expect(screen.getByTestId('ordering-result')).toHaveTextContent('Incorrect')
+  })
+
+  it('does not announce a result before grading data arrives', () => {
+    render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitted />)
+    expect(screen.queryByTestId('ordering-result')).not.toBeInTheDocument()
+  })
+})

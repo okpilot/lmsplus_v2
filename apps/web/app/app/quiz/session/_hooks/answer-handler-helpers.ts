@@ -71,7 +71,21 @@ export function buildAnswerHandlers(deps: {
     })
   }
 
-  return { handleSelectAnswer, handleTextAnswer, handleDialogFillAnswer }
+  function handleOrderingAnswer(order: string[]): Promise<boolean> {
+    const responseTimeMs = Date.now() - getAnswerStartTime()
+    return runAttempt({
+      draft: { order, responseTimeMs },
+      check: async (questionId) => {
+        const r = await checkNonMcAnswer({ questionId, sessionId, order })
+        if (!r.success || r.questionType !== 'ordering') throw new Error('check failed')
+        // feedback already carries questionType; drop the success flag.
+        const { success: _success, ...feedback } = r
+        return feedback
+      },
+    })
+  }
+
+  return { handleSelectAnswer, handleTextAnswer, handleDialogFillAnswer, handleOrderingAnswer }
 }
 
 export function recordAnswerFeedback(

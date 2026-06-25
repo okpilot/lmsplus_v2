@@ -16,6 +16,28 @@ function asDialog(q: QuizReportQuestion | undefined) {
   if (q?.questionType !== 'dialog_fill') throw new Error('expected dialog_fill')
   return q
 }
+function asOrdering(q: QuizReportQuestion | undefined) {
+  if (q?.questionType !== 'ordering') throw new Error('expected ordering')
+  return q
+}
+
+function orderingQuestionMap(): Map<string, QuestionRow> {
+  return new Map<string, QuestionRow>([
+    [
+      'q1',
+      {
+        id: 'q1',
+        question_text: 'Order the distress call.',
+        question_number: '092-03-001',
+        question_type: 'ordering',
+        options: [],
+        explanation_text: null,
+        explanation_image_url: null,
+        question_image_url: null,
+      },
+    ],
+  ])
+}
 
 describe('buildReportQuestions', () => {
   it('projects a multiple-choice answer into the MC report variant', () => {
@@ -514,6 +536,160 @@ describe('buildReportQuestions', () => {
     expect(omitted?.canonical).toBe('roger')
   })
 
+  it('collapses multiple ordering slot rows into one entry per question', () => {
+    // Three answer rows for ONE ordering question (one per slot position).
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'mayday',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 5000,
+        response_text: 'callsign',
+        blank_index: 1,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'intentions',
+        blank_index: 2,
+      },
+    ]
+    const answerKeyMap = new Map<string, AnswerKeyEntry>([
+      [
+        'q1',
+        {
+          type: 'ordering',
+          canonicalBySlot: new Map([
+            [0, 'mayday'],
+            [1, 'position'],
+            [2, 'intentions'],
+          ]),
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, orderingQuestionMap(), new Map(), answerKeyMap)
+
+    // The key safety guarantee: one entry per question, not per slot row.
+    expect(result).toHaveLength(1)
+    const ord = asOrdering(result[0])
+    expect(ord.totalItems).toBe(3)
+    expect(ord.correctCount).toBe(2)
+    expect(ord.isCorrect).toBe(false)
+    expect(ord.slots.map((s) => s.position)).toEqual([0, 1, 2])
+    expect(ord.slots[1]?.canonicalText).toBe('position')
+    expect(ord.slots[1]?.responseText).toBe('callsign')
+  })
+
+  it('orders ordering slots by position even when answer rows arrive out of order', () => {
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 's2',
+        blank_index: 2,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 's0',
+        blank_index: 0,
+      },
+    ]
+
+    const result = buildReportQuestions(answers, orderingQuestionMap(), new Map(), new Map())
+    const ord = asOrdering(result[0])
+    expect(ord.slots.map((s) => s.position)).toEqual([0, 2])
+  })
+
+  it('marks an ordering question correct only when every position is correct', () => {
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'a',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'b',
+        blank_index: 1,
+      },
+    ]
+
+    const result = buildReportQuestions(answers, orderingQuestionMap(), new Map(), new Map())
+    const ord = asOrdering(result[0])
+    expect(ord.correctCount).toBe(2)
+    expect(ord.isCorrect).toBe(true)
+  })
+
+  it('renders an omitted ordering slot as unanswered using the answer-key canonical order', () => {
+    // Only 2 of the question's 3 canonical slots were submitted (slot 2 omitted).
+    // The report must still show 3 slots, with the missing slot rendered
+    // unanswered and isCorrect false — not "2/2 correct".
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'mayday',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'position',
+        blank_index: 1,
+      },
+    ]
+    const answerKeyMap = new Map<string, AnswerKeyEntry>([
+      [
+        'q1',
+        {
+          type: 'ordering',
+          canonicalBySlot: new Map([
+            [0, 'mayday'],
+            [1, 'position'],
+            [2, 'intentions'],
+          ]),
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, orderingQuestionMap(), new Map(), answerKeyMap)
+    const ord = asOrdering(result[0])
+    expect(ord.totalItems).toBe(3)
+    expect(ord.correctCount).toBe(2)
+    expect(ord.isCorrect).toBe(false)
+    expect(ord.slots.map((s) => s.position)).toEqual([0, 1, 2])
+    const omitted = ord.slots[2]
+    expect(omitted?.responseText).toBeNull()
+    expect(omitted?.isCorrect).toBe(false)
+    expect(omitted?.canonicalText).toBe('intentions')
+  })
+
   it('preserves first-answer order across mixed question types', () => {
     const answers: AnswerRow[] = [
       { question_id: 'qB', selected_option_id: 'o1', is_correct: true, response_time_ms: 1000 },
@@ -606,6 +782,24 @@ const dialogQuestion: QuizReportQuestion = {
   responseTimeMs: 3000,
 }
 
+const orderingQuestion: QuizReportQuestion = {
+  questionId: 'q4',
+  questionText: 'Order the distress call.',
+  questionNumber: null,
+  questionType: 'ordering',
+  isCorrect: false,
+  slots: [
+    { position: 0, responseText: 'mayday', canonicalText: 'mayday', isCorrect: true },
+    { position: 1, responseText: null, canonicalText: 'position', isCorrect: false },
+  ],
+  correctCount: 1,
+  totalItems: 2,
+  explanationText: null,
+  explanationImageUrl: null,
+  questionImageUrl: null,
+  responseTimeMs: 4000,
+}
+
 describe('isQuestionAnswered', () => {
   it('treats a multiple-choice selection that matches an option as answered', () => {
     expect(isQuestionAnswered(mcQuestion)).toBe(true)
@@ -631,6 +825,18 @@ describe('isQuestionAnswered', () => {
     const empty: QuizReportQuestion = {
       ...dialogQuestion,
       blanks: [{ index: 0, responseText: null, canonical: 'x', isCorrect: false }],
+    }
+    expect(isQuestionAnswered(empty)).toBe(false)
+  })
+
+  it('treats an ordering question with at least one placed item as answered', () => {
+    expect(isQuestionAnswered(orderingQuestion)).toBe(true)
+  })
+
+  it('treats an ordering question with every slot empty as unanswered', () => {
+    const empty: QuizReportQuestion = {
+      ...orderingQuestion,
+      slots: [{ position: 0, responseText: null, canonicalText: 'mayday', isCorrect: false }],
     }
     expect(isQuestionAnswered(empty)).toBe(false)
   })

@@ -1,5 +1,6 @@
 import type {
   DialogFillBlankResult,
+  OrderingSlotResult,
   QuizReportQuestion,
   QuizReportQuestionCommon,
 } from './quiz-report'
@@ -33,10 +34,12 @@ export type QuestionRow = {
 // Per-question answer-key payload from get_report_answer_keys.
 //  - short_answer: a single canonical string (canonical).
 //  - dialog_fill:  a Map from blank index → canonical string.
+//  - ordering:     a Map from slot position → canonical item text.
 //  - MC questions are absent (their key comes from get_report_correct_options).
 export type AnswerKeyEntry =
   | { type: 'short_answer'; canonical: string | null }
   | { type: 'dialog_fill'; canonicalByIndex: Map<number, string> }
+  | { type: 'ordering'; canonicalBySlot: Map<number, string> }
 
 // Group answer rows by question_id, preserving first-seen order. Returns the
 // per-question row groups plus the first-seen order array.
@@ -111,6 +114,10 @@ export function buildReportQuestions(
       return buildDialogFill(common, rows, answerKeyMap.get(questionId))
     }
 
+    if (type === 'ordering') {
+      return buildOrdering(common, rows, answerKeyMap.get(questionId))
+    }
+
     // multiple_choice (default)
     const row = rows[0]
     const options = question?.options ?? []
@@ -169,14 +176,56 @@ function buildDialogFill(
   }
 }
 
+function buildOrdering(
+  common: QuizReportQuestionCommon,
+  rows: AnswerRow[],
+  key: AnswerKeyEntry | undefined,
+): QuizReportQuestion {
+  const canonicalBySlot = key?.type === 'ordering' ? key.canonicalBySlot : new Map<number, string>()
+  const rowBySlot = new Map(rows.map((r) => [r.blank_index ?? 0, r]))
+  // Drive the slot set from the question's full canonical order — get_report_answer_keys
+  // (mig 140) returns every ordering_items entry — so an omitted slot still renders as
+  // unanswered (responseText null, isCorrect false). This matches batch_submit_quiz
+  // (mig 139), which scores ordering questions against the canonical item count, NOT the
+  // submitted-row count. Fall back to the submitted rows only when no answer keys are
+  // present (all-MC session, or a keyless race) — preserves prior behavior.
+  const slotIndices =
+    canonicalBySlot.size > 0
+      ? [...canonicalBySlot.keys()].sort((a, b) => a - b)
+      : [...rowBySlot.keys()].sort((a, b) => a - b)
+  const slots: OrderingSlotResult[] = slotIndices.map((position) => {
+    const row = rowBySlot.get(position)
+    return {
+      position,
+      responseText: row?.response_text ?? null,
+      canonicalText: canonicalBySlot.get(position) ?? null,
+      isCorrect: row?.is_correct ?? false,
+    }
+  })
+
+  const correctCount = slots.filter((s) => s.isCorrect).length
+  return {
+    ...common,
+    questionType: 'ordering',
+    isCorrect: slots.length > 0 && correctCount === slots.length,
+    slots,
+    correctCount,
+    totalItems: slots.length,
+  }
+}
+
 // "Answered" differs per type: MC needs a selected option present in the list;
-// short_answer needs response text; dialog_fill needs at least one filled blank.
+// short_answer needs response text; dialog_fill needs at least one filled blank;
+// ordering needs at least one slot with a placed item.
 export function isQuestionAnswered(question: QuizReportQuestion): boolean {
   if (question.questionType === 'multiple_choice') {
     return question.options.some((o) => o.id === question.selectedOptionId)
   }
   if (question.questionType === 'short_answer') {
     return question.responseText !== null && question.responseText.trim().length > 0
+  }
+  if (question.questionType === 'ordering') {
+    return question.slots.some((s) => s.responseText !== null && s.responseText.trim().length > 0)
   }
   return question.blanks.some((b) => b.responseText !== null && b.responseText.trim().length > 0)
 }

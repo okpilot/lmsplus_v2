@@ -3,6 +3,7 @@ import { QuestionCard } from '@/app/app/_components/question-card'
 import type { QuestionTab } from '../../_components/question-tabs'
 import type { QuizState } from '../_hooks/use-quiz-state'
 import { DialogFillInput } from './dialog-fill-input'
+import { OrderingInput } from './ordering-input'
 import { QuizTabContent } from './quiz-tab-content'
 import { ShortAnswerInput } from './short-answer-input'
 
@@ -57,6 +58,21 @@ function AnswerInput({
         submitting={s.answering}
         submitted={s.existingAnswer != null}
         blanks={fb?.blanks}
+      />
+    )
+  }
+
+  if (s.question.question_type === 'ordering') {
+    const fb = feedback?.questionType === 'ordering' ? feedback : null
+    return (
+      <OrderingInput
+        key={s.question.id}
+        items={s.question.ordering_items ?? []}
+        onSubmit={s.handleOrderingAnswer}
+        disabled={s.submitting}
+        submitting={s.answering}
+        submitted={s.existingAnswer != null}
+        correctOrder={fb?.correctOrder}
       />
     )
   }
