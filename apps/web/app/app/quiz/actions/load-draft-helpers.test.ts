@@ -146,6 +146,27 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(draft.feedback).toBeUndefined()
   })
 
+  it('rejects an ordering entry whose correctOrder contains an empty string', () => {
+    // Sibling-validator parity: toFeedbackEntry's ordering branch checks
+    // s.length > 0 on every element, matching isValidFeedbackEntry in
+    // quiz-session-validators.ts. An empty string is distinct from a non-string
+    // and must be rejected by its own guard.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: false,
+            correctOrder: ['MAYDAY', ''],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
   it('returns undefined feedback when the column is null', () => {
     expect(rowToDraftData(buildRow({ feedback: null })).feedback).toBeUndefined()
   })

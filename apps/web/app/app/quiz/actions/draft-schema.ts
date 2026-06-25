@@ -110,10 +110,11 @@ export const SaveDraftInput = z
           z.object({
             questionType: z.literal('ordering'),
             isCorrect: z.boolean(),
-            // An ordering question always reveals ≥2 canonical item texts, so an
-            // empty correctOrder is corrupt — parity with the rehydrate validator
-            // (isValidFeedbackEntry's ordering case) and the RPC guard.
-            correctOrder: z.array(z.string()).min(2),
+            // An ordering question always reveals ≥2 NON-EMPTY canonical item
+            // texts — four-way parity with the rehydrate validator
+            // (isValidFeedbackEntry), the DB-load validator (toFeedbackEntry), and
+            // the RPC guard (isOrderingRpcResult), which all require non-empty strings.
+            correctOrder: z.array(z.string().min(1)).min(2),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),
