@@ -97,6 +97,55 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(rowToDraftData(buildRow({ feedback })).feedback).toEqual(feedback)
   })
 
+  it('preserves already-tagged ordering feedback on resume', () => {
+    // Sibling-validator parity with the sessionStorage rehydrate + save paths:
+    // a draft carrying ordering feedback must round-trip, not be silently dropped.
+    const feedback = {
+      q1: {
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY MAYDAY MAYDAY', 'callsign and position', 'nature of emergency'],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+    expect(rowToDraftData(buildRow({ feedback })).feedback).toEqual(feedback)
+  })
+
+  it('rejects an ordering entry whose correctOrder array is empty', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: [],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry with a non-string element in correctOrder', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: ['step one', 42],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
   it('returns undefined feedback when the column is null', () => {
     expect(rowToDraftData(buildRow({ feedback: null })).feedback).toBeUndefined()
   })

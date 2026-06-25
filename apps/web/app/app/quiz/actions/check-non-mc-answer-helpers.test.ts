@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CheckNonMcAnswerSchema,
   isDialogFillRpcResult,
+  isOrderingRpcResult,
   isShortAnswerRpcResult,
   toClientBlanks,
   toRpcBlankAnswers,
@@ -214,6 +215,79 @@ describe('isDialogFillRpcResult', () => {
   })
 })
 
+// ---- isOrderingRpcResult ----------------------------------------------------
+
+describe('isOrderingRpcResult', () => {
+  it('accepts a well-formed ordering RPC row', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['MAYDAY', 'callsign', 'distress'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an empty correct_order array', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: [],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_order contains a non-string entry', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['a', 42],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when blanks is an array (dialog_fill shape)', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: [{ index: 0, is_correct: true, canonical: 'x' }],
+        correct_order: ['a', 'b'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_answer is not null', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: 'leak',
+        blanks: null,
+        correct_order: ['a', 'b'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects null input', () => {
+    expect(isOrderingRpcResult(null)).toBe(false)
+  })
+})
+
 // ---- toRpcBlankAnswers ------------------------------------------------------
 
 describe('toRpcBlankAnswers', () => {
@@ -286,6 +360,47 @@ describe('CheckNonMcAnswerSchema', () => {
         blankAnswers: [{ index: 0, text: 'cleared to land' }],
       }).success,
     ).toBe(true)
+  })
+
+  it('accepts an ordering payload', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', 'item-b', 'item-c'],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects an ordering payload with fewer than two items', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a'],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects an ordering payload carrying an empty item id', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', ''],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a mixed payload carrying both order and responseText', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', 'item-b'],
+        responseText: 'cleared to land',
+      }).success,
+    ).toBe(false)
   })
 
   it('rejects a mixed payload carrying both responseText and blankAnswers', () => {

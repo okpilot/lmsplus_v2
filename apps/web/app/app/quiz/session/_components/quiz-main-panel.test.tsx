@@ -256,6 +256,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -278,6 +279,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         handleTextAnswer,
       } as Partial<QuizState>)
@@ -300,6 +302,7 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
         },
         handleDialogFillAnswer,
       } as Partial<QuizState>)
@@ -321,6 +324,7 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -342,6 +346,7 @@ describe('QuizMainPanel', () => {
           question_type: 'multiple_choice',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -363,6 +368,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         answering: true,
         submitting: false,
@@ -388,6 +394,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         existingAnswer: { responseText: 'cleared', responseTimeMs: 400 },
         currentFeedback: {
@@ -418,6 +425,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         currentFeedback: {
           questionType: 'multiple_choice',
@@ -446,6 +454,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -468,6 +477,7 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}}.',
           blanks_safe: [{ index: 0 }],
+          ordering_items: null,
         },
         existingAnswer: {
           blankAnswers: [{ index: 0, text: 'alpha' }],

@@ -11,9 +11,10 @@ type QuizQuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: unknown
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
   dialog_template: string | null
   blanks_safe: unknown
+  ordering_items_shuffled: unknown
 }
 
 type Question = {
@@ -24,9 +25,10 @@ type Question = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
+  ordering_items: { id: string; text: string }[] | null
 }
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
@@ -68,6 +70,9 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     question_type: q.question_type,
     dialog_template: q.dialog_template,
     blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
+    ordering_items: Array.isArray(q.ordering_items_shuffled)
+      ? (q.ordering_items_shuffled as { id: string; text: string }[])
+      : null,
   }))
 
   // Preserve the order from questionIds

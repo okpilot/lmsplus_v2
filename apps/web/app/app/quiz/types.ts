@@ -115,6 +115,13 @@ export type AnswerFeedback =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      questionType: 'ordering'
+      isCorrect: boolean
+      correctOrder: string[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
 
 export type CheckNonMcAnswerResult =
   | {
@@ -133,12 +140,21 @@ export type CheckNonMcAnswerResult =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      success: true
+      questionType: 'ordering'
+      isCorrect: boolean
+      correctOrder: string[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
   | { success: false; error: string }
 
 export type DraftAnswer = {
   selectedOptionId?: string
   responseText?: string
   blankAnswers?: { index: number; text: string }[]
+  order?: string[]
   responseTimeMs: number
 }
 

@@ -42,13 +42,15 @@ export const SaveDraftInput = z
               }
             })
             .optional(),
+          order: z.array(z.string().min(1)).min(2).optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
-        // Exactly one answer payload must be present (MC / short / dialog).
+        // Exactly one answer payload must be present (MC / short / dialog / ordering).
         .refine(
           (a) =>
-            [a.selectedOptionId, a.responseText, a.blankAnswers].filter((x) => x !== undefined)
-              .length === 1,
+            [a.selectedOptionId, a.responseText, a.blankAnswers, a.order].filter(
+              (x) => x !== undefined,
+            ).length === 1,
           { message: 'Draft answer must carry exactly one answer payload' },
         ),
     ),
@@ -102,6 +104,16 @@ export const SaveDraftInput = z
                   seen.add(b.index)
                 }
               }),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+          z.object({
+            questionType: z.literal('ordering'),
+            isCorrect: z.boolean(),
+            // An ordering question always reveals ≥2 canonical item texts, so an
+            // empty correctOrder is corrupt — parity with the rehydrate validator
+            // (isValidFeedbackEntry's ordering case) and the RPC guard.
+            correctOrder: z.array(z.string()).min(2),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),

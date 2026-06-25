@@ -42,6 +42,11 @@ const DIALOG_INPUT = {
     { index: 1, text: 'runway 27' },
   ],
 }
+const ORDERING_INPUT = {
+  questionId: QUESTION_ID,
+  sessionId: SESSION_ID,
+  order: ['item-c', 'item-a', 'item-b'],
+}
 
 const SHORT_RPC_RESULT = {
   is_correct: true,
@@ -59,6 +64,15 @@ const DIALOG_RPC_RESULT = {
     { index: 1, is_correct: false, canonical: 'runway two seven' },
   ],
   explanation_text: null,
+  explanation_image_url: null,
+}
+
+const ORDERING_RPC_RESULT = {
+  is_correct: false,
+  correct_answer: null,
+  blanks: null,
+  correct_order: ['MAYDAY', 'aircraft callsign', 'nature of distress'],
+  explanation_text: 'Distress before urgency.',
   explanation_image_url: null,
 }
 
@@ -215,6 +229,48 @@ describe('checkNonMcAnswer', () => {
         { blank_index: 1, response_text: 'runway 27' },
       ],
     })
+  })
+
+  it('grades an ordering answer and returns the revealed canonical order', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: ORDERING_RPC_RESULT, error: null })
+    const result = await checkNonMcAnswer(ORDERING_INPUT)
+    expect(result).toEqual({
+      success: true,
+      questionType: 'ordering',
+      isCorrect: false,
+      correctOrder: ['MAYDAY', 'aircraft callsign', 'nature of distress'],
+      explanationText: 'Distress before urgency.',
+      explanationImageUrl: null,
+    })
+  })
+
+  it('sends p_order and leaves the other answer params unset for ordering', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: ORDERING_RPC_RESULT, error: null })
+    await checkNonMcAnswer(ORDERING_INPUT)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+      p_question_id: QUESTION_ID,
+      p_session_id: SESSION_ID,
+      p_order: ['item-c', 'item-a', 'item-b'],
+    })
+  })
+
+  it('rejects an ordering payload with fewer than two items', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({ ...ORDERING_INPUT, order: ['item-a'] })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure when the ordering RPC returns an unexpected shape', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
+    const result = await checkNonMcAnswer(ORDERING_INPUT)
+    expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 
   it('returns a generic failure when the short_answer RPC errors', async () => {

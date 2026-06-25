@@ -33,11 +33,17 @@ export function isValidDraftAnswer(v: unknown): boolean {
   const hasSelectedOption = r.selectedOptionId !== undefined
   const hasResponseText = r.responseText !== undefined
   const hasBlankAnswers = r.blankAnswers !== undefined
-  if ([hasSelectedOption, hasResponseText, hasBlankAnswers].filter(Boolean).length !== 1) {
+  const hasOrder = r.order !== undefined
+  if (
+    [hasSelectedOption, hasResponseText, hasBlankAnswers, hasOrder].filter(Boolean).length !== 1
+  ) {
     return false
   }
   if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
   if (hasResponseText) return isNonEmptyString(r.responseText)
+  if (hasOrder) {
+    return Array.isArray(r.order) && r.order.length > 0 && r.order.every(isNonEmptyString)
+  }
   return isValidBlankAnswers(r.blankAnswers)
 }
 
@@ -76,6 +82,12 @@ export function isValidFeedbackEntry(v: unknown): boolean {
       return isNullableString(r.correctAnswer)
     case 'dialog_fill':
       return isValidDialogFillFeedback(r.blanks)
+    case 'ordering':
+      return (
+        Array.isArray(r.correctOrder) &&
+        r.correctOrder.length > 0 &&
+        r.correctOrder.every(isNonEmptyString)
+      )
     default:
       return false
   }

@@ -87,6 +87,30 @@ describe('isValidDraftAnswer', () => {
     ).toBe(true)
   })
 
+  it('accepts an ordering draft carrying an order array of item ids', () => {
+    expect(
+      isValidDraftAnswer({ order: ['item-a', 'item-b', 'item-c'], responseTimeMs: 1500 }),
+    ).toBe(true)
+  })
+
+  it('rejects an ordering draft with an empty order array', () => {
+    expect(isValidDraftAnswer({ order: [], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects an ordering draft whose order contains an empty string', () => {
+    expect(isValidDraftAnswer({ order: ['item-a', ''], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects a hybrid draft carrying both an order array and a selected option', () => {
+    expect(
+      isValidDraftAnswer({
+        order: ['item-a', 'item-b'],
+        selectedOptionId: 'opt-a',
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects a draft with no answer payload at all', () => {
     expect(isValidDraftAnswer({ responseTimeMs: 1500 })).toBe(false)
   })
@@ -248,6 +272,42 @@ describe('isValidFeedbackEntry', () => {
         explanationImageUrl: null,
       }),
     ).toBe(true)
+  })
+
+  it('accepts an ordering feedback entry with the revealed canonical order', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY', 'callsign', 'distress'],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an ordering feedback entry with an empty correctOrder array', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: [],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder contains an empty string', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY', ''],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
   })
 
   it('rejects a feedback entry with an unknown questionType tag', () => {

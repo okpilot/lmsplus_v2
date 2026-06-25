@@ -150,6 +150,70 @@ describe('loadSessionQuestions', () => {
     expect(q.options).toEqual([])
   })
 
+  it('maps the shuffled ordering items into ordering_items for an ordering row', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [
+            { id: 'item-b', text: 'callsign' },
+            { id: 'item-a', text: 'MAYDAY' },
+            { id: 'item-c', text: 'distress' },
+          ],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    const q = result.questions[0]!
+    expect(q.question_type).toBe('ordering')
+    expect(q.ordering_items).toEqual([
+      { id: 'item-b', text: 'callsign' },
+      { id: 'item-a', text: 'MAYDAY' },
+      { id: 'item-c', text: 'distress' },
+    ])
+    expect(q.dialog_template).toBeNull()
+    expect(q.blanks_safe).toBeNull()
+  })
+
+  it('yields null ordering_items when the RPC omits the shuffled items', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-mc2',
+          question_text: 'What is the MTOW limit?',
+          question_image_url: null,
+          question_number: '001',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [{ id: 'a', text: '500kg' }],
+          question_type: 'multiple_choice',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-mc2'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
   it('yields null blanks_safe and null dialog_template for a multiple_choice row', async () => {
     mockRpc.mockResolvedValue({
       data: [

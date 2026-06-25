@@ -112,7 +112,19 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 5 — `ordering` type (Part 3 sequencing)
 
-- [ ] **5.1 Add dnd-kit** — add dependency to `apps/web`; document the choice (touch/iPad) in decisions. Run `pnpm check-types --force` after the bump.
+> **DEVIATION FROM N7 (ratified — Decision 49, 2026-06-25).** N7 said ordering stores ONE JSON
+> row per question. It instead stores **PER-SLOT rows like dialog_fill** (one row per sequence slot,
+> `blank_index`=slot, `response_text`=item text, `is_correct` per slot). Reason: a single binary
+> `is_correct` row cannot express the partial credit Decision 47 requires through the
+> `batch_submit_quiz` `count(correct rows)/total_blanks` rollup; per-slot rows reuse the entire
+> proven dialog_fill pipeline (rollup `total_blanks` CASE only), report builder, answer-key RPC,
+> pagination. Required widening the mig-131 blank_index⇔dialog_fill trigger to include `ordering`
+> (a new migration the original plan missed — caught by Opus plan-critic). Migration set (7):
+> 134 column+CHECK, 135 trigger, 136 get_quiz_questions(+ordering_items_shuffled), 137
+> check_non_mc_answer(+p_order), 138 _grade_record_ordering helper, 139 batch_submit_quiz dispatch,
+> 140 get_report_answer_keys. `ordering_items` is REVOKE-gated by omission from mig 094's grant (N6).
+
+- [x] **5.1 Add dnd-kit** — add dependency to `apps/web`; document the choice (touch/iPad) in decisions. Run `pnpm check-types --force` after the bump. _(@dnd-kit/core+sortable+utilities; Decision 48; check-types --force clean; commit a7c55e2f.)_
 - [ ] **5.2 Migration — `ordering` type** — widen `questions_question_type_check` IN-list + `questions_question_type_columns_check`; add `ordering_items JSONB` (canonical order). Extend `get_quiz_questions` to deliver items **shuffled** (no order leak); extend grader (sequence match) + `batch_submit_quiz` (persist order) + `get_report_correct_options` (reveal order). Confirm whether `ordering_items` needs REVOKE. Integration tests + plan.md count.
 - [ ] **5.3 `OrderingInput` (dnd-kit sortable) + `OrderingReport` (+ tests)**; dispatch entries in panel + report row; widen `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions.
 - [ ] **5.4 Seed ordering fixtures** (MAYDAY + position-report) in the training seed.

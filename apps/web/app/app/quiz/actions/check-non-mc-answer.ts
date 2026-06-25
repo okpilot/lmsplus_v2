@@ -8,7 +8,9 @@ import {
   CheckNonMcAnswerSchema,
   type DialogFillRpcResult,
   isDialogFillRpcResult,
+  isOrderingRpcResult,
   isShortAnswerRpcResult,
+  type OrderingRpcResult,
   type ShortAnswerRpcResult,
   toClientBlanks,
   toRpcBlankAnswers,
@@ -53,6 +55,26 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
       questionType: 'short_answer',
       isCorrect: data.is_correct,
       correctAnswer: data.correct_answer,
+      explanationText: data.explanation_text,
+      explanationImageUrl: data.explanation_image_url,
+    }
+  }
+
+  if ('order' in parsed) {
+    const { data, error } = await rpc<OrderingRpcResult>(supabase, 'check_non_mc_answer', {
+      p_question_id: questionId,
+      p_session_id: sessionId,
+      p_order: parsed.order,
+    })
+    if (error || !isOrderingRpcResult(data)) {
+      console.error('[checkNonMcAnswer] ordering RPC error:', error?.message)
+      return { success: false, error: 'Could not check answer' }
+    }
+    return {
+      success: true,
+      questionType: 'ordering',
+      isCorrect: data.is_correct,
+      correctOrder: data.correct_order,
       explanationText: data.explanation_text,
       explanationImageUrl: data.explanation_image_url,
     }

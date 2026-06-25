@@ -47,7 +47,15 @@ const DialogFillInput = z
   })
   .strict()
 
-export const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput])
+const OrderingInput = z
+  .object({
+    questionId: z.uuid(),
+    sessionId: z.uuid(),
+    order: z.array(z.string().min(1)).min(2),
+  })
+  .strict()
+
+export const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput, OrderingInput])
 
 // Defense-in-depth session ownership + membership check (mirrors check-answer.ts).
 // The RPC self-guards, but the action fails fast on a foreign/closed session or a
@@ -99,6 +107,15 @@ export type DialogFillRpcResult = {
   explanation_image_url: string | null
 }
 
+export type OrderingRpcResult = {
+  is_correct: boolean
+  correct_answer: null
+  blanks: null
+  correct_order: string[]
+  explanation_text: string | null
+  explanation_image_url: string | null
+}
+
 function isNullableString(v: unknown): boolean {
   return v === null || typeof v === 'string'
 }
@@ -141,6 +158,24 @@ export function isDialogFillRpcResult(value: unknown): value is DialogFillRpcRes
     // returning success with no per-blank feedback.
     v.blanks.length > 0 &&
     v.blanks.every(isDialogBlankRow) &&
+    isNullableString(v.explanation_text) &&
+    isNullableString(v.explanation_image_url)
+  )
+}
+
+export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.is_correct === 'boolean' &&
+    v.correct_answer === null &&
+    v.blanks === null &&
+    Array.isArray(v.correct_order) &&
+    // An ordering question always has ≥2 items (input is `order.min(2)` and the
+    // CHECK enforces `>= 2` items), so an empty correct_order is a malformed RPC
+    // result — reject it rather than returning success with no revealed order.
+    v.correct_order.length > 0 &&
+    v.correct_order.every((s) => typeof s === 'string') &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)
   )

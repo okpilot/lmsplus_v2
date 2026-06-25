@@ -1,4 +1,4 @@
-export type QuestionType = 'multiple_choice' | 'short_answer' | 'dialog_fill'
+export type QuestionType = 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
 
 export type SessionQuestion = {
   id: string
@@ -15,6 +15,10 @@ export type SessionQuestion = {
   question_type: QuestionType
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
+  // Populated for `ordering` only — the shuffled {id, text} items the student
+  // reorders (canonical sequence hidden; get_quiz_questions mig 136). Null for
+  // every other type.
+  ordering_items: { id: string; text: string }[] | null
 }
 
 export type AnswerResult =

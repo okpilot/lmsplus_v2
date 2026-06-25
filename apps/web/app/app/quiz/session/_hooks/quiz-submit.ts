@@ -37,6 +37,16 @@ function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
     // short_answer: single entry with responseText
     return [{ questionId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
   }
+  if (a.order && a.order.length > 0) {
+    // ordering: fan out one entry per slot — item id rides in selectedOptionId,
+    // the slot position in blankIndex (the batch_submit dispatcher reads them).
+    return a.order.map((id, i) => ({
+      questionId,
+      selectedOptionId: id,
+      blankIndex: i,
+      responseTimeMs: a.responseTimeMs,
+    }))
+  }
   // MC (default): single entry with selectedOptionId
   return [{ questionId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs }]
 }

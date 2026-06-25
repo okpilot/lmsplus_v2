@@ -21,6 +21,7 @@ const TWO_QUESTIONS: SessionQuestion[] = [
     question_type: 'multiple_choice',
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
   {
     id: Q2_ID,
@@ -33,6 +34,7 @@ const TWO_QUESTIONS: SessionQuestion[] = [
     question_type: 'multiple_choice',
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
 ]
 

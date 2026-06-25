@@ -193,31 +193,43 @@ CREATE TABLE questions (
   version         INT NOT NULL DEFAULT 1,
   has_calculations BOOLEAN NOT NULL DEFAULT false,  -- admin-tagged: question requires a calculation; drives the quiz-start calc filter (mig 107, #837)
   question_type   TEXT NOT NULL DEFAULT 'multiple_choice'
-                    CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill')),
+                    CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill', 'ordering')),  -- ordering added mig 134 (#697 Phase 5)
   canonical_answer TEXT NULL,                  -- short_answer grading key
   accepted_synonyms TEXT[] NOT NULL DEFAULT '{}',  -- short_answer synonyms
   dialog_template TEXT NULL,                   -- dialog_fill raw template with {{n|canonical; syn}} tokens
   blanks_config   JSONB NOT NULL DEFAULT '[]'::jsonb,  -- dialog_fill: [{index, canonical, synonyms}]
+  ordering_items  JSONB NOT NULL DEFAULT '[]'::jsonb,  -- ordering: [{id, text}] in CANONICAL order (mig 134); answer key by array order — REVOKE-gated by omission from mig 094 grant (N6); delivered shuffled via get_quiz_questions
   created_by      UUID NOT NULL REFERENCES users(id),
   deleted_at      TIMESTAMPTZ NULL,            -- soft delete = question retired from bank
   deleted_by      UUID REFERENCES users(id) NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- 4-branch type<->column discriminator (mig 134 added the ordering branch +
+  -- the `jsonb_array_length(ordering_items) = 0` clause on every non-ordering branch).
   CONSTRAINT questions_question_type_columns_check CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
-       AND jsonb_array_length(blanks_config) = 0)
+       AND jsonb_array_length(blanks_config) = 0
+       AND jsonb_array_length(ordering_items) = 0)
     OR (question_type = 'short_answer'
        AND canonical_answer IS NOT NULL
        AND dialog_template IS NULL
-       AND jsonb_array_length(blanks_config) = 0)
+       AND jsonb_array_length(blanks_config) = 0
+       AND jsonb_array_length(ordering_items) = 0)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
-       AND jsonb_array_length(blanks_config) > 0)
+       AND jsonb_array_length(blanks_config) > 0
+       AND jsonb_array_length(ordering_items) = 0)
+    OR (question_type = 'ordering'
+       AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0
+       AND jsonb_array_length(ordering_items) >= 2)
   ),
   CONSTRAINT questions_mc_correct_option_id_check CHECK (
     (question_type = 'multiple_choice')

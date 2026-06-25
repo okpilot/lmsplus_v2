@@ -65,6 +65,17 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
       return Array.isArray(r.blanks) && r.blanks.length > 0 && r.blanks.every(isDialogBlankResult)
         ? { questionType: 'dialog_fill', blanks: r.blanks as DialogBlankResult[], ...base }
         : null
+    case 'ordering':
+      // Sibling-validator parity (agent-semantic-reviewer.md, count=3): mirror the
+      // ordering branch of isValidFeedbackEntry (sessionStorage rehydrate) + the
+      // draft-schema save union — a non-empty correctOrder array of non-empty
+      // strings. Without this case the load path returned null for ordering and
+      // toFeedbackRecord discarded the WHOLE draft's feedback on resume.
+      return Array.isArray(r.correctOrder) &&
+        r.correctOrder.length > 0 &&
+        r.correctOrder.every((s) => typeof s === 'string' && s.length > 0)
+        ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }
+        : null
     default:
       return null
   }

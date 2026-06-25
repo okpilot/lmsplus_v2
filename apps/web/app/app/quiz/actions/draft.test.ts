@@ -408,6 +408,74 @@ describe('saveDraft', () => {
     expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
   })
 
+  it('persists an ordering answer + feedback on save', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const answers = {
+      [Q1_ID]: { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 },
+    }
+    const feedbackPayload = {
+      [Q1_ID]: {
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY', 'callsign', 'distress'],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, answers, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg!.answers).toEqual(answers)
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('rejects an ordering answer carrying fewer than two items', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order: ['item-a'], responseTimeMs: 4000 } },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder has fewer than two items', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: true,
+          correctOrder: ['MAYDAY'],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
   it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined
