@@ -34,6 +34,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_EN_MARKER,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
@@ -51,8 +52,8 @@ const SOFTDEL_STUDENT_EMAIL = 'redteam-softdel-report-keys-student@lmsplus.local
 const SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-keys-student-2026!'
 
 // Hermeticity markers for the non-MC questions this spec inserts (egmont has none).
-const EN_SHORT_ANSWER_QNUM = '[E2E_REDTEAM_EN] short-answer'
-const EN_DIALOG_FILL_QNUM = '[E2E_REDTEAM_EN] dialog-fill'
+const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
+const EN_DIALOG_FILL_QNUM = `${E2E_REDTEAM_EN_MARKER} dialog-fill`
 
 const SHORT_ANSWER_CANONICAL = 'cleared to land'
 const DIALOG_BLANKS = [
@@ -118,7 +119,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       subject_id: subjectId,
       topic_id: topicId,
       created_by: createdBy,
-      question_text: '[E2E_REDTEAM_EN] report-answer-keys fixture',
+      question_text: `${E2E_REDTEAM_EN_MARKER} report-answer-keys fixture`,
       explanation_text: 'Red-team EN fixture explanation.',
       difficulty: 'medium' as const,
       status: 'active' as const,
@@ -183,7 +184,11 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     if (opts.completed) {
       row.ended_at = new Date().toISOString()
       row.score_percentage = 0
-      row.passed = false
+      // quick_quiz leaves passed NULL in production: batch_submit_quiz's pass_mark
+      // block is mode-guarded to mock_exam/internal_exam (mig 132), so practice modes
+      // never set passed. (Irrelevant to get_report_answer_keys, which gates on
+      // ended_at only — but the seed matches the production completion shape.)
+      row.passed = null
       row.correct_count = 0
     }
     const { data, error } = await admin.from('quiz_sessions').insert(row).select('id').single()
@@ -276,6 +281,14 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       blank_index: number | null
       answer_key: string
     }[]
+
+    // Full-contract (code-style §7): the RPC must return ONLY this session's two
+    // fixture questions' keys (1 short_answer row + 1 row per dialog_fill blank) —
+    // a regression that over-returns extra answer-key rows must fail here, not pass
+    // via subset filtering below.
+    expect(rows.map((r) => r.question_id).sort()).toEqual(
+      [shortAnswerQuestionId, ...DIALOG_BLANKS.map(() => dialogFillQuestionId)].sort(),
+    )
 
     // short_answer: exactly ONE row, blank_index NULL, answer_key = canonical.
     const saRows = rows.filter((r) => r.question_id === shortAnswerQuestionId)
@@ -423,13 +436,16 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       // beforeAll realigns it (deleted_at=null) for reuse. Best-effort, single step:
       // log, do not throw (code-style.md §7 best-effort cleanup).
       if (!softDelStudentId) return
-      const { error } = await admin
+      const { data, error } = await admin
         .from('users')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', softDelStudentId)
         .is('deleted_at', null)
+        .select('id')
       if (error) {
         console.error(`[report-answer-keys] EN4 best-effort soft-delete failed: ${error.message}`)
+      } else if ((data?.length ?? 0) > 0) {
+        console.log(`[report-answer-keys] EN4 soft-deleted ${data?.length} student(s)`)
       }
     })
 
