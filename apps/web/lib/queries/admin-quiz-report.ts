@@ -85,7 +85,15 @@ export async function getAdminQuizReportSummary(
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    answeredCount: answeredCount ?? session.total_questions,
+    // KNOWN LIMITATION (#991): the generic admin session route can reach non-MC
+    // sessions, which this path does not yet support. answeredCount is the raw
+    // answer-ROW count. For a non-MC session that makes answeredItems correct (items
+    // === rows: one row per blank for dialog_fill) but answeredQuestions WRONG — it
+    // should be COUNT(DISTINCT question_id), not the row count. MC sessions (the only
+    // non-dormant producer today) are correct on both: one row per question ⇒ rows ===
+    // questions === items.
+    answeredQuestions: answeredCount ?? session.total_questions,
+    answeredItems: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,
@@ -137,13 +145,22 @@ export async function getAdminQuizReportQuestions(opts: {
   const total = totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  if (total === 0 || page > totalPages) {
+  // page < 1 would make `from` negative and slice the tail — reject it like an
+  // out-of-range page (mirrors quiz-report-questions.ts). Defense-in-depth: callers
+  // route through parsePageParam (clamps ≥1).
+  if (page < 1 || total === 0 || page > totalPages) {
     return { ok: true, questions: [], totalCount: total }
   }
 
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
+  // KNOWN LIMITATION (#991): row-based .range() pagination is correct ONLY for MC
+  // sessions (one answer row per question). The generic admin session route CAN reach
+  // non-MC sessions, where a dialog_fill question's per-blank rows straddle a page
+  // boundary and duplicate the questionId across pages. Proper fix = mirror the student
+  // path's distinct-question pagination (quiz-report-questions.ts) AND add an admin
+  // answer-keys RPC. Unreachable today: the non-MC producer (/app/vfr-rt) is dormant.
   const { data: answersData, error: answersError } = await adminClient
     .from('quiz_session_answers')
     .select('question_id, selected_option_id, is_correct, response_time_ms')

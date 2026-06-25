@@ -42,11 +42,14 @@ beforeEach(() => {
 
 // ---- Fixtures ----------------------------------------------------------------
 
-function makeQuestion(overrides: Partial<QuizReportQuestion> = {}): QuizReportQuestion {
+type McQuestion = Extract<QuizReportQuestion, { questionType: 'multiple_choice' }>
+
+function makeQuestion(overrides: Partial<McQuestion> = {}): McQuestion {
   return {
     questionId: 'q1',
     questionText: 'What is lift?',
     questionNumber: '050-01-001',
+    questionType: 'multiple_choice',
     isCorrect: true,
     selectedOptionId: 'opt-a',
     correctOptionId: 'opt-a',
@@ -345,6 +348,107 @@ describe('ReportQuestionRow', () => {
       const longText = 'A'.repeat(120)
       render(<ReportQuestionRow question={makeQuestion({ questionText: longText })} index={0} />)
       expect(screen.getByText(longText)).toBeInTheDocument()
+    })
+  })
+
+  describe('short-answer questions', () => {
+    function makeShortAnswer(
+      overrides: Partial<Extract<QuizReportQuestion, { questionType: 'short_answer' }>> = {},
+    ): QuizReportQuestion {
+      return {
+        questionId: 'sa1',
+        questionText: 'Read back the clearance.',
+        questionNumber: '092-01-001',
+        questionType: 'short_answer',
+        isCorrect: true,
+        responseText: 'cleared for takeoff',
+        canonicalAnswer: 'cleared for takeoff',
+        explanationText: null,
+        explanationImageUrl: null,
+        questionImageUrl: null,
+        responseTimeMs: 4000,
+        ...overrides,
+      }
+    }
+
+    it('shows the student answer for a short-answer question', () => {
+      render(<ReportQuestionRow question={makeShortAnswer()} index={0} />)
+      expect(screen.getByText('cleared for takeoff')).toBeInTheDocument()
+    })
+
+    it('shows the expected answer when the short-answer response is wrong', () => {
+      render(
+        <ReportQuestionRow
+          question={makeShortAnswer({
+            isCorrect: false,
+            responseText: 'cleared to land',
+            canonicalAnswer: 'cleared for takeoff',
+          })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('cleared to land')).toBeInTheDocument()
+      expect(screen.getByText('cleared for takeoff')).toBeInTheDocument()
+    })
+
+    it('treats a whitespace-only short-answer response as not answered', () => {
+      // Whitespace (not '') exercises the .trim() branch of isQuestionAnswered —
+      // an empty string would pass even if trimming were removed.
+      render(<ReportQuestionRow question={makeShortAnswer({ responseText: '   ' })} index={0} />)
+      expect(screen.getByText('Not answered')).toBeInTheDocument()
+    })
+  })
+
+  describe('dialog-fill questions', () => {
+    function makeDialog(
+      overrides: Partial<Extract<QuizReportQuestion, { questionType: 'dialog_fill' }>> = {},
+    ): QuizReportQuestion {
+      return {
+        questionId: 'df1',
+        questionText: 'Fill the readback.',
+        questionNumber: '092-02-001',
+        questionType: 'dialog_fill',
+        isCorrect: false,
+        blanks: [
+          { index: 0, responseText: 'cleared', canonical: 'cleared', isCorrect: true },
+          { index: 1, responseText: 'descend', canonical: 'climb', isCorrect: false },
+        ],
+        correctCount: 1,
+        totalBlanks: 2,
+        explanationText: null,
+        explanationImageUrl: null,
+        questionImageUrl: null,
+        responseTimeMs: 6000,
+        ...overrides,
+      }
+    }
+
+    it('leads with the partial fraction of correct blanks', () => {
+      render(<ReportQuestionRow question={makeDialog()} index={0} />)
+      expect(screen.getByText('1 / 2 blanks correct')).toBeInTheDocument()
+    })
+
+    it('shows each blank response and the expected value for a wrong blank', () => {
+      render(<ReportQuestionRow question={makeDialog()} index={0} />)
+      expect(screen.getByText('descend')).toBeInTheDocument()
+      expect(screen.getByText('(expected: climb)')).toBeInTheDocument()
+    })
+
+    it('shows a full fraction when every blank is correct', () => {
+      render(
+        <ReportQuestionRow
+          question={makeDialog({
+            isCorrect: true,
+            correctCount: 2,
+            blanks: [
+              { index: 0, responseText: 'cleared', canonical: 'cleared', isCorrect: true },
+              { index: 1, responseText: 'climb', canonical: 'climb', isCorrect: true },
+            ],
+          })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('2 / 2 blanks correct')).toBeInTheDocument()
     })
   })
 

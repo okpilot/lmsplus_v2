@@ -18,7 +18,8 @@ const mockSummary: QuizReportSummary = {
   mode: 'quick_quiz',
   subjectName: '050 — Meteorology',
   totalQuestions: 3,
-  answeredCount: 3,
+  answeredQuestions: 2,
+  answeredItems: 3,
   correctCount: 2,
   scorePercentage: 66.67,
   startedAt: '2026-03-12T10:00:00Z',
@@ -32,6 +33,7 @@ const mockQuestions: QuizReportQuestion[] = [
     questionId: 'q1',
     questionText: 'What is lift?',
     questionNumber: '050-01-001',
+    questionType: 'multiple_choice',
     isCorrect: true,
     selectedOptionId: 'opt-a',
     correctOptionId: 'opt-a',
@@ -48,6 +50,7 @@ const mockQuestions: QuizReportQuestion[] = [
     questionId: 'q2',
     questionText: 'What is drag?',
     questionNumber: '050-01-002',
+    questionType: 'multiple_choice',
     isCorrect: false,
     selectedOptionId: 'opt-c',
     correctOptionId: 'opt-d',
@@ -64,6 +67,7 @@ const mockQuestions: QuizReportQuestion[] = [
     questionId: 'q3',
     questionText: 'What controls yaw?',
     questionNumber: null,
+    questionType: 'multiple_choice',
     isCorrect: true,
     selectedOptionId: 'opt-e',
     correctOptionId: 'opt-e',
@@ -97,9 +101,21 @@ describe('ReportCard', () => {
     expect(screen.getAllByText('050 — Meteorology').length).toBeGreaterThan(0)
   })
 
-  it('displays correct count in stats', () => {
+  it('uses answered items as the Correct denominator, not distinct answered questions', () => {
+    // correctCount=2, answeredItems=3, answeredQuestions=2: the Correct line must read
+    // 2 / 3 (correctCount / answeredItems). A swap to answeredQuestions would render 2 / 2.
     render(<ReportCard {...defaultProps} />)
     expect(screen.getAllByText('2 / 3').length).toBeGreaterThan(0)
+    expect(screen.queryByText('2 / 2')).toBeNull()
+  })
+
+  it('skips questions that were never answered', () => {
+    // totalQuestions=3, answeredQuestions=2 → Skipped = 1. A swap to answeredItems (3)
+    // would render 0.
+    render(<ReportCard {...defaultProps} />)
+    const skippedLabel = screen.getByText('Skipped')
+    const skippedValue = skippedLabel.parentElement?.querySelector('p:last-child')
+    expect(skippedValue?.textContent).toBe('1')
   })
 
   it('renders all question rows', () => {

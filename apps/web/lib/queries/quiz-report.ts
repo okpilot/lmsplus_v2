@@ -1,26 +1,67 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { fetchAllRows } from '@/lib/supabase-paginate'
 
-export type QuizReportQuestion = {
+// Fields shared by every question variant in the report. The per-type variants
+// below extend this with their type-specific shape (MC options, short-answer
+// text, dialog-fill blanks).
+export type QuizReportQuestionCommon = {
   questionId: string
   questionText: string
   questionNumber: string | null
-  isCorrect: boolean
-  // Null for text-answer (VFR RT) rows — see AnswerRow in report-question-builder.ts.
-  selectedOptionId: string | null
-  correctOptionId: string
-  options: { id: string; text: string }[]
   explanationText: string | null
   explanationImageUrl: string | null
   questionImageUrl: string | null
   responseTimeMs: number
 }
 
+// One report entry per BLANK of a dialog_fill question.
+export type DialogFillBlankResult = {
+  index: number
+  responseText: string | null
+  canonical: string | null
+  isCorrect: boolean
+}
+
+// Discriminated union on `questionType`. Consumers MUST narrow on it before
+// touching any type-specific field (MC `options`, short_answer `responseText`,
+// dialog_fill `blanks`). The MC variant is the default the builder emits when a
+// row carries no question_type (the admin MC-only feed relies on this).
+export type QuizReportQuestion =
+  | (QuizReportQuestionCommon & {
+      questionType: 'multiple_choice'
+      isCorrect: boolean
+      // Null for text-answer rows — see AnswerRow in report-question-builder.ts.
+      selectedOptionId: string | null
+      correctOptionId: string
+      options: { id: string; text: string }[]
+    })
+  | (QuizReportQuestionCommon & {
+      questionType: 'short_answer'
+      isCorrect: boolean
+      responseText: string | null
+      canonicalAnswer: string | null
+    })
+  | (QuizReportQuestionCommon & {
+      questionType: 'dialog_fill'
+      // True only when every blank is correct.
+      isCorrect: boolean
+      blanks: DialogFillBlankResult[]
+      // Number of correct blanks and total blanks, for the 3-state partial display.
+      correctCount: number
+      totalBlanks: number
+    })
+
 export type QuizReportSummary = {
   sessionId: string
   mode: string
   subjectName: string | null
   totalQuestions: number
-  answeredCount: number
+  // Distinct questions that received at least one answer — the denominator for Skipped.
+  answeredQuestions: number
+  // Answer-row count (MC/SA = 1 per question, dialog_fill = 1 per blank) — the
+  // denominator for the item-level "Correct" stat.
+  answeredItems: number
+  // Correct items (correct answer rows), unified with the exam scorer.
   correctCount: number
   scorePercentage: number
   startedAt: string
@@ -80,15 +121,32 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
-  // Fetch total answered count from quiz_session_answers
-  const { count: answeredCount, error: countError } = await supabase
-    .from('quiz_session_answers')
-    .select('question_id', { count: 'exact', head: true })
-    .eq('session_id', sessionId)
-  if (countError) {
-    console.error('[getQuizReportSummary] Count query error:', countError.message)
+  // Derive two counts from the session's answer rows:
+  //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
+  //  - answeredQuestions = distinct questions answered (denominator for Skipped)
+  // dialog_fill stores one row per blank and a session can hold up to 500 questions
+  // (quick_quiz cap) × up to 50 blanks, so this can exceed PostgREST's 1000-row cap —
+  // page through with fetchAllRows so the counts never silently truncate.
+  const { data: answerRows, error: answerRowsError } = await fetchAllRows<{ question_id: string }>(
+    () =>
+      supabase
+        .from('quiz_session_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId),
+    (from, to) =>
+      supabase
+        .from('quiz_session_answers')
+        .select('question_id')
+        .eq('session_id', sessionId)
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
+  if (answerRowsError) {
+    console.error('[getQuizReportSummary] Answer rows query error:', answerRowsError.message)
     return null
   }
+  const answeredItems = answerRows.length
+  const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 
   // Resolve subject name if available (display-only — don't abort report on failure)
   let subjectName: string | null = null
@@ -109,7 +167,8 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    answeredCount: answeredCount ?? session.total_questions,
+    answeredQuestions,
+    answeredItems,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,

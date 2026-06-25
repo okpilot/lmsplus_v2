@@ -649,7 +649,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (mig 119), `batch_submit_quiz` (migs 120/121 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 114) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
+**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (mig 119), `batch_submit_quiz` (migs 120/121 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), and `get_report_answer_keys` (mig 133) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer + dialog_fill per-blank) for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -1047,7 +1047,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - `short_answer` — `_grade_record_short_answer` helper (mig 120): normalizes via `normalize_answer()`, writes quiz_session_answers + student_responses (blank_index = NULL, one row per question).
 - `dialog_fill` — `_grade_record_dialog_fill` helper (mig 120): one call per blank (blank_index required in payload); writes quiz_session_answers + student_responses per blank.
 - **Internal helpers (mig 120):** `_grade_record_mc/_short_answer/_dialog_fill` are each `SECURITY DEFINER SET search_path = public` with `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` — not callable via PostgREST by anon/authenticated users (`FROM PUBLIC` alone is insufficient: Supabase default-grants EXECUTE to anon/authenticated separately; #952). The dispatcher is the single authorization boundary; `service_role` (trusted backend) retains EXECUTE. See Decision 47.
-- **DISTINCT-question score aggregation (mig 121, Decision 47):** a `dialog_fill` question with N blanks produces N `quiz_session_answers` rows but counts as one question. `v_correct_credit` (numeric) is the sum of per-question `LEAST(correct_rows / total_blanks, 1.0)` partial credit; `v_correct_count` (int) counts fully-correct questions. `v_answered` = DISTINCT question count (not row count). This matches `submit_vfr_rt_exam_answers` scoring so the same question type grades identically in practice and exam.
+- **DISTINCT-question score aggregation (mig 121, Decision 47):** a `dialog_fill` question with N blanks produces N `quiz_session_answers` rows but counts as one question. `v_correct_credit` (numeric) is the sum of per-question `LEAST(correct_rows / total_blanks, 1.0)` partial credit; `v_correct_count` (int) counts correct items (blank-rows) — `sum(correct_rows)` — unified with exam `submit_vfr_rt_exam_answers` (mig 132, #697 Phase 4). `v_answered` = DISTINCT question count (not row count). This matches `submit_vfr_rt_exam_answers` scoring so the same question type grades identically in practice and exam.
 - Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean). `expired` is absent on normal completion; on idempotent replay of an expired session (replay branch), detects expiry via audit-event lookup (`event_type LIKE '%.expired'` — matches any mode-keyed expiry event for the owned session) and re-adds the flag, ensuring a retry returns the same `expired:true` payload as the original (mig 130, #839).
 - **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both audit INSERTs — closing the TOCTOU window (PR #599 CR root-cause fix).
 - **Legacy-mode whitelist (migration 095c, #838; unchanged in mig 121):** rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`, `mock_exam`, `internal_exam`) with `unsupported_session_mode` — a `vfr_rt_exam` session must submit answers via `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
@@ -1080,7 +1080,7 @@ DECLARE
   v_results         jsonb := '[]'::jsonb;
   v_total           int;
   v_answered        int;
-  v_correct_count   int;     -- fully-correct question count (integer; stored column)
+  v_correct_count   int;     -- correct item (blank-row) count (integer; stored column)
   v_correct_credit  numeric; -- partial-credit sum (numeric; score numerator — Decision 47)
   v_score           numeric(5,2);
   v_session_question_ids uuid[];
@@ -1280,7 +1280,8 @@ BEGIN
 
   -- DISTINCT-question score aggregation (mig 121, Decision 47): dialog_fill folds
   -- per-blank rows into partial credit. v_correct_credit (numeric) is the score
-  -- numerator; v_correct_count (int) is the fully-correct question count.
+  -- numerator; v_correct_count (int) is the correct item (blank-row) count,
+  -- unified with exam submit_vfr_rt_exam_answers (mig 132).
   WITH session_questions AS (
     SELECT q.id AS question_id,
            CASE WHEN q.question_type = 'dialog_fill'
@@ -1298,7 +1299,7 @@ BEGIN
   SELECT
     count(DISTINCT sq.question_id)::int,
     coalesce(sum(LEAST(coalesce(g.correct_rows, 0)::numeric / sq.total_blanks, 1.0)), 0),
-    count(*) FILTER (WHERE coalesce(g.correct_rows, 0) >= sq.total_blanks)::int
+    coalesce(sum(coalesce(g.correct_rows, 0)), 0)::int
   INTO v_answered, v_correct_credit, v_correct_count
   FROM session_questions sq
   JOIN graded g ON g.question_id = sq.question_id;  -- only answered questions
@@ -1684,6 +1685,19 @@ Same return shape as `get_report_correct_options` but scoped by organization ins
 **Security:** Validates `auth.uid()`, `is_admin()`, org membership, session completion (`ended_at IS NOT NULL`), and soft-delete status. Added in migration `20260406000005` + `20260406000006`.
 
 **Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`.
+
+#### `get_report_answer_keys` — non-MC answer keys for reports
+
+Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4).
+
+**Returns:** `(question_id uuid, question_type text, blank_index int, answer_key text)` —
+- `short_answer`: one row per question, `blank_index = NULL`, `answer_key = canonical_answer`.
+- `dialog_fill`: one row **per blank** (`blank_index` from `blanks_config` `'index'`, `answer_key` from `'canonical'`).
+- `multiple_choice`: no rows.
+
+**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
+
+**Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
 
 #### `check_quiz_answer` — verify answer + return explanation
 

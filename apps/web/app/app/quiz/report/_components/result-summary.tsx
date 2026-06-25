@@ -34,7 +34,7 @@ type Props = Readonly<{ summary: QuizReportSummary }>
 
 export function ResultSummary({ summary }: Props) {
   const dateStr = summary.endedAt ?? summary.startedAt
-  const skipped = summary.totalQuestions - summary.answeredCount
+  const skipped = summary.totalQuestions - summary.answeredQuestions
   const isExam = isExamMode(summary.mode)
   // summary.mode is typed `string`; isExamMode confirms it's a valid exam mode at runtime,
   // so the narrow cast for MODE_LABELS lookup is safe.
@@ -71,7 +71,7 @@ export function ResultSummary({ summary }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredCount}
+              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredItems}
             </p>
           </div>
           <div>
@@ -100,7 +100,7 @@ export function ResultSummary({ summary }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredCount}
+              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredItems}
             </p>
           </div>
           <div>
