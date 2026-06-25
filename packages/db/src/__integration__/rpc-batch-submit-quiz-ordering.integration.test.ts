@@ -41,12 +41,12 @@ async function insertQuestion(
 
 describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper REVOKE', () => {
   const admin = getAdminClient()
-  let orgId: string
+  let orgId = ''
   let adminUserId: string
   let studentId: string
   let bankId: string
   let studentClient: SupabaseClient
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
   const suffix = Date.now()
 
@@ -142,15 +142,33 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   async function startSession(qIds: string[]): Promise<string> {
     const { data, error } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
-      p_subject_id: refs.subjectId,
-      p_topic_id: refs.topicId,
+      // refs is assigned in beforeAll; non-null by the time any test runs.
+      p_subject_id: refs!.subjectId,
+      p_topic_id: refs!.topicId,
       p_question_ids: qIds,
     })
     if (error) throw new Error(`startSession: ${error.message}`)
@@ -233,7 +251,7 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     for (const r of slotResults) expect(r.is_correct).toBe(true)
   })
 
-  it('forbids a direct authenticated call to _grade_record_ordering (REVOKE, 42501)', async () => {
+  it('forbids a direct authenticated call to the internal _grade_record_ordering helper (42501)', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 138): the helper must
     // not be callable via PostgREST by an authenticated user — a direct call would
     // bypass the dispatcher's auth/owner/mode guards and forge graded rows. The

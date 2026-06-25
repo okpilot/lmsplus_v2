@@ -6,8 +6,10 @@ import { ShortAnswerReport } from './short-answer-report'
 
 // Renders the per-type answer body for one report question, narrowing the
 // discriminated union to the matching sub-renderer (MC / short_answer /
-// dialog_fill / ordering). Every type is dispatched by an explicit guard — no
-// fall-through — so a new variant cannot be silently rendered as another type.
+// ordering / dialog_fill). Each of the four variants has its own explicit
+// guard; the trailing `return null` is an unreachable safety net so a future
+// variant renders nothing rather than being silently mis-rendered as another
+// type.
 export function ReportAnswerBody({ question }: { question: QuizReportQuestion }) {
   if (question.questionType === 'multiple_choice') {
     return (
@@ -36,11 +38,14 @@ export function ReportAnswerBody({ question }: { question: QuizReportQuestion })
       />
     )
   }
-  return (
-    <DialogFillReport
-      blanks={question.blanks}
-      correctCount={question.correctCount}
-      totalBlanks={question.totalBlanks}
-    />
-  )
+  if (question.questionType === 'dialog_fill') {
+    return (
+      <DialogFillReport
+        blanks={question.blanks}
+        correctCount={question.correctCount}
+        totalBlanks={question.totalBlanks}
+      />
+    )
+  }
+  return null
 }
