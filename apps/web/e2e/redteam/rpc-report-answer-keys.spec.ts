@@ -35,6 +35,8 @@ import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   E2E_REDTEAM_EN_MARKER,
+  E2E_REDTEAM_EN_SOFTDEL_STUDENT_EMAIL,
+  E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
@@ -48,8 +50,9 @@ const RPC = 'get_report_answer_keys'
 // Dedicated throwaway student for EN4 — NOT the shared redteam-victim@. Soft-deleting
 // the shared victim risks cross-spec failures if the process crashes mid-test; this
 // email is unique to this file so the blast radius of a soft-delete is bounded here.
-const SOFTDEL_STUDENT_EMAIL = 'redteam-softdel-report-keys-student@lmsplus.local'
-const SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-keys-student-2026!'
+// Aliased from the shared helper exports (code-style §7 #1: markers/fixtures from a shared module).
+const SOFTDEL_STUDENT_EMAIL = E2E_REDTEAM_EN_SOFTDEL_STUDENT_EMAIL
+const SOFTDEL_STUDENT_PASSWORD = E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD
 
 // Hermeticity markers for the non-MC questions this spec inserts (egmont has none).
 const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
@@ -368,7 +371,13 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     test.beforeAll(async () => {
       // Create (or realign) the dedicated throwaway student, ensuring it is NOT
       // soft-deleted from a prior aborted run.
-      const { data: authList, error: listError } = await admin.auth.admin.listUsers()
+      // perPage default is 50; once the shared local auth.users list grows past that,
+      // the reused throwaway student could land on a later page and be missed, wrongly
+      // falling through to createUser (which then fails on the duplicate email). Use a
+      // ceiling well above any test-env user count.
+      const { data: authList, error: listError } = await admin.auth.admin.listUsers({
+        perPage: 1000,
+      })
       if (listError) throw new Error(`EN4 beforeAll: listUsers failed: ${listError.message}`)
       const existing = authList.users.find((u) => u.email === SOFTDEL_STUDENT_EMAIL)
 
@@ -433,8 +442,11 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       // quiz_session_answers FK references, so a hard auth delete is blocked
       // (FK RESTRICT). Soft-delete the users row instead (security rule 6) so it
       // neither pollutes active-student queries nor blocks on FKs; the next run's
-      // beforeAll realigns it (deleted_at=null) for reuse. Best-effort, single step:
-      // log, do not throw (code-style.md §7 best-effort cleanup).
+      // beforeAll realigns it (deleted_at=null) for reuse. A failed soft-delete would
+      // leave the student ACTIVE and leak into downstream specs sharing this Supabase
+      // project, so THROW on a real error (code-style.md §7 — log-and-continue is only
+      // for failures that don't leak shared state). Zero rows is non-fatal: the row may
+      // already be soft-deleted from a prior run.
       if (!softDelStudentId) return
       const { data, error } = await admin
         .from('users')
@@ -443,8 +455,9 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
         .is('deleted_at', null)
         .select('id')
       if (error) {
-        console.error(`[report-answer-keys] EN4 best-effort soft-delete failed: ${error.message}`)
-      } else if ((data?.length ?? 0) > 0) {
+        throw new Error(`[report-answer-keys] EN4 afterAll soft-delete failed: ${error.message}`)
+      }
+      if ((data?.length ?? 0) > 0) {
         console.log(`[report-answer-keys] EN4 soft-deleted ${data?.length} student(s)`)
       }
     })
