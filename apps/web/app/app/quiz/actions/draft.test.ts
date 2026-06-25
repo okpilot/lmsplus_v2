@@ -459,6 +459,28 @@ describe('saveDraft', () => {
     expect(result.success).toBe(false)
   })
 
+  it('rejects an ordering answer with more than 50 items', async () => {
+    // Mirrors the answers.blankAnswers .max(50) cap — parity for ordering.
+    setupAuthenticatedUser()
+    const order = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order, responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering answer containing an item id longer than 200 characters', async () => {
+    // Mirrors the answers.blankAnswers text .max(200) cap — parity for ordering item ids.
+    setupAuthenticatedUser()
+    const longId = 'a'.repeat(201)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order: ['item-a', longId], responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('rejects an ordering feedback entry whose correctOrder has fewer than two items', async () => {
     setupAuthenticatedUser()
     const result = await saveDraft({

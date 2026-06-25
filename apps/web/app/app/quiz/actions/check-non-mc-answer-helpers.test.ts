@@ -392,6 +392,24 @@ describe('CheckNonMcAnswerSchema', () => {
     ).toBe(false)
   })
 
+  it('rejects an ordering payload with more than 50 items', () => {
+    const order = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    expect(
+      CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, order }).success,
+    ).toBe(false)
+  })
+
+  it('rejects an ordering payload containing an item id longer than 200 characters', () => {
+    const longId = 'a'.repeat(201)
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', longId],
+      }).success,
+    ).toBe(false)
+  })
+
   it('rejects a mixed payload carrying both order and responseText', () => {
     expect(
       CheckNonMcAnswerSchema.safeParse({

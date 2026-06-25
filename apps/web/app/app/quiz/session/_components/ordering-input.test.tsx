@@ -35,6 +35,12 @@ describe('OrderingInput', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('removes drag handles while the answer is being checked so the student cannot reorder mid-check', () => {
+    render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitting />)
+    // The Submit button is still present (just disabled) — only the drag handles disappear.
+    expect(screen.queryByRole('button', { name: /reorder/i })).not.toBeInTheDocument()
+  })
+
   it('hides Submit and removes drag handles once submitted', () => {
     render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitted />)
     expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
