@@ -51,7 +51,9 @@ const OrderingInput = z
   .object({
     questionId: z.uuid(),
     sessionId: z.uuid(),
-    order: z.array(z.string().min(1)).min(2),
+    // Bound the array + element length (parity with DialogFillInput blankAnswers
+    // .max(MAX_DIALOG_BLANKS) / text .max(200)) — client input in a Server Action.
+    order: z.array(z.string().min(1).max(200)).min(2).max(50),
   })
   .strict()
 

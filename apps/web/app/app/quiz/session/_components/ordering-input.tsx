@@ -113,7 +113,10 @@ export function OrderingInput({
                 key={it.id}
                 id={it.id}
                 text={it.text}
-                disabled={locked || disabled}
+                // Also lock during `submitting`: reordering mid-check would make the
+                // post-result badges (slotResult/canonical) compare a sequence the
+                // server never graded, so the reveal would disagree with is_correct.
+                disabled={locked || disabled || submitting}
                 result={slotResult(i)}
                 canonical={graded ? idToText.get(correctOrder[i] ?? '') : undefined}
               />

@@ -42,7 +42,9 @@ export const SaveDraftInput = z
               }
             })
             .optional(),
-          order: z.array(z.string().min(1)).min(2).optional(),
+          // Bound the array + element length (parity with blankAnswers .max(50) /
+          // text .max(200)) — client input parsed in a Server Action; ids are short.
+          order: z.array(z.string().min(1).max(200)).min(2).max(50).optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
         // Exactly one answer payload must be present (MC / short / dialog / ordering).
