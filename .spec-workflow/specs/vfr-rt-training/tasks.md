@@ -126,8 +126,8 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 - [x] **5.1 Add dnd-kit** — add dependency to `apps/web`; document the choice (touch/iPad) in decisions. Run `pnpm check-types --force` after the bump. _(@dnd-kit/core+sortable+utilities; Decision 48; check-types --force clean; commit a7c55e2f.)_
 - [x] **5.2 Migration — `ordering` type** — migs 134–140 (column+4-branch CHECK, mig-131 trigger widened, get_quiz_questions+ordering_items_shuffled shuffled, check_non_mc_answer+p_order, _grade_record_ordering REVOKE-helper, batch_submit_quiz dispatch+partial-credit rollup, get_report_answer_keys+ordering branch). `ordering_items` REVOKE-gated by omission (N6). Per-slot rows (Decision 49 / N7 deviation). +28 integration tests (3-of-5→60%; trigger; helper REVOKE), +304 unit; plan.md 220→248. Commits 124fa73f + 74fb7364. _(2 Opus plan-critic rounds + Opus impl-critic; post-commit fleet clean; red-team gap → #996.)_
-- [ ] **5.3 `OrderingInput` (dnd-kit sortable) + `OrderingReport` (+ tests)**; dispatch entries in panel + report row; widen `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions.
-- [ ] **5.4 Seed ordering fixtures** (MAYDAY + position-report) in the training seed.
+- [x] **5.3 `OrderingInput` (dnd-kit sortable) + `OrderingReport` (+ tests)**; dispatch entries in panel + report row; widen `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions. _(AnswerInput dispatcher split out of quiz-main-panel; id-vs-text reveal contract; submittedOrder restore-on-revisit; report builder + ordering-report. Commits d8a6e7c3 + 517b066a; CR-local r1–r4 + post-commit fixes 0a9ff0f3/3a58c471/d051d50a/b63b47a1/30131d83.)_
+- [x] **5.4 Seed ordering fixtures** (MAYDAY + position-report) in the training seed. _(seed-vfr-rt-training-eval.ts; commit c00c3bee.)_
   - _Eval:_ drag-to-order MAYDAY/position end-to-end (answer → feedback → report).
 
 ## Phase 6 — `diagram_label` type (Part 3 traffic pattern)
