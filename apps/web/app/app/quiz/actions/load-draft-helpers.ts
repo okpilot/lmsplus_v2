@@ -75,6 +75,9 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
       // WHOLE draft's feedback on resume.
       return Array.isArray(r.correctOrder) &&
         r.correctOrder.length >= 2 &&
+        // Upper-bound parity with the same family (.max(50)) — a tampered DB draft
+        // with >50 ids is corrupt.
+        r.correctOrder.length <= 50 &&
         r.correctOrder.every((s) => typeof s === 'string' && s.length > 0) &&
         new Set(r.correctOrder).size === r.correctOrder.length
         ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }

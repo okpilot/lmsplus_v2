@@ -49,6 +49,9 @@ export function isValidDraftAnswer(v: unknown): boolean {
     return (
       Array.isArray(r.order) &&
       r.order.length >= 2 &&
+      // Upper-bound parity with the RPC guard (isOrderingRpcResult) and the save
+      // schema (OrderingInput .max(50)) — a tampered draft with >50 ids is corrupt.
+      r.order.length <= 50 &&
       r.order.every(isNonEmptyString) &&
       new Set(r.order).size === r.order.length
     )
@@ -98,6 +101,9 @@ export function isValidFeedbackEntry(v: unknown): boolean {
         // — four-way parity with the save schema (draft-schema .min(2)), the RPC
         // guard (isOrderingRpcResult) and the DB-load path (toFeedbackEntry).
         r.correctOrder.length >= 2 &&
+        // Upper-bound parity with the same family (.max(50)) — a tampered
+        // sessionStorage feedback blob with >50 ids is corrupt.
+        r.correctOrder.length <= 50 &&
         r.correctOrder.every(isNonEmptyString) &&
         // A canonical order is a permutation — ids must be unique (parity with the
         // RPC guard isOrderingRpcResult and the save-schema .refine).

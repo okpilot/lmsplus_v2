@@ -167,6 +167,25 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(draft.feedback).toBeUndefined()
   })
 
+  it('rejects an ordering entry whose correctOrder exceeds fifty items', () => {
+    // Upper-bound parity (.max(50)) with the save schema, the RPC guard, and the
+    // sessionStorage rehydrate path — a tampered DB draft with >50 ids is voided on load.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: Array.from({ length: 51 }, (_, i) => `step-${i}`),
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
   it('rejects an ordering entry whose correctOrder has only one item', () => {
     // Four-way parity: min-2 guard in isValidFeedbackEntry (sessionStorage rehydrate),
     // the save schema (draft-schema .min(2)), the RPC guard, and toFeedbackEntry here.

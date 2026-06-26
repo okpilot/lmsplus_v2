@@ -114,6 +114,13 @@ describe('isValidDraftAnswer', () => {
     ).toBe(false)
   })
 
+  it('rejects an ordering draft whose order exceeds fifty items', () => {
+    // Upper-bound parity with the save schema (.max(50)) and the RPC guard — a
+    // tampered localStorage blob with >50 ids must not load as a valid draft.
+    const order = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(false)
+  })
+
   it('rejects a hybrid draft carrying both an order array and a selected option', () => {
     expect(
       isValidDraftAnswer({
@@ -331,6 +338,20 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'ordering',
         isCorrect: true,
         correctOrder: ['MAYDAY', ''],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder exceeds fifty items', () => {
+    // Upper-bound parity with the save schema (.max(50)) and the RPC guard — a
+    // tampered sessionStorage feedback blob with >50 ids must not rehydrate.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: Array.from({ length: 51 }, (_, i) => `item-${i}`),
         explanationText: null,
         explanationImageUrl: null,
       }),

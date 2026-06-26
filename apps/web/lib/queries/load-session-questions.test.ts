@@ -243,6 +243,38 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
+  it('discards ordering items when an element has a blank or whitespace-only id or text', async () => {
+    // Mirrors the DB CHECK (mig 134: btrim(id) != '' AND btrim(text) != ''). A blank
+    // id breaks id-keyed grading and a blank text renders an empty slot — the mapper
+    // must reject these defensively, not just non-string elements.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord-blank',
+          question_text: 'Sequence the steps',
+          question_image_url: null,
+          question_number: '003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [
+            { id: 'a', text: 'Alpha' },
+            { id: '  ', text: 'Whitespace id' },
+          ],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord-blank'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
   it('yields null blanks_safe and null dialog_template for a multiple_choice row', async () => {
     mockRpc.mockResolvedValue({
       data: [
