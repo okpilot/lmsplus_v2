@@ -96,11 +96,16 @@ $$;
 -- 3) Type <-> column population discriminator (4 branches).
 -- ------------------------------------------------------------------
 -- Every branch now positively states ordering_items emptiness: non-ordering types
--- must have length 0; ordering must have >= 2 items (a 1-item "ordering" is
+-- must be exactly '[]'; ordering must have >= 2 items (a 1-item "ordering" is
 -- degenerate — always trivially correct). mig 125's two dialog_fill constraints are
 -- gated on `question_type <> 'dialog_fill'` so they pass vacuously for ordering rows
--- (no change needed there). Existing rows backfill ordering_items = '[]' (length 0),
--- so every existing MC/short/dialog row satisfies its branch's new `= 0` clause.
+-- (no change needed there). Existing rows backfill ordering_items = '[]', so every
+-- existing MC/short/dialog row satisfies its branch's `= '[]'::jsonb` clause.
+-- TOTALITY (#998 CR): the emptiness checks use exact `= '[]'::jsonb` equality and the
+-- ordering length check CASE-wraps its `jsonb_array_length` argument, so a malformed
+-- non-array ordering_items (e.g. an object or scalar) fails the CHECK cleanly with
+-- 23514 instead of raising a raw 22023 — matching is_valid_ordering_items's own
+-- CASE-wrap. `jsonb_array_length` is never called on an unguarded possibly-non-array.
 ALTER TABLE questions
   DROP CONSTRAINT questions_question_type_columns_check;
 
@@ -111,23 +116,25 @@ ALTER TABLE questions
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'short_answer'
        AND canonical_answer IS NOT NULL
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'ordering'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) >= 2
+       AND jsonb_array_length(
+             CASE WHEN jsonb_typeof(ordering_items) = 'array' THEN ordering_items ELSE '[]'::jsonb END
+           ) >= 2
        AND is_valid_ordering_items(ordering_items))
   );

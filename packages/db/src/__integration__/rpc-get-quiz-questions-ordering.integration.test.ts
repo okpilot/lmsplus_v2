@@ -418,4 +418,29 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
   })
+
+  it('rejects an ordering question whose ordering_items is a non-array JSON value', async () => {
+    // Totality of the columns_check (#998 CR): a non-array ordering_items (here a JSON
+    // object) must fail the CHECK cleanly with 23514 — NOT raise a raw 22023 from an
+    // unguarded jsonb_array_length. The branch emptiness checks use `= '[]'::jsonb` and
+    // the ordering length check CASE-wraps its argument, so jsonb_array_length never runs
+    // on a non-array. A 22023 here (instead of 23514) means the totality guard regressed.
+    const malformedItems = { not: 'an-array' } as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-array ordering_items',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
 })
