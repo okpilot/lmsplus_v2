@@ -3,8 +3,10 @@
  *
  * SECURITY DEFINER RPC (mig 20260626000200) that DELIBERATELY returns the MC
  * answer key (`correct_option_id`) and explanation to an authenticated student
- * for Study Mode — a self-paced practice surface with no session, score, or exam
- * integrity to protect. Unlike get_quiz_questions (mig 126), which strips the key
+ * for Study Mode — a self-paced practice surface that shows the answer (no score,
+ * no session of its own). Exam integrity IS protected here, but by the
+ * active-exam-session guard (EO6 below), not by the absence of a session: exams
+ * grade from the same org MC pool. Unlike get_quiz_questions (mig 126), which strips the key
  * (correct_option_id is REVOKE-gated from `authenticated`, mig 111/094), this RPC
  * is SECURITY DEFINER so it can read the REVOKE-gated column and hand the key over.
  *
@@ -30,6 +32,13 @@
  *   - EO5 positive control (the deliberate, in-bounds exposure): an authenticated
  *         in-org student DOES receive the MC question WITH a populated
  *         correct_option_id and the explanation.
+ *   - EO6 mid-exam answer-oracle (the CRITICAL vector): a student with an active
+ *         exam session (mode NOT IN practice modes, ended_at IS NULL) POSTs their
+ *         exam's question ids — already delivered client-side by get_quiz_questions
+ *         / get_vfr_rt_exam_questions — to this RPC to read the MC keys mid-exam.
+ *         The deny-by-default active-exam-session guard raises 'active_exam_session'.
+ *         NON-VACUOUS: EO5 runs first in the same describe, proving the same
+ *         student+question returns the key when no exam is active.
  *
  * Hermeticity (code-style.md §7): every question this spec reads is one it inserts
  * itself (marker-tagged via E2E_REDTEAM_EO_MARKER, unique question_number per row),
