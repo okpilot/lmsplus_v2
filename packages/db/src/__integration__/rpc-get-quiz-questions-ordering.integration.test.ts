@@ -259,4 +259,55 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(adminErr).toBeNull()
     expect(adminData?.ordering_items.map((i) => i.id)).toEqual(ORDERING_ITEMS.map((i) => i.id))
   })
+
+  it('rejects an ordering question whose items contain a duplicate id', async () => {
+    // mig 134 is_valid_ordering_items() CHECK: ordering_items must have non-empty,
+    // DISTINCT ids and non-empty text — the array order is the answer key, so a duplicate
+    // id is a non-permutation that get_quiz_questions could not render or grade. The DB
+    // rejects it at authoring (23514) rather than persist it. Regression guard for the
+    // CHANGE-1 CHECK (#998 CR #452) — without it a refactor dropping the helper from the
+    // columns_check would pass db reset + every CI gate silently.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — duplicate id',
+      ordering_items: [
+        { id: 'dup', text: 'first' },
+        { id: 'dup', text: 'second' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item has blank text', async () => {
+    // Same CHECK: each item needs non-empty text (the rendered label). (#998 CR #452)
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — blank text',
+      ordering_items: [
+        { id: 'a', text: '' },
+        { id: 'b', text: 'Bravo' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
 })

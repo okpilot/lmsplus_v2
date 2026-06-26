@@ -256,6 +256,8 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     // slots is not a permutation. The (question_id, blank_index) guard passes (the slots
     // differ), so the dispatcher's count(DISTINCT selected_option) = N guard must reject
     // it before any per-slot row reaches the immutable quiz_session_answers table.
+    // CANONICAL_IDS mirrors the 5-element ITEMS list seeded in beforeAll, so indices
+    // 0-4 are always in range — the non-null assertions are safe.
     const dupIds = [
       CANONICAL_IDS[0]!,
       CANONICAL_IDS[0]!,
