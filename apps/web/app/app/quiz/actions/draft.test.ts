@@ -551,6 +551,45 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  it('rejects an ordering feedback entry whose correctOrder exceeds 50 items', async () => {
+    // Parity with "rejects an ordering answer with more than 50 items" — schema comment
+    // documents .max(50) as mirroring the sibling blanks-feedback cap.
+    setupAuthenticatedUser()
+    const correctOrder = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: true,
+          correctOrder,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering feedback entry with duplicate ids in correctOrder', async () => {
+    // Parity with "rejects an ordering answer with duplicate item ids" — schema comment:
+    // "A canonical order is a permutation — duplicate ids mean corrupt feedback."
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: false,
+          correctOrder: ['MAYDAY', 'callsign', 'MAYDAY'],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined
