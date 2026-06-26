@@ -226,6 +226,16 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     // SELECT and re-granted an EXPLICIT column list; a column added after that grant
     // is excluded, so `authenticated` cannot SELECT it via PostgREST. Direct select
     // of ordering_items must fail (or omit the column), whereas the service role can.
+    // Positive control (non-vacuity): the student CAN see the row itself via the
+    // tenant_isolation RLS policy (same org), so a missing ordering_items column proves
+    // the COLUMN REVOKE hid the key — not that RLS blocked the whole row.
+    const { data: visibleRows, error: visibleErr } = await studentClient
+      .from('questions')
+      .select('id')
+      .eq('id', orderingId)
+    expect(visibleErr).toBeNull()
+    expect(visibleRows?.some((r) => r.id === orderingId)).toBe(true)
+
     const { data: studentData, error: studentErr } = await studentClient
       .from('questions')
       .select('id, ordering_items')
@@ -242,8 +252,10 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
         `unexpected error: ${code}: ${studentErr.message}`,
       ).toBe(true)
     } else {
-      // Defensive: if no error, the answer-key column must NOT have leaked.
+      // If no error, the row IS visible (positive control above) but the answer-key
+      // column must NOT have leaked — assert the row is present so this isn't vacuous.
       const rows = (studentData ?? []) as Array<Record<string, unknown>>
+      expect(rows).toHaveLength(1)
       for (const r of rows) {
         expect('ordering_items' in r).toBe(false)
       }

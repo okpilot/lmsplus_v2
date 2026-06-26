@@ -58,6 +58,9 @@ describe('OrderingInput', () => {
     const button = screen.getByRole('button', { name: /submit answer/i })
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
+    // Assert the spinner is actually rendered, not just the busy state — otherwise
+    // the spinner could regress away and this test would still pass on aria-busy alone.
+    expect(button.querySelector('.animate-spin')).not.toBeNull()
   })
 
   it('removes drag handles while the answer is being checked so the student cannot reorder mid-check', () => {

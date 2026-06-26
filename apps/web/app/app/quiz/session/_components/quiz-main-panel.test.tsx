@@ -140,7 +140,11 @@ vi.mock('./ordering-input', () => ({
       <button
         type="button"
         data-testid="ordering-submit"
-        onClick={() => onSubmit(ORDERING_PAYLOAD)}
+        disabled={disabled || submitted}
+        onClick={() => {
+          if (disabled || submitted) return
+          onSubmit(ORDERING_PAYLOAD)
+        }}
       >
         submit
       </button>
@@ -420,7 +424,8 @@ describe('QuizMainPanel', () => {
       expect(handleOrderingAnswer).toHaveBeenCalledWith(['b', 'a'])
     })
 
-    it('locks ordering submission when an answer already exists', () => {
+    it('locks ordering submission when an answer already exists', async () => {
+      const handleOrderingAnswer = vi.fn()
       const s = makeState({
         question: {
           id: 'q-ord',
@@ -439,9 +444,14 @@ describe('QuizMainPanel', () => {
           ],
         },
         existingAnswer: { order: ['a', 'b'], responseTimeMs: 700 },
+        handleOrderingAnswer,
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
+      // The lock must actually prevent submission, not just flip the flag: clicking the
+      // (now-disabled) submit must not fire the handler for an already-answered question.
+      await userEvent.click(screen.getByTestId('ordering-submit'))
+      expect(handleOrderingAnswer).not.toHaveBeenCalled()
     })
 
     it('renders an ordering question with its item ids in the delivered order', () => {

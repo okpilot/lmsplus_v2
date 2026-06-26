@@ -97,6 +97,20 @@ describe('CheckNonMcAnswerSchema', () => {
     ).toBe(false)
   })
 
+  it('rejects a mixed payload carrying both order and blankAnswers', () => {
+    // The 3-shape union must not let an ordering payload smuggle a dialog_fill key
+    // (or vice versa) — `.strict()` on each member rejects the hybrid instead of
+    // stripping the extra key and grading it as the wrong type.
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', 'item-b'],
+        blankAnswers: [{ index: 0, text: 'cleared to land' }],
+      }).success,
+    ).toBe(false)
+  })
+
   it('rejects a mixed payload carrying both responseText and blankAnswers', () => {
     // `.strict()` on both members stops z.union from stripping the extra key and
     // silently grading a hybrid as short_answer.
