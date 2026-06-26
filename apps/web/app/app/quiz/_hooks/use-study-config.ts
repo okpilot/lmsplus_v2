@@ -2,6 +2,7 @@ import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
 import { useQuizConfigState } from './use-quiz-config-state'
+import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
 
 /**
@@ -32,6 +33,16 @@ export function useStudyConfig() {
     topicTree,
   })
 
+  const { questions, loading, error, handleStart, reset } = useStudyStart({
+    subjectId: st.subjectId,
+    count: st.count,
+    maxQuestions: availableCount,
+    filters: st.filters,
+    calcMode: st.calcMode,
+    imageMode: st.imageMode,
+    topicTree,
+  })
+
   useFilteredCountSync({
     subjectId: st.subjectId,
     hasActiveFilters: st.hasActiveFilters,
@@ -59,5 +70,10 @@ export function useStudyConfig() {
     authError: fc.authError,
     isPending: topicTree.isPending || fc.isFilterPending,
     handleSubjectChange: st.handleSubjectChange,
+    questions,
+    loading,
+    error,
+    handleStart,
+    reset,
   }
 }

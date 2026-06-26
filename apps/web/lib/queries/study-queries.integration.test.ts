@@ -232,7 +232,7 @@ describe('getStudyQuestions (app-layer integration)', () => {
     expect(result).toEqual([])
   })
 
-  it('returns an empty array for an empty id list without calling the RPC', async () => {
+  it('returns an empty array for an empty id list', async () => {
     await signInAs(email, password)
     const result = await getStudyQuestions([])
     expect(result).toEqual([])

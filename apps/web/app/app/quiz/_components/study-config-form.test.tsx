@@ -4,17 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockUseStudyConfig, mockUseStudyStart } = vi.hoisted(() => ({
+const { mockUseStudyConfig } = vi.hoisted(() => ({
   mockUseStudyConfig: vi.fn(),
-  mockUseStudyStart: vi.fn(),
 }))
 
 vi.mock('../_hooks/use-study-config', () => ({
   useStudyConfig: () => mockUseStudyConfig(),
-}))
-
-vi.mock('../_hooks/use-study-start', () => ({
-  useStudyStart: () => mockUseStudyStart(),
 }))
 
 // StudyRunner: expose the onExit callback via an Exit button so tests can invoke it.
@@ -116,16 +111,10 @@ function buildDefaultConfig(overrides: Record<string, unknown> = {}) {
     authError: false,
     isPending: false,
     handleSubjectChange: vi.fn(),
-    ...overrides,
-  }
-}
-
-function buildDefaultStudy(overrides: Record<string, unknown> = {}) {
-  return {
     questions: null as unknown[] | null,
     loading: false,
     error: null as string | null,
-    start: vi.fn(),
+    handleStart: vi.fn(),
     reset: vi.fn(),
     ...overrides,
   }
@@ -137,7 +126,6 @@ describe('StudyConfigForm', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockUseStudyConfig.mockReturnValue(buildDefaultConfig())
-    mockUseStudyStart.mockReturnValue(buildDefaultStudy())
   })
 
   // ---- Runner vs config form -----------------------------------------------
@@ -150,8 +138,8 @@ describe('StudyConfigForm', () => {
     })
 
     it('renders StudyRunner and hides the config form when questions are loaded', () => {
-      mockUseStudyStart.mockReturnValue(
-        buildDefaultStudy({ questions: [{ id: 'q-1', questionText: 'Test?' }] }),
+      mockUseStudyConfig.mockReturnValue(
+        buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }] }),
       )
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByTestId('study-runner')).toBeInTheDocument()
@@ -160,8 +148,8 @@ describe('StudyConfigForm', () => {
 
     it('calls reset when StudyRunner fires onExit', async () => {
       const reset = vi.fn()
-      mockUseStudyStart.mockReturnValue(
-        buildDefaultStudy({ questions: [{ id: 'q-1', questionText: 'Test?' }], reset }),
+      mockUseStudyConfig.mockReturnValue(
+        buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }], reset }),
       )
       const user = userEvent.setup()
       render(<StudyConfigForm subjects={SUBJECTS} />)
@@ -170,10 +158,11 @@ describe('StudyConfigForm', () => {
     })
 
     it('runs the full study lifecycle: start → runner shown → exit → back to the config form', async () => {
-      const start = vi.fn()
+      const handleStart = vi.fn()
       const reset = vi.fn()
-      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start, reset }))
+      mockUseStudyConfig.mockReturnValue(
+        buildDefaultConfig({ subjectId: 'sub-1', handleStart, reset }),
+      )
       const user = userEvent.setup()
       const { rerender } = render(<StudyConfigForm subjects={SUBJECTS} />)
 
@@ -183,11 +172,16 @@ describe('StudyConfigForm', () => {
 
       // Start a session.
       await user.click(screen.getByRole('button', { name: 'Start studying' }))
-      expect(start).toHaveBeenCalled()
+      expect(handleStart).toHaveBeenCalled()
 
       // In-progress: questions loaded → runner replaces the config form.
-      mockUseStudyStart.mockReturnValue(
-        buildDefaultStudy({ start, reset, questions: [{ id: 'q-1', questionText: 'Test?' }] }),
+      mockUseStudyConfig.mockReturnValue(
+        buildDefaultConfig({
+          subjectId: 'sub-1',
+          handleStart,
+          reset,
+          questions: [{ id: 'q-1', questionText: 'Test?' }],
+        }),
       )
       rerender(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByTestId('study-runner')).toBeInTheDocument()
@@ -196,14 +190,16 @@ describe('StudyConfigForm', () => {
       // Exit: reset fires and the config form is restored on the study tab.
       await user.click(screen.getByRole('button', { name: 'Exit' }))
       expect(reset).toHaveBeenCalled()
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start, reset, questions: null }))
+      mockUseStudyConfig.mockReturnValue(
+        buildDefaultConfig({ subjectId: 'sub-1', handleStart, reset, questions: null }),
+      )
       rerender(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByTestId('subject-select')).toBeInTheDocument()
       expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
     })
   })
 
-  // ---- Button enabled / disabled -------------------------------------------
+  // ---- Start studying button -----------------------------------------------
 
   describe('Start studying button', () => {
     it('is disabled when no subject is selected', () => {
@@ -226,8 +222,7 @@ describe('StudyConfigForm', () => {
     })
 
     it('shows Loading text, marks aria-busy, and disables the button while loading', () => {
-      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ loading: true }))
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', loading: true }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
       const btn = screen.getByRole('button', { name: 'Loading...' })
       expect(btn).toBeDisabled()
@@ -241,13 +236,22 @@ describe('StudyConfigForm', () => {
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByRole('button', { name: 'Start studying' })).toBeDisabled()
     })
+
+    it('calls handleStart from the config hook when the button is clicked', async () => {
+      const handleStart = vi.fn()
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', handleStart }))
+      const user = userEvent.setup()
+      render(<StudyConfigForm subjects={SUBJECTS} />)
+      await user.click(screen.getByRole('button', { name: 'Start studying' }))
+      expect(handleStart).toHaveBeenCalledOnce()
+    })
   })
 
   // ---- Error states --------------------------------------------------------
 
   describe('error states', () => {
     it('shows an error alert when the start action reports an error', () => {
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ error: 'No matching questions' }))
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ error: 'No matching questions' }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByRole('alert')).toHaveTextContent('No matching questions')
     })
@@ -301,50 +305,6 @@ describe('StudyConfigForm', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
-    })
-  })
-
-  // ---- handleStart orchestration -------------------------------------------
-
-  describe('handleStart', () => {
-    it('clamps count to availableCount when count exceeds the available pool', async () => {
-      const start = vi.fn()
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({ subjectId: 'sub-1', count: 50, availableCount: 20 }),
-      )
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start }))
-      const user = userEvent.setup()
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      await user.click(screen.getByRole('button', { name: 'Start studying' }))
-      expect(start).toHaveBeenCalledWith(expect.objectContaining({ count: 20 }))
-    })
-
-    it('passes undefined for topicIds and subtopicIds when no topics are selected', async () => {
-      const start = vi.fn()
-      // getSelectedTopicIds/getSelectedSubtopicIds default to returning []
-      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start }))
-      const user = userEvent.setup()
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      await user.click(screen.getByRole('button', { name: 'Start studying' }))
-      expect(start).toHaveBeenCalledWith(
-        expect.objectContaining({ topicIds: undefined, subtopicIds: undefined }),
-      )
-    })
-
-    it('passes selected topic and subtopic arrays when topics are chosen', async () => {
-      const start = vi.fn()
-      const topicTree = buildDefaultTopicTree()
-      topicTree.getSelectedTopicIds = vi.fn().mockReturnValue(['t1', 't2'])
-      topicTree.getSelectedSubtopicIds = vi.fn().mockReturnValue(['st1'])
-      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', topicTree }))
-      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start }))
-      const user = userEvent.setup()
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      await user.click(screen.getByRole('button', { name: 'Start studying' }))
-      expect(start).toHaveBeenCalledWith(
-        expect.objectContaining({ topicIds: ['t1', 't2'], subtopicIds: ['st1'] }),
-      )
     })
   })
 })

@@ -3,7 +3,6 @@
 import { Loader2 } from 'lucide-react'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
-import { useStudyStart } from '../_hooks/use-study-start'
 import { StudyRunner } from '../study/_components/study-runner'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
@@ -12,24 +11,9 @@ import { TopicTree } from './topic-tree'
 
 export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
   const config = useStudyConfig()
-  const study = useStudyStart()
 
-  function handleStart() {
-    const topicIds = config.topicTree.getSelectedTopicIds()
-    const subtopicIds = config.topicTree.getSelectedSubtopicIds()
-    study.start({
-      subjectId: config.subjectId,
-      topicIds: topicIds.length > 0 ? topicIds : undefined,
-      subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
-      count: Math.min(config.count, config.availableCount || 1),
-      filters: config.filters,
-      calcMode: config.calcMode,
-      imageMode: config.imageMode,
-    })
-  }
-
-  if (study.questions) {
-    return <StudyRunner questions={study.questions} onExit={study.reset} />
+  if (config.questions) {
+    return <StudyRunner questions={config.questions} onExit={config.reset} />
   }
 
   return (
@@ -79,9 +63,9 @@ export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
         </div>
       )}
 
-      {study.error && (
+      {config.error && (
         <p role="alert" className="text-sm text-destructive">
-          {study.error}
+          {config.error}
         </p>
       )}
       {config.authError && (
@@ -95,17 +79,17 @@ export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
         disabled={
           !config.subjectId ||
           config.availableCount === 0 ||
-          study.loading ||
+          config.loading ||
           config.isPending ||
           config.authError
         }
-        onClick={handleStart}
-        aria-busy={study.loading || undefined}
+        onClick={config.handleStart}
+        aria-busy={config.loading || undefined}
         className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
         <span className="inline-flex items-center justify-center gap-2">
-          {study.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {study.loading ? 'Loading...' : 'Start studying'}
+          {config.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+          {config.loading ? 'Loading...' : 'Start studying'}
         </span>
       </button>
     </div>

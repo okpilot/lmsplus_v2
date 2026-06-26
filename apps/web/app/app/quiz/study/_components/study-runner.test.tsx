@@ -13,21 +13,30 @@ vi.mock('../../session/_hooks/use-flagged-questions', () => ({
 }))
 
 // StudyFlashcard is mocked with a lightweight stand-in that renders the
-// question text and a flag button so nav + flag callback tests stay focused
-// on StudyRunner's orchestration, not the flashcard's internals.
+// question text, a flag button, and a data-flag-loading attribute so nav,
+// flag-callback, and flagLoading-forwarding tests stay focused on
+// StudyRunner's orchestration, not the flashcard's internals.
 vi.mock('./study-flashcard', () => ({
   StudyFlashcard: ({
     question,
     isFlagged,
     onToggleFlag,
+    flagLoading,
   }: {
     question: { id: string; questionText: string }
     isFlagged: boolean
     onToggleFlag: () => void
+    flagLoading: boolean
   }) => (
     <div data-testid={`flashcard-${question.id}`}>
       <span>{question.questionText}</span>
-      <button type="button" data-testid="flag-btn" aria-pressed={isFlagged} onClick={onToggleFlag}>
+      <button
+        type="button"
+        data-testid="flag-btn"
+        aria-pressed={isFlagged}
+        onClick={onToggleFlag}
+        data-flag-loading={String(flagLoading)}
+      >
         {isFlagged ? 'Unflag' : 'Flag'}
       </button>
     </div>
@@ -274,5 +283,15 @@ describe('StudyRunner — flag button', () => {
     })
     fireEvent.click(screen.getByTestId('flag-btn'))
     expect(mockToggleFlag).toHaveBeenCalledWith('q-2')
+  })
+
+  it('forwards flagLoading=true to the flashcard when the flag toggle is in progress', () => {
+    mockUseFlaggedQuestions.mockReturnValue({
+      isFlagged: vi.fn(() => false),
+      toggleFlag: mockToggleFlag,
+      isToggling: vi.fn(() => true),
+    })
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    expect(screen.getByTestId('flag-btn')).toHaveAttribute('data-flag-loading', 'true')
   })
 })

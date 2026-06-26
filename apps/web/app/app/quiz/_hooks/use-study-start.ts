@@ -3,14 +3,17 @@ import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { startStudy } from '../actions/study'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
-export type StartStudyInput = {
+type UseStudyStartOpts = {
   subjectId: string
-  topicIds?: string[]
-  subtopicIds?: string[]
   count: number
+  maxQuestions: number
   filters?: QuestionFilterValue[]
   calcMode?: CalcMode
   imageMode?: ImageMode
+  topicTree: {
+    getSelectedTopicIds: () => string[]
+    getSelectedSubtopicIds: () => string[]
+  }
 }
 
 /**
@@ -19,18 +22,30 @@ export type StartStudyInput = {
  * questions live in component state. `questions === null` means "still in the
  * config form"; an empty array is a valid loaded result (no matches).
  */
-export function useStudyStart() {
+export function useStudyStart(opts: UseStudyStartOpts) {
+  const { subjectId, count, maxQuestions, filters, calcMode, imageMode, topicTree } = opts
   const [questions, setQuestions] = useState<StudyQuestion[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function start(input: StartStudyInput) {
+  async function handleStart() {
     if (loading) return
-    if (!input.subjectId) return
+    if (!subjectId) return
     setLoading(true)
     setError(null)
     try {
-      const result = await startStudy(input)
+      const topicIds = topicTree.getSelectedTopicIds()
+      const subtopicIds = topicTree.getSelectedSubtopicIds()
+      const effectiveCount = Math.min(count, maxQuestions || 1)
+      const result = await startStudy({
+        subjectId,
+        topicIds: topicIds.length > 0 ? topicIds : undefined,
+        subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
+        count: effectiveCount,
+        filters,
+        calcMode,
+        imageMode,
+      })
       if (result.success) {
         setQuestions(result.questions)
       } else {
@@ -48,5 +63,5 @@ export function useStudyStart() {
     setError(null)
   }
 
-  return { questions, loading, error, start, reset }
+  return { questions, loading, error, handleStart, reset }
 }

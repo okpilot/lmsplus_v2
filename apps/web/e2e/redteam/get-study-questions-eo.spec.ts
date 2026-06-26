@@ -53,7 +53,14 @@ import {
   VICTIM_PASSWORD,
 } from './helpers/seed'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+// Fail fast: a missing Supabase URL must surface as a deterministic setup error at
+// load — not an opaque RPC failure when the client silently uses an undefined URL.
+if (!SUPABASE_URL) {
+  throw new Error(
+    'get-study-questions-eo.spec: NEXT_PUBLIC_SUPABASE_URL is required (set it in apps/web/.env.local)',
+  )
+}
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // Fail fast (matches rpc-report-answer-keys.spec.ts): a missing anon key must
 // surface as a deterministic setup error at load — not a misleading auth failure
@@ -206,16 +213,32 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
   })
 
   // Create-or-reuse the single redteam-other-org question_bank (question_banks has
-  // a UNIQUE(organization_id) constraint, mig 062 — at most one bank per org).
+  // a UNIQUE(organization_id) constraint, mig 062 — at most one bank per org). If a
+  // prior run left the row soft-deleted, restore it to avoid a 23505 unique-constraint
+  // violation on insert; only insert when no row exists at all.
   const ensureOtherOrgBank = async (org: string, creator: string): Promise<string> => {
     const { data: existing, error: lookupErr } = await admin
       .from('question_banks')
-      .select('id')
+      .select('id, deleted_at')
       .eq('organization_id', org)
-      .is('deleted_at', null)
       .maybeSingle()
     if (lookupErr) throw new Error(`ensureOtherOrgBank lookup: ${lookupErr.message}`)
-    if (existing) return existing.id
+    if (existing) {
+      if (existing.deleted_at !== null) {
+        // Prior run left a soft-deleted bank — restore it rather than inserting and
+        // hitting the UNIQUE(organization_id) constraint (23505).
+        const { data: restored, error: restoreErr } = await admin
+          .from('question_banks')
+          .update({ deleted_at: null })
+          .eq('id', existing.id)
+          .select('id')
+          .single()
+        if (restoreErr || !restored)
+          throw new Error(`ensureOtherOrgBank restore: ${restoreErr?.message}`)
+        return restored.id
+      }
+      return existing.id
+    }
     const { data: created, error: insErr } = await admin
       .from('question_banks')
       .insert({ organization_id: org, name: 'Red Team EO Other-Org Bank', created_by: creator })

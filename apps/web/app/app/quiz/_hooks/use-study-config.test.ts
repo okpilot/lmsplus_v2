@@ -15,12 +15,14 @@ vi.mock('./use-topic-tree', () => ({ useTopicTree: vi.fn() }))
 vi.mock('./use-filtered-count', () => ({ useFilteredCount: vi.fn() }))
 vi.mock('./use-filtered-count-sync', () => ({ useFilteredCountSync: vi.fn() }))
 vi.mock('./use-available-count', () => ({ useAvailableCount: vi.fn() }))
+vi.mock('./use-study-start', () => ({ useStudyStart: vi.fn() }))
 
 // ---- Subject under test ---------------------------------------------------
 
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useStudyConfig } from './use-study-config'
+import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -60,6 +62,17 @@ function buildMockFilteredCount(overrides?: Record<string, unknown>) {
   }
 }
 
+function buildMockStudyStart(overrides?: Record<string, unknown>) {
+  return {
+    questions: null,
+    loading: false,
+    error: null,
+    handleStart: vi.fn(),
+    reset: vi.fn(),
+    ...overrides,
+  }
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
@@ -67,6 +80,7 @@ beforeEach(() => {
   ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree())
   ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount())
   ;(useAvailableCount as Mock).mockReturnValue(0)
+  ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart())
 })
 
 // ---- Initial state -------------------------------------------------------
@@ -109,6 +123,58 @@ describe('useStudyConfig — initial state', () => {
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.topicTree).toBe(mockTree)
+  })
+})
+
+// ---- Re-exports from useStudyStart ---------------------------------------
+
+describe('useStudyConfig — start-hook re-exports', () => {
+  it('exposes questions as null when no study has been started', () => {
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.questions).toBeNull()
+  })
+
+  it('exposes questions from useStudyStart when they are loaded', () => {
+    const questions = [{ id: 'q-1' }]
+    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ questions }))
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.questions).toBe(questions)
+  })
+
+  it('exposes loading false initially', () => {
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('surfaces loading true from useStudyStart when a start is in progress', () => {
+    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ loading: true }))
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.loading).toBe(true)
+  })
+
+  it('exposes error as null initially', () => {
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.error).toBeNull()
+  })
+
+  it('surfaces an error message from useStudyStart when the start action fails', () => {
+    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ error: 'No questions found' }))
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.error).toBe('No questions found')
+  })
+
+  it('exposes the handleStart function from useStudyStart', () => {
+    const handleStart = vi.fn()
+    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ handleStart }))
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.handleStart).toBe(handleStart)
+  })
+
+  it('exposes the reset function from useStudyStart', () => {
+    const reset = vi.fn()
+    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ reset }))
+    const { result } = renderHook(() => useStudyConfig())
+    expect(result.current.reset).toBe(reset)
   })
 })
 

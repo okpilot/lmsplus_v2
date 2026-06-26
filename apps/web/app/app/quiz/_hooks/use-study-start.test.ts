@@ -18,9 +18,20 @@ import { useStudyStart } from './use-study-start'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const VALID_INPUT = {
-  subjectId: '00000000-0000-4000-a000-000000000001',
+const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+
+function makeTopicTree(topicIds: string[] = [], subtopicIds: string[] = []) {
+  return {
+    getSelectedTopicIds: vi.fn(() => topicIds),
+    getSelectedSubtopicIds: vi.fn(() => subtopicIds),
+  }
+}
+
+const DEFAULT_OPTS = {
+  subjectId: SUBJECT_ID,
   count: 10,
+  maxQuestions: 100,
+  topicTree: makeTopicTree(),
 }
 
 function makeQuestion(id = 'q-1'): StudyQuestion {
@@ -51,19 +62,19 @@ beforeEach(() => {
 
 describe('useStudyStart — initial state', () => {
   it('starts with null questions, no loading, and no error', () => {
-    const { result } = renderHook(() => useStudyStart())
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     expect(result.current.questions).toBeNull()
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
   })
 })
 
-// ---- start — guards ------------------------------------------------------
+// ---- handleStart — guards ------------------------------------------------
 
-describe('useStudyStart — start guards', () => {
+describe('useStudyStart — handleStart guards', () => {
   it('does not call the action when subjectId is empty', async () => {
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start({ ...VALID_INPUT, subjectId: '' }))
+    const { result } = renderHook(() => useStudyStart({ ...DEFAULT_OPTS, subjectId: '' }))
+    await act(async () => result.current.handleStart())
     expect(mockStartStudy).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)
   })
@@ -76,15 +87,15 @@ describe('useStudyStart — start guards', () => {
       }),
     )
 
-    const { result } = renderHook(() => useStudyStart())
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
 
     // Fire first call — loading is true, promise is pending.
     act(() => {
-      void result.current.start(VALID_INPUT)
+      void result.current.handleStart()
     })
 
     // Fire second call while first is still in flight.
-    await act(async () => result.current.start(VALID_INPUT))
+    await act(async () => result.current.handleStart())
 
     expect(mockStartStudy).toHaveBeenCalledTimes(1)
 
@@ -95,14 +106,64 @@ describe('useStudyStart — start guards', () => {
   })
 })
 
-// ---- start — happy path --------------------------------------------------
+// ---- handleStart — payload building --------------------------------------
 
-describe('useStudyStart — start happy path', () => {
+describe('useStudyStart — handleStart payload', () => {
+  it('clamps count to maxQuestions when count exceeds the available pool', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, count: 50, maxQuestions: 20 }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(expect.objectContaining({ count: 20 }))
+  })
+
+  it('uses 1 as the minimum count when maxQuestions is 0', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, count: 5, maxQuestions: 0 }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }))
+  })
+
+  it('passes undefined for topicIds and subtopicIds when no topics are selected', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, topicTree: makeTopicTree([], []) }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(
+      expect.objectContaining({ topicIds: undefined, subtopicIds: undefined }),
+    )
+  })
+
+  it('passes selected topic and subtopic arrays when topics are chosen', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, topicTree: makeTopicTree(['t1', 't2'], ['st1']) }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(
+      expect.objectContaining({ topicIds: ['t1', 't2'], subtopicIds: ['st1'] }),
+    )
+  })
+
+  it('passes only topicIds when subtopics selection is empty', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, topicTree: makeTopicTree(['t1'], []) }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(
+      expect.objectContaining({ topicIds: ['t1'], subtopicIds: undefined }),
+    )
+  })
+})
+
+// ---- handleStart — happy path --------------------------------------------
+
+describe('useStudyStart — handleStart happy path', () => {
   it('populates questions after a successful start', async () => {
     const q = makeQuestion()
     mockStartStudy.mockResolvedValue({ success: true, questions: [q] })
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.questions).toEqual([q])
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
@@ -110,19 +171,19 @@ describe('useStudyStart — start happy path', () => {
 
   it('sets questions to an empty array when the action returns zero results', async () => {
     mockStartStudy.mockResolvedValue({ success: true, questions: [] })
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.questions).toEqual([])
   })
 })
 
-// ---- start — failure path ------------------------------------------------
+// ---- handleStart — failure path ------------------------------------------
 
-describe('useStudyStart — start failure path', () => {
+describe('useStudyStart — handleStart failure path', () => {
   it('sets the error field and leaves questions null when the action returns a failure', async () => {
     mockStartStudy.mockResolvedValue({ success: false, error: 'No questions found' })
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.questions).toBeNull()
     expect(result.current.error).toBe('No questions found')
     expect(result.current.loading).toBe(false)
@@ -130,8 +191,8 @@ describe('useStudyStart — start failure path', () => {
 
   it('sets a fallback error when the action throws', async () => {
     mockStartStudy.mockRejectedValue(new Error('network error'))
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.error).toBe('Something went wrong. Please try again.')
     expect(result.current.loading).toBe(false)
     expect(result.current.questions).toBeNull()
@@ -139,8 +200,8 @@ describe('useStudyStart — start failure path', () => {
 
   it('clears loading state after a failed call', async () => {
     mockStartStudy.mockResolvedValue({ success: false, error: 'Not authenticated' })
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.loading).toBe(false)
   })
 })
@@ -149,9 +210,8 @@ describe('useStudyStart — start failure path', () => {
 
 describe('useStudyStart — reset', () => {
   it('resets questions and error to their initial values', async () => {
-    // Bring the hook into a loaded state first.
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.questions).not.toBeNull()
 
     act(() => result.current.reset())
@@ -161,8 +221,8 @@ describe('useStudyStart — reset', () => {
 
   it('clears an error set by a failed start', async () => {
     mockStartStudy.mockResolvedValue({ success: false, error: 'Something failed' })
-    const { result } = renderHook(() => useStudyStart())
-    await act(async () => result.current.start(VALID_INPUT))
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
     expect(result.current.error).toBe('Something failed')
 
     act(() => result.current.reset())

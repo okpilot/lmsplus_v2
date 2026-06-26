@@ -221,21 +221,15 @@ describe('getRandomQuestionIds', () => {
     expect(result).toEqual(['a', 'b'])
   })
 
-  it('returns an empty array and logs when the rpc errors', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when the rpc errors', async () => {
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })
 
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
-
-    expect(result).toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[getRandomQuestionIds]'),
-      'rpc boom',
+    await expect(getRandomQuestionIds({ subjectId: 's1', count: 5 })).rejects.toThrow(
+      'Failed to fetch question ids',
     )
-    consoleSpy.mockRestore()
   })
 
-  it('defaults p_question_type to null when questionType is not provided', async () => {
+  it('does not apply a question-type filter when questionType is omitted', async () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     await getRandomQuestionIds({ subjectId: 's1', count: 5 })
@@ -247,7 +241,7 @@ describe('getRandomQuestionIds', () => {
     )
   })
 
-  it('passes the given question type to the RPC when questionType is specified', async () => {
+  it('applies the requested question-type filter when one is provided', async () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     await getRandomQuestionIds({ subjectId: 's1', count: 5, questionType: 'multiple_choice' })

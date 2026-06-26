@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { useFlaggedQuestions } from '../../session/_hooks/use-flagged-questions'
+import { useStudyRunner } from '../_hooks/use-study-runner'
 import { StudyFlashcard } from './study-flashcard'
 
 type StudyRunnerProps = {
@@ -14,30 +15,7 @@ export function StudyRunner({ questions, onExit }: StudyRunnerProps) {
   // useFlaggedQuestions compares questionIds by reference, so memoize on `questions`.
   const questionIds = useMemo(() => questions.map((q) => q.id), [questions])
   const { isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(questionIds)
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  // Keep currentIndex in range if the question set shrinks (or empties) in place,
-  // so questions[currentIndex] can't become undefined and render null.
-  useEffect(() => {
-    setCurrentIndex((i) => (questions.length === 0 ? 0 : Math.min(i, questions.length - 1)))
-  }, [questions.length])
-
-  const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), [])
-  const goNext = useCallback(
-    () =>
-      setCurrentIndex((i) => (questions.length === 0 ? 0 : Math.min(i + 1, questions.length - 1))),
-    [questions.length],
-  )
-
-  // Keyboard paging — arrow keys mirror the prev/next buttons. Not data fetching.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowRight') goNext()
-      else if (e.key === 'ArrowLeft') goPrev()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [goPrev, goNext])
+  const { currentIndex, goPrev, goNext } = useStudyRunner(questions.length)
 
   if (questions.length === 0) {
     return (

@@ -34,8 +34,11 @@ export async function getRandomQuestionIds(opts: {
     p_question_type: questionType ?? null,
   })
   if (error) {
-    console.error('[getRandomQuestionIds] get_random_question_ids error:', error.message)
-    return []
+    // Query helper throws (code-style.md §5). Both callers (startQuizSession,
+    // startStudy) wrap this in try/catch → a generic failure message. Collapsing
+    // an auth/transport error into [] would masquerade as a legitimate empty pool
+    // and surface as "No questions available" / an empty study deck.
+    throw new Error(`Failed to fetch question ids: ${error.message}`)
   }
   if (!Array.isArray(data)) return []
   // Per-row guard required by code-style.md §5 — the `rpc<{id: string}[]>` cast is
