@@ -43,8 +43,15 @@ export function isValidDraftAnswer(v: unknown): boolean {
   if (hasResponseText) return isNonEmptyString(r.responseText)
   if (hasOrder) {
     // An ordering question always has ≥2 items, so a submitted order is ≥2 — parity
-    // with the save schema (draft-schema `order: z.array(...).min(2)`).
-    return Array.isArray(r.order) && r.order.length >= 2 && r.order.every(isNonEmptyString)
+    // with the save schema (draft-schema `order: z.array(...).min(2)`). The ids form a
+    // permutation, so they must be unique — parity with the save-schema `.refine`
+    // (a tampered/corrupt draft could carry duplicate ids the save path rejects).
+    return (
+      Array.isArray(r.order) &&
+      r.order.length >= 2 &&
+      r.order.every(isNonEmptyString) &&
+      new Set(r.order).size === r.order.length
+    )
   }
   return isValidBlankAnswers(r.blankAnswers)
 }
@@ -91,7 +98,10 @@ export function isValidFeedbackEntry(v: unknown): boolean {
         // — four-way parity with the save schema (draft-schema .min(2)), the RPC
         // guard (isOrderingRpcResult) and the DB-load path (toFeedbackEntry).
         r.correctOrder.length >= 2 &&
-        r.correctOrder.every(isNonEmptyString)
+        r.correctOrder.every(isNonEmptyString) &&
+        // A canonical order is a permutation — ids must be unique (parity with the
+        // RPC guard isOrderingRpcResult and the save-schema .refine).
+        new Set(r.correctOrder).size === r.correctOrder.length
       )
     default:
       return false

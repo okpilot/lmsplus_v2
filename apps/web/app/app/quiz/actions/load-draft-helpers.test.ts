@@ -187,6 +187,25 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(draft.feedback).toBeUndefined()
   })
 
+  it('rejects an ordering entry whose correctOrder repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id is corrupt data, voided on
+    // load (parity with isValidFeedbackEntry rehydrate, the RPC guard, and the save schema).
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: ['step-a', 'step-b', 'step-a'],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
   it('returns undefined feedback when the column is null', () => {
     expect(rowToDraftData(buildRow({ feedback: null })).feedback).toBeUndefined()
   })

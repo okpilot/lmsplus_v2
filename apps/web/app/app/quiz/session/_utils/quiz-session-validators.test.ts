@@ -107,6 +107,13 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ order: ['item-a', ''], responseTimeMs: 1500 })).toBe(false)
   })
 
+  it('rejects an ordering draft whose order repeats an item id', () => {
+    // A submitted order is a permutation — a duplicate id means a tampered/corrupt draft.
+    expect(
+      isValidDraftAnswer({ order: ['item-a', 'item-b', 'item-a'], responseTimeMs: 1500 }),
+    ).toBe(false)
+  })
+
   it('rejects a hybrid draft carrying both an order array and a selected option', () => {
     expect(
       isValidDraftAnswer({
@@ -324,6 +331,19 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'ordering',
         isCorrect: true,
         correctOrder: ['MAYDAY', ''],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id means a corrupt entry.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY', 'callsign', 'MAYDAY'],
         explanationText: null,
         explanationImageUrl: null,
       }),

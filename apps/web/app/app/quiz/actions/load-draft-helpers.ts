@@ -68,13 +68,15 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
     case 'ordering':
       // Sibling-validator parity (agent-semantic-reviewer.md, count=3): mirror the
       // ordering branch of isValidFeedbackEntry (sessionStorage rehydrate) + the
-      // draft-schema save union (.min(2)) — a correctOrder array of ≥2 non-empty
-      // strings (an ordering question always has ≥2 items). Without this case the
+      // draft-schema save union (.min(2) + unique) — a correctOrder array of ≥2
+      // unique non-empty strings (an ordering question always has ≥2 items, and the
+      // canonical order is a permutation so the ids are unique). Without this case the
       // load path returned null for ordering and toFeedbackRecord discarded the
       // WHOLE draft's feedback on resume.
       return Array.isArray(r.correctOrder) &&
         r.correctOrder.length >= 2 &&
-        r.correctOrder.every((s) => typeof s === 'string' && s.length > 0)
+        r.correctOrder.every((s) => typeof s === 'string' && s.length > 0) &&
+        new Set(r.correctOrder).size === r.correctOrder.length
         ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }
         : null
     default:
