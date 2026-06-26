@@ -33,6 +33,24 @@ type Question = {
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
 
+// Element-level guard for the ordering_items_shuffled RPC payload (#998 CR). Array.isArray
+// alone would admit a malformed array whose elements lack string id/text and pass it through
+// as trusted ordering items; this narrows the cast per code-style §5 (pair a cast with a
+// runtime guard). The id/text values are CHECK-enforced server-side (mig 134), so this is
+// defense-in-depth, but it keeps the mapper honest against future RPC drift.
+function isOrderingItem(value: unknown): value is { id: string; text: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { text?: unknown }).text === 'string'
+  )
+}
+
+function isOrderingItemArray(value: unknown): value is { id: string; text: string }[] {
+  return Array.isArray(value) && value.every(isOrderingItem)
+}
+
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
   const supabase = await createServerSupabaseClient()
 
@@ -70,8 +88,8 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     question_type: q.question_type,
     dialog_template: q.dialog_template,
     blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
-    ordering_items: Array.isArray(q.ordering_items_shuffled)
-      ? (q.ordering_items_shuffled as { id: string; text: string }[])
+    ordering_items: isOrderingItemArray(q.ordering_items_shuffled)
+      ? q.ordering_items_shuffled
       : null,
   }))
 

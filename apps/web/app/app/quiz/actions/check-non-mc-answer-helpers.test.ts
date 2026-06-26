@@ -240,6 +240,36 @@ describe('isOrderingRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects a single-item correct_order', () => {
+    // An ordering canonical order is ≥2 items (the CHECK enforces it); a one-item
+    // correct_order is corrupt RPC data — fail closed rather than grade against it.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['only-step'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a correct_order longer than fifty items', () => {
+    // Upper-bound parity with the submit + draft validators (all `.max(50)`); the
+    // canonical item count is DB-bounded, so >50 is corrupt RPC data.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: Array.from({ length: 51 }, (_, i) => `item-${i}`),
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects when correct_order contains a non-string entry', () => {
     expect(
       isOrderingRpcResult({

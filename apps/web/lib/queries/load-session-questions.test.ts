@@ -214,6 +214,35 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
+  it('discards ordering items when an element lacks a string id or text', async () => {
+    // Element-level guard (#998 CR): an ordering payload whose element is malformed
+    // (non-string id, missing text) is not trusted — the mapper yields null rather
+    // than passing the malformed array to the UI as orderable items.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord-bad',
+          question_text: 'Sequence the steps',
+          question_image_url: null,
+          question_number: '002',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [{ id: 'a', text: 'Alpha' }, { id: 7 }],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord-bad'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
   it('yields null blanks_safe and null dialog_template for a multiple_choice row', async () => {
     mockRpc.mockResolvedValue({
       data: [

@@ -123,6 +123,10 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     // CHECK enforces `>= 2` items), so a correct_order shorter than 2 is a
     // malformed RPC result — reject it rather than returning success.
     v.correct_order.length >= 2 &&
+    // Upper-bound parity with the three sibling ordering validators (submit
+    // OrderingInput, draft `order`, draft `correctOrder` feedback) — all `.max(50)`;
+    // the canonical item count is DB-bounded, so a >50 result is corrupt RPC data (#998 CR).
+    v.correct_order.length <= 50 &&
     // Non-empty strings — four-way parity with isValidFeedbackEntry (rehydrate)
     // and toFeedbackEntry (DB-load), which both require s.length > 0.
     v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
