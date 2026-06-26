@@ -5,9 +5,11 @@
 -- strips the MC key (correct_option_id is REVOKE-gated from authenticated, mig
 -- 111/094, and only revealed post-session via the report RPCs), Study Mode is a
 -- self-paced practice surface where the student is SHOWN the correct answer and
--- explanation immediately — there is no score, no session, no exam integrity to
--- protect. This RPC therefore returns q.correct_option_id and the explanation
--- directly. It is SECURITY DEFINER so it can read the REVOKE-gated key column;
+-- explanation immediately — there is no score and no session. Exam integrity IS
+-- protected, but by the active-exam-session guard below (Study Mode is blocked
+-- mid-exam), not by the absence of a session: mock/internal/VFR-RT exams grade
+-- from the same org MC pool. This RPC therefore returns q.correct_option_id and the
+-- explanation directly. It is SECURITY DEFINER so it can read the REVOKE-gated key column;
 -- correct_option_id is NOT exposed via any PostgREST column GRANT (security.md
 -- rule 1) — only this guarded RPC reveals it.
 --
