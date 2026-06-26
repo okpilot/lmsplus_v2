@@ -456,7 +456,10 @@ describe('saveDraft', () => {
       ...VALID_DRAFT_INPUT,
       answers: { [Q1_ID]: { order: ['item-a'], responseTimeMs: 4000 } },
     })
-    expect(result.success).toBe(false)
+    // Assert the exact validation-rejection shape (matches the neighboring cases) —
+    // a bare success:false also passes on auth/lookup failures, so it wouldn't catch
+    // a regression where ordering validation stops being the rejection path.
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('rejects an ordering answer with duplicate item ids', async () => {
@@ -542,7 +545,10 @@ describe('saveDraft', () => {
         },
       },
     })
-    expect(result.success).toBe(false)
+    // Assert the exact validation-rejection shape (matches the neighboring cases) —
+    // a bare success:false also passes on auth/lookup failures, so it wouldn't catch
+    // a regression where ordering-feedback validation stops being the rejection path.
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('writes an empty feedback object when feedback is omitted', async () => {

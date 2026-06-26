@@ -188,18 +188,21 @@ describe('loadSessionQuestions', () => {
     expect(q.blanks_safe).toBeNull()
   })
 
-  it('provides no orderable items when the RPC omits them', async () => {
+  it('provides no orderable items when an ordering question omits its shuffled items', async () => {
+    // Ordering fixture (not MC) so this exercises the ordering_items_shuffled: null
+    // branch for an ordering question — the mapper must yield null ordering_items
+    // rather than passing through, so a regression in that branch is caught.
     mockRpc.mockResolvedValue({
       data: [
         {
-          id: 'q-mc2',
-          question_text: 'What is the MTOW limit?',
+          id: 'q-ord-null',
+          question_text: 'Sequence the MAYDAY call',
           question_image_url: null,
           question_number: '001',
           explanation_text: null,
           explanation_image_url: null,
-          options: [{ id: 'a', text: '500kg' }],
-          question_type: 'multiple_choice',
+          options: null,
+          question_type: 'ordering',
           dialog_template: null,
           blanks_safe: null,
           ordering_items_shuffled: null,
@@ -208,9 +211,11 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-mc2'])
+    const result = await loadSessionQuestions(['q-ord-null'])
     expect(result.success).toBe(true)
     if (!result.success) return
+    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
+    expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
