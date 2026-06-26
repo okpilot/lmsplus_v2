@@ -44,6 +44,12 @@ export function useFlaggedQuestions(questionIds: string[]) {
         })
       }
       return result.success
+    } catch (err) {
+      // The Server Action can reject on a transient network failure. Swallow it
+      // here so the click handler never produces an unhandled rejection; the flag
+      // simply stays unchanged and the user can retry.
+      console.error('[useFlaggedQuestions] toggle failed:', err)
+      return false
     } finally {
       pendingRef.current.delete(questionId)
       setPendingIds((prev) => {

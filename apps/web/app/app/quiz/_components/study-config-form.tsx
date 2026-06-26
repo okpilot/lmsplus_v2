@@ -1,11 +1,11 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
 import { StudyRunner } from '../study/_components/study-runner'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
+import { StartButton } from './start-button'
 import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
@@ -81,8 +81,7 @@ export function StudyConfigForm({
         </p>
       )}
 
-      <button
-        type="button"
+      <StartButton
         disabled={
           !config.subjectId ||
           config.availableCount === 0 ||
@@ -90,15 +89,11 @@ export function StudyConfigForm({
           config.isPending ||
           config.authError
         }
+        loading={config.loading}
+        label="Start discovery"
+        loadingLabel="Loading..."
         onClick={config.handleStart}
-        aria-busy={config.loading || undefined}
-        className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {config.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {config.loading ? 'Loading...' : 'Start discovery'}
-        </span>
-      </button>
+      />
     </div>
   )
 }

@@ -19,10 +19,10 @@ flag feature).
   tracking / mark-known; sessions; scoring; a dedicated full-page route.
 
 ## Functional Requirements
-1. Discovery mode (3rd segment of the New Quiz ModeToggle, default-selected) on the quiz page, 
+1. Discovery mode (first/default segment of the New Quiz ModeToggle) on the quiz page, 
    with the same subject/topic/subtopic selectors, all/unseen/incorrect/flagged + calc + image 
    filters, and count slider as the main quiz setup.
-2. "Start studying" selects a random set of MC questions matching the filters and shows a
+2. "Start discovery" selects a random set of MC questions matching the filters and shows a
    flashcard runner.
 3. Each flashcard shows: question text + image, the options with the **correct one
    highlighted**, and the explanation — all visible immediately.

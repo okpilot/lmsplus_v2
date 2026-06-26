@@ -177,6 +177,30 @@ describe('useFlaggedQuestions', () => {
       expect(result.current.isFlagged(Q1)).toBe(false)
     })
 
+    it('returns false and leaves state unchanged when the server action rejects', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+      mockToggleFlag.mockRejectedValue(new Error('network down'))
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.toggleFlag(Q1)
+      })
+
+      // A rejection is absorbed (no unhandled rejection): toggle resolves false,
+      // the flag stays off, and the pending lock is released so a retry is possible.
+      expect(ok).toBe(false)
+      expect(result.current.isFlagged(Q1)).toBe(false)
+      expect(result.current.isToggling(Q1)).toBe(false)
+      errorSpy.mockRestore()
+    })
+
     it('tracks multiple questions flagged independently', async () => {
       mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
       mockToggleFlag.mockResolvedValue({ success: true, flagged: true })

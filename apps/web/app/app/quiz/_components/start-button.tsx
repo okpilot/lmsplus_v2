@@ -6,10 +6,17 @@ type StartButtonProps = {
   disabled: boolean
   loading: boolean
   label: string
+  loadingLabel?: string
   onClick: () => void
 }
 
-export function StartButton({ disabled, loading, label, onClick }: StartButtonProps) {
+export function StartButton({
+  disabled,
+  loading,
+  label,
+  loadingLabel = 'Starting...',
+  onClick,
+}: StartButtonProps) {
   return (
     <button
       type="button"
@@ -20,7 +27,7 @@ export function StartButton({ disabled, loading, label, onClick }: StartButtonPr
     >
       <span className="inline-flex items-center justify-center gap-2">
         {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {loading ? 'Starting...' : label}
+        {loading ? loadingLabel : label}
       </span>
     </button>
   )
