@@ -392,15 +392,15 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(error?.code).toBe('23514')
   })
 
-  it('rejects an ordering question whose item is missing the id key', async () => {
-    // IS DISTINCT FROM 'string' (not <> 'string') guard: a missing id key makes e->'id'
-    // jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string' is NULL (not counted) —
-    // the element would slip through `<>`. IS DISTINCT FROM 'string' is TRUE for NULL, so
-    // the missing-key element is rejected. Regression guard for the operator choice (#998 CR).
-    const malformedItems = [
-      { text: 'Alpha' },
-      { id: 'b', text: 'Bravo' },
-    ] as unknown as OrderingItem[]
+  it('rejects an ordering question whose item is missing the text key', async () => {
+    // Isolates the IS DISTINCT FROM 'string' (not <> 'string') operator choice: a missing
+    // text key makes e->'text' jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string'
+    // is NULL (not counted) — the element would slip through `<>`. IS DISTINCT FROM 'string'
+    // is TRUE for NULL, so it is rejected. Targets `text` (not `id`) on a DISTINCT-id pair so
+    // rejection comes ONLY from the typeof-text clause: the dedup clause keys on id (both
+    // present + distinct → passes) and btrim(NULL)='' is NULL (not counted). Regression guard
+    // for the operator choice — a swap to `<>` would let this row through (#998 CR).
+    const malformedItems = [{ id: 'a' }, { id: 'b', text: 'Bravo' }] as unknown as OrderingItem[]
     const { error } = await admin.from('questions').insert({
       organization_id: orgId,
       bank_id: bankId,
@@ -411,7 +411,7 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
       status: 'active',
       created_by: adminUserId,
       question_type: 'ordering',
-      question_text: 'Malformed ordering — missing id key',
+      question_text: 'Malformed ordering — missing text key',
       ordering_items: malformedItems,
       explanation_text: 'should not insert',
     })
