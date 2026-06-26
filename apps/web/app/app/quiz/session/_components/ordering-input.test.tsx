@@ -115,7 +115,13 @@ describe('OrderingInput', () => {
         correctOrder={['mayday', 'callsign', 'nature']}
       />,
     )
-    expect(screen.getByTestId('ordering-result')).toHaveTextContent('Correct')
+    const liveRegion = screen.getByTestId('ordering-result')
+    // The screen-reader announcement contract: a polite live status region carrying
+    // the result text. Asserting the attributes (not just the text) keeps the test
+    // honest if the aria-live/role announcement is ever dropped.
+    expect(liveRegion).toHaveAttribute('role', 'status')
+    expect(liveRegion).toHaveAttribute('aria-live', 'polite')
+    expect(liveRegion).toHaveTextContent('Correct')
   })
 
   it('announces an incorrect result to screen readers when any slot is wrong', () => {
@@ -128,7 +134,10 @@ describe('OrderingInput', () => {
         correctOrder={['mayday', 'nature', 'callsign']}
       />,
     )
-    expect(screen.getByTestId('ordering-result')).toHaveTextContent('Incorrect')
+    const liveRegion = screen.getByTestId('ordering-result')
+    expect(liveRegion).toHaveAttribute('role', 'status')
+    expect(liveRegion).toHaveAttribute('aria-live', 'polite')
+    expect(liveRegion).toHaveTextContent('Incorrect')
   })
 
   it('does not announce a result before grading data arrives', () => {

@@ -18,9 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { type OrderingItem, orderFromSubmitted } from './ordering-input-helpers'
 import { OrderingInputItem } from './ordering-input-item'
-
-type OrderingItem = { id: string; text: string }
 
 type OrderingInputProps = {
   /** Items in the server-shuffled delivery order — the student's starting sequence. */
@@ -40,22 +39,6 @@ type OrderingInputProps = {
    *  question the runner remounts with `items` in delivery (shuffled) order; this
    *  restores the student's arrangement so the per-slot badges align correctly. */
   submittedOrder?: string[]
-}
-
-/** Restore the student's submitted sequence (by id) when revisiting an answered
- *  question; otherwise show the delivered order. Falls back to delivery order if the
- *  submitted ids don't fully resolve against the delivered items. */
-function orderFromSubmitted(
-  items: OrderingItem[],
-  submitted: boolean,
-  submittedOrder?: string[],
-): OrderingItem[] {
-  if (!submitted || !submittedOrder || submittedOrder.length !== items.length) return items
-  const byId = new Map(items.map((it) => [it.id, it]))
-  const restored = submittedOrder
-    .map((id) => byId.get(id))
-    .filter((it): it is OrderingItem => it != null)
-  return restored.length === items.length ? restored : items
 }
 
 export function OrderingInput({
