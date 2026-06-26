@@ -1907,6 +1907,7 @@ Added in **mig 135** (feat/study-mode-mc). Dedicated RPC for self-paced MC pract
 **Options format** — returned in **STORED order** (not shuffled). The answer is shown in Study Mode, so shuffling adds no value; a stable order is friendlier for students reviewing the same question multiple times.
 
 **Return shape** (`RETURNS TABLE`):
+
 ```sql
 id                    uuid,      -- question id
 question_text         text,
@@ -1926,6 +1927,7 @@ difficulty            text
 - `p_question_ids` — array of question UUIDs to fetch (no session association)
 
 **Signature:**
+
 ```sql
 CREATE OR REPLACE FUNCTION get_study_questions(p_question_ids uuid[])
 RETURNS TABLE (

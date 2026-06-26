@@ -67,6 +67,25 @@ describe('useFlaggedQuestions', () => {
       expect(result.current.flaggedIds.size).toBe(0)
     })
 
+    it('leaves flaggedIds empty when the initial fetch rejects', async () => {
+      mockGetFlaggedIds.mockRejectedValue(new Error('network down'))
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      // A rejection on mount is absorbed (no unhandled rejection) and degrades to no flags.
+      expect(result.current.flaggedIds.size).toBe(0)
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[useFlaggedQuestions]'),
+        expect.any(Error),
+      )
+      errorSpy.mockRestore()
+    })
+
     it('skips re-fetch when the same questionIds reference is passed again', async () => {
       mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 

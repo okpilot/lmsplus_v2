@@ -331,18 +331,18 @@ describe('QuizConfigForm', () => {
 
   // ---- Discovery mode ---------------------------------------------------------
 
-  it('renders StudyConfigForm in discovery mode', () => {
+  it('shows the discovery configuration flow when discovery mode is selected', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
     expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
   })
 
-  it('keeps the mode toggle visible but skips Card 1 in discovery mode', () => {
+  it('keeps the mode toggle visible but hides the standard quiz setup in discovery mode', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
     // Toggle stays so the user can switch modes…
     expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
-    // …but Card 1's study-only configuration is absent (StudyConfigForm owns its own UI).
+    // …but the standard quiz setup (topics, Start Quiz) is absent — discovery owns its own UI.
     expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
   })
