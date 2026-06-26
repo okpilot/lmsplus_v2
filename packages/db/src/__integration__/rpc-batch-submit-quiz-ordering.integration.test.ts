@@ -251,6 +251,55 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     for (const r of slotResults) expect(r.is_correct).toBe(true)
   })
 
+  it('rejects an ordering answer that repeats an item across two slots', async () => {
+    // Self-defence (#998 CR #466): a forged payload reusing the same item id in two
+    // slots is not a permutation. The (question_id, blank_index) guard passes (the slots
+    // differ), so the dispatcher's count(DISTINCT selected_option) = N guard must reject
+    // it before any per-slot row reaches the immutable quiz_session_answers table.
+    const dupIds = [
+      CANONICAL_IDS[0]!,
+      CANONICAL_IDS[0]!,
+      CANONICAL_IDS[2]!,
+      CANONICAL_IDS[3]!,
+      CANONICAL_IDS[4]!,
+    ]
+    const sessionId = await startSession([orderingId])
+    const { error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: orderPayload(orderingId, dupIds),
+    })
+    expect(error).not.toBeNull()
+    expect((error?.message ?? '').toLowerCase()).toContain('permutation')
+    // Non-vacuity: the RAISE aborts the whole function, so nothing was persisted.
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_answers')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('question_id', orderingId)
+    expect(rowsErr).toBeNull()
+    expect(rows ?? []).toHaveLength(0)
+  })
+
+  it('rejects an ordering answer that omits a slot', async () => {
+    // Self-defence (#998 CR #466): a subset submission (4 of 5 slots) has count(*) < N,
+    // so the dispatcher rejects it rather than persist a partial, ungradeable sequence.
+    const subset = CANONICAL_IDS.slice(0, 4)
+    const sessionId = await startSession([orderingId])
+    const { error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: orderPayload(orderingId, subset),
+    })
+    expect(error).not.toBeNull()
+    expect((error?.message ?? '').toLowerCase()).toContain('permutation')
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_answers')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('question_id', orderingId)
+    expect(rowsErr).toBeNull()
+    expect(rows ?? []).toHaveLength(0)
+  })
+
   it('forbids a direct authenticated call to the internal _grade_record_ordering helper (42501)', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 138): the helper must
     // not be callable via PostgREST by an authenticated user — a direct call would

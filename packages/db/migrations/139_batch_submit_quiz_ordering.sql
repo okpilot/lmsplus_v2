@@ -189,6 +189,30 @@ BEGIN
          q.options
   FROM questions q WHERE q.id = ANY(v_session_question_ids);
 
+  -- Ordering self-defence (#998 CR #466): each ordering question's submitted entries
+  -- must form a COMPLETE permutation of its N items — exactly N entries with N DISTINCT
+  -- item ids. The per-slot grader (mig 138) rejects an id absent from ordering_items but
+  -- cannot see the whole payload, and the (question_id, blank_index) guard above only
+  -- ensures distinct slots; count(*) = N AND count(DISTINCT selected_option) = N together
+  -- force a bijection, so a forged dup-item-id-across-slots or subset-of-slots payload
+  -- cannot persist an impossible state into the immutable quiz_session_answers /
+  -- student_responses tables. A skipped ordering question contributes zero entries and is
+  -- simply absent here — only questions actually present in p_answers are checked. The
+  -- lower()/::text join mirrors the dup guard's case-folding; a malformed (non-uuid)
+  -- question_id matches no row here and is caught by the per-row guard in the loop below.
+  IF EXISTS (
+    SELECT 1
+    FROM _batch_questions bq
+    JOIN jsonb_array_elements(p_answers) AS a
+      ON lower(a->>'question_id') = bq.id::text
+    WHERE bq.question_type = 'ordering'
+    GROUP BY bq.id, bq.ordering_items
+    HAVING count(*) <> jsonb_array_length(bq.ordering_items)
+        OR count(DISTINCT a->>'selected_option') <> jsonb_array_length(bq.ordering_items)
+  ) THEN
+    RAISE EXCEPTION 'ordering answer is not a complete permutation of its items';
+  END IF;
+
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
     v_qid_text      := v_answer->>'question_id';

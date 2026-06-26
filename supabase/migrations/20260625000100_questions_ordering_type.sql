@@ -51,6 +51,41 @@ ALTER TABLE questions
   CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill', 'ordering'));
 
 -- ------------------------------------------------------------------
+-- 2b) Shape guard for ordering_items (defense-in-depth — #998 CR #452/#472).
+-- ------------------------------------------------------------------
+-- The length-only branch in section 3 (>= 2 items) is too weak: a row with duplicate
+-- item ids, a blank id, or blank text still satisfies it, but get_quiz_questions
+-- (mig 136) and the ordering grader (mig 138) use `id` as the stable key and `text` as
+-- the rendered label — a malformed row is ambiguous to grade and impossible to render.
+-- This helper requires every element to be an object with a non-empty `id` and a
+-- non-empty `text`, with all `id`s DISTINCT (the array order is the answer key, so a
+-- duplicate id is a non-permutation). TOTAL function: a non-array input (or a non-object
+-- element) returns false → a clean 23514 CHECK reject, never a 22023 abort — the SRF
+-- argument is CASE-wrapped exactly like mig 125 dialog_fill_blanks_delimiter_free.
+-- IMMUTABLE PARALLEL SAFE (argument-only, pg_catalog built-ins) so it is usable inside a
+-- table CHECK; not SECURITY DEFINER, so no SET search_path. Declared BEFORE the
+-- columns_check re-add in section 3, which references it.
+CREATE OR REPLACE FUNCTION is_valid_ordering_items(p_items jsonb)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT jsonb_typeof(p_items) = 'array'
+    AND (
+      SELECT count(*) FILTER (
+               WHERE jsonb_typeof(e) <> 'object'
+                  OR coalesce(e->>'id', '') = ''
+                  OR coalesce(e->>'text', '') = ''
+             ) = 0
+         AND count(*) = count(DISTINCT e->>'id')
+      FROM jsonb_array_elements(
+             CASE WHEN jsonb_typeof(p_items) = 'array' THEN p_items ELSE '[]'::jsonb END
+           ) AS e
+    );
+$$;
+
+-- ------------------------------------------------------------------
 -- 3) Type <-> column population discriminator (4 branches).
 -- ------------------------------------------------------------------
 -- Every branch now positively states ordering_items emptiness: non-ordering types
@@ -86,5 +121,6 @@ ALTER TABLE questions
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) >= 2)
+       AND jsonb_array_length(ordering_items) >= 2
+       AND is_valid_ordering_items(ordering_items))
   );
