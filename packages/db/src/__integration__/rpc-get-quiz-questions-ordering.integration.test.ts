@@ -310,4 +310,33 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
   })
+
+  it('rejects an ordering question whose item id is not a string', async () => {
+    // mig 134 is_valid_ordering_items() enforces jsonb_typeof(id/text) = 'string'.
+    // `->>` coerces a JSON number to text, so before the string-type check a numeric id
+    // like 42 would have passed as '42'. The app layer treats ids as strings throughout,
+    // so the DB rejects a non-string id at authoring (23514). Regression guard (#998 CR).
+    // The cast feeds a deliberately-malformed payload (number id) past the insert type;
+    // the assertion is on the RPC error, so no result-shape guard is needed here.
+    const malformedItems = [
+      { id: 42, text: 'first' },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-string id',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
 })

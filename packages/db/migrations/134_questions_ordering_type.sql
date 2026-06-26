@@ -57,11 +57,16 @@ ALTER TABLE questions
 -- item ids, a blank id, or blank text still satisfies it, but get_quiz_questions
 -- (mig 136) and the ordering grader (mig 138) use `id` as the stable key and `text` as
 -- the rendered label — a malformed row is ambiguous to grade and impossible to render.
--- This helper requires every element to be an object with a non-empty `id` and a
--- non-empty `text`, with all `id`s DISTINCT (the array order is the answer key, so a
--- duplicate id is a non-permutation). TOTAL function: a non-array input (or a non-object
--- element) returns false → a clean 23514 CHECK reject, never a 22023 abort — the SRF
--- argument is CASE-wrapped exactly like mig 125 dialog_fill_blanks_delimiter_free.
+-- This helper requires every element to be an object whose `id` and `text` are both
+-- JSON STRINGS that are non-blank after trimming, with all `id`s DISTINCT (the array
+-- order is the answer key, so a duplicate id is a non-permutation). The string-type
+-- check matters because `->>` coerces a JSON number/boolean/object to text, so a row
+-- like {"id":42,"text":{"label":"x"}} would otherwise pass even though the app layer
+-- treats ordering_items ids/text as strings throughout (#998 CR). `IS DISTINCT FROM
+-- 'string'` (not `<> 'string'`) also rejects a MISSING id/text key, whose jsonb_typeof
+-- is NULL. TOTAL function: a non-array input (or a non-object element) returns false →
+-- a clean 23514 CHECK reject, never a 22023 abort — the SRF argument is CASE-wrapped
+-- exactly like mig 125 dialog_fill_blanks_delimiter_free.
 -- IMMUTABLE PARALLEL SAFE (argument-only, pg_catalog built-ins) so it is usable inside a
 -- table CHECK; not SECURITY DEFINER, so no SET search_path. Declared BEFORE the
 -- columns_check re-add in section 3, which references it.
@@ -75,8 +80,10 @@ AS $$
     AND (
       SELECT count(*) FILTER (
                WHERE jsonb_typeof(e) <> 'object'
-                  OR coalesce(e->>'id', '') = ''
-                  OR coalesce(e->>'text', '') = ''
+                  OR jsonb_typeof(e->'id') IS DISTINCT FROM 'string'
+                  OR jsonb_typeof(e->'text') IS DISTINCT FROM 'string'
+                  OR btrim(e->>'id') = ''
+                  OR btrim(e->>'text') = ''
              ) = 0
          AND count(*) = count(DISTINCT e->>'id')
       FROM jsonb_array_elements(

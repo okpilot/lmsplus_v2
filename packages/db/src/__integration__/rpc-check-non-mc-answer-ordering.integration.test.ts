@@ -13,7 +13,8 @@ import {
 
 // check_non_mc_answer grades the `ordering` type for immediate feedback (mig 137,
 // #697 Phase 5). The ordering branch (full-coverage id-sequence comparison +
-// canonical-text reveal) and the answer_type_mismatch guard only run when the
+// canonical-id reveal — correct_order is the canonical item ids, the client resolves
+// display text locally) and the answer_type_mismatch guard only run when the
 // function EXECUTES against real rows — a `db reset` proves only that it parses.
 // Mirrors the EL guard / EM output-contract coverage of the Phase 2 sibling
 // (rpc-check-non-mc-answer.integration.test.ts).
@@ -179,7 +180,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   }
 
   // ── output contract: correct ordering ───────────────────────────────────────
-  it('grades a fully-correct order as is_correct:true and reveals the canonical text order', async () => {
+  it('grades a fully-correct order as is_correct:true and reveals the canonical id order', async () => {
     const sessionId = await startSession(studentClient, [orderingId])
     const { data, error } = await studentClient.rpc('check_non_mc_answer', {
       p_question_id: orderingId,
