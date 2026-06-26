@@ -1,5 +1,6 @@
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { AnswerFeedback, DraftAnswer, SessionMode } from '../../types'
+import type { SessionMode } from '../../session-types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import {
   hasValidOptionalFields,
   isNonEmptyString,

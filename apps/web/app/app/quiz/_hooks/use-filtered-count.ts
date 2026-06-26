@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { getFilteredCount } from '../actions/lookup'
-import type { CalcMode, FilteredCountState, ImageMode, QuestionFilterValue } from '../types'
+import type { FilteredCountState } from '../session-types'
+import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
 export function useFilteredCount(): FilteredCountState {
   const [filteredCount, setFilteredCount] = useState<number | null>(null)

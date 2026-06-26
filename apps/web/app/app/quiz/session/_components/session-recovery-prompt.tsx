@@ -12,7 +12,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
-import type { SessionMode } from '../../types'
+import type { SessionMode } from '../../session-types'
 
 type SessionRecoveryPromptProps = Readonly<{
   subjectName?: string

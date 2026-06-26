@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
-import type { AnswerFeedback, DraftAnswer, QuizStateOpts } from '../../types'
+import type { QuizStateOpts } from '../../session-types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { buildActiveSession, writeActiveSession } from '../_utils/quiz-session-storage'
 
 export function useQuizPersistence(opts: QuizStateOpts) {

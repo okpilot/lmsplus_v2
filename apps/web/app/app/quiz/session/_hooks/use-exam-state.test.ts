@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DraftAnswer, QuizStateOpts } from '../../types'
+import type { QuizStateOpts } from '../../session-types'
+import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 

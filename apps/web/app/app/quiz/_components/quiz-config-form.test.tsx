@@ -40,11 +40,34 @@ vi.mock('./subject-select', () => ({
 }))
 
 vi.mock('./mode-toggle', () => ({
-  ModeToggle: () => <div data-testid="mode-toggle">ModeToggle</div>,
+  ModeToggle: ({
+    value,
+    onValueChange,
+  }: {
+    value: string
+    onValueChange: (mode: string) => void
+    examAvailable?: boolean
+  }) => (
+    <div data-testid="mode-toggle" data-value={value}>
+      <button type="button" onClick={() => onValueChange('discovery')}>
+        Discovery
+      </button>
+      <button type="button" onClick={() => onValueChange('study')}>
+        Study
+      </button>
+      <button type="button" onClick={() => onValueChange('exam')}>
+        Exam
+      </button>
+    </div>
+  ),
 }))
 
 vi.mock('./question-filters', () => ({
-  QuestionFilters: () => <div data-testid="question-filters">QuestionFilters</div>,
+  QuestionFilters: ({ unseenLabel }: { unseenLabel?: string }) => (
+    <div data-testid="question-filters" data-unseen-label={unseenLabel ?? ''}>
+      QuestionFilters
+    </div>
+  ),
 }))
 
 vi.mock('./question-count', () => ({
@@ -75,7 +98,11 @@ vi.mock('./exam-config-form', () => ({
 }))
 
 vi.mock('./study-config-form', () => ({
-  StudyConfigForm: () => <div data-testid="study-config-form">StudyConfigForm</div>,
+  StudyConfigForm: ({ unseenLabel }: { unseenLabel?: string }) => (
+    <div data-testid="study-config-form" data-unseen-label={unseenLabel ?? ''}>
+      StudyConfigForm
+    </div>
+  ),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -318,6 +345,47 @@ describe('QuizConfigForm', () => {
     // …but Card 1's study-only configuration is absent (StudyConfigForm owns its own UI).
     expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
+  })
+
+  it('passes "Unseen" as the filter label to the discovery form', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-unseen-label', 'Unseen')
+  })
+
+  it('passes "Unanswered" as the filter label when in study mode and a subject is selected', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1' }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(screen.getByTestId('question-filters')).toHaveAttribute(
+      'data-unseen-label',
+      'Unanswered',
+    )
+  })
+
+  it('shows the normal study form after the mode is switched from discovery to study', async () => {
+    const setMode = vi.fn()
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery', setMode }))
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />,
+    )
+
+    // Entry: discovery renders StudyConfigForm + ModeToggle as siblings (no SubjectSelect / Start Quiz)
+    expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
+    expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
+
+    // Simulate the user clicking Study in the mode toggle
+    await user.click(screen.getByRole('button', { name: 'Study' }))
+    expect(setMode).toHaveBeenCalledWith('study')
+
+    // Re-render with study mode active (what setMode would cause the hook to produce)
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'study', setMode }))
+    rerender(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+
+    // Study mode: normal form with SubjectSelect and Start Quiz — no StudyConfigForm
+    expect(screen.getByTestId('subject-select')).toBeInTheDocument()
+    expect(screen.queryByTestId('study-config-form')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeInTheDocument()
   })
 
   it('renders the Start Practice Exam button in exam mode', () => {
