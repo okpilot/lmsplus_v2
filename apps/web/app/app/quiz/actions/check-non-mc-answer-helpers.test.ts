@@ -253,6 +253,20 @@ describe('isOrderingRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects when correct_order repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id is a malformed RPC result.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['a', 'b', 'a'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects when blanks is an array (dialog_fill shape)', () => {
     expect(
       isOrderingRpcResult({
