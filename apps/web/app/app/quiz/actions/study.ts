@@ -45,6 +45,13 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     return { success: true, questions }
   } catch (err) {
     console.error('[startStudy] error:', err)
+    // get_study_questions raises 'active_exam_session' (mig 135) when the caller has
+    // a live exam — Study Mode reveals answer keys, so it is blocked mid-exam. Surface
+    // a clear message instead of the generic one (the helper wraps the RPC error, so
+    // the token is carried in the message). Other errors stay generic (no DB-detail leak).
+    if (err instanceof Error && err.message.includes('active_exam_session')) {
+      return { success: false, error: 'Finish or exit your active exam before studying.' }
+    }
     return { success: false, error: 'Failed to start study session' }
   }
 }

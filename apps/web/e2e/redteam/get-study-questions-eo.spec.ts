@@ -112,6 +112,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
   // egmont (org A) scaffolding — FKs derived from a real active egmont question so
   // the throwaway inserts satisfy every NOT NULL FK without new bank/taxonomy seeding.
   let orgId: string
+  let victimUserId: string // egmont student's user id — owner of the EO6 active exam session
   let bankId: string
   let subjectId: string
   let topicId: string
@@ -254,6 +255,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     // egmont victim student (org A) — the in-org caller for EO3/EO4/EO5.
     const seed = await seedRedTeamStudent()
     orgId = seed.orgId
+    victimUserId = seed.victimUserId
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
     // org B student (redteam-other-org) — the cross-org caller for EO2.
@@ -451,5 +453,42 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     const ids = (data as StudyQuestionRow[]).map((r) => r.id)
     expect(ids).not.toContain(egShortAnswerId)
     expect(ids).toContain(egMcActiveId)
+  })
+
+  test('EO6: a student with an active exam session cannot read MC answer keys (mid-exam oracle)', async () => {
+    // Non-vacuity: EO5 already proved this exact student + question returns the key when
+    // NO exam is active. Seed a live (ended_at IS NULL) mock_exam session for the same
+    // student; Study Mode reveals keys, and mock/internal/VFR-RT exams grade from the same
+    // MC pool, so the RPC must refuse mid-exam — otherwise the student reads their live
+    // exam's answer keys by POSTing the IDs the exam runner already handed them.
+    const { data: sessionRow, error: insErr } = await admin
+      .from('quiz_sessions')
+      .insert({ organization_id: orgId, student_id: victimUserId, mode: 'mock_exam' })
+      .select('id')
+      .single()
+    expect(insErr).toBeNull()
+    const sessionId = sessionRow?.id as string
+
+    try {
+      const { data, error } = await studentClient.rpc(RPC, { p_question_ids: [egMcActiveId] })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toMatch(/active_exam_session/i)
+      expect(data).toBeNull()
+    } finally {
+      // The session has no answers (FK children) — hard delete is safe. Surface a failed
+      // cleanup so a leaked active session can't make later get_study_questions calls reject.
+      const { data: del, error: delErr } = await admin
+        .from('quiz_sessions')
+        .delete()
+        .eq('id', sessionId)
+        .select('id')
+      // Log (not throw) on cleanup failure: a throw in finally would mask a real
+      // assertion failure from the try block (Biome noUnsafeFinally).
+      if (delErr) {
+        console.error('[get-study-questions-eo] EO6 session cleanup failed:', delErr.message)
+      } else if ((del?.length ?? 0) === 0) {
+        console.error('[get-study-questions-eo] EO6 session cleanup matched no rows:', sessionId)
+      }
+    }
   })
 })

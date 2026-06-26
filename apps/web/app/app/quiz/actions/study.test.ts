@@ -169,4 +169,16 @@ describe('startStudy — error path', () => {
     if (result.success) return
     expect(result.error).not.toContain('internal_secret_db_detail')
   })
+
+  it('tells the user to exit their exam when an exam session is active', async () => {
+    // get_study_questions raises 'active_exam_session' (carried through the helper's
+    // wrapped message) when the caller is mid-exam — Study Mode reveals answer keys.
+    mockGetStudyQuestions.mockRejectedValue(
+      new Error('Failed to fetch study questions: active_exam_session'),
+    )
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Finish or exit your active exam before studying.')
+  })
 })

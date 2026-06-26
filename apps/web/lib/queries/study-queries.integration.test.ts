@@ -210,6 +210,40 @@ describe('getStudyQuestions (app-layer integration)', () => {
     await expect(getStudyQuestions(tooMany)).rejects.toThrow('too_many_questions')
   })
 
+  it('rejects study while the caller has an active exam session', async () => {
+    await signInAs(email, password)
+
+    // Seed an active (ended_at IS NULL) mock_exam session for this student. Study Mode
+    // reveals answer keys, so the RPC must refuse while any exam is live — otherwise a
+    // student could read their live exam's MC keys (mid-exam answer oracle).
+    const { data: sessionRow, error: insErr } = await admin
+      .from('quiz_sessions')
+      .insert({ organization_id: orgId, student_id: studentId, mode: 'mock_exam' })
+      .select('id')
+      .single()
+    expect(insErr).toBeNull()
+    const sessionId = sessionRow?.id as string
+
+    try {
+      // Non-vacuous: the same questionIds return 3 rows when no exam is active (asserted
+      // in the success test above); with a live exam session the RPC must reject them.
+      await expect(getStudyQuestions(questionIds)).rejects.toThrow('active_exam_session')
+    } finally {
+      // The session has no answers (FK children), so a hard delete is safe. Surface a
+      // failed cleanup so a leaked active session can't make later tests reject spuriously.
+      const { data: del, error: delErr } = await admin
+        .from('quiz_sessions')
+        .delete()
+        .eq('id', sessionId)
+        .select('id')
+      if (delErr) {
+        console.error('[study-queries.integration] session cleanup failed:', delErr.message)
+      } else if ((del?.length ?? 0) === 0) {
+        console.error('[study-queries.integration] session cleanup matched no rows:', sessionId)
+      }
+    }
+  })
+
   it('excludes soft-deleted questions from the result', async () => {
     await signInAs(email, password)
 

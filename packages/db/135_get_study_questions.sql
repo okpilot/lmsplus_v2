@@ -69,6 +69,31 @@ BEGIN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
+  -- Mid-exam answer-oracle guard. Study Mode DELIBERATELY returns correct_option_id,
+  -- and mock/internal/VFR-RT exams grade from the SAME org MC pool. A student in a
+  -- live exam already holds their exam's question IDs (get_quiz_questions /
+  -- get_vfr_rt_exam_questions return q.id), so without this gate they could POST
+  -- those IDs straight to this RPC (it is GRANTed to authenticated) and read the
+  -- answer keys mid-exam — defeating the graded assessment and nullifying the
+  -- practice-only guard in check_quiz_answer (mig 117). Enforce the single-active-
+  -- session rule server-side: Study Mode is unavailable while ANY exam session is
+  -- active. Practice modes (smart_review/quick_quiz) are intentionally excluded —
+  -- they already reveal answers via check_quiz_answer, so blocking them adds no
+  -- protection. The UI also gates this, but the RPC must self-defend (the UI is
+  -- bypassable). Phrased as deny-by-default (NOT IN the practice modes) to match
+  -- check_quiz_answer's negative mode guard: any current OR future exam-like mode
+  -- added to the quiz_sessions.mode CHECK is then blocked automatically, rather than
+  -- fail-open the way a positive exam whitelist would.
+  IF EXISTS (
+    SELECT 1 FROM quiz_sessions s
+    WHERE s.student_id = auth.uid()
+      AND s.mode NOT IN ('smart_review', 'quick_quiz')
+      AND s.ended_at IS NULL
+      AND s.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'active_exam_session';
+  END IF;
+
   -- Bound the caller-supplied array. This RPC is GRANTed to authenticated and
   -- reads an arbitrary p_question_ids, so a direct caller (bypassing the Server
   -- Action, whose Zod schema caps count at 500) could otherwise force an
