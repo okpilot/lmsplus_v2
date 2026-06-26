@@ -11,11 +11,15 @@ import { useCallback, useEffect, useState } from 'react'
 export function useStudyRunner(questionsLength: number) {
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // Keep currentIndex in range if the question set shrinks (or empties) in place,
-  // so questions[currentIndex] can't become undefined and render null.
+  // Clamp SYNCHRONOUSLY (during render) so questions[safeIndex] can never be
+  // undefined for a frame if the set shrinks in place — an effect-only clamp
+  // would leave a stale index until after paint. The effect below only heals
+  // the stored state so subsequent paging math starts from the clamped value.
+  const safeIndex = questionsLength === 0 ? 0 : Math.min(currentIndex, questionsLength - 1)
+
   useEffect(() => {
-    setCurrentIndex((i) => (questionsLength === 0 ? 0 : Math.min(i, questionsLength - 1)))
-  }, [questionsLength])
+    if (currentIndex !== safeIndex) setCurrentIndex(safeIndex)
+  }, [currentIndex, safeIndex])
 
   const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), [])
   const goNext = useCallback(
@@ -34,5 +38,5 @@ export function useStudyRunner(questionsLength: number) {
     return () => window.removeEventListener('keydown', onKey)
   }, [goPrev, goNext])
 
-  return { currentIndex, goPrev, goNext }
+  return { currentIndex: safeIndex, goPrev, goNext }
 }

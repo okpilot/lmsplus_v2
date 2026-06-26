@@ -69,6 +69,20 @@ BEGIN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
+  -- Bound the caller-supplied array. This RPC is GRANTed to authenticated and
+  -- reads an arbitrary p_question_ids, so a direct caller (bypassing the Server
+  -- Action, whose Zod schema caps count at 500) could otherwise force an
+  -- oversized ANY(...) scan + answer-key JSON aggregation. 500 mirrors
+  -- get_random_question_ids / the start.ts Zod cap (CLAUDE.md "never trust
+  -- client input"). Empty/NULL array is a no-op (the WHERE would match nothing
+  -- anyway — fast-return before the JOINs).
+  IF p_question_ids IS NULL OR cardinality(p_question_ids) = 0 THEN
+    RETURN;
+  END IF;
+  IF cardinality(p_question_ids) > 500 THEN
+    RAISE EXCEPTION 'too_many_questions';
+  END IF;
+
   RETURN QUERY
   SELECT
     q.id,

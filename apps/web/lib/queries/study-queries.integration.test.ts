@@ -112,13 +112,19 @@ describe('getStudyQuestions (app-layer integration)', () => {
   afterAll(async () => {
     const errors: string[] = []
 
+    // Same dependent-step idiom as the foreign block below: the reference-data
+    // delete is FK-dependent on the org's question cleanup, so gate it on a LOCAL
+    // success flag rather than the shared errors.length (robust if a step is ever
+    // inserted between the two) (§7).
+    let orgCleaned = false
     try {
       await cleanupTestData({ admin, orgId, userIds: [studentId] })
+      orgCleaned = true
     } catch (e) {
       errors.push(`cleanupTestData(org): ${e instanceof Error ? e.message : String(e)}`)
     }
 
-    if (errors.length === 0) {
+    if (orgCleaned) {
       try {
         await cleanupReferenceData({ admin, refs: [refs] })
       } catch (e) {
@@ -126,16 +132,25 @@ describe('getStudyQuestions (app-layer integration)', () => {
       }
     }
 
+    // The foreign reference-data delete is FK-dependent on the foreign-org
+    // question cleanup succeeding (deleting a referenced subject/topic before its
+    // questions raises 23503). Gate it on a LOCAL success flag, not the shared
+    // errors.length — a blanket gate would also skip on the unrelated first-org
+    // failure above, leaking the foreign reference rows into the next spec (§7).
+    let foreignOrgCleaned = false
     try {
       await cleanupTestData({ admin, orgId: foreignOrgId, userIds: [foreignStudentId] })
+      foreignOrgCleaned = true
     } catch (e) {
       errors.push(`cleanupTestData(foreignOrg): ${e instanceof Error ? e.message : String(e)}`)
     }
 
-    try {
-      await cleanupReferenceData({ admin, refs: [foreignRefs] })
-    } catch (e) {
-      errors.push(`cleanupReferenceData(foreign): ${e instanceof Error ? e.message : String(e)}`)
+    if (foreignOrgCleaned) {
+      try {
+        await cleanupReferenceData({ admin, refs: [foreignRefs] })
+      } catch (e) {
+        errors.push(`cleanupReferenceData(foreign): ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)

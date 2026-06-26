@@ -270,13 +270,13 @@ describe('StudyRunner — flag button', () => {
     expect(flagBtn).toHaveTextContent('Unflag')
   })
 
-  it('calls toggleFlag with the current question id when the flag button is clicked', () => {
+  it('toggles the flag on the current card when the flag button is clicked', () => {
     render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
     fireEvent.click(screen.getByTestId('flag-btn'))
     expect(mockToggleFlag).toHaveBeenCalledWith('q-1')
   })
 
-  it('calls toggleFlag with the second question id after navigating to the next card', () => {
+  it('toggles the flag on the second card after navigating to the next card', () => {
     render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: /next/i }))
@@ -285,7 +285,7 @@ describe('StudyRunner — flag button', () => {
     expect(mockToggleFlag).toHaveBeenCalledWith('q-2')
   })
 
-  it('forwards flagLoading=true to the flashcard when the flag toggle is in progress', () => {
+  it('shows the current card as loading while a flag toggle is in progress', () => {
     mockUseFlaggedQuestions.mockReturnValue({
       isFlagged: vi.fn(() => false),
       toggleFlag: mockToggleFlag,
