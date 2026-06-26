@@ -233,7 +233,8 @@ CREATE TABLE questions (
        AND jsonb_array_length(blanks_config) = 0
        AND jsonb_array_length(
              CASE WHEN jsonb_typeof(ordering_items) = 'array' THEN ordering_items ELSE '[]'::jsonb END
-           ) >= 2)
+           ) >= 2
+       AND is_valid_ordering_items(ordering_items))
   ),
   CONSTRAINT questions_mc_correct_option_id_check CHECK (
     (question_type = 'multiple_choice')
