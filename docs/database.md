@@ -204,32 +204,36 @@ CREATE TABLE questions (
   deleted_by      UUID REFERENCES users(id) NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  -- 4-branch type<->column discriminator (mig 134 added the ordering branch +
-  -- the `jsonb_array_length(ordering_items) = 0` clause on every non-ordering branch).
+  -- 4-branch type<->column discriminator (mig 134 added the ordering branch; #998 CR
+  -- made it TOTAL — exact `ordering_items = '[]'::jsonb` on every non-ordering branch +
+  -- a CASE-wrapped length check on the ordering branch, so a non-array ordering_items
+  -- fails cleanly with 23514 instead of raising a raw 22023).
   CONSTRAINT questions_question_type_columns_check CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'short_answer'
        AND canonical_answer IS NOT NULL
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0
-       AND jsonb_array_length(ordering_items) = 0)
+       AND ordering_items = '[]'::jsonb)
     OR (question_type = 'ordering'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND jsonb_array_length(ordering_items) >= 2)
+       AND jsonb_array_length(
+             CASE WHEN jsonb_typeof(ordering_items) = 'array' THEN ordering_items ELSE '[]'::jsonb END
+           ) >= 2)
   ),
   CONSTRAINT questions_mc_correct_option_id_check CHECK (
     (question_type = 'multiple_choice')
