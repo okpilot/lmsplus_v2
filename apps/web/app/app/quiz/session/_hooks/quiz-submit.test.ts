@@ -303,6 +303,22 @@ describe('submitQuizSession', () => {
     })
   })
 
+  it('emits no rows for an ordering question with an empty order', async () => {
+    // fanOutOrderingAnswer maps `(a.order ?? [])` — an empty array fans out to zero
+    // entries. The defensive Array.isArray(a.order) branch in fanOutAnswer routes
+    // ordering BEFORE the MC default, so an empty order must NOT produce a bogus
+    // `{ selectedOptionId: undefined }` row.
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const emptyOrderMap = makeAnswers([[Q1_ID, { order: [], responseTimeMs: 2000 }]])
+
+    await submitQuizSession(SESSION_ID, emptyOrderMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [],
+    })
+  })
+
   it('logs error when draft cleanup fails after successful submit', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const cleanupError = new Error('draft cleanup network failure')

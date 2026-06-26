@@ -134,6 +134,38 @@ describe('buildOrdering', () => {
     expect(ord.isCorrect).toBe(true)
   })
 
+  it('ignores a null blank_index row when a real slot-0 row coexists', () => {
+    // buildOrdering filters rows where blank_index != null before building rowBySlot.
+    // A stray null-index row must NOT overwrite position 0 — if it did, rowBySlot
+    // would map null→corrupt-data, coercing null to 0 and replacing the real slot-0 entry.
+    const answers: AnswerRow[] = [
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 5000,
+        response_text: 'corrupt-data',
+        blank_index: null,
+      },
+      {
+        question_id: 'q1',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 5000,
+        response_text: 'mayday',
+        blank_index: 0,
+      },
+    ]
+
+    const result = buildReportQuestions(answers, orderingQuestionMap(), new Map(), new Map())
+    const ord = asOrdering(result[0])
+    // The null-index row is silently dropped — only the real slot-0 row survives.
+    expect(ord.slots).toHaveLength(1)
+    expect(ord.slots[0]?.position).toBe(0)
+    expect(ord.slots[0]?.responseText).toBe('mayday')
+    expect(ord.slots[0]?.isCorrect).toBe(true)
+  })
+
   it('renders an omitted ordering slot as unanswered using the answer-key canonical order', () => {
     // Only 2 of the question's 3 canonical slots were submitted (slot 2 omitted).
     // The report must still show 3 slots, with the missing slot rendered

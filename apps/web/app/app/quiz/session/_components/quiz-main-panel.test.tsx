@@ -117,6 +117,7 @@ vi.mock('./dialog-fill-input', () => ({
 
 vi.mock('./ordering-input', () => ({
   OrderingInput: ({
+    items,
     onSubmit,
     disabled,
     submitting,
@@ -134,6 +135,7 @@ vi.mock('./ordering-input', () => ({
       data-disabled={String(disabled)}
       data-submitting={String(submitting ?? false)}
       data-submitted={String(submitted ?? false)}
+      data-items={JSON.stringify(items.map((it) => it.id))}
     >
       <button
         type="button"
@@ -439,6 +441,35 @@ describe('QuizMainPanel', () => {
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
+    })
+
+    it('passes the question ordering items to the ordering input unchanged', () => {
+      // Regression guard: the mock previously ignored `items`, so QuizMainPanel
+      // could forward an empty list and all existing tests would still pass. The
+      // data-items attribute now exposes the forwarded ids so this gap is visible.
+      const s = makeState({
+        question: {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: '050-01-01-004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: [
+            { id: 'a', text: 'first' },
+            { id: 'b', text: 'second' },
+          ],
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      // The item ids from question.ordering_items must reach OrderingInput unchanged.
+      expect(screen.getByTestId('ordering-input').getAttribute('data-items')).toBe(
+        JSON.stringify(['a', 'b']),
+      )
     })
 
     it('shows multiple-choice options for a multiple_choice question', () => {

@@ -1,7 +1,32 @@
-import { render, screen } from '@testing-library/react'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrderingInput } from './ordering-input'
+
+// Capture the DndContext onDragEnd callback so the reorder test can fire it directly.
+// jsdom limitation: dnd-kit's sortableKeyboardCoordinates reads droppableRects for
+// collision detection. droppableRects is populated via a WhileDragging useEffect but
+// its results feed into an internal translate/collision pipeline that does not produce
+// a reorder in jsdom even when getBoundingClientRect is spied to return real values —
+// the coordinate math diverges from a live browser because CSS transforms don't move
+// elements in jsdom. Direct onDragEnd invocation exercises the same production code
+// path (handleDragEnd → setOrder → arrayMove) and is the correct jsdom strategy.
+const capturedOnDragEnd = vi.hoisted((): { current: ((e: DragEndEvent) => void) | null } => ({
+  current: null,
+}))
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  const { DndContext: RealDndContext } = actual
+  return {
+    ...actual,
+    DndContext: ({ onDragEnd, ...rest }: Parameters<typeof actual.DndContext>[0]) => {
+      // Capture the latest onDragEnd so the reorder test can call it directly.
+      capturedOnDragEnd.current = onDragEnd ?? null
+      return <RealDndContext onDragEnd={onDragEnd} {...rest} />
+    },
+  }
+})
 
 const ITEMS = [
   { id: 'mayday', text: 'MAYDAY MAYDAY MAYDAY' },
@@ -109,6 +134,30 @@ describe('OrderingInput', () => {
   it('does not announce a result before grading data arrives', () => {
     render(<OrderingInput items={ITEMS} onSubmit={vi.fn()} disabled={false} submitted />)
     expect(screen.queryByTestId('ordering-result')).not.toBeInTheDocument()
+  })
+
+  it('submits the new item sequence after the first item is dragged down one slot', async () => {
+    // Fires onDragEnd directly via the capturedOnDragEnd ref rather than through the
+    // keyboard sensor. dnd-kit's coordinate math (WhileDragging measurement → translate
+    // → collision detection) does not produce a move in jsdom even when
+    // getBoundingClientRect is spied to return real y-values — confirmed by measurement
+    // logs showing all three items ARE measured but ArrowDown still yields no over change.
+    // Direct invocation exercises the same production path: handleDragEnd → setOrder →
+    // arrayMove → the updated order is forwarded by onSubmit.
+    const onSubmit = vi.fn()
+    render(<OrderingInput items={ITEMS} onSubmit={onSubmit} disabled={false} />)
+
+    // Simulate: user dragged mayday (slot 0) onto callsign (slot 1) and released.
+    act(() => {
+      capturedOnDragEnd.current?.({
+        active: { id: 'mayday' },
+        over: { id: 'callsign' },
+      } as unknown as DragEndEvent)
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: /submit answer/i }))
+    // mayday moved from slot 0 to slot 1 → [callsign, mayday, nature]
+    expect(onSubmit).toHaveBeenCalledWith(['callsign', 'mayday', 'nature'])
   })
 
   it('restores the student submitted sequence when revisiting an answered question', () => {

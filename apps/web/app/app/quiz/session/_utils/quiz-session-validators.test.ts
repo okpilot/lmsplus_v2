@@ -97,6 +97,12 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ order: [], responseTimeMs: 1500 })).toBe(false)
   })
 
+  it('rejects an ordering draft with a single-item order (min 2 required)', () => {
+    // An ordering question always has ≥2 items; a one-item saved order is either
+    // corrupt data or a truncated submit — reject it (CR finding #10).
+    expect(isValidDraftAnswer({ order: ['item-a'], responseTimeMs: 1500 })).toBe(false)
+  })
+
   it('rejects an ordering draft whose order contains an empty string', () => {
     expect(isValidDraftAnswer({ order: ['item-a', ''], responseTimeMs: 1500 })).toBe(false)
   })
@@ -292,6 +298,20 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'ordering',
         isCorrect: true,
         correctOrder: [],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry with only one item in correctOrder (min 2 required)', () => {
+    // An ordering question always has ≥2 items — four-way parity with the save schema
+    // (.min(2)), the RPC guard, and the DB-load path. A single-item array is corrupt.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY'],
         explanationText: null,
         explanationImageUrl: null,
       }),

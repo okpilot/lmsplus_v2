@@ -459,6 +459,53 @@ describe('saveDraft', () => {
     expect(result.success).toBe(false)
   })
 
+  it('rejects an ordering answer with duplicate item ids', async () => {
+    // The .refine() on SaveDraftInput.answers.order enforces unique ids —
+    // a permutation cannot repeat the same item (CR finding #3).
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { order: ['item-a', 'item-b', 'item-a'], responseTimeMs: 4000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('accepts a valid ordering answer whose ids are all unique', async () => {
+    // Positive control for the duplicate-id .refine() guard.
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 },
+      },
+    })
+    expect(result).toEqual({ success: true })
+    expect((capturedInsertArg!.answers as Record<string, unknown>)[Q1_ID]).toMatchObject({
+      order: ['item-c', 'item-a', 'item-b'],
+    })
+  })
+
   it('rejects an ordering answer with more than 50 items', async () => {
     // Mirrors the answers.blankAnswers .max(50) cap — parity for ordering.
     setupAuthenticatedUser()
