@@ -234,4 +234,28 @@ describe('getRandomQuestionIds', () => {
     )
     consoleSpy.mockRestore()
   })
+
+  it('defaults p_question_type to null when questionType is not provided', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_question_type: null }),
+    )
+  })
+
+  it('passes the given question type to the RPC when questionType is specified', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, questionType: 'multiple_choice' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_question_type: 'multiple_choice' }),
+    )
+  })
 })

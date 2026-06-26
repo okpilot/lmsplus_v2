@@ -14,6 +14,9 @@
 - **Composition hooks (e.g. `useStudyConfig`)** — mock sub-hooks (useTopicTree, useFilteredCount, etc.) but let the top-level state hook (`useQuizConfigState`) run for real; this tests the integration without mocking state management internals.
 - **Component tests: mock heavy deps, keep observable DOM real** — mock components with complex deps (MarkdownText, ZoomableImage via next/image); leave `AnswerOptions` un-mocked when the test needs to observe DOM output like `border-green-500` on the correct option.
 - **Runner mock pattern for sub-components** — mock child components with a lightweight stand-in that includes the `data-testid` props the runner test needs (e.g. `data-testid={\`flashcard-${question.id}\`}`) to test orchestration without the child's deps.
+- **Config-form component tests need an `onExit` wrapper on runner mocks** — when the form conditionally renders a runner component and passes `onExit`, expose that callback in the mock (e.g. a visible Exit button) so tests can assert `reset` is called. Pattern: `StudyRunner: ({ onExit }) => <div data-testid="study-runner"><button onClick={onExit}>Exit</button></div>`.
+- **Tab-count changes need two coverage additions** — when adding a 3rd tab: (1) a test that asserts the new tab renders, (2) a test that asserts clicking it shows the correct content. The existing `renders both tabs` name becomes stale — do NOT rename it, just add the new tests alongside.
+- **New optional RPC param needs two tests** — when a function grows an optional param defaulting to null: (1) assert omitting it sends `null` to the RPC, (2) assert providing it passes the value through. Pattern mirrored by `p_question_type` tests in `quiz-session-queries.test.ts`.
 - **RPC integration test migration note** — integration test file header must name the migration number and explain any prerequisites (local db reset + grant-fix + re-seed).
 
 ## Topic pointers

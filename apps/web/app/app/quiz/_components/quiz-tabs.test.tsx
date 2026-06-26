@@ -62,6 +62,20 @@ describe('QuizTabs', () => {
     expect(screen.queryByTestId('saved-draft')).not.toBeInTheDocument()
   })
 
+  it('renders all three tabs including the study mode tab', () => {
+    renderTabs()
+    expect(screen.getByTestId('tab-new')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-saved')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-study')).toBeInTheDocument()
+  })
+
+  it('switches to study mode content when the study tab is clicked', () => {
+    renderTabs()
+    fireEvent.click(screen.getByTestId('tab-study'))
+    expect(screen.queryByTestId('new-quiz')).not.toBeInTheDocument()
+    expect(screen.getByTestId('study-mode')).toBeInTheDocument()
+  })
+
   describe('ARIA tablist pattern', () => {
     it('has a tablist container with accessible label', () => {
       renderTabs()
