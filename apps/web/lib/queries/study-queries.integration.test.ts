@@ -13,6 +13,7 @@
 // (20260626000200_get_study_questions.sql) applied. The migration is staged on this
 // branch. Run `npx supabase db reset` + grant-fix + re-seed before running locally;
 // CI resets and applies all migrations authorita­tively.
+import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
@@ -191,6 +192,22 @@ describe('getStudyQuestions (app-layer integration)', () => {
     // so this runs as anon. The RPC raises "Not authenticated"; the helper surfaces
     // it as a thrown error (code-style §5: query helpers throw, never collapse to []).
     await expect(getStudyQuestions(questionIds)).rejects.toThrow('Failed to fetch study questions')
+  })
+
+  it('rejects a request for more than 500 question ids', async () => {
+    await signInAs(email, password)
+
+    // 501 ids exceeds the RPC's cardinality cap (mirrors get_random_question_ids /
+    // the start.ts Zod .max(500)). Non-vacuous: the caller is authenticated and
+    // in-org, so the auth and active-user/org gates pass and the cap guard is the
+    // path that fires — a success would instead return rows. The RAISE
+    // 'too_many_questions' surfaces through the helper's generic wrapper, so the
+    // thrown message carries the token (proving the cap, not some other error,
+    // rejected the call). The helper short-circuits an EMPTY array before the RPC
+    // (study-queries.ts), so the empty-array fast-return is unreachable here and is
+    // not asserted.
+    const tooMany = Array.from({ length: 501 }, () => randomUUID())
+    await expect(getStudyQuestions(tooMany)).rejects.toThrow('too_many_questions')
   })
 
   it('excludes soft-deleted questions from the result', async () => {
