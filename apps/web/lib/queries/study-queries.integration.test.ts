@@ -229,12 +229,15 @@ describe('getStudyQuestions (app-layer integration)', () => {
       // in the success test above); with a live exam session the RPC must reject them.
       await expect(getStudyQuestions(questionIds)).rejects.toThrow('active_exam_session')
     } finally {
-      // The session has no answers (FK children), so a hard delete is safe. Surface a
-      // failed cleanup so a leaked active session can't make later tests reject spuriously.
+      // quiz_sessions is soft-delete only (docs/database.md soft-delete matrix) — soft-delete
+      // the seeded session, matching the sibling red-team specs. Setting deleted_at also clears
+      // the active-session guard for later tests. Surface a failed cleanup so a leaked active
+      // session can't make later tests reject spuriously.
       const { data: del, error: delErr } = await admin
         .from('quiz_sessions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionId)
+        .is('deleted_at', null)
         .select('id')
       if (delErr) {
         console.error('[study-queries.integration] session cleanup failed:', delErr.message)

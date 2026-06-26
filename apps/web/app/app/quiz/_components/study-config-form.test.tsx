@@ -191,7 +191,7 @@ describe('StudyConfigForm', () => {
       expect(screen.getByTestId('study-runner')).toBeInTheDocument()
       expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
 
-      // Exit: reset fires and the config form is restored on the study tab.
+      // Exit: reset fires and the config form is restored in the Discovery view.
       await user.click(screen.getByRole('button', { name: 'Exit' }))
       expect(reset).toHaveBeenCalled()
       mockUseStudyConfig.mockReturnValue(

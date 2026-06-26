@@ -484,12 +484,14 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       expect(error?.message ?? '').toMatch(/active_exam_session/i)
       expect(data).toBeNull()
     } finally {
-      // The session has no answers (FK children) — hard delete is safe. Surface a failed
-      // cleanup so a leaked active session can't make later get_study_questions calls reject.
+      // quiz_sessions is soft-delete only (docs/database.md soft-delete matrix) — soft-delete
+      // the seeded session, matching the sibling red-team specs. Setting deleted_at also clears
+      // the active-session guard so later get_study_questions calls don't reject spuriously.
       const { data: del, error: delErr } = await admin
         .from('quiz_sessions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionId)
+        .is('deleted_at', null)
         .select('id')
       // Log (not throw) on cleanup failure: a throw in finally would mask a real
       // assertion failure from the try block (Biome noUnsafeFinally).
