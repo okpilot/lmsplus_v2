@@ -339,4 +339,83 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
   })
+
+  it('rejects an ordering question whose item text is not a string', async () => {
+    // Symmetric to the non-string-id guard: jsonb_typeof(text) IS DISTINCT FROM 'string'.
+    // `->>` coerces a JSON number to text, so before the type check a numeric text like
+    // 42 would have passed the old blank-only check. Regression guard for the text side
+    // of the typeof clause (#998 CR) — distinct mechanism from the id-side test above.
+    const malformedItems = [
+      { id: 'a', text: 42 },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-string text',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item id is whitespace-only', async () => {
+    // btrim(id) = '' guard: the old coalesce(id,'') = '' check missed '   ' (non-empty raw
+    // string, blank after trim). A whitespace-only id is not a usable stable key. Regression
+    // guard for the btrim clause (#998 CR) — distinct mechanism from the type guards above.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — whitespace-only id',
+      ordering_items: [
+        { id: '   ', text: 'Alpha' },
+        { id: 'b', text: 'Bravo' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item is missing the id key', async () => {
+    // IS DISTINCT FROM 'string' (not <> 'string') guard: a missing id key makes e->'id'
+    // jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string' is NULL (not counted) —
+    // the element would slip through `<>`. IS DISTINCT FROM 'string' is TRUE for NULL, so
+    // the missing-key element is rejected. Regression guard for the operator choice (#998 CR).
+    const malformedItems = [
+      { text: 'Alpha' },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — missing id key',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
 })

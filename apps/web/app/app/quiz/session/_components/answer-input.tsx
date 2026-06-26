@@ -96,28 +96,26 @@ function McAnswer({
   )
 }
 
-export function AnswerInput({ s, onSelectionChange, keyboardHighlightedId }: AnswerInputProps) {
-  const question = s.question
-  if (!question) return null
+function UnsupportedQuestionType({ message }: { message: string }) {
+  return (
+    <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+      {message}
+    </div>
+  )
+}
+
+function AnswerControl(props: AnswerInputProps & { question: Question }) {
+  const { s, question } = props
 
   if (s.isExam && question.question_type !== 'multiple_choice') {
     return (
-      <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-        This question type is not yet supported in exam mode.
-      </div>
+      <UnsupportedQuestionType message="This question type is not yet supported in exam mode." />
     )
   }
 
   switch (question.question_type) {
     case 'multiple_choice':
-      return (
-        <McAnswer
-          s={s}
-          question={question}
-          onSelectionChange={onSelectionChange}
-          keyboardHighlightedId={keyboardHighlightedId}
-        />
-      )
+      return <McAnswer {...props} />
     case 'short_answer':
       return <ShortAnswerAnswer s={s} question={question} />
     case 'dialog_fill':
@@ -128,10 +126,12 @@ export function AnswerInput({ s, onSelectionChange, keyboardHighlightedId }: Ans
       // Fail closed: an unknown question_type (a future type like diagram_label not
       // yet wired, or loader drift) must not be reinterpreted as MC — that would
       // render the wrong control and submit an MC-shaped payload silently.
-      return (
-        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          This question type is not yet supported.
-        </div>
-      )
+      return <UnsupportedQuestionType message="This question type is not yet supported." />
   }
+}
+
+export function AnswerInput(props: AnswerInputProps) {
+  const question = props.s.question
+  if (!question) return null
+  return <AnswerControl {...props} question={question} />
 }
