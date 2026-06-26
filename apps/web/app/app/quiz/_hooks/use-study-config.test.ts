@@ -112,13 +112,13 @@ describe('useStudyConfig — initial state', () => {
     expect(result.current.isPending).toBe(true)
   })
 
-  it('exposes the availableCount value from useAvailableCount', () => {
+  it('exposes the availableCount value', () => {
     ;(useAvailableCount as Mock).mockReturnValue(42)
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.availableCount).toBe(42)
   })
 
-  it('exposes the topicTree from useTopicTree', () => {
+  it('exposes the topicTree', () => {
     const mockTree = buildMockTopicTree({ selectedQuestionCount: 99 })
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
     const { result } = renderHook(() => useStudyConfig())
@@ -134,7 +134,7 @@ describe('useStudyConfig — start-hook re-exports', () => {
     expect(result.current.questions).toBeNull()
   })
 
-  it('exposes questions from useStudyStart when they are loaded', () => {
+  it('exposes questions when they are loaded', () => {
     const questions = [{ id: 'q-1' }]
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ questions }))
     const { result } = renderHook(() => useStudyConfig())
@@ -146,7 +146,7 @@ describe('useStudyConfig — start-hook re-exports', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('surfaces loading true from useStudyStart when a start is in progress', () => {
+  it('surfaces loading true when a start is in progress', () => {
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ loading: true }))
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.loading).toBe(true)
@@ -157,20 +157,20 @@ describe('useStudyConfig — start-hook re-exports', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('surfaces an error message from useStudyStart when the start action fails', () => {
+  it('surfaces an error message when the start action fails', () => {
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ error: 'No questions found' }))
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.error).toBe('No questions found')
   })
 
-  it('exposes the handleStart function from useStudyStart', () => {
+  it('exposes the handleStart function', () => {
     const handleStart = vi.fn()
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ handleStart }))
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.handleStart).toBe(handleStart)
   })
 
-  it('exposes the reset function from useStudyStart', () => {
+  it('exposes the reset function', () => {
     const reset = vi.fn()
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ reset }))
     const { result } = renderHook(() => useStudyConfig())
@@ -202,7 +202,7 @@ describe('useStudyConfig — handleSubjectChange', () => {
 
 describe('useStudyConfig — filtered topic counts', () => {
   it('exposes filteredByTopic as null when no active filters are set', () => {
-    const filteredByTopic = new Map<string, number>([['t1', 5]])
+    const filteredByTopic: Record<string, number> = { t1: 5 }
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredByTopic }))
     const { result } = renderHook(() => useStudyConfig())
     // No active filters → hasActiveFilters=false → filteredByTopic must be null.
@@ -210,7 +210,7 @@ describe('useStudyConfig — filtered topic counts', () => {
   })
 
   it('exposes filteredByTopic when at least one filter is active', async () => {
-    const filteredByTopic = new Map<string, number>([['t1', 5]])
+    const filteredByTopic: Record<string, number> = { t1: 5 }
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredByTopic }))
     const { result } = renderHook(() => useStudyConfig())
     // Activate a filter so hasActiveFilters becomes true.
@@ -224,7 +224,7 @@ describe('useStudyConfig — filtered topic counts', () => {
 // ---- authError propagation -----------------------------------------------
 
 describe('useStudyConfig — authError propagation', () => {
-  it('surfaces the authError flag from useFilteredCount', () => {
+  it('surfaces the authError flag', () => {
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ authError: true }))
     const { result } = renderHook(() => useStudyConfig())
     expect(result.current.authError).toBe(true)
