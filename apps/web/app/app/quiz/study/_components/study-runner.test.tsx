@@ -184,6 +184,56 @@ describe('StudyRunner — "New set" button', () => {
   })
 })
 
+// ---- Index clamping when questions shrink -----------------------------------
+
+describe('StudyRunner — index clamping on prop change', () => {
+  it('shows the new last card when the question set shrinks and current position is beyond the new end', () => {
+    const onExit = vi.fn()
+    const { rerender } = render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={onExit} />)
+    // Navigate to the third card (index 2)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-3')).toBeInTheDocument()
+    // Shrink to two questions — index 2 is now out of range
+    act(() => {
+      rerender(<StudyRunner questions={[Q1, Q2]} onExit={onExit} />)
+    })
+    // Index must be clamped to 1 (the new last position)
+    expect(screen.getByTestId('flashcard-q-2')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('2 / 2')
+  })
+
+  it('shows the empty-state message when the question set empties while the user is mid-session', () => {
+    const onExit = vi.fn()
+    const { rerender } = render(<StudyRunner questions={[Q1, Q2]} onExit={onExit} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-2')).toBeInTheDocument()
+    // Empty the set entirely
+    act(() => {
+      rerender(<StudyRunner questions={[]} onExit={onExit} />)
+    })
+    expect(screen.getByText('No questions match these filters.')).toBeInTheDocument()
+  })
+
+  it('does not set a negative index when ArrowRight is pressed while the question list is empty', () => {
+    const onExit = vi.fn()
+    const { rerender } = render(<StudyRunner questions={[Q1]} onExit={onExit} />)
+    act(() => {
+      rerender(<StudyRunner questions={[]} onExit={onExit} />)
+    })
+    // Keyboard listener is still attached; pressing ArrowRight must not crash
+    // and the empty-state view must remain visible
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByText('No questions match these filters.')).toBeInTheDocument()
+  })
+})
+
 // ---- Flag button ---------------------------------------------------------
 
 describe('StudyRunner — flag button', () => {
