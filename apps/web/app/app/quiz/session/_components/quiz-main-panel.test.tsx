@@ -165,6 +165,7 @@ function makeState(overrides: Partial<QuizState> = {}): QuizState {
       explanation_text: null,
       explanation_image_url: null,
       options: [{ id: 'a', text: 'A force' }],
+      question_type: 'multiple_choice',
     },
     questionId: 'q1',
     answeredCount: 0,
@@ -443,10 +444,10 @@ describe('QuizMainPanel', () => {
       expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
     })
 
-    it('passes the question ordering items to the ordering input unchanged', () => {
+    it('renders an ordering question with its item ids in the delivered order', () => {
       // Regression guard: the mock previously ignored `items`, so QuizMainPanel
-      // could forward an empty list and all existing tests would still pass. The
-      // data-items attribute now exposes the forwarded ids so this gap is visible.
+      // could render an empty list and all existing tests would still pass. The
+      // data-items attribute now exposes the rendered ids so this gap is visible.
       const s = makeState({
         question: {
           id: 'q-ord',
@@ -492,6 +493,29 @@ describe('QuizMainPanel', () => {
       expect(screen.getByTestId('answer-options')).toBeInTheDocument()
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
       expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
+    })
+
+    it('fails closed with an unsupported-type message for an unknown question type', () => {
+      // A type not yet wired into AnswerInput (e.g. a future diagram_label, or loader
+      // drift) must not be reinterpreted as MC and submit an MC-shaped payload.
+      const s = makeState({
+        question: {
+          id: 'q-future',
+          question_text: 'A not-yet-supported question',
+          question_image_url: null,
+          question_number: '050-01-01-099',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: null,
+        },
+      } as unknown as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByRole('alert')).toHaveTextContent('not yet supported')
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
     })
 
     it('shows the short-answer loading state while a per-answer check is in flight', () => {
