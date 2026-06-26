@@ -33,11 +33,10 @@ async function fetchActiveQuestionCounts(
   return Array.isArray(data) ? data : []
 }
 
-// Wrapped in React `cache()` for per-request memoization: both SubjectsSection
-// (New Quiz / Saved tabs) and StudySection (Study mode tab) read this on every
-// /quiz render, so without dedup the subjects+counts query would run twice per
-// load. cache() is request-scoped — a no-op outside an RSC render, so unit tests
-// that call it directly are unaffected — and transparent to all callers (no args).
+// Wrapped in React `cache()` for per-request memoization: SubjectsSection
+// (New Quiz form) calls this on /quiz render; cache() ensures a single DB round-trip
+// per request. cache() is request-scoped — a no-op outside an RSC render, so unit
+// tests that call it directly are unaffected — and transparent to all callers (no args).
 export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> => {
   const supabase = await createServerSupabaseClient()
 

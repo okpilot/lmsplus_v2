@@ -6,7 +6,6 @@ type QuizTabsProps = {
   draftCount?: number | null
   newQuizContent: React.ReactNode
   savedDraftContent: React.ReactNode
-  studyContent: React.ReactNode
 }
 
 type TabButtonProps = {
@@ -49,16 +48,11 @@ function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: Tab
   )
 }
 
-type TabName = 'new' | 'saved' | 'study'
-const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved', 2: 'study' }
-const TAB_COUNT = 3
+type TabName = 'new' | 'saved'
+const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved' }
+const TAB_COUNT = 2
 
-export function QuizTabs({
-  draftCount = null,
-  newQuizContent,
-  savedDraftContent,
-  studyContent,
-}: QuizTabsProps) {
+export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent }: QuizTabsProps) {
   const [tab, setTab] = useState<TabName>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
   const pendingFocusRef = useRef<string | null>(null)
@@ -73,7 +67,7 @@ export function QuizTabs({
   }, [tab])
 
   function handleKeyDown(e: KeyboardEvent) {
-    const currentIndex = tab === 'new' ? 0 : tab === 'saved' ? 1 : 2
+    const currentIndex = tab === 'new' ? 0 : 1
     let nextIndex: number
 
     if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TAB_COUNT
@@ -115,17 +109,9 @@ export function QuizTabs({
           onClick={() => setTab('saved')}
           badge={draftCount ?? undefined}
         />
-        <TabButton
-          id="tab-study"
-          isActive={tab === 'study'}
-          label="Study mode"
-          testId="tab-study"
-          panelId={tab === 'study' ? 'tabpanel-study' : undefined}
-          onClick={() => setTab('study')}
-        />
       </div>
       <div id={`tabpanel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {tab === 'new' ? newQuizContent : tab === 'saved' ? savedDraftContent : studyContent}
+        {tab === 'new' ? newQuizContent : savedDraftContent}
       </div>
     </div>
   )

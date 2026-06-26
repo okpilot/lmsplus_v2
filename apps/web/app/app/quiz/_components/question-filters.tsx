@@ -10,6 +10,7 @@ type QuestionFiltersProps = {
   onCalcModeChange: (mode: CalcMode) => void
   imageMode: ImageMode
   onImageModeChange: (mode: ImageMode) => void
+  unseenLabel?: string
 }
 
 export function QuestionFilters({
@@ -19,6 +20,7 @@ export function QuestionFilters({
   onCalcModeChange,
   imageMode,
   onImageModeChange,
+  unseenLabel,
 }: QuestionFiltersProps) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
@@ -53,7 +55,7 @@ export function QuestionFilters({
         {FILTERS.map((opt) => (
           <FilterToggle
             key={opt.value}
-            label={opt.label}
+            label={opt.value === 'unseen' ? (unseenLabel ?? opt.label) : opt.label}
             hint={opt.hint}
             checked={value.includes(opt.value)}
             onToggle={() => handleToggle(opt.value)}

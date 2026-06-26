@@ -10,6 +10,7 @@ import { ExamConfigForm } from './exam-config-form'
 import { ModeToggle } from './mode-toggle'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
+import { StudyConfigForm } from './study-config-form'
 import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
@@ -22,9 +23,25 @@ type QuizConfigFormProps = {
 export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFormProps) {
   const config = useQuizConfig({ userId, subjects })
   const isExam = config.mode === 'exam'
+  const isDiscovery = config.mode === 'discovery'
 
   const [examSubjectId, setExamSubjectId] = useState('')
   const exam = useExamStart({ userId, subjectId: examSubjectId, examSubjects })
+
+  // Discovery mode: the ModeToggle sits above the StudyConfigForm as siblings —
+  // StudyConfigForm is self-contained (own cards + Start button), so we skip Card 1.
+  if (isDiscovery) {
+    return (
+      <div className="space-y-4">
+        <ModeToggle
+          value={config.mode}
+          onValueChange={config.setMode}
+          examAvailable={examSubjects.length > 0}
+        />
+        <StudyConfigForm subjects={subjects} unseenLabel="Unseen" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -57,6 +74,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
                 onCalcModeChange={config.setCalcMode}
                 imageMode={config.imageMode}
                 onImageModeChange={config.setImageMode}
+                unseenLabel="Unanswered"
               />
             )}
           </>

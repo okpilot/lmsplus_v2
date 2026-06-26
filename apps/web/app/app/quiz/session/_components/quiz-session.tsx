@@ -5,7 +5,7 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer, SessionMode } from '../../types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
@@ -27,7 +27,7 @@ type QuizSessionProps = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
   timeLimitSeconds?: number
   passMark?: number

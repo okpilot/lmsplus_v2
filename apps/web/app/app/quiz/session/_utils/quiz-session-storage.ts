@@ -1,5 +1,5 @@
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer, SessionMode } from '../../types'
 import {
   hasValidOptionalFields,
   isNonEmptyString,
@@ -25,7 +25,7 @@ export type ActiveSession = {
   subjectCode?: string
   draftId?: string
   savedAt: number // Date.now()
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   // DB-level exam mode (mock_exam | internal_exam). Display-only; drives badge label
   // and UI gating (e.g., hides Discard for internal_exam). Defaults to mock_exam when
   // mode === 'exam' and examMode is absent.
@@ -155,7 +155,7 @@ export type SessionData = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
   timeLimitSeconds?: number
   passMark?: number
@@ -234,7 +234,7 @@ type BuildOpts = {
   subjectName?: string
   subjectCode?: string
   draftId?: string
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
   startedAt?: string
   timeLimitSeconds?: number

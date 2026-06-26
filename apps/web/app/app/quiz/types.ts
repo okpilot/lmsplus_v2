@@ -168,7 +168,7 @@ export type QuizStateOpts = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-  mode?: QuizMode
+  mode?: SessionMode
   examMode?: import('@/lib/constants/exam-modes').QuizMode
   timeLimitSeconds?: number
   passMark?: number
@@ -187,7 +187,13 @@ export type AnswerPipelineOpts = QuizStateOpts & {
   router: import('next/dist/shared/lib/app-router-context.shared-runtime').AppRouterInstance
 }
 
-export type QuizMode = 'study' | 'exam'
+export type QuizMode = 'discovery' | 'study' | 'exam'
+
+// The modes a quiz SESSION can run/persist in. Discovery never creates or persists
+// a session (it uses the StudyRunner flashcard path), so it is excluded here — this
+// keeps the persisted-session contract aligned with the validator in
+// session/_utils/quiz-session-validators.ts, which rejects 'discovery'.
+export type SessionMode = Exclude<QuizMode, 'discovery'>
 
 export type StartExamResult =
   | {

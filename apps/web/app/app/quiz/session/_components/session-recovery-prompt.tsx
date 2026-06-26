@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
+import type { SessionMode } from '../../types'
 
 type SessionRecoveryPromptProps = Readonly<{
   subjectName?: string
@@ -22,7 +23,7 @@ type SessionRecoveryPromptProps = Readonly<{
   onDiscard: () => void
   loading: boolean
   error: string | null
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
 }>
 

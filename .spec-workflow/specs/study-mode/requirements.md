@@ -1,10 +1,16 @@
 # Study Mode — Requirements
 
 ## Summary
-A "Study mode" tab on the quiz page (`/app/quiz`) that lets a student page through MC
-questions as flashcards, seeing the correct answer + explanation immediately. Same setup
-filters and same flag option as a quiz. **No results stored** (no session, no answers, no
-scores) — only question flags persist (reusing the existing flag feature).
+A "Discovery" mode in the New Quiz toggle on the quiz page (`/app/quiz`) that lets a
+student page through MC questions as flashcards, seeing the correct answer + explanation
+immediately. Same setup filters and same flag option as a quiz. **No results stored**
+(no session, no answers, no scores) — only question flags persist (reusing the existing
+flag feature).
+
+> **UI placement note (post-PR #1006):** Originally shipped as a 3rd top-level tab
+> "Study mode". Relocated to a 3rd segment of the New Quiz mode toggle as **Discovery**
+> (first segment, default-selected) to avoid semantic collision with the existing "Study"
+> toggle segment. Internal code identifiers remain `study`/`startStudy`/`useStudyConfig`.
 
 ## Scope
 - **In:** Multiple-choice questions only. Reuse of existing quiz filter UI, flag feature,

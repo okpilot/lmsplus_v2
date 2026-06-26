@@ -17,7 +17,7 @@ export function useQuizConfigState(deps: {
   topicTree: ReturnType<typeof useTopicTree>
 }) {
   const [subjectId, setSubjectId] = useState('')
-  const [mode, setMode] = useState<QuizMode>('study')
+  const [mode, setMode] = useState<QuizMode>('discovery')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
   const [calcMode, setCalcMode] = useState<CalcMode>('all')
   const [imageMode, setImageMode] = useState<ImageMode>('all')

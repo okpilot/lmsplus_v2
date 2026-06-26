@@ -37,6 +37,7 @@ function renderFilters(props: Partial<React.ComponentProps<typeof QuestionFilter
       onCalcModeChange={props.onCalcModeChange ?? vi.fn()}
       imageMode={props.imageMode ?? 'all'}
       onImageModeChange={props.onImageModeChange ?? vi.fn()}
+      unseenLabel={props.unseenLabel}
     />,
   )
 }
@@ -51,6 +52,23 @@ describe('QuestionFilters', () => {
     expect(screen.getByText('Previously unseen')).toBeInTheDocument()
     expect(screen.getByText('Incorrectly answered')).toBeInTheDocument()
     expect(screen.getByText('Flagged questions')).toBeInTheDocument()
+  })
+
+  it('shows the unseenLabel override when provided as "Unseen"', () => {
+    renderFilters({ unseenLabel: 'Unseen' })
+    expect(screen.getByText('Unseen')).toBeInTheDocument()
+    expect(screen.queryByText('Previously unseen')).not.toBeInTheDocument()
+  })
+
+  it('shows "Unanswered" when unseenLabel is "Unanswered"', () => {
+    renderFilters({ unseenLabel: 'Unanswered' })
+    expect(screen.getByText('Unanswered')).toBeInTheDocument()
+    expect(screen.queryByText('Previously unseen')).not.toBeInTheDocument()
+  })
+
+  it('falls back to "Previously unseen" when no unseenLabel is provided', () => {
+    renderFilters()
+    expect(screen.getByText('Previously unseen')).toBeInTheDocument()
   })
 
   it('all switches are off by default (no filters, calcMode all, imageMode all)', () => {

@@ -11,9 +11,10 @@
 - [x] `app/app/quiz/actions/study.ts` — startStudy action
 
 ## UI
-- [x] `quiz-tabs.tsx` — 3rd "Study mode" tab
-- [x] `quiz/page.tsx` — studyContent
-- [x] `study-section.tsx` (server)
+- [x] `quiz-tabs.tsx` — 3rd "Study mode" tab (later relocated: see UI relocation task)
+- [x] `quiz/page.tsx` — studyContent (later removed: see UI relocation task)
+- [x] `study-section.tsx` (server) — later deleted (see UI relocation task)
+- [x] **UI relocation** — Discovery segment in New Quiz ModeToggle (default); study-section.tsx deleted; quiz-tabs reduced to 2 tabs; quiz-config-form.tsx short-circuits for discovery mode, rendering StudyConfigForm as sibling to Card 1
 - [x] `study-config-form.tsx` + `use-study-config.ts` + `use-study-start.ts`
 - [x] `study-runner.tsx` + `study-flashcard.tsx`
 

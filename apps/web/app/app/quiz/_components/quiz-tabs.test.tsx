@@ -8,7 +8,6 @@ function renderTabs(draftCount = 0) {
       draftCount={draftCount}
       newQuizContent={<div data-testid="new-quiz">New</div>}
       savedDraftContent={<div data-testid="saved-draft">Saved</div>}
-      studyContent={<div data-testid="study-mode">Study</div>}
     />,
   )
 }
@@ -62,20 +61,6 @@ describe('QuizTabs', () => {
     expect(screen.queryByTestId('saved-draft')).not.toBeInTheDocument()
   })
 
-  it('renders all three tabs including the study mode tab', () => {
-    renderTabs()
-    expect(screen.getByTestId('tab-new')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-saved')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-study')).toBeInTheDocument()
-  })
-
-  it('switches to study mode content when the study tab is clicked', () => {
-    renderTabs()
-    fireEvent.click(screen.getByTestId('tab-study'))
-    expect(screen.queryByTestId('new-quiz')).not.toBeInTheDocument()
-    expect(screen.getByTestId('study-mode')).toBeInTheDocument()
-  })
-
   describe('ARIA tablist pattern', () => {
     it('has a tablist container with accessible label', () => {
       renderTabs()
@@ -123,10 +108,10 @@ describe('QuizTabs', () => {
 
     it('wraps focus from last tab to first on ArrowRight', () => {
       renderTabs()
-      fireEvent.click(screen.getByTestId('tab-study'))
-      const studyTab = screen.getByTestId('tab-study')
-      studyTab.focus()
-      fireEvent.keyDown(studyTab, { key: 'ArrowRight' })
+      fireEvent.click(screen.getByTestId('tab-saved'))
+      const savedTab = screen.getByTestId('tab-saved')
+      savedTab.focus()
+      fireEvent.keyDown(savedTab, { key: 'ArrowRight' })
       expect(screen.getByTestId('tab-new')).toHaveFocus()
     })
 
@@ -153,7 +138,7 @@ describe('QuizTabs', () => {
       const newTab = screen.getByTestId('tab-new')
       newTab.focus()
       fireEvent.keyDown(newTab, { key: 'End' })
-      expect(screen.getByTestId('tab-study')).toHaveFocus()
+      expect(screen.getByTestId('tab-saved')).toHaveFocus()
     })
   })
 })

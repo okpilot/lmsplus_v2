@@ -74,6 +74,10 @@ vi.mock('./exam-config-form', () => ({
   ),
 }))
 
+vi.mock('./study-config-form', () => ({
+  StudyConfigForm: () => <div data-testid="study-config-form">StudyConfigForm</div>,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { QuizConfigForm } from './quiz-config-form'
@@ -297,6 +301,24 @@ describe('QuizConfigForm', () => {
       passMark: 75,
     },
   ]
+
+  // ---- Discovery mode ---------------------------------------------------------
+
+  it('renders StudyConfigForm in discovery mode', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
+  })
+
+  it('keeps the mode toggle visible but skips Card 1 in discovery mode', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    // Toggle stays so the user can switch modes…
+    expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
+    // …but Card 1's study-only configuration is absent (StudyConfigForm owns its own UI).
+    expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
+  })
 
   it('renders the Start Practice Exam button in exam mode', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))

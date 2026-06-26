@@ -358,6 +358,8 @@ This is intentional feedback — showing which answer was correct after the stud
 
 ### Study Mode Exception: On-Demand Answer Keys (Mig 135)
 
+> **UI label:** this feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). The RPC name, action name, and all internal identifiers remain `study`/`get_study_questions`/`startStudy`.
+
 Study Mode is a **self-paced MC flashcard practice surface** where students request questions on-demand and are shown the correct answer immediately, with no session and no score. The `get_study_questions(p_question_ids uuid[])` RPC (mig 135, feat/study-mode-mc) returns MC questions WITH `correct_option_id` and `explanation_text` directly in the response payload. This is **DELIBERATE answer-key exposure** — the feature is explicitly designed around immediate feedback, equivalent to the post-session report loop but triggered on-demand instead of after completion.
 
 **Exam-integrity is NOT automatic here** — it is enforced by the active-exam-session guard (item 6 below). Mock, internal, and VFR-RT exams grade from the **same org MC pool**, and the exam runner legitimately hands the client each question's `id` (`get_quiz_questions` / `get_vfr_rt_exam_questions` return `q.id`). Without a guard, a student mid-exam could POST those IDs straight to this RPC and read the answer keys — a mid-exam answer oracle that would nullify the practice-only guard in `check_quiz_answer` (mig 117). The guard closes that hole.

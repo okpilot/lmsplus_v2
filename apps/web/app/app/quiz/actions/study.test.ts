@@ -179,6 +179,6 @@ describe('startStudy — error path', () => {
     const result = await startStudy(VALID_INPUT)
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Finish or exit your active exam before studying.')
+    expect(result.error).toBe('Finish or exit your active exam first.')
   })
 })

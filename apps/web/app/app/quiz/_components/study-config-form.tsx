@@ -9,7 +9,13 @@ import { QuestionFilters } from './question-filters'
 import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
-export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
+export function StudyConfigForm({
+  subjects,
+  unseenLabel,
+}: {
+  subjects: SubjectOption[]
+  unseenLabel?: string
+}) {
   const config = useStudyConfig()
 
   if (config.questions) {
@@ -32,6 +38,7 @@ export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
             onCalcModeChange={config.setCalcMode}
             imageMode={config.imageMode}
             onImageModeChange={config.setImageMode}
+            unseenLabel={unseenLabel}
           />
         )}
       </div>
@@ -89,7 +96,7 @@ export function StudyConfigForm({ subjects }: { subjects: SubjectOption[] }) {
       >
         <span className="inline-flex items-center justify-center gap-2">
           {config.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {config.loading ? 'Loading...' : 'Start studying'}
+          {config.loading ? 'Loading...' : 'Start discovery'}
         </span>
       </button>
     </div>

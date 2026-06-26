@@ -54,10 +54,12 @@ carve-out does NOT apply → `deleted_at IS NULL` is REQUIRED (present above).
   Returns `{success:true, questions} | {success:false, error}` (generic error, no leak).
 
 ## Client (reuse existing; new files stay under §1 limits)
-- `quiz-tabs.tsx` (edit) — state `'new'|'saved'|'study'`; TAB_NAMES 3 entries; keyboard %3,
-  End→2; `studyContent` prop + TabButton + tabpanel branch.
-- `quiz/page.tsx` (edit) — `studyContent={<StudySection userId={user.id}/>}` (Suspense).
-- `quiz/_components/study-section.tsx` (new, server) — `getSubjectsWithCounts()` → `<StudyConfigForm>`.
+- `quiz-tabs.tsx` — 2-tab (`new`|`saved`); the former Study mode tab was removed (see
+  placement note in requirements.md). Discovery is the default first segment of ModeToggle.
+- `quiz/page.tsx` — no `studyContent` prop; SubjectsSection renders QuizConfigForm which
+  handles Discovery via an early-return rendering StudyConfigForm as a sibling to Card 1.
+- `quiz/_components/study-section.tsx` — **DELETED** (subjects are now passed from
+  SubjectsSection via QuizConfigForm → StudyConfigForm as the `subjects` prop).
 - `quiz/_components/study-config-form.tsx` (new, client) — composes subject-select + topic-tree
   + question-filters + question-count + Start button; renders `<StudyRunner>` once started.
 - `quiz/_hooks/use-study-config.ts` (new) — reuse use-quiz-config-state + use-topic-tree + use-filtered-count.

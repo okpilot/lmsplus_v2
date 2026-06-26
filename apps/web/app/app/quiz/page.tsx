@@ -5,7 +5,6 @@ import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
-import { StudySection } from './_components/study-section'
 import { SubjectsSection } from './_components/subjects-section'
 import { getActiveExamSession } from './actions/get-active-exam-session'
 import { loadDrafts } from './actions/load-draft'
@@ -64,11 +63,6 @@ export default async function QuizPage() {
             </Suspense>
           }
           savedDraftContent={<SavedDraftCard drafts={drafts} userId={user.id} />}
-          studyContent={
-            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
-              <StudySection userId={user.id} />
-            </Suspense>
-          }
         />
       </div>
     </main>

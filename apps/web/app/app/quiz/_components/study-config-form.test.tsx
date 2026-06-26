@@ -45,7 +45,11 @@ vi.mock('./subject-select', () => ({
 }))
 
 vi.mock('./question-filters', () => ({
-  QuestionFilters: () => <div data-testid="question-filters">QuestionFilters</div>,
+  QuestionFilters: ({ unseenLabel }: { unseenLabel?: string }) => (
+    <div data-testid="question-filters" data-unseen-label={unseenLabel}>
+      QuestionFilters
+    </div>
+  ),
 }))
 
 vi.mock('./question-count', () => ({
@@ -171,7 +175,7 @@ describe('StudyConfigForm', () => {
       expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
 
       // Start a session.
-      await user.click(screen.getByRole('button', { name: 'Start studying' }))
+      await user.click(screen.getByRole('button', { name: 'Start discovery' }))
       expect(handleStart).toHaveBeenCalled()
 
       // In-progress: questions loaded → runner replaces the config form.
@@ -199,18 +203,18 @@ describe('StudyConfigForm', () => {
     })
   })
 
-  // ---- Start studying button -----------------------------------------------
+  // ---- Start discovery button -----------------------------------------------
 
-  describe('Start studying button', () => {
+  describe('Start discovery button', () => {
     it('is disabled when no subject is selected', () => {
       render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByRole('button', { name: 'Start studying' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('is enabled when a subject is selected and no blocking conditions apply', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByRole('button', { name: 'Start studying' })).not.toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Start discovery' })).not.toBeDisabled()
     })
 
     it('is disabled when availableCount is zero even with a subject selected', () => {
@@ -218,7 +222,7 @@ describe('StudyConfigForm', () => {
         buildDefaultConfig({ subjectId: 'sub-1', availableCount: 0 }),
       )
       render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByRole('button', { name: 'Start studying' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('shows Loading text, marks aria-busy, and disables the button while loading', () => {
@@ -234,7 +238,7 @@ describe('StudyConfigForm', () => {
         buildDefaultConfig({ subjectId: 'sub-1', isPending: true }),
       )
       render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByRole('button', { name: 'Start studying' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('calls handleStart from the config hook when the button is clicked', async () => {
@@ -242,7 +246,7 @@ describe('StudyConfigForm', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', handleStart }))
       const user = userEvent.setup()
       render(<StudyConfigForm subjects={SUBJECTS} />)
-      await user.click(screen.getByRole('button', { name: 'Start studying' }))
+      await user.click(screen.getByRole('button', { name: 'Start discovery' }))
       expect(handleStart).toHaveBeenCalledOnce()
     })
   })
@@ -264,7 +268,7 @@ describe('StudyConfigForm', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(
         'Session expired. Please refresh the page.',
       )
-      expect(screen.getByRole('button', { name: 'Start studying' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('shows no alert and renders form content when there are no errors', () => {
@@ -289,6 +293,12 @@ describe('StudyConfigForm', () => {
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByTestId('question-filters')).toBeInTheDocument()
       expect(screen.getByTestId('question-count')).toBeInTheDocument()
+    })
+
+    it('shows the caller-provided label on the unseen filter', () => {
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
+      render(<StudyConfigForm subjects={SUBJECTS} unseenLabel="Unseen" />)
+      expect(screen.getByTestId('question-filters')).toHaveAttribute('data-unseen-label', 'Unseen')
     })
 
     it('shows TopicTree only when the topic list is non-empty', () => {
