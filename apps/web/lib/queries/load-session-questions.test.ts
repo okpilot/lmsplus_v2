@@ -240,6 +240,8 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-bad'])
     expect(result.success).toBe(true)
     if (!result.success) return
+    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
+    expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
@@ -272,6 +274,42 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-blank'])
     expect(result.success).toBe(true)
     if (!result.success) return
+    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
+    expect(result.questions).toHaveLength(1)
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
+  it('discards ordering items when an element has a whitespace-only text field', async () => {
+    // Symmetric with the whitespace-id case above: the DB CHECK guards both
+    // btrim(id) != '' AND btrim(text) != ''. A whitespace text renders an empty
+    // draggable slot, so the mapper must reject it independently of the id check.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord-blank-text',
+          question_text: 'Sequence the steps',
+          question_image_url: null,
+          question_number: '004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [
+            { id: 'a', text: 'Alpha' },
+            { id: 'b', text: '   ' },
+          ],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord-blank-text'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
+    expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 

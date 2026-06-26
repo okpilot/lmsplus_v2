@@ -121,6 +121,13 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(false)
   })
 
+  it('accepts an ordering draft with exactly fifty items (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    const order = Array.from({ length: 50 }, (_, i) => `item-${i}`)
+    expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(true)
+  })
+
   it('rejects a hybrid draft carrying both an order array and a selected option', () => {
     expect(
       isValidDraftAnswer({
@@ -356,6 +363,20 @@ describe('isValidFeedbackEntry', () => {
         explanationImageUrl: null,
       }),
     ).toBe(false)
+  })
+
+  it('accepts an ordering feedback entry with exactly fifty items in correctOrder (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: Array.from({ length: 50 }, (_, i) => `item-${i}`),
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
   })
 
   it('rejects an ordering feedback entry whose correctOrder repeats an id', () => {

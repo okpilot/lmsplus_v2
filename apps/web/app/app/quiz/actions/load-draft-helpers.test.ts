@@ -186,6 +186,26 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(draft.feedback).toBeUndefined()
   })
 
+  it('preserves ordering feedback with exactly fifty items in correctOrder (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    const correctOrder = Array.from({ length: 50 }, (_, i) => `step-${i}`)
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder,
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback?.q1).toMatchObject({ questionType: 'ordering', correctOrder })
+  })
+
   it('rejects an ordering entry whose correctOrder has only one item', () => {
     // Four-way parity: min-2 guard in isValidFeedbackEntry (sessionStorage rehydrate),
     // the save schema (draft-schema .min(2)), the RPC guard, and toFeedbackEntry here.
