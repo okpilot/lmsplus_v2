@@ -7,7 +7,7 @@
 //   - Field mapping from the get_study_questions RETURNS TABLE to StudyQuestion.
 //   - Soft-deleted questions are excluded from results.
 //   - Cross-org questions are excluded (org-scoping guard).
-//   - An unauthenticated call is rejected (RPC raises "Not authenticated"; helper returns []).
+//   - An unauthenticated call is rejected (RPC raises "Not authenticated"; helper throws).
 //
 // NOTE: this test requires the local Supabase stack to have migration 135
 // (20260626000200_get_study_questions.sql) applied. The migration is staged on this
@@ -171,12 +171,11 @@ describe('getStudyQuestions (app-layer integration)', () => {
     expect(q.topicName).toBe(`Study Topic ${suffix}`)
   })
 
-  it('returns an empty array when called without authentication', async () => {
+  it('throws when called without authentication', async () => {
     // No signInAs — the integration setup resets the cookie jar before each test,
-    // so this runs as anon. The RPC raises "Not authenticated"; the helper catches
-    // the error and returns [].
-    const result = await getStudyQuestions(questionIds)
-    expect(result).toEqual([])
+    // so this runs as anon. The RPC raises "Not authenticated"; the helper surfaces
+    // it as a thrown error (code-style §5: query helpers throw, never collapse to []).
+    await expect(getStudyQuestions(questionIds)).rejects.toThrow('Failed to fetch study questions')
   })
 
   it('excludes soft-deleted questions from the result', async () => {
@@ -199,8 +198,20 @@ describe('getStudyQuestions (app-layer integration)', () => {
       expect(resultIds).not.toContain(toDeleteId)
       expect(resultIds).toEqual(expect.arrayContaining(remainingIds))
     } finally {
-      // Restore so subsequent tests see all 3 questions.
-      await admin.from('questions').update({ deleted_at: null }).eq('id', toDeleteId!)
+      // Restore so subsequent tests see all 3 questions. Surface a failed restore
+      // (otherwise the shared seeded row stays soft-deleted and later tests become
+      // order-dependent). Logged rather than thrown — Biome noUnsafeFinally forbids
+      // throw-in-finally, which would also mask a real assertion failure from try.
+      const { data: restored, error: restoreErr } = await admin
+        .from('questions')
+        .update({ deleted_at: null })
+        .eq('id', toDeleteId!)
+        .select('id')
+      if (restoreErr) {
+        console.error('[study-queries.integration] restore failed:', restoreErr.message)
+      } else if ((restored?.length ?? 0) === 0) {
+        console.error('[study-queries.integration] restore matched no rows for id:', toDeleteId)
+      }
     }
   })
 
@@ -231,6 +242,8 @@ describe('getStudyQuestions (app-layer integration)', () => {
     await signInAs(email, password)
 
     const result = await getStudyQuestions(questionIds)
+    // Non-vacuous: a regression to [] must fail here, not pass the empty loop.
+    expect(result).toHaveLength(3)
     for (const q of result) {
       // seedQuestions seeds "Explanation for question N" — non-null.
       expect(typeof q.explanationText).toBe('string')

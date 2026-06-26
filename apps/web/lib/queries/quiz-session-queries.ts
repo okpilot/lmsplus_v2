@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { QuestionType } from '@/app/app/_types/session'
 import type { CalcMode, ImageMode } from '@/app/app/quiz/types'
 import { rpc } from '@/lib/supabase-rpc'
 
@@ -12,7 +13,7 @@ export async function getRandomQuestionIds(opts: {
   filters?: QuestionFilter[]
   calcMode?: CalcMode
   imageMode?: ImageMode
-  questionType?: string
+  questionType?: QuestionType
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
   const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode, questionType } =

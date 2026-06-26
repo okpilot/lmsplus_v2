@@ -56,10 +56,9 @@ describe('getStudyQuestions', () => {
     expect(result).toEqual([])
   })
 
-  it('returns an empty array when the RPC reports an error', async () => {
+  it('throws when the RPC reports an error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } })
-    const result = await getStudyQuestions(['q-1'])
-    expect(result).toEqual([])
+    await expect(getStudyQuestions(['q-1'])).rejects.toThrow('Failed to fetch study questions')
   })
 
   it('returns questions with camelCase fields from a valid RPC row', async () => {

@@ -168,6 +168,39 @@ describe('StudyConfigForm', () => {
       await user.click(screen.getByRole('button', { name: 'Exit' }))
       expect(reset).toHaveBeenCalledOnce()
     })
+
+    it('runs the full study lifecycle: start → runner shown → exit → back to the config form', async () => {
+      const start = vi.fn()
+      const reset = vi.fn()
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
+      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start, reset }))
+      const user = userEvent.setup()
+      const { rerender } = render(<StudyConfigForm subjects={SUBJECTS} />)
+
+      // Entry: the config form is shown, the runner is not.
+      expect(screen.getByTestId('subject-select')).toBeInTheDocument()
+      expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
+
+      // Start a session.
+      await user.click(screen.getByRole('button', { name: 'Start studying' }))
+      expect(start).toHaveBeenCalled()
+
+      // In-progress: questions loaded → runner replaces the config form.
+      mockUseStudyStart.mockReturnValue(
+        buildDefaultStudy({ start, reset, questions: [{ id: 'q-1', questionText: 'Test?' }] }),
+      )
+      rerender(<StudyConfigForm subjects={SUBJECTS} />)
+      expect(screen.getByTestId('study-runner')).toBeInTheDocument()
+      expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
+
+      // Exit: reset fires and the config form is restored on the study tab.
+      await user.click(screen.getByRole('button', { name: 'Exit' }))
+      expect(reset).toHaveBeenCalled()
+      mockUseStudyStart.mockReturnValue(buildDefaultStudy({ start, reset, questions: null }))
+      rerender(<StudyConfigForm subjects={SUBJECTS} />)
+      expect(screen.getByTestId('subject-select')).toBeInTheDocument()
+      expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
+    })
   })
 
   // ---- Button enabled / disabled -------------------------------------------

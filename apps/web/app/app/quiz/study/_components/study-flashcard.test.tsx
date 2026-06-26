@@ -2,9 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
-// QuestionCard and ExplanationTab use MarkdownText + ZoomableImage (which rely
-// on next/image). Mock them with lightweight stand-ins. AnswerOptions is left
-// unMocked so the green-highlight affordance is observable via data-testid.
+// QuestionCard, MarkdownText and ZoomableImage rely on next/image. Mock those
+// leaves only — the REAL ExplanationTab renders, so the fallback-copy assertion
+// exercises production behavior (mocking ExplanationTab itself would make the
+// null-explanation test pass against an invented fallback string). AnswerOptions
+// is left unMocked so the green-highlight affordance is observable via data-testid.
 
 vi.mock('@/app/app/_components/question-card', () => ({
   QuestionCard: ({ questionText }: { questionText: string }) => (
@@ -12,17 +14,14 @@ vi.mock('@/app/app/_components/question-card', () => ({
   ),
 }))
 
-vi.mock('@/app/app/quiz/_components/explanation-tab', () => ({
-  ExplanationTab: ({
-    explanationText,
-  }: {
-    explanationText: string | null
-    explanationImageUrl: string | null
-  }) => (
-    <div data-testid="explanation-tab">
-      {explanationText ?? 'No explanation available for this question.'}
-    </div>
+vi.mock('@/app/app/_components/markdown-text', () => ({
+  MarkdownText: ({ children }: { children: string }) => (
+    <div data-testid="markdown-text">{children}</div>
   ),
+}))
+
+vi.mock('@/app/app/_components/zoomable-image', () => ({
+  ZoomableImage: () => <div data-testid="zoomable-image" />,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -84,14 +83,15 @@ describe('StudyFlashcard — question rendering', () => {
 
   it('renders the explanation text', () => {
     renderFlashcard()
-    expect(screen.getByTestId('explanation-tab')).toHaveTextContent('Standard QNH is 1013.25 hPa.')
+    expect(screen.getByTestId('markdown-text')).toHaveTextContent('Standard QNH is 1013.25 hPa.')
   })
 
   it('renders the fallback explanation text when explanationText is null', () => {
+    // Real ExplanationTab renders; the fallback copy proves production behavior,
+    // not a mock-invented string.
     renderFlashcard({}, makeQuestion({ explanationText: null }))
-    expect(screen.getByTestId('explanation-tab')).toHaveTextContent(
-      'No explanation available for this question.',
-    )
+    expect(screen.queryByTestId('markdown-text')).not.toBeInTheDocument()
+    expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
   })
 })
 

@@ -383,6 +383,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       p_question_ids: [egMcDeletedId, egMcActiveId],
     })
     expect(before.error).toBeNull()
+    expect(Array.isArray(before.data)).toBe(true)
     const beforeIds = (before.data as StudyQuestionRow[]).map((r) => r.id)
     expect(beforeIds).toContain(egMcDeletedId)
     expect(beforeIds).toContain(egMcActiveId)
@@ -402,6 +403,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       p_question_ids: [egMcDeletedId, egMcActiveId],
     })
     expect(after.error).toBeNull()
+    expect(Array.isArray(after.data)).toBe(true)
     const afterIds = (after.data as StudyQuestionRow[]).map((r) => r.id)
     expect(afterIds).not.toContain(egMcDeletedId)
     expect(afterIds).toContain(egMcActiveId)

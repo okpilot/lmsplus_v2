@@ -16,9 +16,16 @@ export function StudyRunner({ questions, onExit }: StudyRunnerProps) {
   const { isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(questionIds)
   const [currentIndex, setCurrentIndex] = useState(0)
 
+  // Keep currentIndex in range if the question set shrinks (or empties) in place,
+  // so questions[currentIndex] can't become undefined and render null.
+  useEffect(() => {
+    setCurrentIndex((i) => (questions.length === 0 ? 0 : Math.min(i, questions.length - 1)))
+  }, [questions.length])
+
   const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), [])
   const goNext = useCallback(
-    () => setCurrentIndex((i) => Math.min(i + 1, questions.length - 1)),
+    () =>
+      setCurrentIndex((i) => (questions.length === 0 ? 0 : Math.min(i + 1, questions.length - 1))),
     [questions.length],
   )
 

@@ -128,12 +128,25 @@ describe('startStudy — happy path', () => {
     expect(mockGetStudyQuestions).toHaveBeenCalledWith(QUESTION_IDS)
   })
 
-  it('passes optional topicIds and subtopicIds to the question id fetcher', async () => {
+  it('passes optional topicIds, subtopicIds, filters, calc and image modes to the question id fetcher', async () => {
     const topicIds = ['00000000-0000-4000-a000-000000000030']
     const subtopicIds = ['00000000-0000-4000-a000-000000000040']
-    await startStudy({ ...VALID_INPUT, topicIds, subtopicIds })
+    await startStudy({
+      ...VALID_INPUT,
+      topicIds,
+      subtopicIds,
+      filters: ['flagged'],
+      calcMode: 'exclude',
+      imageMode: 'only',
+    })
     expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ topicIds, subtopicIds }),
+      expect.objectContaining({
+        topicIds,
+        subtopicIds,
+        filters: ['flagged'],
+        calcMode: 'exclude',
+        imageMode: 'only',
+      }),
     )
   })
 })

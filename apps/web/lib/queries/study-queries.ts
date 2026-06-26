@@ -70,8 +70,10 @@ export async function getStudyQuestions(questionIds: string[]): Promise<StudyQue
     p_question_ids: questionIds,
   })
   if (error) {
-    console.error('[getStudyQuestions] get_study_questions error:', error.message)
-    return []
+    // Query helper throws (code-style.md §5) — startStudy's try/catch maps it to a
+    // generic message. Collapsing an auth/transport failure into [] would be
+    // indistinguishable from a legitimate "no questions found" result.
+    throw new Error(`Failed to fetch study questions: ${error.message}`)
   }
   // Per-row guard required by code-style.md §5 — the `rpc<StudyQuestionRow[]>` cast is a
   // TypeScript assertion only, not a runtime guarantee. Drop rows whose id / correct_option_id
