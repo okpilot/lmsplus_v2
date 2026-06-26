@@ -198,6 +198,11 @@ describe('useFlaggedQuestions', () => {
       expect(ok).toBe(false)
       expect(result.current.isFlagged(Q1)).toBe(false)
       expect(result.current.isToggling(Q1)).toBe(false)
+      // The rejection is logged server-side (asserting keeps the log from being dropped).
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[useFlaggedQuestions]'),
+        expect.any(Error),
+      )
       errorSpy.mockRestore()
     })
 
