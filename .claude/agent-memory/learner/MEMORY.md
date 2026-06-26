@@ -88,19 +88,11 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent addit
 - #533: Loading-flag scope mismatch; full-suite vs targeted run.
 - #901: SA result `error: string` not a literal union.
 - VFR RT Phase 1: schema-contract bug `.is('deleted_at', null)` on column-less table — all gates missed; wrong-migration citation in fix comment.
-- #925 Phase 0–3: 5 new WATCHING (cookie-jar scope; next/navigation mock shape; gitignored `scripts/` dir; semantic-reviewer Supabase-shape FP; Sonar exclusion gap); spy-restore + CLAUDE.md QA-pipeline drift PROMOTED count=2; cast-guard-in-test count→4. POSITIVE SIGNAL: integration tier surfaced real RLS/schema behavior mocks cannot.
-- #925 Phase 4 (f85a8c8e): vacuous-assertion PROMOTED → code-style.md §7; 1 new WATCHING stale-hash-in-durable-files.
-- #918 (64dbb921): 2 new WATCHING — `.single()` bare-access FP; practice-mode vs exam-mode session cleanup distinction.
-- #931 (0719746a): results-array-length count=1→2 RULE CANDIDATE; 1 new WATCHING mode-specific anti-cheat branch.
-- #948 (205adef1): All agents clean; curation success. 1 new WATCHING — `agent-memory.md` "25 KB" threshold ambiguous (SI vs IEC); row 438 in archive.
-- #938 (1eaf04cc): All agents clean post cast-guard sweep (~52 sites). 1 new WATCHING — `{ error }` destructure conflated with §5 cast-guard; row 438 in archive.
-- #915 (c5eac26c): 2 new WATCHING — tech.md Playwright E2E count stale on non-redteam spec add; red-team advisory conflates vector coverage with redteam suite membership.
-- #915 redesign (98f82ec9): 1 new WATCHING — E2E success-path gated on optional external-service env fails CI but passes locally; row 439 in archive.
-- #950 (e810f834): All agents clean; §5(d) audit 54 SECURITY DEFINER functions ZERO bugs. 1 new WATCHING — uncommitted agent-memory edits lost to `git reset --hard`.
-- **#951 (070db842/14cde411):** code-reviewer BLOCKING file-ceiling (5th) + impl-critic guard-drop during split (2nd — RULE CANDIDATE); semantic-reviewer Opus CLEAN 5 GOOD; doc-updater CLEAN; test-writer CLEAN; red-team COVERED; coderabbit-sync CLEAN.
-- **#921 (e259a01d):** All agents clean. Mig 128 normalize_answer final-trim; SQL⇄TS parity tests clean on first pass. 1 new WATCHING — normalize_answer multi-site parity discipline (SQL+TS+parity-test must update together).
-- **#828 (4789a8c6/6f294e34):** Mostly clean. semantic-reviewer SUGG APPLIED (`question_type` filter on seedVictimResponses). doc-updater ISSUE APPLIED (database.md footer). 2 new WATCHING — database.md "Last updated" footer stale on migration commit; commit-msg scope/type hook failures (same-session count=1).
-- **#839 (2e9f7a25/14eb7717):** Mostly clean. test-writer 1 REAL GAP (`batchSubmitQuiz expired` field coverage). 1 new WATCHING — sibling consumer unit tests not updated when sibling RPC gains same new output field.
+- #925 Phase 0–3: spy-restore + CLAUDE.md QA-pipeline drift PROMOTED count=2; cast-guard-in-test count→4. 5 new WATCHING (archive). POSITIVE: integration tier surfaced real RLS/schema behavior mocks cannot.
+- #925 Phase 4 (f85a8c8e): vacuous-assertion PROMOTED → code-style.md §7; 1 new WATCHING.
+- #918/931/948/938/915/950: WATCHING rows in archive (rows 419–440). #931: results-array-length count→2 RULE CANDIDATE.
+- **#951 (070db842/14cde411):** BLOCKING file-ceiling (5th) + impl-critic guard-drop during split (2nd — RULE CANDIDATE). All other agents CLEAN.
+- **#921/828/839:** All mostly clean. Normalize_answer multi-site parity WATCHING; database.md footer + commit-msg scope both count→2 RULE CANDIDATE.
 - **VFR RT Phase 3 (dbcd3c9e–3f569d2f):** semantic-reviewer ISSUE (mobile non-MC submit); file-size BLOCKING; schema-mirror count→3 RULE CANDIDATE; commit-msg count→2 RULE CANDIDATE. 4 new WATCHING (archive). CR-local ceiling triggered correctly.
 - **VFR RT Phase 4 CR-local (ee2200fd–87cd1353):** CR round 3 caught buildDialogFill denominator divergence. All post-commit CLEAN. CR-wrong-fix count→3 RULE CANDIDATE. 1 new WATCHING row 455 (denominator divergence).
 - **VFR RT Phase 4 (6fdc694c–ce3687ef):** All critics CLEAN (guard parity, §15, col-qual, non-vacuous — first pass). file-size BLOCKING (count 6→7). test-writer 3 null gaps (error-path count 5→6). 2 new WATCHING (rows 452–453).
