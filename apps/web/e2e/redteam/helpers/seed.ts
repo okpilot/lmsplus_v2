@@ -25,6 +25,12 @@ export const E2E_REDTEAM_EN_MARKER = '[E2E_REDTEAM_EN]'
 export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_EMAIL =
   'redteam-softdel-report-keys-student@lmsplus.local'
 export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-keys-student-2026!'
+// get_study_questions spec (Vector EO): marks the throwaway MC/short_answer
+// questions it inserts (egmont + redteam-other-org) so cleanup/maintenance can
+// target them by question_text/question_number. get_study_questions deliberately
+// returns the MC answer key for Study Mode, so this vector pins the org /
+// soft-delete / status / question_type guard boundaries around that exposure.
+export const E2E_REDTEAM_EO_MARKER = '[E2E_REDTEAM_EO]'
 // user_consents isolation spec (#384): document_version markers for the rows it seeds.
 export const USER_CONSENTS_SEED_VERSION = 'redteam-x-1.0'
 export const USER_CONSENTS_SELF_VERSION = 'redteam-x-self'

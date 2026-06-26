@@ -1,0 +1,228 @@
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// ---- Mocks ----------------------------------------------------------------
+
+const { mockUseFlaggedQuestions, mockToggleFlag } = vi.hoisted(() => ({
+  mockUseFlaggedQuestions: vi.fn(),
+  mockToggleFlag: vi.fn(),
+}))
+
+vi.mock('../../session/_hooks/use-flagged-questions', () => ({
+  useFlaggedQuestions: () => mockUseFlaggedQuestions(),
+}))
+
+// StudyFlashcard is mocked with a lightweight stand-in that renders the
+// question text and a flag button so nav + flag callback tests stay focused
+// on StudyRunner's orchestration, not the flashcard's internals.
+vi.mock('./study-flashcard', () => ({
+  StudyFlashcard: ({
+    question,
+    isFlagged,
+    onToggleFlag,
+  }: {
+    question: { id: string; questionText: string }
+    isFlagged: boolean
+    onToggleFlag: () => void
+  }) => (
+    <div data-testid={`flashcard-${question.id}`}>
+      <span>{question.questionText}</span>
+      <button type="button" data-testid="flag-btn" aria-pressed={isFlagged} onClick={onToggleFlag}>
+        {isFlagged ? 'Unflag' : 'Flag'}
+      </button>
+    </div>
+  ),
+}))
+
+// ---- Subject under test ---------------------------------------------------
+
+import type { StudyQuestion } from '@/lib/queries/study-queries'
+import { StudyRunner } from './study-runner'
+
+// ---- Fixtures -------------------------------------------------------------
+
+function makeQuestion(id: string, text: string): StudyQuestion {
+  return {
+    id,
+    questionText: text,
+    questionImageUrl: null,
+    options: [{ id: 'a', text: 'A' }],
+    correctOptionId: 'a',
+    subjectCode: null,
+    topicName: null,
+    subtopicName: null,
+    explanationText: null,
+    explanationImageUrl: null,
+    questionNumber: null,
+    difficulty: null,
+  }
+}
+
+const Q1 = makeQuestion('q-1', 'First question')
+const Q2 = makeQuestion('q-2', 'Second question')
+const Q3 = makeQuestion('q-3', 'Third question')
+
+// ---- Lifecycle ------------------------------------------------------------
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockUseFlaggedQuestions.mockReturnValue({
+    isFlagged: vi.fn(() => false),
+    toggleFlag: mockToggleFlag,
+    isToggling: vi.fn(() => false),
+  })
+})
+
+// ---- Empty state ---------------------------------------------------------
+
+describe('StudyRunner — empty state', () => {
+  it('shows a no-results message when the questions list is empty', () => {
+    render(<StudyRunner questions={[]} onExit={vi.fn()} />)
+    expect(screen.getByText('No questions match these filters.')).toBeInTheDocument()
+  })
+
+  it('shows a button to choose different filters when the questions list is empty', () => {
+    render(<StudyRunner questions={[]} onExit={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /choose different filters/i })).toBeInTheDocument()
+  })
+
+  it('calls onExit when the choose-different-filters button is clicked', () => {
+    const onExit = vi.fn()
+    render(<StudyRunner questions={[]} onExit={onExit} />)
+    fireEvent.click(screen.getByRole('button', { name: /choose different filters/i }))
+    expect(onExit).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---- Initial render with questions ---------------------------------------
+
+describe('StudyRunner — initial card', () => {
+  it('renders the first question on initial render', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    expect(screen.getByTestId('flashcard-q-1')).toBeInTheDocument()
+  })
+
+  it('shows the progress indicator as 1 / total on initial render', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('1 / 3')
+  })
+})
+
+// ---- Button navigation ---------------------------------------------------
+
+describe('StudyRunner — button navigation', () => {
+  it('advances to the next card when the Next button is clicked', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-2')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('2 / 3')
+  })
+
+  it('goes back to the first card when Previous is clicked after advancing', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /previous/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-1')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('1 / 3')
+  })
+
+  it('stays on the first card when Previous is clicked at the start', () => {
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /previous/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-1')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('1 / 2')
+  })
+
+  it('stays on the last card when Next is clicked at the end', () => {
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    expect(screen.getByTestId('flashcard-q-2')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('2 / 2')
+  })
+})
+
+// ---- Keyboard navigation -------------------------------------------------
+
+describe('StudyRunner — keyboard navigation', () => {
+  it('advances to the next card when ArrowRight is pressed', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByTestId('flashcard-q-2')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('2 / 3')
+  })
+
+  it('goes to the previous card when ArrowLeft is pressed after advancing', () => {
+    render(<StudyRunner questions={[Q1, Q2, Q3]} onExit={vi.fn()} />)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(screen.getByTestId('flashcard-q-1')).toBeInTheDocument()
+    expect(screen.getByTestId('study-progress')).toHaveTextContent('1 / 3')
+  })
+})
+
+// ---- "New set" button ----------------------------------------------------
+
+describe('StudyRunner — "New set" button', () => {
+  it('calls onExit when the New set button is clicked', () => {
+    const onExit = vi.fn()
+    render(<StudyRunner questions={[Q1, Q2]} onExit={onExit} />)
+    fireEvent.click(screen.getByRole('button', { name: /new set/i }))
+    expect(onExit).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---- Flag button ---------------------------------------------------------
+
+describe('StudyRunner — flag button', () => {
+  it('shows the flag button in the unflagged state for the current question', () => {
+    mockUseFlaggedQuestions.mockReturnValue({
+      isFlagged: vi.fn(() => false),
+      toggleFlag: mockToggleFlag,
+      isToggling: vi.fn(() => false),
+    })
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    const flagBtn = screen.getByTestId('flag-btn')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+    expect(flagBtn).toHaveTextContent('Flag')
+  })
+
+  it('shows the flag button in the flagged state when the current question is flagged', () => {
+    mockUseFlaggedQuestions.mockReturnValue({
+      isFlagged: vi.fn(() => true),
+      toggleFlag: mockToggleFlag,
+      isToggling: vi.fn(() => false),
+    })
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    const flagBtn = screen.getByTestId('flag-btn')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+    expect(flagBtn).toHaveTextContent('Unflag')
+  })
+
+  it('calls toggleFlag with the current question id when the flag button is clicked', () => {
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('flag-btn'))
+    expect(mockToggleFlag).toHaveBeenCalledWith('q-1')
+  })
+
+  it('calls toggleFlag with the second question id after navigating to the next card', () => {
+    render(<StudyRunner questions={[Q1, Q2]} onExit={vi.fn()} />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    })
+    fireEvent.click(screen.getByTestId('flag-btn'))
+    expect(mockToggleFlag).toHaveBeenCalledWith('q-2')
+  })
+})

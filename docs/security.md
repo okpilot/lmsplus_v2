@@ -356,6 +356,21 @@ Post-session report queries may read the `correct_option_id` from questions serv
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
+### Study Mode Exception: On-Demand Answer Keys (Mig 135)
+
+Study Mode is a **self-paced MC flashcard practice surface** where students request questions on-demand and are shown the correct answer immediately, with no session, no score, and zero exam-integrity implications. The `get_study_questions(p_question_ids uuid[])` RPC (mig 135, feat/study-mode-mc) returns MC questions WITH `correct_option_id` and `explanation_text` directly in the response payload. This is **DELIBERATE answer-key exposure** — the feature is explicitly designed around immediate feedback, equivalent to the post-session report loop but triggered on-demand instead of after completion.
+
+**Guard set (mirrors session-bound query paths):**
+1. Auth check + active-caller gate (security.md rules 7 + 12)
+2. Tenant-scope filter — resolves the caller's org in one deleted_at-filtered read (rejects a soft-deleted caller AND scopes the question pool so a foreign-org ID cannot leak)
+3. Soft-delete + status filters — `q.deleted_at IS NULL AND q.status = 'active'` (required; see note below)
+4. Type filter — `q.question_type = 'multiple_choice'`
+5. Options returned in **stored order** (no shuffle — the answer is visible anyway)
+
+**§15 carve-out does NOT apply.** Report RPCs omit the `deleted_at` filter because they read questions via the immutable, write-once `quiz_sessions.config.question_ids`. Study Mode reads by **arbitrary caller-supplied `p_question_ids`**, so the soft-delete filter and `status='active'` guard are **REQUIRED** — a caller must not be able to surface a soft-deleted or retired question's answer key.
+
+**Why it's safe:** The privilege layer (`REVOKE SELECT (correct_option_id)`) still prevents accidental exposure via direct PostgREST reads (42501). The RPC is the *intended* path for answer keys in this context. No session/score/exam history is created, so there is no exam-integrity impact. Students requesting questions they already know the answer to is the intended behavior — not a failure mode.
+
 ---
 
 ## 5. Service Role Key

@@ -12,13 +12,16 @@ export async function getRandomQuestionIds(opts: {
   filters?: QuestionFilter[]
   calcMode?: CalcMode
   imageMode?: ImageMode
+  questionType?: string
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
-  const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = opts
+  const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode, questionType } =
+    opts
   const activeFilters = filters?.filter((f) => f !== 'all') ?? []
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
   // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — do NOT strip 'all' the way p_filters does.
+  // p_question_type: undefined → null = no type restriction (live quiz/exam); Study Mode passes 'multiple_choice' for an MC-only set.
   const { data, error } = await rpc<{ id: string }[]>(supabase, 'get_random_question_ids', {
     p_subject_id: subjectId,
     p_topic_ids: topicIds ?? null,
@@ -27,6 +30,7 @@ export async function getRandomQuestionIds(opts: {
     p_filters: activeFilters,
     p_calc_mode: calcMode ?? 'all',
     p_has_image: imageMode ?? 'all',
+    p_question_type: questionType ?? null,
   })
   if (error) {
     console.error('[getRandomQuestionIds] get_random_question_ids error:', error.message)

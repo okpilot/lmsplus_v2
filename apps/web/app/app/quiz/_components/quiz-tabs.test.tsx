@@ -8,6 +8,7 @@ function renderTabs(draftCount = 0) {
       draftCount={draftCount}
       newQuizContent={<div data-testid="new-quiz">New</div>}
       savedDraftContent={<div data-testid="saved-draft">Saved</div>}
+      studyContent={<div data-testid="study-mode">Study</div>}
     />,
   )
 }
@@ -108,10 +109,10 @@ describe('QuizTabs', () => {
 
     it('wraps focus from last tab to first on ArrowRight', () => {
       renderTabs()
-      fireEvent.click(screen.getByTestId('tab-saved'))
-      const savedTab = screen.getByTestId('tab-saved')
-      savedTab.focus()
-      fireEvent.keyDown(savedTab, { key: 'ArrowRight' })
+      fireEvent.click(screen.getByTestId('tab-study'))
+      const studyTab = screen.getByTestId('tab-study')
+      studyTab.focus()
+      fireEvent.keyDown(studyTab, { key: 'ArrowRight' })
       expect(screen.getByTestId('tab-new')).toHaveFocus()
     })
 
@@ -138,7 +139,7 @@ describe('QuizTabs', () => {
       const newTab = screen.getByTestId('tab-new')
       newTab.focus()
       fireEvent.keyDown(newTab, { key: 'End' })
-      expect(screen.getByTestId('tab-saved')).toHaveFocus()
+      expect(screen.getByTestId('tab-study')).toHaveFocus()
     })
   })
 })

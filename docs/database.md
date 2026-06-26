@@ -735,6 +735,7 @@ verb_noun pattern:
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840); dialog_fill strip delimiter-hardened (mig 127) behind the mig-125 delimiter CHECK (#951)
   submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session detects expiry via audit-event lookup and re-adds expired:true (mig 129, #839); reads from questions.correct_option_id for MC grading (mig 113, #823)
+  get_study_questions        ← read, student: MC questions WITH the correct_option_id answer key + explanation, for Study Mode self-paced practice (no session, no score); DELIBERATE answer-key exposure (mig 135, feat/study-mode-mc); org/active-user + deleted_at + status=active filters required (§15 carve-out does NOT apply — reads by arbitrary caller-supplied p_question_ids, not immutable frozen config); returns options in STORED order (no shuffle); SECURITY DEFINER, EXECUTE TO authenticated
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, trim again to remove stray edge spaces, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101, final trim added mig 128 / #921)
@@ -744,7 +745,7 @@ verb_noun pattern:
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz-subject-queries.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
-  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations and p_has_image {all|only|exclude} on question_image_url presence); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837; has-image #864)
+  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations, p_has_image {all|only|exclude} on question_image_url presence, and optional p_question_type [NULL = unrestricted; Study Mode passes 'multiple_choice']); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837; has-image #864)
   get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode and p_has_image); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837; has-image #864)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
@@ -1883,6 +1884,60 @@ SET search_path = public
 ```
 
 `GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb) TO authenticated;`
+
+---
+
+#### `get_study_questions` — MC answer keys for Study Mode (mig 135)
+
+Added in **mig 135** (feat/study-mode-mc). Dedicated RPC for self-paced MC practice, deliberately returning the `correct_option_id` answer key and explanation immediately (no session, no score, no exam integrity to protect).
+
+**DELIBERATE answer-key exposure.** Unlike `get_quiz_questions` (mig 126, answer keys REVOKE-gated and never exposed during an active session) and the post-session report RPCs (answer keys returned only after `ended_at IS NOT NULL`), Study Mode is a **practice flashcard surface** where the student is **shown the correct answer on demand**. This RPC therefore returns `correct_option_id` and explanation directly as part of the question payload. It is SECURITY DEFINER so it can read the REVOKE-gated column; `correct_option_id` is **not exposed via any PostgREST column GRANT** (see docs/security.md rule 1) — only this guarded RPC reveals it.
+
+**Guard set (mirrors `get_quiz_questions`+`get_report_answer_keys` — security.md rules 1, 7, 9, 11/12 / #883):**
+1. Auth check — `auth.uid()` NULL raises `Not authenticated`.
+2. Active-caller gate — soft-deleted callers raise `user_not_found_or_inactive` before any question read (security.md rule 12).
+3. Tenant-scope gate — resolves the caller's `organization_id` in one deleted_at-filtered read from `users`. Scopes the question pool so a foreign-org ID cannot leak. SECURITY DEFINER bypasses RLS; without this gate a caller passing foreign `p_question_ids` could read another org's questions (and their answer keys).
+4. Soft-delete filter — `q.deleted_at IS NULL` and `q.status = 'active'` (see §15 carve-out note below).
+5. Type filter — `q.question_type = 'multiple_choice'` (Study Mode is MC-only).
+6. SET search_path = public.
+
+**§15 carve-out does NOT apply.** Report RPCs (`get_quiz_questions`, `get_report_answer_keys`) may omit the `deleted_at` filter because they read questions via the immutable, write-once `quiz_sessions.config.question_ids` column. Study Mode reads questions by **arbitrary caller-supplied `p_question_ids`**, so the soft-delete filter and `status='active'` guard are **REQUIRED** — a caller must not be able to surface a soft-deleted or retired question's answer key.
+
+**Options format** — returned in **STORED order** (not shuffled). The answer is shown in Study Mode, so shuffling adds no value; a stable order is friendlier for students reviewing the same question multiple times.
+
+**Return shape** (`RETURNS TABLE`):
+```sql
+id                    uuid,      -- question id
+question_text         text,
+question_image_url    text,
+options               jsonb,     -- [{id, text}] in stored order (no shuffle)
+correct_option_id     text,      -- MC answer key: 'a'|'b'|'c'|'d' (DELIBERATE exposure)
+subject_code          text,
+topic_name            text,
+subtopic_name         text,
+explanation_text      text,      -- revealed immediately
+explanation_image_url text,
+question_number       text,
+difficulty            text
+```
+
+**Parameters:**
+- `p_question_ids` — array of question UUIDs to fetch (no session association)
+
+**Signature:**
+```sql
+CREATE OR REPLACE FUNCTION get_study_questions(p_question_ids uuid[])
+RETURNS TABLE (
+  id uuid, question_text text, question_image_url text, options jsonb,
+  correct_option_id text, subject_code text, topic_name text, subtopic_name text,
+  explanation_text text, explanation_image_url text, question_number text, difficulty text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+```
+
+`GRANT EXECUTE ON FUNCTION get_study_questions(uuid[]) TO authenticated;`
 
 ---
 
