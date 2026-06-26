@@ -20,7 +20,7 @@ describe('ModeToggle', () => {
     expect(screen.getByText(/explore the questions, nothing scored/i)).toBeInTheDocument()
   })
 
-  it('Discovery button has aria-pressed true when discovery mode is active', () => {
+  it('marks the Discovery option as active when discovery mode is selected', () => {
     render(<ModeToggle value="discovery" onValueChange={vi.fn()} />)
     expect(screen.getByRole('button', { name: /discovery/i })).toHaveAttribute(
       'aria-pressed',

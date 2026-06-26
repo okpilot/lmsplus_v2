@@ -118,6 +118,39 @@ describe('useFlaggedQuestions', () => {
         expect(mockGetFlaggedIds).toHaveBeenCalledTimes(2)
       })
     })
+
+    it('ignores a fetch that resolves after questionIds has already changed', async () => {
+      // Two controllable fetches; the first (for IDS_Q1) is resolved LATE, after the
+      // second (for IDS_Q1_Q2) has settled. The stale first result must not win.
+      const resolvers: Array<(v: { success: true; flaggedIds: string[] }) => void> = []
+      mockGetFlaggedIds.mockImplementation(() => new Promise((resolve) => resolvers.push(resolve)))
+
+      const { result, rerender } = renderHook(({ ids }) => useFlaggedQuestions(ids), {
+        initialProps: { ids: IDS_Q1 },
+      })
+      await waitFor(() => expect(mockGetFlaggedIds).toHaveBeenCalledOnce())
+
+      // questionIds changes before the first fetch resolves — the first effect is cancelled.
+      rerender({ ids: IDS_Q1_Q2 })
+      await waitFor(() => expect(mockGetFlaggedIds).toHaveBeenCalledTimes(2))
+
+      const [resolveFirst, resolveSecond] = resolvers
+      expect(resolveFirst).toBeDefined()
+      expect(resolveSecond).toBeDefined()
+
+      // Resolve the current (second) fetch first: Q2 becomes flagged.
+      await act(async () => {
+        resolveSecond?.({ success: true, flaggedIds: [Q2] })
+      })
+      expect(result.current.isFlagged(Q2)).toBe(true)
+
+      // The stale first fetch resolves late with Q1 — it must be discarded.
+      await act(async () => {
+        resolveFirst?.({ success: true, flaggedIds: [Q1] })
+      })
+      expect(result.current.isFlagged(Q1)).toBe(false)
+      expect(result.current.isFlagged(Q2)).toBe(true)
+    })
   })
 
   describe('isFlagged', () => {

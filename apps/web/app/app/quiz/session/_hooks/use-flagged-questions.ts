@@ -19,17 +19,24 @@ export function useFlaggedQuestions(questionIds: string[]) {
       return
     }
 
+    // Ignore a late-resolving fetch once questionIds has changed, so a stale result
+    // can't overwrite the flag state for the current question set.
+    let cancelled = false
     startTransition(async () => {
       try {
         const result = await getFlaggedIds({ questionIds })
-        setFlaggedIds(result.success ? new Set(result.flaggedIds) : new Set())
+        if (!cancelled) setFlaggedIds(result.success ? new Set(result.flaggedIds) : new Set())
       } catch (err) {
         // A transient failure on mount must not surface as an unhandled rejection;
         // fall back to an empty flag set (the user can still flag/unflag afterwards).
         console.error('[useFlaggedQuestions] initial fetch failed:', err)
-        setFlaggedIds(new Set())
+        if (!cancelled) setFlaggedIds(new Set())
       }
     })
+
+    return () => {
+      cancelled = true
+    }
   }, [questionIds])
 
   const toggle = useCallback(async (questionId: string) => {

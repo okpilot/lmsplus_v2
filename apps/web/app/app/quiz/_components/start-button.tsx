@@ -20,7 +20,9 @@ export function StartButton({
   return (
     <button
       type="button"
-      disabled={disabled}
+      // Block clicks while loading too — aria-busy does not, so this stops a second
+      // start request even if a caller forgets to fold `loading` into `disabled`.
+      disabled={disabled || loading}
       onClick={onClick}
       aria-busy={loading || undefined}
       className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
