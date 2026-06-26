@@ -223,22 +223,22 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       .eq('organization_id', org)
       .maybeSingle()
     if (lookupErr) throw new Error(`ensureOtherOrgBank lookup: ${lookupErr.message}`)
+    // Active row — reuse as-is.
+    if (existing && existing.deleted_at === null) return existing.id
+    // Soft-deleted row from a prior crashed run — restore it rather than inserting and
+    // hitting the UNIQUE(organization_id) constraint (23505).
     if (existing) {
-      if (existing.deleted_at !== null) {
-        // Prior run left a soft-deleted bank — restore it rather than inserting and
-        // hitting the UNIQUE(organization_id) constraint (23505).
-        const { data: restored, error: restoreErr } = await admin
-          .from('question_banks')
-          .update({ deleted_at: null })
-          .eq('id', existing.id)
-          .select('id')
-          .single()
-        if (restoreErr || !restored)
-          throw new Error(`ensureOtherOrgBank restore: ${restoreErr?.message}`)
-        return restored.id
-      }
-      return existing.id
+      const { data: restored, error: restoreErr } = await admin
+        .from('question_banks')
+        .update({ deleted_at: null })
+        .eq('id', existing.id)
+        .select('id')
+        .single()
+      if (restoreErr || !restored)
+        throw new Error(`ensureOtherOrgBank restore: ${restoreErr?.message}`)
+      return restored.id
     }
+    // No row at all — insert a fresh bank.
     const { data: created, error: insErr } = await admin
       .from('question_banks')
       .insert({ organization_id: org, name: 'Red Team EO Other-Org Bank', created_by: creator })
