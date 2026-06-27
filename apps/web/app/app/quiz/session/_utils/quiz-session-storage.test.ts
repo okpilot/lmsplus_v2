@@ -446,10 +446,15 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result?.mode).toBe('exam')
   })
 
-  it('rejects a persisted session whose mode is not a recognised session mode', () => {
-    // A tampered or stale payload with mode: 'discovery' (Discovery never persists) must
-    // not be trusted past the JSON.parse cast — discovery is not a SessionMode.
-    const tampered = JSON.stringify({ ...makeSession(), mode: 'discovery' })
+  // A tampered or stale payload whose mode is outside the SessionMode set must not be
+  // trusted past the JSON.parse cast. 'discovery' never persists; null is the most
+  // realistic tampered-JSON shape; a number covers non-string garbage.
+  it.each([
+    { label: "the string 'discovery' (never persists)", mode: 'discovery' },
+    { label: 'a null', mode: null },
+    { label: 'a non-string number', mode: 42 },
+  ])('rejects a persisted session whose mode is $label', ({ mode }) => {
+    const tampered = JSON.stringify({ ...makeSession(), mode })
     mockStorage._store.set(STORAGE_KEY, tampered)
 
     const result = readActiveSession(USER_ID)
