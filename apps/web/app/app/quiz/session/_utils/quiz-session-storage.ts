@@ -116,6 +116,14 @@ export function readActiveSession(userId: string): ActiveSession | null {
       safeRemove(userId)
       return null
     }
+    // Reject any persisted mode outside the SessionMode set — a stale or tampered
+    // payload with mode: 'discovery' (which never persists) or garbage must not be
+    // trusted past the cast. Mirrors the handoff path's check (quiz-session-validators
+    // L109). undefined is the legacy practice case and stays valid.
+    if (data.mode !== undefined && data.mode !== 'study' && data.mode !== 'exam') {
+      safeRemove(userId)
+      return null
+    }
     // Exam mode requires startedAt + timeLimitSeconds for the timer.
     // Reject pre-ship localStorage entries that lack these fields, and reject
     // garbage values (NaN/Infinity/non-positive timeLimit, unparseable startedAt).

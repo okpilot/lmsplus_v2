@@ -446,6 +446,28 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result?.mode).toBe('exam')
   })
 
+  it('rejects a persisted session whose mode is not a recognised session mode', () => {
+    // A tampered or stale payload with mode: 'discovery' (Discovery never persists) must
+    // not be trusted past the JSON.parse cast — discovery is not a SessionMode.
+    const tampered = JSON.stringify({ ...makeSession(), mode: 'discovery' })
+    mockStorage._store.set(STORAGE_KEY, tampered)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('accepts a persisted session with mode: study', () => {
+    const valid = makeSession({ mode: 'study' })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('study')
+  })
+
   it('rejects mode: exam entries where startedAt is an unparseable string', () => {
     const broken = makeSession({
       mode: 'exam',
