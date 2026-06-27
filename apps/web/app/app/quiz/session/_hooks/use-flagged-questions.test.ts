@@ -73,8 +73,10 @@ describe('useFlaggedQuestions', () => {
 
       const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
 
+      // Wait for the rejection to SETTLE (the catch block logs the error) — not just
+      // for the call to start — so assertions run after the error path has fully fired.
       await waitFor(() => {
-        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+        expect(errorSpy).toHaveBeenCalled()
       })
 
       // A rejection on mount is absorbed (no unhandled rejection) and degrades to no flags.

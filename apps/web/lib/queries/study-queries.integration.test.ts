@@ -224,6 +224,7 @@ describe('getStudyQuestions (app-layer integration)', () => {
     expect(insErr).toBeNull()
     const sessionId = sessionRow?.id as string
 
+    let cleanupError: string | null = null
     try {
       // Non-vacuous: the same questionIds return 3 rows when no exam is active (asserted
       // in the success test above); with a live exam session the RPC must reject them.
@@ -231,8 +232,7 @@ describe('getStudyQuestions (app-layer integration)', () => {
     } finally {
       // quiz_sessions is soft-delete only (docs/database.md soft-delete matrix) — soft-delete
       // the seeded session, matching the sibling red-team specs. Setting deleted_at also clears
-      // the active-session guard for later tests. Surface a failed cleanup so a leaked active
-      // session can't make later tests reject spuriously.
+      // the active-session guard for later tests.
       const { data: del, error: delErr } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
@@ -240,11 +240,14 @@ describe('getStudyQuestions (app-layer integration)', () => {
         .is('deleted_at', null)
         .select('id')
       if (delErr) {
-        console.error('[study-queries.integration] session cleanup failed:', delErr.message)
+        cleanupError = `session cleanup failed: ${delErr.message}`
       } else if ((del?.length ?? 0) === 0) {
-        console.error('[study-queries.integration] session cleanup matched no rows:', sessionId)
+        cleanupError = `session cleanup matched no rows: ${sessionId}`
       }
     }
+    // Throw AFTER the try/finally (avoids Biome noUnsafeFinally) — a leaked active
+    // session would make later tests reject spuriously, so surface it immediately.
+    if (cleanupError) throw new Error(`[study-queries.integration] ${cleanupError}`)
   })
 
   it('excludes soft-deleted questions from the result', async () => {
@@ -258,6 +261,7 @@ describe('getStudyQuestions (app-layer integration)', () => {
       .eq('id', toDeleteId!)
     expect(deleteErr).toBeNull()
 
+    let cleanupError: string | null = null
     try {
       const result = await getStudyQuestions(questionIds)
 
@@ -267,21 +271,22 @@ describe('getStudyQuestions (app-layer integration)', () => {
       expect(resultIds).not.toContain(toDeleteId)
       expect(resultIds).toEqual(expect.arrayContaining(remainingIds))
     } finally {
-      // Restore so subsequent tests see all 3 questions. Surface a failed restore
-      // (otherwise the shared seeded row stays soft-deleted and later tests become
-      // order-dependent). Logged rather than thrown — Biome noUnsafeFinally forbids
-      // throw-in-finally, which would also mask a real assertion failure from try.
+      // Restore so subsequent tests see all 3 questions. Biome noUnsafeFinally forbids
+      // throw-in-finally, so we accumulate the error and throw after the block.
       const { data: restored, error: restoreErr } = await admin
         .from('questions')
         .update({ deleted_at: null })
         .eq('id', toDeleteId!)
         .select('id')
       if (restoreErr) {
-        console.error('[study-queries.integration] restore failed:', restoreErr.message)
+        cleanupError = `restore failed: ${restoreErr.message}`
       } else if ((restored?.length ?? 0) === 0) {
-        console.error('[study-queries.integration] restore matched no rows for id:', toDeleteId)
+        cleanupError = `restore matched no rows for id: ${toDeleteId}`
       }
     }
+    // Throw AFTER the try/finally — a leaked soft-deleted question makes later tests
+    // order-dependent; surface the failure immediately rather than silently.
+    if (cleanupError) throw new Error(`[study-queries.integration] ${cleanupError}`)
   })
 
   it('returns an empty array for question ids from a different organisation', async () => {

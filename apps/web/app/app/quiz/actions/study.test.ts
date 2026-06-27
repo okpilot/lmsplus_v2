@@ -81,6 +81,13 @@ describe('startStudy — input validation', () => {
     expect(result.error).toBe('Invalid input')
   })
 
+  it('returns a validation error when count exceeds the maximum allowed', async () => {
+    const result = await startStudy({ subjectId: VALID_SUBJECT_ID, count: 501 })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Invalid input')
+  })
+
   it('does not call getRandomQuestionIds when input is invalid', async () => {
     await startStudy({ subjectId: 'bad' })
     expect(mockGetRandomQuestionIds).not.toHaveBeenCalled()

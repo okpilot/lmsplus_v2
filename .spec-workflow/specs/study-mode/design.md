@@ -78,5 +78,6 @@ toggleFlag/getFlaggedIds, MarkdownText, ZoomableImage, getRandomQuestionIds (ext
 ## Tests / docs / red-team
 Unit (query, action, hooks, runner, flashcard); integration test for the new `.rpc` site
 (§7 HARD); db execution test for get_study_questions; red-team spec (auth, cross-org
-non-vacuous, soft-deleted excluded, MC-only, positive control) + new vector ID; docs
-(database.md, decisions.md, security.md, plan.md).
+non-vacuous, soft-deleted excluded, MC-only, `active_exam_session` mid-exam-oracle denial
+(deny-by-default: any active non-practice session → reject), positive control) + new
+vector ID; docs (database.md, decisions.md, security.md, plan.md).

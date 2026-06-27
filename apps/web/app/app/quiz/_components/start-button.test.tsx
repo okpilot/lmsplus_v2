@@ -35,6 +35,11 @@ describe('StartButton', () => {
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
   })
 
+  it('remains disabled while loading even when the disabled prop is false', () => {
+    render(<StartButton disabled={false} loading={true} label="Start Quiz" onClick={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled()
+  })
+
   it('enables the button when the disabled prop is false', () => {
     render(<StartButton disabled={false} loading={false} label="Start Quiz" onClick={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()

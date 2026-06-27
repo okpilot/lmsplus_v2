@@ -31,14 +31,21 @@
  *         key-bearing RPC must never surface a non-MC row.
  *   - EO5 positive control (the deliberate, in-bounds exposure): an authenticated
  *         in-org student DOES receive the MC question WITH a populated
- *         correct_option_id and the explanation.
+ *         correct_option_id and the explanation, asserting the COMPLETE RETURNS TABLE
+ *         shape (id, question_text, question_image_url, options, correct_option_id,
+ *         subject_code, topic_name, subtopic_name, explanation_text,
+ *         explanation_image_url, question_number, difficulty).
  *   - EO6 mid-exam answer-oracle (the CRITICAL vector): a student with an active
  *         exam session (mode NOT IN practice modes, ended_at IS NULL) POSTs their
  *         exam's question ids — already delivered client-side by get_quiz_questions
  *         / get_vfr_rt_exam_questions — to this RPC to read the MC keys mid-exam.
  *         The deny-by-default active-exam-session guard raises 'active_exam_session'.
- *         NON-VACUOUS: EO5 runs first in the same describe, proving the same
- *         student+question returns the key when no exam is active.
+ *         NON-VACUOUS: a preflight inside EO6 itself proves the same student+question
+ *         returns the key when no exam is active.
+ *   - EO7 draft-status excluded: a draft-status MC question is omitted while an active
+ *         sibling IS returned. The status='active' guard is REQUIRED for Study Mode
+ *         (same reasoning as the deleted_at filter: arbitrary caller-supplied ids, the
+ *         §15 write-once-config carve-out does NOT apply).
  *
  * Hermeticity (code-style.md §7): every question this spec reads is one it inserts
  * itself (marker-tagged via E2E_REDTEAM_EO_MARKER, unique question_number per row),
@@ -136,10 +143,12 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
   let egMcActiveId: string // egmont, active MC — positive control + sibling-active + foreign target for EO2
   let egMcDeletedId: string // egmont, active MC -> soft-deleted in EO3
   let egShortAnswerId: string // egmont, short_answer (non-MC) for EO4
+  let egMcDraftId: string // egmont, draft-status MC — status-filter test
   let otherOrgMcId: string // org B, active MC — EO2 own-org positive control
 
   const EG_MC_ACTIVE_KEY = 'b'
   const EG_MC_DELETED_KEY = 'a'
+  const EG_MC_DRAFT_KEY = 'd'
   const OTHER_ORG_MC_KEY = 'c'
 
   const createdQuestionIds = new Set<string>()
@@ -309,6 +318,13 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     egShortAnswerId = await insertShortAnswerQuestion(
       baseSeed({ org: orgId, bank: bankId, creator: createdBy, label: 'egmont-short-answer' }),
     )
+    egMcDraftId = await insertMcQuestion(
+      {
+        ...baseSeed({ org: orgId, bank: bankId, creator: createdBy, label: 'egmont-mc-draft' }),
+        status: 'draft',
+      },
+      EG_MC_DRAFT_KEY,
+    )
     otherOrgMcId = await insertMcQuestion(
       baseSeed({
         org: otherOrgId,
@@ -363,6 +379,26 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     for (const opt of row?.options ?? []) {
       expect('correct' in opt).toBe(false)
     }
+
+    // Full RETURNS TABLE shape (mig 20260626000200) — every field present and typed
+    // correctly, so a rename/drop/shape regression fails here rather than in the UI.
+    expect(typeof row?.id).toBe('string')
+    expect(typeof row?.question_text).toBe('string')
+    // question_image_url: nullable (no image on the fixture)
+    expect(row?.question_image_url === null || typeof row?.question_image_url === 'string').toBe(
+      true,
+    )
+    expect(typeof row?.subject_code).toBe('string')
+    expect(typeof row?.topic_name).toBe('string')
+    // subtopic_name: nullable (LEFT JOIN; fixture has no subtopic)
+    expect(row?.subtopic_name === null || typeof row?.subtopic_name === 'string').toBe(true)
+    // explanation_image_url: nullable (no image on the fixture)
+    expect(
+      row?.explanation_image_url === null || typeof row?.explanation_image_url === 'string',
+    ).toBe(true)
+    // question_number: nullable; the fixture seeds one
+    expect(row?.question_number === null || typeof row?.question_number === 'string').toBe(true)
+    expect(typeof row?.difficulty).toBe('string')
   })
 
   test('EO1: an unauthenticated caller is rejected and receives no answer key', async () => {
@@ -464,12 +500,42 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     expect(ids).toContain(egMcActiveId)
   })
 
+  test('EO7: a draft-status question is excluded while an active sibling is returned', async () => {
+    // Non-vacuity: the draft fixture exists and has the expected status.
+    const { data: draftRow, error: draftErr } = await admin
+      .from('questions')
+      .select('id, status')
+      .eq('id', egMcDraftId)
+      .single()
+    expect(draftErr).toBeNull()
+    expect(draftRow?.status).toBe('draft')
+
+    // The status='active' filter must surface only the active sibling; the draft MC
+    // must be excluded even though it belongs to the same org and is an MC question —
+    // so this proves the filter fires independently of deleted_at and question_type.
+    const { data, error } = await studentClient.rpc(RPC, {
+      p_question_ids: [egMcDraftId, egMcActiveId],
+    })
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    const ids = (data as StudyQuestionRow[]).map((r) => r.id)
+    expect(ids).not.toContain(egMcDraftId)
+    expect(ids).toContain(egMcActiveId)
+  })
+
   test('EO6: a student with an active exam session cannot read MC answer keys (mid-exam oracle)', async () => {
-    // Non-vacuity: EO5 already proved this exact student + question returns the key when
-    // NO exam is active. Seed a live (ended_at IS NULL) mock_exam session for the same
-    // student; Study Mode reveals keys, and mock/internal/VFR-RT exams grade from the same
-    // MC pool, so the RPC must refuse mid-exam — otherwise the student reads their live
-    // exam's answer keys by POSTing the IDs the exam runner already handed them.
+    // Preflight: same student + same question returns the key when no exam is active.
+    // Makes EO6 self-contained rather than relying on EO5 running first.
+    const preflight = await studentClient.rpc(RPC, { p_question_ids: [egMcActiveId] })
+    expect(preflight.error).toBeNull()
+    const preflightRows = preflight.data as StudyQuestionRow[]
+    expect(preflightRows).toHaveLength(1)
+    expect(preflightRows[0]?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)
+
+    // Seed a live (ended_at IS NULL) mock_exam session. Study Mode reveals keys, and
+    // mock/internal/VFR-RT exams grade from the same MC pool, so the RPC must refuse
+    // mid-exam — otherwise the student reads their live exam's answer keys by POSTing
+    // the IDs the exam runner already handed them.
     const { data: sessionRow, error: insErr } = await admin
       .from('quiz_sessions')
       .insert({ organization_id: orgId, student_id: victimUserId, mode: 'mock_exam' })
@@ -477,6 +543,8 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       .single()
     expect(insErr).toBeNull()
     const sessionId = sessionRow?.id as string
+
+    let cleanupError: string | null = null
 
     try {
       const { data, error } = await studentClient.rpc(RPC, { p_question_ids: [egMcActiveId] })
@@ -487,19 +555,21 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
       // quiz_sessions is soft-delete only (docs/database.md soft-delete matrix) — soft-delete
       // the seeded session, matching the sibling red-team specs. Setting deleted_at also clears
       // the active-session guard so later get_study_questions calls don't reject spuriously.
+      // Biome noUnsafeFinally forbids throw-in-finally, so we accumulate and throw after.
       const { data: del, error: delErr } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionId)
         .is('deleted_at', null)
         .select('id')
-      // Log (not throw) on cleanup failure: a throw in finally would mask a real
-      // assertion failure from the try block (Biome noUnsafeFinally).
       if (delErr) {
-        console.error('[get-study-questions-eo] EO6 session cleanup failed:', delErr.message)
+        cleanupError = `session cleanup failed: ${delErr.message}`
       } else if ((del?.length ?? 0) === 0) {
-        console.error('[get-study-questions-eo] EO6 session cleanup matched no rows:', sessionId)
+        cleanupError = `session cleanup matched no rows: ${sessionId}`
       }
     }
+    // Throw AFTER the try/finally — a leaked active session causes later calls to
+    // reject spuriously; surface the failure immediately.
+    if (cleanupError) throw new Error(`[get-study-questions-eo] EO6: ${cleanupError}`)
   })
 })

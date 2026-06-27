@@ -141,7 +141,7 @@ describe('StudyConfigForm', () => {
       expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
     })
 
-    it('renders StudyRunner and hides the config form when questions are loaded', () => {
+    it('shows the study session and hides the setup form when questions are loaded', () => {
       mockUseStudyConfig.mockReturnValue(
         buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }] }),
       )
@@ -150,7 +150,7 @@ describe('StudyConfigForm', () => {
       expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
     })
 
-    it('calls reset when StudyRunner fires onExit', async () => {
+    it('returns to the setup form when the running session is exited', async () => {
       const reset = vi.fn()
       mockUseStudyConfig.mockReturnValue(
         buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }], reset }),
@@ -241,7 +241,7 @@ describe('StudyConfigForm', () => {
       expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
-    it('calls handleStart from the config hook when the button is clicked', async () => {
+    it('starts the study session when the button is clicked', async () => {
       const handleStart = vi.fn()
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', handleStart }))
       const user = userEvent.setup()
@@ -282,13 +282,13 @@ describe('StudyConfigForm', () => {
   // ---- Conditional sub-component rendering ---------------------------------
 
   describe('conditional sub-component rendering', () => {
-    it('hides QuestionFilters and QuestionCount when no subject is selected', () => {
+    it('hides filter controls and question count when no subject is selected', () => {
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.queryByTestId('question-filters')).not.toBeInTheDocument()
       expect(screen.queryByTestId('question-count')).not.toBeInTheDocument()
     })
 
-    it('shows QuestionFilters and QuestionCount once a subject is selected', () => {
+    it('shows filter controls and question count once a subject is selected', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.getByTestId('question-filters')).toBeInTheDocument()
@@ -301,7 +301,7 @@ describe('StudyConfigForm', () => {
       expect(screen.getByTestId('question-filters')).toHaveAttribute('data-unseen-label', 'Unseen')
     })
 
-    it('shows TopicTree only when the topic list is non-empty', () => {
+    it('shows topic selection only when topics are available', () => {
       const topicTree = buildDefaultTopicTree()
       topicTree.topics = [
         { id: 't1', code: '050-01', name: 'The Atmosphere', questionCount: 10, subtopics: [] },
@@ -311,7 +311,7 @@ describe('StudyConfigForm', () => {
       expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
     })
 
-    it('hides TopicTree when the topics list is empty', () => {
+    it('hides topic selection when no topics are available', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
       render(<StudyConfigForm subjects={SUBJECTS} />)
       expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()

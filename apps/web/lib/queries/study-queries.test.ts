@@ -117,6 +117,23 @@ describe('getStudyQuestions', () => {
     expect(result[0]!.options).toEqual([{ id: 'a', text: 'Valid' }])
   })
 
+  it('strips extra fields from options, exposing only id and text per entry', async () => {
+    // Regression guard: if the RPC ever returns a `correct` field (or any extra key)
+    // inside the options array, the mapper must not pass it through to the client.
+    const row = makeRow({
+      options: [
+        { id: 'a', text: '1000 hPa', correct: false },
+        { id: 'b', text: '1013 hPa', correct: true },
+      ],
+    })
+    mockRpc.mockResolvedValue({ data: [row], error: null })
+    const result = await getStudyQuestions(['q-1'])
+    expect(result[0]!.options).toEqual([
+      { id: 'a', text: '1000 hPa' },
+      { id: 'b', text: '1013 hPa' },
+    ])
+  })
+
   it('returns an empty array when the RPC returns null data with no error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const result = await getStudyQuestions(['q-1'])

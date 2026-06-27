@@ -17,19 +17,22 @@ export type StudyQuestion = {
 }
 
 // Wire shape of one `get_study_questions` RETURNS TABLE row (snake_case, jsonb options).
+// String fields are typed as `unknown` — the `rpc<StudyQuestionRow[]>` cast is a
+// TypeScript assertion only, not a runtime guarantee. `toStudyQuestion` guards each
+// field with `typeof v === 'string'` before returning the typed `StudyQuestion`.
 type StudyQuestionRow = {
   id: string
-  question_text: string | null
-  question_image_url: string | null
+  question_text: unknown
+  question_image_url: unknown
   options: unknown
   correct_option_id: string
-  subject_code: string | null
-  topic_name: string | null
-  subtopic_name: string | null
-  explanation_text: string | null
-  explanation_image_url: string | null
-  question_number: string | null
-  difficulty: string | null
+  subject_code: unknown
+  topic_name: unknown
+  subtopic_name: unknown
+  explanation_text: unknown
+  explanation_image_url: unknown
+  question_number: unknown
+  difficulty: unknown
 }
 
 function mapOptions(raw: unknown): { id: string; text: string }[] {
@@ -48,17 +51,18 @@ function mapOptions(raw: unknown): { id: string; text: string }[] {
 function toStudyQuestion(row: StudyQuestionRow): StudyQuestion {
   return {
     id: row.id,
-    questionText: row.question_text ?? '',
-    questionImageUrl: row.question_image_url,
+    questionText: typeof row.question_text === 'string' ? row.question_text : '',
+    questionImageUrl: typeof row.question_image_url === 'string' ? row.question_image_url : null,
     options: mapOptions(row.options),
     correctOptionId: row.correct_option_id,
-    subjectCode: row.subject_code,
-    topicName: row.topic_name,
-    subtopicName: row.subtopic_name,
-    explanationText: row.explanation_text,
-    explanationImageUrl: row.explanation_image_url,
-    questionNumber: row.question_number,
-    difficulty: row.difficulty,
+    subjectCode: typeof row.subject_code === 'string' ? row.subject_code : null,
+    topicName: typeof row.topic_name === 'string' ? row.topic_name : null,
+    subtopicName: typeof row.subtopic_name === 'string' ? row.subtopic_name : null,
+    explanationText: typeof row.explanation_text === 'string' ? row.explanation_text : null,
+    explanationImageUrl:
+      typeof row.explanation_image_url === 'string' ? row.explanation_image_url : null,
+    questionNumber: typeof row.question_number === 'string' ? row.question_number : null,
+    difficulty: typeof row.difficulty === 'string' ? row.difficulty : null,
   }
 }
 

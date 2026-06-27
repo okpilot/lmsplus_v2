@@ -36,6 +36,9 @@ flag feature).
 - **Security:** answer exposure happens only via a new SECURITY DEFINER RPC
   `get_study_questions` with the full guard set (auth, active-user/org-scope, soft-delete,
   `status='active'`, `search_path`, `authenticated`-only EXECUTE). MC-only.
+- **Mid-exam oracle denial:** the RPC raises `active_exam_session` when the caller has any
+  active session whose mode is outside the practice set (deny-by-default), preventing a
+  mid-exam student from using Study Mode to read answer keys for their in-progress exam.
 - Equivalent exposure to existing post-session practice reports — accelerated to immediate.
 - Reuse over reinvention: existing filter components/hooks, flag hook/action, QuestionCard,
   AnswerOptions, getRandomQuestionIds.
