@@ -24,6 +24,10 @@ async function startAndAbandonQuiz(
 
   // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
   await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 
   // Configure: select first subject, all available questions
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
@@ -159,6 +163,10 @@ test.describe('Quiz Session Recovery', () => {
 
     // The fresh quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
     await page.getByRole('button', { name: 'Study', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
     // Configure a new quiz
     const subjectTrigger = page.locator('[data-testid="subject-trigger"]')

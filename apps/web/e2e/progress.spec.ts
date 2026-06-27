@@ -23,6 +23,10 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await page.goto('/app/quiz')
   // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
   await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()

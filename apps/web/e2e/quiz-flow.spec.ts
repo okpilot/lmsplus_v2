@@ -10,6 +10,10 @@ test('quiz flow: configure → answer questions → view results → dashboard',
 
   // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
   await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 
   // 2. Select the first subject from the collapsible panel
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
