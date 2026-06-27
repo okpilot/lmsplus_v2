@@ -80,7 +80,7 @@ describe('DiscoveryModePanel', () => {
     expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
   })
 
-  it('labels unseen questions as Unseen in the study form', () => {
+  it('shows the "Unseen" filter label in discovery mode', () => {
     render(
       <DiscoveryModePanel
         mode="discovery"
@@ -93,7 +93,7 @@ describe('DiscoveryModePanel', () => {
     expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-unseen-label', 'Unseen')
   })
 
-  it('passes the userId through to the study form', () => {
+  it('scopes the discovery form to the current user', () => {
     render(
       <DiscoveryModePanel
         mode="discovery"

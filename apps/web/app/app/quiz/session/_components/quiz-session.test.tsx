@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
 }))
 
 const mockBatchSubmitQuiz = vi.fn()
@@ -879,6 +880,11 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByTestId('option-a'))
     fireEvent.click(screen.getByTestId('option-b'))
     expect(mockCheckAnswer).not.toHaveBeenCalled()
+    // The clicks are visually inert too: the pre-marked correct option stays
+    // selected+correct and the wrong option never becomes selected.
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-a').dataset.correct).toBe('true')
+    expect(screen.getByTestId('option-b').dataset.selected).not.toBe('true')
   })
 
   it('shows no submit affordance in discovery mode', () => {
@@ -893,7 +899,7 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
     const exitBtn = screen.getByRole('button', { name: 'Exit' })
     fireEvent.click(exitBtn)
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 
   it('lifecycle: opens pre-marked, allows navigation, and exits to /app/quiz', () => {
@@ -909,6 +915,6 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
     // Exit navigates away — the only way to leave discovery
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 })

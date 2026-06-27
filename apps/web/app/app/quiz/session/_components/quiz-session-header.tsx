@@ -88,7 +88,9 @@ export function QuizSessionHeader({
         {isDiscovery ? (
           <button
             type="button"
-            onClick={() => router.push('/app/quiz')}
+            // replace (not push): the consumed handoff makes the session page
+            // un-resumable, so Back must not be able to reopen the exited runner.
+            onClick={() => router.replace('/app/quiz')}
             className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Exit

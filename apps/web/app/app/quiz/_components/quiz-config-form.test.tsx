@@ -351,13 +351,13 @@ describe('QuizConfigForm', () => {
     expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
   })
 
-  it('passes "Unseen" as the filter label to the discovery form', () => {
+  it('shows the "Unseen" filter label in discovery mode', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
     expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-unseen-label', 'Unseen')
   })
 
-  it('forwards the userId to the discovery configuration form', () => {
+  it('scopes the discovery form to the current user', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
     render(<QuizConfigForm userId="my-specific-user" subjects={SUBJECTS} examSubjects={[]} />)
     expect(screen.getByTestId('study-config-form')).toHaveAttribute(
