@@ -2,7 +2,6 @@
 
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { SessionMode } from '../../session-types'
@@ -13,6 +12,7 @@ import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
+import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionFooter } from './quiz-session-footer'
 import { QuizSessionHeader } from './quiz-session-header'
@@ -37,6 +37,7 @@ type QuizSessionProps = {
 
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
+  const isDiscovery = props.mode === 'discovery'
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(s.questionIds)
   const effectiveTab = s.isExam ? 'question' : activeTab
@@ -65,15 +66,12 @@ export function QuizSession(props: QuizSessionProps) {
 
   if (!s.question) return null
 
-  // Default examMode to mock_exam in exam sessions when caller didn't supply it.
-  // (Existing exam sessions in localStorage written before this field landed.)
-  const examMode = s.isExam ? (props.examMode ?? 'mock_exam') : undefined
-
   return (
     <div className="flex flex-1 flex-col">
       <QuizSessionHeader
         isExam={s.isExam}
-        examMode={examMode}
+        isDiscovery={isDiscovery}
+        examMode={props.examMode}
         currentIndex={s.currentIndex}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
@@ -138,19 +136,11 @@ export function QuizSession(props: QuizSessionProps) {
         onToggleFlag={() => toggleFlag(s.questionId)}
       />
 
-      <FinishQuizDialog
-        open={s.showFinishDialog}
-        answeredCount={s.answeredCount}
+      <QuizFinishDialogHost
+        s={s}
+        isDiscovery={isDiscovery}
         totalQuestions={props.questions.length}
-        submitting={s.submitting}
-        pendingAction={s.pendingAction}
-        error={s.error}
-        onSubmit={s.handleSubmit}
-        onCancel={() => s.setShowFinishDialog(false)}
-        onSave={s.handleSave}
-        onDiscard={s.handleDiscard}
-        isExam={s.isExam}
-        examMode={examMode}
+        examMode={props.examMode}
         timeExpired={timeExpired}
       />
     </div>

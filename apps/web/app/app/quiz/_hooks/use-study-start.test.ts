@@ -3,12 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockStartStudy } = vi.hoisted(() => ({
+const { mockRouterPush, mockStartStudy, mockSessionStorageSetItem } = vi.hoisted(() => ({
+  mockRouterPush: vi.fn(),
   mockStartStudy: vi.fn(),
+  mockSessionStorageSetItem: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
 }))
 
 vi.mock('../actions/study', () => ({
   startStudy: (...args: unknown[]) => mockStartStudy(...args),
+}))
+
+vi.mock('../session/_utils/quiz-session-storage', () => ({
+  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -19,6 +29,9 @@ import { useStudyStart } from './use-study-start'
 // ---- Fixtures -------------------------------------------------------------
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+const SUBJECTS = [
+  { id: SUBJECT_ID, code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
+]
 
 function makeTopicTree(topicIds: string[] = [], subtopicIds: string[] = []) {
   return {
@@ -28,7 +41,9 @@ function makeTopicTree(topicIds: string[] = [], subtopicIds: string[] = []) {
 }
 
 const DEFAULT_OPTS = {
+  userId: 'test-user-id',
   subjectId: SUBJECT_ID,
+  subjects: SUBJECTS,
   count: 10,
   maxQuestions: 100,
   topicTree: makeTopicTree(),
@@ -55,15 +70,18 @@ function makeQuestion(id = 'q-1'): StudyQuestion {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
+    writable: true,
+  })
   mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()] })
 })
 
 // ---- Initial state -------------------------------------------------------
 
 describe('useStudyStart — initial state', () => {
-  it('starts with null questions, no loading, and no error', () => {
+  it('starts with no loading and no error', () => {
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
-    expect(result.current.questions).toBeNull()
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
   })
@@ -76,6 +94,7 @@ describe('useStudyStart — handleStart guards', () => {
     const { result } = renderHook(() => useStudyStart({ ...DEFAULT_OPTS, subjectId: '' }))
     await act(async () => result.current.handleStart())
     expect(mockStartStudy).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)
   })
 
@@ -89,17 +108,13 @@ describe('useStudyStart — handleStart guards', () => {
 
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
 
-    // Fire first call — loading is true, promise is pending.
     act(() => {
       void result.current.handleStart()
     })
-
-    // Fire second call while first is still in flight.
     await act(async () => result.current.handleStart())
 
     expect(mockStartStudy).toHaveBeenCalledTimes(1)
 
-    // Settle the first call so the hook can clean up.
     await act(async () => {
       resolveFirst({ success: true, questions: [makeQuestion()] })
     })
@@ -144,88 +159,93 @@ describe('useStudyStart — handleStart payload', () => {
       expect.objectContaining({ topicIds: ['t1', 't2'], subtopicIds: ['st1'] }),
     )
   })
+})
 
-  it('passes only topicIds when subtopics selection is empty', async () => {
-    const { result } = renderHook(() =>
-      useStudyStart({ ...DEFAULT_OPTS, topicTree: makeTopicTree(['t1'], []) }),
-    )
+// ---- handleStart — happy path (navigate) ---------------------------------
+
+describe('useStudyStart — handleStart navigates to the session runner', () => {
+  it('writes the pre-marked discovery handoff to sessionStorage on success', async () => {
+    mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion('q-1')] })
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-    expect(mockStartStudy).toHaveBeenCalledWith(
-      expect.objectContaining({ topicIds: ['t1'], subtopicIds: undefined }),
-    )
+
+    expect(mockSessionStorageSetItem).toHaveBeenCalledTimes(1)
+    const [key, json] = mockSessionStorageSetItem.mock.calls[0] as [string, string]
+    expect(key).toBe('quiz-session:test-user-id')
+    const payload = JSON.parse(json) as Record<string, unknown>
+    expect(payload.mode).toBe('discovery')
+    expect(payload.questionIds).toEqual(['q-1'])
+    expect(payload.userId).toBe('test-user-id')
+  })
+
+  it('includes the resolved subjectName and subjectCode in the handoff', async () => {
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    const json = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
+    const payload = JSON.parse(json) as Record<string, unknown>
+    expect(payload.subjectName).toBe('Meteorology')
+    expect(payload.subjectCode).toBe('MET')
+  })
+
+  it('navigates to /app/quiz/session after writing the handoff', async () => {
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
   })
 })
 
-// ---- handleStart — happy path --------------------------------------------
+// ---- handleStart — empty result ------------------------------------------
 
-describe('useStudyStart — handleStart happy path', () => {
-  it('populates questions after a successful start', async () => {
-    const q = makeQuestion()
-    mockStartStudy.mockResolvedValue({ success: true, questions: [q] })
-    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(result.current.questions).toEqual([q])
-    expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBeNull()
-  })
-
-  it('sets questions to an empty array when the action returns zero results', async () => {
+describe('useStudyStart — empty result', () => {
+  it('shows a no-questions message and does not navigate when the pool is empty', async () => {
     mockStartStudy.mockResolvedValue({ success: true, questions: [] })
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-    expect(result.current.questions).toEqual([])
+
+    expect(result.current.error).toBe('No questions match these filters.')
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(result.current.loading).toBe(false)
   })
 })
 
 // ---- handleStart — failure path ------------------------------------------
 
 describe('useStudyStart — handleStart failure path', () => {
-  it('sets the error field and leaves questions null when the action returns a failure', async () => {
-    mockStartStudy.mockResolvedValue({ success: false, error: 'No questions found' })
+  it('surfaces the active-exam message inline and does not navigate', async () => {
+    mockStartStudy.mockResolvedValue({
+      success: false,
+      error: 'Finish or exit your active exam first.',
+    })
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-    expect(result.current.questions).toBeNull()
-    expect(result.current.error).toBe('No questions found')
+
+    expect(result.current.error).toBe('Finish or exit your active exam first.')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)
   })
 
-  it('sets a fallback error when the action throws', async () => {
+  it('sets a fallback error and does not navigate when the action throws', async () => {
     mockStartStudy.mockRejectedValue(new Error('network error'))
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
+
     expect(result.current.error).toBe('Something went wrong. Please try again.')
-    expect(result.current.loading).toBe(false)
-    expect(result.current.questions).toBeNull()
-  })
-
-  it('clears loading state after a failed call', async () => {
-    mockStartStudy.mockResolvedValue({ success: false, error: 'Not authenticated' })
-    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)
   })
-})
 
-// ---- reset ---------------------------------------------------------------
-
-describe('useStudyStart — reset', () => {
-  it('resets questions and error to their initial values', async () => {
+  it('shows a generic message and does not navigate when sessionStorage throws', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-    expect(result.current.questions).not.toBeNull()
 
-    act(() => result.current.reset())
-    expect(result.current.questions).toBeNull()
-    expect(result.current.error).toBeNull()
-  })
-
-  it('clears an error set by a failed start', async () => {
-    mockStartStudy.mockResolvedValue({ success: false, error: 'Something failed' })
-    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(result.current.error).toBe('Something failed')
-
-    act(() => result.current.reset())
-    expect(result.current.error).toBeNull()
+    expect(result.current.error).toMatch(/unable to start/i)
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(result.current.loading).toBe(false)
   })
 })

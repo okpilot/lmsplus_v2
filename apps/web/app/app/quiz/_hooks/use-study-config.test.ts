@@ -28,6 +28,11 @@ import { useTopicTree } from './use-topic-tree'
 // ---- Fixtures -------------------------------------------------------------
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+const USER_ID = 'user-1'
+const SUBJECTS = [
+  { id: SUBJECT_ID, code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
+]
+const DEFAULT_ARGS = { userId: USER_ID, subjects: SUBJECTS }
 
 function buildMockTopicTree(overrides?: Record<string, unknown>) {
   return {
@@ -64,11 +69,9 @@ function buildMockFilteredCount(overrides?: Record<string, unknown>) {
 
 function buildMockStudyStart(overrides?: Record<string, unknown>) {
   return {
-    questions: null,
     loading: false,
     error: null,
     handleStart: vi.fn(),
-    reset: vi.fn(),
     ...overrides,
   }
 }
@@ -87,7 +90,7 @@ beforeEach(() => {
 
 describe('useStudyConfig — initial state', () => {
   it('exposes an empty subjectId and default filter values on first render', () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.subjectId).toBe('')
     expect(result.current.filters).toEqual(['all'])
     expect(result.current.calcMode).toBe('all')
@@ -96,85 +99,79 @@ describe('useStudyConfig — initial state', () => {
   })
 
   it('reports not pending when both the topic tree and filtered count are idle', () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.isPending).toBe(false)
   })
 
   it('reports pending when the topic tree is loading', () => {
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: true }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.isPending).toBe(true)
   })
 
   it('reports pending when the filtered count is loading', () => {
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ isFilterPending: true }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.isPending).toBe(true)
   })
 
   it('exposes the availableCount value', () => {
     ;(useAvailableCount as Mock).mockReturnValue(42)
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.availableCount).toBe(42)
   })
 
   it('exposes the topicTree', () => {
     const mockTree = buildMockTopicTree({ selectedQuestionCount: 99 })
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.topicTree).toBe(mockTree)
   })
 })
 
-// ---- Re-exports from useStudyStart ---------------------------------------
+// ---- Start-hook wiring ----------------------------------------------------
 
-describe('useStudyConfig — start-hook re-exports', () => {
-  it('exposes questions as null when no study has been started', () => {
-    const { result } = renderHook(() => useStudyConfig())
-    expect(result.current.questions).toBeNull()
+describe('useStudyConfig — start-hook wiring', () => {
+  it('forwards userId and subjects into useStudyStart', () => {
+    renderHook(() => useStudyConfig(DEFAULT_ARGS))
+    expect(useStudyStart).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, subjects: SUBJECTS }),
+    )
   })
 
-  it('exposes questions when they are loaded', () => {
-    const questions = [{ id: 'q-1' }]
-    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ questions }))
-    const { result } = renderHook(() => useStudyConfig())
-    expect(result.current.questions).toBe(questions)
+  it('does not return questions or reset (the inline runner is gone)', () => {
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
+    expect('questions' in result.current).toBe(false)
+    expect('reset' in result.current).toBe(false)
   })
 
   it('exposes loading false initially', () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.loading).toBe(false)
   })
 
   it('surfaces loading true when a start is in progress', () => {
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ loading: true }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.loading).toBe(true)
   })
 
   it('exposes error as null initially', () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.error).toBeNull()
   })
 
   it('surfaces an error message when the start action fails', () => {
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ error: 'No questions found' }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.error).toBe('No questions found')
   })
 
   it('exposes the handleStart function', () => {
     const handleStart = vi.fn()
     ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ handleStart }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.handleStart).toBe(handleStart)
-  })
-
-  it('exposes the reset function', () => {
-    const reset = vi.fn()
-    ;(useStudyStart as Mock).mockReturnValue(buildMockStudyStart({ reset }))
-    const { result } = renderHook(() => useStudyConfig())
-    expect(result.current.reset).toBe(reset)
   })
 })
 
@@ -182,7 +179,7 @@ describe('useStudyConfig — start-hook re-exports', () => {
 
 describe('useStudyConfig — handleSubjectChange', () => {
   it('updates the subjectId when a new subject is selected', async () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -190,7 +187,7 @@ describe('useStudyConfig — handleSubjectChange', () => {
   })
 
   it('triggers topic tree loading when a subject is selected', async () => {
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -204,7 +201,7 @@ describe('useStudyConfig — filtered topic counts', () => {
   it('exposes filteredByTopic as null when no active filters are set', () => {
     const filteredByTopic: Record<string, number> = { t1: 5 }
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredByTopic }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     // No active filters → hasActiveFilters=false → filteredByTopic must be null.
     expect(result.current.filteredByTopic).toBeNull()
   })
@@ -212,7 +209,7 @@ describe('useStudyConfig — filtered topic counts', () => {
   it('exposes filteredByTopic when at least one filter is active', async () => {
     const filteredByTopic: Record<string, number> = { t1: 5 }
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredByTopic }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     // Activate a filter so hasActiveFilters becomes true.
     await act(async () => {
       result.current.setFilters(['unseen'])
@@ -226,7 +223,7 @@ describe('useStudyConfig — filtered topic counts', () => {
 describe('useStudyConfig — authError propagation', () => {
   it('surfaces the authError flag', () => {
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ authError: true }))
-    const { result } = renderHook(() => useStudyConfig())
+    const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.authError).toBe(true)
   })
 })

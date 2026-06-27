@@ -2,7 +2,6 @@
 
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
-import { StudyRunner } from '../study/_components/study-runner'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
 import { StartButton } from './start-button'
@@ -10,17 +9,15 @@ import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
 export function StudyConfigForm({
+  userId,
   subjects,
   unseenLabel,
 }: {
+  userId: string
   subjects: SubjectOption[]
   unseenLabel?: string
 }) {
-  const config = useStudyConfig()
-
-  if (config.questions) {
-    return <StudyRunner questions={config.questions} onExit={config.reset} />
-  }
+  const config = useStudyConfig({ userId, subjects })
 
   return (
     <div className="space-y-4">

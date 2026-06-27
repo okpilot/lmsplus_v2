@@ -12,6 +12,7 @@ type DiscoveryModePanelProps = {
   onModeChange: (m: QuizMode) => void
   examAvailable: boolean
   subjects: SubjectOption[]
+  userId: string
 }
 
 export function DiscoveryModePanel({
@@ -19,11 +20,12 @@ export function DiscoveryModePanel({
   onModeChange,
   examAvailable,
   subjects,
+  userId,
 }: DiscoveryModePanelProps) {
   return (
     <div className="space-y-4">
       <ModeToggle value={mode} onValueChange={onModeChange} examAvailable={examAvailable} />
-      <StudyConfigForm subjects={subjects} unseenLabel="Unseen" />
+      <StudyConfigForm userId={userId} subjects={subjects} unseenLabel="Unseen" />
     </div>
   )
 }

@@ -7,11 +7,12 @@ import type {
   QuizMode,
 } from './types'
 
-// The modes a quiz SESSION can run/persist in. Discovery never creates or persists
-// a session (it uses the StudyRunner flashcard path), so it is excluded here — this
-// keeps the persisted-session contract aligned with the validator in
-// session/_utils/quiz-session-validators.ts, which rejects 'discovery'.
-export type SessionMode = Exclude<QuizMode, 'discovery'>
+// The modes a quiz SESSION can render in. Discovery reuses the exact session runner
+// (browse-only, pre-marked correct option, nothing scored) via an ephemeral handoff,
+// so it is a valid SessionMode. It never PERSISTS, however: the localStorage
+// active-session firewall (session/_utils/quiz-session-storage.ts readActiveSession)
+// still rejects a persisted mode: 'discovery'.
+export type SessionMode = QuizMode
 
 export type QuizStateOpts = {
   userId: string
@@ -51,6 +52,21 @@ export type UseQuizStartOpts = {
   filters: QuestionFilterValue[]
   calcMode: CalcMode
   imageMode: ImageMode
+  topicTree: {
+    getSelectedTopicIds: () => string[]
+    getSelectedSubtopicIds: () => string[]
+  }
+}
+
+export type UseStudyStartOpts = {
+  userId: string
+  subjectId: string
+  subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
+  count: number
+  maxQuestions: number
+  filters?: QuestionFilterValue[]
+  calcMode?: CalcMode
+  imageMode?: ImageMode
   topicTree: {
     getSelectedTopicIds: () => string[]
     getSelectedSubtopicIds: () => string[]

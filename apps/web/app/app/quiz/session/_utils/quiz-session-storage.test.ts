@@ -446,11 +446,13 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result?.mode).toBe('exam')
   })
 
-  // A tampered or stale payload whose mode is outside the SessionMode set must not be
-  // trusted past the JSON.parse cast. 'discovery' never persists; null is the most
-  // realistic tampered-JSON shape; a number covers non-string garbage.
+  // The active-session firewall only resumes 'study'/'exam' from localStorage.
+  // 'discovery' is now a valid SessionMode for the ephemeral handoff path, but it is
+  // still rejected here because Discovery is browse-only and never persists — a stored
+  // mode: 'discovery' is a stale/tampered payload. null is the most realistic
+  // tampered-JSON shape; a number covers non-string garbage.
   it.each([
-    { label: "the string 'discovery' (never persists)", mode: 'discovery' },
+    { label: "the string 'discovery' (still firewalled — never persists)", mode: 'discovery' },
     { label: 'a null', mode: null },
     { label: 'a non-string number', mode: 42 },
   ])('rejects a persisted session whose mode is $label', ({ mode }) => {

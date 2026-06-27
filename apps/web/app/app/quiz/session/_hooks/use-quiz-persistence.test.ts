@@ -99,6 +99,16 @@ describe('useQuizPersistence', () => {
     )
   })
 
+  it('does not persist a checkpoint in discovery mode', () => {
+    const opts = makeOpts('user-1', 'discovery')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).not.toHaveBeenCalled()
+    expect(mockWriteActiveSession).not.toHaveBeenCalled()
+  })
+
   it('marks the persisted session as study mode when opts.mode is study', () => {
     const opts = makeOpts('user-1', 'study')
     const { result } = renderHook(() => useQuizPersistence(opts))

@@ -23,18 +23,18 @@ type QuizConfigFormProps = {
 export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFormProps) {
   const config = useQuizConfig({ userId, subjects })
   const isExam = config.mode === 'exam'
-  const isDiscovery = config.mode === 'discovery'
 
   const [examSubjectId, setExamSubjectId] = useState('')
   const exam = useExamStart({ userId, subjectId: examSubjectId, examSubjects })
 
-  if (isDiscovery)
+  if (config.mode === 'discovery')
     return (
       <DiscoveryModePanel
         mode={config.mode}
         onModeChange={config.setMode}
         examAvailable={examSubjects.length > 0}
         subjects={subjects}
+        userId={userId}
       />
     )
 

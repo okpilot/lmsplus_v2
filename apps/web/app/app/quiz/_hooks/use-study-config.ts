@@ -1,3 +1,4 @@
+import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
@@ -6,22 +7,22 @@ import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
 
 /**
- * Study-mode config orchestration. Mirrors useQuizConfig's quiz branch but drops
- * exam mode and the navigation-based start (study renders its runner in place via
- * use-study-start). Reuses the same filter/topic/count sub-hooks so the builder
- * UI behaves identically to "New Quiz".
+ * Discovery-mode config orchestration. Mirrors useQuizConfig's quiz branch (minus
+ * exam mode): like "New Quiz" it NAVIGATES to /app/quiz/session on start (use-study-
+ * start writes the pre-marked handoff and reuses the real session runner).
  *
- * NOTE — `availableCount` (and the slider max) is TYPE-AGNOSTIC: it reuses the
- * shared count path (subject/topic totals + get_filtered_question_counts), which
- * counts all question types. The study FETCH, by contrast, is MC-only
- * (`startStudy` → getRandomQuestionIds(questionType: 'multiple_choice')). On a
- * subject that mixes MC with non-MC questions the displayed count would overstate
- * the real MC pool, and a fully-non-MC selection falls back to the runner's
- * empty-state. This is DORMANT today (every subject in the picker is MC-only; the
- * non-MC RT subject is delisted from getSubjectsWithCounts). Making the count
- * MC-aware touches the shared quiz count infrastructure — tracked as #1003.
+ * NOTE — `availableCount` (slider max) is TYPE-AGNOSTIC (shared count path counts
+ * all types), but the discovery FETCH is MC-only (`startStudy`). On a mixed MC/
+ * non-MC subject the count overstates the real MC pool; a fully-non-MC selection
+ * falls back to the empty-state message. DORMANT today (picker is MC-only). #1003.
  */
-export function useStudyConfig() {
+export function useStudyConfig({
+  userId,
+  subjects,
+}: {
+  userId: string
+  subjects: SubjectOption[]
+}) {
   const topicTree = useTopicTree()
   const fc = useFilteredCount()
   const st = useQuizConfigState({ fc, topicTree })
@@ -33,8 +34,10 @@ export function useStudyConfig() {
     topicTree,
   })
 
-  const { questions, loading, error, handleStart, reset } = useStudyStart({
+  const { loading, error, handleStart } = useStudyStart({
+    userId,
     subjectId: st.subjectId,
+    subjects,
     count: st.count,
     maxQuestions: availableCount,
     filters: st.filters,
@@ -70,10 +73,8 @@ export function useStudyConfig() {
     authError: fc.authError,
     isPending: topicTree.isPending || fc.isFilterPending,
     handleSubjectChange: st.handleSubjectChange,
-    questions,
     loading,
     error,
     handleStart,
-    reset,
   }
 }

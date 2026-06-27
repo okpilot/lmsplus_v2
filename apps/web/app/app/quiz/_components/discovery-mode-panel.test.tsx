@@ -30,10 +30,22 @@ vi.mock('./mode-toggle', () => ({
 }))
 
 vi.mock('./study-config-form', () => ({
-  StudyConfigForm: ({ unseenLabel, subjects }: { unseenLabel?: string; subjects: unknown[] }) => {
-    mockStudyConfigForm({ unseenLabel, subjects })
+  StudyConfigForm: ({
+    userId,
+    unseenLabel,
+    subjects,
+  }: {
+    userId: string
+    unseenLabel?: string
+    subjects: unknown[]
+  }) => {
+    mockStudyConfigForm({ userId, unseenLabel, subjects })
     return (
-      <div data-testid="study-config-form" data-unseen-label={unseenLabel ?? ''}>
+      <div
+        data-testid="study-config-form"
+        data-unseen-label={unseenLabel ?? ''}
+        data-user-id={userId}
+      >
         StudyConfigForm
       </div>
     )
@@ -45,6 +57,7 @@ import { DiscoveryModePanel } from './discovery-mode-panel'
 const SUBJECTS = [
   { id: 'sub-1', code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
 ]
+const USER_ID = 'user-1'
 
 describe('DiscoveryModePanel', () => {
   beforeEach(() => {
@@ -60,6 +73,7 @@ describe('DiscoveryModePanel', () => {
         onModeChange={vi.fn()}
         examAvailable={false}
         subjects={SUBJECTS}
+        userId={USER_ID}
       />,
     )
     expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
@@ -73,9 +87,24 @@ describe('DiscoveryModePanel', () => {
         onModeChange={vi.fn()}
         examAvailable={false}
         subjects={SUBJECTS}
+        userId={USER_ID}
       />,
     )
     expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-unseen-label', 'Unseen')
+  })
+
+  it('passes the userId through to the study form', () => {
+    render(
+      <DiscoveryModePanel
+        mode="discovery"
+        onModeChange={vi.fn()}
+        examAvailable={false}
+        subjects={SUBJECTS}
+        userId={USER_ID}
+      />,
+    )
+    expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-user-id', USER_ID)
+    expect(mockStudyConfigForm).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID }))
   })
 
   it('reflects the current mode in the mode selector', () => {
@@ -85,6 +114,7 @@ describe('DiscoveryModePanel', () => {
         onModeChange={vi.fn()}
         examAvailable={false}
         subjects={SUBJECTS}
+        userId={USER_ID}
       />,
     )
     expect(screen.getByTestId('mode-toggle')).toHaveAttribute('data-value', 'study')
@@ -99,6 +129,7 @@ describe('DiscoveryModePanel', () => {
         onModeChange={onModeChange}
         examAvailable={false}
         subjects={SUBJECTS}
+        userId={USER_ID}
       />,
     )
     await user.click(screen.getByRole('button', { name: 'Study' }))

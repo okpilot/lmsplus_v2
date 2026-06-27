@@ -9,18 +9,7 @@ const { mockUseStudyConfig } = vi.hoisted(() => ({
 }))
 
 vi.mock('../_hooks/use-study-config', () => ({
-  useStudyConfig: () => mockUseStudyConfig(),
-}))
-
-// StudyRunner: expose the onExit callback via an Exit button so tests can invoke it.
-vi.mock('../study/_components/study-runner', () => ({
-  StudyRunner: ({ onExit }: { onExit: () => void }) => (
-    <div data-testid="study-runner">
-      <button type="button" onClick={onExit}>
-        Exit
-      </button>
-    </div>
-  ),
+  useStudyConfig: (...args: unknown[]) => mockUseStudyConfig(...args),
 }))
 
 // Sub-components are mocked with lightweight stand-ins so tests focus on the
@@ -66,6 +55,7 @@ import { StudyConfigForm } from './study-config-form'
 
 // ---- Fixtures -------------------------------------------------------------
 
+const USER_ID = 'user-1'
 const SUBJECTS = [
   { id: 'sub-1', code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
 ]
@@ -115,11 +105,9 @@ function buildDefaultConfig(overrides: Record<string, unknown> = {}) {
     authError: false,
     isPending: false,
     handleSubjectChange: vi.fn(),
-    questions: null as unknown[] | null,
     loading: false,
     error: null as string | null,
     handleStart: vi.fn(),
-    reset: vi.fn(),
     ...overrides,
   }
 }
@@ -132,88 +120,33 @@ describe('StudyConfigForm', () => {
     mockUseStudyConfig.mockReturnValue(buildDefaultConfig())
   })
 
-  // ---- Runner vs config form -----------------------------------------------
+  // ---- Hook wiring ---------------------------------------------------------
 
-  describe('runner vs config form conditional rendering', () => {
-    it('renders the config form when no questions have been loaded yet', () => {
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByTestId('subject-select')).toBeInTheDocument()
-      expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
+  describe('hook wiring', () => {
+    it('forwards userId and subjects into useStudyConfig', () => {
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
+      expect(mockUseStudyConfig).toHaveBeenCalledWith({ userId: USER_ID, subjects: SUBJECTS })
     })
 
-    it('shows the study session and hides the setup form when questions are loaded', () => {
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }] }),
-      )
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByTestId('study-runner')).toBeInTheDocument()
-      expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
-    })
-
-    it('returns to the setup form when the running session is exited', async () => {
-      const reset = vi.fn()
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({ questions: [{ id: 'q-1', questionText: 'Test?' }], reset }),
-      )
-      const user = userEvent.setup()
-      render(<StudyConfigForm subjects={SUBJECTS} />)
-      await user.click(screen.getByRole('button', { name: 'Exit' }))
-      expect(reset).toHaveBeenCalledOnce()
-    })
-
-    it('runs the full study lifecycle: start → runner shown → exit → back to the config form', async () => {
-      const handleStart = vi.fn()
-      const reset = vi.fn()
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({ subjectId: 'sub-1', handleStart, reset }),
-      )
-      const user = userEvent.setup()
-      const { rerender } = render(<StudyConfigForm subjects={SUBJECTS} />)
-
-      // Entry: the config form is shown, the runner is not.
-      expect(screen.getByTestId('subject-select')).toBeInTheDocument()
-      expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
-
-      // Start a session.
-      await user.click(screen.getByRole('button', { name: 'Start discovery' }))
-      expect(handleStart).toHaveBeenCalled()
-
-      // In-progress: questions loaded → runner replaces the config form.
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({
-          subjectId: 'sub-1',
-          handleStart,
-          reset,
-          questions: [{ id: 'q-1', questionText: 'Test?' }],
-        }),
-      )
-      rerender(<StudyConfigForm subjects={SUBJECTS} />)
-      expect(screen.getByTestId('study-runner')).toBeInTheDocument()
-      expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
-
-      // Exit: reset fires and the config form is restored in the Discovery view.
-      await user.click(screen.getByRole('button', { name: 'Exit' }))
-      expect(reset).toHaveBeenCalled()
-      mockUseStudyConfig.mockReturnValue(
-        buildDefaultConfig({ subjectId: 'sub-1', handleStart, reset, questions: null }),
-      )
-      rerender(<StudyConfigForm subjects={SUBJECTS} />)
+    it('renders the config form and never an inline runner', () => {
+      mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByTestId('subject-select')).toBeInTheDocument()
       expect(screen.queryByTestId('study-runner')).not.toBeInTheDocument()
     })
   })
 
-  // ---- Start discovery button -----------------------------------------------
+  // ---- Start discovery button ----------------------------------------------
 
   describe('Start discovery button', () => {
     it('is disabled when no subject is selected', () => {
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('is enabled when a subject is selected and no blocking conditions apply', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('button', { name: 'Start discovery' })).not.toBeDisabled()
     })
 
@@ -221,13 +154,13 @@ describe('StudyConfigForm', () => {
       mockUseStudyConfig.mockReturnValue(
         buildDefaultConfig({ subjectId: 'sub-1', availableCount: 0 }),
       )
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
     it('shows Loading text, marks aria-busy, and disables the button while loading', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', loading: true }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       const btn = screen.getByRole('button', { name: 'Loading...' })
       expect(btn).toBeDisabled()
       expect(btn).toHaveAttribute('aria-busy', 'true')
@@ -237,15 +170,15 @@ describe('StudyConfigForm', () => {
       mockUseStudyConfig.mockReturnValue(
         buildDefaultConfig({ subjectId: 'sub-1', isPending: true }),
       )
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('button', { name: 'Start discovery' })).toBeDisabled()
     })
 
-    it('starts the study session when the button is clicked', async () => {
+    it('invokes the navigating start handler when the button is clicked', async () => {
       const handleStart = vi.fn()
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', handleStart }))
       const user = userEvent.setup()
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       await user.click(screen.getByRole('button', { name: 'Start discovery' }))
       expect(handleStart).toHaveBeenCalledOnce()
     })
@@ -256,7 +189,7 @@ describe('StudyConfigForm', () => {
   describe('error states', () => {
     it('shows an error alert when the start action reports an error', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ error: 'No matching questions' }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('alert')).toHaveTextContent('No matching questions')
     })
 
@@ -264,7 +197,7 @@ describe('StudyConfigForm', () => {
       mockUseStudyConfig.mockReturnValue(
         buildDefaultConfig({ subjectId: 'sub-1', authError: true }),
       )
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByRole('alert')).toHaveTextContent(
         'Session expired. Please refresh the page.',
       )
@@ -273,7 +206,7 @@ describe('StudyConfigForm', () => {
 
     it('shows no alert and renders form content when there are no errors', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(screen.getByTestId('subject-select')).toBeInTheDocument()
     })
@@ -283,21 +216,21 @@ describe('StudyConfigForm', () => {
 
   describe('conditional sub-component rendering', () => {
     it('hides filter controls and question count when no subject is selected', () => {
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.queryByTestId('question-filters')).not.toBeInTheDocument()
       expect(screen.queryByTestId('question-count')).not.toBeInTheDocument()
     })
 
     it('shows filter controls and question count once a subject is selected', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByTestId('question-filters')).toBeInTheDocument()
       expect(screen.getByTestId('question-count')).toBeInTheDocument()
     })
 
     it('shows the caller-provided label on the unseen filter', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      render(<StudyConfigForm subjects={SUBJECTS} unseenLabel="Unseen" />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} unseenLabel="Unseen" />)
       expect(screen.getByTestId('question-filters')).toHaveAttribute('data-unseen-label', 'Unseen')
     })
 
@@ -307,13 +240,13 @@ describe('StudyConfigForm', () => {
         { id: 't1', code: '050-01', name: 'The Atmosphere', questionCount: 10, subtopics: [] },
       ]
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1', topicTree }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
     })
 
     it('hides topic selection when no topics are available', () => {
       mockUseStudyConfig.mockReturnValue(buildDefaultConfig({ subjectId: 'sub-1' }))
-      render(<StudyConfigForm subjects={SUBJECTS} />)
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
     })
   })
