@@ -222,7 +222,12 @@ describe('getStudyQuestions (app-layer integration)', () => {
       .select('id')
       .single()
     expect(insErr).toBeNull()
-    const sessionId = sessionRow?.id as string
+    // Cast-guard (code-style §5): fail loudly on a null/shape regression instead of
+    // letting `undefined` flow into the cleanup `eq('id', …)` below as a silent no-op.
+    if (!sessionRow || typeof sessionRow.id !== 'string') {
+      throw new Error('Expected inserted quiz session id')
+    }
+    const sessionId = sessionRow.id
 
     let cleanupError: string | null = null
     try {

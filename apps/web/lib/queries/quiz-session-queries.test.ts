@@ -221,7 +221,7 @@ describe('getRandomQuestionIds', () => {
     expect(result).toEqual(['a', 'b'])
   })
 
-  it('throws when the rpc errors', async () => {
+  it('throws when the question id lookup fails', async () => {
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })
 
     await expect(getRandomQuestionIds({ subjectId: 's1', count: 5 })).rejects.toThrow(

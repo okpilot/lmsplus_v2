@@ -83,6 +83,10 @@ export async function getStudyQuestions(questionIds: string[]): Promise<StudyQue
   // TypeScript assertion only, not a runtime guarantee. Drop rows whose id / correct_option_id
   // aren't strings so a shape regression can't leak `undefined` into the typed result.
   if (!Array.isArray(data)) return []
+  // `WHERE id = ANY(p_question_ids)` returns rows in arbitrary order — re-sort to the
+  // caller's order so the deck matches the (randomly-sampled) selection order rather than
+  // reshuffling between selection and handoff. IDs not in the order map sort last.
+  const orderById = new Map(questionIds.map((id, i) => [id, i]))
   return data
     .filter(
       (r): r is StudyQuestionRow =>
@@ -92,4 +96,9 @@ export async function getStudyQuestions(questionIds: string[]): Promise<StudyQue
         typeof (r as { correct_option_id?: unknown }).correct_option_id === 'string',
     )
     .map(toStudyQuestion)
+    .sort(
+      (a, b) =>
+        (orderById.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (orderById.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    )
 }

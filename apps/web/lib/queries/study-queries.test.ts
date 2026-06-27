@@ -56,12 +56,12 @@ describe('getStudyQuestions', () => {
     expect(result).toEqual([])
   })
 
-  it('throws when the RPC reports an error', async () => {
+  it('throws when loading study questions fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } })
     await expect(getStudyQuestions(['q-1'])).rejects.toThrow('Failed to fetch study questions')
   })
 
-  it('returns questions with camelCase fields from a valid RPC row', async () => {
+  it('maps a valid study question into the client shape', async () => {
     mockRpc.mockResolvedValue({ data: [makeRow()], error: null })
     const result = await getStudyQuestions(['q-1'])
     expect(result).toHaveLength(1)
@@ -90,7 +90,7 @@ describe('getStudyQuestions', () => {
     expect(result).toHaveLength(0)
   })
 
-  it('drops a row whose correct_option_id is not a string', async () => {
+  it('drops a question whose answer key is missing or invalid', async () => {
     mockRpc.mockResolvedValue({ data: [makeRow({ correct_option_id: null })], error: null })
     const result = await getStudyQuestions(['q-1'])
     expect(result).toHaveLength(0)
@@ -140,13 +140,13 @@ describe('getStudyQuestions', () => {
     expect(result).toEqual([])
   })
 
-  it('uses an empty string for questionText when question_text is null', async () => {
+  it('falls back to an empty prompt when the prompt is missing', async () => {
     mockRpc.mockResolvedValue({ data: [makeRow({ question_text: null })], error: null })
     const result = await getStudyQuestions(['q-1'])
     expect(result[0]!.questionText).toBe('')
   })
 
-  it('falls back to an empty string for questionText when the RPC returns a non-string value', async () => {
+  it('falls back to an empty prompt when the prompt is not text', async () => {
     // The new `typeof` guard (vs the old `?? ''`) must reject non-null non-string values
     // such as a number arriving from a malformed RPC row, not just null.
     mockRpc.mockResolvedValue({ data: [makeRow({ question_text: 42 })], error: null })
@@ -193,5 +193,17 @@ describe('getStudyQuestions', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_study_questions', {
       p_question_ids: ['id-1', 'id-2'],
     })
+  })
+
+  it('returns questions in the order the caller requested, regardless of RPC row order', async () => {
+    // The DB returns `WHERE id = ANY(...)` rows in arbitrary order. The deck must follow
+    // the caller's (randomly-sampled) selection order, so feed rows shuffled relative to
+    // the input and assert the result is re-sorted back to the requested order.
+    mockRpc.mockResolvedValue({
+      data: [makeRow({ id: 'id-c' }), makeRow({ id: 'id-a' }), makeRow({ id: 'id-b' })],
+      error: null,
+    })
+    const result = await getStudyQuestions(['id-a', 'id-b', 'id-c'])
+    expect(result.map((q) => q.id)).toEqual(['id-a', 'id-b', 'id-c'])
   })
 })

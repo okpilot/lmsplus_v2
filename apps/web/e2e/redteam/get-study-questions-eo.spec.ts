@@ -378,7 +378,26 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     expect((row?.options ?? []).length).toBeGreaterThan(0)
     for (const opt of row?.options ?? []) {
       expect('correct' in opt).toBe(false)
+      expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
     }
+
+    // Pin the EXACT top-level payload (RPC OUTPUT CONTRACTS rule): the RETURNS TABLE
+    // (mig 135 get_study_questions) declares exactly these 12 keys, so a future extra
+    // sensitive column (or a rename/drop) fails this assertion rather than leaking silently.
+    expect(Object.keys(row ?? {}).sort()).toEqual([
+      'correct_option_id',
+      'difficulty',
+      'explanation_image_url',
+      'explanation_text',
+      'id',
+      'options',
+      'question_image_url',
+      'question_number',
+      'question_text',
+      'subject_code',
+      'subtopic_name',
+      'topic_name',
+    ])
 
     // Full RETURNS TABLE shape (mig 20260626000200) — every field present and typed
     // correctly, so a rename/drop/shape regression fails here rather than in the UI.
