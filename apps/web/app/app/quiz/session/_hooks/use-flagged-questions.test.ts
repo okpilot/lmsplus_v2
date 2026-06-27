@@ -88,6 +88,33 @@ describe('useFlaggedQuestions', () => {
       errorSpy.mockRestore()
     })
 
+    it('keeps a flag the user toggled while the initial fetch was still in flight', async () => {
+      let rejectFetch: ((e: Error) => void) | undefined
+      mockGetFlaggedIds.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectFetch = reject
+        }),
+      )
+      mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
+
+      // User flags Q1 before the in-flight mount fetch settles.
+      await act(async () => {
+        await result.current.toggleFlag(Q1)
+      })
+      expect(result.current.flaggedIds.has(Q1)).toBe(true)
+
+      // The mount fetch then rejects — the optimistic toggle must NOT be wiped.
+      await act(async () => {
+        rejectFetch?.(new Error('network down'))
+      })
+      await waitFor(() => expect(errorSpy).toHaveBeenCalled())
+      expect(result.current.flaggedIds.has(Q1)).toBe(true)
+      errorSpy.mockRestore()
+    })
+
     it('skips re-fetch when the same questionIds reference is passed again', async () => {
       mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 

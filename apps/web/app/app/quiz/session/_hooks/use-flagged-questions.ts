@@ -27,10 +27,10 @@ export function useFlaggedQuestions(questionIds: string[]) {
         const result = await getFlaggedIds({ questionIds })
         if (!cancelled) setFlaggedIds(result.success ? new Set(result.flaggedIds) : new Set())
       } catch (err) {
-        // A transient failure on mount must not surface as an unhandled rejection;
-        // fall back to an empty flag set (the user can still flag/unflag afterwards).
+        // A transient failure on mount must not surface as an unhandled rejection.
+        // Leave the current set untouched — clearing here would erase a flag the user
+        // just toggled optimistically while this initial fetch was still in flight.
         console.error('[useFlaggedQuestions] initial fetch failed:', err)
-        if (!cancelled) setFlaggedIds(new Set())
       }
     })
 
