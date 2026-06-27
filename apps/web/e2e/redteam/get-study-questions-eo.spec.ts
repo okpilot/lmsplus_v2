@@ -528,6 +528,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     // Makes EO6 self-contained rather than relying on EO5 running first.
     const preflight = await studentClient.rpc(RPC, { p_question_ids: [egMcActiveId] })
     expect(preflight.error).toBeNull()
+    expect(Array.isArray(preflight.data)).toBe(true)
     const preflightRows = preflight.data as StudyQuestionRow[]
     expect(preflightRows).toHaveLength(1)
     expect(preflightRows[0]?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)

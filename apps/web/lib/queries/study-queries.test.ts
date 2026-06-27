@@ -146,6 +146,47 @@ describe('getStudyQuestions', () => {
     expect(result[0]!.questionText).toBe('')
   })
 
+  it('falls back to an empty string for questionText when the RPC returns a non-string value', async () => {
+    // The new `typeof` guard (vs the old `?? ''`) must reject non-null non-string values
+    // such as a number arriving from a malformed RPC row, not just null.
+    mockRpc.mockResolvedValue({ data: [makeRow({ question_text: 42 })], error: null })
+    const result = await getStudyQuestions(['q-1'])
+    expect(result[0]!.questionText).toBe('')
+  })
+
+  it('returns null for nullable string fields when the RPC returns a non-string value', async () => {
+    // All seven nullable fields use the same `typeof v === 'string' ? v : null` guard.
+    // A non-null, non-string value (e.g. a number from a shape regression) must coerce to null.
+    const row = makeRow({
+      subject_code: 99,
+      topic_name: true,
+      subtopic_name: [],
+      explanation_text: {},
+      explanation_image_url: 0,
+      question_number: false,
+      difficulty: null,
+    })
+    mockRpc.mockResolvedValue({ data: [row], error: null })
+    const result = await getStudyQuestions(['q-1'])
+    const q = result[0]!
+    expect(q.subjectCode).toBeNull()
+    expect(q.topicName).toBeNull()
+    expect(q.subtopicName).toBeNull()
+    expect(q.explanationText).toBeNull()
+    expect(q.explanationImageUrl).toBeNull()
+    expect(q.questionNumber).toBeNull()
+    expect(q.difficulty).toBeNull()
+  })
+
+  it('returns a string image URL when the RPC provides one for questionImageUrl', async () => {
+    // Positive path for the nullable image-URL field — validates the string branch of the
+    // `typeof` guard passes valid URLs through unchanged.
+    const row = makeRow({ question_image_url: 'https://cdn.example.com/img.png' })
+    mockRpc.mockResolvedValue({ data: [row], error: null })
+    const result = await getStudyQuestions(['q-1'])
+    expect(result[0]!.questionImageUrl).toBe('https://cdn.example.com/img.png')
+  })
+
   it('calls the get_study_questions RPC with the provided question ids', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     await getStudyQuestions(['id-1', 'id-2'])
