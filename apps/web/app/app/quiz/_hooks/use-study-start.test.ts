@@ -202,6 +202,11 @@ describe('useStudyStart — handleStart navigates to the session runner', () => 
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
+    // The handoff MUST be persisted before the terminal navigation — a nav that
+    // raced ahead of the write would strand the runner with no session to read.
+    expect(mockSessionStorageSetItem.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRouterPush.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    )
   })
 })
 

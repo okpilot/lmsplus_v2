@@ -123,7 +123,7 @@ describe('StudyConfigForm', () => {
   // ---- Hook wiring ---------------------------------------------------------
 
   describe('hook wiring', () => {
-    it('forwards userId and subjects into useStudyConfig', () => {
+    it('initializes the discovery config with the current user and subject list', () => {
       render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(mockUseStudyConfig).toHaveBeenCalledWith({ userId: USER_ID, subjects: SUBJECTS })
     })

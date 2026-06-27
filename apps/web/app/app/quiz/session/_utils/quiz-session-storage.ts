@@ -9,6 +9,12 @@ import {
   isValidRecordOf,
 } from './quiz-session-validators'
 
+// The localStorage active session may ONLY hold resumable modes. Discovery is
+// ephemeral (never persisted — checkpoint no-ops it, readActiveSession rejects a
+// persisted 'discovery'), so its mode must not be representable in the stored shape.
+// SessionData (the sessionStorage handoff) stays broad — it DOES carry 'discovery'.
+type ResumableSessionMode = Extract<SessionMode, 'study' | 'exam'>
+
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
 
 /** User-scoped key for the tab-scoped session handoff via sessionStorage. */
@@ -26,7 +32,8 @@ export type ActiveSession = {
   subjectCode?: string
   draftId?: string
   savedAt: number // Date.now()
-  mode?: SessionMode
+  // Persisted active sessions are resumable-only — never 'discovery' (see ResumableSessionMode above).
+  mode?: ResumableSessionMode
   // DB-level exam mode (mock_exam | internal_exam). Display-only; drives badge label
   // and UI gating (e.g., hides Discard for internal_exam). Defaults to mock_exam when
   // mode === 'exam' and examMode is absent.
@@ -270,7 +277,9 @@ export function buildActiveSession(
     subjectCode: opts.subjectCode,
     draftId: opts.draftId,
     savedAt: Date.now(),
-    mode: opts.mode,
+    // Coerce the never-reached 'discovery' to undefined so the persisted shape stays
+    // resumable-only (checkpoint already short-circuits discovery before this runs).
+    mode: opts.mode === 'discovery' ? undefined : opts.mode,
     examMode: opts.examMode,
     startedAt: opts.startedAt,
     timeLimitSeconds: opts.timeLimitSeconds,

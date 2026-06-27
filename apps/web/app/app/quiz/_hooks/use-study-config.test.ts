@@ -132,7 +132,7 @@ describe('useStudyConfig — initial state', () => {
 // ---- Start-hook wiring ----------------------------------------------------
 
 describe('useStudyConfig — start-hook wiring', () => {
-  it('forwards userId and subjects into useStudyStart', () => {
+  it('wires the current user and subject list into discovery start', () => {
     renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(useStudyStart).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_ID, subjects: SUBJECTS }),
