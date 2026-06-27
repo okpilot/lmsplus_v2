@@ -159,6 +159,16 @@ describe('useStudyStart — handleStart payload', () => {
       expect.objectContaining({ topicIds: ['t1', 't2'], subtopicIds: ['st1'] }),
     )
   })
+
+  it('passes topicIds array but undefined for subtopicIds when only topics are selected', async () => {
+    const { result } = renderHook(() =>
+      useStudyStart({ ...DEFAULT_OPTS, topicTree: makeTopicTree(['t1', 't2'], []) }),
+    )
+    await act(async () => result.current.handleStart())
+    expect(mockStartStudy).toHaveBeenCalledWith(
+      expect.objectContaining({ topicIds: ['t1', 't2'], subtopicIds: undefined }),
+    )
+  })
 })
 
 // ---- handleStart — happy path (navigate) ---------------------------------

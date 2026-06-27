@@ -1,14 +1,20 @@
 # Study Mode — Design
 
-## Data flow (session-free, mirrors quiz's two-step)
+## Data flow (ephemeral session, reuses quiz runner)
 ```
 StudyConfigForm (reuses quiz filter UI/hooks)
   → startStudy(filters) [Server Action]
       → getRandomQuestionIds(filters, questionType='multiple_choice')  [EXISTING, extended]
       → getStudyQuestions(ids)  → get_study_questions RPC  [NEW]
   → returns StudyQuestion[] (with correct_option_id + explanation)
-  → study tab swaps in-place to StudyRunner (client state)
-      → StudyFlashcard per question (QuestionCard + AnswerOptions[revealed] + explanation + flag)
+  → buildDiscoveryHandoff(questions)  [NEW hook, returns handoff with answers pre-marked]
+      → sessionStorage handoff: selectedOptionId = correctOptionId for each Q
+      → feedback state: MC (matching quiz-session receiver)
+  → router.push('/app/quiz/session')  [Navigate to shared runner]
+      → QuizSession (client state: mode='discovery', ephemeral sessionId, no DB row)
+      → Runner reused: prev/next, arrow keys, counter, flag button, explanation behind tab
+      → Correct option green (pre-marked review state visible on arrival)
+      → Finish button → Exit (no results page for discovery)
 ```
 
 ## DB
@@ -58,26 +64,33 @@ carve-out does NOT apply → `deleted_at IS NULL` is REQUIRED (present above).
   placement note in requirements.md). Discovery is the default first segment of ModeToggle.
 - `quiz/page.tsx` — no `studyContent` prop; SubjectsSection renders QuizConfigForm which
   handles Discovery via an early-return rendering StudyConfigForm as a sibling to Card 1.
-- `quiz/_components/study-section.tsx` — **DELETED** (subjects are now passed from
-  SubjectsSection via QuizConfigForm → StudyConfigForm as the `subjects` prop).
-- `quiz/_components/study-config-form.tsx` (new, client) — composes subject-select + topic-tree
-  + question-filters + question-count + Start button; renders `<StudyRunner>` once started.
-- `quiz/_hooks/use-study-config.ts` (new) — reuse use-quiz-config-state + use-topic-tree + use-filtered-count.
-- `quiz/_hooks/use-study-start.ts` (new) — calls startStudy; holds questions + loading/error.
-- `quiz/study/_components/study-runner.tsx` (new, client) — index + prev/next + arrow keys +
-  counter; `useFlaggedQuestions(ids)`; renders `<StudyFlashcard>`; empty-state.
-- `quiz/study/_components/study-flashcard.tsx` (new, client) — `QuestionCard` +
-  `AnswerOptions(options, correctOptionId, selectedOptionId=correctOptionId, disabled, isExam=false)`
-  [renders the key green] + explanation (MarkdownText + ZoomableImage) + flag button.
+- `quiz/_components/study-config-form.tsx` (client) — composes subject-select + topic-tree
+  + question-filters + question-count + Start button; calls startStudy (Server Action) → 
+  buildDiscoveryHandoff → router.push('/app/quiz/session').
+- `quiz/_hooks/use-study-config.ts` — reuse use-quiz-config-state + use-topic-tree + use-filtered-count.
+- `quiz/_hooks/use-study-start.ts` — calls startStudy; holds questions + loading/error.
+- `quiz/_hooks/build-discovery-handoff.ts` (new) — StudyQuestion[] → sessionStorage handoff 
+  payload with answers pre-marked (selectedOptionId = correctOptionId) + MC feedback state.
+- `quiz/session/_components/quiz-session.tsx` — receives sessionStorage handoff; derives `isDiscovery`
+  locally; skips grading (check_answer never fires for discovery), skips checkpoint (no-op 
+  for discovery), header "Finish" becomes "Exit" when isDiscovery, renders QuizFinishDialogHost 
+  (returns null for discovery, no results page).
+- `quiz/session/_components/quiz-finish-dialog-host.tsx` (new, extracted) — conditional 
+  render of FinishQuizDialog (returns null for discovery mode).
 
-## Reused unchanged
-subject-select, topic-tree, question-filters, question-count, use-quiz-config-state,
-use-topic-tree, use-filtered-count, QuestionCard, AnswerOptions, useFlaggedQuestions,
-toggleFlag/getFlaggedIds, MarkdownText, ZoomableImage, getRandomQuestionIds (extended).
+## Reused unchanged from quiz runner
+Existing QuizSession logic (runner navigation, flag, explanation tab, pre-marked review state).
+SessionMode widened to QuizMode; QuizModeToggle + StudyConfigForm + SubjectsSection. 
+HandoffValidator accepts 'discovery' mode. localStorage firewall still rejects persisted 
+'discovery' rows (same as practice modes). subject-select, topic-tree, question-filters, 
+question-count, use-quiz-config-state, use-topic-tree, use-filtered-count, QuestionCard, 
+AnswerOptions, useFlaggedQuestions, toggleFlag/getFlaggedIds, MarkdownText, ZoomableImage, 
+getRandomQuestionIds (extended).
 
 ## Tests / docs / red-team
-Unit (query, action, hooks, runner, flashcard); integration test for the new `.rpc` site
-(§7 HARD); db execution test for get_study_questions; red-team spec (auth, cross-org
+Unit (query, action, hooks, handoff); integration test for the new `.rpc` site
+(§7 HARD); db execution test for get_study_questions; e2e verification of handoff → 
+runner navigation + pre-marked review state visible; red-team spec (auth, cross-org
 non-vacuous, soft-deleted excluded, MC-only, `active_exam_session` mid-exam-oracle denial
-(deny-by-default: any active non-practice session → reject), positive control) + new
-vector ID; docs (database.md, decisions.md, security.md, plan.md).
+(deny-by-default: any active non-practice session → reject), positive control, oracle 
+attempt-block verification) + new vector ID; docs (database.md, decisions.md, security.md, plan.md).

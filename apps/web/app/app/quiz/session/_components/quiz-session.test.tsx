@@ -874,7 +874,10 @@ describe('QuizSession', () => {
 
   it('never calls the check-answer action in discovery mode', () => {
     renderDiscovery()
+    // Clicking the pre-selected correct option AND an unselected wrong option are both
+    // inert — the pre-answered guard keys on the question, not the chosen option.
     fireEvent.click(screen.getByTestId('option-a'))
+    fireEvent.click(screen.getByTestId('option-b'))
     expect(mockCheckAnswer).not.toHaveBeenCalled()
   })
 
@@ -890,6 +893,22 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
     const exitBtn = screen.getByRole('button', { name: 'Exit' })
     fireEvent.click(exitBtn)
+    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('lifecycle: opens pre-marked, allows navigation, and exits to /app/quiz', () => {
+    renderDiscovery()
+    // Entry: first question opens in reviewed state (correct option pre-selected)
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-a').dataset.correct).toBe('true')
+    // No scoring affordances present
+    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+    // Navigate to next question
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    expect(screen.getByTestId('option-c').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
+    // Exit navigates away — the only way to leave discovery
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
   })
 })

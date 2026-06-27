@@ -6,6 +6,29 @@ import type { UseStudyStartOpts } from '../session-types'
 import { buildDiscoveryHandoff } from './build-discovery-handoff'
 
 /**
+ * Write the pre-marked discovery handoff to sessionStorage. Returns false on a
+ * storage failure (private-mode SecurityError, quota) so the caller surfaces a
+ * message instead of navigating to an empty session.
+ */
+function writeDiscoveryHandoff(
+  userId: string,
+  questions: Parameters<typeof buildDiscoveryHandoff>[0],
+  subjectName?: string,
+  subjectCode?: string,
+): boolean {
+  try {
+    sessionStorage.setItem(
+      sessionHandoffKey(userId),
+      JSON.stringify(buildDiscoveryHandoff(questions, { userId, subjectName, subjectCode })),
+    )
+    return true
+  } catch (err) {
+    console.warn('[use-study-start] sessionStorage handoff failed:', err)
+    return false
+  }
+}
+
+/**
  * Drives "Start discovery". Mirrors use-quiz-start: navigates to /app/quiz/session
  * and reuses the real session runner. Fetches the MC-only pool, writes the
  * pre-marked handoff, then pushes. Empty/error → inline message, no navigation.
@@ -41,19 +64,7 @@ export function useStudyStart(opts: UseStudyStartOpts) {
       if (!result.success) return fail(result.error)
       if (result.questions.length === 0) return fail('No questions match these filters.')
       const subject = subjects.find((s) => s.id === subjectId)
-      try {
-        sessionStorage.setItem(
-          sessionHandoffKey(userId),
-          JSON.stringify(
-            buildDiscoveryHandoff(result.questions, {
-              userId,
-              subjectName: subject?.name,
-              subjectCode: subject?.short,
-            }),
-          ),
-        )
-      } catch (err) {
-        console.warn('[use-study-start] sessionStorage handoff failed:', err)
+      if (!writeDiscoveryHandoff(userId, result.questions, subject?.name, subject?.short)) {
         return fail('Unable to start discovery right now. Please try again.')
       }
       router.push('/app/quiz/session')

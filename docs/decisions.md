@@ -835,15 +835,24 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-### Decision 48: Study Mode shows MC answers immediately via a dedicated `get_study_questions` RPC (2026-06-26)
+### Decision 48: Study Mode (Discovery) reuses the real quiz runner with answers pre-marked (2026-06-26, reworked 2026-06-27)
 
-> **UI label:** the feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). Internal identifiers stay `study`: RPC `get_study_questions`, action `startStudy`, hooks `use-study-*`, components `StudyConfigForm`/`StudyRunner`/`StudyFlashcard`.
+> **UI label:** the feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). Internal identifiers stay `study`: RPC `get_study_questions`, action `startStudy`, hooks `use-study-*`, components `StudyConfigForm` (reuses quiz filter UI). The inline bespoke StudyRunner/StudyFlashcard were deleted; Discovery now navigates to `/app/quiz/session` and reuses the real quiz session runner wholesale.
 
-**Date**: 2026-06-26
+**Date**: 2026-06-26, reworked 2026-06-27
 
-**Context**: Study Mode is a self-paced MC flashcard feature where students practice questions and see the correct answer on-demand, with no session and no score. This is equivalent to the immediate feedback students already get in practice-mode graders (`check_quiz_answer`), except triggered on-demand rather than after submission. The feature needs an RPC to deliver MC questions with their answer keys. **Exam-integrity caveat:** mock/internal/VFR-RT exams grade from the SAME org MC pool and the exam runner hands the client each question's `id`, so an unguarded answer-key RPC would be a mid-exam answer oracle (a student could POST their live exam's IDs and read the keys). The original framing — "no exam integrity to protect" — was wrong; that property is *enforced*, not inherent.
+**Context**: Study Mode is a self-paced MC feature where students practice questions and see the correct answer on-demand, with no session and no score. This is equivalent to the immediate feedback students already get in practice-mode graders (`check_quiz_answer`), except triggered on-demand rather than after submission. The feature needs an RPC to deliver MC questions with their answer keys. **Exam-integrity caveat:** mock/internal/VFR-RT exams grade from the SAME org MC pool and the exam runner hands the client each question's `id`, so an unguarded answer-key RPC would be a mid-exam answer oracle (a student could POST their live exam's IDs and read the keys). The original framing — "no exam integrity to protect" — was wrong; that property is *enforced*, not inherent.
 
 **Decision**: Create a dedicated `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC (mig 135) that returns MC questions WITH the `correct_option_id` answer key and explanation in the response payload. This is a **DELIBERATE answer-key exposure** — the student-facing surface is explicitly designed to show the answer. The RPC reads by arbitrary caller-supplied question IDs (unlike session-bound queries that read via the frozen config), so `deleted_at IS NULL` + `status='active'` filters are **REQUIRED** — a caller must not be able to surface a soft-deleted/retired question's key. Options are returned in **STORED order** (not shuffled) since the answer is already visible. **Single-active-session guard:** the RPC raises `active_exam_session` when the caller has any active (`ended_at IS NULL AND deleted_at IS NULL`) exam-mode session (`mock_exam`/`internal_exam`/`vfr_rt_exam`) — Study Mode is unavailable while a graded exam is live, enforced server-side (the UI gate is bypassable). Practice modes are excluded (they already reveal answers via `check_quiz_answer`).
+
+**Rework (2026-06-27):** The original design (inline bespoke StudyRunner/StudyFlashcard components on the setup page) was rejected in manual evaluation. Reworked to reuse the real quiz session runner. "Start discovery" now:
+1. Calls `getStudyQuestions()` to fetch MC questions with answer keys
+2. Builds a sessionStorage handoff via `build-discovery-handoff` (StudyQuestion[] → answers pre-marked with `selectedOptionId = correctOptionId` + MC-typed feedback state), mirroring the `use-quiz-start` pattern
+3. Navigates to `/app/quiz/session` — the exact existing quiz runner, reused wholesale
+4. Runner receives an ephemeral `mode: 'discovery'` session (client-generated crypto.randomUUID sessionId, no `quiz_sessions` DB row) — no grading, no checkpoint persistence, header "Finish" button becomes "Exit", FinishQuizDialog returns null (no results to show)
+5. Explanation stays behind its existing tab; correct option is green (pre-marked review state)
+
+Ephemeral sessions are verified at the handoff validator boundary (accepts `mode: 'discovery'`) but the localStorage active-session firewall rejects persisted discovery rows (same as practice modes). SessionMode is widened to QuizMode; isDiscovery is derived locally in `quiz-session.tsx`. No new DB constraints or migrations beyond mig 135.
 
 **Rationale**: Study Mode is educational feedback, not a data leak. The privilege-layer REVOKE (`SELECT correct_option_id` denied to `authenticated`) still prevents accidental client-side exposure via direct PostgREST reads (42501). The RPC is the *intended* path for answer keys in this context. Exam-integrity is preserved by the active-exam-session guard (above), which mirrors `check_quiz_answer`'s practice-only rejection — so the keys can never be read while a graded exam is in progress.
 

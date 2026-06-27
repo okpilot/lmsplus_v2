@@ -98,8 +98,12 @@ vi.mock('./exam-config-form', () => ({
 }))
 
 vi.mock('./study-config-form', () => ({
-  StudyConfigForm: ({ unseenLabel }: { unseenLabel?: string }) => (
-    <div data-testid="study-config-form" data-unseen-label={unseenLabel ?? ''}>
+  StudyConfigForm: ({ unseenLabel, userId }: { unseenLabel?: string; userId?: string }) => (
+    <div
+      data-testid="study-config-form"
+      data-unseen-label={unseenLabel ?? ''}
+      data-user-id={userId ?? ''}
+    >
       StudyConfigForm
     </div>
   ),
@@ -351,6 +355,15 @@ describe('QuizConfigForm', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
     expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-unseen-label', 'Unseen')
+  })
+
+  it('forwards the userId to the discovery configuration form', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
+    render(<QuizConfigForm userId="my-specific-user" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(screen.getByTestId('study-config-form')).toHaveAttribute(
+      'data-user-id',
+      'my-specific-user',
+    )
   })
 
   it('passes "Unanswered" as the filter label when in study mode and a subject is selected', () => {
