@@ -8,6 +8,9 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
+  // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+
   // 2. Select the first subject from the collapsible panel
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
@@ -38,7 +41,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
 
     // Navigate to next question (or finish on the last one)
     if (i < 9) {
-      await page.getByRole('button', { name: 'Next' }).click()
+      await page.getByRole('button', { name: 'Next ›' }).click()
     }
   }
 
