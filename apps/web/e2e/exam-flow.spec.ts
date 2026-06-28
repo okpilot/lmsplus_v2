@@ -68,7 +68,7 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
     }
 
     // ── 3. Switch to Practice Exam mode ────────────────────────────────────
-    // The ModeToggle renders two buttons: "Study" and "Practice Exam".
+    // The ModeToggle renders three buttons: "Discovery", "Study" and "Practice Exam".
     // "Practice Exam" is disabled unless examSubjects.length > 0.
     const examModeButton = page.getByRole('button', { name: 'Practice Exam', exact: true })
     await examModeButton.waitFor({ state: 'visible', timeout: 10_000 })

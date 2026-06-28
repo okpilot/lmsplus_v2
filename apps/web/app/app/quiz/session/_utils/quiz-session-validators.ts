@@ -106,7 +106,7 @@ export function hasValidOptionalFields(d: Record<string, unknown>, questionCount
     isOptionalFieldValid(d, 'draftId', (v) => isNonEmptyString(v)) &&
     isOptionalFieldValid(d, 'subjectName', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'subjectCode', (v) => typeof v === 'string') &&
-    isOptionalFieldValid(d, 'mode', (v) => v === 'study' || v === 'exam') &&
+    isOptionalFieldValid(d, 'mode', (v) => v === 'study' || v === 'exam' || v === 'discovery') &&
     isOptionalFieldValid(d, 'examMode', (v) =>
       (EXAM_MODES as readonly string[]).includes(v as string),
     ) &&

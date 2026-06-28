@@ -446,6 +446,35 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result?.mode).toBe('exam')
   })
 
+  // The active-session firewall only resumes 'study'/'exam' from localStorage.
+  // 'discovery' is now a valid SessionMode for the ephemeral handoff path, but it is
+  // still rejected here because Discovery is browse-only and never persists — a stored
+  // mode: 'discovery' is a stale/tampered payload. null is the most realistic
+  // tampered-JSON shape; a number covers non-string garbage.
+  it.each([
+    { label: "the string 'discovery' (still firewalled — never persists)", mode: 'discovery' },
+    { label: 'a null', mode: null },
+    { label: 'a non-string number', mode: 42 },
+  ])('rejects a persisted session whose mode is $label', ({ mode }) => {
+    const tampered = JSON.stringify({ ...makeSession(), mode })
+    mockStorage._store.set(STORAGE_KEY, tampered)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('accepts a persisted session with mode: study', () => {
+    const valid = makeSession({ mode: 'study' })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('study')
+  })
+
   it('rejects mode: exam entries where startedAt is an unparseable string', () => {
     const broken = makeSession({
       mode: 'exam',

@@ -19,14 +19,24 @@ export function useFlaggedQuestions(questionIds: string[]) {
       return
     }
 
+    // Ignore a late-resolving fetch once questionIds has changed, so a stale result
+    // can't overwrite the flag state for the current question set.
+    let cancelled = false
     startTransition(async () => {
-      const result = await getFlaggedIds({ questionIds })
-      if (result.success) {
-        setFlaggedIds(new Set(result.flaggedIds))
-      } else {
-        setFlaggedIds(new Set())
+      try {
+        const result = await getFlaggedIds({ questionIds })
+        if (!cancelled) setFlaggedIds(result.success ? new Set(result.flaggedIds) : new Set())
+      } catch (err) {
+        // A transient failure on mount must not surface as an unhandled rejection.
+        // Leave the current set untouched — clearing here would erase a flag the user
+        // just toggled optimistically while this initial fetch was still in flight.
+        console.error('[useFlaggedQuestions] initial fetch failed:', err)
       }
     })
+
+    return () => {
+      cancelled = true
+    }
   }, [questionIds])
 
   const toggle = useCallback(async (questionId: string) => {
@@ -44,6 +54,12 @@ export function useFlaggedQuestions(questionIds: string[]) {
         })
       }
       return result.success
+    } catch (err) {
+      // The Server Action can reject on a transient network failure. Swallow it
+      // here so the click handler never produces an unhandled rejection; the flag
+      // simply stays unchanged and the user can retry.
+      console.error('[useFlaggedQuestions] toggle failed:', err)
+      return false
     } finally {
       pendingRef.current.delete(questionId)
       setPendingIds((prev) => {

@@ -21,6 +21,12 @@ test('progress page updates after completing a quiz', async ({ page }) => {
 
   // 2. Complete a quiz with 10 questions (smallest preset)
   await page.goto('/app/quiz')
+  // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()
@@ -41,7 +47,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
 
     if (i < 9) {
-      await page.getByRole('button', { name: 'Next' }).click()
+      await page.getByRole('button', { name: 'Next ›' }).click()
     }
   }
 

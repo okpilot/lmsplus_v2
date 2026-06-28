@@ -67,6 +67,54 @@ describe('useFlaggedQuestions', () => {
       expect(result.current.flaggedIds.size).toBe(0)
     })
 
+    it('leaves flaggedIds empty when the initial fetch rejects', async () => {
+      mockGetFlaggedIds.mockRejectedValue(new Error('network down'))
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
+
+      // Wait for the rejection to SETTLE (the catch block logs the error) — not just
+      // for the call to start — so assertions run after the error path has fully fired.
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled()
+      })
+
+      // A rejection on mount is absorbed (no unhandled rejection) and degrades to no flags.
+      expect(result.current.flaggedIds.size).toBe(0)
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[useFlaggedQuestions]'),
+        expect.any(Error),
+      )
+      errorSpy.mockRestore()
+    })
+
+    it('keeps a flag the user toggled while the initial fetch was still in flight', async () => {
+      let rejectFetch: ((e: Error) => void) | undefined
+      mockGetFlaggedIds.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectFetch = reject
+        }),
+      )
+      mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
+
+      // User flags Q1 before the in-flight mount fetch settles.
+      await act(async () => {
+        await result.current.toggleFlag(Q1)
+      })
+      expect(result.current.flaggedIds.has(Q1)).toBe(true)
+
+      // The mount fetch then rejects — the optimistic toggle must NOT be wiped.
+      await act(async () => {
+        rejectFetch?.(new Error('network down'))
+      })
+      await waitFor(() => expect(errorSpy).toHaveBeenCalled())
+      expect(result.current.flaggedIds.has(Q1)).toBe(true)
+      errorSpy.mockRestore()
+    })
+
     it('skips re-fetch when the same questionIds reference is passed again', async () => {
       mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 
@@ -98,6 +146,39 @@ describe('useFlaggedQuestions', () => {
       await waitFor(() => {
         expect(mockGetFlaggedIds).toHaveBeenCalledTimes(2)
       })
+    })
+
+    it('ignores a fetch that resolves after questionIds has already changed', async () => {
+      // Two controllable fetches; the first (for IDS_Q1) is resolved LATE, after the
+      // second (for IDS_Q1_Q2) has settled. The stale first result must not win.
+      const resolvers: Array<(v: { success: true; flaggedIds: string[] }) => void> = []
+      mockGetFlaggedIds.mockImplementation(() => new Promise((resolve) => resolvers.push(resolve)))
+
+      const { result, rerender } = renderHook(({ ids }) => useFlaggedQuestions(ids), {
+        initialProps: { ids: IDS_Q1 },
+      })
+      await waitFor(() => expect(mockGetFlaggedIds).toHaveBeenCalledOnce())
+
+      // questionIds changes before the first fetch resolves — the first effect is cancelled.
+      rerender({ ids: IDS_Q1_Q2 })
+      await waitFor(() => expect(mockGetFlaggedIds).toHaveBeenCalledTimes(2))
+
+      const [resolveFirst, resolveSecond] = resolvers
+      expect(resolveFirst).toBeDefined()
+      expect(resolveSecond).toBeDefined()
+
+      // Resolve the current (second) fetch first: Q2 becomes flagged.
+      await act(async () => {
+        resolveSecond?.({ success: true, flaggedIds: [Q2] })
+      })
+      expect(result.current.isFlagged(Q2)).toBe(true)
+
+      // The stale first fetch resolves late with Q1 — it must be discarded.
+      await act(async () => {
+        resolveFirst?.({ success: true, flaggedIds: [Q1] })
+      })
+      expect(result.current.isFlagged(Q1)).toBe(false)
+      expect(result.current.isFlagged(Q2)).toBe(true)
     })
   })
 
@@ -175,6 +256,35 @@ describe('useFlaggedQuestions', () => {
 
       expect(ok).toBe(false)
       expect(result.current.isFlagged(Q1)).toBe(false)
+    })
+
+    it('returns false and leaves state unchanged when the server action rejects', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+      mockToggleFlag.mockRejectedValue(new Error('network down'))
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.toggleFlag(Q1)
+      })
+
+      // A rejection is absorbed (no unhandled rejection): toggle resolves false,
+      // the flag stays off, and the pending lock is released so a retry is possible.
+      expect(ok).toBe(false)
+      expect(result.current.isFlagged(Q1)).toBe(false)
+      expect(result.current.isToggling(Q1)).toBe(false)
+      // The rejection is logged server-side (asserting keeps the log from being dropped).
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[useFlaggedQuestions]'),
+        expect.any(Error),
+      )
+      errorSpy.mockRestore()
     })
 
     it('tracks multiple questions flagged independently', async () => {

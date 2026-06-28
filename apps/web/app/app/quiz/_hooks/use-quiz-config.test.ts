@@ -87,12 +87,12 @@ beforeEach(() => {
 // ---- Initial state --------------------------------------------------------
 
 describe('useQuizConfig — initial state', () => {
-  it('starts with no subject, study mode, filters=[all], count=10', () => {
+  it('starts with no subject, discovery mode, filters=[all], count=10', () => {
     const { result } = renderHook(() =>
       useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
     )
     expect(result.current.subjectId).toBe('')
-    expect(result.current.mode).toBe('study')
+    expect(result.current.mode).toBe('discovery')
     expect(result.current.filters).toEqual(['all'])
     expect(result.current.count).toBe(10)
   })

@@ -6,7 +6,7 @@ import {
   readActiveSession,
   sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
-import type { UseQuizStartOpts } from '../types'
+import type { UseQuizStartOpts } from '../session-types'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
   const {

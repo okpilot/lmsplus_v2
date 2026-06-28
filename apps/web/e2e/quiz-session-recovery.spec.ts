@@ -22,6 +22,13 @@ async function startAndAbandonQuiz(
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
+  // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+
   // Configure: select first subject, all available questions
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
@@ -153,6 +160,13 @@ test.describe('Quiz Session Recovery', () => {
     await startAndAbandonQuiz(page, 2)
 
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
+
+    // The fresh quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+    await page.getByRole('button', { name: 'Study', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
     // Configure a new quiz
     const subjectTrigger = page.locator('[data-testid="subject-trigger"]')

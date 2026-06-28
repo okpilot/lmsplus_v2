@@ -356,6 +356,26 @@ Post-session report queries may read the `correct_option_id` from questions serv
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
+### Study Mode Exception: On-Demand Answer Keys (Mig 135)
+
+> **UI label:** this feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). The RPC name, action name, and all internal identifiers remain `study`/`get_study_questions`/`startStudy`.
+
+Study Mode is a **self-paced MC flashcard practice surface** where students request questions on-demand and are shown the correct answer immediately, with no session and no score. The `get_study_questions(p_question_ids uuid[])` RPC (mig 135, feat/study-mode-mc) returns MC questions WITH `correct_option_id` and `explanation_text` directly in the response payload. This is **DELIBERATE answer-key exposure** — the feature is explicitly designed around immediate feedback, equivalent to the post-session report loop but triggered on-demand instead of after completion.
+
+**Exam-integrity is NOT automatic here** — it is enforced by the active-exam-session guard (item 6 below). Mock, internal, and VFR-RT exams grade from the **same org MC pool**, and the exam runner legitimately hands the client each question's `id` (`get_quiz_questions` / `get_vfr_rt_exam_questions` return `q.id`). Without a guard, a student mid-exam could POST those IDs straight to this RPC and read the answer keys — a mid-exam answer oracle that would nullify the practice-only guard in `check_quiz_answer` (mig 117). The guard closes that hole.
+
+**Guard set (mirrors session-bound query paths):**
+1. Auth check + active-caller gate (security.md rules 7 + 12)
+2. Tenant-scope filter — resolves the caller's org in one deleted_at-filtered read (rejects a soft-deleted caller AND scopes the question pool so a foreign-org ID cannot leak)
+3. Soft-delete + status filters — `q.deleted_at IS NULL AND q.status = 'active'` (required; see note below)
+4. Type filter — `q.question_type = 'multiple_choice'`
+5. Options returned in **stored order** (no shuffle — the answer is visible anyway)
+6. **Mid-exam answer-oracle guard** — `RAISE 'active_exam_session'` when the caller has any active session (`ended_at IS NULL AND deleted_at IS NULL`) in an exam mode (`mock_exam`, `internal_exam`, `vfr_rt_exam`). This is the server-side enforcement of the single-active-session rule: Study Mode (which reveals keys) is unavailable while an exam is live. Implemented **deny-by-default** (`mode NOT IN ('smart_review','quick_quiz')`, the two practice modes) rather than a positive exam whitelist — so a future exam-like mode added to the `quiz_sessions.mode` CHECK is blocked automatically (fail-closed), matching `check_quiz_answer`'s negative mode guard. Practice modes are excluded because they already reveal answers via `check_quiz_answer`, so blocking them adds no protection. The UI also gates this, but the RPC must self-defend because it is `GRANT EXECUTE TO authenticated` and reachable directly. Red-team coverage: Vector EO6.
+
+**§15 carve-out does NOT apply.** Report RPCs omit the `deleted_at` filter because they read questions via the immutable, write-once `quiz_sessions.config.question_ids`. Study Mode reads by **arbitrary caller-supplied `p_question_ids`**, so the soft-delete filter and `status='active'` guard are **REQUIRED** — a caller must not be able to surface a soft-deleted or retired question's answer key.
+
+**Why it's safe:** The privilege layer (`REVOKE SELECT (correct_option_id)`) still prevents accidental exposure via direct PostgREST reads (42501). The RPC is the *intended* path for answer keys in this context. The active-exam-session guard (item 6) ensures the keys can never be read while a graded exam is in progress, so the immediate-feedback design has no exam-integrity impact. Outside an exam, students requesting questions they already know the answer to is the intended behavior — not a failure mode.
+
 ---
 
 ## 5. Service Role Key

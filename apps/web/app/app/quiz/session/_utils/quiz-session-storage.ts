@@ -1,4 +1,5 @@
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
+import type { SessionMode } from '../../session-types'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import {
   hasValidOptionalFields,
@@ -7,6 +8,12 @@ import {
   isValidFeedbackEntry,
   isValidRecordOf,
 } from './quiz-session-validators'
+
+// The localStorage active session may ONLY hold resumable modes. Discovery is
+// ephemeral (never persisted — checkpoint no-ops it, readActiveSession rejects a
+// persisted 'discovery'), so its mode must not be representable in the stored shape.
+// SessionData (the sessionStorage handoff) stays broad — it DOES carry 'discovery'.
+type ResumableSessionMode = Extract<SessionMode, 'study' | 'exam'>
 
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
 
@@ -25,7 +32,8 @@ export type ActiveSession = {
   subjectCode?: string
   draftId?: string
   savedAt: number // Date.now()
-  mode?: 'study' | 'exam'
+  // Persisted active sessions are resumable-only — never 'discovery' (see ResumableSessionMode above).
+  mode?: ResumableSessionMode
   // DB-level exam mode (mock_exam | internal_exam). Display-only; drives badge label
   // and UI gating (e.g., hides Discard for internal_exam). Defaults to mock_exam when
   // mode === 'exam' and examMode is absent.
@@ -115,6 +123,17 @@ export function readActiveSession(userId: string): ActiveSession | null {
       safeRemove(userId)
       return null
     }
+    // Active-session firewall: only 'study' and 'exam' may resume from localStorage.
+    // Discovery is browse-only and never persists, so a payload with mode: 'discovery'
+    // (or garbage) must not be trusted past the cast. This intentionally DIVERGES from
+    // the handoff validator (quiz-session-validators L109), which DOES admit 'discovery'
+    // for the ephemeral sessionStorage entry path — that path is a one-shot, freshly
+    // built by Discovery start, never a stale/tampered resume. undefined is the legacy
+    // practice case and stays valid.
+    if (data.mode !== undefined && data.mode !== 'study' && data.mode !== 'exam') {
+      safeRemove(userId)
+      return null
+    }
     // Exam mode requires startedAt + timeLimitSeconds for the timer.
     // Reject pre-ship localStorage entries that lack these fields, and reject
     // garbage values (NaN/Infinity/non-positive timeLimit, unparseable startedAt).
@@ -155,7 +174,7 @@ export type SessionData = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
   timeLimitSeconds?: number
   passMark?: number
@@ -234,7 +253,7 @@ type BuildOpts = {
   subjectName?: string
   subjectCode?: string
   draftId?: string
-  mode?: 'study' | 'exam'
+  mode?: SessionMode
   examMode?: DbQuizMode
   startedAt?: string
   timeLimitSeconds?: number
@@ -258,7 +277,9 @@ export function buildActiveSession(
     subjectCode: opts.subjectCode,
     draftId: opts.draftId,
     savedAt: Date.now(),
-    mode: opts.mode,
+    // Coerce the never-reached 'discovery' to undefined so the persisted shape stays
+    // resumable-only (checkpoint already short-circuits discovery before this runs).
+    mode: opts.mode === 'discovery' ? undefined : opts.mode,
     examMode: opts.examMode,
     startedAt: opts.startedAt,
     timeLimitSeconds: opts.timeLimitSeconds,
