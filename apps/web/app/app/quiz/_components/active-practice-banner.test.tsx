@@ -75,8 +75,12 @@ describe('ActivePracticeBanner — Discard', () => {
     await waitFor(() =>
       expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-prac-001' }),
     )
-    expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText(/^unfinished quick quiz session$/i)).not.toBeInTheDocument()
+    // The async handler refreshes + removes the banner after discardQuiz resolves —
+    // wait for that observable success state rather than asserting synchronously.
+    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(screen.queryByText(/^unfinished quick quiz session$/i)).not.toBeInTheDocument(),
+    )
   })
 
   it('shows the error visibly inside the open dialog when discard fails', async () => {

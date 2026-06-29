@@ -76,6 +76,18 @@ type ActiveSessionRow = {
   ended_at: string | null
 }
 
+// §5 cast-guards: DB/RPC results are `unknown`-shaped at runtime — guard fields
+// before treating a Supabase row as the typed shape, so a null/shape regression
+// fails as a clean assertion instead of an opaque TypeError.
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+
+const isActiveSessionRow = (v: unknown): v is ActiveSessionRow =>
+  isRecord(v) &&
+  typeof v.id === 'string' &&
+  typeof v.mode === 'string' &&
+  (typeof v.deleted_at === 'string' || v.deleted_at === null) &&
+  (typeof v.ended_at === 'string' || v.ended_at === null)
+
 test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -113,7 +125,8 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       .is('deleted_at', null)
     if (error) throw new Error(`readActiveSessions: ${error.message}`)
     if (!Array.isArray(data)) throw new Error('readActiveSessions: unexpected response shape')
-    return data as ActiveSessionRow[]
+    if (!data.every(isActiveSessionRow)) throw new Error('readActiveSessions: unexpected row shape')
+    return data
   }
 
   // Insert an active session of `mode` directly (service-role bypasses RLS, not the
@@ -125,7 +138,9 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       .select('id')
       .single()
     if (error || !data) throw new Error(`seedActiveSession(${mode}): ${error?.message}`)
-    return data.id as string
+    if (!isRecord(data) || typeof data.id !== 'string')
+      throw new Error(`seedActiveSession(${mode}): unexpected insert response shape`)
+    return data.id
   }
 
   test.beforeAll(async () => {
@@ -160,7 +175,9 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     if (qsErr) throw new Error(`beforeAll questions: ${qsErr.message}`)
     if (!Array.isArray(qs) || qs.length < 2)
       throw new Error('beforeAll: need at least two active egmont questions to seed from')
-    questionIds = (qs as Array<{ id: string }>).map((q) => q.id)
+    if (!qs.every((q): q is { id: string } => isRecord(q) && typeof q.id === 'string'))
+      throw new Error('beforeAll: unexpected question row shape')
+    questionIds = qs.map((q) => q.id)
 
     // Ensure an enabled exam_config + distribution so start_exam_session can reach
     // its INSERT (rather than fail on config lookup) for EP/EQ/ER.
@@ -348,6 +365,19 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       .single()
     expect(firstRowErr).toBeNull()
     expect(firstRow?.deleted_at).not.toBeNull()
+
+    // §7 idempotency: the replacement session persists the DISTINCT input question
+    // set (slice(0, 2)), not a hardcoded or first-start set — so a regression that
+    // ignores the repeat's question_ids fails here.
+    const { data: secondRow, error: secondRowErr } = await admin
+      .from('quiz_sessions')
+      .select('config')
+      .eq('id', secondId)
+      .single()
+    expect(secondRowErr).toBeNull()
+    expect(isRecord(secondRow) && isRecord(secondRow.config)).toBe(true)
+    const secondConfig = (secondRow as { config: Record<string, unknown> }).config
+    expect(secondConfig.question_ids).toEqual(questionIds.slice(0, 2))
   })
 
   test('ET: the global unique index blocks a direct second active session insert (23505)', async () => {

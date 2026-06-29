@@ -70,4 +70,10 @@ describe('createDiscoverySession', () => {
     const result = await createDiscoverySession(SUBJECT_ID, IDS)
     expect(result).toEqual({ id: null, error: 'Failed to start study session' })
   })
+
+  it('returns a sanitized failure instead of throwing when the RPC rejects', async () => {
+    mockRpc.mockRejectedValue(new Error('boom'))
+    const result = await createDiscoverySession(SUBJECT_ID, IDS)
+    expect(result).toEqual({ id: null, error: 'Failed to start study session' })
+  })
 })

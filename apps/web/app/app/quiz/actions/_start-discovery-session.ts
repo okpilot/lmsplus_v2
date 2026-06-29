@@ -22,18 +22,25 @@ export async function createDiscoverySession(
   subjectId: string,
   ids: string[],
 ): Promise<{ id: string | null; error: string | null }> {
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await rpc<string>(supabase, 'start_discovery_session', {
-    p_subject_id: subjectId,
-    p_question_ids: ids,
-  })
-  if (error) {
-    console.error('[startStudy] start_discovery_session error:', error.message)
-    return { id: null, error: mapDiscoveryStartError(error.message) }
-  }
-  if (typeof data !== 'string' || data.length === 0) {
-    console.error('[startStudy] start_discovery_session returned no session id')
+  try {
+    const supabase = await createServerSupabaseClient()
+    const { data, error } = await rpc<string>(supabase, 'start_discovery_session', {
+      p_subject_id: subjectId,
+      p_question_ids: ids,
+    })
+    if (error) {
+      console.error('[startStudy] start_discovery_session error:', error.message)
+      return { id: null, error: mapDiscoveryStartError(error.message) }
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      console.error('[startStudy] start_discovery_session returned no session id')
+      return { id: null, error: 'Failed to start study session' }
+    }
+    return { id: data, error: null }
+  } catch (error) {
+    // createServerSupabaseClient() (missing env) or the RPC transport can throw —
+    // honor the structured { id, error } contract instead of escaping it.
+    console.error('[startStudy] start_discovery_session threw unexpectedly:', error)
     return { id: null, error: 'Failed to start study session' }
   }
-  return { id: data, error: null }
 }

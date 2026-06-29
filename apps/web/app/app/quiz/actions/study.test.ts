@@ -213,6 +213,19 @@ describe('startStudy — discovery session', () => {
     )
   })
 
+  it('tears down the discovery row and fails when no questions come back for non-empty ids', async () => {
+    // getStudyQuestions can return [] even for a non-empty id set (every id filtered by
+    // the RPC's soft-delete/status guards in a race). The just-created discovery row must
+    // be torn down — otherwise it stays active and blocks the next start.
+    mockGetStudyQuestions.mockResolvedValue([])
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to start study session')
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
+  })
+
   it('does not tear down a discovery row when the id fetch fails before one is created', async () => {
     mockGetRandomQuestionIds.mockRejectedValue(new Error('DB connection timeout'))
     await startStudy(VALID_INPUT)

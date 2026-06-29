@@ -28,16 +28,30 @@ describe('useDiscoveryExit', () => {
     mockEndDiscovery.mockResolvedValue({ success: true })
   })
 
-  it('ends the discovery session before navigating back to the quiz picker', async () => {
+  it('does not navigate until the discovery teardown settles', async () => {
+    // Hold the teardown on a deferred promise so we can observe the gap between
+    // "handler started" and "teardown resolved". Invocation order alone would pass
+    // even if router.replace fired while endDiscovery was still pending — the §6
+    // guarantee is that the nav waits for the Server Action to SETTLE.
+    let resolveTeardown!: () => void
+    mockEndDiscovery.mockReturnValue(
+      new Promise<{ success: true }>((res) => {
+        resolveTeardown = () => res({ success: true })
+      }),
+    )
+
     const { result } = renderHook(() => useDiscoveryExit())
-    await result.current()
+    const pending = result.current()
+    // Let the handler reach its await — the nav must NOT have fired yet.
+    await Promise.resolve()
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+
+    resolveTeardown()
+    await pending
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
-    // Teardown must settle before the terminal navigation (code-style.md §6).
-    expect(mockEndDiscovery.mock.invocationCallOrder[0]!).toBeLessThan(
-      mockReplace.mock.invocationCallOrder[0]!,
-    )
   })
 
   it('navigates back to the quiz picker even when the teardown rejects', async () => {
