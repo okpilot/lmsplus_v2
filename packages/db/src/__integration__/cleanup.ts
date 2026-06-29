@@ -3,6 +3,37 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type ReferenceIds = { subjectId: string; topicId: string; subtopicId: string | null }
 
 /**
+ * Soft-delete every ACTIVE (`ended_at IS NULL AND deleted_at IS NULL`) quiz_sessions
+ * row for the given org's test users. Call from a per-test `beforeEach` so every test
+ * starts with a clean slate under the single-active-session invariant (#1011): the
+ * partial unique index `uq_one_active_session_per_student` allows at most one active
+ * session per student, and every start RPC raises `another_session_active` on a second.
+ * Suites that reuse one test student across many tests and only clean up in `afterAll`
+ * otherwise accumulate active sessions, so the 2nd+ `start_quiz_session` call fails (or a
+ * direct exam-mode INSERT hits the index). SOFT-delete (UPDATE deleted_at), not hard:
+ * the index only counts rows where `deleted_at IS NULL`, so soft-deleting frees the slot
+ * while leaving the row for `afterAll` cleanupTestData() to hard-remove. Org-scoped covers
+ * every test user in the suite's throwaway org.
+ */
+export async function clearActiveSessions(opts: {
+  admin: SupabaseClient
+  orgId: string
+}): Promise<void> {
+  const { admin, orgId } = opts
+  const { data, error } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('organization_id', orgId)
+    .is('ended_at', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`clearActiveSessions: ${error.message}`)
+  if ((data?.length ?? 0) > 0) {
+    console.log(`[clearActiveSessions] soft-deleted ${data?.length} active session(s)`)
+  }
+}
+
+/**
  * Await a teardown DELETE and log (not throw) on error. Best-effort: one table's failure
  * must not abort the rest of cleanup, and a silent error would leave orphaned test data
  * with no signal (code-style.md §5 — destructure and check `{ error }`).

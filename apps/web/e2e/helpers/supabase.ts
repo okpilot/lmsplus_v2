@@ -391,6 +391,55 @@ export async function cleanupInternalExamStudentActiveSessions(
   }
 }
 
+/**
+ * Soft-delete ALL active (ended_at IS NULL AND deleted_at IS NULL) quiz_sessions
+ * for the student identified by `studentEmail`, across every mode.
+ *
+ * Why this exists (#1011): the single-active-session invariant (mig 136) lets a
+ * student hold at most ONE active session. Specs that share a test student and
+ * start a session without ending it leak an active row into the next test, whose
+ * start RPC then raises `another_session_active` (or a direct admin INSERT of an
+ * active session hits uq_one_active_session_per_student → 23505). Call this in a
+ * `beforeEach` so each test starts from a clean, no-active-session baseline —
+ * this covers both the start-RPC path and the direct-INSERT seeding path.
+ *
+ * Service-role soft-delete (not hard-delete): quiz_sessions has FK children and
+ * the project rule is soft-delete via `deleted_at` (docs/security.md rule 6).
+ * Chain `.select('id')` per code-style.md §5 zero-row no-op rule — zero active
+ * sessions is a valid steady state, so only log when a row actually changed.
+ */
+export async function cleanupStudentActiveSessions(studentEmail: string): Promise<void> {
+  const admin = getAdminClient()
+
+  const { data: studentRow, error: studentError } = await admin
+    .from('users')
+    .select('id')
+    .eq('email', studentEmail)
+    .maybeSingle()
+  if (studentError)
+    throw new Error(
+      `cleanupStudentActiveSessions student (${studentEmail}): ${studentError.message}`,
+    )
+  if (!studentRow) return
+
+  const { data: discarded, error: discardError } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', studentRow.id)
+    .is('ended_at', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (discardError)
+    throw new Error(
+      `cleanupStudentActiveSessions discard (${studentEmail}): ${discardError.message}`,
+    )
+  if ((discarded?.length ?? 0) > 0) {
+    console.log(
+      `[cleanupStudentActiveSessions] soft-deleted ${discarded?.length} active session(s) for ${studentEmail}`,
+    )
+  }
+}
+
 /** Marker prefix used in `question_text` for E2E-created questions in admin-questions.spec.ts. */
 export const E2E_ADMIN_Q_MARKER = '[E2E_ADMIN_Q]'
 

@@ -22,9 +22,9 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers, VICTIM_EMAIL } from './helpers/seed'
 
 // A throwaway answer payload. The ownership/mode SELECT fires before payload
 // validation, so the entries are never inspected — any non-null jsonb array
@@ -50,6 +50,16 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     orgId = seed.orgId
 
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
+  })
+
+  // Single-active-session invariant (#1011): these tests admin-INSERT an active
+  // quiz_sessions row for the victim (DQ2) and the attacker (DQ3). A leftover
+  // active session for either shared user collides with the global
+  // uq_one_active_session_per_student index (23505) on insert. Clear both before
+  // each test so the seeded session is the only active one.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    await cleanupStudentActiveSessions(VICTIM_EMAIL)
   })
 
   // Admin-insert a session row directly — the guard tests never reach the
