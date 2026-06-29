@@ -38,6 +38,13 @@ reviews:
         - No useState, useEffect, or event handlers.
         - Data fetching via imported async functions, not inline queries.
         - No direct Supabase client usage.
+        - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+
+    # App Router layouts
+    - path: "apps/web/app/**/layout.tsx"
+      instructions: |
+        Next.js App Router layout. Enforce:
+        - Props (children/params) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
 
     # Components — single responsibility
     - path: "apps/web/app/**/_components/*.tsx"
@@ -53,6 +60,13 @@ reviews:
         - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
         - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
         - Static elements must not have interaction handlers without an appropriate role (Biome noStaticElementInteractions).
+        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
+
+    # Shared component library (shadcn/ui + custom wrappers)
+    - path: "apps/web/components/**/*.tsx"
+      instructions: |
+        Reusable React component. Enforce:
+        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
 
     # Server Actions — validated mutations
     - path: "apps/web/app/**/actions.ts"
