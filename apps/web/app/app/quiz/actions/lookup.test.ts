@@ -471,6 +471,8 @@ describe('getFilteredCount — questionType (MC-aware Study/Discovery count)', (
     })
     expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
     expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    // Invalid client input must be rejected at the Zod boundary before any RPC call.
+    expect(mockRpc).not.toHaveBeenCalled()
     consoleSpy.mockRestore()
   })
 })

@@ -272,4 +272,37 @@ describe('computeAvailableCount', () => {
       }),
     ).toBe(7) // st1 subtopic count under filters
   })
+
+  it('uses the filtered (MC) count over the topic-tree total when preferFiltered is set with no active filter', () => {
+    const topics = [makeTopic('t1', 20)]
+    expect(
+      computeAvailableCount({
+        hasActiveFilters: false,
+        preferFiltered: true,
+        // The MC-only pool (8) is smaller than the all-types selected total (20).
+        filteredByTopic: { t1: 8 },
+        filteredBySubtopic: {},
+        selectedQuestionCount: 20,
+        topics,
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(),
+      }),
+    ).toBe(8)
+  })
+
+  it('returns 0 while the MC counts are still loading on the preferFiltered path', () => {
+    const topics = [makeTopic('t1', 20)]
+    expect(
+      computeAvailableCount({
+        hasActiveFilters: false,
+        preferFiltered: true,
+        filteredByTopic: null,
+        filteredBySubtopic: null,
+        selectedQuestionCount: 20,
+        topics,
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(),
+      }),
+    ).toBe(0) // never surface the all-types total (20) as the MC-only max
+  })
 })

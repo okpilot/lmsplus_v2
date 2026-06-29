@@ -28,7 +28,11 @@ export function useFilteredCountSync(opts: {
   )
 
   useEffect(() => {
-    if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
+    if (!subjectId || allTopicIds.length === 0) return
+    // Study/Discovery (questionType set) always counts the MC-only pool, so it must
+    // fire even with no other active filter; the type-agnostic quiz/exam path only
+    // needs the count once a filter is active (#1008).
+    if (!hasActiveFilters && questionType === undefined) return
     fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters, calcMode, imageMode, questionType)
   }, [
     subjectId,

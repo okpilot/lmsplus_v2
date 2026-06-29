@@ -132,7 +132,7 @@ describe('useFilteredCountSync — empty topics guard', () => {
 // ---- Happy path: all conditions met -----------------------------------------
 
 describe('useFilteredCountSync — happy path', () => {
-  it('calls fc.refetch with topic/subtopic ids and filters when subjectId, hasActiveFilters, and topics are present', () => {
+  it('requests a filtered count when subject, topics, and an active filter are present', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([
       { id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] },
@@ -164,7 +164,7 @@ describe('useFilteredCountSync — happy path', () => {
     )
   })
 
-  it("forwards questionType 'multiple_choice' to fc.refetch on the Study/Discovery count path", () => {
+  it('requests a multiple-choice-only filtered count on the Study/Discovery path', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -186,6 +186,35 @@ describe('useFilteredCountSync — happy path', () => {
       [TOPIC_ID_1],
       [SUBTOPIC_ID_1],
       DEFAULT_FILTERS,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
+  })
+
+  it('requests a multiple-choice-only count on the Study/Discovery path even with no active filter', () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+    const noFilters: QuestionFilterValue[] = ['all']
+
+    renderHook(() =>
+      useFilteredCountSync({
+        subjectId: SUBJECT_ID,
+        hasActiveFilters: false,
+        filters: noFilters,
+        calcMode: DEFAULT_CALC_MODE,
+        imageMode: DEFAULT_IMAGE_MODE,
+        topicTree,
+        fc,
+        questionType: 'multiple_choice',
+      }),
+    )
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      noFilters,
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
       'multiple_choice',

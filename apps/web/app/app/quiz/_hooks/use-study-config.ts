@@ -12,12 +12,10 @@ import { useTopicTree } from './use-topic-tree'
  * start writes the pre-marked handoff and reuses the real session runner).
  *
  * The discovery FETCH is MC-only (`startStudy` passes question_type
- * 'multiple_choice'), so the FILTERED-count path matches: `useFilteredCountSync` is
- * given `questionType: 'multiple_choice'`, so once a switch/calc/image filter is
- * active the slider max / Start button / count badge reflect the real MC pool on a
- * mixed MC/non-MC subject (#1008). The no-active-filter fallback still derives
- * `availableCount` from the type-agnostic topic-tree counts (a separate query) — a
- * narrower residual overstate tracked separately, not addressed here.
+ * 'multiple_choice'), so the count path matches: `useFilteredCountSync` fires with
+ * `questionType: 'multiple_choice'` even with no other active filter, and
+ * `useAvailableCount` is given `preferFiltered: true` so the slider max / Start
+ * button / count badge always reflect the real MC pool on a mixed subject (#1008).
  */
 export function useStudyConfig({
   userId,
@@ -32,6 +30,8 @@ export function useStudyConfig({
 
   const availableCount = useAvailableCount({
     hasActiveFilters: st.hasActiveFilters,
+    // Discovery counts the MC-only pool regardless of other filters (#1008).
+    preferFiltered: true,
     filteredByTopic: fc.filteredByTopic,
     filteredBySubtopic: fc.filteredBySubtopic,
     topicTree,

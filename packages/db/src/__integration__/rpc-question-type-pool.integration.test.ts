@@ -77,6 +77,10 @@ describe('RPC: question-type filtered question pool (#1008)', () => {
         canonical_answer: 'cleared to land',
         correct_option_id: null,
         options: [],
+        // Set the discriminator columns explicitly so the short_answer type does not
+        // depend on insert-time defaults: dialog_template NULL + blanks_config empty.
+        dialog_template: null,
+        blanks_config: [],
       })
       .in('id', saIds)
       .select('id')
