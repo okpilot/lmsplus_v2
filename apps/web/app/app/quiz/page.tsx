@@ -1,25 +1,28 @@
 import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { ActivePracticeBanner } from './_components/active-practice-banner'
 import { ExpiredExamNotice } from './_components/expired-exam-notice'
+import { LookupErrorAlerts } from './_components/lookup-error-alerts'
 import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
-import { getActiveExamSession } from './actions/get-active-exam-session'
-import { loadDrafts } from './actions/load-draft'
+import { loadQuizPageData } from './_loaders/load-quiz-page-data'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizPage() {
   const user = await requireAuthUser()
-
-  const [{ drafts }, examResult] = await Promise.all([loadDrafts(), getActiveExamSession()])
-
-  const examLookupFailed = !examResult.success
-  const activeExams = examResult.success ? examResult.sessions : []
-  const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
-  const expiredIds = examResult.success ? examResult.expiredSessionIds : []
+  const {
+    drafts,
+    examLookupFailed,
+    activeExams,
+    orphanedIds,
+    expiredIds,
+    practiceLookupFailed,
+    activePractice,
+  } = await loadQuizPageData()
 
   return (
     <main className="space-y-6">
@@ -30,15 +33,7 @@ export default async function QuizPage() {
         </p>
       </div>
 
-      {examLookupFailed && (
-        <div
-          role="alert"
-          className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-        >
-          We couldn&apos;t check for active Practice Exams right now. Please refresh — if the issue
-          persists, contact support.
-        </div>
-      )}
+      <LookupErrorAlerts examFailed={examLookupFailed} practiceFailed={practiceLookupFailed} />
 
       {activeExams.map((exam) => (
         <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
@@ -51,6 +46,8 @@ export default async function QuizPage() {
       {expiredIds.map((sessionId) => (
         <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
       ))}
+
+      {activePractice && <ActivePracticeBanner session={activePractice} />}
 
       <QuizRecoveryBanner userId={user.id} />
 

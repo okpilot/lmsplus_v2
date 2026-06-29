@@ -26,8 +26,8 @@
  * the constraint fires correctly at execution time.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -89,6 +89,13 @@ describe('Constraint regression — batch_submit_quiz idempotency after mig 095/
   afterAll(async () => {
     if (orgId) await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
+  })
+
+  // Single-active-session invariant (#1011): a test that submits via
+  // submit_quiz_answer (not batch) leaves its session active, so clear it before
+  // the next test's start_quiz_session raises `another_session_active`.
+  beforeEach(async () => {
+    if (orgId) await clearActiveSessions({ admin, orgId })
   })
 
   it('second batch_submit_quiz call with the same payload does not duplicate quiz_session_answers rows', async () => {

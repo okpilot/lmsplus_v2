@@ -10,6 +10,7 @@ import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -242,6 +243,12 @@ describe('checkAnswer (app-layer integration)', () => {
     // The action guards .is('ended_at', null). An already-completed session
     // must be rejected — checking an answer in a closed session must not be possible.
     // Non-vacuous: the success test above proves A's active session resolves.
+    //
+    // A still holds the shared sessionIdA (active, never ended). The single-active-session
+    // invariant (#1011) allows only one active session per student, and seedOpenSession no
+    // longer auto-clears, so clear A's active session before seeding the fresh one this test
+    // ends. sessionIdA is no longer needed here — every test that uses it has already run.
+    await clearActiveSessions({ admin, studentIds: [studentAId] })
     const { sessionId: endedSessionId } = await seedOpenSession({
       studentClient: studentAClient,
       questionIds,

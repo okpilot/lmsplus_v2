@@ -148,6 +148,16 @@ describe('startVfrRtExam — RPC error messages', () => {
     )
   })
 
+  it('tells the user to finish their other session when a different one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'You already have an active session. Finish or discard it before starting a new one.',
+    )
+  })
+
   it('returns a generic failure for an unknown RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })

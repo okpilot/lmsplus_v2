@@ -10,12 +10,13 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 10 | 2026-06-27 | PROMOTED → enforced: write the branch test in the SAME commit |
+| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 11 | 2026-06-29 | PROMOTED → enforced: write the branch test in the SAME commit |
 | `vi.fn` two-arg generic form (removed in Vitest 4, fails `check-types`) | 2026-03-14 | 2 | 2026-03-15 | PROMOTED → use single function-type arg form (recipes: vi.fn generic) |
 | Test name contradicts its assertion postcondition | 2026-04-05 | 3 | 2026-06-06 | PROMOTED → re-read name vs assertion, fix in same commit |
 
 ## Durable knowledge
 
+- **When a catch block has two sequential effects gated by different conditions — teardown (`if (flagCreated) await cleanup()`) then a specific-error branch (`if (err.message.includes('token')) return specificMsg`) — test the specific-error path WITH the combination assertion** (assert teardown was called AND the specific message is returned). Testing each effect separately leaves an invisible regression: if someone moves the early-return before the teardown, both individual tests still pass but the teardown is silently skipped. First confirmed: `study.ts` `active_exam_session` + `endDiscovery` ordering, PR #1011 sweep.
 - **Bash security-gate parsers need four extra cases beyond happy/unhappy paths:** (a) empty input — fail closed; (b) both tokens present — the blocking token must win regardless of order; (c) CRLF line endings — `[[:space:]]` absorbs `\r`, pin the behaviour so a future `[ \t]` substitution is visible; (d) leading-whitespace variant of each token — if the regex allows indented tokens (as this parser does for both BLOCKED and APPROVED), add a pinning test so intent is documented. Use a `run_case_raw_bytes` helper with `printf '%b'` for the CRLF case. Pattern confirmed: `.claude/hooks/run-security-auditor.test.sh` (2026-06-10, issue #832).
 - **Every cleanup/restore mutation in generated tests must destructure `{ error }`** (finally blocks, afterEach, afterAll included) per code-style.md §5 — the cleanup path is not exempt; log via `console.error`, never throw inside `finally` (biome noUnsafeFinally). Promoted at count=2 (13fa0249, 50c81b94 — both finally-block restore UPDATEs caught by the orchestrator pre-commit).
 - **Always `vi.hoisted()` for any variable a `vi.mock()` factory references** — no exceptions. Vitest hoists factories above plain `const`s, so the var is `undefined` at factory time and the mock silently no-ops. Bug is invisible until the test runs.

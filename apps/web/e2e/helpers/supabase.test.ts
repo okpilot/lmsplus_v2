@@ -8,6 +8,7 @@ vi.hoisted(() => {
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 import {
   cleanupInternalExamStudentActiveSessions,
+  cleanupStudentActiveSessions,
   E2E_ADMIN_Q_MARKER,
   ensureConsentRecords,
   ensureTestUser,
@@ -753,6 +754,96 @@ describe('restoreSeededQuestionsState', () => {
     await restoreSeededQuestionsState()
 
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('reactivated 3 seeded question(s)'))
+    logSpy.mockRestore()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cleanupStudentActiveSessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Mock builder for cleanupStudentActiveSessions. The function makes one
+ * `from('users')` SELECT (resolve the student id by email), and — only when a
+ * student row is found — one `from('quiz_sessions')` UPDATE…select('id') to
+ * soft-delete the student's active sessions. `discarded` mirrors that .select('id')
+ * return shape so tests can exercise the zero-row (no log) and rows>0 (log) branches.
+ */
+function buildStudentActiveSessionsMock(opts: {
+  studentRow?: { id: string } | null
+  studentError?: { message: string } | null
+  discarded?: Array<{ id: string }> | null
+  discardError?: { message: string } | null
+}) {
+  const {
+    studentRow = { id: 'student-uuid' },
+    studentError = null,
+    discarded = null,
+    discardError = null,
+  } = opts
+
+  return {
+    from: (table: string) => {
+      if (table === 'users') return buildChain({ data: studentRow, error: studentError })
+      if (table === 'quiz_sessions') return buildChain({ data: discarded, error: discardError })
+      return buildChain({ data: null, error: null })
+    },
+    auth: { admin: {} },
+  }
+}
+
+describe('cleanupStudentActiveSessions', () => {
+  it('returns without soft-deleting when the student email has no user row', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildStudentActiveSessionsMock({ studentRow: null }))
+
+    await cleanupStudentActiveSessions('missing@lmsplus.local')
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('throws when the student lookup query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildStudentActiveSessionsMock({ studentError: { message: 'connection timeout' } }),
+    )
+
+    await expect(cleanupStudentActiveSessions('e2e@lmsplus.local')).rejects.toThrow(
+      'cleanupStudentActiveSessions student (e2e@lmsplus.local): connection timeout',
+    )
+  })
+
+  it('throws when the active-session soft-delete update fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildStudentActiveSessionsMock({ discardError: { message: 'rls denied' } }),
+    )
+
+    await expect(cleanupStudentActiveSessions('e2e@lmsplus.local')).rejects.toThrow(
+      'cleanupStudentActiveSessions discard (e2e@lmsplus.local): rls denied',
+    )
+  })
+
+  it('does not log when no active sessions were soft-deleted', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildStudentActiveSessionsMock({ discarded: [] }))
+
+    await cleanupStudentActiveSessions('e2e@lmsplus.local')
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('logs the soft-deleted count when active sessions are removed', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildStudentActiveSessionsMock({ discarded: [{ id: 'sess-1' }, { id: 'sess-2' }] }),
+    )
+
+    await cleanupStudentActiveSessions('e2e@lmsplus.local')
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('soft-deleted 2 active session(s) for e2e@lmsplus.local'),
+    )
     logSpy.mockRestore()
   })
 })

@@ -15,6 +15,11 @@ export const START_INTERNAL_EXAM_ERROR_MESSAGES: Array<[string, string]> = [
     'active_session_exists',
     'You already have an active internal exam session for this subject. Submit it before starting a new one.',
   ],
+  // Single-active-session guard (PR A) — a different mode's session is live.
+  [
+    'another_session_active',
+    'You already have an active session. Finish or discard it before starting a new one.',
+  ],
   ['insufficient_questions_for_exam', 'Cannot start exam: not enough questions configured.'],
   [
     'exam_config_required',

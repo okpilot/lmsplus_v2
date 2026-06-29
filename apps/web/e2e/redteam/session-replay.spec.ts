@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -26,6 +26,13 @@ test.describe('Red Team: Session Replay', () => {
   let topicId: string
 
   const createdSessionIds = new Set<string>()
+
+  // Single-active-session invariant (#1011): clear the attacker's active sessions
+  // before each test so a session left active by a prior test cannot block the
+  // next start (another_session_active) or a direct INSERT (uq_one_active_session).
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+  })
 
   test.beforeAll(async () => {
     const { orgId, attackerUserId: uid } = await seedRedTeamUsers()

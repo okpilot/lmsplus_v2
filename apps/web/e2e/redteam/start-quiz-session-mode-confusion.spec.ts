@@ -41,7 +41,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -91,6 +91,14 @@ test.describe('Vector — start_quiz_session p_mode whitelist (issue #629)', () 
   })
 
   test.beforeEach(async () => {
+    // Single-active-session invariant (#1011): the attacker is shared across
+    // red-team specs. A leftover active session makes the quick_quiz Attack 4 /
+    // Boundary calls raise `another_session_active` (it fires after the mode
+    // whitelist but before the question-validation guards) instead of the
+    // expected too_many_questions / invalid_question_ids. Clear it first.
+    // (Attacks 1-3 raise mode_not_allowed before the guard, so they are
+    // unaffected, but a uniform clean baseline is simplest.)
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
     // Capture timestamp before each attack so the no-insert assertion can
     // scope the SELECT to rows created after this point.
     testStartIso = new Date().toISOString()
