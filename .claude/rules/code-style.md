@@ -248,6 +248,24 @@ function handleSubmit(e: React.FormEvent<HTMLFormElement>) { ... }
 function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) { ... }
 ```
 
+### Mark Component Props as `Readonly`
+
+React function-component props are an immutable contract — a component must never mutate them. Wrap the props parameter's type in `Readonly<…>`, covering both inline-object and named-type annotations. The codebase already follows this convention (77 component files); this rule formalises it so the remaining drift stops.
+
+```tsx
+// ❌ WRONG — mutable props
+export function QuestionCard({ prompt }: { prompt: string }) { ... }
+function ActivePracticeBanner({ session }: ActivePracticeProps) { ... }
+
+// ✅ CORRECT — Readonly props
+export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
+function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
+```
+
+This applies to every React function component — `_components/*.tsx`, `page.tsx` default exports (their `params`/`searchParams` props), and `apps/web/components/**`.
+
+**Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027). (Promoted at user direction after recurring S6759 findings, #1027.)
+
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 
