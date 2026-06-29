@@ -23,6 +23,28 @@ export type GetActivePracticeSessionResult =
   | { success: true; session: ActivePracticeSession | null }
   | { success: false; error: string }
 
+type PracticeRow = {
+  id: string
+  mode: string
+  subject_id: string | null
+  started_at: string
+  easa_subjects: unknown
+}
+
+// Map a quiz_sessions row (with embedded easa_subjects) to the domain shape.
+// The embed is narrowed at runtime — PostgREST types it loosely.
+function toActivePracticeSession(row: PracticeRow): ActivePracticeSession {
+  const rel = row.easa_subjects as { name?: unknown; short?: unknown } | null
+  return {
+    sessionId: row.id,
+    mode: row.mode as (typeof PRACTICE_MODES)[number],
+    subjectId: row.subject_id ?? '',
+    subjectName: typeof rel?.name === 'string' ? rel.name : 'Unknown subject',
+    subjectCode: typeof rel?.short === 'string' ? rel.short : '',
+    startedAt: row.started_at,
+  }
+}
+
 export async function getActivePracticeSession(): Promise<GetActivePracticeSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()
@@ -51,19 +73,7 @@ export async function getActivePracticeSession(): Promise<GetActivePracticeSessi
 
     const row = data?.[0]
     if (!row) return { success: true, session: null }
-
-    const rel = row.easa_subjects as { name?: unknown; short?: unknown } | null
-    return {
-      success: true,
-      session: {
-        sessionId: row.id,
-        mode: row.mode as (typeof PRACTICE_MODES)[number],
-        subjectId: row.subject_id ?? '',
-        subjectName: typeof rel?.name === 'string' ? rel.name : 'Unknown subject',
-        subjectCode: typeof rel?.short === 'string' ? rel.short : '',
-        startedAt: row.started_at,
-      },
-    }
+    return { success: true, session: toActivePracticeSession(row) }
   } catch (err) {
     console.error('[getActivePracticeSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

@@ -193,6 +193,42 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(evRows[0]?.resource_type).toBe('quiz_session')
   })
 
+  it('serves Study Mode answer keys while the student holds their own active discovery session', async () => {
+    // Gap C positive control (mig 142). Discovery is a REAL active session
+    // (start_discovery_session, mig 137); the Study UI then reads the answer keys
+    // via get_study_questions for the SAME ids. Mig 142 widened the mid-exam
+    // answer-oracle guard's practice allowlist to include 'discovery', so a
+    // student's own discovery row does NOT self-trip 'active_exam_session'. A
+    // regression dropping 'discovery' from that allowlist would make this call
+    // raise and break Study Mode — this test guards it.
+    const ids = questionIds.slice(0, 3)
+    const startRes = await studentClient.rpc('start_discovery_session', {
+      p_subject_id: subjectId,
+      p_question_ids: ids,
+    })
+    expect(startRes.error).toBeNull()
+    // Non-vacuity: the discovery session genuinely exists and is the only active one.
+    const active = await readActiveSessions()
+    expect(active).toHaveLength(1)
+    expect(active[0]?.mode).toBe('discovery')
+
+    // Study Mode key read SUCCEEDS despite the active discovery session.
+    const { data, error } = await studentClient.rpc('get_study_questions', {
+      p_question_ids: ids,
+    })
+    expect(error).toBeNull()
+    const rows = requireRpcRows<{ id: string; correct_option_id: string | null }>(
+      data,
+      'get_study_questions',
+    )
+    expect(rows).toHaveLength(ids.length)
+    // The answer key is DELIBERATELY returned in Study Mode (seed key is 'b').
+    for (const row of rows) {
+      expect(ids).toContain(row.id)
+      expect(row.correct_option_id).toBe('b')
+    }
+  })
+
   it('replaces the prior discovery session when started again, leaving exactly one active', async () => {
     const first = await studentClient.rpc('start_discovery_session', {
       p_subject_id: subjectId,

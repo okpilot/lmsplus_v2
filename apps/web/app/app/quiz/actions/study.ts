@@ -32,6 +32,21 @@ function mapDiscoveryStartError(message: string): string {
   return 'Failed to start study session'
 }
 
+// Creates the real ephemeral discovery session row (enforces the single-active
+// guard). Returns a sanitized error message on failure, or null on success.
+async function createDiscoverySession(subjectId: string, ids: string[]): Promise<string | null> {
+  const supabase = await createServerSupabaseClient()
+  const { error } = await rpc<string>(supabase, 'start_discovery_session', {
+    p_subject_id: subjectId,
+    p_question_ids: ids,
+  })
+  if (error) {
+    console.error('[startStudy] start_discovery_session error:', error.message)
+    return mapDiscoveryStartError(error.message)
+  }
+  return null
+}
+
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
   const parsed = StartStudySchema.safeParse(raw)
   if (!parsed.success) {
@@ -60,15 +75,8 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // Create the real ephemeral discovery session row, which enforces the
     // single-active-session guard (raises another_session_active if a different
     // session is live). Teardown is keyed by student+mode, so the id is not needed.
-    const supabase = await createServerSupabaseClient()
-    const { error: startError } = await rpc<string>(supabase, 'start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: ids,
-    })
-    if (startError) {
-      console.error('[startStudy] start_discovery_session error:', startError.message)
-      return { success: false, error: mapDiscoveryStartError(startError.message) }
-    }
+    const startError = await createDiscoverySession(subjectId, ids)
+    if (startError) return { success: false, error: startError }
     discoveryCreated = true
 
     const questions = await getStudyQuestions(ids)

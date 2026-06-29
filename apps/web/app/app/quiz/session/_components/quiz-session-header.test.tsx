@@ -58,6 +58,7 @@ describe('QuizSessionHeader — Discovery exit', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/app/quiz'))
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     // Teardown must run before the terminal navigation (code-style.md §6).
+    // safe: the waitFor + toHaveBeenCalledTimes(1) above confirm both mocks fired.
     expect(mockEndDiscovery.mock.invocationCallOrder[0]).toBeLessThan(
       mockReplace.mock.invocationCallOrder[0]!,
     )

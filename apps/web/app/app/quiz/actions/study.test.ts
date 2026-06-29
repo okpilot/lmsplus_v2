@@ -183,6 +183,21 @@ describe('startStudy — discovery session', () => {
     await startStudy(VALID_INPUT)
     expect(mockEndDiscovery).not.toHaveBeenCalled()
   })
+
+  it('tears down the discovery row AND tells the user to exit their exam when active_exam_session is thrown after session creation', async () => {
+    // The RPC succeeds (discoveryCreated = true), then getStudyQuestions raises
+    // active_exam_session. Both the teardown AND the specific error message must
+    // happen — if the early-return were accidentally moved before the teardown
+    // call, the session would be orphaned and block all future modes for that student.
+    mockGetStudyQuestions.mockRejectedValue(
+      new Error('Failed to fetch study questions: active_exam_session'),
+    )
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Finish or exit your active exam first.')
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---- Happy path ----------------------------------------------------------
