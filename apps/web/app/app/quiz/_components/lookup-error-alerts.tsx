@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 // Shared destructive alert used for both the active-exam and active-practice
 // server-side lookup-failure notices on the quiz page.
-function LookupAlert({ children }: { children: ReactNode }) {
+function LookupAlert({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div
       role="alert"
@@ -18,10 +18,10 @@ function LookupAlert({ children }: { children: ReactNode }) {
 export function LookupErrorAlerts({
   examFailed,
   practiceFailed,
-}: {
+}: Readonly<{
   examFailed: boolean
   practiceFailed: boolean
-}) {
+}>) {
   return (
     <>
       {examFailed && (

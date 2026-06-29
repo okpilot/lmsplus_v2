@@ -19,7 +19,7 @@ import type { ActivePracticeSession } from '../actions/get-active-practice-sessi
 // Discard-only banner for an active practice session detected server-side.
 // No Resume: practice answers live in localStorage, so a cross-browser session
 // can't be restored — the only useful action is to clear it and start fresh.
-export function ActivePracticeBanner({ session }: { session: ActivePracticeSession }) {
+export function ActivePracticeBanner({ session }: Readonly<{ session: ActivePracticeSession }>) {
   const { discard, loading, error, discarded, clearError } = useActivePracticeDiscard(
     session.sessionId,
   )
