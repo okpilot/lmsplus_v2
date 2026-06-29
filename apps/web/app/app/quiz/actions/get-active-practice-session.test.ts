@@ -131,14 +131,6 @@ describe('getActivePracticeSession — happy path', () => {
 
     expect(result).toEqual({ success: true, session: null })
   })
-
-  it('queries the quiz_sessions table', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-
-    await getActivePracticeSession()
-
-    expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
-  })
 })
 
 describe('getActivePracticeSession — failure paths', () => {

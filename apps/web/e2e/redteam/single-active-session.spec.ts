@@ -135,10 +135,13 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     victimUserId = seed.victimUserId
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
+    // ≥2 active questions so the repeat-discovery-start (idempotent replace) test
+    // can replay with a DISTINCT question set (slice(0, 2)) — code-style.md §7:
+    // idempotent/re-read paths must seed ≥2 distinct fixture values.
     const picked = await pickSubjectWithQuestions(admin, {
       orgId,
-      minActiveQuestions: 1,
-      topicMinQuestions: 1,
+      minActiveQuestions: 2,
+      topicMinQuestions: 2,
     })
     subjectId = picked.subjectId
     topicId = picked.topicId
@@ -155,8 +158,8 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       .order('id', { ascending: true })
       .limit(2)
     if (qsErr) throw new Error(`beforeAll questions: ${qsErr.message}`)
-    if (!Array.isArray(qs) || qs.length === 0)
-      throw new Error('beforeAll: no active egmont questions to seed from')
+    if (!Array.isArray(qs) || qs.length < 2)
+      throw new Error('beforeAll: need at least two active egmont questions to seed from')
     questionIds = (qs as Array<{ id: string }>).map((q) => q.id)
 
     // Ensure an enabled exam_config + distribution so start_exam_session can reach
@@ -365,5 +368,11 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23505')
     expect(error?.message ?? '').toMatch(/uq_one_active_session_per_student/i)
+
+    // No-op assertion (red-team no-op rule): the blocked insert changed nothing —
+    // the original quick_quiz session is still the only active session.
+    const active = await readActiveSessions()
+    expect(active.map((s) => s.id)).toEqual([firstId])
+    expect(active.map((s) => s.mode)).toEqual(['quick_quiz'])
   })
 })

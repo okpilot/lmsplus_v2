@@ -172,4 +172,33 @@ describe('endDiscovery (app-layer integration)', () => {
     // Student A's discovery row is untouched (still active).
     expect(await readDeletedAt(sessionId)).toBeNull()
   })
+
+  it('soft-deletes only the row matching the passed sessionId, leaving other active discovery rows untouched', async () => {
+    // Seed one active discovery row per student. The single-active unique index is
+    // per-student, so two students may each hold a discovery row concurrently —
+    // giving us a second active discovery row to prove the delete is id-scoped.
+    const studentAClient = await getAuthenticatedClient({ email: emailA, password })
+    const studentBClient = await getAuthenticatedClient({ email: emailB, password })
+    const sessionA = await seedDiscoverySession(studentAClient, questionIds.slice(0, 2))
+    const sessionB = await seedDiscoverySession(studentBClient, questionIds.slice(0, 1))
+    // Non-vacuity: both rows exist and are active before any teardown.
+    expect(await readDeletedAt(sessionA)).toBeNull()
+    expect(await readDeletedAt(sessionB)).toBeNull()
+
+    // Student A passes a sessionId that is NOT their own active discovery row (it is
+    // student B's). The action scopes by student_id AND id, so nothing matches and
+    // neither row is touched.
+    await signInAs(emailA, password)
+    const otherResult = await endDiscovery({ sessionId: sessionB })
+    expect(otherResult.success).toBe(true)
+    expect(await readDeletedAt(sessionA)).toBeNull()
+    expect(await readDeletedAt(sessionB)).toBeNull()
+
+    // Student A passes their OWN session id — only that one row is soft-deleted.
+    const ownResult = await endDiscovery({ sessionId: sessionA })
+    expect(ownResult.success).toBe(true)
+    expect(await readDeletedAt(sessionA)).not.toBeNull()
+    // Student B's concurrent discovery row remains active — the delete was id-scoped.
+    expect(await readDeletedAt(sessionB)).toBeNull()
+  })
 })

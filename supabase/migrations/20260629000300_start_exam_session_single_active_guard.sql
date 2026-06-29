@@ -145,9 +145,9 @@ BEGIN
     v_selected_ids := v_selected_ids || v_topic_ids;
   END LOOP;
 
-  IF array_length(v_selected_ids, 1) != v_total_questions THEN
+  IF COALESCE(array_length(v_selected_ids, 1), 0) != v_total_questions THEN
     RAISE EXCEPTION 'distribution total (%) does not match configured total_questions (%)',
-      array_length(v_selected_ids, 1), v_total_questions;
+      COALESCE(array_length(v_selected_ids, 1), 0), v_total_questions;
   END IF;
 
   -- Insert session. Race-safe: the partial unique index on

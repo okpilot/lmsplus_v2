@@ -1,7 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,44 +13,19 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { MODE_LABELS } from '@/lib/constants/exam-modes'
-import { discardQuiz } from '../actions/discard'
+import { useActivePracticeDiscard } from '../_hooks/use-active-practice-discard'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
 
 // Discard-only banner for an active practice session detected server-side.
 // No Resume: practice answers live in localStorage, so a cross-browser session
 // can't be restored — the only useful action is to clear it and start fresh.
 export function ActivePracticeBanner({ session }: { session: ActivePracticeSession }) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [discarded, setDiscarded] = useState(false)
-  // Synchronous one-shot guard (code-style §6): a useState/isPending flag is async
-  // and a double-trigger (dialog action + keypress) could both pass before commit.
-  const discardingRef = useRef(false)
+  const { discard, loading, error, discarded, clearError } = useActivePracticeDiscard(
+    session.sessionId,
+  )
+  const [open, setOpen] = useState(false)
 
   if (discarded) return null
-
-  async function handleDiscard() {
-    if (discardingRef.current) return
-    discardingRef.current = true
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await discardQuiz({ sessionId: session.sessionId })
-      if (result.success) {
-        setDiscarded(true)
-        router.refresh()
-        return
-      }
-      setError(result.error ?? 'Failed to discard. Please try again.')
-      discardingRef.current = false
-    } catch {
-      setError('Server unavailable. Please try again later.')
-      discardingRef.current = false
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const modeLabel = MODE_LABELS[session.mode]
 
@@ -63,7 +37,16 @@ export function ActivePracticeBanner({ session }: { session: ActivePracticeSessi
         something new.
       </p>
       <div className="mt-3 flex gap-2">
-        <AlertDialog>
+        <AlertDialog
+          open={open}
+          onOpenChange={(next) => {
+            // Keep the dialog open while a discard is in flight so the confirm
+            // can't be dismissed mid-request; clear any stale error on close.
+            if (loading) return
+            setOpen(next)
+            if (!next) clearError()
+          }}
+        >
           <AlertDialogTrigger
             render={
               <button
@@ -91,8 +74,8 @@ export function ActivePracticeBanner({ session }: { session: ActivePracticeSessi
               </p>
             )}
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" disabled={loading} onClick={handleDiscard}>
+              <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" disabled={loading} onClick={discard}>
                 Discard
               </AlertDialogAction>
             </AlertDialogFooter>

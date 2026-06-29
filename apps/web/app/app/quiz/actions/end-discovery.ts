@@ -54,8 +54,9 @@ export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
       console.error('[endDiscovery] Soft-delete error:', error.message, error.code)
       return { success: false, error: 'Failed to exit discovery' }
     }
-    if ((data?.length ?? 0) > 0) {
-      console.log('[endDiscovery] Exited', data?.length, 'discovery session(s) for user', user.id)
+    const affected = data?.length ?? 0
+    if (affected > 0) {
+      console.log('[endDiscovery] Exited', affected, 'discovery session(s)')
     }
     return { success: true }
   } catch (err) {

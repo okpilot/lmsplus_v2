@@ -144,6 +144,37 @@ describe('getActivePracticeSession (app-layer integration)', () => {
     expect(typeof session.startedAt).toBe('string')
   })
 
+  it('returns null when the only practice session has ended', async () => {
+    await signInAs(emailA, password)
+    const startResult = await startQuizSession({
+      subjectId: refs.subjectId,
+      topicIds: [refs.topicId],
+      count: 3,
+    })
+    expect(startResult.success).toBe(true)
+    if (!startResult.success) throw new Error(startResult.error)
+
+    // End the session (set ended_at) so it is no longer active. The service-role
+    // write + the non-empty .select('id') readback prove a real row was ended, so
+    // the null result below exercises getActivePracticeSession's `ended_at IS NULL`
+    // filter rather than passing vacuously on an empty table.
+    const { data: ended, error: endErr } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('student_id', studentAId)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    if (endErr) throw new Error(`end session: ${endErr.message}`)
+    expect(ended?.length ?? 0).toBeGreaterThan(0)
+
+    const result = await getActivePracticeSession()
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error(result.error)
+    expect(result.session).toBeNull()
+  })
+
   it('returns null when the student has no active practice session', async () => {
     // Student B has never started a session — expect null.
     await signInAs(emailB, password)

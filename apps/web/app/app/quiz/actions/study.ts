@@ -1,10 +1,9 @@
 'use server'
 
-import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
-import { rpc } from '@/lib/supabase-rpc'
+import { createDiscoverySession } from './_start-discovery-session'
 import { endDiscovery } from './end-discovery'
 
 const StartStudySchema = z.object({
@@ -20,35 +19,6 @@ const StartStudySchema = z.object({
 export type StartStudyResult =
   | { success: true; questions: StudyQuestion[] }
   | { success: false; error: string }
-
-// Maps start_discovery_session RPC error tokens to sanitized domain messages.
-// another_session_active is the single-active-session guard (PR A); every other
-// validation token stays generic — never leak the raw token to the client.
-function mapDiscoveryStartError(message: string): string {
-  if (message.includes('another_session_active')) {
-    return 'Finish or exit your active session first.'
-  }
-  return 'Failed to start study session'
-}
-
-// Creates the real ephemeral discovery session row (enforces the single-active
-// guard). Returns the created session id on success, or a sanitized error message
-// on failure (the other field is null in each case).
-async function createDiscoverySession(
-  subjectId: string,
-  ids: string[],
-): Promise<{ id: string | null; error: string | null }> {
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await rpc<string>(supabase, 'start_discovery_session', {
-    p_subject_id: subjectId,
-    p_question_ids: ids,
-  })
-  if (error) {
-    console.error('[startStudy] start_discovery_session error:', error.message)
-    return { id: null, error: mapDiscoveryStartError(error.message) }
-  }
-  return { id: data, error: null }
-}
 
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
   const parsed = StartStudySchema.safeParse(raw)

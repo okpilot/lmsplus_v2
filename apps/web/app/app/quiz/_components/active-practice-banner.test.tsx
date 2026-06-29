@@ -95,7 +95,7 @@ describe('ActivePracticeBanner — Discard', () => {
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
-  it('shows a generic error visibly inside the dialog and does not refresh when discardQuiz throws', async () => {
+  it('shows a generic dialog error and does not refresh when the discard request fails', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
 
     render(<ActivePracticeBanner session={SESSION} />)
@@ -108,7 +108,18 @@ describe('ActivePracticeBanner — Discard', () => {
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
-  it('calls discardQuiz only once when the confirm action fires twice before the first settles', async () => {
+  it('keeps Cancel disabled so the dialog cannot be dismissed while a discard is pending', async () => {
+    // Keep the discard pending so the dialog stays open mid-request.
+    mockDiscardQuiz.mockReturnValue(new Promise(() => {}))
+
+    render(<ActivePracticeBanner session={SESSION} />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled())
+  })
+
+  it('submits a single discard when confirm is double-clicked before the first settles', async () => {
     // Keep the first discard pending so both synchronous clicks observe the same
     // render. A loading-state-only guard would let both through (setState is batched,
     // so `loading` reads false on the second click); the synchronous useRef guard

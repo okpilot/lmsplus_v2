@@ -99,11 +99,17 @@ BEGIN
   -- Insert the ephemeral discovery session. Race backstop: two concurrent
   -- discovery starts both pass the guard above; uq_one_active_session_per_student
   -- (mig 136) makes the loser's INSERT raise unique_violation. The loser
-  -- re-reads and RETURNs the winner's active discovery row (idempotent — the id
-  -- set is frozen in config). The RETURN exits here, so the audit INSERT below
-  -- never runs on that path (this caller created no session). If the re-read
-  -- finds NO active discovery row, the conflict came from a different-mode
-  -- session that appeared after step (2) — surface the single-active error.
+  -- re-reads the winner's active discovery row — but RETURNs it ONLY when the
+  -- winner's frozen inputs (subject_id + config.question_ids) match this
+  -- caller's request. Idempotent ONLY for an identical concurrent request: two
+  -- starts with the same payload may safely share the one surviving session
+  -- (the id set is frozen in config). A different-payload concurrent start must
+  -- NOT receive the winner's id — study.ts scopes orphan-teardown to the id this
+  -- RPC returns, so handing back the winner's id would let the loser soft-delete
+  -- the winner's session. The RETURN exits here, so the audit INSERT below never
+  -- runs on that path (this caller created no session). If the re-read finds NO
+  -- payload-matching active discovery row, a different request's session is
+  -- active — surface the single-active error.
   BEGIN
     INSERT INTO public.quiz_sessions
       (organization_id, student_id, mode, subject_id, config, total_questions)
@@ -124,6 +130,8 @@ BEGIN
       AND qs.mode = 'discovery'
       AND qs.ended_at IS NULL
       AND qs.deleted_at IS NULL
+      AND qs.subject_id IS NOT DISTINCT FROM p_subject_id
+      AND qs.config->'question_ids' = to_jsonb(p_question_ids)
     LIMIT 1;
     IF v_session_id IS NULL THEN
       RAISE EXCEPTION 'another_session_active';

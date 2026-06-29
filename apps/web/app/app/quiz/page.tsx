@@ -8,27 +8,21 @@ import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
-import { getActiveExamSession } from './actions/get-active-exam-session'
-import { getActivePracticeSession } from './actions/get-active-practice-session'
-import { loadDrafts } from './actions/load-draft'
+import { loadQuizPageData } from './_loaders/load-quiz-page-data'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizPage() {
   const user = await requireAuthUser()
-
-  const [{ drafts }, examResult, practiceResult] = await Promise.all([
-    loadDrafts(),
-    getActiveExamSession(),
-    getActivePracticeSession(),
-  ])
-
-  const examLookupFailed = !examResult.success
-  const activeExams = examResult.success ? examResult.sessions : []
-  const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
-  const expiredIds = examResult.success ? examResult.expiredSessionIds : []
-  const practiceLookupFailed = !practiceResult.success
-  const activePractice = practiceResult.success ? practiceResult.session : null
+  const {
+    drafts,
+    examLookupFailed,
+    activeExams,
+    orphanedIds,
+    expiredIds,
+    practiceLookupFailed,
+    activePractice,
+  } = await loadQuizPageData()
 
   return (
     <main className="space-y-6">

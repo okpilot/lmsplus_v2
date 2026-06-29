@@ -1,14 +1,13 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 import type { QuestionTab } from '../../_components/question-tabs'
 import { QuestionTabs } from '../../_components/question-tabs'
-import { endDiscovery } from '../../actions/end-discovery'
+import { useDiscoveryExit } from '../_hooks/use-discovery-exit'
 import { ExamBadge } from './exam-session-header'
 import { KeyboardLegend } from './keyboard-legend'
 
@@ -42,16 +41,9 @@ export function QuizSessionHeader({
   onTimeExpired,
   onFinishClick,
 }: QuizSessionHeaderProps) {
-  const router = useRouter()
+  const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
 
-  // Best-effort teardown of the active discovery row, then leave the runner.
-  // Awaited so the Server Action settles before the terminal nav and cannot cancel
-  // the soft-nav (code-style.md §6); we navigate regardless of its outcome.
-  async function handleDiscoveryExit() {
-    await endDiscovery().catch(() => {})
-    router.replace('/app/quiz')
-  }
   return (
     // Desktop (md+) only: pin the header so it stays visible while the question
     // body scrolls underneath. Mobile keeps the original scroll-away header.

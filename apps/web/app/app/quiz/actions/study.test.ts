@@ -152,6 +152,11 @@ describe('startStudy — discovery session', () => {
       p_subject_id: VALID_SUBJECT_ID,
       p_question_ids: QUESTION_IDS,
     })
+    // The session row must be created BEFORE the keys are fetched, so a failed
+    // fetch always has a row to tear down (no orphaned active session).
+    expect(mockRpc.mock.invocationCallOrder[0]!).toBeLessThan(
+      mockGetStudyQuestions.mock.invocationCallOrder[0]!,
+    )
   })
 
   it('tells the user to finish their other session when one is already active', async () => {
@@ -160,6 +165,17 @@ describe('startStudy — discovery session', () => {
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('Finish or exit your active session first.')
+    expect(mockGetStudyQuestions).not.toHaveBeenCalled()
+  })
+
+  it('fails without fetching keys when the session row is created but no id is returned', async () => {
+    // A success result (error null) carrying a null/empty id would leave the orphan
+    // teardown unable to scope to this request's row — treat it as a failure.
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to start study session')
     expect(mockGetStudyQuestions).not.toHaveBeenCalled()
   })
 

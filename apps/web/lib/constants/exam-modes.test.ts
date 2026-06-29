@@ -45,6 +45,7 @@ describe('isExamMode', () => {
   it('returns false for non-exam modes', () => {
     expect(isExamMode('quick_quiz')).toBe(false)
     expect(isExamMode('smart_review')).toBe(false)
+    expect(isExamMode('discovery')).toBe(false)
   })
 
   it('returns false for unknown strings', () => {
