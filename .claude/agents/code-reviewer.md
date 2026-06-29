@@ -56,6 +56,7 @@ You receive:
 12. **Naming violations** — component file not kebab-case, component export not PascalCase
 13. **API route for mutations** — new `route.ts` POST/PUT/DELETE handler where a Server Action should be used instead
 14. **Prop drilling** — same prop passed through 3+ component levels
+15. **Mutable component props** — React function-component props not wrapped in `Readonly<…>` (SonarCloud `typescript:S6759`; see code-style.md §5)
 
 ## Output Format
 

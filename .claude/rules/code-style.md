@@ -262,7 +262,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 
-This applies to every React function component — `_components/*.tsx`, `page.tsx` default exports (their `params`/`searchParams` props), and `apps/web/components/**`.
+This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
 
 **Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027). (Promoted at user direction after recurring S6759 findings, #1027.)
 
@@ -894,6 +894,7 @@ The `code-reviewer` agent flags these after every commit:
 - `any` types
 - Non-null assertions without a comment
 - Barrel `index.ts` files
+- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5; SonarCloud `typescript:S6759`)
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
@@ -912,4 +913,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-06-05 (added stale-closure ref-mirroring rule to §6 — issue #444)*
+*Last updated: 2026-06-29 (added "Mark Component Props as `Readonly`" rule to §5 + §8 — issue #1027)*
