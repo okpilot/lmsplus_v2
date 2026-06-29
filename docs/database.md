@@ -589,6 +589,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 | void_reason | TEXT | NULL — admin-supplied reason on void |
 | organization_id | UUID | FK → organizations(id), NOT NULL |
 | deleted_at | TIMESTAMPTZ | NULL |
+| emailed_at | TIMESTAMPTZ | NULL — When an admin last emailed this code to the student (stamped by `record_internal_exam_code_emailed`); drives the codes-table 'sent' indicator (#905) |
 
 **Constraints:**
 - `consumed_pair_consistency` CHECK — `(consumed_at IS NULL) = (consumed_session_id IS NULL)`
@@ -601,11 +602,11 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 **RLS policies (FORCE RLS, migration `20260429000009`; tightened in `20260521000004`):**
 - SELECT (student): none — direct PostgREST reads return 0 rows; students read via `list_my_active_internal_exam_codes()` RPC (closes #577). The earlier `student_read_active_codes` policy was dropped because it exposed the plaintext `code` column to any caller who knew an `id`.
 - SELECT (admin): `is_admin()` AND org-scoped
-- UPDATE (admin): none — admin write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
+- UPDATE (admin): none — admin write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session`, `record_internal_exam_code_emailed`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Three writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin) and one student reader (`list_my_active_internal_exam_codes()`). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
+**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` only) and one student reader (`list_my_active_internal_exam_codes()`). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 
@@ -742,7 +743,7 @@ verb_noun pattern:
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard; single-active-session guard raises 'another_session_active' if a non-internal-exam active session exists (mig 139, #1011)
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
-  record_internal_exam_code_emailed ← write, admin-only: audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
+  record_internal_exam_code_emailed ← write, admin-only: stamp `emailed_at = now()` on the code row + audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110; `emailed_at` column + stamp added in mig 20260629000900 / #905); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099); single-active-session guard raises 'another_session_active' if a non-vfr_rt_exam active session exists (mig 140, #1011)
@@ -1532,9 +1533,9 @@ Admin-only. Three branches:
 
 **Fix:** `CREATE OR REPLACE` with the guard rewritten to `p_reason ~ '^[[:space:]]*$'` (POSIX whitespace class — matches the empty string AND any whitespace-only input). Function body otherwise unchanged from migration `20260430000006`.
 
-##### `record_internal_exam_code_emailed(p_code_id)` (migration `20260618000001`)
+##### `record_internal_exam_code_emailed(p_code_id)` (base migration `20260618000001` / mig 110; `emailed_at` column + stamp added in migration `20260629000900` / #905)
 
-Admin-only audit RPC (not a direct API endpoint — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway). Writes one `internal_exam.code_emailed` audit event when an admin emails an internal exam code to a student. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
+Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway). After its guards pass, it performs two writes: (1) stamps `emailed_at = now()` on the `internal_exam_codes` row (PK-scoped, `organization_id` + `deleted_at IS NULL` re-asserted); and (2) inserts one `internal_exam.code_emailed` audit event. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
 
 **Guard set:** Mirrors the sibling internal-exam RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`) per security.md rule 11b:
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`

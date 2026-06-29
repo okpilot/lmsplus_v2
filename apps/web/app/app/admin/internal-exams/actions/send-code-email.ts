@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { sendEmail } from '@/lib/email/resend'
@@ -67,5 +68,6 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     console.error('[sendInternalExamCodeEmail] Audit event failed:', auditErr.message)
   }
 
+  revalidatePath('/app/admin/internal-exams')
   return { success: true }
 }

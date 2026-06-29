@@ -16,6 +16,7 @@ export type InternalExamCodeRow = {
   voidedAt: string | null
   voidedBy: string | null
   voidReason: string | null
+  emailedAt: string | null
   status: InternalExamCodeStatus
   sessionEndedAt: string | null
 }

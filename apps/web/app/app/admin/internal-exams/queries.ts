@@ -32,6 +32,7 @@ type CodeRowRaw = {
   voided_at: string | null
   voided_by: string | null
   void_reason: string | null
+  emailed_at: string | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null } | null
   quiz_sessions: { ended_at: string | null } | null
@@ -65,7 +66,7 @@ export async function listInternalExamCodes(
     .from('internal_exam_codes')
     .select(
       `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
-       consumed_at, consumed_session_id, voided_at, voided_by, void_reason,
+       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
        easa_subjects(name),
        users!student_id(full_name, email),
        quiz_sessions!consumed_session_id(ended_at)`,
@@ -123,6 +124,7 @@ export async function listInternalExamCodes(
     voidedAt: r.voided_at,
     voidedBy: r.voided_by,
     voidReason: r.void_reason,
+    emailedAt: r.emailed_at,
     status: deriveStatus({
       consumed_at: r.consumed_at,
       voided_at: r.voided_at,
