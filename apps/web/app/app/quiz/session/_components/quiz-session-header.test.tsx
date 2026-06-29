@@ -72,10 +72,13 @@ describe('QuizSessionHeader — Discovery exit', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
-  it('renders the Finish button (not Exit) and does not end discovery for a normal session', () => {
+  it('fires the Finish callback (not the discovery teardown) for a normal session', () => {
     render(<QuizSessionHeader {...baseProps} isDiscovery={false} />)
-    expect(screen.getByRole('button', { name: /Finish Test/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Exit' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Finish Test/ }))
+
+    expect(baseProps.onFinishClick).toHaveBeenCalledTimes(1)
     expect(mockEndDiscovery).not.toHaveBeenCalled()
   })
 })

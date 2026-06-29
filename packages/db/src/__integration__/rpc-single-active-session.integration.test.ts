@@ -403,7 +403,12 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     // hard schema constraint, not an RLS policy).
     const { data, error } = await admin
       .from('quiz_sessions')
-      .insert({ organization_id: orgId, student_id: studentId, mode: 'mock_exam' })
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        subject_id: subjectId,
+        mode: 'mock_exam',
+      })
       .select('id')
     expect(data).toBeNull()
     expect(error).not.toBeNull()

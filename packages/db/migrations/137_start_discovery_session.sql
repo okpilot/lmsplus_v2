@@ -60,6 +60,12 @@ BEGIN
   IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
     RAISE EXCEPTION 'no_questions_provided';
   END IF;
+  -- Reject a multidimensional array (e.g. Nx1): it passes array_length(.., 1),
+  -- the distinct-count, and unnest checks, but to_jsonb() would persist nested
+  -- JSON in config.question_ids. Discovery ids must be a flat uuid[].
+  IF array_ndims(p_question_ids) <> 1 THEN
+    RAISE EXCEPTION 'invalid_question_ids';
+  END IF;
   IF array_length(p_question_ids, 1) > 500 THEN
     RAISE EXCEPTION 'too_many_questions';
   END IF;

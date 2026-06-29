@@ -45,6 +45,7 @@ describe('useDiscoveryExit', () => {
     const { result } = renderHook(() => useDiscoveryExit())
     await result.current()
 
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
   })
 })

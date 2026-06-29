@@ -58,7 +58,19 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     console.error('[startStudy] error:', err)
     // If the row was created but the key fetch failed, best-effort tear it down,
     // scoped to the id THIS request created, so we don't strand an orphan active row.
-    if (createdSessionId) await endDiscovery({ sessionId: createdSessionId }).catch(() => {})
+    // endDiscovery returns { success: false } (it does NOT throw) on auth/query
+    // failure, so check the result and log a failed teardown — the row is auto-cleared
+    // by the next start, but the failure must be observable.
+    if (createdSessionId) {
+      const teardown = await endDiscovery({ sessionId: createdSessionId }).catch(() => null)
+      if (!teardown?.success) {
+        console.error(
+          '[startStudy] discovery teardown failed:',
+          createdSessionId,
+          teardown?.error ?? 'unknown error',
+        )
+      }
+    }
     // get_study_questions raises 'active_exam_session' (mig 135) when the caller has
     // a live exam — surface a clear message instead of the generic one (the helper
     // wraps the RPC error, so the token is carried in the message).

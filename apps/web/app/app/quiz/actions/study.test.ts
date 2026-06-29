@@ -196,6 +196,23 @@ describe('startStudy — discovery session', () => {
     expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
   })
 
+  it('logs the teardown failure when the orphan row cannot be exited after a failed key fetch', async () => {
+    // endDiscovery returns { success: false } (it does NOT throw) on auth/query
+    // failure — a silently-swallowed teardown leaves the row active with no signal.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetStudyQuestions.mockRejectedValue(new Error('DB connection timeout'))
+    mockEndDiscovery.mockResolvedValue({ success: false, error: 'Failed to exit discovery' })
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to start study session')
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[startStudy] discovery teardown failed:',
+      CREATED_SESSION_ID,
+      'Failed to exit discovery',
+    )
+  })
+
   it('does not tear down a discovery row when the id fetch fails before one is created', async () => {
     mockGetRandomQuestionIds.mockRejectedValue(new Error('DB connection timeout'))
     await startStudy(VALID_INPUT)

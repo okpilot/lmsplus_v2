@@ -194,7 +194,10 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     })
     expect(ok.error).toBeNull()
     expect(typeof ok.data).toBe('string')
-    expect((await readActiveSessions()).map((s) => s.mode)).toEqual(['quick_quiz'])
+    const practiceSessionId = ok.data as string
+    const activeAfterStart = await readActiveSessions()
+    expect(activeAfterStart.map((s) => s.id)).toEqual([practiceSessionId])
+    expect(activeAfterStart.map((s) => s.mode)).toEqual(['quick_quiz'])
 
     // Reset to a clean slate, then seed an active mock_exam.
     await clearActiveSessions()
