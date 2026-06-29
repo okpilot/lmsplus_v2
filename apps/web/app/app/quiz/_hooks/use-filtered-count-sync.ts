@@ -17,7 +17,7 @@ export function useFilteredCountSync(opts: {
   fc: ReturnType<typeof useFilteredCount>
   // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
   // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
-  questionType?: string
+  questionType?: 'multiple_choice'
 }) {
   const { subjectId, hasActiveFilters, filters, calcMode, imageMode, topicTree, fc, questionType } =
     opts

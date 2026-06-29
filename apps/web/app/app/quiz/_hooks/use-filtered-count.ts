@@ -29,7 +29,7 @@ export function useFilteredCount(): FilteredCountState {
     imageMode: ImageMode = 'all',
     // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
     // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
-    questionType?: string,
+    questionType?: 'multiple_choice',
   ) {
     if (!subjectId) return
     const activeFilters = filters.filter((f) => f !== 'all')
