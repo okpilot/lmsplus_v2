@@ -239,6 +239,41 @@ describe('useFilteredCount — imageMode', () => {
   })
 })
 
+// ---- questionType ----------------------------------------------------------
+
+describe('useFilteredCount — questionType', () => {
+  it('counts only multiple-choice questions on the Study/Discovery path', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: { [TOPIC_ID]: 8 }, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(
+        SUBJECT_ID,
+        TOPIC_IDS,
+        SUBTOPIC_IDS,
+        ['unseen'],
+        'all',
+        'all',
+        'multiple_choice',
+      )
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: 'multiple_choice' }),
+    )
+    expect(result.current.filteredCount).toBe(8)
+  })
+
+  it('omits questionType (undefined) on the type-agnostic quiz/exam count path', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 3, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['unseen'])
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: undefined }),
+    )
+  })
+})
+
 // ---- Auth error -----------------------------------------------------------
 
 describe('useFilteredCount — auth error', () => {

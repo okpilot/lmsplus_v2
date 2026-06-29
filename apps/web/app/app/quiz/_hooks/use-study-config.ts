@@ -11,10 +11,13 @@ import { useTopicTree } from './use-topic-tree'
  * exam mode): like "New Quiz" it NAVIGATES to /app/quiz/session on start (use-study-
  * start writes the pre-marked handoff and reuses the real session runner).
  *
- * NOTE — `availableCount` (slider max) is TYPE-AGNOSTIC (shared count path counts
- * all types), but the discovery FETCH is MC-only (`startStudy`). On a mixed MC/
- * non-MC subject the count overstates the real MC pool; a fully-non-MC selection
- * falls back to the empty-state message. DORMANT today (picker is MC-only). #1003.
+ * The discovery FETCH is MC-only (`startStudy` passes question_type
+ * 'multiple_choice'), so the FILTERED-count path matches: `useFilteredCountSync` is
+ * given `questionType: 'multiple_choice'`, so once a switch/calc/image filter is
+ * active the slider max / Start button / count badge reflect the real MC pool on a
+ * mixed MC/non-MC subject (#1008). The no-active-filter fallback still derives
+ * `availableCount` from the type-agnostic topic-tree counts (a separate query) — a
+ * narrower residual overstate tracked separately, not addressed here.
  */
 export function useStudyConfig({
   userId,
@@ -54,6 +57,9 @@ export function useStudyConfig({
     imageMode: st.imageMode,
     topicTree,
     fc,
+    // Discovery fetches MC-only (startStudy) — count the same pool so the slider
+    // max / Start button / count badge match the real fetchable set (#1008).
+    questionType: 'multiple_choice',
   })
 
   return {

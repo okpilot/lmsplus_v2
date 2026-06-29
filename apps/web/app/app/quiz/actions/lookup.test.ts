@@ -428,6 +428,53 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
   })
 })
 
+// ---- getFilteredCount — questionType (#1008) -----------------------------
+
+describe('getFilteredCount — questionType (MC-aware Study/Discovery count)', () => {
+  it("passes p_question_type 'multiple_choice' when questionType is 'multiple_choice'", async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      filters: ['all'],
+      questionType: 'multiple_choice',
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_question_type: 'multiple_choice' }),
+    )
+  })
+
+  it('passes p_question_type null when questionType is omitted (type-agnostic quiz/exam count)', async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_question_type: null }),
+    )
+  })
+
+  it('returns empty count and logs when questionType is an unsupported value', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      filters: ['all'],
+      questionType: 'short_answer',
+    })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    consoleSpy.mockRestore()
+  })
+})
+
 // ---- getFilteredCount — filters: ['unseen'] ------------------------------
 
 describe("getFilteredCount — filters: ['unseen']", () => {

@@ -132,7 +132,7 @@ describe('useFilteredCountSync — empty topics guard', () => {
 // ---- Happy path: all conditions met -----------------------------------------
 
 describe('useFilteredCountSync — happy path', () => {
-  it('calls fc.refetch with all six args when subjectId, hasActiveFilters, and topics are present', () => {
+  it('calls fc.refetch with topic/subtopic ids and filters when subjectId, hasActiveFilters, and topics are present', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([
       { id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] },
@@ -152,6 +152,7 @@ describe('useFilteredCountSync — happy path', () => {
     )
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
+    // No questionType in opts → the type-agnostic (quiz/exam) count path passes undefined.
     expect(fc.refetch).toHaveBeenCalledWith(
       SUBJECT_ID,
       [TOPIC_ID_1, TOPIC_ID_2],
@@ -159,6 +160,35 @@ describe('useFilteredCountSync — happy path', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
+      undefined,
+    )
+  })
+
+  it("forwards questionType 'multiple_choice' to fc.refetch on the Study/Discovery count path", () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+
+    renderHook(() =>
+      useFilteredCountSync({
+        subjectId: SUBJECT_ID,
+        hasActiveFilters: true,
+        filters: DEFAULT_FILTERS,
+        calcMode: DEFAULT_CALC_MODE,
+        imageMode: DEFAULT_IMAGE_MODE,
+        topicTree,
+        fc,
+        questionType: 'multiple_choice',
+      }),
+    )
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      DEFAULT_FILTERS,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
     )
   })
 
@@ -187,6 +217,7 @@ describe('useFilteredCountSync — happy path', () => {
       ['flagged'],
       'only',
       'exclude',
+      undefined,
     )
   })
 })
@@ -220,6 +251,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       'all',
+      undefined,
     )
 
     act(() => {
@@ -234,6 +266,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       'only',
+      undefined,
     )
   })
 
@@ -269,6 +302,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       ['incorrect'],
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
+      undefined,
     )
   })
 
