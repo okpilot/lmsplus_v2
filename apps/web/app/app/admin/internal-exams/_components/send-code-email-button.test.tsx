@@ -72,6 +72,15 @@ describe('SendCodeEmailButton', () => {
     expect(screen.queryByText(/^Sent /)).not.toBeInTheDocument()
   })
 
+  it('does not send when disabled (non-active code)', () => {
+    render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} disabled />)
+
+    const button = screen.getByRole('button', { name: /send email/i }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    fireEvent.click(button)
+    expect(mockSendEmail).not.toHaveBeenCalled()
+  })
+
   it('shows the generic error toast and does NOT show the sent indicator when the action throws', async () => {
     mockSendEmail.mockRejectedValue(new Error('network failure'))
     render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} />)

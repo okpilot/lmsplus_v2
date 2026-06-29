@@ -606,7 +606,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` only) and one student reader (`list_my_active_internal_exam_codes()`). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
+**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) and one student reader (`list_my_active_internal_exam_codes()`). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 

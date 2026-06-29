@@ -208,6 +208,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       .eq('id', codeId)
       .single()
     expect(beforeErr).toBeNull()
+    // .single() + the beforeErr null-check above guarantee a non-null row.
     expect(beforeRow!.emailed_at).toBeNull()
 
     const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
@@ -222,6 +223,8 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       .eq('id', codeId)
       .single()
     expect(afterErr).toBeNull()
+    // .single() + the afterErr null-check above guarantee a non-null row; the
+    // not.toBeNull() then justifies the `as string` cast on the next line.
     expect(afterRow!.emailed_at).not.toBeNull()
     const emailedAt = new Date(afterRow!.emailed_at as string).getTime()
     expect(Math.abs(Date.now() - emailedAt)).toBeLessThan(5000)

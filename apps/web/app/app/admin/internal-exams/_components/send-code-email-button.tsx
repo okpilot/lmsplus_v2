@@ -6,9 +6,9 @@ import { toast } from 'sonner'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { sendInternalExamCodeEmail } from '../actions/send-code-email'
 
-type Props = Readonly<{ codeId: string; emailedAt: string | null }>
+type Props = Readonly<{ codeId: string; emailedAt: string | null; disabled?: boolean }>
 
-export function SendCodeEmailButton({ codeId, emailedAt }: Props) {
+export function SendCodeEmailButton({ codeId, emailedAt, disabled = false }: Props) {
   const [sentAt, setSentAt] = useState<string | null>(emailedAt)
   const [isSending, startSending] = useTransition()
 
@@ -38,6 +38,7 @@ export function SendCodeEmailButton({ codeId, emailedAt }: Props) {
         variant="outline"
         size="sm"
         loading={isSending}
+        disabled={disabled}
         loadingText="Sending…"
         onClick={handleSend}
       >

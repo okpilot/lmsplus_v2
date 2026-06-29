@@ -47,7 +47,14 @@ export function CodeRow({
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.issuedAt)}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.expiresAt)}</TableCell>
       <TableCell>
-        <SendCodeEmailButton codeId={r.id} emailedAt={r.emailedAt} />
+        {/* Only an active code can be (re)emailed — the send action rejects
+            consumed/voided/expired codes ('Code is no longer active'), so
+            disable the button for those, mirroring isVoidDisabled. */}
+        <SendCodeEmailButton
+          codeId={r.id}
+          emailedAt={r.emailedAt}
+          disabled={r.status !== 'active'}
+        />
       </TableCell>
       <TableCell>
         <Button
