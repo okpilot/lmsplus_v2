@@ -22,9 +22,9 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers, VICTIM_EMAIL } from './helpers/seed'
 
 // A throwaway answer payload. The ownership/mode SELECT fires before payload
 // validation, so the entries are never inspected — any non-null jsonb array
@@ -52,6 +52,16 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
   })
 
+  // Single-active-session invariant (#1011): these tests admin-INSERT an active
+  // quiz_sessions row for the victim (DQ2) and the attacker (DQ3). A leftover
+  // active session for either shared user collides with the global
+  // uq_one_active_session_per_student index (23505) on insert. Clear both before
+  // each test so the seeded session is the only active one.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    await cleanupStudentActiveSessions(VICTIM_EMAIL)
+  })
+
   // Admin-insert a session row directly — the guard tests never reach the
   // grading path, so no real question pool is needed. `mode` and `studentId`
   // are parameterised so the same helper seeds the victim's vfr_rt session
@@ -75,22 +85,42 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     return data.id
   }
 
+  // Restore in afterEach, not only beforeEach (hermiticity): a test's mutations
+  // must not leak an active session into the NEXT spec. Two isolated steps per
+  // code-style §7 — (1) soft-delete the ids this spec seeded, (2) clear any active
+  // session still held by the shared attacker/victim students. Step 2 is the
+  // belt-and-suspenders that covers a session not tracked in createdSessionIds.
   test.afterEach(async () => {
-    if (createdSessionIds.size === 0) return
+    const errors: string[] = []
+
     try {
-      const { data, error } = await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', Array.from(createdSessionIds))
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[vfr-rt-submit] soft-deleted ${data?.length} session(s)`)
+      if (createdSessionIds.size > 0) {
+        const { data, error } = await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', Array.from(createdSessionIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[vfr-rt-submit] soft-deleted ${data?.length} session(s)`)
+        }
       }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     } finally {
       createdSessionIds.clear()
     }
+
+    for (const email of [ATTACKER_EMAIL, VICTIM_EMAIL]) {
+      try {
+        await cleanupStudentActiveSessions(email)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('DQ2: an attacker cannot submit answers to a victim vfr_rt session (IDOR)', async () => {

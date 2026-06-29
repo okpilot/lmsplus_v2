@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { requireRpcResult } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -75,6 +75,13 @@ describe('RPC: check_quiz_answer', () => {
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
+  })
+
+  // Single-active-session invariant (#1011): each test starts a fresh session for
+  // the reused test student, so clear any still-active session left by the prior
+  // test before the next start RPC raises `another_session_active`.
+  beforeEach(async () => {
+    await clearActiveSessions({ admin, orgId })
   })
 
   /** Start a smart_review session whose config.question_ids holds the given IDs. */

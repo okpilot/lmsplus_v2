@@ -21,8 +21,8 @@ vi.mock('../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
-vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../session/_utils/quiz-session-storage')>()
+vi.mock('../session/_utils/quiz-session-handoff', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session/_utils/quiz-session-handoff')>()
   return {
     ...actual,
     sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
@@ -30,7 +30,7 @@ vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
 })
 
 // Import the real readSessionHandoff for round-trip test
-import { readSessionHandoff } from '../session/_utils/quiz-session-storage'
+import { readSessionHandoff } from '../session/_utils/quiz-session-handoff'
 
 // ---- Subject under test ---------------------------------------------------
 

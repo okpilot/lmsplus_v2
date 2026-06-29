@@ -18,7 +18,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
 }))
 
-vi.mock('../session/_utils/quiz-session-storage', () => ({
+vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 

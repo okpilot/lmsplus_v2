@@ -3,11 +3,8 @@ import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import { discardQuiz } from '../actions/discard'
 import { startExamSession } from '../actions/start-exam'
-import {
-  clearActiveSession,
-  readActiveSession,
-  sessionHandoffKey,
-} from '../session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
 
 type UseExamStartOpts = {
   userId: string

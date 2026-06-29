@@ -20,4 +20,9 @@ export const START_VFR_RT_EXAM_ERROR_MESSAGES: Array<[string, string]> = [
     'active_session_exists',
     'A VFR RT exam session is already starting. Please reload and try again.',
   ],
+  // Single-active-session guard (PR A) — a different mode's session is live.
+  [
+    'another_session_active',
+    'You already have an active session. Finish or discard it before starting a new one.',
+  ],
 ]

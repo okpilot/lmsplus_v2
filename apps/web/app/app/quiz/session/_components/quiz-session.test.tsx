@@ -26,6 +26,11 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+const mockEndDiscovery = vi.fn().mockResolvedValue({ success: true })
+vi.mock('../../actions/end-discovery', () => ({
+  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
+}))
+
 const mockCheckAnswer = vi.fn()
 vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
@@ -352,6 +357,7 @@ describe('QuizSession', () => {
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
     mockDiscardQuiz.mockResolvedValue({ success: true })
+    mockEndDiscovery.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({
       success: true,
       isCorrect: true,
@@ -894,15 +900,16 @@ describe('QuizSession', () => {
     expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
   })
 
-  it('shows Exit (not Finish) in the header and navigates to /app/quiz on click', () => {
+  it('shows Exit (not Finish) in the header and navigates to /app/quiz on click', async () => {
     renderDiscovery()
     expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
     const exitBtn = screen.getByRole('button', { name: 'Exit' })
     fireEvent.click(exitBtn)
-    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+    // Exit awaits the discovery teardown before navigating (§6), so await the nav.
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
-  it('lifecycle: opens pre-marked, allows navigation, and exits to /app/quiz', () => {
+  it('lifecycle: opens pre-marked, allows navigation, and exits to /app/quiz', async () => {
     renderDiscovery()
     // Entry: first question opens in reviewed state (correct option pre-selected)
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
@@ -915,6 +922,6 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
     // Exit navigates away — the only way to leave discovery
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
-    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 })

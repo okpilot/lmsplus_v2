@@ -46,7 +46,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -62,6 +62,7 @@ test.describe('Vector CU — start_quiz_session question-ID smuggling (issue #62
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let attackerUserId: string
   let crossOrgUserId: string
+  let crossOrgEmail: string
   let egmontOrgId: string
 
   // Egmont question IDs used as the cross-org smuggle payload (Attack 1).
@@ -97,6 +98,7 @@ test.describe('Vector CU — start_quiz_session question-ID smuggling (issue #62
     const crossOrgUser = await createCrossOrgUser()
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
     crossOrgUserId = crossOrgUser.userId
+    crossOrgEmail = crossOrgUser.email
 
     // Fetch real active egmont question IDs to use as the Attack 1 smuggle payload.
     // These questions exist in egmont-aviation (org A). The cross-org caller's
@@ -146,6 +148,13 @@ test.describe('Vector CU — start_quiz_session question-ID smuggling (issue #62
   })
 
   test.beforeEach(async () => {
+    // Single-active-session invariant (#1011): both callers use p_mode='quick_quiz',
+    // so start_quiz_session reaches the single-active guard (after the mode
+    // whitelist, before the question-validation guards). A leftover active session
+    // for either shared user would raise `another_session_active` instead of the
+    // expected `invalid_question_ids`. Clear both for a clean baseline.
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    await cleanupStudentActiveSessions(crossOrgEmail)
     borrowedQuestionId = null
     testStartIso = new Date().toISOString()
   })
