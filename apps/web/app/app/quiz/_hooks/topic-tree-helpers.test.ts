@@ -273,7 +273,7 @@ describe('computeAvailableCount', () => {
     ).toBe(7) // st1 subtopic count under filters
   })
 
-  it('uses the filtered (MC) count over the topic-tree total when preferFiltered is set with no active filter', () => {
+  it('uses the MC-only filtered count over the topic-tree total for Discovery with no active filter', () => {
     const topics = [makeTopic('t1', 20)]
     expect(
       computeAvailableCount({
@@ -290,7 +290,7 @@ describe('computeAvailableCount', () => {
     ).toBe(8)
   })
 
-  it('returns 0 while the MC counts are still loading on the preferFiltered path', () => {
+  it('returns 0 while the MC counts are still loading for Discovery', () => {
     const topics = [makeTopic('t1', 20)]
     expect(
       computeAvailableCount({

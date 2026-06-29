@@ -57,7 +57,7 @@ describe('useAvailableCount', () => {
     })
   })
 
-  it('forwards preferFiltered so Discovery derives the count from the MC-aware maps', () => {
+  it('uses the MC-only filtered count for Discovery with no active filters', () => {
     vi.mocked(helpers.computeAvailableCount).mockReturnValue(8)
     const topicTree = makeTopicTree({ selectedQuestionCount: 20 })
     const { result } = renderHook(() =>

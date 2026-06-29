@@ -95,37 +95,38 @@ describe('RPC: question-type filtered question pool (#1008)', () => {
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
-  async function countTotal(questionType?: 'multiple_choice'): Promise<number> {
-    const params: Record<string, unknown> = {
+  // Production (lookup.ts) ALWAYS sends p_question_type: questionType ?? null, so the
+  // helpers mirror that wire shape — pass an explicit null on the type-agnostic path
+  // rather than dropping the key (#1008).
+  async function countTotal(questionType: 'multiple_choice' | null = null): Promise<number> {
+    const { data, error } = await studentClient.rpc('get_filtered_question_counts', {
       p_subject_id: refs.subjectId,
       p_topic_ids: null,
       p_subtopic_ids: null,
       p_filters: [],
-    }
-    if (questionType) params.p_question_type = questionType
-    const { data, error } = await studentClient.rpc('get_filtered_question_counts', params)
+      p_question_type: questionType,
+    })
     expect(error).toBeNull()
     if (!Array.isArray(data)) throw new Error('get_filtered_question_counts: non-array response')
     return data.reduce((sum, r) => sum + Number((r as { n: number | string }).n), 0)
   }
 
-  async function poolIds(questionType?: 'multiple_choice'): Promise<string[]> {
-    const params: Record<string, unknown> = {
+  async function poolIds(questionType: 'multiple_choice' | null = null): Promise<string[]> {
+    const { data, error } = await studentClient.rpc('get_random_question_ids', {
       p_subject_id: refs.subjectId,
       p_topic_ids: null,
       p_subtopic_ids: null,
       p_count: 500,
       p_filters: [],
-    }
-    if (questionType) params.p_question_type = questionType
-    const { data, error } = await studentClient.rpc('get_random_question_ids', params)
+      p_question_type: questionType,
+    })
     expect(error).toBeNull()
     if (!Array.isArray(data)) throw new Error('get_random_question_ids: non-array response')
     return data.map((r) => (r as { id: string }).id)
   }
 
-  it('counts the whole pool (MC + short_answer) when p_question_type is omitted', async () => {
-    expect(await countTotal()).toBe(6)
+  it('counts the whole pool when no question type is set', async () => {
+    expect(await countTotal(null)).toBe(6)
   })
 
   it("counts only the multiple_choice questions when p_question_type is 'multiple_choice'", async () => {
@@ -143,8 +144,8 @@ describe('RPC: question-type filtered question pool (#1008)', () => {
     for (const saId of saIds) expect(ids).not.toContain(saId)
   })
 
-  it('samples the whole pool when p_question_type is omitted (count == quiz)', async () => {
-    const ids = await poolIds()
+  it('samples the whole pool when no question type is set', async () => {
+    const ids = await poolIds(null)
     expect(new Set(ids)).toEqual(new Set([...mcIds, ...saIds]))
   })
 })

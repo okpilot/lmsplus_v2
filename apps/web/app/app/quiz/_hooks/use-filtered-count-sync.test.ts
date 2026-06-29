@@ -63,7 +63,7 @@ beforeEach(() => {
 // ---- Guard: subjectId empty -------------------------------------------------
 
 describe('useFilteredCountSync — subjectId guard', () => {
-  it('does not call fc.refetch when subjectId is empty', () => {
+  it('does not request a count when subjectId is empty', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -86,7 +86,7 @@ describe('useFilteredCountSync — subjectId guard', () => {
 // ---- Guard: hasActiveFilters false ------------------------------------------
 
 describe('useFilteredCountSync — hasActiveFilters guard', () => {
-  it('does not call fc.refetch when hasActiveFilters is false', () => {
+  it('does not request a count when no filter is active on the type-agnostic path', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -109,7 +109,7 @@ describe('useFilteredCountSync — hasActiveFilters guard', () => {
 // ---- Guard: empty topics ----------------------------------------------------
 
 describe('useFilteredCountSync — empty topics guard', () => {
-  it('does not call fc.refetch when topicTree.topics is empty', () => {
+  it('does not request a count when no topics are loaded', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([])
 
@@ -254,7 +254,7 @@ describe('useFilteredCountSync — happy path', () => {
 // ---- Re-runs on dependency change -------------------------------------------
 
 describe('useFilteredCountSync — re-runs on dependency change', () => {
-  it('re-calls fc.refetch when imageMode changes between renders', () => {
+  it('re-requests the count when imageMode changes between renders', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -299,7 +299,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     )
   })
 
-  it('re-calls fc.refetch when filters change between renders', () => {
+  it('re-requests the count when filters change between renders', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -335,7 +335,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     )
   })
 
-  it('does not re-call fc.refetch when a re-render leaves every dependency unchanged', () => {
+  it('does not re-request the count when a re-render leaves every dependency unchanged', () => {
     const fc = makeFc()
     // Use stable array reference for topics — same identity across renders
     const topics: MinimalTopic[] = [{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }]
@@ -366,5 +366,43 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     })
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests an MC-only count once the Discovery question type becomes active', () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+    const noFilters: QuestionFilterValue[] = ['all']
+
+    const { rerender } = renderHook(
+      ({ questionType }: { questionType?: 'multiple_choice' }) =>
+        useFilteredCountSync({
+          subjectId: SUBJECT_ID,
+          hasActiveFilters: false,
+          filters: noFilters,
+          calcMode: DEFAULT_CALC_MODE,
+          imageMode: DEFAULT_IMAGE_MODE,
+          topicTree,
+          fc,
+          questionType,
+        }),
+      { initialProps: { questionType: undefined as 'multiple_choice' | undefined } },
+    )
+
+    // No active filter and no question type → the type-agnostic path stays idle.
+    expect(fc.refetch).not.toHaveBeenCalled()
+
+    act(() => {
+      rerender({ questionType: 'multiple_choice' })
+    })
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      noFilters,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
   })
 })
