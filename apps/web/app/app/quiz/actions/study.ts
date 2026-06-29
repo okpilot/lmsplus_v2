@@ -3,6 +3,8 @@
 import { z } from 'zod'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
+import { createDiscoverySession } from './_start-discovery-session'
+import { endDiscovery } from './end-discovery'
 
 const StartStudySchema = z.object({
   subjectId: z.uuid(),
@@ -25,6 +27,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     return { success: false, error: 'Invalid input' }
   }
 
+  let createdSessionId: string | null = null
   try {
     const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = parsed.data
     const ids = await getRandomQuestionIds({
@@ -38,17 +41,44 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
       questionType: 'multiple_choice',
     })
 
-    // An empty study set is a valid state, not an error — skip the fetch RPC entirely.
+    // An empty study set is a valid state, not an error — skip both the session
+    // creation and the fetch (no row is created for an empty discovery set).
     if (ids.length === 0) return { success: true, questions: [] }
 
+    // Create the real ephemeral discovery session row (enforces the single-active
+    // guard). Capture the created id so teardown is scoped to THIS request's row —
+    // a blanket student+mode teardown could tombstone a concurrent retry's newer row.
+    const { id: createdId, error: startError } = await createDiscoverySession(subjectId, ids)
+    if (startError) return { success: false, error: startError }
+    createdSessionId = createdId
+
     const questions = await getStudyQuestions(ids)
+    // getStudyQuestions can return [] for a non-empty id set (e.g. every id filtered
+    // by the RPC's soft-delete/status guards in a race). Treat that as a failure so the
+    // catch below tears down createdSessionId — otherwise the just-created discovery row
+    // stays active and blocks the next start until it is auto-cleared.
+    if (questions.length === 0) throw new Error('No study questions returned for selected ids')
     return { success: true, questions }
   } catch (err) {
     console.error('[startStudy] error:', err)
+    // If the row was created but the key fetch failed, best-effort tear it down,
+    // scoped to the id THIS request created, so we don't strand an orphan active row.
+    // endDiscovery returns { success: false } (it does NOT throw) on auth/query
+    // failure, so check the result and log a failed teardown — the row is auto-cleared
+    // by the next start, but the failure must be observable.
+    if (createdSessionId) {
+      const teardown = await endDiscovery({ sessionId: createdSessionId }).catch(() => null)
+      if (!teardown?.success) {
+        console.error(
+          '[startStudy] discovery teardown failed:',
+          createdSessionId,
+          teardown?.error ?? 'unknown error',
+        )
+      }
+    }
     // get_study_questions raises 'active_exam_session' (mig 135) when the caller has
-    // a live exam — Study Mode reveals answer keys, so it is blocked mid-exam. Surface
-    // a clear message instead of the generic one (the helper wraps the RPC error, so
-    // the token is carried in the message). Other errors stay generic (no DB-detail leak).
+    // a live exam — surface a clear message instead of the generic one (the helper
+    // wraps the RPC error, so the token is carried in the message).
     if (err instanceof Error && err.message.includes('active_exam_session')) {
       return { success: false, error: 'Finish or exit your active exam first.' }
     }

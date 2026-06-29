@@ -27,12 +27,15 @@ export function useFilteredCount(): FilteredCountState {
     filters: QuestionFilterValue[],
     calcMode: CalcMode = 'all',
     imageMode: ImageMode = 'all',
+    // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
+    // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
+    questionType?: 'multiple_choice',
   ) {
     if (!subjectId) return
     const activeFilters = filters.filter((f) => f !== 'all')
-    // calcMode / imageMode AND-restrict independently of the switch-filters, so a
-    // calc-only or image-only selection must fetch even when no switch-filter is active.
-    if (!activeFilters.length && calcMode === 'all' && imageMode === 'all') return
+    // calcMode / imageMode AND-restrict independently, and Study/Discovery sets
+    // questionType — only short-circuit when nothing restricts the pool (#1008).
+    if (!questionType && !activeFilters.length && calcMode === 'all' && imageMode === 'all') return
     setFilteredCount(null)
     setFilteredByTopic(null)
     setFilteredBySubtopic(null)
@@ -47,6 +50,7 @@ export function useFilteredCount(): FilteredCountState {
       filters: activeFilters,
       calcMode,
       imageMode,
+      questionType,
     })
       .then((result) => {
         if (gen !== filterGeneration.current) return

@@ -1,13 +1,13 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 import type { QuestionTab } from '../../_components/question-tabs'
 import { QuestionTabs } from '../../_components/question-tabs'
+import { useDiscoveryExit } from '../_hooks/use-discovery-exit'
 import { ExamBadge } from './exam-session-header'
 import { KeyboardLegend } from './keyboard-legend'
 
@@ -41,8 +41,9 @@ export function QuizSessionHeader({
   onTimeExpired,
   onFinishClick,
 }: QuizSessionHeaderProps) {
-  const router = useRouter()
+  const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
+
   return (
     // Desktop (md+) only: pin the header so it stays visible while the question
     // body scrolls underneath. Mobile keeps the original scroll-away header.
@@ -90,7 +91,7 @@ export function QuizSessionHeader({
             type="button"
             // replace (not push): the consumed handoff makes the session page
             // un-resumable, so Back must not be able to reopen the exited runner.
-            onClick={() => router.replace('/app/quiz')}
+            onClick={handleDiscoveryExit}
             className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Exit

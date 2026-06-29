@@ -86,6 +86,9 @@ export function calcFilteredAvailable(
 
 export function computeAvailableCount(opts: {
   hasActiveFilters: boolean
+  // Discovery forces the MC-aware filtered counts even with no active filter, so the
+  // slider max / Start button never overstate the MC-only pool on a mixed subject (#1008).
+  preferFiltered?: boolean
   filteredByTopic: Record<string, number> | null
   filteredBySubtopic: Record<string, number> | null
   selectedQuestionCount: number
@@ -93,8 +96,14 @@ export function computeAvailableCount(opts: {
   checkedTopics: Set<string>
   checkedSubtopics: Set<string>
 }): number {
-  if (!opts.hasActiveFilters || !opts.filteredByTopic || !opts.filteredBySubtopic) {
+  if (!opts.hasActiveFilters && !opts.preferFiltered) {
     return opts.selectedQuestionCount
+  }
+  if (!opts.filteredByTopic || !opts.filteredBySubtopic) {
+    // Filtered maps not loaded yet. On the Discovery (preferFiltered) path fall back to
+    // 0 — never show the type-agnostic topic-tree total as the MC-only max; the
+    // active-filter path keeps the topic-tree fallback during the brief pending window.
+    return opts.preferFiltered ? 0 : opts.selectedQuestionCount
   }
   return calcFilteredAvailable(
     opts.topics,

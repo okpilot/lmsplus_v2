@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BootstrapState } from '../_hooks/use-session-bootstrap'
-import type { ActiveSession, SessionData } from '../_utils/quiz-session-storage'
+import type { SessionData } from '../_utils/quiz-session-handoff'
+import type { ActiveSession } from '../_utils/quiz-session-storage'
 
 // ---- Mocks ------------------------------------------------------------------
 // useSessionBootstrap is known to hang vitest when rendered for real (issue #422).

@@ -21,6 +21,7 @@ vi.mock('./use-study-start', () => ({ useStudyStart: vi.fn() }))
 
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
+import { useFilteredCountSync } from './use-filtered-count-sync'
 import { useStudyConfig } from './use-study-config'
 import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
@@ -126,6 +127,20 @@ describe('useStudyConfig — initial state', () => {
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
     const { result } = renderHook(() => useStudyConfig(DEFAULT_ARGS))
     expect(result.current.topicTree).toBe(mockTree)
+  })
+
+  it('counts the MC-only pool regardless of other filters by preferring the filtered count', () => {
+    renderHook(() => useStudyConfig(DEFAULT_ARGS))
+    expect(useAvailableCount).toHaveBeenCalledWith(
+      expect.objectContaining({ preferFiltered: true }),
+    )
+  })
+
+  it('requests the MC-only count via the filtered-count sync on the Discovery path', () => {
+    renderHook(() => useStudyConfig(DEFAULT_ARGS))
+    expect(useFilteredCountSync).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: 'multiple_choice' }),
+    )
   })
 })
 

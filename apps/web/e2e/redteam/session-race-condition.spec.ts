@@ -23,7 +23,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -89,6 +89,15 @@ test.describe('Red Team: Session Race Condition', () => {
     })
     examSubjectId = examPicked.subjectId
     await ensureExamConfig(orgId, examSubjectId, examPicked.topicId)
+  })
+
+  // Single-active-session invariant (#1011): the attacker is shared across
+  // red-team specs. A leftover active session (any mode) makes the concurrent
+  // start_exam_session test reject the winning call with `another_session_active`
+  // instead of the same-subject "already in progress" race outcome. Clear the
+  // attacker's active sessions before each test for a clean baseline.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
   })
 
   test.afterEach(async () => {

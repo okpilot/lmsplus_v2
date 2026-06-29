@@ -2,11 +2,11 @@ import type { useRouter } from 'next/navigation'
 import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { discardQuiz } from '../actions/discard'
 import { saveDraft } from '../actions/draft'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import {
   type ActiveSession,
   buildHandoffPayload,
   clearActiveSession,
-  sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>

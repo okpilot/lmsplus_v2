@@ -239,6 +239,70 @@ describe('useFilteredCount — imageMode', () => {
   })
 })
 
+// ---- questionType ----------------------------------------------------------
+
+describe('useFilteredCount — questionType', () => {
+  it('counts only multiple-choice questions on the Study/Discovery path', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: { [TOPIC_ID]: 8 }, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(
+        SUBJECT_ID,
+        TOPIC_IDS,
+        SUBTOPIC_IDS,
+        ['unseen'],
+        'all',
+        'all',
+        'multiple_choice',
+      )
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: 'multiple_choice' }),
+    )
+    expect(result.current.filteredCount).toBe(8)
+  })
+
+  it('counts the multiple-choice pool when questionType is set even with no active filter', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 6, byTopic: { [TOPIC_ID]: 6 }, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      // No switch-filter, calc/image both 'all' — only questionType restricts the pool.
+      result.current.refetch(
+        SUBJECT_ID,
+        TOPIC_IDS,
+        SUBTOPIC_IDS,
+        ['all'],
+        'all',
+        'all',
+        'multiple_choice',
+      )
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: [], questionType: 'multiple_choice' }),
+    )
+    expect(result.current.filteredCount).toBe(6)
+  })
+
+  it('does not fetch when no questionType and no active filter/calc/image are set', async () => {
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'all', 'all', undefined)
+    })
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+  })
+
+  it('omits questionType (undefined) on the type-agnostic quiz/exam count path', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 3, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['unseen'])
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: undefined }),
+    )
+  })
+})
+
 // ---- Auth error -----------------------------------------------------------
 
 describe('useFilteredCount — auth error', () => {

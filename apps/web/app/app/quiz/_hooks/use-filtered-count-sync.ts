@@ -15,8 +15,12 @@ export function useFilteredCountSync(opts: {
   imageMode: ImageMode
   topicTree: ReturnType<typeof useTopicTree>
   fc: ReturnType<typeof useFilteredCount>
+  // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
+  // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
+  questionType?: 'multiple_choice'
 }) {
-  const { subjectId, hasActiveFilters, filters, calcMode, imageMode, topicTree, fc } = opts
+  const { subjectId, hasActiveFilters, filters, calcMode, imageMode, topicTree, fc, questionType } =
+    opts
   const allTopicIds = useMemo(() => topicTree.topics.map((t) => t.id), [topicTree.topics])
   const allSubtopicIds = useMemo(
     () => topicTree.topics.flatMap((t) => t.subtopics.map((st) => st.id)),
@@ -24,14 +28,19 @@ export function useFilteredCountSync(opts: {
   )
 
   useEffect(() => {
-    if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
-    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters, calcMode, imageMode)
+    if (!subjectId || allTopicIds.length === 0) return
+    // Study/Discovery (questionType set) always counts the MC-only pool, so it must
+    // fire even with no other active filter; the type-agnostic quiz/exam path only
+    // needs the count once a filter is active (#1008).
+    if (!hasActiveFilters && questionType === undefined) return
+    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters, calcMode, imageMode, questionType)
   }, [
     subjectId,
     hasActiveFilters,
     filters,
     calcMode,
     imageMode,
+    questionType,
     allTopicIds,
     allSubtopicIds,
     fc.refetch,

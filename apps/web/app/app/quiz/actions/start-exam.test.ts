@@ -137,6 +137,16 @@ describe('startExamSession — RPC error messages', () => {
     expect(result.error).toBe('Not enough questions available to start this Practice Exam.')
   })
 
+  it('tells the user to finish their other session when one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'You already have an active session. Finish or discard it before starting a new one.',
+    )
+  })
+
   it('returns a generic failure for an unknown RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })

@@ -3,15 +3,19 @@ import { computeAvailableCount, type UseTopicTreeReturn } from './topic-tree-hel
 
 export function useAvailableCount(opts: {
   hasActiveFilters: boolean
+  // Discovery passes true so availableCount derives from the MC-aware filtered counts
+  // even with no active filter; quiz/exam omit it (topic-tree total fallback) (#1008).
+  preferFiltered?: boolean
   filteredByTopic: Record<string, number> | null
   filteredBySubtopic: Record<string, number> | null
   topicTree: UseTopicTreeReturn
 }): number {
-  const { hasActiveFilters, filteredByTopic, filteredBySubtopic, topicTree } = opts
+  const { hasActiveFilters, preferFiltered, filteredByTopic, filteredBySubtopic, topicTree } = opts
   return useMemo(
     () =>
       computeAvailableCount({
         hasActiveFilters,
+        preferFiltered,
         filteredByTopic,
         filteredBySubtopic,
         selectedQuestionCount: topicTree.selectedQuestionCount,
@@ -21,6 +25,7 @@ export function useAvailableCount(opts: {
       }),
     [
       hasActiveFilters,
+      preferFiltered,
       filteredByTopic,
       filteredBySubtopic,
       topicTree.selectedQuestionCount,

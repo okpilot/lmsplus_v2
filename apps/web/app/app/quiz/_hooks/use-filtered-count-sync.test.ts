@@ -63,7 +63,7 @@ beforeEach(() => {
 // ---- Guard: subjectId empty -------------------------------------------------
 
 describe('useFilteredCountSync — subjectId guard', () => {
-  it('does not call fc.refetch when subjectId is empty', () => {
+  it('does not request a count when subjectId is empty', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -86,7 +86,7 @@ describe('useFilteredCountSync — subjectId guard', () => {
 // ---- Guard: hasActiveFilters false ------------------------------------------
 
 describe('useFilteredCountSync — hasActiveFilters guard', () => {
-  it('does not call fc.refetch when hasActiveFilters is false', () => {
+  it('does not request a count when no filter is active on the type-agnostic path', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -109,7 +109,7 @@ describe('useFilteredCountSync — hasActiveFilters guard', () => {
 // ---- Guard: empty topics ----------------------------------------------------
 
 describe('useFilteredCountSync — empty topics guard', () => {
-  it('does not call fc.refetch when topicTree.topics is empty', () => {
+  it('does not request a count when no topics are loaded', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([])
 
@@ -132,7 +132,7 @@ describe('useFilteredCountSync — empty topics guard', () => {
 // ---- Happy path: all conditions met -----------------------------------------
 
 describe('useFilteredCountSync — happy path', () => {
-  it('calls fc.refetch with all six args when subjectId, hasActiveFilters, and topics are present', () => {
+  it('requests a filtered count when subject, topics, and an active filter are present', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([
       { id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] },
@@ -152,6 +152,7 @@ describe('useFilteredCountSync — happy path', () => {
     )
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
+    // No questionType in opts → the type-agnostic (quiz/exam) count path passes undefined.
     expect(fc.refetch).toHaveBeenCalledWith(
       SUBJECT_ID,
       [TOPIC_ID_1, TOPIC_ID_2],
@@ -159,6 +160,64 @@ describe('useFilteredCountSync — happy path', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
+      undefined,
+    )
+  })
+
+  it('requests a multiple-choice-only filtered count on the Study/Discovery path', () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+
+    renderHook(() =>
+      useFilteredCountSync({
+        subjectId: SUBJECT_ID,
+        hasActiveFilters: true,
+        filters: DEFAULT_FILTERS,
+        calcMode: DEFAULT_CALC_MODE,
+        imageMode: DEFAULT_IMAGE_MODE,
+        topicTree,
+        fc,
+        questionType: 'multiple_choice',
+      }),
+    )
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      DEFAULT_FILTERS,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
+  })
+
+  it('requests a multiple-choice-only count on the Study/Discovery path even with no active filter', () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+    const noFilters: QuestionFilterValue[] = ['all']
+
+    renderHook(() =>
+      useFilteredCountSync({
+        subjectId: SUBJECT_ID,
+        hasActiveFilters: false,
+        filters: noFilters,
+        calcMode: DEFAULT_CALC_MODE,
+        imageMode: DEFAULT_IMAGE_MODE,
+        topicTree,
+        fc,
+        questionType: 'multiple_choice',
+      }),
+    )
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      noFilters,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
     )
   })
 
@@ -187,6 +246,7 @@ describe('useFilteredCountSync — happy path', () => {
       ['flagged'],
       'only',
       'exclude',
+      undefined,
     )
   })
 })
@@ -194,7 +254,7 @@ describe('useFilteredCountSync — happy path', () => {
 // ---- Re-runs on dependency change -------------------------------------------
 
 describe('useFilteredCountSync — re-runs on dependency change', () => {
-  it('re-calls fc.refetch when imageMode changes between renders', () => {
+  it('re-requests the count when imageMode changes between renders', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -220,6 +280,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       'all',
+      undefined,
     )
 
     act(() => {
@@ -234,10 +295,11 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       DEFAULT_FILTERS,
       DEFAULT_CALC_MODE,
       'only',
+      undefined,
     )
   })
 
-  it('re-calls fc.refetch when filters change between renders', () => {
+  it('re-requests the count when filters change between renders', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
@@ -269,10 +331,11 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       ['incorrect'],
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
+      undefined,
     )
   })
 
-  it('does not re-call fc.refetch when a re-render leaves every dependency unchanged', () => {
+  it('does not re-request the count when a re-render leaves every dependency unchanged', () => {
     const fc = makeFc()
     // Use stable array reference for topics — same identity across renders
     const topics: MinimalTopic[] = [{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }]
@@ -303,5 +366,43 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     })
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests an MC-only count once the Discovery question type becomes active', () => {
+    const fc = makeFc()
+    const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
+    const noFilters: QuestionFilterValue[] = ['all']
+
+    const { rerender } = renderHook(
+      ({ questionType }: { questionType?: 'multiple_choice' }) =>
+        useFilteredCountSync({
+          subjectId: SUBJECT_ID,
+          hasActiveFilters: false,
+          filters: noFilters,
+          calcMode: DEFAULT_CALC_MODE,
+          imageMode: DEFAULT_IMAGE_MODE,
+          topicTree,
+          fc,
+          questionType,
+        }),
+      { initialProps: { questionType: undefined as 'multiple_choice' | undefined } },
+    )
+
+    // No active filter and no question type → the type-agnostic path stays idle.
+    expect(fc.refetch).not.toHaveBeenCalled()
+
+    act(() => {
+      rerender({ questionType: 'multiple_choice' })
+    })
+
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_1],
+      [SUBTOPIC_ID_1],
+      noFilters,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
   })
 })
