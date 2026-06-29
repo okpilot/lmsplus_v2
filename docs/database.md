@@ -1481,7 +1481,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 
 #### Internal Exam RPCs (mode `internal_exam`)
 
-Three SECURITY DEFINER RPCs implement the internal-exam lifecycle. All three set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); two further RPCs in this section — `record_internal_exam_code_emailed` (emails audit + `emailed_at` stamp) and `list_my_active_internal_exam_codes` (student reader) — round out the surface. All set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
 
 ##### `issue_internal_exam_code(p_subject_id, p_student_id)`
 

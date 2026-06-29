@@ -65,11 +65,15 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     p_code_id: parsed.data.codeId,
   })
   if (auditErr) {
-    // Best-effort: the email is already sent. The RPC also stamps emailed_at, so
-    // on RPC failure the codes-table "sent" indicator may UNDER-report (show
-    // "Send email" after a successful send) until a later send succeeds — the RPC
-    // is the only emailed_at writer, so over-reporting is impossible.
+    // Best-effort: the email is already sent, so this stays a success. The RPC is
+    // the only emailed_at writer; on its failure we deliberately SKIP the
+    // revalidate below — revalidating would re-render the row from a DB where
+    // emailed_at is still NULL, flashing "Send email" over the client's optimistic
+    // "Sent" indicator and inviting a duplicate send. The client keeps its
+    // optimistic indicator; emailed_at simply under-reports until the next send
+    // (never over-reports — the RPC is the sole writer).
     console.error('[sendInternalExamCodeEmail] Audit event failed:', auditErr.message)
+    return { success: true }
   }
 
   revalidatePath('/app/admin/internal-exams')

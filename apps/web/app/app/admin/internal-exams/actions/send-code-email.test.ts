@@ -151,6 +151,9 @@ describe('sendInternalExamCodeEmail', () => {
       '[sendInternalExamCodeEmail] Audit event failed:',
       'audit boom',
     )
+    // On audit/stamp failure we skip revalidate so a stale (emailed_at=NULL)
+    // refresh can't overwrite the client's optimistic "Sent" indicator.
+    expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 
   it('derives the recipient server-side from the payload email', async () => {
