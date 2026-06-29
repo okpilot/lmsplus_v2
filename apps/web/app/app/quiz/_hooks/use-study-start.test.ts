@@ -17,7 +17,7 @@ vi.mock('../actions/study', () => ({
   startStudy: (...args: unknown[]) => mockStartStudy(...args),
 }))
 
-vi.mock('../session/_utils/quiz-session-storage', () => ({
+vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 

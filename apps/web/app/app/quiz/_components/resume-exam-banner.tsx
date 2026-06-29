@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { discardQuiz } from '../actions/discard'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 
 type NormalProps = {
   userId: string

@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import {
-  type ActiveSession,
   clearSessionHandoff,
-  readActiveSession,
   readSessionHandoff,
   type SessionData,
+} from '../_utils/quiz-session-handoff'
+import {
+  type ActiveSession,
+  readActiveSession,
   toSessionData,
 } from '../_utils/quiz-session-storage'
 import { useSessionRecovery } from './use-session-recovery'

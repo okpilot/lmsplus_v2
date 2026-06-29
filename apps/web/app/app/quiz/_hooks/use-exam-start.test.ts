@@ -33,6 +33,8 @@ const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
 vi.mock('../session/_utils/quiz-session-storage', () => ({
   readActiveSession: (userId: string) => mockReadActiveSession(userId),
   clearActiveSession: mockClearActiveSession,
+}))
+vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { DraftData } from '../types'
 
 export function progressColor(pct: number): string {

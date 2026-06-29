@@ -44,11 +44,18 @@ vi.mock('../_utils/quiz-session-storage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../_utils/quiz-session-storage')>()
   return {
     ...actual,
-    readSessionHandoff: (...args: unknown[]) => mockReadSessionHandoff(...args),
     readActiveSession: (...args: unknown[]) => mockReadActiveSession(...args),
     clearActiveSession: mockClearActiveSession,
-    clearSessionHandoff: mockClearSessionHandoff,
     toSessionData: (...args: unknown[]) => mockToSessionData(...args),
+  }
+})
+
+vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../_utils/quiz-session-handoff')>()
+  return {
+    ...actual,
+    readSessionHandoff: (...args: unknown[]) => mockReadSessionHandoff(...args),
+    clearSessionHandoff: mockClearSessionHandoff,
   }
 })
 
@@ -69,7 +76,7 @@ vi.mock('next/navigation', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { isValidSessionData } from '../_utils/quiz-session-storage'
+import { isValidSessionData } from '../_utils/quiz-session-handoff'
 import { _resetCachedSession, useSessionBootstrap } from './use-session-bootstrap'
 
 // ---- Fixtures -------------------------------------------------------------
