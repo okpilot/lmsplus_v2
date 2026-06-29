@@ -51,6 +51,11 @@ vi.mock('./void-code-dialog', () => ({
   },
 }))
 
+// Stub the leaf button so tests don't pull in the real 'use server' email action chain.
+vi.mock('./send-code-email-button', () => ({
+  SendCodeEmailButton: () => null,
+}))
+
 import { CodesTable } from './codes-table'
 
 const baseRow: InternalExamCodeRow = {
@@ -69,6 +74,7 @@ const baseRow: InternalExamCodeRow = {
   voidedAt: null,
   voidedBy: null,
   voidReason: null,
+  emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
 }

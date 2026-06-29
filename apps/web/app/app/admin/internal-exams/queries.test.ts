@@ -68,6 +68,7 @@ describe('listInternalExamCodes', () => {
         voided_at: null,
         voided_by: null,
         void_reason: null,
+        emailed_at: '2026-04-28T09:00:00.000Z',
         easa_subjects: { name: 'Meteorology' },
         users: { full_name: 'Alice', email: 'alice@example.com' },
         quiz_sessions: null,
@@ -85,6 +86,7 @@ describe('listInternalExamCodes', () => {
         studentId: 'stu-1',
         studentName: 'Alice',
         studentEmail: 'alice@example.com',
+        emailedAt: '2026-04-28T09:00:00.000Z',
         status: 'active',
       })
     })

@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
+const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockGetCode = vi.hoisted(() => vi.fn())
 const mockSendEmail = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 
+vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('../email-queries', () => ({ getInternalExamCodeForEmail: mockGetCode }))
 vi.mock('@/lib/email/resend', () => ({ sendEmail: mockSendEmail }))
@@ -69,6 +71,8 @@ describe('sendInternalExamCodeEmail', () => {
     expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'record_internal_exam_code_emailed', {
       p_code_id: CODE_ID,
     })
+    expect(mockRevalidatePath).toHaveBeenCalledTimes(1)
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
   })
 
   it('rejects invalid input without calling the queries', async () => {
@@ -148,6 +152,9 @@ describe('sendInternalExamCodeEmail', () => {
       '[sendInternalExamCodeEmail] Audit event failed:',
       'audit boom',
     )
+    // On audit/stamp failure we skip revalidate so a stale (emailed_at=NULL)
+    // refresh can't overwrite the client's optimistic "Sent" indicator.
+    expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 
   it('derives the recipient server-side from the payload email', async () => {

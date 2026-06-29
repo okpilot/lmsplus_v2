@@ -2,8 +2,6 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -20,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { InternalExamCodeRow, InternalExamCodeStatus } from '../types'
+import { CodeRow } from './code-row'
 import { VoidCodeDialog } from './void-code-dialog'
 
 type Props = { rows: InternalExamCodeRow[]; status?: InternalExamCodeStatus | 'finished' }
@@ -33,58 +32,7 @@ const STATUS_ITEMS = [
   { value: 'expired', label: 'Expired' },
 ]
 
-function displayStatus(row: InternalExamCodeRow): string {
-  if (row.status === 'consumed' && row.sessionEndedAt) return 'finished'
-  return row.status
-}
-
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  consumed: 'secondary',
-  finished: 'default',
-  voided: 'destructive',
-  expired: 'outline',
-}
-
-function formatAbsolute(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function isVoidDisabled(r: InternalExamCodeRow): boolean {
-  if (r.status === 'voided') return true
-  return r.status === 'consumed' && r.sessionEndedAt !== null
-}
-
-function CodeRow({ r, onVoid }: { r: InternalExamCodeRow; onVoid: (id: string) => void }) {
-  const ds = displayStatus(r)
-  return (
-    <TableRow>
-      <TableCell>
-        <Badge variant={STATUS_VARIANT[ds] ?? 'outline'} className="text-xs capitalize">
-          {ds}
-        </Badge>
-      </TableCell>
-      <TableCell className="font-mono text-sm">{r.code}</TableCell>
-      <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>
-      <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.issuedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.expiresAt)}</TableCell>
-      <TableCell>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isVoidDisabled(r)}
-          onClick={() => onVoid(r.id)}
-        >
-          Void
-        </Button>
-      </TableCell>
-    </TableRow>
-  )
-}
-
-export function CodesTable({ rows, status }: Props) {
+export function CodesTable({ rows, status }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [voidId, setVoidId] = useState<string | null>(null)
@@ -121,13 +69,14 @@ export function CodesTable({ rows, status }: Props) {
               <TableHead className="min-w-[140px]">Subject</TableHead>
               <TableHead className="w-40">Issued</TableHead>
               <TableHead className="w-40">Expires</TableHead>
+              <TableHead className="w-32">Email</TableHead>
               <TableHead className="w-24">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
                   No codes found
                 </TableCell>
               </TableRow>
