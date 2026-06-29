@@ -91,8 +91,10 @@ export function QuizSession(props: QuizSessionProps) {
             pinnedIds={s.pinnedQuestions}
             flaggedIds={flaggedIds}
             questionIds={s.questionIds}
-            feedbackMap={s.isExam ? new Map() : feedbackMap}
+            // Discovery's navigator is driven by `seenIds` (visited = green), not its pre-marked feedback.
+            feedbackMap={s.isExam || isDiscovery ? new Map() : feedbackMap}
             answeredIds={s.isExam ? s.answeredIds : undefined}
+            seenIds={isDiscovery ? s.seenIndices : undefined}
             isExamMode={s.isExam}
             onNavigate={s.navigateTo}
           />

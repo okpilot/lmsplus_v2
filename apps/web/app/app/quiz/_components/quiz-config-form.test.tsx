@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CalcMode, ImageMode, QuestionFilterValue, QuizMode } from '../types'
 
@@ -98,12 +99,21 @@ vi.mock('./exam-config-form', () => ({
 }))
 
 vi.mock('./study-config-form', () => ({
-  StudyConfigForm: ({ unseenLabel, userId }: { unseenLabel?: string; userId?: string }) => (
+  StudyConfigForm: ({
+    unseenLabel,
+    userId,
+    header,
+  }: {
+    unseenLabel?: string
+    userId?: string
+    header?: ReactNode
+  }) => (
     <div
       data-testid="study-config-form"
       data-unseen-label={unseenLabel ?? ''}
       data-user-id={userId ?? ''}
     >
+      {header}
       StudyConfigForm
     </div>
   ),
@@ -383,7 +393,7 @@ describe('QuizConfigForm', () => {
       <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />,
     )
 
-    // Entry: discovery renders StudyConfigForm + ModeToggle as siblings (no SubjectSelect / Start Quiz)
+    // Entry: discovery renders StudyConfigForm with the ModeToggle in its header (no SubjectSelect / Start Quiz)
     expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
     expect(screen.queryByTestId('subject-select')).not.toBeInTheDocument()
 

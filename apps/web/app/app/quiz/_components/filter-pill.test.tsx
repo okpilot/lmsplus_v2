@@ -36,6 +36,24 @@ describe('getSquareClass', () => {
     expect(cls).toContain('border')
     expect(cls).toContain('text-muted-foreground')
   })
+
+  it('returns green styles for a visited (seen) square that is not current', () => {
+    const cls = getSquareClass({ isCurrent: false, isCorrect: null, isSeen: true })
+    expect(cls).toContain('bg-green-500')
+    expect(cls).toContain('text-white')
+  })
+
+  it('returns primary styles for the current square even when it is also seen', () => {
+    const cls = getSquareClass({ isCurrent: true, isCorrect: null, isSeen: true })
+    expect(cls).toContain('bg-primary')
+    expect(cls).not.toContain('bg-green-500')
+  })
+
+  it('returns border styles for an unvisited square when seen tracking is active', () => {
+    const cls = getSquareClass({ isCurrent: false, isCorrect: null, isSeen: false })
+    expect(cls).toContain('border')
+    expect(cls).toContain('text-muted-foreground')
+  })
 })
 
 // ---------------------------------------------------------------------------

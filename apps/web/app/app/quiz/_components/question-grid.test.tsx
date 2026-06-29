@@ -90,6 +90,23 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(0).className).toContain('bg-primary')
   })
 
+  it('shows a visited (seen) square with green when seenIds is provided', () => {
+    renderGrid({ currentIndex: 0, seenIds: new Set([2]) })
+    expect(desktopBtn(2).className).toContain('bg-green-500')
+  })
+
+  it('leaves unvisited squares as border-only when seenIds is provided', () => {
+    renderGrid({ currentIndex: 0, seenIds: new Set([2]) })
+    expect(desktopBtn(3).className).toContain('border')
+    expect(desktopBtn(3).className).toContain('text-muted-foreground')
+  })
+
+  it('keeps the current square primary even when it is in seenIds', () => {
+    renderGrid({ currentIndex: 1, seenIds: new Set([1, 2]) })
+    expect(desktopBtn(1).className).toContain('bg-primary')
+    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+  })
+
   it('calls onNavigate with correct index when clicked', () => {
     const { onNavigate } = renderGrid()
     fireEvent.click(desktopBtn(3))

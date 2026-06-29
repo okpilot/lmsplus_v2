@@ -1,7 +1,8 @@
 'use client'
 
-// Discovery mode: ModeToggle sits above StudyConfigForm as siblings —
-// StudyConfigForm is self-contained (own cards + Start button), so Card 1 is skipped.
+// Discovery mode: the ModeToggle is rendered inside StudyConfigForm's Card 1
+// (via the `header` slot), so the toggle + subject share one bordered card —
+// matching the Study/Exam layout so switching modes doesn't reflow the form.
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import type { QuizMode } from '../types'
 import { ModeToggle } from './mode-toggle'
@@ -23,9 +24,13 @@ export function DiscoveryModePanel({
   userId,
 }: DiscoveryModePanelProps) {
   return (
-    <div className="space-y-4">
-      <ModeToggle value={mode} onValueChange={onModeChange} examAvailable={examAvailable} />
-      <StudyConfigForm userId={userId} subjects={subjects} unseenLabel="Unseen" />
-    </div>
+    <StudyConfigForm
+      userId={userId}
+      subjects={subjects}
+      unseenLabel="Unseen"
+      header={
+        <ModeToggle value={mode} onValueChange={onModeChange} examAvailable={examAvailable} />
+      }
+    />
   )
 }
