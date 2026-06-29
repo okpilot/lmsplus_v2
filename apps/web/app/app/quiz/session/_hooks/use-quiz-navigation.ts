@@ -6,7 +6,10 @@ export function useQuizNavigation(opts: { totalQuestions: number; initialIndex?:
   const [currentIndex, setCurrentIndex] = useState(startIndex)
   // Tracks every question index the user has visited (the start index counts as
   // seen). Drives the Discovery navigator's "seen" colour; harmless for other modes.
-  const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([startIndex]))
+  // An empty session (totalQuestions === 0) has no question to mark seen.
+  const [seenIndices, setSeenIndices] = useState<Set<number>>(() =>
+    opts.totalQuestions > 0 ? new Set([startIndex]) : new Set(),
+  )
   const answerStartTime = useRef(Date.now())
 
   function navigateTo(index: number) {

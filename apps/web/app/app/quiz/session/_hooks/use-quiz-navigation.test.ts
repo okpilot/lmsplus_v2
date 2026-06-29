@@ -135,6 +135,11 @@ describe('useQuizNavigation — seenIndices', () => {
     expect(result.current.seenIndices.has(99)).toBe(false)
     expect([...result.current.seenIndices]).toEqual([0])
   })
+
+  it('seeds no seen index for an empty session', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 0, initialIndex: 5 }))
+    expect([...result.current.seenIndices]).toEqual([])
+  })
 })
 
 // ---- answerStartTime ------------------------------------------------------
