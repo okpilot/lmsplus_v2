@@ -166,9 +166,11 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
 
   // Single-active-session invariant (#1011): each test starts a fresh session for
   // the reused test student, so clear any still-active session left by the prior
-  // test before the next start RPC raises `another_session_active`.
+  // test before the next start RPC raises `another_session_active`. Scoped to the
+  // reused `studentId` (not org-wide): EL3/EL4 spin up their own per-test students,
+  // and a broad org-wide clear could wipe a session those tests intentionally hold.
   beforeEach(async () => {
-    await clearActiveSessions({ admin, orgId })
+    await clearActiveSessions({ admin, studentIds: [studentId] })
   })
 
   /** Start a smart_review session pinning the given question ids. */

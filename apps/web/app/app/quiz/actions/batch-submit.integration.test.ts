@@ -6,11 +6,12 @@
 // rejection.
 // Each test that needs an open session calls seedOpenSession inside the test —
 // batch_submit_quiz ends the session, so sessions cannot be shared across tests.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -102,6 +103,19 @@ describe('batchSubmitQuiz (app-layer integration)', () => {
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  // batch_submit_quiz ends the session it submits, but the cross-user test leaves
+  // student A's session active (B's submit fails). seedOpenSession no longer
+  // auto-clears, so clear both students' active sessions after each test to keep
+  // every test on a clean single-active-session (#1011) baseline — single cleanup
+  // step (code-style §7); afterEach runs even after a failure.
+  afterEach(async () => {
+    await clearActiveSessions({
+      admin,
+      studentIds: [studentAId, studentBId],
+      label: 'batchSubmitQuiz',
+    })
   })
 
   it('submits all answers and reports the score', async () => {

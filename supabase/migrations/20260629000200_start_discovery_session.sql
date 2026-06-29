@@ -73,14 +73,18 @@ BEGIN
   IF v_count <> array_length(p_question_ids, 1) THEN
     RAISE EXCEPTION 'invalid_question_ids';
   END IF;
-  -- Every id must resolve to an active, in-org, non-deleted question in scope.
+  -- Every id must resolve to an active, in-org, non-deleted, MC question in
+  -- scope. Discovery is MC-only (mirrors get_study_questions, which filters
+  -- question_type = 'multiple_choice'); the MC predicate stops a direct caller
+  -- from seeding a discovery marker with non-MC ids.
   SELECT count(*) INTO v_count
   FROM unnest(p_question_ids) AS qid
   JOIN public.questions q ON q.id = qid
   WHERE q.organization_id = v_org_id
     AND (p_subject_id IS NULL OR q.subject_id = p_subject_id)
     AND q.status = 'active'
-    AND q.deleted_at IS NULL;
+    AND q.deleted_at IS NULL
+    AND q.question_type = 'multiple_choice';
   IF v_count <> array_length(p_question_ids, 1) THEN
     RAISE EXCEPTION 'invalid_question_ids';
   END IF;

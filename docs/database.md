@@ -748,7 +748,7 @@ verb_noun pattern:
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099); single-active-session guard raises 'another_session_active' if a non-vfr_rt_exam active session exists (mig 140, #1011)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840); dialog_fill strip delimiter-hardened (mig 127) behind the mig-125 delimiter CHECK (#951)
   submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session detects expiry via audit-event lookup and re-adds expired:true (mig 129, #839); reads from questions.correct_option_id for MC grading (mig 113, #823)
-  get_study_questions        ← read, student: MC questions WITH the correct_option_id answer key + explanation, for Study Mode self-paced practice (UI label: **Discovery** — first/default segment of the New Quiz ModeToggle; RPC name stays `get_study_questions`); no session, no score; DELIBERATE answer-key exposure (mig 135, feat/study-mode-mc); org/active-user + deleted_at + status=active filters required (§15 carve-out does NOT apply — reads by arbitrary caller-supplied p_question_ids, not immutable frozen config); raises active_exam_session when the caller has a live mock/internal/vfr_rt exam (mid-exam answer-oracle guard, mirrors check_quiz_answer mig 117; red-team EO6); the guard is deny-by-default `mode NOT IN ('smart_review','quick_quiz','discovery')` so the caller's own discovery session does not block its key reads (mig 142, #1011); returns options in STORED order (no shuffle); SECURITY DEFINER, EXECUTE TO authenticated
+  get_study_questions        ← read, student: MC questions WITH the correct_option_id answer key + explanation, for Study Mode self-paced practice (UI label: **Discovery** — first/default segment of the New Quiz ModeToggle; RPC name stays `get_study_questions`); no score (this RPC reads keys only — the discovery-backed Study flow now has its own active `mode='discovery'` session row via start_discovery_session, mig 137/#1011); DELIBERATE answer-key exposure (mig 135, feat/study-mode-mc); org/active-user + deleted_at + status=active filters required (§15 carve-out does NOT apply — reads by arbitrary caller-supplied p_question_ids, not immutable frozen config); raises active_exam_session when the caller has a live mock/internal/vfr_rt exam (mid-exam answer-oracle guard, mirrors check_quiz_answer mig 117; red-team EO6); the guard is deny-by-default `mode NOT IN ('smart_review','quick_quiz','discovery')` so the caller's own discovery session does not block its key reads (mig 142, #1011); returns options in STORED order (no shuffle); SECURITY DEFINER, EXECUTE TO authenticated
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, trim again to remove stray edge spaces, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101, final trim added mig 128 / #921)
@@ -1902,7 +1902,7 @@ SET search_path = public
 
 #### `get_study_questions` — MC answer keys for Study Mode (mig 135)
 
-Added in **mig 135** (feat/study-mode-mc). Dedicated RPC for self-paced MC practice, deliberately returning the `correct_option_id` answer key and explanation immediately (no session, no score). Exam-integrity is preserved by the active-exam-session guard (item 6 below), not by the absence of a session — mock/internal/VFR-RT exams grade from the same org MC pool, so without that guard a student mid-exam could read their live exam's keys.
+Added in **mig 135** (feat/study-mode-mc). Dedicated RPC for self-paced MC practice, deliberately returning the `correct_option_id` answer key and explanation immediately (this RPC reads keys only and writes nothing — no score). Since #1011 the discovery-backed Study flow has its **own active `mode='discovery'` session row** (`start_discovery_session`, mig 137), still non-resumable and nothing-scored; the mig 142 guard excludes that `discovery` row so Study does not self-trip (item 6 below). Exam-integrity is preserved by the active-exam-session guard, not by the absence of a session — mock/internal/VFR-RT exams grade from the same org MC pool, so without that guard a student mid-exam could read their live exam's keys.
 
 **DELIBERATE answer-key exposure.** Unlike `get_quiz_questions` (mig 126, answer keys REVOKE-gated and never exposed during an active session) and the post-session report RPCs (answer keys returned only after `ended_at IS NOT NULL`), Study Mode is a **practice flashcard surface** where the student is **shown the correct answer on demand**. This RPC therefore returns `correct_option_id` and explanation directly as part of the question payload. It is SECURITY DEFINER so it can read the REVOKE-gated column; `correct_option_id` is **not exposed via any PostgREST column GRANT** (see docs/security.md rule 1) — only this guarded RPC reveals it.
 
@@ -1912,7 +1912,7 @@ Added in **mig 135** (feat/study-mode-mc). Dedicated RPC for self-paced MC pract
 3. Tenant-scope gate — resolves the caller's `organization_id` in one deleted_at-filtered read from `users`. Scopes the question pool so a foreign-org ID cannot leak. SECURITY DEFINER bypasses RLS; without this gate a caller passing foreign `p_question_ids` could read another org's questions (and their answer keys).
 4. Soft-delete filter — `q.deleted_at IS NULL` and `q.status = 'active'` (see §15 carve-out note below).
 5. Type filter — `q.question_type = 'multiple_choice'` (Study Mode is MC-only).
-6. **Mid-exam answer-oracle guard** — deny-by-default: raises `active_exam_session` when the caller has any active session (`ended_at IS NULL AND deleted_at IS NULL`) whose mode is outside the practice set (`mode NOT IN ('smart_review','quick_quiz')`), so any current OR future exam-like mode is blocked automatically (the current exam modes are `mock_exam`/`internal_exam`/`vfr_rt_exam`). Server-side enforcement of the single-active-session rule: Study Mode reveals keys, and exams grade from the same MC pool with client-visible question IDs, so it must refuse mid-exam (the UI gate is bypassable; this RPC is `GRANT EXECUTE TO authenticated`). Practice modes (`smart_review`/`quick_quiz`) are excluded — they already reveal answers via `check_quiz_answer`. Mirrors `check_quiz_answer`'s exam-mode rejection (mig 117). Red-team: Vector EO6.
+6. **Mid-exam answer-oracle guard** — deny-by-default: raises `active_exam_session` when the caller has any active session (`ended_at IS NULL AND deleted_at IS NULL`) whose mode is outside the practice/discovery set (`mode NOT IN ('smart_review','quick_quiz','discovery')`, the `'discovery'` exclusion added in mig 142/#1011), so any current OR future exam-like mode is blocked automatically (the current exam modes are `mock_exam`/`internal_exam`/`vfr_rt_exam`). Server-side enforcement of the single-active-session rule: Study Mode reveals keys, and exams grade from the same MC pool with client-visible question IDs, so it must refuse mid-exam (the UI gate is bypassable; this RPC is `GRANT EXECUTE TO authenticated`). Practice modes (`smart_review`/`quick_quiz`) are excluded — they already reveal answers via `check_quiz_answer`; the caller's own `discovery` session is excluded (mig 142) because Discovery reveals answers via *this* RPC, so its own active session row must not self-trip the guard. Mirrors `check_quiz_answer`'s exam-mode rejection (mig 117). Red-team: Vector EO6.
 7. SET search_path = public.
 
 **§15 carve-out does NOT apply.** Report RPCs (`get_quiz_questions`, `get_report_answer_keys`) may omit the `deleted_at` filter because they read questions via the immutable, write-once `quiz_sessions.config.question_ids` column. Study Mode reads questions by **arbitrary caller-supplied `p_question_ids`**, so the soft-delete filter and `status='active'` guard are **REQUIRED** — a caller must not be able to surface a soft-deleted or retired question's answer key.
@@ -1959,15 +1959,16 @@ SET search_path = public
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `20260508000001_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629). `20260606000002` — adds NULL guard to mode check (`p_mode IS NULL OR p_mode NOT IN (...)`) and a 500-element cap on `p_question_ids`: raises `too_many_questions` when `array_length(p_question_ids, 1) > 500` (mig 086, #275; matches the Zod cap in the Server Action).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `20260508000001_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629). `20260606000002` — adds NULL guard to mode check (`p_mode IS NULL OR p_mode NOT IN (...)`) and a 500-element cap on `p_question_ids`: raises `too_many_questions` when `array_length(p_question_ids, 1) > 500` (mig 086, #275; matches the Zod cap in the Server Action). **mig 141 (`20260629000600`, #1011)** — adds the single-active-session guard: after the active-user gate it auto-soft-deletes the caller's own abandoned `discovery` row, then raises `another_session_active` if any other active session exists (the structural complement to the answer-key oracle guards — see §11d in `docs/security.md`); also adds an `array_ndims(p_question_ids) <> 1` flat-array guard (rejects a multidimensional array that `to_jsonb()` would persist as nested JSON) and wraps the INSERT in an `EXCEPTION WHEN unique_violation` handler mapping the global `uq_one_active_session_per_student` index (mig 136) race to the same `another_session_active` token.
 
-**Validation contract** (raised in this order: auth → mode whitelist → active-user gate → input validation):
+**Validation contract** (raised in this order: auth → mode whitelist → active-user gate → single-active-session guard → input validation):
 - `'Not authenticated'` — `auth.uid()` returns NULL.
 - `'mode_not_allowed'` — `p_mode` IS NULL or is not in `('smart_review','quick_quiz')`. Runs immediately after the auth check (before the active-user gate) so attackers cannot probe `'user inactive'` vs `'mode invalid'` via timing or error differences. mock_exam sessions are created exclusively by `start_exam_session` (mig 040) after exam config validation; internal_exam sessions by `start_internal_exam_session` (mig 058).
 - `'user not found or inactive'` — caller soft-deleted between auth and gate.
+- `'another_session_active'` (mig 141, #1011) — the caller already holds another active session in any other mode. The guard first auto-soft-deletes the caller's own abandoned `discovery` row, then raises if any other active (`ended_at IS NULL AND deleted_at IS NULL`) session exists. Practice never resumes server-side, so there is no self-exclusion. Also raised by the INSERT's `unique_violation` handler as the concurrent-race backstop against the global `uq_one_active_session_per_student` index (mig 136).
 - `'no_questions_provided'` — `p_question_ids` is NULL or empty (`array_length(...) IS NULL`).
 - `'too_many_questions'` — `array_length(p_question_ids, 1) > 500` (mig 086, #275), checked immediately after the `no_questions_provided` guard. Cap matches the Zod schema in the Server Action; a direct RPC caller cannot bypass it.
-- `'invalid_question_ids'` — raised in two cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), or (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL.
+- `'invalid_question_ids'` — raised in three cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL, or (c) `p_question_ids` is multidimensional (`array_ndims <> 1`, mig 141).
 - `p_subject_id` and `p_topic_id` MAY be NULL (smart_review mode crosses subjects/topics); the per-question subject/topic match is skipped for the NULL parameter, while the org + active + soft-delete checks always apply.
 
 ```sql
@@ -2012,9 +2013,30 @@ BEGIN
     RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
+  -- Single-active-session invariant (mig 141, #1011; index mig 136): at most one
+  -- active session per student across ALL modes. Auto-clear an abandoned ephemeral
+  -- Discovery row, then block on ANY other active session (practice never resumes
+  -- server-side, so no self-exclusion).
+  UPDATE quiz_sessions SET deleted_at = now()
+   WHERE student_id = v_uid AND mode = 'discovery'
+     AND ended_at IS NULL AND deleted_at IS NULL;
+  IF EXISTS (
+    SELECT 1 FROM quiz_sessions qs
+     WHERE qs.student_id = v_uid
+       AND qs.ended_at IS NULL AND qs.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'another_session_active';
+  END IF;
+
   -- Input validation (mig 20260506000001, closes #622).
   IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
     RAISE EXCEPTION 'no_questions_provided';
+  END IF;
+
+  -- Reject a multidimensional array (mig 141): to_jsonb() would otherwise persist
+  -- nested JSON in config.question_ids. Practice ids must be a flat uuid[].
+  IF array_ndims(p_question_ids) <> 1 THEN
+    RAISE EXCEPTION 'invalid_question_ids';
   END IF;
 
   -- Array length cap (mig 086, #275): mirrors the Zod cap in the Server Action.
@@ -2046,19 +2068,26 @@ BEGIN
     RAISE EXCEPTION 'invalid_question_ids';
   END IF;
 
-  INSERT INTO quiz_sessions
-    (organization_id, student_id, mode, subject_id, topic_id,
-     config, total_questions)
-  VALUES (
-    v_org_id,
-    v_uid,
-    p_mode,
-    p_subject_id,
-    p_topic_id,
-    jsonb_build_object('question_ids', to_jsonb(p_question_ids)),
-    array_length(p_question_ids, 1)
-  )
-  RETURNING id INTO v_session_id;
+  -- Race backstop (mig 141): the global uq_one_active_session_per_student index
+  -- (mig 136) catches a concurrent start that also passed the pre-check guard;
+  -- map it to the same single-active error.
+  BEGIN
+    INSERT INTO quiz_sessions
+      (organization_id, student_id, mode, subject_id, topic_id,
+       config, total_questions)
+    VALUES (
+      v_org_id,
+      v_uid,
+      p_mode,
+      p_subject_id,
+      p_topic_id,
+      jsonb_build_object('question_ids', to_jsonb(p_question_ids)),
+      array_length(p_question_ids, 1)
+    )
+    RETURNING id INTO v_session_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'another_session_active';
+  END;
 
   -- Audit log
   INSERT INTO audit_events

@@ -77,6 +77,14 @@ BEGIN
     RAISE EXCEPTION 'no_questions_provided';
   END IF;
 
+  -- Reject a multidimensional array (e.g. Nx1): it passes array_length(.., 1),
+  -- the distinct-count, and unnest checks, but to_jsonb() would persist nested
+  -- JSON in config.question_ids. Practice ids must be a flat uuid[]
+  -- (parity with start_discovery_session, mig 137).
+  IF array_ndims(p_question_ids) <> 1 THEN
+    RAISE EXCEPTION 'invalid_question_ids';
+  END IF;
+
   -- DB-level cap: reject arrays larger than 500. Mirrors the Zod max in the
   -- Server Action (count: z.number().int().min(1).max(500)). Runs before the
   -- expensive unnest/DISTINCT/JOIN operations so the guard is O(1).

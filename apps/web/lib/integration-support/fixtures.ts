@@ -144,20 +144,15 @@ export async function seedOpenSession(opts: {
   const subjectId = opts.subjectId ?? null
   const topicId = opts.topicId ?? null
 
-  // Single-active-session invariant (#1011, uq_one_active_session_per_student):
-  // a student may hold at most one active session across all modes, so a session
-  // left active by an earlier test (or a prior seed) would make this
-  // start_quiz_session raise `another_session_active`. Soft-delete the caller's
-  // own active sessions first — RLS scopes the UPDATE to auth.uid(), exactly as
-  // the discardQuiz action does, so a student may set deleted_at on their own
-  // quiz_sessions rows. Zero rows is the normal case (nothing to clear).
-  const { error: clearErr } = await studentClient
-    .from('quiz_sessions')
-    .update({ deleted_at: new Date().toISOString() })
-    .is('ended_at', null)
-    .is('deleted_at', null)
-  if (clearErr) throw new Error(`seedOpenSession clear active: ${clearErr.message}`)
-
+  // Single-active-session invariant (#1011, uq_one_active_session_per_student): a
+  // student may hold at most one active session across all modes, so this
+  // start_quiz_session raises `another_session_active` if the student already has
+  // an active session. This helper does NOT auto-clear leftover active sessions:
+  // a hidden clear would silently mask a test meant to hit `another_session_active`
+  // (or one that resumes an existing session). Callers that reuse a student across
+  // tests must clear active sessions EXPLICITLY via clearActiveSessions (harness.ts) —
+  // typically in an afterEach, the same explicit-call-site pattern
+  // start-exam.integration.test.ts uses.
   const { data: sessionId, error: startErr } = await studentClient.rpc('start_quiz_session', {
     p_mode: 'quick_quiz',
     p_subject_id: subjectId,

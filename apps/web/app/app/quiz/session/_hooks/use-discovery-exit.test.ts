@@ -62,4 +62,16 @@ describe('useDiscoveryExit', () => {
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
   })
+
+  it('tears down and navigates only once when invoked twice in rapid succession', async () => {
+    // A double-click fires the handler twice before the first settles. The
+    // synchronous useRef one-shot guard (§6) must make the second call a no-op so
+    // endDiscovery and the terminal nav each run exactly once.
+    const { result } = renderHook(() => useDiscoveryExit())
+    await Promise.all([result.current(), result.current()])
+
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+  })
 })

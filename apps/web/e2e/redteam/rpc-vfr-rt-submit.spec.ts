@@ -85,22 +85,42 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     return data.id
   }
 
+  // Restore in afterEach, not only beforeEach (hermiticity): a test's mutations
+  // must not leak an active session into the NEXT spec. Two isolated steps per
+  // code-style §7 — (1) soft-delete the ids this spec seeded, (2) clear any active
+  // session still held by the shared attacker/victim students. Step 2 is the
+  // belt-and-suspenders that covers a session not tracked in createdSessionIds.
   test.afterEach(async () => {
-    if (createdSessionIds.size === 0) return
+    const errors: string[] = []
+
     try {
-      const { data, error } = await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', Array.from(createdSessionIds))
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[vfr-rt-submit] soft-deleted ${data?.length} session(s)`)
+      if (createdSessionIds.size > 0) {
+        const { data, error } = await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', Array.from(createdSessionIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[vfr-rt-submit] soft-deleted ${data?.length} session(s)`)
+        }
       }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     } finally {
       createdSessionIds.clear()
     }
+
+    for (const email of [ATTACKER_EMAIL, VICTIM_EMAIL]) {
+      try {
+        await cleanupStudentActiveSessions(email)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('DQ2: an attacker cannot submit answers to a victim vfr_rt session (IDOR)', async () => {

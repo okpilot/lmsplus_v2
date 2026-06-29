@@ -6,11 +6,12 @@
 // action layer, without any fixture helpers, so cross-action contract breaks
 // surface here (not only in unit tests). Also validates nonexistent-session,
 // cross-user isolation, Zod rejection, and unauthenticated rejection.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -103,6 +104,19 @@ describe('completeQuiz (app-layer integration)', () => {
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  // The cross-user test seeds an open session for A that nothing ends, and the
+  // lifecycle test starts a session via the action. seedOpenSession no longer
+  // auto-clears, so clear both students' active sessions after each test to keep
+  // every test on a clean single-active-session (#1011) baseline — single cleanup
+  // step (code-style §7); afterEach runs even after a failure.
+  afterEach(async () => {
+    await clearActiveSessions({
+      admin,
+      studentIds: [studentAId, studentBId],
+      label: 'completeQuiz',
+    })
   })
 
   it('completes a started session and reports a score reflecting the answers', async () => {
