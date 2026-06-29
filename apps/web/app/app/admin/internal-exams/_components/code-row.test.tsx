@@ -67,9 +67,7 @@ describe('CodeRow', () => {
 
   describe('Void button enabled/disabled state', () => {
     it('enables the Void button for a consumed code whose session is still in progress', () => {
-      // status=consumed + sessionEndedAt=null means the exam session is still live.
-      // isVoidDisabled returns false: r.status === 'consumed' && r.sessionEndedAt !== null
-      // evaluates to false when sessionEndedAt is null.
+      // sessionEndedAt=null encodes a still-live exam session.
       renderRow({
         ...baseRow,
         status: 'consumed',

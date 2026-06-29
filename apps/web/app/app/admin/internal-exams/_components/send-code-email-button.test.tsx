@@ -61,6 +61,26 @@ describe('SendCodeEmailButton', () => {
     expect(screen.getByText(/^Sent /)).toBeInTheDocument()
   })
 
+  it('prefers the server-stamped emailedAt over the optimistic client time after a refresh', async () => {
+    mockSendEmail.mockResolvedValue({ success: true })
+    const { rerender } = render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} />)
+
+    // Optimistic send first stamps a client-clock value (≈ now).
+    fireEvent.click(screen.getByRole('button', { name: /send email/i }))
+    await screen.findByRole('button', { name: /resend/i })
+
+    // revalidatePath re-renders the row with the server-stamped emailed_at; the
+    // server value (a fixed past date here) must replace the client time —
+    // copying the prop into state once would freeze the optimistic value instead.
+    rerender(<SendCodeEmailButton codeId={CODE_ID} emailedAt={SENT_ISO} />)
+
+    const serverFormatted = new Date(SENT_ISO).toLocaleString('en-GB', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+    expect(screen.getByText(`Sent ${serverFormatted}`)).toBeInTheDocument()
+  })
+
   it('shows the returned error and keeps the code unsent when sending fails', async () => {
     mockSendEmail.mockResolvedValue({ success: false, error: 'Code is no longer active' })
     render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} />)

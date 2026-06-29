@@ -602,7 +602,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 **RLS policies (FORCE RLS, migration `20260429000009`; tightened in `20260521000004`):**
 - SELECT (student): none — direct PostgREST reads return 0 rows; students read via `list_my_active_internal_exam_codes()` RPC (closes #577). The earlier `student_read_active_codes` policy was dropped because it exposed the plaintext `code` column to any caller who knew an `id`.
 - SELECT (admin): `is_admin()` AND org-scoped
-- UPDATE (admin): none — admin write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session`, `record_internal_exam_code_emailed`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
+- UPDATE (admin): none — all write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session` (student-initiated), `record_internal_exam_code_emailed`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
@@ -1481,7 +1481,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 
 #### Internal Exam RPCs (mode `internal_exam`)
 
-Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); two further RPCs in this section — `record_internal_exam_code_emailed` (emails audit + `emailed_at` stamp) and `list_my_active_internal_exam_codes` (student reader) — round out the surface. All set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
 
 ##### `issue_internal_exam_code(p_subject_id, p_student_id)`
 

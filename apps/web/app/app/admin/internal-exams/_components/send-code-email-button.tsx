@@ -9,15 +9,19 @@ import { sendInternalExamCodeEmail } from '../actions/send-code-email'
 type Props = Readonly<{ codeId: string; emailedAt: string | null; disabled?: boolean }>
 
 export function SendCodeEmailButton({ codeId, emailedAt, disabled = false }: Props) {
-  const [sentAt, setSentAt] = useState<string | null>(emailedAt)
+  // Optimistic-only: the server-stamped `emailedAt` prop wins once revalidation
+  // refreshes the row, so a re-render replaces the client clock with the real
+  // emailed_at (copying the prop into state once would freeze it — props-to-state).
+  const [optimisticSentAt, setOptimisticSentAt] = useState<string | null>(null)
   const [isSending, startSending] = useTransition()
+  const sentAt = emailedAt ?? optimisticSentAt
 
   function handleSend() {
     startSending(async () => {
       try {
         const result = await sendInternalExamCodeEmail({ codeId })
         if (result.success) {
-          setSentAt(new Date().toISOString())
+          setOptimisticSentAt(new Date().toISOString())
           toast.success('Code emailed to student')
         } else {
           toast.error(result.error)
