@@ -15,6 +15,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -104,17 +105,11 @@ describe('getActivePracticeSession (app-layer integration)', () => {
   // clean slate (the single-active unique index forbids a second active session, so
   // a leftover row would block the next test's start). Single cleanup step.
   afterEach(async () => {
-    const { data, error } = await admin
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .in('student_id', [studentAId, studentBId])
-      .is('ended_at', null)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) throw new Error(`afterEach session cleanup: ${error.message}`)
-    if ((data?.length ?? 0) > 0) {
-      console.info(`[getActivePracticeSession] afterEach soft-deleted ${data?.length} session(s)`)
-    }
+    await clearActiveSessions({
+      admin,
+      studentIds: [studentAId, studentBId],
+      label: 'getActivePracticeSession',
+    })
   })
 
   it('returns the active practice session with subject details when one is open', async () => {
