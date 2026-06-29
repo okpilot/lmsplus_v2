@@ -204,7 +204,24 @@ BEGIN
     RETURNING id, quiz_sessions.started_at
     INTO v_session_id, v_started_at;
   EXCEPTION WHEN unique_violation THEN
-    RAISE EXCEPTION 'active_session_exists';
+    -- The conflict can come from EITHER the same-subject internal_exam partial
+    -- index (uq_internal_exam_session_active) OR the global single-active index
+    -- (uq_one_active_session_per_student, mig 136) — a DIFFERENT active session
+    -- could win the global race after the pre-check guard. Only raise the
+    -- same-subject message when a same-subject internal_exam active row actually
+    -- exists; otherwise it was a different active session.
+    IF EXISTS (
+      SELECT 1 FROM public.quiz_sessions qs
+       WHERE qs.student_id = v_student_id
+         AND qs.organization_id = v_org_id
+         AND qs.subject_id = v_code_subject
+         AND qs.mode = 'internal_exam'
+         AND qs.ended_at IS NULL
+         AND qs.deleted_at IS NULL
+    ) THEN
+      RAISE EXCEPTION 'active_session_exists';
+    END IF;
+    RAISE EXCEPTION 'another_session_active';
   END;
 
   UPDATE public.internal_exam_codes

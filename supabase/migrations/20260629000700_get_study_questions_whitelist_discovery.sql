@@ -22,7 +22,10 @@
 -- Source body: get_study_questions LATEST = mig 135 (≡ supabase
 -- 20260626000200). Copied VERBATIM except the one guard line and its inline
 -- comment; RETURNS TABLE shape, org scope, soft-delete, status='active',
--- question_type='multiple_choice', 500-cap, GRANT, and COMMENT all unchanged.
+-- question_type='multiple_choice', 500-cap, and GRANT all unchanged. The COMMENT
+-- is also updated here: discovery-backed Study now has its own active
+-- quiz_sessions row (mig 137), so the "no session of its own" phrasing no longer
+-- holds.
 
 CREATE OR REPLACE FUNCTION get_study_questions(p_question_ids uuid[])
 RETURNS TABLE (
@@ -140,4 +143,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_study_questions(uuid[]) TO authenticated;
 
 COMMENT ON FUNCTION public.get_study_questions(uuid[]) IS
-  'Study Mode (feat/study-mode-mc): returns MC questions WITH the correct_option_id answer key and explanation, in STORED option order. DELIBERATE answer-key exposure — study mode shows the answer (no score, no session of its own); exam integrity IS enforced by the active-exam-session guard (Study Mode is blocked mid-exam), not absent. SECURITY DEFINER reads the REVOKE-gated key column; correct_option_id is not exposed via any PostgREST GRANT. Reads by arbitrary p_question_ids, so §15 carve-out does NOT apply — deleted_at + status=active filters REQUIRED. Org/active-user gated (security.md rules 1, 7, 9, 11/12).';
+  'Study Mode (feat/study-mode-mc): returns MC questions WITH the correct_option_id answer key and explanation, in STORED option order. DELIBERATE answer-key exposure — study mode shows the answer (no score; discovery-backed Study has its own active session row); exam integrity IS enforced by the active-exam-session guard (Study Mode is blocked mid-exam), not absent. SECURITY DEFINER reads the REVOKE-gated key column; correct_option_id is not exposed via any PostgREST GRANT. Reads by arbitrary p_question_ids, so §15 carve-out does NOT apply — deleted_at + status=active filters REQUIRED. Org/active-user gated (security.md rules 1, 7, 9, 11/12).';

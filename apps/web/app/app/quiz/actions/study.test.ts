@@ -39,6 +39,7 @@ import { startStudy } from './study'
 // ---- Fixtures -------------------------------------------------------------
 
 const VALID_SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+const CREATED_SESSION_ID = '00000000-0000-4000-a000-0000000000ff'
 const VALID_INPUT = { subjectId: VALID_SUBJECT_ID, count: 10 }
 const QUESTION_IDS = [
   '00000000-0000-4000-a000-000000000011',
@@ -71,7 +72,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGetRandomQuestionIds.mockResolvedValue(QUESTION_IDS)
   mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
-  mockRpc.mockResolvedValue({ data: '00000000-0000-4000-a000-0000000000ff', error: null })
+  mockRpc.mockResolvedValue({ data: CREATED_SESSION_ID, error: null })
   mockEndDiscovery.mockResolvedValue({ success: true })
 })
 
@@ -171,11 +172,12 @@ describe('startStudy — discovery session', () => {
     expect(result.error).not.toContain('too_many_questions')
   })
 
-  it('tears down the discovery row when the key fetch fails after creating it', async () => {
+  it('tears down only the row it created when the key fetch fails after creating it', async () => {
     mockGetStudyQuestions.mockRejectedValue(new Error('DB connection timeout'))
     const result = await startStudy(VALID_INPUT)
     expect(result.success).toBe(false)
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
   })
 
   it('does not tear down a discovery row when the id fetch fails before one is created', async () => {
@@ -184,11 +186,12 @@ describe('startStudy — discovery session', () => {
     expect(mockEndDiscovery).not.toHaveBeenCalled()
   })
 
-  it('tears down the discovery row AND tells the user to exit their exam when active_exam_session is thrown after session creation', async () => {
-    // The RPC succeeds (discoveryCreated = true), then getStudyQuestions raises
-    // active_exam_session. Both the teardown AND the specific error message must
-    // happen — if the early-return were accidentally moved before the teardown
-    // call, the session would be orphaned and block all future modes for that student.
+  it('tears down the discovery row and tells the user to exit their exam when question loading is blocked', async () => {
+    // The RPC succeeds (a row was created), then question loading is rejected
+    // because the caller is mid-exam. Both the scoped teardown AND the specific
+    // error message must happen — if the early-return were accidentally moved
+    // before the teardown call, the session would be orphaned and block all
+    // future modes for that student.
     mockGetStudyQuestions.mockRejectedValue(
       new Error('Failed to fetch study questions: active_exam_session'),
     )
@@ -197,6 +200,7 @@ describe('startStudy — discovery session', () => {
     if (result.success) return
     expect(result.error).toBe('Finish or exit your active exam first.')
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
   })
 })
 

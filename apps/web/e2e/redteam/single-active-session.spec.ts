@@ -89,7 +89,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
   // beforeEach (clean slate before each test) AND afterEach (no leak into the
   // next spec). Single step — no §7 accumulator needed.
   const clearActiveSessions = async (): Promise<void> => {
-    const { error } = await admin
+    const { data, error } = await admin
       .from('quiz_sessions')
       .update({ deleted_at: new Date().toISOString() })
       .eq('student_id', victimUserId)
@@ -97,6 +97,10 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       .is('deleted_at', null)
       .select('id')
     if (error) throw new Error(`clearActiveSessions: ${error.message}`)
+    if (!Array.isArray(data)) throw new Error('clearActiveSessions: unexpected response shape')
+    if (data.length > 0) {
+      console.info(`[single-active-session] cleared ${data.length} active session(s)`)
+    }
   }
 
   // Read the victim's active (ended_at IS NULL AND deleted_at IS NULL) sessions.
@@ -245,8 +249,12 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       return
     }
     expect(started.error).toBeNull()
-    const startedData = started.data as unknown as { session_id?: string } | null
-    const examSessionId = startedData?.session_id
+    // §5 cast-guard: verify the RPC payload shape before reading session_id.
+    expect(started.data).not.toBeNull()
+    expect(typeof started.data).toBe('object')
+    expect(started.data).toHaveProperty('session_id')
+    const startedData = started.data as unknown as { session_id?: string }
+    const examSessionId = startedData.session_id
     expect(typeof examSessionId).toBe('string')
 
     // THE #1011 FIX: the discovery row is now soft-deleted (deleted_at set), NOT
@@ -317,6 +325,8 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       p_question_ids: questionIds.slice(0, 2),
     })
     expect(second.error).toBeNull()
+    // §5 cast-guard: verify the RPC returned a string id before reading it.
+    expect(typeof second.data).toBe('string')
     const secondId = second.data as string
 
     // Still exactly one active discovery row — the second; the first is soft-deleted.
@@ -344,7 +354,12 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     // unique index is a hard schema constraint, not an RLS policy.
     const { data, error } = await admin
       .from('quiz_sessions')
-      .insert({ organization_id: orgId, student_id: victimUserId, mode: 'mock_exam' })
+      .insert({
+        organization_id: orgId,
+        student_id: victimUserId,
+        mode: 'mock_exam',
+        subject_id: subjectId,
+      })
       .select('id')
     expect(data).toBeNull()
     expect(error).not.toBeNull()

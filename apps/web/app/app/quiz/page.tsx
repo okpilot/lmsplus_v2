@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { ActivePracticeBanner } from './_components/active-practice-banner'
 import { ExpiredExamNotice } from './_components/expired-exam-notice'
+import { LookupErrorAlerts } from './_components/lookup-error-alerts'
 import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
@@ -26,6 +27,7 @@ export default async function QuizPage() {
   const activeExams = examResult.success ? examResult.sessions : []
   const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
   const expiredIds = examResult.success ? examResult.expiredSessionIds : []
+  const practiceLookupFailed = !practiceResult.success
   const activePractice = practiceResult.success ? practiceResult.session : null
 
   return (
@@ -37,15 +39,7 @@ export default async function QuizPage() {
         </p>
       </div>
 
-      {examLookupFailed && (
-        <div
-          role="alert"
-          className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-        >
-          We couldn&apos;t check for active Practice Exams right now. Please refresh — if the issue
-          persists, contact support.
-        </div>
-      )}
+      <LookupErrorAlerts examFailed={examLookupFailed} practiceFailed={practiceLookupFailed} />
 
       {activeExams.map((exam) => (
         <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />

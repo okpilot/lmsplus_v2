@@ -37,12 +37,13 @@ ALTER TABLE public.quiz_sessions
 --
 -- Keeper priority (highest wins): internal_exam & vfr_rt_exam = 4, mock_exam =
 -- 3, quick_quiz & smart_review = 2, discovery = 1; ties broken by newest
--- started_at. Priority DESC guarantees the highest-priority (exam) active row
--- is NEVER the one sacrificed — an in-flight exam always survives over a
--- lingering practice/discovery session. started_at is NOT NULL (mig 001
--- DEFAULT now()), so the tie-break is total. This is a one-time cleanup of
--- legacy state; the per-RPC guards (migs 137-141) prevent the condition going
--- forward.
+-- started_at, then id DESC. Priority DESC guarantees the highest-priority (exam)
+-- active row is NEVER the one sacrificed — an in-flight exam always survives over
+-- a lingering practice/discovery session. started_at is NOT NULL (mig 001
+-- DEFAULT now()) but is NOT unique across rows created in the same transaction,
+-- so id DESC is the stable final tie-break key that makes the order total. This
+-- is a one-time cleanup of legacy state; the per-RPC guards (migs 137-141)
+-- prevent the condition going forward.
 WITH ranked AS (
   SELECT id,
          ROW_NUMBER() OVER (
@@ -57,7 +58,7 @@ WITH ranked AS (
                WHEN 'discovery'     THEN 1
                ELSE 0
              END DESC,
-             started_at DESC
+             started_at DESC, id DESC
          ) AS rn
   FROM public.quiz_sessions
   WHERE ended_at IS NULL

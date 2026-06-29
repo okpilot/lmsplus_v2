@@ -169,7 +169,24 @@ BEGIN
     )
     RETURNING id, started_at INTO v_session_id, v_started_at;
   EXCEPTION WHEN unique_violation THEN
-    RAISE EXCEPTION 'an exam session is already in progress for this subject';
+    -- The conflict can come from EITHER the same-subject mock_exam partial index
+    -- (uq_active_exam_session) OR the global single-active index
+    -- (uq_one_active_session_per_student, mig 136) — a DIFFERENT active session
+    -- could win the global race after the pre-check guard. Only raise the
+    -- same-subject message when a same-subject mock_exam active row actually
+    -- exists; otherwise it was a different active session.
+    IF EXISTS (
+      SELECT 1 FROM quiz_sessions qs
+       WHERE qs.student_id = v_student_id
+         AND qs.organization_id = v_org_id
+         AND qs.subject_id = p_subject_id
+         AND qs.mode = 'mock_exam'
+         AND qs.ended_at IS NULL
+         AND qs.deleted_at IS NULL
+    ) THEN
+      RAISE EXCEPTION 'an exam session is already in progress for this subject';
+    END IF;
+    RAISE EXCEPTION 'another_session_active';
   END;
 
   -- Audit. v_role cached above — see security.md §10.

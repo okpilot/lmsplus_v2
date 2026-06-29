@@ -79,26 +79,32 @@ describe('ActivePracticeBanner — Discard', () => {
     expect(screen.queryByText(/^unfinished quick quiz session$/i)).not.toBeInTheDocument()
   })
 
-  it('keeps the banner and shows the error when discard fails', async () => {
+  it('shows the error visibly inside the open dialog when discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
 
     render(<ActivePracticeBanner session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
-    await waitFor(() => expect(screen.getByText('Session not found')).toBeInTheDocument())
+    // The error renders inside the still-open AlertDialog (the action does not close
+    // it), so it must be visible — not hidden behind the overlay in the banner.
+    const alert = await screen.findByRole('alert')
+    expect(alert).toBeVisible()
+    expect(alert).toHaveTextContent('Session not found')
     expect(screen.getByText(/^unfinished quick quiz session$/i)).toBeInTheDocument()
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
-  it('shows a generic error and does not refresh when discardQuiz throws', async () => {
+  it('shows a generic error visibly inside the dialog and does not refresh when discardQuiz throws', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
 
     render(<ActivePracticeBanner session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
-    await waitFor(() => expect(screen.getByText(/server unavailable/i)).toBeInTheDocument())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toBeVisible()
+    expect(alert).toHaveTextContent(/server unavailable/i)
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 

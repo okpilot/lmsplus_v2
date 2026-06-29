@@ -120,6 +120,7 @@ BEGIN
     SELECT qs.id INTO v_session_id
     FROM public.quiz_sessions qs
     WHERE qs.student_id = v_student_id
+      AND qs.organization_id = v_org_id
       AND qs.mode = 'discovery'
       AND qs.ended_at IS NULL
       AND qs.deleted_at IS NULL

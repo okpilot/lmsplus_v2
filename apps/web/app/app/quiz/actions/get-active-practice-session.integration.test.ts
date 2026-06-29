@@ -11,7 +11,7 @@
 // The `discovery` mode cannot be seeded here until migration 136 (mode CHECK
 // widening) is applied locally. Only quick_quiz / smart_review practice sessions
 // are seeded.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
@@ -100,6 +100,23 @@ describe('getActivePracticeSession (app-layer integration)', () => {
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
+  // Soft-delete every active session both students hold so each test starts from a
+  // clean slate (the single-active unique index forbids a second active session, so
+  // a leftover row would block the next test's start). Single cleanup step.
+  afterEach(async () => {
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('student_id', [studentAId, studentBId])
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    if (error) throw new Error(`afterEach session cleanup: ${error.message}`)
+    if ((data?.length ?? 0) > 0) {
+      console.info(`[getActivePracticeSession] afterEach soft-deleted ${data?.length} session(s)`)
+    }
+  })
+
   it('returns the active practice session with subject details when one is open', async () => {
     await signInAs(emailA, password)
 
@@ -139,7 +156,18 @@ describe('getActivePracticeSession (app-layer integration)', () => {
   })
 
   it("does not return another student's active session", async () => {
-    // Student A has an open session from the first test; student B should not see it.
+    // Self-contained: seed an open practice session for student A here rather than
+    // relying on a session left open by an earlier test.
+    await signInAs(emailA, password)
+    const startResult = await startQuizSession({
+      subjectId: refs.subjectId,
+      topicIds: [refs.topicId],
+      count: 3,
+    })
+    expect(startResult.success).toBe(true)
+    if (!startResult.success) throw new Error(startResult.error)
+
+    // Student B must not see student A's active session.
     await signInAs(emailB, password)
 
     const result = await getActivePracticeSession()

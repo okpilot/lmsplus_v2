@@ -20,8 +20,14 @@ import { endDiscovery } from './end-discovery'
 
 // ---- Helpers ---------------------------------------------------------------
 
-/** Builds a fluent chain that resolves to the given return value. */
-function buildChain(returnValue: unknown) {
+type ChainCall = { method: string; args: unknown[] }
+
+/**
+ * Builds a fluent chain that resolves to the given return value. When `calls` is
+ * provided, every chained method invocation is recorded so a test can assert which
+ * filters (e.g. `.eq('id', …)`) were applied.
+ */
+function buildChain(returnValue: unknown, calls?: ChainCall[]) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -30,7 +36,10 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
+      return (...args: unknown[]) => {
+        calls?.push({ method: String(prop), args })
+        return buildChain(returnValue, calls)
+      }
     },
   })
 }
@@ -59,6 +68,27 @@ describe('endDiscovery', () => {
     const result = await endDiscovery()
     expect(result).toEqual({ success: true })
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+  })
+
+  it('scopes the soft-delete to the given session id when one is provided', async () => {
+    const sessionId = '00000000-0000-4000-a000-0000000000ff'
+    const calls: ChainCall[] = []
+    mockFrom.mockReturnValue(buildChain({ data: [{ id: sessionId }], error: null }, calls))
+    const result = await endDiscovery({ sessionId })
+    expect(result).toEqual({ success: true })
+    expect(calls).toContainEqual({ method: 'eq', args: ['id', sessionId] })
+  })
+
+  it('does not scope by id for the blanket Exit teardown', async () => {
+    const calls: ChainCall[] = []
+    mockFrom.mockReturnValue(buildChain({ data: [{ id: 'sess-1' }], error: null }, calls))
+    await endDiscovery()
+    expect(calls.some((c) => c.method === 'eq' && c.args[0] === 'id')).toBe(false)
+  })
+
+  it('returns invalid-input error when sessionId is not a valid UUID', async () => {
+    const result = await endDiscovery({ sessionId: 'not-a-uuid' })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('returns success when no active discovery session exists (zero-row no-op)', async () => {

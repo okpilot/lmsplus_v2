@@ -62,11 +62,6 @@ export function ActivePracticeBanner({ session }: { session: ActivePracticeSessi
         You have an unfinished {modeLabel} session for {session.subjectName}. Discard it to start
         something new.
       </p>
-      {error && (
-        <p role="alert" className="mt-2 text-xs text-destructive">
-          {error}
-        </p>
-      )}
       <div className="mt-3 flex gap-2">
         <AlertDialog>
           <AlertDialogTrigger
@@ -88,9 +83,16 @@ export function ActivePracticeBanner({ session }: { session: ActivePracticeSessi
                 action.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {/* Render the error inside the dialog: the AlertDialogAction does not
+                close the popup, so a banner-level alert would sit behind the overlay. */}
+            {error && (
+              <p role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={handleDiscard}>
+              <AlertDialogAction variant="destructive" disabled={loading} onClick={handleDiscard}>
                 Discard
               </AlertDialogAction>
             </AlertDialogFooter>

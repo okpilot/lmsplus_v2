@@ -253,8 +253,10 @@ BEGIN
       AND qs.deleted_at IS NULL
     LIMIT 1;
     IF v_resume.id IS NULL THEN
-      -- Defensive: unreachable with uq_vfr_rt_exam_session_active in place.
-      RAISE EXCEPTION 'active_session_exists';
+      -- A different active session won the global single-active race
+      -- (uq_one_active_session_per_student, mig 136): there is no same-subject
+      -- vfr_rt_exam row to resume, so the conflict came from another mode/subject.
+      RAISE EXCEPTION 'another_session_active';
     END IF;
     RETURN jsonb_build_object(
       'session_id',         v_resume.id,

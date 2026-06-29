@@ -261,7 +261,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(firstRow?.deleted_at).not.toBeNull()
   })
 
-  it('rejects a discovery start while another active session exists (another_session_active)', async () => {
+  it('rejects a discovery start when another session is already active', async () => {
     // Seed an active quick_quiz so the OTHER-mode guard fires.
     const quizId = await seedActiveSession('quick_quiz')
     // Non-vacuity: the blocking session genuinely exists and is active.
@@ -282,7 +282,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(after.map((s) => s.id)).toEqual([quizId])
   })
 
-  it('rejects an unauthenticated discovery start (not_authenticated)', async () => {
+  it('rejects a discovery start from an unauthenticated caller', async () => {
     const anon = getAnonClient()
     const { data, error } = await anon.rpc('start_discovery_session', {
       p_subject_id: subjectId,
@@ -293,7 +293,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(data).toBeNull()
   })
 
-  it('rejects an empty question array with no_questions_provided', async () => {
+  it('rejects a discovery start with an empty question array', async () => {
     const { error } = await studentClient.rpc('start_discovery_session', {
       p_subject_id: subjectId,
       p_question_ids: [],
@@ -302,7 +302,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(error?.message ?? '').toMatch(/no_questions_provided/i)
   })
 
-  it('rejects a non-existent question id with invalid_question_ids', async () => {
+  it('rejects a discovery start with a non-existent question id', async () => {
     const { error } = await studentClient.rpc('start_discovery_session', {
       p_subject_id: subjectId,
       p_question_ids: ['00000000-0000-0000-0000-000000000000'],
@@ -372,7 +372,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(active[0]?.mode).toBe('mock_exam')
   })
 
-  it('rejects a practice quiz start while an exam session is active (another_session_active)', async () => {
+  it('rejects a practice quiz start while an exam session is active', async () => {
     const examId = await seedActiveSession('mock_exam')
     // Non-vacuity: the exam session genuinely exists and is active.
     expect((await readActiveSessions()).map((s) => s.id)).toContain(examId)
@@ -393,7 +393,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(active.map((s) => s.mode)).not.toContain('quick_quiz')
   })
 
-  it('blocks a direct second active session insert via the global unique index (23505)', async () => {
+  it('rejects a second active session insert for the same student', async () => {
     const firstId = await seedActiveSession('quick_quiz')
     // Non-vacuity: the first active session exists.
     expect((await readActiveSessions()).map((s) => s.id)).toEqual([firstId])
