@@ -40,6 +40,7 @@
 - **code-reviewer scope is style/structure only.** Logic, security, RLS, error-handling correctness belong to semantic-reviewer — don't overlap.
 - **Bash hook files in `.claude/hooks/` are infrastructure, not TypeScript.** File-size limits (Server Action 100L, hook 80L, utility 200L) do not apply. The relevant check is consistency with sibling scripts and internal function length. `run-security-auditor.sh` at 168L is acceptable — a single cohesive pre-push gate with a fallback branch. Flag on next growth only if functions exceed ~40L.
 - **Agent prompt / parser contract drift is a WARNING.** When a hook's verdict parser is updated, check that the `TMPFILE` agent prompt still instructs the agent to emit the token format the parser expects. Mismatch produces unnecessary fragility even if the parser is defensive (f7ec4a11: parser now accepts `BLOCKED` anywhere on a line, but prompt still says "last line MUST be exactly: BLOCKED").
+- **`Readonly<Props>` rule is now formal (code-style.md §5 + §8, WARNING, #1027 / PR #1029).** CR mirror covers three path blocks: `page.tsx` + `_components/*.tsx` + `apps/web/components/**/*.tsx`; `layout.tsx` relies on Sonar S6759 (the comprehensive `.tsx` enforcer). ~25+ pre-existing offenders (inline-object AND named-type props, e.g. `app/page.tsx`) tracked in #1027 — sweep pending, NOT fixed in the promotion PR. Severity is WARNING (cosmetic), never BLOCKING. Also listed as item 15 in this agent's own WARNINGS checklist.
 
 ## Topic pointers
 
