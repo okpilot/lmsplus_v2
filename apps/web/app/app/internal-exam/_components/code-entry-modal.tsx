@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
-import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-handoff'
 import { startInternalExam } from '../actions/start-internal-exam'
 
 type Props = {

@@ -22,8 +22,10 @@ vi.mock('../actions/clear-deployment-pin', () => ({
 }))
 vi.mock('../session/_utils/quiz-session-storage', () => ({
   clearActiveSession: mockClearActiveSession,
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
   buildHandoffPayload: (_userId: string, session: unknown) => session,
+}))
+vi.mock('../session/_utils/quiz-session-handoff', () => ({
+  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
 import type { ActiveSession } from '../session/_utils/quiz-session-storage'
