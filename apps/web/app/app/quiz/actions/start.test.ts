@@ -83,6 +83,21 @@ describe('startQuizSession', () => {
     expect(result.error).toBe('Failed to start session')
   })
 
+  it('tells the user to finish their other session when one is already active', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 5,
+    })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'You already have an active session. Finish or discard it before starting a new one.',
+    )
+  })
+
   it('returns success with sessionId and questionIds on happy path', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2', 'q3'])

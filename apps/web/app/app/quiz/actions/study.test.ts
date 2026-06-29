@@ -2,9 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetRandomQuestionIds, mockGetStudyQuestions } = vi.hoisted(() => ({
-  mockGetRandomQuestionIds: vi.fn(),
-  mockGetStudyQuestions: vi.fn(),
+const { mockGetRandomQuestionIds, mockGetStudyQuestions, mockRpc, mockEndDiscovery } = vi.hoisted(
+  () => ({
+    mockGetRandomQuestionIds: vi.fn(),
+    mockGetStudyQuestions: vi.fn(),
+    mockRpc: vi.fn(),
+    mockEndDiscovery: vi.fn(),
+  }),
+)
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => ({}),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 vi.mock('@/lib/queries/quiz-session-queries', () => ({
@@ -13,6 +25,10 @@ vi.mock('@/lib/queries/quiz-session-queries', () => ({
 
 vi.mock('@/lib/queries/study-queries', () => ({
   getStudyQuestions: (...args: unknown[]) => mockGetStudyQuestions(...args),
+}))
+
+vi.mock('./end-discovery', () => ({
+  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -55,6 +71,8 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGetRandomQuestionIds.mockResolvedValue(QUESTION_IDS)
   mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
+  mockRpc.mockResolvedValue({ data: '00000000-0000-4000-a000-0000000000ff', error: null })
+  mockEndDiscovery.mockResolvedValue({ success: true })
 })
 
 // ---- Validation -----------------------------------------------------------
@@ -115,6 +133,55 @@ describe('startStudy — empty question pool', () => {
     if (!result.success) return
     expect(result.questions).toEqual([])
     expect(mockGetStudyQuestions).not.toHaveBeenCalled()
+  })
+
+  it('does not create a discovery session when the question pool is empty', async () => {
+    mockGetRandomQuestionIds.mockResolvedValue([])
+    await startStudy(VALID_INPUT)
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+})
+
+// ---- Discovery session creation ------------------------------------------
+
+describe('startStudy — discovery session', () => {
+  it('creates a discovery session with the resolved ids before fetching the keys', async () => {
+    await startStudy(VALID_INPUT)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'start_discovery_session', {
+      p_subject_id: VALID_SUBJECT_ID,
+      p_question_ids: QUESTION_IDS,
+    })
+  })
+
+  it('tells the user to finish their other session when one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Finish or exit your active session first.')
+    expect(mockGetStudyQuestions).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure for a session validation error without leaking the token', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'too_many_questions' } })
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to start study session')
+    expect(result.error).not.toContain('too_many_questions')
+  })
+
+  it('tears down the discovery row when the key fetch fails after creating it', async () => {
+    mockGetStudyQuestions.mockRejectedValue(new Error('DB connection timeout'))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(false)
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not tear down a discovery row when the id fetch fails before one is created', async () => {
+    mockGetRandomQuestionIds.mockRejectedValue(new Error('DB connection timeout'))
+    await startStudy(VALID_INPUT)
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
   })
 })
 

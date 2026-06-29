@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { ActivePracticeBanner } from './_components/active-practice-banner'
 import { ExpiredExamNotice } from './_components/expired-exam-notice'
 import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
@@ -7,6 +8,7 @@ import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
 import { getActiveExamSession } from './actions/get-active-exam-session'
+import { getActivePracticeSession } from './actions/get-active-practice-session'
 import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
@@ -14,12 +16,17 @@ export const dynamic = 'force-dynamic'
 export default async function QuizPage() {
   const user = await requireAuthUser()
 
-  const [{ drafts }, examResult] = await Promise.all([loadDrafts(), getActiveExamSession()])
+  const [{ drafts }, examResult, practiceResult] = await Promise.all([
+    loadDrafts(),
+    getActiveExamSession(),
+    getActivePracticeSession(),
+  ])
 
   const examLookupFailed = !examResult.success
   const activeExams = examResult.success ? examResult.sessions : []
   const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
   const expiredIds = examResult.success ? examResult.expiredSessionIds : []
+  const activePractice = practiceResult.success ? practiceResult.session : null
 
   return (
     <main className="space-y-6">
@@ -51,6 +58,8 @@ export default async function QuizPage() {
       {expiredIds.map((sessionId) => (
         <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
       ))}
+
+      {activePractice && <ActivePracticeBanner session={activePractice} />}
 
       <QuizRecoveryBanner userId={user.id} />
 

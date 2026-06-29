@@ -48,6 +48,13 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
       const rpcMessage = error?.message ?? 'unknown RPC error'
       console.error('[startExamSession] RPC error:', rpcMessage)
 
+      if (rpcMessage.includes('another_session_active')) {
+        return {
+          success: false,
+          error:
+            'You already have an active session. Finish or discard it before starting a new one.',
+        }
+      }
       if (rpcMessage.includes('already in progress')) {
         return {
           success: false,

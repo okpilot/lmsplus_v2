@@ -9,6 +9,7 @@ describe('MODE_LABELS', () => {
       'mock_exam',
       'internal_exam',
       'vfr_rt_exam',
+      'discovery',
     ]
     for (const key of expectedKeys) {
       expect(MODE_LABELS[key]).toBeDefined()
@@ -23,6 +24,7 @@ describe('MODE_LABELS', () => {
     expect(MODE_LABELS.mock_exam).toBe('Practice Exam')
     expect(MODE_LABELS.internal_exam).toBe('Internal Exam')
     expect(MODE_LABELS.vfr_rt_exam).toBe('VFR RT Mock Exam')
+    expect(MODE_LABELS.discovery).toBe('Discovery')
   })
 
   it('uses non-empty strings for every label', () => {
