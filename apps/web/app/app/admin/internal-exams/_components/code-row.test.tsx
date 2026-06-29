@@ -106,7 +106,7 @@ describe('CodeRow', () => {
       expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({ disabled: true })
     })
 
-    it('forwards the row codeId and emailedAt to the send button', () => {
+    it('scopes the send button to the code and sent state of its row', () => {
       renderRow({ ...baseRow, id: 'code-42', emailedAt: '2026-04-28T09:00:00.000Z' })
       expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({
         codeId: 'code-42',
