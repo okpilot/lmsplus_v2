@@ -1,7 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { startStudy } from '../actions/study'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { UseStudyStartOpts } from '../session-types'
 import { buildDiscoveryHandoff } from './build-discovery-handoff'
 

@@ -26,6 +26,13 @@ vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
     ...actual,
     readActiveSession: () => mockReadActiveSession(),
     clearActiveSession: mockClearActiveSession,
+  }
+})
+
+vi.mock('../session/_utils/quiz-session-handoff', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session/_utils/quiz-session-handoff')>()
+  return {
+    ...actual,
     sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
   }
 })

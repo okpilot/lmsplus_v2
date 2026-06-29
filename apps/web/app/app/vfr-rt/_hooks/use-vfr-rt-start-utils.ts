@@ -1,4 +1,4 @@
-import { sessionHandoffKey } from '@/app/app/quiz/session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '@/app/app/quiz/session/_utils/quiz-session-handoff'
 
 export type UseVfrRtStartOpts = {
   userId: string
