@@ -71,6 +71,7 @@ describe('sendInternalExamCodeEmail', () => {
     expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'record_internal_exam_code_emailed', {
       p_code_id: CODE_ID,
     })
+    expect(mockRevalidatePath).toHaveBeenCalledTimes(1)
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
   })
 
