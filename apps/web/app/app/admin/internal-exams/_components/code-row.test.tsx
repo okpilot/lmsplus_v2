@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InternalExamCodeRow } from '../types'
 
@@ -58,9 +58,10 @@ describe('CodeRow', () => {
 
     it('shows "—" when both studentName and studentEmail are empty', () => {
       renderRow({ ...baseRow, studentName: '', studentEmail: '' })
-      // Multiple cells can show '—' (e.g. absent subjectName, dates); at least one
-      // must be present — this confirms the final fallback arm is exercised.
-      expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+      // Scope to the Student column (cell index 2: Status, Code, Student) so the
+      // assertion proves THIS fallback arm, not an unrelated dash elsewhere.
+      const row = screen.getByRole('row')
+      expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('—')
     })
   })
 

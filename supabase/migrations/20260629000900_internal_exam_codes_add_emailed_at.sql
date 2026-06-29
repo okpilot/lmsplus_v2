@@ -13,9 +13,10 @@
 --   state-guarded code ownership read, rule 10 (no inline audit subqueries),
 --   SET search_path = public. The new UPDATE runs only AFTER the code_not_found
 --   RAISE, so a cross-org / soft-deleted / consumed / voided / expired code is
---   never stamped. The UPDATE is itself PK-scoped and re-asserts
---   organization_id + deleted_at IS NULL (defense-in-depth; the SELECT above
---   already proved both).
+--   never stamped. The UPDATE re-asserts the FULL guard set in its own WHERE
+--   (PK + organization_id + deleted_at + un-consumed/un-voided/unexpired) so a
+--   state change racing between the ownership SELECT and the UPDATE cannot stamp
+--   an invalidated code (defense-in-depth; the SELECT above already proved them).
 
 ALTER TABLE public.internal_exam_codes ADD COLUMN emailed_at timestamptz;
 
@@ -70,12 +71,20 @@ BEGIN
 
   -- #905: stamp the last-emailed time so the admin codes table can show a
   -- "sent" indicator. Reached only for a code already proven owned, active, and
-  -- non-deleted above; PK-scoped + org/deleted_at re-asserted (defense-in-depth).
+  -- non-deleted above. The WHERE re-asserts the FULL ownership + active-state
+  -- guard set (PK + org + deleted_at + un-consumed/un-voided/unexpired) so a
+  -- state change racing between the SELECT above and this UPDATE cannot stamp an
+  -- invalidated code; a lost race simply no-ops (emailed_at stays NULL — the
+  -- accepted under-report, never over-report) and the audit below still records
+  -- the email that was already sent.
   UPDATE public.internal_exam_codes
   SET emailed_at = now()
   WHERE id = p_code_id
     AND organization_id = v_admin_org
-    AND deleted_at IS NULL;
+    AND deleted_at IS NULL
+    AND consumed_at IS NULL
+    AND voided_at IS NULL
+    AND expires_at > now();
 
   -- Audit. Cached v_admin_role reused; no inline subquery (rule 10).
   INSERT INTO public.audit_events
