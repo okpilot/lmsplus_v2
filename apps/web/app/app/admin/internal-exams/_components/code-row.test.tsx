@@ -1,13 +1,21 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InternalExamCodeRow } from '../types'
 
 // Stub the leaf button so we don't pull in the 'use server' action chain.
+// A spy (not a bare fn) so we can assert the props CodeRow forwards to it.
+const mockSendButton = vi.hoisted(() =>
+  vi.fn((_props: { codeId: string; emailedAt: string | null; disabled?: boolean }) => null),
+)
 vi.mock('./send-code-email-button', () => ({
-  SendCodeEmailButton: () => null,
+  SendCodeEmailButton: mockSendButton,
 }))
 
 import { CodeRow } from './code-row'
+
+beforeEach(() => {
+  mockSendButton.mockClear()
+})
 
 // CodeRow renders a <tr> which requires a table wrapper in jsdom.
 function renderRow(r: InternalExamCodeRow) {
@@ -80,6 +88,23 @@ describe('CodeRow', () => {
       expect((screen.getByRole('button', { name: 'Void' }) as HTMLButtonElement).disabled).toBe(
         false,
       )
+    })
+  })
+
+  describe('send-email button enablement', () => {
+    it('leaves the send button enabled for an active code', () => {
+      renderRow({ ...baseRow, status: 'active' })
+      expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({ disabled: false })
+    })
+
+    it('disables the send button for a non-active (voided) code', () => {
+      renderRow({
+        ...baseRow,
+        status: 'voided',
+        voidedAt: '2026-04-28T12:00:00.000Z',
+        voidedBy: 'admin-1',
+      })
+      expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({ disabled: true })
     })
   })
 })
