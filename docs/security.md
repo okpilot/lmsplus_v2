@@ -370,7 +370,7 @@ Study Mode is a **self-paced MC flashcard practice surface** where students requ
 3. Soft-delete + status filters — `q.deleted_at IS NULL AND q.status = 'active'` (required; see note below)
 4. Type filter — `q.question_type = 'multiple_choice'`
 5. Options returned in **stored order** (no shuffle — the answer is visible anyway)
-6. **Mid-exam answer-oracle guard** — `RAISE 'active_exam_session'` when the caller has any active session (`ended_at IS NULL AND deleted_at IS NULL`) in an exam mode (`mock_exam`, `internal_exam`, `vfr_rt_exam`). This is the server-side enforcement of the single-active-session rule: Study Mode (which reveals keys) is unavailable while an exam is live. Implemented **deny-by-default** (`mode NOT IN ('smart_review','quick_quiz')`, the two practice modes) rather than a positive exam whitelist — so a future exam-like mode added to the `quiz_sessions.mode` CHECK is blocked automatically (fail-closed), matching `check_quiz_answer`'s negative mode guard. Practice modes are excluded because they already reveal answers via `check_quiz_answer`, so blocking them adds no protection. The UI also gates this, but the RPC must self-defend because it is `GRANT EXECUTE TO authenticated` and reachable directly. Red-team coverage: Vector EO6.
+6. **Mid-exam answer-oracle guard** — `RAISE 'active_exam_session'` when the caller has any active session (`ended_at IS NULL AND deleted_at IS NULL`) in an exam mode (`mock_exam`, `internal_exam`, `vfr_rt_exam`). This is the server-side enforcement of the single-active-session rule: Study Mode (which reveals keys) is unavailable while an exam is live. Implemented **deny-by-default** (`mode NOT IN ('smart_review','quick_quiz')`, the two practice modes) rather than a positive exam whitelist — so a future exam-like mode added to the `quiz_sessions.mode` CHECK is blocked automatically (fail-closed), matching `check_quiz_answer`'s negative mode guard. Practice modes (and the caller's own `discovery` session, mig 142, #1011) are excluded because they already reveal answers via `check_quiz_answer`, so blocking them adds no protection. The UI also gates this, but the RPC must self-defend because it is `GRANT EXECUTE TO authenticated` and reachable directly. Red-team coverage: Vector EO6. **Structural complement:** §11d (single-active-session invariant, #1011) makes an answer-revealing session unable to *coexist* with a graded exam at all — you cannot start the second session — so this read-time guard and the start-time invariant defend the oracle from both ends.
 
 **§15 carve-out does NOT apply.** Report RPCs omit the `deleted_at` filter because they read questions via the immutable, write-once `quiz_sessions.config.question_ids`. Study Mode reads by **arbitrary caller-supplied `p_question_ids`**, so the soft-delete filter and `status='active'` guard are **REQUIRED** — a caller must not be able to surface a soft-deleted or retired question's answer key.
 
@@ -705,6 +705,21 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 
 ---
 
+## 11d. Single-Active-Session Invariant (Answer-Oracle Structural Defense)
+
+**Rule:** a student may hold **at most one active (`ended_at IS NULL AND deleted_at IS NULL`) `quiz_sessions` row, across all modes** (#1011, mig 136). This is the **structural complement** to the mid-exam answer-oracle guards in §4 item 6 (`get_study_questions` → `active_exam_session`) and the practice-only guard in `check_quiz_answer` (mig 117): those rules deny *reading* an answer key while an exam is live; this rule denies *starting* a second session at all, so an answer-revealing Discovery/practice session can never **coexist** with a graded exam on the shared org MC pool in the first place.
+
+**Why it matters:** mock/internal/VFR-RT exams grade from the same org MC pool, and the exam runner hands the client each question's `id`. The per-RPC guards already block the live oracle, but defense-in-depth wants the two session classes mutually exclusive at the schema level.
+
+**Mechanism (three layers):**
+1. **Schema backstop** — global partial unique index `uq_one_active_session_per_student (student_id) WHERE ended_at IS NULL AND deleted_at IS NULL` (mig 136). Subsumes the three per-mode partial indexes (retained for friendly `unique_violation` messages — see §11 AL). The mode CHECK was widened to add `'discovery'`; a one-time dedup soft-deleted pre-existing multi-active rows (exams never sacrificed) so the index could build.
+2. **Per-start-RPC guard** — every start RPC (`start_exam_session` mig 138, `start_internal_exam_session` mig 139, `start_vfr_rt_exam_session` mig 140, `start_quiz_session` mig 141, `start_discovery_session` mig 137) first soft-deletes the caller's own abandoned `discovery` row, then `RAISE EXCEPTION 'another_session_active'` if any *other*-mode active session exists. The index is the concurrent-race backstop.
+3. **Discovery as a real row** — Discovery/Study Mode is now a real ephemeral `mode='discovery'` session (mig 137) so it participates in the invariant; it stays non-resumable (the localStorage firewall rejects `discovery`; `get_study_questions` mig 142 whitelists `discovery` so it does not block its own key reads) and nothing-scored, torn down by the `endDiscovery` Server Action on Exit.
+
+**Behavioral consequence:** a student can no longer run a practice/Discovery quiz and an exam simultaneously. See `docs/decisions.md` Decision 49 and §4 item 6.
+
+---
+
 ## 12. GDPR & Data Privacy
 
 We store student PII: email address, full name, learning history, exam scores.
@@ -796,4 +811,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
+*Last updated: 2026-06-29 (§11d added — single-active-session invariant, #1011: global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row; structural complement to the §4 item 6 answer-oracle guard) | Earlier: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
