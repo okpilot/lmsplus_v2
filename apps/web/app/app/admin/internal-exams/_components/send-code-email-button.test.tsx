@@ -61,14 +61,13 @@ describe('SendCodeEmailButton', () => {
     expect(screen.getByText(/^Sent /)).toBeInTheDocument()
   })
 
-  it('shows an error toast and does NOT show the sent indicator when the action returns success:false', async () => {
+  it('shows the returned error and keeps the code unsent when sending fails', async () => {
     mockSendEmail.mockResolvedValue({ success: false, error: 'Code is no longer active' })
     render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} />)
 
     fireEvent.click(screen.getByRole('button', { name: /send email/i }))
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Code is no longer active'))
 
-    // sentAt must not have been set — no "Sent …" indicator
     expect(screen.queryByText(/^Sent /)).not.toBeInTheDocument()
   })
 
@@ -81,7 +80,7 @@ describe('SendCodeEmailButton', () => {
     expect(mockSendEmail).not.toHaveBeenCalled()
   })
 
-  it('shows the generic error toast and does NOT show the sent indicator when the action throws', async () => {
+  it('shows a generic error and keeps the code unsent on an unexpected failure', async () => {
     mockSendEmail.mockRejectedValue(new Error('network failure'))
     render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={null} />)
 
