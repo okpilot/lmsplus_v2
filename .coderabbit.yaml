@@ -40,6 +40,12 @@ reviews:
         - No direct Supabase client usage.
         - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
 
+    # App Router layouts
+    - path: "apps/web/app/**/layout.tsx"
+      instructions: |
+        Next.js App Router layout. Enforce:
+        - Props (children/params) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+
     # Components — single responsibility
     - path: "apps/web/app/**/_components/*.tsx"
       instructions: |

@@ -262,7 +262,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 
-This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
+This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
 
 **Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027). (Promoted at user direction after recurring S6759 findings, #1027.)
 
