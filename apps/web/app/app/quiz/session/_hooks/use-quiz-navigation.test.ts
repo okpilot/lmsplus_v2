@@ -102,6 +102,41 @@ describe('useQuizNavigation — navigate', () => {
   })
 })
 
+// ---- seenIndices ----------------------------------------------------------
+
+describe('useQuizNavigation — seenIndices', () => {
+  it('marks the start index as seen on mount', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 5, initialIndex: 3 }))
+    expect([...result.current.seenIndices]).toEqual([3])
+  })
+
+  it('marks a question as seen after navigating to it', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 5 }))
+    act(() => result.current.navigateTo(2))
+    expect(result.current.seenIndices.has(2)).toBe(true)
+  })
+
+  it('keeps previously visited indices when navigating to a new question', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 5 }))
+    act(() => result.current.navigateTo(2))
+    act(() => result.current.navigateTo(4))
+    expect([...result.current.seenIndices].sort()).toEqual([0, 2, 4])
+  })
+
+  it('marks the resulting index as seen when navigating relatively', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 5, initialIndex: 1 }))
+    act(() => result.current.navigate(1))
+    expect(result.current.seenIndices.has(2)).toBe(true)
+  })
+
+  it('does not mark an out-of-range index as seen', () => {
+    const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 5 }))
+    act(() => result.current.navigateTo(99))
+    expect(result.current.seenIndices.has(99)).toBe(false)
+    expect([...result.current.seenIndices]).toEqual([0])
+  })
+})
+
 // ---- answerStartTime ------------------------------------------------------
 
 describe('useQuizNavigation — answerStartTime', () => {

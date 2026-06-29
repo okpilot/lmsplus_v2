@@ -15,6 +15,7 @@ type QuestionGridProps = {
   onNavigate: (index: number) => void
   isExamMode?: boolean
   answeredIds?: Set<string>
+  seenIds?: Set<number>
 }
 
 const GAP = 6
@@ -31,6 +32,7 @@ export function QuestionGrid({
   onNavigate,
   isExamMode,
   answeredIds,
+  seenIds,
 }: QuestionGridProps) {
   const [filter, setFilter] = useState<GridFilter>('all')
   const flaggedCount = flaggedIds.size
@@ -82,6 +84,7 @@ export function QuestionGrid({
     onNavigate,
     isExamMode,
     answeredIds,
+    seenIds,
   })
   const desktopSquares = desktop.collapsed
     ? squares.slice(desktop.windowStart, desktop.windowEnd)

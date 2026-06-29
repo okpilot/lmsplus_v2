@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizMode } from '../types'
 
@@ -34,10 +35,12 @@ vi.mock('./study-config-form', () => ({
     userId,
     unseenLabel,
     subjects,
+    header,
   }: {
     userId: string
     unseenLabel?: string
     subjects: unknown[]
+    header?: ReactNode
   }) => {
     mockStudyConfigForm({ userId, unseenLabel, subjects })
     return (
@@ -46,6 +49,7 @@ vi.mock('./study-config-form', () => ({
         data-unseen-label={unseenLabel ?? ''}
         data-user-id={userId}
       >
+        {header}
         StudyConfigForm
       </div>
     )
@@ -78,6 +82,20 @@ describe('DiscoveryModePanel', () => {
     )
     expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
     expect(screen.getByTestId('study-config-form')).toBeInTheDocument()
+  })
+
+  it('renders the mode selector inside the study config card so the form does not reflow', () => {
+    render(
+      <DiscoveryModePanel
+        mode="discovery"
+        onModeChange={vi.fn()}
+        examAvailable={false}
+        subjects={SUBJECTS}
+        userId={USER_ID}
+      />,
+    )
+    const form = screen.getByTestId('study-config-form')
+    expect(form).toContainElement(screen.getByTestId('mode-toggle'))
   })
 
   it('shows the "Unseen" filter label in discovery mode', () => {

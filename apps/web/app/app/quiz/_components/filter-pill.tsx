@@ -5,9 +5,13 @@ export function getSquareClass(opts: {
   isCurrent: boolean
   isCorrect: boolean | null
   isAnsweredInExam?: boolean
+  // Discovery mode: a visited (but unscored) question — coloured green like a
+  // correct answer. Set only for Discovery, so other modes are unaffected.
+  isSeen?: boolean
 }) {
   if (opts.isCurrent) return 'bg-primary text-primary-foreground'
   if (opts.isAnsweredInExam) return 'bg-muted-foreground/60 text-background'
+  if (opts.isSeen) return 'bg-green-500 text-white'
   if (opts.isCorrect === true) return 'bg-green-500 text-white'
   if (opts.isCorrect === false) return 'bg-red-500 text-white'
   return 'border border-border text-muted-foreground'

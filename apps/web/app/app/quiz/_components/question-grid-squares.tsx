@@ -14,6 +14,9 @@ type BuildSquaresOpts = {
   onNavigate: (index: number) => void
   isExamMode?: boolean
   answeredIds?: Set<string>
+  // Discovery-only: indices the user has already visited. Drives the "seen"
+  // (green) colour; left undefined for study/exam so their colouring is unchanged.
+  seenIds?: Set<number>
 }
 
 /**
@@ -33,6 +36,7 @@ export function buildSquares(opts: BuildSquaresOpts) {
     onNavigate,
     isExamMode,
     answeredIds,
+    seenIds,
   } = opts
   return Array.from({ length: totalQuestions }, (_, i) => {
     const qId = questionIds[i] ?? ''
@@ -42,6 +46,7 @@ export function buildSquares(opts: BuildSquaresOpts) {
     const isFlagged = flaggedIds.has(qId)
     const isPinned = pinnedIds.has(qId)
     const isAnsweredInExam = isExamMode && !isCurrent && (answeredIds?.has(qId) ?? false)
+    const isSeen = !isCurrent && (seenIds?.has(i) ?? false)
     if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
     return (
       <button
@@ -51,7 +56,7 @@ export function buildSquares(opts: BuildSquaresOpts) {
         onClick={() => onNavigate(i)}
         className={cn(
           'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
-          getSquareClass({ isCurrent, isCorrect, isAnsweredInExam }),
+          getSquareClass({ isCurrent, isCorrect, isAnsweredInExam, isSeen }),
         )}
         aria-current={isCurrent ? 'step' : undefined}
         aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}

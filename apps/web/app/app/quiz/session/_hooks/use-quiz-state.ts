@@ -59,6 +59,7 @@ export function useQuizState(opts: QuizStateOpts) {
 
   return {
     currentIndex: nav.currentIndex,
+    seenIndices: nav.seenIndices,
     question,
     questionId,
     answeredCount: answers.size,
