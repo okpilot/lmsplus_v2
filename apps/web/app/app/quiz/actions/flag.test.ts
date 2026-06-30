@@ -164,7 +164,7 @@ describe('toggleFlag', () => {
     expect(upsertSpy).not.toHaveBeenCalled()
   })
 
-  it('returns failure when the exam guard DB query fails', async () => {
+  it('returns a generic failure when active exam status cannot be checked', async () => {
     setupAuthenticatedUser()
     setupFromByTable({
       quiz_sessions: { data: null, error: { message: 'db timeout' } },
@@ -177,7 +177,7 @@ describe('toggleFlag', () => {
 
   // ---- lookup error ----------------------------------------------------------
 
-  it('returns failure when the flag lookup errors', async () => {
+  it('returns a generic failure when existing flag status cannot be checked', async () => {
     setupAuthenticatedUser()
     setupFromByTable({
       quiz_sessions: { data: null, error: null },

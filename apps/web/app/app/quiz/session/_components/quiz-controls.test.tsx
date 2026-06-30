@@ -21,7 +21,9 @@ type ControlProps = {
 }
 
 function renderControls(overrides: ControlProps = {}) {
-  const defaults: Required<ControlProps> = {
+  // canFlag is intentionally NOT defaulted here so a call without an override
+  // omits the prop and exercises QuizControls' own `canFlag = true` default.
+  const defaults: Required<Omit<ControlProps, 'canFlag'>> = {
     isPinned: false,
     isFlagged: false,
     currentIndex: 1,
@@ -29,7 +31,6 @@ function renderControls(overrides: ControlProps = {}) {
     submitting: false,
     showSubmit: false,
     flagLoading: false,
-    canFlag: true,
     onTogglePin: vi.fn(),
     onToggleFlag: vi.fn(),
     onPrev: vi.fn(),
