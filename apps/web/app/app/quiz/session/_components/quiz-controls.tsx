@@ -8,6 +8,7 @@ type QuizControlsProps = {
   submitting: boolean
   showSubmit: boolean
   flagLoading?: boolean
+  canFlag?: boolean
   onTogglePin: () => void
   onToggleFlag: () => void
   onPrev: () => void
@@ -24,13 +25,14 @@ export function QuizControls({
   submitting,
   showSubmit,
   flagLoading,
+  canFlag = true,
   onTogglePin,
   onToggleFlag,
   onPrev,
   onNext,
   onSubmitAnswer,
   isExam,
-}: QuizControlsProps) {
+}: Readonly<QuizControlsProps>) {
   return (
     <div className="py-3">
       {/* Full-width Submit button on top (mobile only) */}
@@ -62,15 +64,17 @@ export function QuizControls({
         </button>
 
         <div className="flex items-center gap-2">
-          <ActionButton
-            active={isFlagged}
-            onClick={onToggleFlag}
-            icon={<Flag className="h-4 w-4" />}
-            label={isFlagged ? 'Unflag' : 'Flag'}
-            testId="flag-button"
-            activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
-            disabled={flagLoading}
-          />
+          {canFlag && (
+            <ActionButton
+              active={isFlagged}
+              onClick={onToggleFlag}
+              icon={<Flag className="h-4 w-4" />}
+              label={isFlagged ? 'Unflag' : 'Flag'}
+              testId="flag-button"
+              activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
+              disabled={flagLoading}
+            />
+          )}
           <ActionButton
             active={isPinned}
             onClick={onTogglePin}

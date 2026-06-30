@@ -1,4 +1,6 @@
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { QuizState } from '../_hooks/use-quiz-state'
+import { canFlagQuestion } from '../_utils/can-flag-question'
 import { QuizControls } from './quiz-controls'
 
 type QuizSessionFooterProps = {
@@ -9,6 +11,7 @@ type QuizSessionFooterProps = {
   showSubmit: boolean
   pendingOptionId: string | null
   onToggleFlag: () => void
+  examMode?: DbQuizMode
 }
 
 /** The fixed bottom control bar (prev/next, pin, flag, submit). */
@@ -20,7 +23,9 @@ export function QuizSessionFooter({
   showSubmit,
   pendingOptionId,
   onToggleFlag,
+  examMode,
 }: Readonly<QuizSessionFooterProps>) {
+  const canFlag = canFlagQuestion({ isExam: s.isExam, examMode })
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8">
       <div className="mx-auto max-w-3xl">
@@ -34,6 +39,7 @@ export function QuizSessionFooter({
           submitting={s.answering}
           showSubmit={showSubmit}
           flagLoading={flagLoading}
+          canFlag={canFlag}
           onTogglePin={s.togglePin}
           onToggleFlag={onToggleFlag}
           onPrev={() => s.navigate(-1)}
