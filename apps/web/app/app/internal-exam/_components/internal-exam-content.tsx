@@ -7,7 +7,7 @@ import { RecoveryBanner } from './recovery-banner'
 // #911: guards against a hung query streaming the Suspense skeleton forever —
 // a timeout resolves to a failure-shaped fallback so the existing loadFailed
 // banner renders instead.
-const INTERNAL_EXAM_LOAD_TIMEOUT_MS = 10_000
+export const INTERNAL_EXAM_LOAD_TIMEOUT_MS = 10_000
 
 type Props = {
   userId: string

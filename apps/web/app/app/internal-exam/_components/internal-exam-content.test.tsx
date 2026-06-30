@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { InternalExamContent } from './internal-exam-content'
+import { INTERNAL_EXAM_LOAD_TIMEOUT_MS, InternalExamContent } from './internal-exam-content'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -132,8 +132,8 @@ describe('InternalExamContent', () => {
     mockListAvailableInternalExams.mockReturnValue(new Promise(() => {}))
 
     const componentPromise = InternalExamContent({ userId: 'u1' })
-    // 1 ms past the component's 10s load timeout, so the timer has fired.
-    const pastTimeoutMs = 10_001
+    // 1 ms past the component's load timeout, so the timer has fired.
+    const pastTimeoutMs = INTERNAL_EXAM_LOAD_TIMEOUT_MS + 1
     await vi.advanceTimersByTimeAsync(pastTimeoutMs)
     const jsx = await componentPromise
     render(jsx)
