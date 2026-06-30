@@ -35,6 +35,33 @@ function buildChain(returnValue: unknown) {
   })
 }
 
+/**
+ * Sets up mockFrom to dispatch by table name so tests can target specific
+ * tables independently. The quiz_sessions key controls the active-exam guard;
+ * active_flagged_questions controls the existence check; flagged_questions
+ * controls the upsert/update mutation.
+ */
+function setupFromByTable(config: {
+  quiz_sessions?: unknown
+  active_flagged_questions?: unknown
+  flagged_questions?: unknown
+}) {
+  mockFrom.mockImplementation((table: string) => {
+    switch (table) {
+      case 'quiz_sessions':
+        return buildChain(config.quiz_sessions ?? { data: null, error: null })
+      case 'active_flagged_questions':
+        return buildChain(config.active_flagged_questions ?? { data: null, error: null })
+      case 'flagged_questions':
+        return buildChain(config.flagged_questions ?? { error: null })
+      default:
+        // Fail fast: an unexpected table means toggleFlag queried the wrong
+        // table — surface it instead of returning a misleading empty result.
+        throw new Error(`Unexpected table in setupFromByTable: ${table}`)
+    }
+  })
+}
+
 // ---- Fixtures --------------------------------------------------------------
 
 const USER_ID = '00000000-0000-4000-a000-000000000001'
@@ -51,18 +78,6 @@ function setupUnauthenticated() {
 
 function setupAuthError() {
   mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
-}
-
-/**
- * Sets up mockFrom to return different chain values for each sequential call.
- * First call resolves to firstValue, second call resolves to secondValue.
- */
-function setupSequentialFromCalls(firstValue: unknown, secondValue: unknown) {
-  let callCount = 0
-  mockFrom.mockImplementation(() => {
-    callCount++
-    return callCount === 1 ? buildChain(firstValue) : buildChain(secondValue)
-  })
 }
 
 // ---- Tests -----------------------------------------------------------------
@@ -116,11 +131,58 @@ describe('toggleFlag', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  // ---- internal_exam guard -------------------------------------------------
+
+  it('rejects flagging during an active internal exam', async () => {
+    setupAuthenticatedUser()
+    const updateSpy = vi.fn()
+    const upsertSpy = vi.fn()
+    // Active internal_exam session present; verify the flag mutation (update/upsert) is never called.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildChain({ data: { id: '00000000-0000-4000-a000-000000000099' }, error: null })
+      if (table === 'flagged_questions') {
+        const chain = buildChain({ error: null })
+        return new Proxy(chain as Record<string, unknown>, {
+          get(_target, prop) {
+            if (prop === 'update') return updateSpy
+            if (prop === 'upsert') return upsertSpy
+            if (prop === 'then')
+              return (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+                Promise.resolve({ error: null }).then(resolve, reject)
+            return (..._args: unknown[]) => chain
+          },
+        })
+      }
+      return buildChain({ data: null, error: null })
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'cannot_flag_internal_exam' })
+    expect(updateSpy).not.toHaveBeenCalled()
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure when active exam status cannot be checked', async () => {
+    setupAuthenticatedUser()
+    setupFromByTable({
+      quiz_sessions: { data: null, error: { message: 'db timeout' } },
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'Failed to toggle flag' })
+  })
+
   // ---- lookup error ----------------------------------------------------------
 
-  it('returns failure when the flag lookup errors', async () => {
+  it('returns a generic failure when existing flag status cannot be checked', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection timeout' } }))
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: null, error: { message: 'connection timeout' } },
+    })
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
 
@@ -131,9 +193,11 @@ describe('toggleFlag', () => {
 
   it('returns flagged: true when the question was not previously flagged', async () => {
     setupAuthenticatedUser()
-    // First call: maybeSingle check returns null (not flagged)
-    // Second call: upsert succeeds
-    setupSequentialFromCalls({ data: null, error: null }, { error: null })
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: null, error: null },
+      flagged_questions: { error: null },
+    })
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
 
@@ -142,7 +206,11 @@ describe('toggleFlag', () => {
 
   it('upserts into flagged_questions when the question is not flagged', async () => {
     setupAuthenticatedUser()
-    setupSequentialFromCalls({ data: null, error: null }, { error: null })
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: null, error: null },
+      flagged_questions: { error: null },
+    })
 
     await toggleFlag({ questionId: QUESTION_ID_A })
 
@@ -151,10 +219,11 @@ describe('toggleFlag', () => {
 
   it('returns failure when the upsert errors during flag-on', async () => {
     setupAuthenticatedUser()
-    setupSequentialFromCalls(
-      { data: null, error: null },
-      { error: { message: 'unique violation' } },
-    )
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: null, error: null },
+      flagged_questions: { error: { message: 'unique violation' } },
+    })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
@@ -167,9 +236,11 @@ describe('toggleFlag', () => {
 
   it('returns flagged: false when the question was already flagged', async () => {
     setupAuthenticatedUser()
-    // First call: maybeSingle check returns an existing row (is flagged)
-    // Second call: soft-delete update succeeds
-    setupSequentialFromCalls({ data: { student_id: USER_ID }, error: null }, { error: null })
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: { student_id: USER_ID }, error: null },
+      flagged_questions: { data: [{ student_id: USER_ID }], error: null },
+    })
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
 
@@ -180,30 +251,28 @@ describe('toggleFlag', () => {
     setupAuthenticatedUser()
     const methodsCalled: string[] = []
 
-    let callCount = 0
-    mockFrom.mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
-        // First call: the maybeSingle existence check — flag is present
+    const spyChain = (returnValue: unknown): unknown => {
+      const awaitable = {
+        // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+        then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+          Promise.resolve(returnValue).then(resolve, reject),
+      }
+      return new Proxy(awaitable as Record<string, unknown>, {
+        get(target, prop) {
+          if (prop === 'then') return target.then
+          return (..._args: unknown[]) => {
+            if (typeof prop === 'string') methodsCalled.push(prop)
+            return spyChain(returnValue)
+          }
+        },
+      })
+    }
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: null, error: null })
+      if (table === 'active_flagged_questions')
         return buildChain({ data: { student_id: USER_ID }, error: null })
-      }
-      // Second call: the unflag update — spy on which methods are called
-      const spyChain = (returnValue: unknown): unknown => {
-        const awaitable = {
-          // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-          then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-            Promise.resolve(returnValue).then(resolve, reject),
-        }
-        return new Proxy(awaitable as Record<string, unknown>, {
-          get(target, prop) {
-            if (prop === 'then') return target.then
-            return (..._args: unknown[]) => {
-              if (typeof prop === 'string') methodsCalled.push(prop)
-              return spyChain(returnValue)
-            }
-          },
-        })
-      }
+      // flagged_questions: spy chain tracks which methods are called
       return spyChain({ error: null })
     })
 
@@ -215,10 +284,11 @@ describe('toggleFlag', () => {
 
   it('returns failure when the soft-delete errors during flag-off', async () => {
     setupAuthenticatedUser()
-    setupSequentialFromCalls(
-      { data: { student_id: USER_ID }, error: null },
-      { error: { message: 'rls denied' } },
-    )
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: { student_id: USER_ID }, error: null },
+      flagged_questions: { data: null, error: { message: 'rls denied' } },
+    })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
