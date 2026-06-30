@@ -1,26 +1,13 @@
-import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import {
+  type OffsetChainBuilder,
+  offsetAdminClient,
+  runOffsetCount,
+  runOffsetRows,
+} from './_offset-query'
 import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
 import { clampPage, PAGE_SIZE } from './pagination'
 import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
-
-type ChainBuilder = {
-  select: {
-    (cols: string): ChainBuilder
-    (cols: string, opts: { count: 'exact'; head: boolean }): ChainBuilder
-  }
-  eq: (col: string, val: unknown) => ChainBuilder
-  is: (col: string, val: null) => ChainBuilder
-  not: (col: string, op: string, val: unknown) => ChainBuilder
-  lte: (col: string, val: unknown) => ChainBuilder
-  gt: (col: string, val: unknown) => ChainBuilder
-  order: (col: string, opts: { ascending: boolean }) => ChainBuilder
-  range: (from: number, to: number) => ChainBuilder
-}
-
-type AnyClient = {
-  from: (t: string) => ChainBuilder
-}
 
 const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
        consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
@@ -32,11 +19,11 @@ const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, 
  * `nowIso` is passed in (not computed here) so the count and data queries share the same instant.
  */
 function applyCodeFilters(
-  builder: ChainBuilder,
+  builder: OffsetChainBuilder,
   organizationId: string,
   filters: ListCodesFilters,
   nowIso: string,
-): ChainBuilder {
+): OffsetChainBuilder {
   let b = builder.eq('organization_id', organizationId).is('deleted_at', null)
   if (filters.studentId) b = b.eq('student_id', filters.studentId)
   if (filters.subjectId) b = b.eq('subject_id', filters.subjectId)
@@ -71,9 +58,7 @@ export async function listInternalExamCodes(
   const page = clampPage(filters.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
-  // adminClient: cross-row `users` reads are unreliable under tenant_isolation RLS (see
-  // attempts-queries.ts); PostgREST also applies RLS to embedded resources.
-  const client = adminClient as unknown as AnyClient
+  const client = offsetAdminClient
   const nowIso = new Date().toISOString()
   // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
   // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
@@ -90,15 +75,11 @@ export async function listInternalExamCodes(
     filters,
     nowIso,
   )
-  const { count, error: countError } = (await (countBuilder as unknown as PromiseLike<{
-    count: number | null
-    error: { message: string } | null
-  }>)) ?? { count: null, error: null }
-  if (countError) {
-    console.error('[listInternalExamCodes] count error:', countError.message)
-    throw new Error('Failed to load internal exam codes')
+  const ctx = {
+    tag: 'listInternalExamCodes',
+    failMessage: 'Failed to load internal exam codes',
   }
-  const totalCount = count ?? 0
+  const totalCount = await runOffsetCount(countBuilder, ctx)
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   if (totalCount === 0 || page > totalPages) {
     return { rows: [], totalCount }
@@ -114,15 +95,7 @@ export async function listInternalExamCodes(
     .order('id', { ascending: false }) // id tiebreaker keeps pages stable (issued_at not unique)
     .range(from, to)
 
-  const { data, error } = (await (dataBuilder as unknown as PromiseLike<{
-    data: unknown
-    error: { message: string } | null
-  }>)) ?? { data: null, error: null }
-  if (error) {
-    console.error('[listInternalExamCodes] DB error:', error.message)
-    throw new Error('Failed to load internal exam codes')
-  }
-  const raw = Array.isArray(data) ? (data as CodeRowRaw[]) : []
+  const raw = await runOffsetRows<CodeRowRaw>(dataBuilder, ctx)
   const rows: InternalExamCodeRow[] = raw.map(mapCodeRow)
   return { rows, totalCount }
 }
