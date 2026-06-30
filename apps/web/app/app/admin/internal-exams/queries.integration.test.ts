@@ -156,6 +156,10 @@ describe('listInternalExamCodes (app-layer integration)', () => {
     expect(result.rows).toHaveLength(1)
     expect(result.rows[0]!.code).toBe(`IEC-${suffix}-FINISHED`)
     expect(result.rows[0]!.sessionEndedAt).not.toBeNull()
+    // Verify the easa_subjects!subject_id FK-hint embed resolves the subject name from the
+    // real schema. Without the hint, PostgREST may silently return null on FK ambiguity;
+    // with it, resolution failure errors loudly AND success populates subjectName correctly.
+    expect(result.rows[0]!.subjectName).toBe(`Internal Exam Codes Subject ${suffix}`)
   })
 
   it('counts only consumed codes whose session is in flight for status=consumed', async () => {
@@ -167,6 +171,7 @@ describe('listInternalExamCodes (app-layer integration)', () => {
     expect(result.rows).toHaveLength(1)
     expect(result.rows[0]!.code).toBe(`IEC-${suffix}-CONSUMED`)
     expect(result.rows[0]!.sessionEndedAt).toBeNull()
+    expect(result.rows[0]!.subjectName).toBe(`Internal Exam Codes Subject ${suffix}`)
   })
 
   it('counts only unconsumed unexpired codes for status=active', async () => {
