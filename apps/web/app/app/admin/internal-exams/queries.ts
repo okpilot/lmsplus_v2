@@ -24,7 +24,7 @@ type AnyClient = {
 
 const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
        consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
-       easa_subjects(name),
+       easa_subjects!subject_id(name),
        users!student_id(full_name, email)`
 
 /**

@@ -72,7 +72,7 @@ export async function listInternalExamAttempts(
     client.from('quiz_sessions').select(
       `id, student_id, subject_id, started_at, ended_at, total_questions,
        correct_count, score_percentage, passed,
-       easa_subjects(name),
+       easa_subjects!subject_id(name),
        users!student_id(full_name, email),
        internal_exam_codes!consumed_session_id(void_reason)`,
     ),
