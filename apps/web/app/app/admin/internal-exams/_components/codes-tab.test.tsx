@@ -47,8 +47,12 @@ vi.mock('./issued-code-panel', () => ({
   },
 }))
 
+const { mockCodesTableProps } = vi.hoisted(() => ({ mockCodesTableProps: vi.fn() }))
 vi.mock('./codes-table', () => ({
-  CodesTable: () => <div data-testid="codes-table-stub" />,
+  CodesTable: (props: unknown) => {
+    mockCodesTableProps(props)
+    return <div data-testid="codes-table-stub" />
+  },
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -71,12 +75,16 @@ beforeEach(() => {
 
 describe('CodesTab', () => {
   it('does not show the IssuedCodePanel before a code is issued', () => {
-    render(<CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} />)
+    render(
+      <CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} totalCount={0} pageSize={25} />,
+    )
     expect(screen.queryByTestId('issued-code-panel-stub')).not.toBeInTheDocument()
   })
 
   it('shows the IssuedCodePanel with codeId, code, and expiresAt after a code is issued', () => {
-    render(<CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} />)
+    render(
+      <CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} totalCount={0} pageSize={25} />,
+    )
 
     act(() => {
       capturedOnIssued?.(ISSUED)
@@ -90,7 +98,9 @@ describe('CodesTab', () => {
   })
 
   it('hides the IssuedCodePanel when onDismiss is called', () => {
-    render(<CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} />)
+    render(
+      <CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} totalCount={0} pageSize={25} />,
+    )
 
     act(() => {
       capturedOnIssued?.(ISSUED)
@@ -104,7 +114,9 @@ describe('CodesTab', () => {
   })
 
   it('replaces the panel with new codeId when a second code is issued', () => {
-    render(<CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} />)
+    render(
+      <CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} totalCount={0} pageSize={25} />,
+    )
 
     act(() => {
       capturedOnIssued?.(ISSUED)
@@ -129,7 +141,25 @@ describe('CodesTab', () => {
   })
 
   it('always renders the CodesTable', () => {
-    render(<CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} />)
+    render(
+      <CodesTab students={STUDENTS} subjects={SUBJECTS} codes={[]} totalCount={0} pageSize={25} />,
+    )
     expect(screen.getByTestId('codes-table-stub')).toBeInTheDocument()
+  })
+
+  it('renders the codes table with the active status filter and pagination totals', () => {
+    render(
+      <CodesTab
+        students={STUDENTS}
+        subjects={SUBJECTS}
+        status="active"
+        codes={[]}
+        totalCount={42}
+        pageSize={25}
+      />,
+    )
+    expect(mockCodesTableProps).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'active', rows: [], totalCount: 42, pageSize: 25 }),
+    )
   })
 })

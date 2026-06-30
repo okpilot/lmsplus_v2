@@ -1,7 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import type { ExamSubjectOption, InternalExamCodeRow, OrgStudentOption } from '../types'
+import type {
+  ExamSubjectOption,
+  InternalExamCodeRow,
+  ListCodesFilters,
+  OrgStudentOption,
+} from '../types'
 import { CodesTable } from './codes-table'
 import { IssueCodeForm } from './issue-code-form'
 import { IssuedCodePanel } from './issued-code-panel'
@@ -9,12 +14,22 @@ import { IssuedCodePanel } from './issued-code-panel'
 type Props = {
   students: OrgStudentOption[]
   subjects: ExamSubjectOption[]
+  status?: ListCodesFilters['status']
   codes: InternalExamCodeRow[]
+  totalCount: number
+  pageSize: number
 }
 
 export type IssuedCode = { codeId: string; code: string; expiresAt: string }
 
-export function CodesTab({ students, subjects, codes }: Props) {
+export function CodesTab({
+  students,
+  subjects,
+  status,
+  codes,
+  totalCount,
+  pageSize,
+}: Readonly<Props>) {
   const [issued, setIssued] = useState<IssuedCode | null>(null)
 
   return (
@@ -32,7 +47,7 @@ export function CodesTab({ students, subjects, codes }: Props) {
           onDismiss={() => setIssued(null)}
         />
       ) : null}
-      <CodesTable rows={codes} />
+      <CodesTable rows={codes} status={status} totalCount={totalCount} pageSize={pageSize} />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import type {
   ExamSubjectOption,
   InternalExamAttemptRow,
   InternalExamCodeRow,
+  ListCodesFilters,
   OrgStudentOption,
 } from '../types'
 import { AttemptsTable } from './attempts-table'
@@ -14,8 +15,12 @@ import { CodesTab } from './codes-tab'
 type Props = {
   students: OrgStudentOption[]
   subjects: ExamSubjectOption[]
+  status?: ListCodesFilters['status']
   codes: InternalExamCodeRow[]
+  codesTotalCount: number
   attempts: InternalExamAttemptRow[]
+  attemptsTotalCount: number
+  pageSize: number
 }
 
 type TabKey = 'codes' | 'attempts'
@@ -26,7 +31,16 @@ function readTabParam(value: string | null): TabKey {
   return value === 'attempts' ? 'attempts' : 'codes'
 }
 
-export function InternalExamsTabs({ students, subjects, codes, attempts }: Props) {
+export function InternalExamsTabs({
+  students,
+  subjects,
+  status,
+  codes,
+  codesTotalCount,
+  attempts,
+  attemptsTotalCount,
+  pageSize,
+}: Readonly<Props>) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const [tab, setTab] = useState<TabKey>(readTabParam(tabParam))
@@ -69,18 +83,15 @@ export function InternalExamsTabs({ students, subjects, codes, attempts }: Props
         className="flex border-b border-border"
         onKeyDown={onKeyDown}
       >
-        <TabButton
-          id="codes"
-          active={tab === 'codes'}
-          label="Codes"
-          onClick={() => setTab('codes')}
-        />
-        <TabButton
-          id="attempts"
-          active={tab === 'attempts'}
-          label="Attempts"
-          onClick={() => setTab('attempts')}
-        />
+        {TAB_ORDER.map((key) => (
+          <TabButton
+            key={key}
+            id={key}
+            active={tab === key}
+            label={key === 'codes' ? 'Codes' : 'Attempts'}
+            onClick={() => setTab(key)}
+          />
+        ))}
       </div>
       <div
         role="tabpanel"
@@ -89,9 +100,16 @@ export function InternalExamsTabs({ students, subjects, codes, attempts }: Props
         data-testid={`tabpanel-${tab}`}
       >
         {tab === 'codes' ? (
-          <CodesTab students={students} subjects={subjects} codes={codes} />
+          <CodesTab
+            students={students}
+            subjects={subjects}
+            status={status}
+            codes={codes}
+            totalCount={codesTotalCount}
+            pageSize={pageSize}
+          />
         ) : (
-          <AttemptsTable rows={attempts} />
+          <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />
         )}
       </div>
     </div>

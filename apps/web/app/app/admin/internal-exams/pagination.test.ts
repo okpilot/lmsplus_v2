@@ -1,43 +1,42 @@
 import { describe, expect, it } from 'vitest'
-import { clampLimit, DEFAULT_LIMIT, MAX_LIMIT } from './pagination'
+import { clampPage } from './pagination'
 
-describe('clampLimit', () => {
-  it('returns DEFAULT_LIMIT when called with no argument', () => {
-    expect(clampLimit()).toBe(DEFAULT_LIMIT)
+describe('clampPage', () => {
+  it('returns 1 when called with no argument', () => {
+    expect(clampPage()).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT when called with undefined', () => {
-    expect(clampLimit(undefined)).toBe(DEFAULT_LIMIT)
+  it('returns 1 when called with undefined', () => {
+    expect(clampPage(undefined)).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT when called with zero', () => {
-    expect(clampLimit(0)).toBe(DEFAULT_LIMIT)
+  it('returns 1 when called with zero', () => {
+    expect(clampPage(0)).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT when called with a negative number', () => {
-    expect(clampLimit(-10)).toBe(DEFAULT_LIMIT)
+  it('returns 1 when called with a negative number', () => {
+    expect(clampPage(-10)).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT when called with a non-number value', () => {
-    expect(clampLimit('100' as unknown as number)).toBe(DEFAULT_LIMIT)
+  it('returns 1 when called with a non-number value', () => {
+    expect(clampPage('3' as unknown as number)).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT for NaN instead of leaking NaN downstream', () => {
-    expect(clampLimit(Number.NaN)).toBe(DEFAULT_LIMIT)
+  it('returns 1 for NaN instead of leaking NaN into range bounds', () => {
+    expect(clampPage(Number.NaN)).toBe(1)
   })
 
-  it('returns DEFAULT_LIMIT for a non-integer limit', () => {
-    expect(clampLimit(25.5)).toBe(DEFAULT_LIMIT)
+  it('returns 1 for a non-integer page', () => {
+    expect(clampPage(2.5)).toBe(1)
   })
 
-  it('returns the value unchanged for a valid limit within range', () => {
-    expect(clampLimit(25)).toBe(25)
-    expect(clampLimit(DEFAULT_LIMIT)).toBe(DEFAULT_LIMIT)
-    expect(clampLimit(MAX_LIMIT)).toBe(MAX_LIMIT)
+  it('returns 1 for Infinity', () => {
+    expect(clampPage(Number.POSITIVE_INFINITY)).toBe(1)
+    expect(clampPage(Number.NEGATIVE_INFINITY)).toBe(1)
   })
 
-  it('clamps to MAX_LIMIT when the requested limit exceeds it', () => {
-    expect(clampLimit(MAX_LIMIT + 1)).toBe(MAX_LIMIT)
-    expect(clampLimit(9999)).toBe(MAX_LIMIT)
+  it('returns the value unchanged for a valid positive integer page', () => {
+    expect(clampPage(1)).toBe(1)
+    expect(clampPage(7)).toBe(7)
   })
 })

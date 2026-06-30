@@ -10,7 +10,13 @@ const { mockReplace, mockUseSearchParams } = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
+  usePathname: () => '/app/admin/internal-exams',
   useSearchParams: mockUseSearchParams,
+}))
+
+vi.mock('lucide-react', () => ({
+  ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+  ChevronRight: () => <span data-testid="icon-chevron-right" />,
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -86,19 +92,19 @@ beforeEach(() => {
 
 describe('CodesTable', () => {
   it('renders empty state when no rows', () => {
-    render(<CodesTable rows={[]} />)
+    render(<CodesTable rows={[]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('No codes found')).toBeInTheDocument()
   })
 
   it('renders code, student, subject', () => {
-    render(<CodesTable rows={[baseRow]} />)
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('ABCD-1234-X')).toBeInTheDocument()
     expect(screen.getByText('Alice')).toBeInTheDocument()
     expect(screen.getByText('Air Law')).toBeInTheDocument()
   })
 
   it('shows active status badge for active codes', () => {
-    render(<CodesTable rows={[baseRow]} />)
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('active')).toBeInTheDocument()
   })
 
@@ -110,7 +116,7 @@ describe('CodesTable', () => {
       consumedSessionId: 'sess-1',
       sessionEndedAt: '2026-04-28T11:30:00.000Z',
     }
-    render(<CodesTable rows={[finished]} />)
+    render(<CodesTable rows={[finished]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('finished')).toBeInTheDocument()
   })
 
@@ -122,7 +128,7 @@ describe('CodesTable', () => {
       consumedSessionId: 'sess-1',
       sessionEndedAt: null,
     }
-    render(<CodesTable rows={[inProg]} />)
+    render(<CodesTable rows={[inProg]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('consumed')).toBeInTheDocument()
   })
 
@@ -132,7 +138,7 @@ describe('CodesTable', () => {
       status: 'consumed',
       sessionEndedAt: '2026-04-28T11:30:00.000Z',
     }
-    render(<CodesTable rows={[finished]} />)
+    render(<CodesTable rows={[finished]} totalCount={0} pageSize={25} />)
     const btn = screen.getByRole('button', { name: 'Void' })
     expect((btn as HTMLButtonElement).disabled).toBe(true)
   })
@@ -143,27 +149,27 @@ describe('CodesTable', () => {
       status: 'voided',
       voidedAt: '2026-04-28T11:00:00.000Z',
     }
-    render(<CodesTable rows={[voided]} />)
+    render(<CodesTable rows={[voided]} totalCount={0} pageSize={25} />)
     const btn = screen.getByRole('button', { name: 'Void' })
     expect((btn as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('enables Void for active codes', () => {
-    render(<CodesTable rows={[baseRow]} />)
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     const btn = screen.getByRole('button', { name: 'Void' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('opens void dialog with the row id when Void is clicked', async () => {
     const user = userEvent.setup({ delay: null })
-    render(<CodesTable rows={[baseRow]} />)
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     await user.click(screen.getByRole('button', { name: 'Void' }))
     expect(screen.getByTestId('void-dialog').textContent).toBe('code-1')
   })
 
   it('navigates with status query param when status filter changes', async () => {
     const user = userEvent.setup({ delay: null })
-    render(<CodesTable rows={[baseRow]} />)
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     await user.selectOptions(screen.getByTestId('status-select'), 'voided')
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?status=voided')
   })
@@ -171,8 +177,33 @@ describe('CodesTable', () => {
   it('removes status query param when "all" is selected', async () => {
     const user = userEvent.setup({ delay: null })
     mockUseSearchParams.mockReturnValue(new URLSearchParams('status=active'))
-    render(<CodesTable rows={[baseRow]} status="active" />)
+    render(<CodesTable rows={[baseRow]} status="active" totalCount={0} pageSize={25} />)
     await user.selectOptions(screen.getByTestId('status-select'), '__all__')
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?')
+  })
+
+  it('resets to the first page when the status filter changes', async () => {
+    const user = userEvent.setup({ delay: null })
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('status=active&codesPage=3'))
+    render(<CodesTable rows={[baseRow]} status="active" totalCount={0} pageSize={25} />)
+    await user.selectOptions(screen.getByTestId('status-select'), 'voided')
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?status=voided')
+  })
+
+  it('shows pagination controls when codes span more than one page', () => {
+    render(<CodesTable rows={[baseRow]} totalCount={60} pageSize={25} />)
+    expect(screen.getByLabelText('Next page')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–25 of 60 codes')).toBeInTheDocument()
+  })
+
+  it('hides pagination controls when all codes fit on one page', () => {
+    render(<CodesTable rows={[baseRow]} totalCount={25} pageSize={25} />)
+    expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument()
+  })
+
+  it('reads the current page from the codesPage search param', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('codesPage=2'))
+    render(<CodesTable rows={[baseRow]} totalCount={60} pageSize={25} />)
+    expect(screen.getByText('Showing 26–50 of 60 codes')).toBeInTheDocument()
   })
 })
