@@ -291,14 +291,18 @@ describe('PaginationBar', () => {
 
   it('removes the custom paramKey when navigating to page 1', async () => {
     const user = userEvent.setup()
-    Object.defineProperty(window, 'location', {
-      value: { search: '?codesPage=2' },
-      writable: true,
-    })
-    render(<PaginationBar page={2} totalCount={75} pageSize={25} paramKey="codesPage" />)
+    // Restore the URL afterwards so the mutated global does not leak ?codesPage=2
+    // into later tests in this file.
+    const originalUrl = window.location.href
+    window.history.replaceState({}, '', '/test?codesPage=2')
+    try {
+      render(<PaginationBar page={2} totalCount={75} pageSize={25} paramKey="codesPage" />)
 
-    await user.click(screen.getByLabelText('Previous page'))
+      await user.click(screen.getByLabelText('Previous page'))
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/test')
+    } finally {
+      window.history.replaceState({}, '', originalUrl)
+    }
   })
 })

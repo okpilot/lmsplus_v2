@@ -462,7 +462,7 @@ describe('listInternalExamAttempts', () => {
       expect(result.rows[0]!.voidReason).toBe('cheating detected')
     })
 
-    it('falls back to empty string when subject_id is null', async () => {
+    it('preserves a null subjectId when the session has no subject', async () => {
       mockAdmin()
       const row = {
         id: 'sess-1',
@@ -482,7 +482,7 @@ describe('listInternalExamAttempts', () => {
 
       const result = await listInternalExamAttempts()
 
-      expect(result.rows[0]!.subjectId).toBe('')
+      expect(result.rows[0]!.subjectId).toBeNull()
     })
   })
 

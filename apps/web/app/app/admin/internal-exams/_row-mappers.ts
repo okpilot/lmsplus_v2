@@ -74,7 +74,9 @@ export function mapAttemptRow(r: AttemptRowRaw): InternalExamAttemptRow {
     studentId: r.student_id,
     studentName: r.users?.full_name ?? '',
     studentEmail: r.users?.email ?? '',
-    subjectId: r.subject_id ?? '',
+    // quiz_sessions.subject_id is nullable — preserve null rather than fabricating an
+    // empty-string ID, which would read as a real-but-broken subject downstream.
+    subjectId: r.subject_id,
     subjectName: r.easa_subjects?.name ?? '',
     startedAt: r.started_at,
     endedAt: r.ended_at,

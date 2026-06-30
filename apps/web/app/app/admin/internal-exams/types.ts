@@ -33,7 +33,7 @@ export type InternalExamAttemptRow = {
   studentId: string
   studentName: string
   studentEmail: string
-  subjectId: string
+  subjectId: string | null
   subjectName: string
   startedAt: string
   endedAt: string | null

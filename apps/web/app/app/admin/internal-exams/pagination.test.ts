@@ -30,6 +30,11 @@ describe('clampPage', () => {
     expect(clampPage(2.5)).toBe(1)
   })
 
+  it('returns 1 for Infinity, which Number.isInteger rejects', () => {
+    expect(clampPage(Number.POSITIVE_INFINITY)).toBe(1)
+    expect(clampPage(Number.NEGATIVE_INFINITY)).toBe(1)
+  })
+
   it('returns the value unchanged for a valid positive integer page', () => {
     expect(clampPage(1)).toBe(1)
     expect(clampPage(7)).toBe(7)
