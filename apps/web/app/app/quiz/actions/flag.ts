@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { findActiveInternalExamSession, flagQuestion, unflagQuestion } from './_flag-guard'
+import { findActiveInternalExamSession, lookupAndToggleFlag } from './_flag-guard'
 
 const ToggleFlagSchema = z.object({ questionId: z.uuid() })
 const GetFlaggedIdsSchema = z.object({ questionIds: z.array(z.uuid()) })
@@ -35,21 +35,7 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
     return { success: false, error: 'cannot_flag_internal_exam' }
   }
 
-  const { data: existing, error: lookupError } = await supabase
-    .from('active_flagged_questions')
-    .select('student_id')
-    .eq('student_id', user.id)
-    .eq('question_id', questionId)
-    .maybeSingle()
-
-  if (lookupError) {
-    console.error('[toggleFlag] Lookup error:', lookupError.message)
-    return { success: false, error: 'Failed to toggle flag' }
-  }
-
-  return existing
-    ? unflagQuestion(supabase, user.id, questionId)
-    : flagQuestion(supabase, user.id, questionId)
+  return lookupAndToggleFlag(supabase, user.id, questionId)
 }
 
 export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {

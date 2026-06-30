@@ -34,6 +34,33 @@ export async function findActiveInternalExamSession(
   return { active: data !== null, dbError: false }
 }
 
+/**
+ * Looks up whether the question is currently flagged for the student and
+ * toggles it (flag if not present, unflag if present). Extracted from
+ * toggleFlag so the Server Action orchestrator stays under the 30-line cap.
+ */
+export async function lookupAndToggleFlag(
+  supabase: ServerSupabaseClient,
+  userId: string,
+  questionId: string,
+): Promise<FlagResult> {
+  const { data: existing, error: lookupError } = await supabase
+    .from('active_flagged_questions')
+    .select('student_id')
+    .eq('student_id', userId)
+    .eq('question_id', questionId)
+    .maybeSingle()
+
+  if (lookupError) {
+    console.error('[toggleFlag] Lookup error:', lookupError.message)
+    return { success: false, error: 'Failed to toggle flag' }
+  }
+
+  return existing
+    ? unflagQuestion(supabase, userId, questionId)
+    : flagQuestion(supabase, userId, questionId)
+}
+
 export async function unflagQuestion(
   supabase: ServerSupabaseClient,
   userId: string,

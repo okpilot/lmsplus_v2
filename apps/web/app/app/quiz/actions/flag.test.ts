@@ -162,6 +162,17 @@ describe('toggleFlag', () => {
     expect(upsertSpy).not.toHaveBeenCalled()
   })
 
+  it('returns failure when the exam guard DB query fails', async () => {
+    setupAuthenticatedUser()
+    setupFromByTable({
+      quiz_sessions: { data: null, error: { message: 'db timeout' } },
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'Failed to toggle flag' })
+  })
+
   // ---- lookup error ----------------------------------------------------------
 
   it('returns failure when the flag lookup errors', async () => {

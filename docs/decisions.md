@@ -640,6 +640,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - **Plaintext storage.** Codes are stored unhashed in `internal_exam_codes.code`. Justified by short window (24h) + admin's need to re-display a freshly issued code. Read-path queries never return the value to students.
 - **Code never displayed in student lists.** The student "Available" tab shows subject + expiry only. Code value is shown to the student exactly once, by the admin, out-of-band.
 - **No discard for internal-exam sessions.** `discardSession` Server Action rejects `mode = 'internal_exam'`; the in-session discard button is hidden by mode. Internal-exam attempts are auditable artefacts.
+- **No flag during internal exam.** `toggleFlag` Server Action rejects flagging during an active `internal_exam` session (server-derived guard); the flag button is hidden by mode and absent from the internal-exam report. Mock-exam and practice flagging unchanged. (#908)
 - **Separate reports tab.** Internal-exam sessions are excluded from existing reports/progress queries and surfaced under a dedicated "My Reports" tab on `/app/internal-exam`. Practice and internal exams are reported separately.
 - **Admin-only issue/void.** Both lifecycle endpoints gate via `is_admin()` + org-scope. Voiding an active session forces `passed = false` with score computed from existing answers; voiding a finished session is refused (`cannot_void_finished_attempt`).
 
