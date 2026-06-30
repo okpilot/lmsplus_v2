@@ -129,13 +129,12 @@ describe('InternalExamContent', () => {
 
   it('surfaces the error banner when a query hangs past the load timeout', async () => {
     vi.useFakeTimers()
-    // One query hangs forever — withTimeout converts it to { success: false }
-    // after the timeout, which flips loadFailed and renders the existing banner.
     mockListAvailableInternalExams.mockReturnValue(new Promise(() => {}))
 
     const componentPromise = InternalExamContent({ userId: 'u1' })
-    // 10_000 ms timeout + 1 ms to ensure it has fired
-    await vi.advanceTimersByTimeAsync(10001)
+    // 1 ms past the component's 10s load timeout, so the timer has fired.
+    const pastTimeoutMs = 10_001
+    await vi.advanceTimersByTimeAsync(pastTimeoutMs)
     const jsx = await componentPromise
     render(jsx)
 

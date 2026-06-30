@@ -44,4 +44,18 @@ describe('withTimeout', () => {
     rejectHung(new Error('late connection error'))
     await Promise.resolve()
   })
+
+  it('keeps the fallback when the promise resolves after the timeout', async () => {
+    vi.useFakeTimers()
+    let resolveHung!: (value: string) => void
+    const hung = new Promise<string>((resolve) => {
+      resolveHung = resolve
+    })
+    const result = withTimeout(hung, 1000, 'FALLBACK')
+    await vi.advanceTimersByTimeAsync(1001)
+    expect(await result).toBe('FALLBACK')
+    // The late value arrives after the timeout already won — it is discarded.
+    resolveHung('LATE')
+    await Promise.resolve()
+  })
 })
