@@ -251,7 +251,7 @@ describe('loadSessionQuestions', () => {
   })
 
   it('discards ordering items when an element has a blank or whitespace-only id or text', async () => {
-    // Mirrors the DB CHECK (mig 134: btrim(id) != '' AND btrim(text) != ''). A blank
+    // Mirrors the DB CHECK (mig 143: btrim(id) != '' AND btrim(text) != ''). A blank
     // id breaks id-keyed grading and a blank text renders an empty slot — the mapper
     // must reject these defensively, not just non-string elements.
     mockRpc.mockResolvedValue({

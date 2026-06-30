@@ -6,9 +6,9 @@ import type {
 import type { AnswerKeyEntry, AnswerRow } from './report-question-builder'
 
 // Resolve the slot order to render. Drive the slot set from the question's full
-// canonical order — get_report_answer_keys (mig 140) returns every ordering_items
+// canonical order — get_report_answer_keys (mig 149) returns every ordering_items
 // entry — so an omitted slot still renders as unanswered (responseText null,
-// isCorrect false). This matches batch_submit_quiz (mig 139), which scores ordering
+// isCorrect false). This matches batch_submit_quiz (mig 148), which scores ordering
 // questions against the canonical item count, NOT the submitted-row count. Fall back
 // to the submitted rows only when no answer keys are present (all-MC session, or a
 // keyless race) — preserves prior behavior.

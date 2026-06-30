@@ -290,7 +290,7 @@ BEGIN
 
   -- DISTINCT-question score aggregation: dialog_fill + ordering fold per-blank/slot
   -- rows into partial credit (v_correct_credit = numeric sum, score numerator,
-  -- Decision 47/49); v_correct_count = integer correct item (blank/slot-row) count
+  -- Decision 47/51); v_correct_count = integer correct item (blank/slot-row) count
   -- stored in quiz_sessions.correct_count. The two are INDEPENDENT exprs over the
   -- same join — the ordering total_blanks branch feeds only the credit denominator.
   -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.

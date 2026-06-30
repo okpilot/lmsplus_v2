@@ -126,7 +126,7 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     // Upper-bound parity with the three sibling ordering validators (submit
     // OrderingInput, draft `order`, draft `correctOrder` feedback) — all `.max(50)`.
     // The 50 cap is the Zod submit schema (OrderingInput.order.max(50)); the DB CHECK
-    // (mig 134's ordering column-population CHECK) enforces only a `>= 2` floor, so a
+    // (mig 143's ordering column-population CHECK) enforces only a `>= 2` floor, so a
     // >50 result is data no submittable answer can produce — treat it as corrupt RPC
     // data (#998 CR).
     v.correct_order.length <= 50 &&

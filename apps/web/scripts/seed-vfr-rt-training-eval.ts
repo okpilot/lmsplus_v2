@@ -331,7 +331,7 @@ type Ordering = {
   // { id, text } in CANONICAL order — the array order IS the answer key.
   // IDs are OPAQUE and non-sequential (not 1..N, and an alphabetical id sort does
   // NOT match the canonical order), so neither the id nor a naive sort leaks the
-  // correct sequence; get_quiz_questions (mig 136) delivers the items shuffled.
+  // correct sequence; get_quiz_questions (mig 145) delivers the items shuffled.
   items: { id: string; text: string }[]
 }
 

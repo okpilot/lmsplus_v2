@@ -36,12 +36,12 @@ type LoadResult = { success: true; questions: Question[] } | { success: false; e
 // Element-level guard for the ordering_items_shuffled RPC payload (#998 CR). Array.isArray
 // alone would admit a malformed array whose elements lack string id/text and pass it through
 // as trusted ordering items; this narrows the cast per code-style §5 (pair a cast with a
-// runtime guard). The id/text values are CHECK-enforced server-side (mig 134), so this is
+// runtime guard). The id/text values are CHECK-enforced server-side (mig 143), so this is
 // defense-in-depth, but it keeps the mapper honest against future RPC drift.
 function isOrderingItem(value: unknown): value is { id: string; text: string } {
   if (typeof value !== 'object' || value === null) return false
   const { id, text } = value as { id?: unknown; text?: unknown }
-  // Mirror the DB CHECK (mig 134 is_valid_ordering_items: btrim(id) != '' AND
+  // Mirror the DB CHECK (mig 143 is_valid_ordering_items: btrim(id) != '' AND
   // btrim(text) != '') — a blank id breaks id-keyed grading, a blank text renders
   // an empty draggable slot. Reject empty/whitespace-only strings, not just non-strings.
   return (

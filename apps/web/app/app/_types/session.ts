@@ -16,7 +16,7 @@ export type SessionQuestion = {
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
   // Populated for `ordering` only — the shuffled {id, text} items the student
-  // reorders (canonical sequence hidden; get_quiz_questions mig 136). Null for
+  // reorders (canonical sequence hidden; get_quiz_questions mig 145). Null for
   // every other type.
   ordering_items: { id: string; text: string }[] | null
 }
