@@ -11,6 +11,7 @@ type ControlProps = {
   submitting?: boolean
   showSubmit?: boolean
   flagLoading?: boolean
+  canFlag?: boolean
   onTogglePin?: () => void
   onToggleFlag?: () => void
   onPrev?: () => void
@@ -28,6 +29,7 @@ function renderControls(overrides: ControlProps = {}) {
     submitting: false,
     showSubmit: false,
     flagLoading: false,
+    canFlag: true,
     onTogglePin: vi.fn(),
     onToggleFlag: vi.fn(),
     onPrev: vi.fn(),
@@ -125,6 +127,27 @@ describe('QuizControls — Pin button (ActionButton)', () => {
   it('does not apply the amber class when not pinned', () => {
     renderControls({ isPinned: false })
     expect(screen.getByTestId('pin-button').className).not.toContain('bg-primary/10')
+  })
+})
+
+describe('QuizControls — canFlag prop', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('does not render the flag button during an internal exam', () => {
+    renderControls({ canFlag: false })
+    expect(screen.queryByTestId('flag-button')).not.toBeInTheDocument()
+  })
+
+  it('renders the flag button when canFlag is not specified (defaults to visible)', () => {
+    renderControls()
+    expect(screen.getByTestId('flag-button')).toBeInTheDocument()
+  })
+
+  it('renders the flag button when canFlag is true', () => {
+    renderControls({ canFlag: true })
+    expect(screen.getByTestId('flag-button')).toBeInTheDocument()
   })
 })
 

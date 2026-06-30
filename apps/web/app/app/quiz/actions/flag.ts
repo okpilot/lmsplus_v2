@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { findActiveInternalExamSession, flagQuestion, unflagQuestion } from './_flag-guard'
 
 const ToggleFlagSchema = z.object({ questionId: z.uuid() })
 const GetFlaggedIdsSchema = z.object({ questionIds: z.array(z.uuid()) })
@@ -25,6 +26,15 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   }
   const { questionId } = parsed
 
+  const examGuard = await findActiveInternalExamSession(supabase, user.id)
+  if (examGuard.dbError) {
+    return { success: false, error: 'Failed to toggle flag' }
+  }
+  if (examGuard.active) {
+    console.error('[toggleFlag] Rejected flag during active internal_exam for user', user.id)
+    return { success: false, error: 'cannot_flag_internal_exam' }
+  }
+
   const { data: existing, error: lookupError } = await supabase
     .from('active_flagged_questions')
     .select('student_id')
@@ -40,49 +50,6 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   return existing
     ? unflagQuestion(supabase, user.id, questionId)
     : flagQuestion(supabase, user.id, questionId)
-}
-
-async function unflagQuestion(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-  questionId: string,
-): Promise<FlagResult> {
-  // Atomic: only matches active (non-deleted) flags, safe against concurrent toggle
-  const { data, error } = await supabase
-    .from('flagged_questions')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('student_id', userId)
-    .eq('question_id', questionId)
-    .is('deleted_at', null)
-    .select('student_id')
-  if (error) {
-    console.error('[toggleFlag] Unflag error:', error.message)
-    return { success: false, error: 'Failed to unflag' }
-  }
-  // Zero rows = already unflagged concurrently; still correct terminal state
-  if (!data?.length) return { success: true, flagged: false }
-  return { success: true, flagged: false }
-}
-
-async function flagQuestion(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-  questionId: string,
-): Promise<FlagResult> {
-  const { error } = await supabase.from('flagged_questions').upsert(
-    {
-      student_id: userId,
-      question_id: questionId,
-      flagged_at: new Date().toISOString(),
-      deleted_at: null,
-    },
-    { onConflict: 'student_id,question_id' },
-  )
-  if (error) {
-    console.error('[toggleFlag] Flag error:', error.message)
-    return { success: false, error: 'Failed to flag' }
-  }
-  return { success: true, flagged: true }
 }
 
 export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
