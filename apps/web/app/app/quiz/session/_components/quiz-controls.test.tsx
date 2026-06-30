@@ -135,7 +135,7 @@ describe('QuizControls — canFlag prop', () => {
     vi.resetAllMocks()
   })
 
-  it('does not render the flag button during an internal exam', () => {
+  it('does not render the flag button when flagging is disabled', () => {
     renderControls({ canFlag: false })
     expect(screen.queryByTestId('flag-button')).not.toBeInTheDocument()
   })

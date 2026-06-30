@@ -1,5 +1,6 @@
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { QuizState } from '../_hooks/use-quiz-state'
+import { canFlagQuestion } from '../_utils/can-flag-question'
 import { QuizControls } from './quiz-controls'
 
 type QuizSessionFooterProps = {
@@ -24,7 +25,7 @@ export function QuizSessionFooter({
   onToggleFlag,
   examMode,
 }: Readonly<QuizSessionFooterProps>) {
-  const canFlag = !(s.isExam && examMode === 'internal_exam')
+  const canFlag = canFlagQuestion({ isExam: s.isExam, examMode })
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8">
       <div className="mx-auto max-w-3xl">
