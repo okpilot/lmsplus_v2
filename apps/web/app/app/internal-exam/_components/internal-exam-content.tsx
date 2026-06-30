@@ -1,7 +1,13 @@
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { getActiveInternalExamSession } from '../actions/get-active-internal-exam-session'
 import { listAvailableInternalExams, listMyInternalExamHistory } from '../queries'
 import { InternalExamTabs } from './internal-exam-tabs'
 import { RecoveryBanner } from './recovery-banner'
+
+// #911: guards against a hung query streaming the Suspense skeleton forever —
+// a timeout resolves to a failure-shaped fallback so the existing loadFailed
+// banner renders instead.
+const INTERNAL_EXAM_LOAD_TIMEOUT_MS = 10_000
 
 type Props = {
   userId: string
@@ -9,9 +15,18 @@ type Props = {
 
 export async function InternalExamContent({ userId }: Readonly<Props>) {
   const [availableResult, historyResult, activeResult] = await Promise.all([
-    listAvailableInternalExams(),
-    listMyInternalExamHistory(),
-    getActiveInternalExamSession(),
+    withTimeout(listAvailableInternalExams(), INTERNAL_EXAM_LOAD_TIMEOUT_MS, {
+      success: false,
+      data: [],
+    }),
+    withTimeout(listMyInternalExamHistory(), INTERNAL_EXAM_LOAD_TIMEOUT_MS, {
+      success: false,
+      data: [],
+    }),
+    withTimeout(getActiveInternalExamSession(), INTERNAL_EXAM_LOAD_TIMEOUT_MS, {
+      success: false as const,
+      error: 'timed out',
+    }),
   ])
 
   const activeSessions = activeResult.success ? activeResult.sessions : []

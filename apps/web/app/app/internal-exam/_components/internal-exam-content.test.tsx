@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { InternalExamContent } from './internal-exam-content'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -30,6 +30,10 @@ vi.mock('./recovery-banner', () => ({
 }))
 
 // ---- Lifecycle ------------------------------------------------------------
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -121,5 +125,20 @@ describe('InternalExamContent', () => {
     render(jsx)
 
     expect(screen.getByTestId('recovery-banner')).toBeInTheDocument()
+  })
+
+  it('surfaces the error banner when a query hangs past the load timeout', async () => {
+    vi.useFakeTimers()
+    // One query hangs forever — withTimeout converts it to { success: false }
+    // after the timeout, which flips loadFailed and renders the existing banner.
+    mockListAvailableInternalExams.mockReturnValue(new Promise(() => {}))
+
+    const componentPromise = InternalExamContent({ userId: 'u1' })
+    // 10_000 ms timeout + 1 ms to ensure it has fired
+    await vi.advanceTimersByTimeAsync(10001)
+    const jsx = await componentPromise
+    render(jsx)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 })
