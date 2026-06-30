@@ -34,18 +34,26 @@ export type AttemptRowRaw = {
   internal_exam_codes: { void_reason: string | null }[] | null
 }
 
-function deriveStatus(row: {
-  consumed_at: string | null
-  voided_at: string | null
-  expires_at: string
-}): InternalExamCodeStatus {
+function deriveStatus(
+  row: {
+    consumed_at: string | null
+    voided_at: string | null
+    expires_at: string
+  },
+  nowMs: number,
+): InternalExamCodeStatus {
   if (row.voided_at) return 'voided'
   if (row.consumed_at) return 'consumed'
-  if (new Date(row.expires_at).getTime() <= Date.now()) return 'expired'
+  if (new Date(row.expires_at).getTime() <= nowMs) return 'expired'
   return 'active'
 }
 
-export function mapCodeRow(r: CodeRowRaw): InternalExamCodeRow {
+/**
+ * `nowMs` is the query-scoped instant (from `listInternalExamCodes`'s `nowIso`), passed in
+ * so the derived `status` uses the SAME clock as the `active`/`expired` SQL filters — re-reading
+ * `Date.now()` here could classify a code expiring mid-fetch differently than the query did.
+ */
+export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
   return {
     id: r.id,
     code: r.code,
@@ -63,7 +71,7 @@ export function mapCodeRow(r: CodeRowRaw): InternalExamCodeRow {
     voidedBy: r.voided_by,
     voidReason: r.void_reason,
     emailedAt: r.emailed_at,
-    status: deriveStatus(r),
+    status: deriveStatus(r, nowMs),
     sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
   }
 }

@@ -96,7 +96,9 @@ export async function listInternalExamCodes(
     .range(from, to)
 
   const raw = await runOffsetRows<CodeRowRaw>(dataBuilder, ctx)
-  const rows: InternalExamCodeRow[] = raw.map(mapCodeRow)
+  // Derive status against the same instant the active/expired SQL filters used (nowIso).
+  const nowMs = new Date(nowIso).getTime()
+  const rows: InternalExamCodeRow[] = raw.map((r) => mapCodeRow(r, nowMs))
   return { rows, totalCount }
 }
 

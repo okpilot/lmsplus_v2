@@ -1,23 +1,14 @@
 import { Suspense } from 'react'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { InternalExamsContent } from './_components/internal-exams-content'
 import { InternalExamsFallback } from './_components/internal-exams-fallback'
-import type { ListCodesFilters } from './types'
-
-const CODE_STATUS_VALUES = ['active', 'consumed', 'expired', 'voided', 'finished'] as const
-
-function parseCodeStatus(value: string | string[] | undefined): ListCodesFilters['status'] {
-  return typeof value === 'string' && (CODE_STATUS_VALUES as readonly string[]).includes(value)
-    ? (value as ListCodesFilters['status'])
-    : undefined
-}
+import { parseInternalExamsSearchParams } from './_search-params'
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 export default async function InternalExamsPage({ searchParams }: Readonly<PageProps>) {
   await requireAdmin()
-  const sp = await searchParams
+  const { status, codesPage, attemptsPage } = parseInternalExamsSearchParams(await searchParams)
 
   return (
     <div className="space-y-6">
@@ -28,11 +19,7 @@ export default async function InternalExamsPage({ searchParams }: Readonly<PageP
         </p>
       </div>
       <Suspense fallback={<InternalExamsFallback />}>
-        <InternalExamsContent
-          status={parseCodeStatus(sp.status)}
-          codesPage={parsePageParam(sp.codesPage)}
-          attemptsPage={parsePageParam(sp.attemptsPage)}
-        />
+        <InternalExamsContent status={status} codesPage={codesPage} attemptsPage={attemptsPage} />
       </Suspense>
     </div>
   )
