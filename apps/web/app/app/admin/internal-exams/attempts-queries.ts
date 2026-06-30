@@ -1,7 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { type AttemptRowRaw, mapAttemptRow } from './_row-mappers'
-import { PAGE_SIZE } from './pagination'
+import { clampPage, PAGE_SIZE } from './pagination'
 import type { InternalExamAttemptRow, ListAttemptsFilters } from './types'
 
 // Narrower than the queries.ts ChainBuilder by design — lte/gt are omitted
@@ -41,7 +41,7 @@ export async function listInternalExamAttempts(
   filters: ListAttemptsFilters = {},
 ): Promise<{ rows: InternalExamAttemptRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
-  const page = filters.page ?? 1
+  const page = clampPage(filters.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
   // adminClient: same RLS-recursion reason as listInternalExamCodes — embed of `users`

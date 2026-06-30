@@ -1,7 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
-import { PAGE_SIZE } from './pagination'
+import { clampPage, PAGE_SIZE } from './pagination'
 import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
 
 type ChainBuilder = {
@@ -68,7 +68,7 @@ export async function listInternalExamCodes(
   filters: ListCodesFilters = {},
 ): Promise<{ rows: InternalExamCodeRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
-  const page = filters.page ?? 1
+  const page = clampPage(filters.page)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
   // adminClient: cross-row `users` reads are unreliable under tenant_isolation RLS (see
