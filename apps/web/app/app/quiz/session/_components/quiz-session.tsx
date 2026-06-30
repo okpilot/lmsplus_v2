@@ -82,7 +82,6 @@ export function QuizSession(props: QuizSessionProps) {
         onTimeExpired={handleTimeExpired}
         onFinishClick={() => s.setShowFinishDialog(true)}
       />
-
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
           <QuestionGrid
@@ -135,6 +134,7 @@ export function QuizSession(props: QuizSessionProps) {
           canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
         }
         pendingOptionId={pendingOptionId}
+        examMode={props.examMode}
         onToggleFlag={() => toggleFlag(s.questionId)}
       />
 
