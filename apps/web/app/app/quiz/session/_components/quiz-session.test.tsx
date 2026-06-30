@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
 }))
 
 const mockBatchSubmitQuiz = vi.fn()
@@ -23,6 +24,11 @@ vi.mock('../../actions/draft-delete', () => ({
 const mockDiscardQuiz = vi.fn()
 vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+}))
+
+const mockEndDiscovery = vi.fn().mockResolvedValue({ success: true })
+vi.mock('../../actions/end-discovery', () => ({
+  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
 }))
 
 const mockCheckAnswer = vi.fn()
@@ -127,6 +133,7 @@ vi.mock('@/app/app/_components/answer-options', async () => {
     onSubmit,
     disabled,
     selectedOptionId,
+    correctOptionId,
     onSelectionChange,
     isExam,
   }: {
@@ -134,6 +141,7 @@ vi.mock('@/app/app/_components/answer-options', async () => {
     onSubmit: (id: string) => void
     disabled: boolean
     selectedOptionId?: string | null
+    correctOptionId?: string | null
     onSelectionChange?: (id: string | null) => void
     isExam?: boolean
   }) {
@@ -157,6 +165,9 @@ vi.mock('@/app/app/_components/answer-options', async () => {
                 ? 'true'
                 : undefined
             }
+            // showResult marking: when feedback supplies a correctOptionId, the real
+            // component paints the correct option green. Mirror that as a flat attribute.
+            data-correct={correctOptionId === o.id ? 'true' : undefined}
             onClick={() => {
               onSelectionChange?.(o.id)
               if (!isExam) {
@@ -334,12 +345,22 @@ const QUESTIONS = [
   },
 ]
 
+const mcFeedback = (correctOptionId: string) =>
+  ({
+    questionType: 'multiple_choice',
+    isCorrect: true,
+    correctOptionId,
+    explanationText: null,
+    explanationImageUrl: null,
+  }) as const
+
 describe('QuizSession', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
     mockDiscardQuiz.mockResolvedValue({ success: true })
+    mockEndDiscovery.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({
       success: true,
       isCorrect: true,
@@ -824,5 +845,86 @@ describe('QuizSession', () => {
     expect(headerTimer.getAttribute('data-classname')).toContain('md:hidden')
     expect(mainTimer.getAttribute('data-classname')).toContain('hidden')
     expect(mainTimer.getAttribute('data-classname')).toContain('md:inline')
+  })
+
+  // ---- Discovery (browse-only) mode ----------------------------------------
+
+  // Every question rides in pre-answered with its correct option, so the runner
+  // opens in review state: correct option green, no attempt step, nothing scored.
+  const DISCOVERY_ANSWERS = {
+    q1: { selectedOptionId: 'a', responseTimeMs: 0 },
+    q2: { selectedOptionId: 'c', responseTimeMs: 0 },
+    q3: { selectedOptionId: 'e', responseTimeMs: 0 },
+  }
+  const DISCOVERY_FEEDBACK = new Map([
+    ['q1', mcFeedback('a')],
+    ['q2', mcFeedback('c')],
+    ['q3', mcFeedback('e')],
+  ])
+
+  function renderDiscovery() {
+    return render(
+      <QuizSession
+        sessionId="disc-1"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="discovery"
+        initialAnswers={DISCOVERY_ANSWERS}
+        initialFeedback={DISCOVERY_FEEDBACK}
+      />,
+    )
+  }
+
+  it('pre-marks the correct option in discovery mode', () => {
+    renderDiscovery()
+    // No click — the option is pre-selected from the handoff and painted as correct.
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-a').dataset.correct).toBe('true')
+  })
+
+  it('never calls the check-answer action in discovery mode', () => {
+    renderDiscovery()
+    // Clicking the pre-selected correct option AND an unselected wrong option are both
+    // inert — the pre-answered guard keys on the question, not the chosen option.
+    fireEvent.click(screen.getByTestId('option-a'))
+    fireEvent.click(screen.getByTestId('option-b'))
+    expect(mockCheckAnswer).not.toHaveBeenCalled()
+    // The clicks are visually inert too: the pre-marked correct option stays
+    // selected+correct and the wrong option never becomes selected.
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-a').dataset.correct).toBe('true')
+    expect(screen.getByTestId('option-b').dataset.selected).not.toBe('true')
+  })
+
+  it('shows no submit affordance in discovery mode', () => {
+    renderDiscovery()
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /submit quiz/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows Exit (not Finish) in the header and navigates to /app/quiz on click', async () => {
+    renderDiscovery()
+    expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
+    const exitBtn = screen.getByRole('button', { name: 'Exit' })
+    fireEvent.click(exitBtn)
+    // Exit awaits the discovery teardown before navigating (§6), so await the nav.
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
+  })
+
+  it('lifecycle: opens pre-marked, allows navigation, and exits to /app/quiz', async () => {
+    renderDiscovery()
+    // Entry: first question opens in reviewed state (correct option pre-selected)
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-a').dataset.correct).toBe('true')
+    // No scoring affordances present
+    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+    // Navigate to next question
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    expect(screen.getByTestId('option-c').dataset.selected).toBe('true')
+    expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
+    // Exit navigates away — the only way to leave discovery
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 })

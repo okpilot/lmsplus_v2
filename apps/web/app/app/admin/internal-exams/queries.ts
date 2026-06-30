@@ -1,173 +1,121 @@
-import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { clampLimit } from './pagination'
-import type {
-  ExamSubjectOption,
-  InternalExamCodeRow,
-  InternalExamCodeStatus,
-  ListCodesFilters,
-} from './types'
+import {
+  type OffsetChainBuilder,
+  offsetAdminClient,
+  runOffsetCount,
+  runOffsetRows,
+} from './_offset-query'
+import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
+import { clampPage, PAGE_SIZE } from './pagination'
+import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
 
-function deriveStatus(row: {
-  consumed_at: string | null
-  voided_at: string | null
-  expires_at: string
-}): InternalExamCodeStatus {
-  if (row.voided_at) return 'voided'
-  if (row.consumed_at) return 'consumed'
-  if (new Date(row.expires_at).getTime() <= Date.now()) return 'expired'
-  return 'active'
-}
+const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
+       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
+       easa_subjects!subject_id(name),
+       users!student_id(full_name, email)`
 
-type CodeRowRaw = {
-  id: string
-  code: string
-  subject_id: string
-  student_id: string
-  issued_by: string
-  issued_at: string
-  expires_at: string
-  consumed_at: string | null
-  consumed_session_id: string | null
-  voided_at: string | null
-  voided_by: string | null
-  void_reason: string | null
-  easa_subjects: { name: string | null } | null
-  users: { full_name: string | null; email: string | null } | null
-  quiz_sessions: { ended_at: string | null } | null
-}
-
-type ChainBuilder = {
-  select: (cols: string) => ChainBuilder
-  eq: (col: string, val: unknown) => ChainBuilder
-  is: (col: string, val: null) => ChainBuilder
-  not: (col: string, op: string, val: unknown) => ChainBuilder
-  lte: (col: string, val: unknown) => ChainBuilder
-  gt: (col: string, val: unknown) => ChainBuilder
-  order: (col: string, opts: { ascending: boolean }) => ChainBuilder
-  limit: (n: number) => ChainBuilder
-}
-
-type AnyClient = {
-  from: (t: string) => ChainBuilder
+/**
+ * Applies org scope, soft-delete filter, and status/student/subject predicates to a codes query builder.
+ * `nowIso` is passed in (not computed here) so the count and data queries share the same instant.
+ */
+function applyCodeFilters(
+  builder: OffsetChainBuilder,
+  organizationId: string,
+  filters: ListCodesFilters,
+  nowIso: string,
+): OffsetChainBuilder {
+  let b = builder.eq('organization_id', organizationId).is('deleted_at', null)
+  if (filters.studentId) b = b.eq('student_id', filters.studentId)
+  if (filters.subjectId) b = b.eq('subject_id', filters.subjectId)
+  switch (filters.status) {
+    case 'voided':
+      return b.not('voided_at', 'is', null)
+    case 'expired':
+      return b.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
+    case 'consumed':
+      // linked session still in flight (ended_at IS NULL)
+      return b
+        .not('consumed_at', 'is', null)
+        .is('voided_at', null)
+        .is('quiz_sessions.ended_at', null)
+    case 'finished':
+      // linked session has ended (ended_at IS NOT NULL)
+      return b
+        .not('consumed_at', 'is', null)
+        .is('voided_at', null)
+        .not('quiz_sessions.ended_at', 'is', null)
+    case 'active':
+      return b.is('consumed_at', null).is('voided_at', null).gt('expires_at', nowIso)
+    default:
+      return b
+  }
 }
 
 export async function listInternalExamCodes(
   filters: ListCodesFilters = {},
-): Promise<{ rows: InternalExamCodeRow[]; nextCursor: string | null }> {
+): Promise<{ rows: InternalExamCodeRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
-  const limit = clampLimit(filters.limit)
-  // adminClient: cross-row reads on `users` are unreliable under tenant_isolation RLS
-  // (self-referential subquery), and PostgREST applies RLS to embedded resources too.
-  const client = adminClient as unknown as AnyClient
-
-  let builder = client
-    .from('internal_exam_codes')
-    .select(
-      `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
-       consumed_at, consumed_session_id, voided_at, voided_by, void_reason,
-       easa_subjects(name),
-       users!student_id(full_name, email),
-       quiz_sessions!consumed_session_id(ended_at)`,
-    )
-    .eq('organization_id', organizationId)
-    .is('deleted_at', null)
-
-  if (filters.studentId) builder = builder.eq('student_id', filters.studentId)
-  if (filters.subjectId) builder = builder.eq('subject_id', filters.subjectId)
-
+  const page = clampPage(filters.page)
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+  const client = offsetAdminClient
   const nowIso = new Date().toISOString()
-  switch (filters.status) {
-    case 'voided':
-      builder = builder.not('voided_at', 'is', null)
-      break
-    case 'expired':
-      builder = builder.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
-      break
-    case 'consumed':
-    case 'finished':
-      builder = builder.not('consumed_at', 'is', null).is('voided_at', null)
-      break
-    case 'active':
-      builder = builder.is('consumed_at', null).is('voided_at', null).gt('expires_at', nowIso)
-      break
-    default:
-      break
+  // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
+  // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
+  const splitOnSession = filters.status === 'consumed' || filters.status === 'finished'
+  const embed = splitOnSession
+    ? 'quiz_sessions!consumed_session_id!inner(ended_at)'
+    : 'quiz_sessions!consumed_session_id(ended_at)'
+
+  const countBuilder = applyCodeFilters(
+    client
+      .from('internal_exam_codes')
+      .select(splitOnSession ? `id, ${embed}` : 'id', { count: 'exact', head: true }),
+    organizationId,
+    filters,
+    nowIso,
+  )
+  const ctx = {
+    tag: 'listInternalExamCodes',
+    failMessage: 'Failed to load internal exam codes',
+  }
+  const totalCount = await runOffsetCount(countBuilder, ctx)
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  if (totalCount === 0 || page > totalPages) {
+    return { rows: [], totalCount }
   }
 
-  builder = builder.order('issued_at', { ascending: false }).limit(limit + 1)
+  const dataBuilder = applyCodeFilters(
+    client.from('internal_exam_codes').select(`${CODE_COLS_BASE},\n       ${embed}`),
+    organizationId,
+    filters,
+    nowIso,
+  )
+    .order('issued_at', { ascending: false })
+    .order('id', { ascending: false }) // id tiebreaker keeps pages stable (issued_at not unique)
+    .range(from, to)
 
-  const { data, error } = (await (builder as unknown as PromiseLike<{
-    data: unknown
-    error: { message: string } | null
-  }>)) ?? { data: null, error: null }
-  if (error) {
-    console.error('[listInternalExamCodes] DB error:', error.message)
-    throw new Error('Failed to load internal exam codes')
-  }
-  const raw = Array.isArray(data) ? (data as CodeRowRaw[]) : []
-
-  let mapped: InternalExamCodeRow[] = raw.map((r) => ({
-    id: r.id,
-    code: r.code,
-    subjectId: r.subject_id,
-    subjectName: r.easa_subjects?.name ?? '',
-    studentId: r.student_id,
-    studentName: r.users?.full_name ?? '',
-    studentEmail: r.users?.email ?? '',
-    issuedBy: r.issued_by,
-    issuedAt: r.issued_at,
-    expiresAt: r.expires_at,
-    consumedAt: r.consumed_at,
-    consumedSessionId: r.consumed_session_id,
-    voidedAt: r.voided_at,
-    voidedBy: r.voided_by,
-    voidReason: r.void_reason,
-    status: deriveStatus({
-      consumed_at: r.consumed_at,
-      voided_at: r.voided_at,
-      expires_at: r.expires_at,
-    }),
-    sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
-  }))
-
-  // SQL above is the primary filter. TS guards below preserve correctness when
-  // a caller passes status-derived filters and act as a safety net for the
-  // 'consumed' vs 'finished' split (depends on linked quiz_sessions.ended_at).
-  if (filters.status === 'finished') {
-    mapped = mapped.filter((r) => r.sessionEndedAt !== null)
-  } else if (filters.status === 'consumed') {
-    mapped = mapped.filter((r) => r.sessionEndedAt === null && r.status === 'consumed')
-  } else if (filters.status) {
-    mapped = mapped.filter((r) => r.status === filters.status)
-  }
-  if (filters.studentId) mapped = mapped.filter((r) => r.studentId === filters.studentId)
-  if (filters.subjectId) mapped = mapped.filter((r) => r.subjectId === filters.subjectId)
-
-  const hasMore = mapped.length > limit
-  const rows = hasMore ? mapped.slice(0, limit) : mapped
-  const nextCursor = hasMore ? (rows[rows.length - 1]?.issuedAt ?? null) : null
-
-  return { rows, nextCursor }
+  const raw = await runOffsetRows<CodeRowRaw>(dataBuilder, ctx)
+  // Derive status against the same instant the active/expired SQL filters used (nowIso).
+  const nowMs = new Date(nowIso).getTime()
+  const rows: InternalExamCodeRow[] = raw.map((r) => mapCodeRow(r, nowMs))
+  return { rows, totalCount }
 }
 
 type SubjectRowRaw = { id: string; code: string; name: string }
 
 export async function listExamSubjects(): Promise<ExamSubjectOption[]> {
   const { supabase, organizationId } = await requireAdmin()
-
   const { data, error } = await supabase
     .from('exam_configs')
     .select('subject_id, easa_subjects!subject_id(id, code, name)')
     .eq('organization_id', organizationId)
     .eq('enabled', true)
     .is('deleted_at', null)
-
   if (error) {
     console.error('[listExamSubjects] DB error:', error.message)
     throw new Error('Failed to load subjects')
   }
-
   type Joined = { easa_subjects: SubjectRowRaw | null }
   const rows = (data ?? []) as Joined[]
   return rows

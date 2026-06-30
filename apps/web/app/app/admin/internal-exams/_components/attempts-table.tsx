@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -11,9 +11,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { parsePageParam } from '@/lib/utils/parse-page-param'
+import { PaginationBar } from '../../../_components/pagination-bar'
 import type { InternalExamAttemptRow } from '../types'
 
-type Props = { rows: InternalExamAttemptRow[] }
+type Props = {
+  rows: InternalExamAttemptRow[]
+  totalCount: number
+  pageSize: number
+}
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
@@ -25,38 +31,51 @@ function formatScore(score: number | null): string {
   return `${Math.round(score)}%`
 }
 
-export function AttemptsTable({ rows }: Props) {
+export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
+  const searchParams = useSearchParams()
+  const page = parsePageParam(searchParams?.get('attemptsPage') ?? undefined)
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[160px]">Student</TableHead>
-            <TableHead className="min-w-[140px]">Subject</TableHead>
-            <TableHead className="w-40">Started</TableHead>
-            <TableHead className="w-40">Ended</TableHead>
-            <TableHead className="w-20">Score</TableHead>
-            <TableHead className="w-24">Result</TableHead>
-            <TableHead className="w-24">Answered</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
+    <div className="space-y-3">
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
-                No attempts yet
-              </TableCell>
+              <TableHead className="min-w-[160px]">Student</TableHead>
+              <TableHead className="min-w-[140px]">Subject</TableHead>
+              <TableHead className="w-40">Started</TableHead>
+              <TableHead className="w-40">Ended</TableHead>
+              <TableHead className="w-20">Score</TableHead>
+              <TableHead className="w-24">Result</TableHead>
+              <TableHead className="w-24">Answered</TableHead>
             </TableRow>
-          ) : (
-            rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                  No attempts yet
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <PaginationBar
+        page={page}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        entityLabel="attempts"
+        paramKey="attemptsPage"
+      />
     </div>
   )
 }
 
-function AttemptRow({ row: r }: { row: InternalExamAttemptRow }) {
+function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
   const router = useRouter()
   const total = r.totalQuestions ?? 0
   const correct = r.correctCount ?? 0

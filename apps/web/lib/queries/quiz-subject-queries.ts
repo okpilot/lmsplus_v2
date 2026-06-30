@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { cache } from 'react'
 import { rpc } from '@/lib/supabase-rpc'
 import type {
   SubjectOption,
@@ -32,7 +33,11 @@ async function fetchActiveQuestionCounts(
   return Array.isArray(data) ? data : []
 }
 
-export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
+// Wrapped in React `cache()` for per-request memoization: SubjectsSection
+// (New Quiz form) calls this on /quiz render; cache() ensures a single DB round-trip
+// per request. cache() is request-scoped — a no-op outside an RSC render, so unit
+// tests that call it directly are unaffected — and transparent to all callers (no args).
+export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> => {
   const supabase = await createServerSupabaseClient()
 
   // Intentional asymmetry: a subjects read error throws (page-critical data), while
@@ -64,7 +69,7 @@ export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
     }))
     .filter((s) => s.questionCount > 0) // hide zero-count subjects
     .filter((s) => s.code !== 'RT') // RT has its own /app/vfr-rt page (R1.3)
-}
+})
 
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
   const supabase = await createServerSupabaseClient()

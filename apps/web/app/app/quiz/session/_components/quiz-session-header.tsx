@@ -7,11 +7,14 @@ import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-m
 import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 import type { QuestionTab } from '../../_components/question-tabs'
 import { QuestionTabs } from '../../_components/question-tabs'
+import { useDiscoveryExit } from '../_hooks/use-discovery-exit'
 import { ExamBadge } from './exam-session-header'
 import { KeyboardLegend } from './keyboard-legend'
 
 type QuizSessionHeaderProps = {
   isExam: boolean
+  /** Discovery is browse-only: the Finish button becomes an Exit that leaves the runner. */
+  isDiscovery?: boolean
   examMode?: DbQuizMode
   currentIndex: number
   totalQuestions: number
@@ -26,6 +29,7 @@ type QuizSessionHeaderProps = {
 
 export function QuizSessionHeader({
   isExam,
+  isDiscovery,
   examMode,
   currentIndex,
   totalQuestions,
@@ -37,7 +41,9 @@ export function QuizSessionHeader({
   onTimeExpired,
   onFinishClick,
 }: QuizSessionHeaderProps) {
+  const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
+
   return (
     // Desktop (md+) only: pin the header so it stays visible while the question
     // body scrolls underneath. Mobile keeps the original scroll-away header.
@@ -80,18 +86,30 @@ export function QuizSessionHeader({
           <KeyboardLegend isExam={isExam} />
         </div>
         <ThemeToggle />
-        <button
-          type="button"
-          onClick={onFinishClick}
-          disabled={submitting}
-          aria-busy={submitting || undefined}
-          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {finishLabel}
-          </span>
-        </button>
+        {isDiscovery ? (
+          <button
+            type="button"
+            // replace (not push): the consumed handoff makes the session page
+            // un-resumable, so Back must not be able to reopen the exited runner.
+            onClick={handleDiscoveryExit}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Exit
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onFinishClick}
+            disabled={submitting}
+            aria-busy={submitting || undefined}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            <span className="inline-flex items-center justify-center gap-2">
+              {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+              {finishLabel}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   )

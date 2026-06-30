@@ -57,6 +57,24 @@ describe('useAvailableCount', () => {
     })
   })
 
+  it('uses the MC-only filtered count for Discovery with no active filters', () => {
+    vi.mocked(helpers.computeAvailableCount).mockReturnValue(8)
+    const topicTree = makeTopicTree({ selectedQuestionCount: 20 })
+    const { result } = renderHook(() =>
+      useAvailableCount({
+        hasActiveFilters: false,
+        preferFiltered: true,
+        filteredByTopic: { t1: 8 },
+        filteredBySubtopic: {},
+        topicTree,
+      }),
+    )
+    expect(result.current).toBe(8)
+    expect(helpers.computeAvailableCount).toHaveBeenCalledWith(
+      expect.objectContaining({ hasActiveFilters: false, preferFiltered: true }),
+    )
+  })
+
   it('memoizes — does not recompute when inputs are unchanged across rerenders', () => {
     vi.mocked(helpers.computeAvailableCount).mockReturnValue(5)
     const opts = {

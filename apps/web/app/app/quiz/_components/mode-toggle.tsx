@@ -1,6 +1,6 @@
 'use client'
 
-type QuizMode = 'study' | 'exam'
+import type { QuizMode } from '../types'
 
 type ModeToggleProps = {
   value: QuizMode
@@ -13,6 +13,18 @@ export function ModeToggle({ value, onValueChange, examAvailable = false }: Mode
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Mode</span>
       <div className="flex rounded-[10px] border border-border p-0.5">
+        <button
+          type="button"
+          aria-pressed={value === 'discovery'}
+          onClick={() => onValueChange('discovery')}
+          className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
+            value === 'discovery'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Discovery
+        </button>
         <button
           type="button"
           aria-pressed={value === 'study'}
@@ -42,9 +54,11 @@ export function ModeToggle({ value, onValueChange, examAvailable = false }: Mode
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        {value === 'exam'
-          ? 'Practice Exam mode is timed with no hints or feedback until submission.'
-          : 'Study mode shows explanations after each answer.'}
+        {value === 'discovery'
+          ? 'Discovery shows the answer and explanation up front — explore the questions, nothing scored.'
+          : value === 'exam'
+            ? 'Practice Exam mode is timed with no hints or feedback until submission.'
+            : 'Study mode shows explanations after each answer.'}
       </p>
     </div>
   )

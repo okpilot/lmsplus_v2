@@ -5,11 +5,12 @@
 // cross-user RLS isolation, Zod parse rejection, and unauthenticated rejection.
 // Each test that needs an open session calls seedOpenSession inside the test so
 // complete_quiz_session in one test cannot leave another test with an ended session.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -108,6 +109,20 @@ describe('submitQuizAnswer (app-layer integration)', () => {
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  // submitQuizAnswer does NOT end the session, so each per-test seedOpenSession
+  // leaves an active session behind. The single-active-session invariant (#1011)
+  // allows only one active session per student, so without an explicit clear the
+  // next test's seedOpenSession would raise `another_session_active` (seedOpenSession
+  // no longer auto-clears). Clear both students' active sessions after each test —
+  // single cleanup step (code-style §7); afterEach runs even after a failure.
+  afterEach(async () => {
+    await clearActiveSessions({
+      admin,
+      studentIds: [studentAId, studentBId],
+      label: 'submitQuizAnswer',
+    })
   })
 
   it('returns isCorrect true and the correct option for a right answer', async () => {

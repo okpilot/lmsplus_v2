@@ -221,17 +221,35 @@ describe('getRandomQuestionIds', () => {
     expect(result).toEqual(['a', 'b'])
   })
 
-  it('returns an empty array and logs when the rpc errors', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when the question id lookup fails', async () => {
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })
 
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
-
-    expect(result).toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[getRandomQuestionIds]'),
-      'rpc boom',
+    await expect(getRandomQuestionIds({ subjectId: 's1', count: 5 })).rejects.toThrow(
+      'Failed to fetch question ids',
     )
-    consoleSpy.mockRestore()
+  })
+
+  it('does not apply a question-type filter when questionType is omitted', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_question_type: null }),
+    )
+  })
+
+  it('applies the requested question-type filter when one is provided', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, questionType: 'multiple_choice' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_question_type: 'multiple_choice' }),
+    )
   })
 })

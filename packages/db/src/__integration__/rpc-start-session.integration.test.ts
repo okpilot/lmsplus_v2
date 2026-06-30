@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -66,6 +66,13 @@ describe('RPC: start_quiz_session', () => {
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
+  })
+
+  // Single-active-session invariant (#1011): each test starts a fresh session, so
+  // clear any active session left by the prior test before the next start RPC raises
+  // `another_session_active`.
+  beforeEach(async () => {
+    await clearActiveSessions({ admin, orgId })
   })
 
   it('creates a session and returns a UUID', async () => {
@@ -252,6 +259,13 @@ describe('RPC: start_quiz_session input validation', () => {
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
     await cleanupReferenceData({ admin, refs: [refs, otherRefs, altTopicRefs] })
+  })
+
+  // Single-active-session invariant (#1011): clear the main student's active session
+  // between tests so a leftover active session does not pre-empt the input-validation
+  // RAISE these tests assert (the single-active guard fires before that validation).
+  beforeEach(async () => {
+    await clearActiveSessions({ admin, orgId })
   })
 
   it('rejects an empty p_question_ids array with no_questions_provided', async () => {

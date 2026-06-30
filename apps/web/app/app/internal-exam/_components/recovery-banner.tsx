@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-storage'
+import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-handoff'
 import type { ActiveInternalExamSession } from '../actions/get-active-internal-exam-session'
 
 type Props = {

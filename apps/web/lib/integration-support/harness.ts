@@ -8,6 +8,7 @@
 // NOT a barrel over feature code — it aggregates test-only utilities for the
 // tier, the same way the DB tier centralizes its setup/seed/cleanup helpers.
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export {
   cleanupReferenceData,
@@ -40,4 +41,37 @@ export async function signInAs(email: string, password: string): Promise<void> {
   // No error but no session would silently run the code-under-test as anon → confusing
   // RLS-empty failures downstream. Fail loud here instead.
   if (!data.session) throw new Error(`signInAs(${email}): no session created`)
+}
+
+/**
+ * Soft-delete every ACTIVE (not ended, not already deleted) quiz_sessions row
+ * for the given students, via the service-role admin client. Call this in a
+ * per-test hook (afterEach) for suites that start sessions directly (e.g.
+ * start_exam_session): the single-active-session invariant (#1011,
+ * uq_one_active_session_per_student) lets a session left active by one test
+ * block the next test's start RPC with `another_session_active`.
+ *
+ * Zero rows is the normal case (no leftover); the `.select('id')` readback is
+ * for observability only — log when something was actually cleared (code-style
+ * §5). Returns the count of soft-deleted sessions.
+ */
+export async function clearActiveSessions(opts: {
+  admin: SupabaseClient
+  studentIds: string[]
+  label?: string
+}): Promise<number> {
+  const { admin, studentIds, label } = opts
+  const { data, error } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('student_id', studentIds)
+    .is('ended_at', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`clearActiveSessions: ${error.message}`)
+  const count = data?.length ?? 0
+  if (count > 0 && label) {
+    console.info(`[${label}] cleared ${count} active session(s)`)
+  }
+  return count
 }

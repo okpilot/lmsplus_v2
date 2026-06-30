@@ -2,9 +2,14 @@ import { Suspense } from 'react'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { InternalExamsContent } from './_components/internal-exams-content'
 import { InternalExamsFallback } from './_components/internal-exams-fallback'
+import { parseInternalExamsSearchParams } from './_search-params'
 
-export default async function InternalExamsPage() {
+type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+export default async function InternalExamsPage({ searchParams }: Readonly<PageProps>) {
   await requireAdmin()
+  const { status, codesPage, attemptsPage } = parseInternalExamsSearchParams(await searchParams)
+
   return (
     <div className="space-y-6">
       <div>
@@ -14,7 +19,7 @@ export default async function InternalExamsPage() {
         </p>
       </div>
       <Suspense fallback={<InternalExamsFallback />}>
-        <InternalExamsContent />
+        <InternalExamsContent status={status} codesPage={codesPage} attemptsPage={attemptsPage} />
       </Suspense>
     </div>
   )

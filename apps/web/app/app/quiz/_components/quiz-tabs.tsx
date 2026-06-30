@@ -48,10 +48,12 @@ function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: Tab
   )
 }
 
-const TAB_NAMES: Record<number, 'new' | 'saved'> = { 0: 'new', 1: 'saved' }
+type TabName = 'new' | 'saved'
+const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved' }
+const TAB_COUNT = 2
 
 export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent }: QuizTabsProps) {
-  const [tab, setTab] = useState<'new' | 'saved'>('new')
+  const [tab, setTab] = useState<TabName>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
   const pendingFocusRef = useRef<string | null>(null)
 
@@ -68,10 +70,10 @@ export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent 
     const currentIndex = tab === 'new' ? 0 : 1
     let nextIndex: number
 
-    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % 2
-    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + 2) % 2
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TAB_COUNT
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TAB_COUNT) % TAB_COUNT
     else if (e.key === 'Home') nextIndex = 0
-    else if (e.key === 'End') nextIndex = 1
+    else if (e.key === 'End') nextIndex = TAB_COUNT - 1
     else return
 
     e.preventDefault()

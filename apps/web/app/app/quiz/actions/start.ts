@@ -56,6 +56,13 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
 
     if (error || !sessionId) {
       console.error('[startQuizSession] RPC error:', error?.message)
+      if (error?.message.includes('another_session_active')) {
+        return {
+          success: false,
+          error:
+            'You already have an active session. Finish or discard it before starting a new one.',
+        }
+      }
       return { success: false, error: 'Failed to start session' }
     }
 

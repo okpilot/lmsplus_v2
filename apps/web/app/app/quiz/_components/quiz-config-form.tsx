@@ -1,15 +1,16 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
+import { DiscoveryModePanel } from './discovery-mode-panel'
 import { ExamConfigForm } from './exam-config-form'
 import { ModeToggle } from './mode-toggle'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
+import { StartButton } from './start-button'
 import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
@@ -26,6 +27,17 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
   const [examSubjectId, setExamSubjectId] = useState('')
   const exam = useExamStart({ userId, subjectId: examSubjectId, examSubjects })
 
+  if (config.mode === 'discovery')
+    return (
+      <DiscoveryModePanel
+        mode={config.mode}
+        onModeChange={config.setMode}
+        examAvailable={examSubjects.length > 0}
+        subjects={subjects}
+        userId={userId}
+      />
+    )
+
   return (
     <div className="space-y-4">
       {/* Card 1: Quiz Configuration */}
@@ -35,7 +47,6 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
           onValueChange={config.setMode}
           examAvailable={examSubjects.length > 0}
         />
-
         {isExam ? (
           <ExamConfigForm
             examSubjects={examSubjects}
@@ -57,6 +68,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
                 onCalcModeChange={config.setCalcMode}
                 imageMode={config.imageMode}
                 onImageModeChange={config.setImageMode}
+                unseenLabel="Unanswered"
               />
             )}
           </>
@@ -112,23 +124,15 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
         </p>
       )}
 
-      {/* Start button — same position for both modes */}
       {isExam ? (
-        <button
-          type="button"
+        <StartButton
           disabled={!examSubjectId || exam.loading}
+          loading={exam.loading}
+          label="Start Practice Exam"
           onClick={exam.handleStart}
-          aria-busy={exam.loading || undefined}
-          className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            {exam.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {exam.loading ? 'Starting...' : 'Start Practice Exam'}
-          </span>
-        </button>
+        />
       ) : (
-        <button
-          type="button"
+        <StartButton
           disabled={
             !config.subjectId ||
             config.availableCount === 0 ||
@@ -136,15 +140,10 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
             config.isPending ||
             config.authError
           }
+          loading={config.loading}
+          label="Start Quiz"
           onClick={config.handleStart}
-          aria-busy={config.loading || undefined}
-          className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            {config.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {config.loading ? 'Starting...' : 'Start Quiz'}
-          </span>
-        </button>
+        />
       )}
     </div>
   )

@@ -18,7 +18,7 @@
 
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
-import { getAdminClient } from '../helpers/supabase'
+import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -165,6 +165,16 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     const topicId = picked.topicId
 
     await ensureExamConfig(orgId, subjectId, topicId)
+  })
+
+  // Single-active-session invariant (#1011): the attacker and victim are shared
+  // across red-team specs. A leftover active session makes the "second code"
+  // start raise `another_session_active` (cross-mode) and makes the DC overdue
+  // admin-INSERT collide with uq_one_active_session_per_student (23505). Clear
+  // both students' active sessions before each test for a clean baseline.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    await cleanupStudentActiveSessions(VICTIM_EMAIL)
   })
 
   test('unauthenticated call returns not_authenticated (Vector CX)', async () => {

@@ -872,6 +872,10 @@ describe('hasValidOptionalFields', () => {
     expect(hasValidOptionalFields({ mode: 'exam' }, QUESTION_COUNT)).toBe(true)
   })
 
+  it('returns true when mode is discovery (ephemeral handoff entry path)', () => {
+    expect(hasValidOptionalFields({ mode: 'discovery' }, QUESTION_COUNT)).toBe(true)
+  })
+
   it('returns true when mode is absent', () => {
     expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
   })

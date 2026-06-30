@@ -84,6 +84,10 @@ const FilteredCountSchema = z.object({
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
   calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
   imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
+  // Study/Discovery counts only multiple_choice questions so the slider max /
+  // Start-button / count badge match the MC-only fetch (startStudy). Omitted on
+  // the quiz/exam count paths → null = no type restriction (#1008).
+  questionType: z.enum(['multiple_choice']).optional(),
 })
 
 export type FilteredCountResult = {
@@ -110,10 +114,11 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     console.error('[getFilteredCount] Invalid input')
     return empty
   }
-  const { subjectId, topicIds, subtopicIds, filters, calcMode, imageMode } = parsed
+  const { subjectId, topicIds, subtopicIds, filters, calcMode, imageMode, questionType } = parsed
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
   // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass them through without stripping.
+  // p_question_type: 'multiple_choice' on the Study/Discovery path, null (no restriction) on the quiz/exam paths (#1008).
   const { data, error } = await rpc<
     { topic_id: string; subtopic_id: string | null; n: number | string }[]
   >(supabase, 'get_filtered_question_counts', {
@@ -123,6 +128,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     p_filters: filters.filter((f) => f !== 'all'),
     p_calc_mode: calcMode,
     p_has_image: imageMode,
+    p_question_type: questionType ?? null,
   })
   if (error) {
     console.error('[getFilteredCount] get_filtered_question_counts error:', error.message)

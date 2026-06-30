@@ -1,9 +1,9 @@
 /**
  * Red Team Spec 9 — Vector K (MEDIUM): Rapid-Fire Server Action Calls
  *
- * Attack: Fire 50 parallel requests to `start_quiz_session` as the same user.
+ * Attack: Fire 50 parallel RPC requests as the same user.
  * Goal: Create a denial-of-service condition, exhaust connection pool resources,
- *       or bypass per-user session limits through concurrency.
+ *       or bypass per-user limits through concurrency.
  * Defense: Rate limiting (NOT YET IMPLEMENTED — see test.skip below).
  *
  * DOCUMENTED GAP: No rate limiting exists at the RPC, Server Action, or API
@@ -12,6 +12,13 @@
  *
  * The observation test below runs unconditionally and documents the current
  * (unprotected) behaviour so we have a baseline when the fix lands.
+ *
+ * RPC choice (#1011): the rapid-fire probe uses the read-only `get_quiz_questions`
+ * RPC, NOT `start_quiz_session`. The single-active-session invariant (mig 136)
+ * caps a student at one active session, so 50 parallel `start_quiz_session` calls
+ * could never all succeed regardless of throttling — that would conflate the
+ * invariant with rate limiting. A stateless read fired 50× in parallel isolates
+ * the property under test: whether the layer throttles rapid concurrent calls.
  */
 
 import { expect, test } from '@playwright/test'
@@ -30,9 +37,6 @@ test.describe('Red Team: Rate Limiting', () => {
   let subjectId: string
   let questionIds: string[]
   let topicId: string
-  // Track every quiz_session this spec creates so afterEach can soft-delete
-  // them even if assertions fail mid-test (per code-style.md §7 hermiticity).
-  const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
     const { orgId, attackerUserId: uid } = await seedRedTeamUsers()
@@ -56,20 +60,6 @@ test.describe('Red Team: Rate Limiting', () => {
     questionIds = (qs ?? []).map((q) => q.id)
   })
 
-  test.afterEach(async () => {
-    if (createdSessionIds.length === 0) return
-    const admin = getAdminClient()
-    const { data, error } = await admin
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .in('id', createdSessionIds)
-      .select('id')
-    if (error) console.error('[rate-limiting afterEach] cleanup error:', error.message)
-    if ((data?.length ?? 0) > 0)
-      console.log(`[rate-limiting afterEach] soft-deleted ${data?.length} session(s)`)
-    createdSessionIds.length = 0
-  })
-
   // ---------------------------------------------------------------------------
   // SKIPPED: Remove skip when rate limiting is implemented.
   // ---------------------------------------------------------------------------
@@ -78,15 +68,12 @@ test.describe('Red Team: Rate Limiting', () => {
     // When rate limiting is added (e.g., via Supabase Edge Functions, an API
     // gateway, or a Next.js middleware token bucket), remove this skip and
     // verify that rapid-fire calls are throttled to an acceptable threshold.
-
+    //
+    // Read-only RPC (#1011): see the header note — a stateless read isolates
+    // throttling from the single-active-session invariant.
     const results = await Promise.all(
       Array.from({ length: 50 }, () =>
-        attackerClient.rpc('start_quiz_session', {
-          p_mode: 'quick_quiz',
-          p_subject_id: subjectId,
-          p_topic_id: topicId,
-          p_question_ids: questionIds,
-        }),
+        attackerClient.rpc('get_quiz_questions', { p_question_ids: questionIds }),
       ),
     )
 
@@ -104,26 +91,17 @@ test.describe('Red Team: Rate Limiting', () => {
   // ---------------------------------------------------------------------------
   test('observation: all 50 rapid-fire RPC calls succeed (no rate limiting)', async () => {
     // This test documents the current state: without rate limiting, every
-    // parallel call to start_quiz_session succeeds, creating 50 sessions in
-    // the database. When rate limiting is implemented this test should be
-    // replaced by the skipped test above.
-
+    // parallel read RPC call succeeds. A read-only RPC (get_quiz_questions) is
+    // used so the probe measures throttling, not the single-active-session
+    // invariant (#1011) — which would cap 50 parallel start_quiz_session calls
+    // at one success regardless of rate limiting. No quiz_sessions rows are
+    // created, so no cleanup is needed. When rate limiting is implemented this
+    // test should be replaced by the skipped test above.
     const results = await Promise.all(
       Array.from({ length: 50 }, () =>
-        attackerClient.rpc('start_quiz_session', {
-          p_mode: 'quick_quiz',
-          p_subject_id: subjectId,
-          p_topic_id: topicId,
-          p_question_ids: questionIds,
-        }),
+        attackerClient.rpc('get_quiz_questions', { p_question_ids: questionIds }),
       ),
     )
-
-    // Collect created session IDs BEFORE any assertion so afterEach cleans
-    // up even if the expectation below fails (hermiticity rule).
-    for (const r of results) {
-      if (!r.error && r.data) createdSessionIds.push(r.data as string)
-    }
 
     const successes = results.filter((r) => !r.error).length
     const failures = results.filter((r) => r.error).length

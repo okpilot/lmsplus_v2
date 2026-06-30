@@ -19,6 +19,8 @@
 
 **Exception — single unsplittable DDL object.** The 300-line migration cap targets *multi-statement* migrations that can be split by concern. A migration whose entire content is **one** `CREATE OR REPLACE FUNCTION` (or another single, atomic DDL object) may exceed 300 lines: a plpgsql function body cannot be split across migration files, and our single-function SECURITY DEFINER RPC redefinitions sit right at or over the cap (e.g. `submit_vfr_rt_exam_answers` mig 129 = 330, `batch_submit_quiz` mig 130 = 329, mig 124 = 313; the base bodies migs 100/113/121 are ~300). Keep the *header* comment minimal and push long rationale to the commit message / `docs/database.md`, but do not split or strip the function body to satisfy the cap. The reviewer (and CodeRabbit, via `.coderabbit.yaml`) treats a single-function redefinition over 300 lines as this documented exception, not a violation. (Promoted from the learner tracker at count=5; CR-requested formalization, #980.)
 
+**Same-commit extraction (plan for it, don't defer it).** When a change adds lines to a file that is already at or over its size cap — or within ~10 lines of it — include the required extraction in the **same commit**, not a follow-up. During Plan Validation (impact analysis), run `wc -l` on every file you plan to grow; if any is at/over cap or within ~10 lines, budget the split into the plan up front. A feature commit that worsens a pre-existing over-cap file forces a post-commit BLOCKING + a separate fix commit — wasted cycles the planning check prevents. (Promoted from the learner tracker at count=8; recurring across the file-size violation history, e.g. `quiz-config-form.tsx` 151→169 and `types.ts` 246→252 on the Discovery relocation, fixed by extracting `DiscoveryModePanel`/`StartButton`/`session-types.ts`.)
+
 **The golden rule:** if you need to scroll to understand a file, it's too long.
 
 A page file should look like this:
@@ -245,6 +247,24 @@ function handleSubmit(e: React.FormEvent<HTMLFormElement>) { ... }
 // ✅ CORRECT
 function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) { ... }
 ```
+
+### Mark Component Props as `Readonly`
+
+React function-component props are an immutable contract — a component must never mutate them. Wrap the props parameter's type in `Readonly<…>`, covering both inline-object and named-type annotations. The codebase already follows this convention (77 component files); this rule formalises it so the remaining drift stops.
+
+```tsx
+// ❌ WRONG — mutable props
+export function QuestionCard({ prompt }: { prompt: string }) { ... }
+function ActivePracticeBanner({ session }: ActivePracticeProps) { ... }
+
+// ✅ CORRECT — Readonly props
+export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
+function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
+```
+
+This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
+
+**Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027). (Promoted at user direction after recurring S6759 findings, #1027.)
 
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
@@ -874,6 +894,7 @@ The `code-reviewer` agent flags these after every commit:
 - `any` types
 - Non-null assertions without a comment
 - Barrel `index.ts` files
+- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5; SonarCloud `typescript:S6759`)
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
@@ -892,4 +913,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-06-05 (added stale-closure ref-mirroring rule to §6 — issue #444)*
+*Last updated: 2026-06-29 (added "Mark Component Props as `Readonly`" rule to §5 + §8 — issue #1027)*

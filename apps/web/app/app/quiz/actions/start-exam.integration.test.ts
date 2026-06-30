@@ -4,10 +4,11 @@
 // real RLS. Validates: happy-path session shape, duplicate-session rejection,
 // missing-config rejection, insufficient-questions rejection, Zod parse
 // rejection, and unauthenticated rejection.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   getAdminClient,
@@ -171,6 +172,19 @@ describe('startExamSession (app-layer integration)', () => {
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  // startExamSession opens a mock_exam session it does NOT end, so a session left
+  // active by one test would make the next test's start raise `another_session_active`
+  // (single-active-session invariant, #1011) instead of reaching the config /
+  // question-count guard under test. Clear both students' active sessions after each
+  // test. Single cleanup step (code-style §7); afterEach runs even after a failure.
+  afterEach(async () => {
+    await clearActiveSessions({
+      admin,
+      studentIds: [studentAId, studentBId],
+      label: 'startExamSession',
+    })
   })
 
   it('starts a practice exam and returns the session shape', async () => {

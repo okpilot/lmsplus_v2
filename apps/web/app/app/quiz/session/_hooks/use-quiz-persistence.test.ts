@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DraftAnswer, QuizStateOpts } from '../../types'
+import type { QuizStateOpts } from '../../session-types'
+import type { DraftAnswer } from '../../types'
 
 const { mockWriteActiveSession, mockBuildActiveSession } = vi.hoisted(() => ({
   mockWriteActiveSession: vi.fn(),
@@ -96,6 +97,16 @@ describe('useQuizPersistence', () => {
       0,
       undefined,
     )
+  })
+
+  it('does not persist a checkpoint in discovery mode', () => {
+    const opts = makeOpts('user-1', 'discovery')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).not.toHaveBeenCalled()
+    expect(mockWriteActiveSession).not.toHaveBeenCalled()
   })
 
   it('marks the persisted session as study mode when opts.mode is study', () => {

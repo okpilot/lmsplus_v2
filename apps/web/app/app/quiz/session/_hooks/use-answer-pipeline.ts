@@ -1,5 +1,6 @@
 import { useRef } from 'react'
-import type { AnswerFeedback, AnswerPipelineOpts } from '../../types'
+import type { AnswerPipelineOpts } from '../../session-types'
+import type { AnswerFeedback } from '../../types'
 import { buildPersistenceNavigation } from './build-persistence-navigation'
 import { useAnswerHandler } from './use-answer-handler'
 import { useQuizPersistence } from './use-quiz-persistence'

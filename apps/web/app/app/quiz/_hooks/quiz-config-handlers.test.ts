@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FilteredCountState } from '../types'
+import type { FilteredCountState } from '../session-types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import type { UseTopicTreeReturn } from './topic-tree-helpers'
 

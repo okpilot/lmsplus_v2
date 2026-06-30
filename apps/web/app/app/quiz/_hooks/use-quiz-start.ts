@@ -1,12 +1,9 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { startQuizSession } from '../actions/start'
-import {
-  clearActiveSession,
-  readActiveSession,
-  sessionHandoffKey,
-} from '../session/_utils/quiz-session-storage'
-import type { UseQuizStartOpts } from '../types'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
+import type { UseQuizStartOpts } from '../session-types'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
   const {

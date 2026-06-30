@@ -279,4 +279,30 @@ describe('PaginationBar', () => {
     const ellipses = screen.getAllByText('...')
     expect(ellipses.length).toBeGreaterThan(0)
   })
+
+  it('drives a custom search param when paramKey is provided', async () => {
+    const user = userEvent.setup()
+    render(<PaginationBar page={1} totalCount={75} pageSize={25} paramKey="codesPage" />)
+
+    await user.click(screen.getByLabelText('Next page'))
+
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?codesPage=2')
+  })
+
+  it('removes the custom paramKey when navigating to page 1', async () => {
+    const user = userEvent.setup()
+    // Restore the URL afterwards so the mutated global does not leak ?codesPage=2
+    // into later tests in this file.
+    const originalUrl = window.location.href
+    window.history.replaceState({}, '', '/test?codesPage=2')
+    try {
+      render(<PaginationBar page={2} totalCount={75} pageSize={25} paramKey="codesPage" />)
+
+      await user.click(screen.getByLabelText('Previous page'))
+
+      expect(mockRouterReplace).toHaveBeenCalledWith('/test')
+    } finally {
+      window.history.replaceState({}, '', originalUrl)
+    }
+  })
 })

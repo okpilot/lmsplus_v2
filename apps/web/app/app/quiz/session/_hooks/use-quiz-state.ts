@@ -1,7 +1,8 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import type { DraftAnswer, QuizStateOpts } from '../../types'
+import type { QuizStateOpts } from '../../session-types'
+import type { DraftAnswer } from '../../types'
 import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { usePinnedQuestions } from './use-pinned-questions'
@@ -58,6 +59,7 @@ export function useQuizState(opts: QuizStateOpts) {
 
   return {
     currentIndex: nav.currentIndex,
+    seenIndices: nav.seenIndices,
     question,
     questionId,
     answeredCount: answers.size,

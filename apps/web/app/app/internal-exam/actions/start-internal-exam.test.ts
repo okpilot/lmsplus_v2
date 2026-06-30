@@ -155,6 +155,16 @@ describe('startInternalExam — RPC error messages', () => {
     )
   })
 
+  it('tells the user to finish their other session when a different one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'You already have an active session. Finish or discard it before starting a new one.',
+    )
+  })
+
   it('maps insufficient_questions_for_exam to a domain-specific message', async () => {
     mockRpc.mockResolvedValue({
       data: null,

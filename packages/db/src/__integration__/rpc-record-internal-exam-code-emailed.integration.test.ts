@@ -201,10 +201,33 @@ describe('RPC: record_internal_exam_code_emailed', () => {
   it('writes a code_emailed audit row when an admin emails a code in their org', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
 
+    // #905: emailed_at must be NULL before the RPC runs.
+    const { data: beforeRow, error: beforeErr } = await admin
+      .from('internal_exam_codes')
+      .select('emailed_at')
+      .eq('id', codeId)
+      .single()
+    expect(beforeErr).toBeNull()
+    // .single() + the beforeErr null-check above guarantee a non-null row.
+    expect(beforeRow!.emailed_at).toBeNull()
+
     const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: codeId,
     })
     expect(error).toBeNull()
+
+    // #905: emailed_at must be stamped to approximately now after the RPC.
+    const { data: afterRow, error: afterErr } = await admin
+      .from('internal_exam_codes')
+      .select('emailed_at')
+      .eq('id', codeId)
+      .single()
+    expect(afterErr).toBeNull()
+    // .single() + the afterErr null-check above guarantee a non-null row; the
+    // not.toBeNull() then justifies the `as string` cast on the next line.
+    expect(afterRow!.emailed_at).not.toBeNull()
+    const emailedAt = new Date(afterRow!.emailed_at as string).getTime()
+    expect(Math.abs(Date.now() - emailedAt)).toBeLessThan(5000)
 
     const { data: rows, error: readErr } = await admin
       .from('audit_events')

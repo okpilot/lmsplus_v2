@@ -19,7 +19,27 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
    gh api repos/{owner}/{repo}/pulls/NUMBER/reviews --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]") | {type:"review", id, state, submitted_at, body}'
    ```
 
-3. **Investigate each comment against the source code** (MANDATORY):
+2a. **ALWAYS extract the "Outside diff range comments" (MANDATORY — do not skip).**
+   CodeRabbit cannot post inline comments on lines outside the PR diff, so it embeds those
+   findings inside the **review body** instead (under a `⚠️ Outside diff range comments (N)`
+   `<details>` block). They never appear in the `/comments` (inline) endpoint, so step 2's
+   inline fetch alone WILL miss them. These are frequently the highest-severity findings
+   (security/correctness on existing code the PR touches indirectly).
+
+   - Do NOT triage from truncated review bodies — the `body` field is long and the outside-diff
+     block is usually far down. Fetch each review body in FULL and search it:
+     ```bash
+     # For each review id that is CHANGES_REQUESTED/COMMENTED, dump the full body and locate the block
+     gh api repos/{owner}/{repo}/pulls/NUMBER/reviews/REVIEW_ID --jq '.body' > /tmp/cr-review.txt
+     grep -n "Outside diff range" /tmp/cr-review.txt   # then read that section in full
+     ```
+   - The header states the count (`Outside diff range comments (N)`) — confirm you extracted
+     all N. Each entry has `file (k)`, a `` `line-range` `` + severity line, a bold title, and a
+     suggested fix. Treat every one as a first-class comment in steps 3–7.
+   - Also scan the same review bodies for any nested `<details>` finding blocks (CR sometimes
+     nests additional remarks) so nothing is left untriaged.
+
+3. **Investigate each comment against the source code** (MANDATORY — applies equally to inline AND outside-diff comments):
    - Do NOT triage based on CodeRabbit's severity labels, category tags, or summary alone
    - For every comment: read the actual file and lines referenced, verify the claim is true
    - Check whether the thing CodeRabbit says is missing actually exists somewhere else in the codebase (grep for it)

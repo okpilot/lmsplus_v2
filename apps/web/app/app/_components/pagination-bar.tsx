@@ -10,6 +10,8 @@ type Props = {
   totalCount: number
   pageSize: number
   entityLabel?: string
+  /** URL search-param key driving page state. Defaults to 'page' so existing callers are unchanged. */
+  paramKey?: string
 }
 
 export function PaginationBar({
@@ -17,15 +19,16 @@ export function PaginationBar({
   totalCount,
   pageSize,
   entityLabel = 'questions',
+  paramKey = 'page',
 }: Readonly<Props>) {
   const updateParams = useUpdateSearchParams()
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   const goToPage = useCallback(
     (p: number) => {
-      updateParams({ page: p <= 1 ? null : String(p) })
+      updateParams({ [paramKey]: p <= 1 ? null : String(p) })
     },
-    [updateParams],
+    [updateParams, paramKey],
   )
 
   if (totalCount === 0 || totalPages <= 1) return null

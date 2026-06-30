@@ -1,6 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
-import type { AnswerFeedback, QuizStateOpts } from '../../types'
+import type { QuizStateOpts } from '../../session-types'
+import type { AnswerFeedback } from '../../types'
 import { useExamAnswerBuffer } from './use-exam-answer-buffer'
 import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'

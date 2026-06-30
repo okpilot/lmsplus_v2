@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
@@ -21,6 +22,13 @@ async function startAndAbandonQuiz(
   })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
+
+  // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 
   // Configure: select first subject, all available questions
   const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
@@ -69,6 +77,15 @@ async function startAndAbandonQuiz(
 }
 
 test.describe('Quiz Session Recovery', () => {
+  // The user.json identity (TEST_EMAIL) is shared across this project's specs and
+  // each test abandons a quiz, leaving an active quiz_sessions row. Under the
+  // single-active-session invariant (#1011) a leftover active session makes the
+  // next test's Start Quiz fail with `another_session_active`. Soft-delete any
+  // active session BEFORE each test so every test starts from a clean baseline.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(TEST_EMAIL)
+  })
+
   test.afterEach(async ({ page }) => {
     await page.evaluate(() => {
       for (const key of Object.keys(localStorage)) {
@@ -109,8 +126,13 @@ test.describe('Quiz Session Recovery', () => {
 
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
 
+    // The server-side ActivePracticeBanner (#1011) also renders a "Discard" button
+    // for the abandoned session, so scope the click to the localStorage recovery
+    // banner (the one with "Unfinished quiz found") to avoid a strict-mode match.
+    const recoveryBanner = page.getByText('Unfinished quiz found').locator('..')
+
     // Click Discard — opens confirmation dialog, then confirm
-    await page.getByRole('button', { name: /^Discard$/i }).click()
+    await recoveryBanner.getByRole('button', { name: /^Discard$/i }).click()
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page
       .getByRole('alertdialog')
@@ -154,6 +176,13 @@ test.describe('Quiz Session Recovery', () => {
 
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
 
+    // The fresh quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
+    await page.getByRole('button', { name: 'Study', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
     // Configure a new quiz
     const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
     await subjectTrigger.waitFor({ state: 'visible' })
@@ -165,6 +194,14 @@ test.describe('Quiz Session Recovery', () => {
     await page.getByRole('button', { name: 'Start Quiz' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
+
+    // This test verifies the localStorage confirm dialog gates a new-quiz start —
+    // a flow independent of the DB session. The abandoned session is still active
+    // in the DB, so under the single-active-session invariant (#1011) the accepted
+    // second start would otherwise raise `another_session_active`. Soft-delete the
+    // abandoned DB session (leaving localStorage intact, so the confirm still
+    // fires) to isolate the dialog behaviour this test targets.
+    await cleanupStudentActiveSessions(TEST_EMAIL)
 
     // Second attempt: accept the confirm → starts new quiz
     page.once('dialog', (d) => d.accept())

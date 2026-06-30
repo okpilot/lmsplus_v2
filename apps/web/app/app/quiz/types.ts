@@ -176,36 +176,7 @@ export type DraftResult = ActionResult
 
 export type LoadDraftsResult = { drafts: DraftData[] }
 
-export type QuizStateOpts = {
-  userId: string
-  sessionId: string
-  questions: import('@/app/app/_types/session').SessionQuestion[]
-  initialAnswers?: Record<string, DraftAnswer>
-  initialFeedback?: Map<string, AnswerFeedback>
-  initialIndex?: number
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-  mode?: QuizMode
-  examMode?: import('@/lib/constants/exam-modes').QuizMode
-  timeLimitSeconds?: number
-  passMark?: number
-  startedAt?: string
-}
-
-export type AnswerPipelineOpts = QuizStateOpts & {
-  getQuestionId: () => string
-  getAnswerStartTime: () => number
-  getCurrentIndex: () => number
-  answers: Map<string, DraftAnswer>
-  setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
-  answersRef: React.RefObject<Map<string, DraftAnswer>>
-  currentIndexRef: React.RefObject<number>
-  navigateTo: (idx: number) => void
-  router: import('next/dist/shared/lib/app-router-context.shared-runtime').AppRouterInstance
-}
-
-export type QuizMode = 'study' | 'exam'
+export type QuizMode = 'discovery' | 'study' | 'exam'
 
 export type StartExamResult =
   | {
@@ -226,38 +197,6 @@ export type CalcMode = 'all' | 'only' | 'exclude'
 // Tri-state filter on whether a question carries an image (#864). Same shape as
 // CalcMode: 'only' = image questions only, 'exclude' = hide them, 'all' = default.
 export type ImageMode = 'all' | 'only' | 'exclude'
-
-export type UseQuizStartOpts = {
-  userId: string
-  subjectId: string
-  subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
-  count: number
-  maxQuestions: number
-  filters: QuestionFilterValue[]
-  calcMode: CalcMode
-  imageMode: ImageMode
-  topicTree: {
-    getSelectedTopicIds: () => string[]
-    getSelectedSubtopicIds: () => string[]
-  }
-}
-
-export type FilteredCountState = {
-  filteredCount: number | null
-  filteredByTopic: Record<string, number> | null
-  filteredBySubtopic: Record<string, number> | null
-  isFilterPending: boolean
-  authError: boolean
-  refetch: (
-    subjectId: string,
-    topicIds: string[],
-    subtopicIds: string[],
-    filters: QuestionFilterValue[],
-    calcMode?: CalcMode,
-    imageMode?: ImageMode,
-  ) => void
-  reset: () => void
-}
 
 export type CompleteEmptyExamResult =
   | { success: true; sessionId: string }

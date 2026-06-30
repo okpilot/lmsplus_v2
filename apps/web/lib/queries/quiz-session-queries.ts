@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { QuestionType } from '@/app/app/_types/session'
 import type { CalcMode, ImageMode } from '@/app/app/quiz/types'
 import { rpc } from '@/lib/supabase-rpc'
 
@@ -12,13 +13,16 @@ export async function getRandomQuestionIds(opts: {
   filters?: QuestionFilter[]
   calcMode?: CalcMode
   imageMode?: ImageMode
+  questionType?: QuestionType
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
-  const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = opts
+  const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode, questionType } =
+    opts
   const activeFilters = filters?.filter((f) => f !== 'all') ?? []
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
   // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — do NOT strip 'all' the way p_filters does.
+  // p_question_type: undefined → null = no type restriction (live quiz/exam); Study Mode passes 'multiple_choice' for an MC-only set.
   const { data, error } = await rpc<{ id: string }[]>(supabase, 'get_random_question_ids', {
     p_subject_id: subjectId,
     p_topic_ids: topicIds ?? null,
@@ -27,10 +31,14 @@ export async function getRandomQuestionIds(opts: {
     p_filters: activeFilters,
     p_calc_mode: calcMode ?? 'all',
     p_has_image: imageMode ?? 'all',
+    p_question_type: questionType ?? null,
   })
   if (error) {
-    console.error('[getRandomQuestionIds] get_random_question_ids error:', error.message)
-    return []
+    // Query helper throws (code-style.md §5). Both callers (startQuizSession,
+    // startStudy) wrap this in try/catch → a generic failure message. Collapsing
+    // an auth/transport error into [] would masquerade as a legitimate empty pool
+    // and surface as "No questions available" / an empty study deck.
+    throw new Error(`Failed to fetch question ids: ${error.message}`)
   }
   if (!Array.isArray(data)) return []
   // Per-row guard required by code-style.md §5 — the `rpc<{id: string}[]>` cast is

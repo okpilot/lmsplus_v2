@@ -87,12 +87,12 @@ beforeEach(() => {
 // ---- Initial state --------------------------------------------------------
 
 describe('useQuizConfig — initial state', () => {
-  it('starts with no subject, study mode, filters=[all], count=10', () => {
+  it('starts with no subject, discovery mode, filters=[all], count=10', () => {
     const { result } = renderHook(() =>
       useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
     )
     expect(result.current.subjectId).toBe('')
-    expect(result.current.mode).toBe('study')
+    expect(result.current.mode).toBe('discovery')
     expect(result.current.filters).toEqual(['all'])
     expect(result.current.count).toBe(10)
   })
@@ -254,7 +254,8 @@ describe('useQuizConfig — setFilters', () => {
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
     })
-    // Should pass ALL topics/subtopics, not just checked ones, plus the default calcMode and imageMode
+    // Should pass ALL topics/subtopics, not just checked ones, plus the default
+    // calcMode and imageMode. The quiz path is type-agnostic, so questionType is undefined.
     expect(mockFcRefetch).toHaveBeenCalledWith(
       SUBJECT_ID,
       ['t1', 't2'],
@@ -262,6 +263,7 @@ describe('useQuizConfig — setFilters', () => {
       ['incorrect'],
       'all',
       'all',
+      undefined,
     )
     expect(mockFcRefetch).toHaveBeenCalledTimes(1)
   })
@@ -383,6 +385,7 @@ describe('useQuizConfig — calcMode', () => {
       ['all'],
       'exclude',
       'all',
+      undefined,
     )
   })
 

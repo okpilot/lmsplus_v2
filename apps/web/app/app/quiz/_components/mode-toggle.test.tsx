@@ -8,10 +8,32 @@ describe('ModeToggle', () => {
     vi.resetAllMocks()
   })
 
-  it('renders Study and Exam buttons', () => {
-    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+  it('renders Discovery, Study, and Exam buttons', () => {
+    render(<ModeToggle value="discovery" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /discovery/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /study/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /exam/i })).toBeInTheDocument()
+  })
+
+  it('shows discovery mode description when discovery is selected', () => {
+    render(<ModeToggle value="discovery" onValueChange={vi.fn()} />)
+    expect(screen.getByText(/explore the questions, nothing scored/i)).toBeInTheDocument()
+  })
+
+  it('marks the Discovery option as active when discovery mode is selected', () => {
+    render(<ModeToggle value="discovery" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /discovery/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('calls onValueChange with "discovery" when Discovery button is clicked', async () => {
+    const onValueChange = vi.fn()
+    const user = userEvent.setup()
+    render(<ModeToggle value="study" onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: /discovery/i }))
+    expect(onValueChange).toHaveBeenCalledWith('discovery')
   })
 
   it('calls onValueChange with "study" when Study button is clicked', async () => {
