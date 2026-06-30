@@ -14,5 +14,12 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Pr
   })
   // Clear the timer when the real promise wins (either way) so no dangling
   // timer reference lingers in the event loop.
-  return Promise.race([promise.finally(() => clearTimeout(timerId)), timerPromise])
+  const guarded = promise.finally(() => clearTimeout(timerId))
+  // If the timer wins the race, `guarded` is still pending and may reject later
+  // (e.g. the hung connection this guards against finally errors). Attach a
+  // no-op handler so that late rejection isn't surfaced as an unhandled
+  // rejection. A rejection that arrives BEFORE the timeout still propagates via
+  // the race below (race observes whichever settles first).
+  guarded.catch(() => {})
+  return Promise.race([guarded, timerPromise])
 }
