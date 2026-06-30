@@ -20,6 +20,8 @@ const NOW = new Date('2026-04-28T12:00:00.000Z')
 const FUTURE = new Date('2026-04-29T12:00:00.000Z').toISOString()
 const PAST = new Date('2026-04-27T12:00:00.000Z').toISOString()
 
+type ChainMock = Record<string, ReturnType<typeof vi.fn>>
+
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
     supabase: { from: mockAdminFrom },
@@ -30,16 +32,23 @@ function mockAdmin() {
 
 /**
  * Builds a chainable Supabase mock. Every chain method returns the same builder.
- * The builder is thenable — awaiting it resolves to { data, error }.
+ * The builder is thenable — awaiting it resolves to { data, error, count }. The
+ * queries run a count query (reads `count`) then a data query (reads `data`);
+ * both await the SAME builder, so rows-asserting tests must supply a non-zero
+ * `count` or the count-first early-return yields an empty result.
  */
-function buildChain(data: unknown, error: { message: string } | null = null) {
-  const resolved = { data, error }
-  const builder: Record<string, unknown> = {}
-  for (const fn of ['select', 'eq', 'is', 'not', 'order', 'limit', 'lte', 'gt']) {
+function buildChain(
+  data: unknown,
+  error: { message: string } | null = null,
+  count: number | null = null,
+): ChainMock {
+  const resolved = { data, error, count }
+  const builder: ChainMock = {}
+  for (const fn of ['select', 'eq', 'is', 'not', 'order', 'limit', 'lte', 'gt', 'range']) {
     builder[fn] = vi.fn().mockReturnValue(builder)
   }
   // biome-ignore lint/suspicious/noThenProperty: supabase chain must be thenable to mock awaiting the query builder
-  builder.then = (cb: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(cb)
+  builder.then = vi.fn((cb: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(cb))
   return builder
 }
 
@@ -73,10 +82,11 @@ describe('listInternalExamCodes', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         quiz_sessions: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamCodes()
 
+      expect(result.totalCount).toBe(1)
       expect(result.rows).toHaveLength(1)
       expect(result.rows[0]!).toMatchObject({
         id: 'code-1',
@@ -110,7 +120,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamCodes()
 
@@ -136,7 +146,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: { ended_at: PAST },
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamCodes()
 
@@ -163,7 +173,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamCodes()
 
@@ -189,7 +199,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamCodes()
 
@@ -200,177 +210,86 @@ describe('listInternalExamCodes', () => {
   })
 
   describe('filters', () => {
-    function makeRows() {
-      return [
-        {
-          id: 'code-active',
-          code: 'A',
-          subject_id: 'sub-1',
-          student_id: 'stu-1',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: null,
-          consumed_session_id: null,
-          voided_at: null,
-          voided_by: null,
-          void_reason: null,
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: null,
-        },
-        {
-          id: 'code-voided',
-          code: 'B',
-          subject_id: 'sub-2',
-          student_id: 'stu-2',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: null,
-          consumed_session_id: null,
-          voided_at: PAST,
-          voided_by: 'a',
-          void_reason: 'r',
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: null,
-        },
-      ]
+    function makeVoidedRow() {
+      return {
+        id: 'code-voided',
+        code: 'B',
+        subject_id: 'sub-2',
+        student_id: 'stu-2',
+        issued_by: 'a',
+        issued_at: PAST,
+        expires_at: FUTURE,
+        consumed_at: null,
+        consumed_session_id: null,
+        voided_at: PAST,
+        voided_by: 'a',
+        void_reason: 'r',
+        easa_subjects: null,
+        users: null,
+        quiz_sessions: null,
+      }
     }
 
-    it('filters by status', async () => {
+    it('rejects everything except voided codes for status=voided', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
+      const chain = buildChain([makeVoidedRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
 
       const result = await listInternalExamCodes({ status: 'voided' })
 
       expect(result.rows).toHaveLength(1)
       expect(result.rows[0]!.id).toBe('code-voided')
+      expect(chain.not).toHaveBeenCalledWith('voided_at', 'is', null)
     })
 
-    it('returns only consumed-with-ended-session rows for status=finished', async () => {
-      // 'finished' = code is consumed AND the linked quiz_sessions row has
-      // ended_at set. 'consumed' = consumed but session still in flight.
-      // The split happens in the TS post-step (queries.ts ~L156-159).
-      const rows = [
-        {
-          id: 'code-in-flight',
-          code: 'IF',
-          subject_id: 'sub-1',
-          student_id: 'stu-1',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: PAST,
-          consumed_session_id: 'sess-in-flight',
-          voided_at: null,
-          voided_by: null,
-          void_reason: null,
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: { ended_at: null },
-        },
-        {
-          id: 'code-finished',
-          code: 'FN',
-          subject_id: 'sub-1',
-          student_id: 'stu-1',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: PAST,
-          consumed_session_id: 'sess-done',
-          voided_at: null,
-          voided_by: null,
-          void_reason: null,
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: { ended_at: PAST },
-        },
-      ]
+    it('requests an inner session join with the in-flight predicate for status=consumed', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(rows))
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamCodes({ status: 'finished' })
+      await listInternalExamCodes({ status: 'consumed' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.id).toBe('code-finished')
-      expect(result.rows[0]!.sessionEndedAt).toBe(PAST)
+      expect(chain.select).toHaveBeenCalledWith(
+        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at)'),
+        { count: 'exact', head: true },
+      )
+      expect(chain.is).toHaveBeenCalledWith('quiz_sessions.ended_at', null)
     })
 
-    it('returns only consumed-without-ended-session rows for status=consumed', async () => {
-      const rows = [
-        {
-          id: 'code-in-flight',
-          code: 'IF',
-          subject_id: 'sub-1',
-          student_id: 'stu-1',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: PAST,
-          consumed_session_id: 'sess-in-flight',
-          voided_at: null,
-          voided_by: null,
-          void_reason: null,
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: { ended_at: null },
-        },
-        {
-          id: 'code-finished',
-          code: 'FN',
-          subject_id: 'sub-1',
-          student_id: 'stu-1',
-          issued_by: 'a',
-          issued_at: PAST,
-          expires_at: FUTURE,
-          consumed_at: PAST,
-          consumed_session_id: 'sess-done',
-          voided_at: null,
-          voided_by: null,
-          void_reason: null,
-          easa_subjects: null,
-          users: null,
-          quiz_sessions: { ended_at: PAST },
-        },
-      ]
+    it('requests an inner session join with the ended predicate for status=finished', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(rows))
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamCodes({ status: 'consumed' })
+      await listInternalExamCodes({ status: 'finished' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.id).toBe('code-in-flight')
+      expect(chain.not).toHaveBeenCalledWith('quiz_sessions.ended_at', 'is', null)
     })
 
-    it('filters by studentId', async () => {
+    it('scopes the query to a single student when studentId is set', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
+      const chain = buildChain([makeVoidedRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamCodes({ studentId: 'stu-1' })
+      await listInternalExamCodes({ studentId: 'stu-1' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.studentId).toBe('stu-1')
+      expect(chain.eq).toHaveBeenCalledWith('student_id', 'stu-1')
     })
 
-    it('filters by subjectId', async () => {
+    it('scopes the query to a single subject when subjectId is set', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
+      const chain = buildChain([makeVoidedRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamCodes({ subjectId: 'sub-2' })
+      await listInternalExamCodes({ subjectId: 'sub-2' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.subjectId).toBe('sub-2')
+      expect(chain.eq).toHaveBeenCalledWith('subject_id', 'sub-2')
     })
   })
 
   describe('pagination', () => {
-    it('returns nextCursor when there are more rows than the limit', async () => {
-      mockAdmin()
-      // 3 rows when limit is 2 → fetched limit+1 (3), so hasMore=true, return 2 rows
-      const rows = [1, 2, 3].map((n) => ({
+    function makeRow(n: number) {
+      return {
         id: `code-${n}`,
         code: `C${n}`,
         subject_id: 'sub-1',
@@ -386,37 +305,85 @@ describe('listInternalExamCodes', () => {
         easa_subjects: null,
         users: null,
         quiz_sessions: null,
-      }))
-      mockAdminFrom.mockReturnValue(buildChain(rows))
+      }
+    }
 
-      const result = await listInternalExamCodes({ limit: 2 })
+    it('returns the total count and requests the first page range', async () => {
+      mockAdmin()
+      const chain = buildChain([makeRow(1), makeRow(2)], null, 40)
+      mockAdminFrom.mockReturnValue(chain)
 
-      expect(result.rows).toHaveLength(2)
-      expect(result.nextCursor).toBe('2026-04-22T00:00:00.000Z')
+      const result = await listInternalExamCodes({ page: 1 })
+
+      expect(result.totalCount).toBe(40)
+      expect(chain.range).toHaveBeenCalledWith(0, 24)
     })
 
-    it('returns null nextCursor when no more rows remain', async () => {
+    it('requests the second page range offset by the page size', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain([]))
+      const chain = buildChain([makeRow(1)], null, 40)
+      mockAdminFrom.mockReturnValue(chain)
+
+      await listInternalExamCodes({ page: 2 })
+
+      expect(chain.range).toHaveBeenCalledWith(25, 49)
+    })
+
+    it('returns an empty page without querying rows when there are no codes', async () => {
+      mockAdmin()
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
 
       const result = await listInternalExamCodes()
 
       expect(result.rows).toHaveLength(0)
-      expect(result.nextCursor).toBeNull()
+      expect(result.totalCount).toBe(0)
+      expect(chain.range).not.toHaveBeenCalled()
+    })
+
+    it('returns an empty page without querying rows when the page is past the end', async () => {
+      mockAdmin()
+      const chain = buildChain([makeRow(1)], null, 10)
+      mockAdminFrom.mockReturnValue(chain)
+
+      const result = await listInternalExamCodes({ page: 5 })
+
+      expect(result.rows).toHaveLength(0)
+      expect(result.totalCount).toBe(10)
+      expect(chain.range).not.toHaveBeenCalled()
     })
   })
 
   describe('error propagation', () => {
-    it('throws a sanitized message and logs the raw error when the codes query fails', async () => {
+    it('throws a sanitized message and logs the raw error when the count query fails', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'codes DB error' }))
+        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'codes count error' }))
+
+        await expect(listInternalExamCodes()).rejects.toThrow('Failed to load internal exam codes')
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamCodes] count error:',
+          'codes count error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
+    it('throws a sanitized message and logs the raw error when the rows query fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        // Count succeeds with a non-zero total; the second (data) query then fails.
+        mockAdminFrom
+          .mockReturnValueOnce(buildChain([], null, 5))
+          .mockReturnValueOnce(buildChain(null, { message: 'codes rows error' }))
 
         await expect(listInternalExamCodes()).rejects.toThrow('Failed to load internal exam codes')
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           '[listInternalExamCodes] DB error:',
-          'codes DB error',
+          'codes rows error',
         )
       } finally {
         consoleErrorSpy.mockRestore()
@@ -451,10 +418,11 @@ describe('listInternalExamAttempts', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
+      expect(result.totalCount).toBe(1)
       expect(result.rows).toHaveLength(1)
       expect(result.rows[0]!).toMatchObject({
         sessionId: 'sess-1',
@@ -487,7 +455,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: [{ void_reason: 'cheating detected' }],
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -510,7 +478,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -519,65 +487,47 @@ describe('listInternalExamAttempts', () => {
   })
 
   describe('filters', () => {
-    function makeRows() {
-      return [
-        {
-          id: 'sess-1',
-          student_id: 'stu-1',
-          subject_id: 'sub-1',
-          started_at: PAST,
-          ended_at: PAST,
-          total_questions: 20,
-          correct_count: 15,
-          score_percentage: 75,
-          passed: true,
-          easa_subjects: null,
-          users: null,
-          internal_exam_codes: null,
-        },
-        {
-          id: 'sess-2',
-          student_id: 'stu-2',
-          subject_id: 'sub-2',
-          started_at: PAST,
-          ended_at: PAST,
-          total_questions: 20,
-          correct_count: 5,
-          score_percentage: 25,
-          passed: false,
-          easa_subjects: null,
-          users: null,
-          internal_exam_codes: null,
-        },
-      ]
+    function makeRow() {
+      return {
+        id: 'sess-1',
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: PAST,
+        ended_at: PAST,
+        total_questions: 20,
+        correct_count: 15,
+        score_percentage: 75,
+        passed: true,
+        easa_subjects: null,
+        users: null,
+        internal_exam_codes: null,
+      }
     }
 
-    it('filters by studentId', async () => {
+    it('scopes the query to a single student when studentId is set', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
+      const chain = buildChain([makeRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamAttempts({ studentId: 'stu-2' })
+      await listInternalExamAttempts({ studentId: 'stu-2' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.studentId).toBe('stu-2')
+      expect(chain.eq).toHaveBeenCalledWith('student_id', 'stu-2')
     })
 
-    it('filters by subjectId', async () => {
+    it('scopes the query to a single subject when subjectId is set', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
+      const chain = buildChain([makeRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamAttempts({ subjectId: 'sub-1' })
+      await listInternalExamAttempts({ subjectId: 'sub-1' })
 
-      expect(result.rows).toHaveLength(1)
-      expect(result.rows[0]!.subjectId).toBe('sub-1')
+      expect(chain.eq).toHaveBeenCalledWith('subject_id', 'sub-1')
     })
   })
 
   describe('pagination', () => {
-    it('returns nextCursor when there are more rows than the limit', async () => {
-      mockAdmin()
-      // 3 rows when limit is 2 → fetched limit+1 (3), so hasMore=true, return 2 rows
-      const rows = [1, 2, 3].map((n) => ({
+    function makeRow(n: number) {
+      return {
         id: `sess-${n}`,
         student_id: 'stu-1',
         subject_id: 'sub-1',
@@ -590,49 +540,89 @@ describe('listInternalExamAttempts', () => {
         easa_subjects: null,
         users: null,
         internal_exam_codes: null,
-      }))
-      mockAdminFrom.mockReturnValue(buildChain(rows))
+      }
+    }
 
-      const result = await listInternalExamAttempts({ limit: 2 })
+    it('returns the total count and requests the first page range', async () => {
+      mockAdmin()
+      const chain = buildChain([makeRow(1), makeRow(2)], null, 40)
+      mockAdminFrom.mockReturnValue(chain)
 
-      expect(result.rows).toHaveLength(2)
-      expect(result.nextCursor).toBe('2026-04-22T00:00:00.000Z')
+      const result = await listInternalExamAttempts({ page: 1 })
+
+      expect(result.totalCount).toBe(40)
+      expect(chain.range).toHaveBeenCalledWith(0, 24)
     })
 
-    it('returns null nextCursor when no more rows remain', async () => {
+    it('requests the second page range offset by the page size', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain([]))
+      const chain = buildChain([makeRow(1)], null, 40)
+      mockAdminFrom.mockReturnValue(chain)
+
+      await listInternalExamAttempts({ page: 2 })
+
+      expect(chain.range).toHaveBeenCalledWith(25, 49)
+    })
+
+    it('returns an empty page without querying rows when there are no attempts', async () => {
+      mockAdmin()
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
 
       const result = await listInternalExamAttempts()
 
       expect(result.rows).toHaveLength(0)
-      expect(result.nextCursor).toBeNull()
+      expect(result.totalCount).toBe(0)
+      expect(chain.range).not.toHaveBeenCalled()
     })
 
-    it('returns an empty rows array when the DB returns null data', async () => {
+    it('returns an empty rows array when the rows query yields null data', async () => {
       mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(null))
+      // Count reports rows exist, but the data query returns null (e.g. transport quirk).
+      mockAdminFrom
+        .mockReturnValueOnce(buildChain([], null, 5))
+        .mockReturnValueOnce(buildChain(null, null, 5))
 
       const result = await listInternalExamAttempts()
 
       expect(result.rows).toEqual([])
-      expect(result.nextCursor).toBeNull()
+      expect(result.totalCount).toBe(5)
     })
   })
 
   describe('error propagation', () => {
-    it('throws a sanitized message and logs the raw error when the attempts query fails', async () => {
+    it('throws a sanitized message and logs the raw error when the count query fails', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts DB error' }))
+        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts count error' }))
+
+        await expect(listInternalExamAttempts()).rejects.toThrow(
+          'Failed to load internal exam attempts',
+        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamAttempts] count error:',
+          'attempts count error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
+    it('throws a sanitized message and logs the raw error when the rows query fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        mockAdminFrom
+          .mockReturnValueOnce(buildChain([], null, 5))
+          .mockReturnValueOnce(buildChain(null, { message: 'attempts rows error' }))
 
         await expect(listInternalExamAttempts()).rejects.toThrow(
           'Failed to load internal exam attempts',
         )
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           '[listInternalExamAttempts] DB error:',
-          'attempts DB error',
+          'attempts rows error',
         )
       } finally {
         consoleErrorSpy.mockRestore()
@@ -666,7 +656,7 @@ describe('listInternalExamAttempts', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -690,7 +680,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 

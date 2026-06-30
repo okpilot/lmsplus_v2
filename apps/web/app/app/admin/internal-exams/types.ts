@@ -25,6 +25,7 @@ export type ListCodesFilters = {
   status?: InternalExamCodeStatus | 'finished'
   studentId?: string
   subjectId?: string
+  page?: number
   limit?: number
   cursor?: string
 }
@@ -48,6 +49,7 @@ export type InternalExamAttemptRow = {
 export type ListAttemptsFilters = {
   studentId?: string
   subjectId?: string
+  page?: number
   limit?: number
   cursor?: string
 }

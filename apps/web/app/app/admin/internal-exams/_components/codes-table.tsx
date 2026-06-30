@@ -17,11 +17,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { parsePageParam } from '@/lib/utils/parse-page-param'
+import { PaginationBar } from '../../../_components/pagination-bar'
 import type { InternalExamCodeRow, InternalExamCodeStatus } from '../types'
 import { CodeRow } from './code-row'
 import { VoidCodeDialog } from './void-code-dialog'
 
-type Props = { rows: InternalExamCodeRow[]; status?: InternalExamCodeStatus | 'finished' }
+type Props = {
+  rows: InternalExamCodeRow[]
+  status?: InternalExamCodeStatus | 'finished'
+  totalCount: number
+  pageSize: number
+}
 
 const STATUS_ITEMS = [
   { value: '__all__', label: 'All' },
@@ -32,15 +39,18 @@ const STATUS_ITEMS = [
   { value: 'expired', label: 'Expired' },
 ]
 
-export function CodesTable({ rows, status }: Readonly<Props>) {
+export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [voidId, setVoidId] = useState<string | null>(null)
+  const page = parsePageParam(searchParams?.get('codesPage') ?? undefined)
 
   const onStatusChange = (value: string | null) => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (value === null || value === '__all__') params.delete('status')
     else params.set('status', value)
+    // A filter change can strand the user on an out-of-range page — reset to page 1.
+    params.delete('codesPage')
     router.replace(`/app/admin/internal-exams?${params.toString()}`)
   }
 
@@ -86,6 +96,14 @@ export function CodesTable({ rows, status }: Readonly<Props>) {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationBar
+        page={page}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        entityLabel="codes"
+        paramKey="codesPage"
+      />
 
       <VoidCodeDialog
         codeId={voidId}

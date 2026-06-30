@@ -279,4 +279,26 @@ describe('PaginationBar', () => {
     const ellipses = screen.getAllByText('...')
     expect(ellipses.length).toBeGreaterThan(0)
   })
+
+  it('drives a custom search param when paramKey is provided', async () => {
+    const user = userEvent.setup()
+    render(<PaginationBar page={1} totalCount={75} pageSize={25} paramKey="codesPage" />)
+
+    await user.click(screen.getByLabelText('Next page'))
+
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?codesPage=2')
+  })
+
+  it('removes the custom paramKey when navigating to page 1', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(window, 'location', {
+      value: { search: '?codesPage=2' },
+      writable: true,
+    })
+    render(<PaginationBar page={2} totalCount={75} pageSize={25} paramKey="codesPage" />)
+
+    await user.click(screen.getByLabelText('Previous page'))
+
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
+  })
 })

@@ -1,6 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { clampLimit } from './pagination'
+import { PAGE_SIZE } from './pagination'
 import type { InternalExamAttemptRow, ListAttemptsFilters } from './types'
 
 type AttemptRowRaw = {
@@ -21,47 +21,84 @@ type AttemptRowRaw = {
 // Narrower than the queries.ts ChainBuilder by design — lte/gt are omitted
 // because listInternalExamAttempts never calls them.
 type ChainBuilder = {
-  select: (cols: string) => ChainBuilder
+  select: {
+    (cols: string): ChainBuilder
+    (cols: string, opts: { count: 'exact'; head: boolean }): ChainBuilder
+  }
   eq: (col: string, val: unknown) => ChainBuilder
   is: (col: string, val: null) => ChainBuilder
   not: (col: string, op: string, val: unknown) => ChainBuilder
   order: (col: string, opts: { ascending: boolean }) => ChainBuilder
-  limit: (n: number) => ChainBuilder
+  range: (from: number, to: number) => ChainBuilder
 }
 
 type AnyClient = {
   from: (t: string) => ChainBuilder
 }
 
+function applyAttemptFilters(
+  builder: ChainBuilder,
+  organizationId: string,
+  filters: ListAttemptsFilters,
+): ChainBuilder {
+  let b = builder
+    .eq('organization_id', organizationId)
+    .eq('mode', 'internal_exam')
+    .not('ended_at', 'is', null)
+    .is('deleted_at', null)
+  if (filters.studentId) b = b.eq('student_id', filters.studentId)
+  if (filters.subjectId) b = b.eq('subject_id', filters.subjectId)
+  return b
+}
+
 export async function listInternalExamAttempts(
   filters: ListAttemptsFilters = {},
-): Promise<{ rows: InternalExamAttemptRow[]; nextCursor: string | null }> {
+): Promise<{ rows: InternalExamAttemptRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
-  const limit = clampLimit(filters.limit)
+  const page = filters.page ?? 1
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
   // adminClient: same RLS-recursion reason as listInternalExamCodes — embed of `users`
   // returns null under the user-scoped client.
   const client = adminClient as unknown as AnyClient
 
-  let builder = client
-    .from('quiz_sessions')
-    .select(
+  // Count first — PostgREST returns 416 (and a null count) for out-of-range .range() requests.
+  const countBuilder = applyAttemptFilters(
+    client.from('quiz_sessions').select('id', { count: 'exact', head: true }),
+    organizationId,
+    filters,
+  )
+  const { count, error: countError } = (await (countBuilder as unknown as PromiseLike<{
+    count: number | null
+    error: { message: string } | null
+  }>)) ?? { count: null, error: null }
+  if (countError) {
+    console.error('[listInternalExamAttempts] count error:', countError.message)
+    throw new Error('Failed to load internal exam attempts')
+  }
+  const totalCount = count ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  if (totalCount === 0 || page > totalPages) {
+    return { rows: [], totalCount }
+  }
+
+  const dataBuilder = applyAttemptFilters(
+    client.from('quiz_sessions').select(
       `id, student_id, subject_id, started_at, ended_at, total_questions,
        correct_count, score_percentage, passed,
        easa_subjects(name),
        users!student_id(full_name, email),
        internal_exam_codes!consumed_session_id(void_reason)`,
-    )
-    .eq('organization_id', organizationId)
-    .eq('mode', 'internal_exam')
-    .not('ended_at', 'is', null)
-    .is('deleted_at', null)
+    ),
+    organizationId,
+    filters,
+  )
+    // id tiebreaker keeps pages stable — started_at is not unique.
+    .order('started_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(from, to)
 
-  if (filters.studentId) builder = builder.eq('student_id', filters.studentId)
-  if (filters.subjectId) builder = builder.eq('subject_id', filters.subjectId)
-
-  builder = builder.order('started_at', { ascending: false }).limit(limit + 1)
-
-  const { data, error } = (await (builder as unknown as PromiseLike<{
+  const { data, error } = (await (dataBuilder as unknown as PromiseLike<{
     data: unknown
     error: { message: string } | null
   }>)) ?? { data: null, error: null }
@@ -71,7 +108,7 @@ export async function listInternalExamAttempts(
   }
   const raw = Array.isArray(data) ? (data as AttemptRowRaw[]) : []
 
-  let mapped: InternalExamAttemptRow[] = raw.map((r) => ({
+  const rows: InternalExamAttemptRow[] = raw.map((r) => ({
     sessionId: r.id,
     studentId: r.student_id,
     studentName: r.users?.full_name ?? '',
@@ -87,13 +124,5 @@ export async function listInternalExamAttempts(
     voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,
   }))
 
-  // SQL filters above are primary; TS guards preserve safety on already-paginated rows.
-  if (filters.studentId) mapped = mapped.filter((r) => r.studentId === filters.studentId)
-  if (filters.subjectId) mapped = mapped.filter((r) => r.subjectId === filters.subjectId)
-
-  const hasMore = mapped.length > limit
-  const rows = hasMore ? mapped.slice(0, limit) : mapped
-  const nextCursor = hasMore ? (rows[rows.length - 1]?.startedAt ?? null) : null
-
-  return { rows, nextCursor }
+  return { rows, totalCount }
 }
