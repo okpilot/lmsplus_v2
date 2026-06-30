@@ -74,7 +74,7 @@ describe('flagQuestion', () => {
     vi.restoreAllMocks()
   })
 
-  it('returns flagged:true when the upsert succeeds', async () => {
+  it('flags the question when persistence succeeds', async () => {
     const supabase = makeSupabase({ error: null })
 
     const result = await flagQuestion(supabase, USER_ID, QUESTION_ID)
@@ -82,7 +82,7 @@ describe('flagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: true })
   })
 
-  it('returns a failure and logs the error when the upsert fails', async () => {
+  it('returns a failure and logs when the flag cannot be persisted', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeSupabase({ error: { message: 'unique constraint' } })
 
@@ -100,7 +100,7 @@ describe('unflagQuestion', () => {
     vi.restoreAllMocks()
   })
 
-  it('returns flagged:false when the soft-delete update succeeds with affected rows', async () => {
+  it('unflags the question when an active flag is cleared', async () => {
     const supabase = makeSupabase({ data: [{ student_id: USER_ID }], error: null })
 
     const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
@@ -108,7 +108,7 @@ describe('unflagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: false })
   })
 
-  it('returns flagged:false when no rows were updated (already unflagged concurrently)', async () => {
+  it('treats an already-cleared flag as successfully unflagged', async () => {
     const supabase = makeSupabase({ data: [], error: null })
 
     const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
@@ -116,7 +116,7 @@ describe('unflagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: false })
   })
 
-  it('returns a failure and logs the error when the update fails', async () => {
+  it('returns a failure and logs when clearing the flag fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeSupabase({ data: null, error: { message: 'rls denied' } })
 

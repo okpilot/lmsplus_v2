@@ -55,7 +55,9 @@ function setupFromByTable(config: {
       case 'flagged_questions':
         return buildChain(config.flagged_questions ?? { error: null })
       default:
-        return buildChain({ data: null, error: null })
+        // Fail fast: an unexpected table means toggleFlag queried the wrong
+        // table — surface it instead of returning a misleading empty result.
+        throw new Error(`Unexpected table in setupFromByTable: ${table}`)
     }
   })
 }
