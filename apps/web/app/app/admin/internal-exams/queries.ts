@@ -1,42 +1,8 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
 import { PAGE_SIZE } from './pagination'
-import type {
-  ExamSubjectOption,
-  InternalExamCodeRow,
-  InternalExamCodeStatus,
-  ListCodesFilters,
-} from './types'
-
-function deriveStatus(row: {
-  consumed_at: string | null
-  voided_at: string | null
-  expires_at: string
-}): InternalExamCodeStatus {
-  if (row.voided_at) return 'voided'
-  if (row.consumed_at) return 'consumed'
-  if (new Date(row.expires_at).getTime() <= Date.now()) return 'expired'
-  return 'active'
-}
-
-type CodeRowRaw = {
-  id: string
-  code: string
-  subject_id: string
-  student_id: string
-  issued_by: string
-  issued_at: string
-  expires_at: string
-  consumed_at: string | null
-  consumed_session_id: string | null
-  voided_at: string | null
-  voided_by: string | null
-  void_reason: string | null
-  emailed_at: string | null
-  easa_subjects: { name: string | null } | null
-  users: { full_name: string | null; email: string | null } | null
-  quiz_sessions: { ended_at: string | null } | null
-}
+import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
 
 type ChainBuilder = {
   select: {
@@ -61,6 +27,10 @@ const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, 
        easa_subjects(name),
        users!student_id(full_name, email)`
 
+/**
+ * Applies org scope, soft-delete filter, and status/student/subject predicates to a codes query builder.
+ * `nowIso` is passed in (not computed here) so the count and data queries share the same instant.
+ */
 function applyCodeFilters(
   builder: ChainBuilder,
   organizationId: string,
@@ -153,26 +123,7 @@ export async function listInternalExamCodes(
     throw new Error('Failed to load internal exam codes')
   }
   const raw = Array.isArray(data) ? (data as CodeRowRaw[]) : []
-  const rows: InternalExamCodeRow[] = raw.map((r) => ({
-    id: r.id,
-    code: r.code,
-    subjectId: r.subject_id,
-    subjectName: r.easa_subjects?.name ?? '',
-    studentId: r.student_id,
-    studentName: r.users?.full_name ?? '',
-    studentEmail: r.users?.email ?? '',
-    issuedBy: r.issued_by,
-    issuedAt: r.issued_at,
-    expiresAt: r.expires_at,
-    consumedAt: r.consumed_at,
-    consumedSessionId: r.consumed_session_id,
-    voidedAt: r.voided_at,
-    voidedBy: r.voided_by,
-    voidReason: r.void_reason,
-    emailedAt: r.emailed_at,
-    status: deriveStatus(r),
-    sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
-  }))
+  const rows: InternalExamCodeRow[] = raw.map(mapCodeRow)
   return { rows, totalCount }
 }
 

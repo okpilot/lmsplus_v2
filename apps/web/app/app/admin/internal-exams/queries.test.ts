@@ -242,7 +242,7 @@ describe('listInternalExamCodes', () => {
       expect(chain.not).toHaveBeenCalledWith('voided_at', 'is', null)
     })
 
-    it('requests an inner session join with the in-flight predicate for status=consumed', async () => {
+    it('returns only codes whose linked session is still active for status=consumed', async () => {
       mockAdmin()
       const chain = buildChain([], null, 0)
       mockAdminFrom.mockReturnValue(chain)
@@ -256,7 +256,7 @@ describe('listInternalExamCodes', () => {
       expect(chain.is).toHaveBeenCalledWith('quiz_sessions.ended_at', null)
     })
 
-    it('requests an inner session join with the ended predicate for status=finished', async () => {
+    it('returns only codes whose linked session has ended for status=finished', async () => {
       mockAdmin()
       const chain = buildChain([], null, 0)
       mockAdminFrom.mockReturnValue(chain)
@@ -308,7 +308,7 @@ describe('listInternalExamCodes', () => {
       }
     }
 
-    it('returns the total count and requests the first page range', async () => {
+    it('returns the total count alongside the first page of rows', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1), makeRow(2)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
@@ -319,7 +319,7 @@ describe('listInternalExamCodes', () => {
       expect(chain.range).toHaveBeenCalledWith(0, 24)
     })
 
-    it('requests the second page range offset by the page size', async () => {
+    it('returns the second page of results when page=2 is set', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
@@ -543,7 +543,7 @@ describe('listInternalExamAttempts', () => {
       }
     }
 
-    it('returns the total count and requests the first page range', async () => {
+    it('returns the total count alongside the first page of rows', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1), makeRow(2)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
@@ -554,7 +554,7 @@ describe('listInternalExamAttempts', () => {
       expect(chain.range).toHaveBeenCalledWith(0, 24)
     })
 
-    it('requests the second page range offset by the page size', async () => {
+    it('returns the second page of results when page=2 is set', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
@@ -573,6 +573,19 @@ describe('listInternalExamAttempts', () => {
 
       expect(result.rows).toHaveLength(0)
       expect(result.totalCount).toBe(0)
+      expect(chain.range).not.toHaveBeenCalled()
+    })
+
+    it('returns an empty page without querying rows when the page is past the end', async () => {
+      mockAdmin()
+      // count=10 → totalPages=Math.max(1, Math.ceil(10/25))=1; page=2 > 1 triggers early return.
+      const chain = buildChain([makeRow(1)], null, 10)
+      mockAdminFrom.mockReturnValue(chain)
+
+      const result = await listInternalExamAttempts({ page: 2 })
+
+      expect(result.rows).toHaveLength(0)
+      expect(result.totalCount).toBe(10)
       expect(chain.range).not.toHaveBeenCalled()
     })
 

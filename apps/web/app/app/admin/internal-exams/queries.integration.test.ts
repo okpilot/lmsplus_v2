@@ -122,6 +122,7 @@ describe('listInternalExamCodes (app-layer integration)', () => {
         .from('internal_exam_codes')
         .delete()
         .eq('organization_id', orgId)
+        .select('id')
       if (error) throw new Error(error.message)
     } catch (e) {
       errors.push(`delete codes: ${e instanceof Error ? e.message : String(e)}`)
@@ -191,5 +192,178 @@ describe('listInternalExamCodes (app-layer integration)', () => {
     const page1Ids = new Set(page1.rows.map((r) => r.id))
     const overlap = page2.rows.filter((r) => page1Ids.has(r.id))
     expect(overlap).toHaveLength(0)
+  })
+})
+
+describe('listInternalExamCodes — cross-org isolation', () => {
+  // Self-contained: creates two separate orgs (A + B) and verifies that org A's admin
+  // cannot see org B's codes. adminClient uses the service role but listInternalExamCodes
+  // scopes every query to the signed-in admin's organizationId — this test locks that
+  // invariant against regressions that remove or bypass the .eq('organization_id', ...) guard.
+  let isoOrgAId: string
+  let isoOrgBId: string
+  let isoAdminAId: string
+  let isoAdminBId: string
+  let isoStudentAId: string
+  let isoStudentBId: string
+  let isoRefs: ReferenceIds
+  let isoOrgBCodeId: string
+
+  const isoAdminAEmail = `int-iexam-iso-adminA-${suffix}@test.local`
+  const isoAdminBEmail = `int-iexam-iso-adminB-${suffix}@test.local`
+  const isoStudentAEmail = `int-iexam-iso-stuA-${suffix}@test.local`
+  const isoStudentBEmail = `int-iexam-iso-stuB-${suffix}@test.local`
+  const isoPassword = 'test-pass-iso-123'
+  const isoFuture = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+
+  beforeAll(async () => {
+    isoOrgAId = await createTestOrg({
+      admin,
+      name: `iso-iexam-orgA ${suffix}`,
+      slug: `iso-oa-${suffix}`,
+    })
+    isoOrgBId = await createTestOrg({
+      admin,
+      name: `iso-iexam-orgB ${suffix}`,
+      slug: `iso-ob-${suffix}`,
+    })
+    isoAdminAId = await createTestUser({
+      admin,
+      orgId: isoOrgAId,
+      email: isoAdminAEmail,
+      password: isoPassword,
+      role: 'admin',
+    })
+    isoAdminBId = await createTestUser({
+      admin,
+      orgId: isoOrgBId,
+      email: isoAdminBEmail,
+      password: isoPassword,
+      role: 'admin',
+    })
+    isoStudentAId = await createTestUser({
+      admin,
+      orgId: isoOrgAId,
+      email: isoStudentAEmail,
+      password: isoPassword,
+      role: 'student',
+    })
+    isoStudentBId = await createTestUser({
+      admin,
+      orgId: isoOrgBId,
+      email: isoStudentBEmail,
+      password: isoPassword,
+      role: 'student',
+    })
+    // One shared subject (easa_subjects is global, not org-scoped)
+    isoRefs = await seedReferenceData({
+      admin,
+      subjectCode: `ISO_${suffix}`,
+      subjectName: `Cross-Org Isolation Subject ${suffix}`,
+      topicCode: `ISO_T_${suffix}`,
+      topicName: `Cross-Org Isolation Topic ${suffix}`,
+    })
+
+    // One active code for org A (should be visible to org A's admin)
+    const { error: errA } = await admin.from('internal_exam_codes').insert({
+      code: `ISO-${suffix}-OA`,
+      subject_id: isoRefs.subjectId,
+      student_id: isoStudentAId,
+      issued_by: isoAdminAId,
+      issued_at: new Date().toISOString(),
+      expires_at: isoFuture,
+      organization_id: isoOrgAId,
+    })
+    if (errA) throw new Error(`seed orgA code: ${errA.message}`)
+
+    // One active code for org B (must NOT appear in org A's admin's list)
+    const { data: orgBCode, error: errB } = await admin
+      .from('internal_exam_codes')
+      .insert({
+        code: `ISO-${suffix}-OB`,
+        subject_id: isoRefs.subjectId,
+        student_id: isoStudentBId,
+        issued_by: isoAdminBId,
+        issued_at: new Date().toISOString(),
+        expires_at: isoFuture,
+        organization_id: isoOrgBId,
+      })
+      .select('id')
+      .single()
+    if (errB) throw new Error(`seed orgB code: ${errB.message}`)
+    isoOrgBCodeId = (orgBCode as { id: string }).id
+  })
+
+  afterAll(async () => {
+    const errors: string[] = []
+
+    try {
+      const { error } = await admin
+        .from('internal_exam_codes')
+        .delete()
+        .eq('organization_id', isoOrgAId)
+        .select('id')
+      if (error) throw new Error(error.message)
+    } catch (e) {
+      errors.push(`delete isoOrgA codes: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    try {
+      const { error } = await admin
+        .from('internal_exam_codes')
+        .delete()
+        .eq('organization_id', isoOrgBId)
+        .select('id')
+      if (error) throw new Error(error.message)
+    } catch (e) {
+      errors.push(`delete isoOrgB codes: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({
+          admin,
+          orgId: isoOrgAId,
+          userIds: [isoAdminAId, isoStudentAId],
+        })
+      } catch (e) {
+        errors.push(`cleanupTestData isoOrgA: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({
+          admin,
+          orgId: isoOrgBId,
+          userIds: [isoAdminBId, isoStudentBId],
+        })
+      } catch (e) {
+        errors.push(`cleanupTestData isoOrgB: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [isoRefs] })
+      } catch (e) {
+        errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterAll cross-org: ${errors.join('; ')}`)
+  })
+
+  it("excludes another org's codes from an admin's list", async () => {
+    await signInAs(isoAdminAEmail, isoPassword)
+
+    const result = await listInternalExamCodes({})
+
+    // Non-vacuous: org A's admin sees their own seeded code (proves the list is non-empty,
+    // so the cross-org exclusion below is not vacuously true from an empty result set).
+    expect(result.totalCount).toBe(1)
+    expect(result.rows).toHaveLength(1)
+    // Cross-org exclusion: the one visible row is org A's code, not org B's.
+    expect(result.rows[0]!.id).not.toBe(isoOrgBCodeId)
   })
 })

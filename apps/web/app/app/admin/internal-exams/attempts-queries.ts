@@ -1,22 +1,8 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { type AttemptRowRaw, mapAttemptRow } from './_row-mappers'
 import { PAGE_SIZE } from './pagination'
 import type { InternalExamAttemptRow, ListAttemptsFilters } from './types'
-
-type AttemptRowRaw = {
-  id: string
-  student_id: string
-  subject_id: string | null
-  started_at: string
-  ended_at: string | null
-  total_questions: number | null
-  correct_count: number | null
-  score_percentage: number | string | null
-  passed: boolean | null
-  easa_subjects: { name: string | null } | null
-  users: { full_name: string | null; email: string | null } | null
-  internal_exam_codes: { void_reason: string | null }[] | null
-}
 
 // Narrower than the queries.ts ChainBuilder by design — lte/gt are omitted
 // because listInternalExamAttempts never calls them.
@@ -107,22 +93,6 @@ export async function listInternalExamAttempts(
     throw new Error('Failed to load internal exam attempts')
   }
   const raw = Array.isArray(data) ? (data as AttemptRowRaw[]) : []
-
-  const rows: InternalExamAttemptRow[] = raw.map((r) => ({
-    sessionId: r.id,
-    studentId: r.student_id,
-    studentName: r.users?.full_name ?? '',
-    studentEmail: r.users?.email ?? '',
-    subjectId: r.subject_id ?? '',
-    subjectName: r.easa_subjects?.name ?? '',
-    startedAt: r.started_at,
-    endedAt: r.ended_at,
-    totalQuestions: r.total_questions,
-    correctCount: r.correct_count,
-    scorePercentage: r.score_percentage != null ? Number(r.score_percentage) : null,
-    passed: r.passed,
-    voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,
-  }))
-
+  const rows: InternalExamAttemptRow[] = raw.map(mapAttemptRow)
   return { rows, totalCount }
 }
