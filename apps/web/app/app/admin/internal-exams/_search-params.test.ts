@@ -15,8 +15,9 @@ describe('parseInternalExamsSearchParams', () => {
     expect(parseInternalExamsSearchParams({ status: ['active', 'voided'] }).status).toBeUndefined()
   })
 
-  it('defaults both page numbers to 1 when absent', () => {
+  it('leaves status undefined and both page numbers at 1 when all params are absent', () => {
     const result = parseInternalExamsSearchParams({})
+    expect(result.status).toBeUndefined()
     expect(result.codesPage).toBe(1)
     expect(result.attemptsPage).toBe(1)
   })
