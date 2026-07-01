@@ -172,7 +172,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill OR ordering on answer ins
 
   // ---- quiz_session_answers ----
 
-  it('accepts an ordering answer with a non-NULL blank_index (the mig-135 widening)', async () => {
+  it('accepts an ordering answer that carries a blank_index', async () => {
     const { error } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,
       question_id: orderingQId,
@@ -196,7 +196,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill OR ordering on answer ins
     expect(error?.message).toMatch(BLANK_REQUIRED_MSG)
   })
 
-  it('still rejects a short_answer answer carrying a blank_index (regression)', async () => {
+  it('rejects a short_answer answer that carries a blank_index', async () => {
     const { error } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,
       question_id: saQId,
@@ -209,7 +209,7 @@ describe('Trigger: enforce blank_index <=> dialog_fill OR ordering on answer ins
     expect(error?.message).toMatch(BLANK_FORBIDDEN_MSG)
   })
 
-  it('still rejects a multiple_choice answer carrying a blank_index (regression)', async () => {
+  it('rejects a multiple_choice answer that carries a blank_index', async () => {
     const { error } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,
       question_id: mcQId,

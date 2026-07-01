@@ -199,6 +199,33 @@ describe('OrderingInput', () => {
     ])
   })
 
+  it('keeps the sequence unchanged when a drop lands after a submit is in flight', () => {
+    // The guard is `locked || disabled || submitting`; the disabled test above would stay
+    // green even if `submitting` were dropped from it. This pins the `submitting` branch
+    // directly — the production race is a TouchSensor drop resolving after submit starts.
+    const onSubmit = vi.fn()
+    const { rerender } = render(
+      <OrderingInput items={ITEMS} onSubmit={onSubmit} disabled={false} />,
+    )
+    rerender(<OrderingInput items={ITEMS} onSubmit={onSubmit} disabled={false} submitting />)
+
+    act(() => {
+      capturedOnDragEnd.current?.({
+        active: { id: 'mayday' },
+        over: { id: 'callsign' },
+      } as unknown as DragEndEvent)
+    })
+
+    const rendered = screen
+      .getAllByTestId(/^ordering-item-/)
+      .map((el) => el.getAttribute('data-testid'))
+    expect(rendered).toEqual([
+      'ordering-item-mayday',
+      'ordering-item-callsign',
+      'ordering-item-nature',
+    ])
+  })
+
   it('restores the student submitted sequence when revisiting an answered question', () => {
     // On revisit the runner remounts with `items` in delivery (shuffled) order. The
     // component must render the student's prior arrangement (submittedOrder) so the

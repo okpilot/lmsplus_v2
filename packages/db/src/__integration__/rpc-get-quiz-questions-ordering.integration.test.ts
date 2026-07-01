@@ -221,7 +221,7 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     if (!Array.isArray(row.options)) throw new Error('MC options is not an array')
   })
 
-  it('never exposes the raw ordering_items answer-key column to an authenticated client (REVOKE by omission, N6)', async () => {
+  it('never exposes the raw ordering_items answer-key column to an authenticated client', async () => {
     // ordering_items is an answer key (its array order). mig 094 REVOKEd the blanket
     // SELECT and re-granted an EXPLICIT column list; a column added after that grant
     // is excluded, so `authenticated` cannot SELECT it via PostgREST. Direct select

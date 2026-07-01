@@ -122,10 +122,13 @@ export const SaveDraftInput = z
             // texts — four-way parity with the rehydrate validator
             // (isValidFeedbackEntry), the DB-load validator (toFeedbackEntry), and
             // the RPC guard (isOrderingRpcResult), which all require non-empty strings.
-            // .max(50) mirrors the sibling blanks-feedback cap (item count is DB-bounded).
+            // .max(50) mirrors the sibling blanks-feedback cap (item count is DB-bounded);
+            // .max(200) per-id mirrors the `order` field above (client-roundtripped draft
+            // data → bound the element length so a tampered payload can't stuff arbitrarily
+            // large strings into the feedback JSONB column).
             // A canonical order is a permutation — duplicate ids mean corrupt feedback.
             correctOrder: z
-              .array(z.string().min(1))
+              .array(z.string().min(1).max(200))
               .min(2)
               .max(50)
               .refine((ids) => new Set(ids).size === ids.length, 'Ordering ids must be unique'),

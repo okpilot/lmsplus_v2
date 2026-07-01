@@ -346,7 +346,7 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     expect(rows ?? []).toHaveLength(0)
   })
 
-  it('forbids a direct authenticated call to the internal _grade_record_ordering helper (42501)', async () => {
+  it('forbids direct authenticated access to the internal ordering grader', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 138): the helper must
     // not be callable via PostgREST by an authenticated user — a direct call would
     // bypass the dispatcher's auth/owner/mode guards and forge graded rows. The
