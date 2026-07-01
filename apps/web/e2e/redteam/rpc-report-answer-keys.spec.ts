@@ -69,10 +69,12 @@ const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
 const EN_DIALOG_FILL_QNUM = `${E2E_REDTEAM_EN_MARKER} dialog-fill`
 const EN_ORDERING_QNUM = `${E2E_REDTEAM_EN_MARKER} ordering`
 
-// NB: '_' in the marker is a LIKE single-char wildcard. No other E2E fixture shares the
-// [E2E_REDTEAM_EN] namespace (the EO family diverges at the N/O position, outside the
-// wildcard slots), so no cross-spec over-match occurs today.
-const EN_MARKER_LIKE = `${E2E_REDTEAM_EN_MARKER}%`
+// Escape LIKE metacharacters (the marker's '_' chars are single-char wildcards) so the
+// pre-sweep + cleanup match the exact [E2E_REDTEAM_EN] prefix, never an EN-shaped row.
+// Mirrors the escapeLike helper in app/app/admin/students/queries.ts (backslash is
+// Postgres LIKE's default escape char).
+const escapeLike = (value: string): string => value.replaceAll(/[%_\\]/g, String.raw`\$&`)
+const EN_MARKER_LIKE = `${escapeLike(E2E_REDTEAM_EN_MARKER)}%`
 
 const SHORT_ANSWER_CANONICAL = 'cleared to land'
 const DIALOG_BLANKS = [
