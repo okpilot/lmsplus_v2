@@ -1,9 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
-import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import {
+  createTestOrg,
+  createTestUser,
+  getAdminClient,
+  getAnonClient,
+  getAuthenticatedClient,
+} from './setup'
 
 // batch_submit_quiz dispatches the `ordering` type (migs 138/139, #697 Phase 5).
 // These behaviors only run when the function EXECUTES against real rows — a
@@ -163,6 +169,14 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
+  // Single-active-session invariant (#1011): each grading test starts a fresh session for
+  // the reused test student, so clear any still-active session left by the prior test
+  // before the next start RPC raises `another_session_active`. Scoped to the reused
+  // `studentId`; the helper-REVOKE tests don't start sessions, so this is a no-op for them.
+  beforeEach(async () => {
+    await clearActiveSessions({ admin, studentIds: [studentId] })
+  })
+
   async function startSession(qIds: string[]): Promise<string> {
     const { data, error } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -282,6 +296,36 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
     expect(rows ?? []).toHaveLength(0)
   })
 
+  it('rejects an ordering answer that reuses a slot index', async () => {
+    // Self-defence (#998 CR): unique item ids but a duplicated slot (blank_index 0 twice).
+    // The (question_id, blank_index) duplicate guard (mig 148) must reject this before any
+    // per-slot row reaches quiz_session_answers — otherwise the per-slot ON CONFLICT
+    // DO NOTHING would silently drop the second slot-0 row and persist an incomplete
+    // sequence. count(DISTINCT selected_option) = N would pass (the items ARE unique), so
+    // only the slot-duplicate guard stands between a forged payload and a dropped row.
+    const dupSlot = CANONICAL_IDS.map((id, i) => ({
+      question_id: orderingId,
+      selected_option: id,
+      blank_index: i === 1 ? 0 : i, // slot 1 → 0 ⇒ slot 0 appears twice
+      response_time_ms: 1000,
+    }))
+    const sessionId = await startSession([orderingId])
+    const { error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: dupSlot,
+    })
+    expect(error).not.toBeNull()
+    expect((error?.message ?? '').toLowerCase()).toContain('duplicate')
+    // Non-vacuity: the RAISE aborts the whole function, so nothing was persisted.
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_answers')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('question_id', orderingId)
+    expect(rowsErr).toBeNull()
+    expect(rows ?? []).toHaveLength(0)
+  })
+
   it('rejects an ordering answer that omits a slot', async () => {
     // Self-defence (#998 CR #466): a subset submission (4 of 5 slots) has count(*) < N,
     // so the dispatcher rejects it rather than persist a partial, ungradeable sequence.
@@ -338,5 +382,35 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
       message.includes('could not find the function') ||
       message.includes('does not exist')
     expect(denied, `_grade_record_ordering error was ${code}: ${error?.message}`).toBe(true)
+  })
+
+  it('forbids a direct anonymous call to the internal _grade_record_ordering helper', async () => {
+    // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 147): the authenticated case
+    // above only proves the `authenticated` grant is gone. Without an anon case, an
+    // anon-only grant leak would ship unnoticed. Same signature-valid payload so a
+    // PGRST202 genuinely means REVOKE, not argument-shape drift (code-style.md §7).
+    const anon = getAnonClient()
+    const dummyId = '00000000-0000-0000-0000-000000000000'
+    const payload = {
+      p_session_id: dummyId,
+      p_student_id: studentId,
+      p_org_id: orgId,
+      p_question_id: orderingId,
+      p_slot: 0,
+      p_item_id: CANONICAL_IDS[0],
+      p_ordering_items: ITEMS,
+      p_response_time: 0,
+    }
+    const { error } = await anon.rpc('_grade_record_ordering', payload)
+    expect(error, '_grade_record_ordering must be uncallable by anon').not.toBeNull()
+    const code = (error as { code?: string }).code
+    const message = (error?.message ?? '').toLowerCase()
+    const denied =
+      code === '42501' ||
+      code === 'PGRST202' ||
+      message.includes('permission denied') ||
+      message.includes('could not find the function') ||
+      message.includes('does not exist')
+    expect(denied, `anon _grade_record_ordering error was ${code}: ${error?.message}`).toBe(true)
   })
 })

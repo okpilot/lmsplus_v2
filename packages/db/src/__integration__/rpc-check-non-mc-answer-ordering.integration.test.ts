@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import {
@@ -162,6 +162,15 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
+  // Single-active-session invariant (#1011): each test starts a fresh session for the
+  // reused test student, so clear any still-active session left by the prior test before
+  // the next start RPC raises `another_session_active`. Scoped to the reused `studentId`
+  // (not org-wide): the soft-delete/other-student tests spin up their own per-test
+  // students, and a broad org-wide clear could wipe a session those tests intentionally hold.
+  beforeEach(async () => {
+    await clearActiveSessions({ admin, studentIds: [studentId] })
+  })
+
   /** Start a smart_review session pinning the given question ids. */
   async function startSession(
     client: SupabaseClient,
@@ -228,7 +237,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   })
 
   // ── guard rejections ────────────────────────────────────────────────────────
-  it('rejects an unauthenticated caller with not_authenticated', async () => {
+  it('rejects an unauthenticated caller', async () => {
     const anon = getAnonClient()
     const sessionId = await startSession(studentClient, [orderingId])
     const { error } = await anon.rpc('check_non_mc_answer', {
@@ -240,7 +249,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error?.message).toContain('not_authenticated')
   })
 
-  it('rejects a mock_exam session with unsupported_session_mode', async () => {
+  it('rejects an ordering answer submitted during a mock exam', async () => {
     // refs is assigned in beforeAll; non-null by the time any test runs.
     const { data: sessRow, error: sessErr } = await admin
       .from('quiz_sessions')
@@ -275,7 +284,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     }
   })
 
-  it('rejects an internal_exam session with unsupported_session_mode', async () => {
+  it('rejects an ordering answer submitted during an internal exam', async () => {
     const { data: sessRow, error: sessErr } = await admin
       .from('quiz_sessions')
       .insert({
@@ -308,7 +317,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     }
   })
 
-  it('rejects a soft-deleted caller with user_not_found_or_inactive', async () => {
+  it('rejects a soft-deleted caller', async () => {
     const delStudentId = await createTestUser({
       admin,
       orgId,
@@ -379,7 +388,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error?.message).toContain('does not belong to session')
   })
 
-  it('rejects an ordering question answered with response_text (answer_type_mismatch)', async () => {
+  it('rejects an ordering question answered with free text', async () => {
     const sessionId = await startSession(studentClient, [orderingId])
     const { error } = await studentClient.rpc('check_non_mc_answer', {
       p_question_id: orderingId,
@@ -390,7 +399,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error?.message).toContain('answer_type_mismatch')
   })
 
-  it('rejects an ordering question answered with blank_answers (answer_type_mismatch)', async () => {
+  it('rejects an ordering question answered with dialog-fill blanks', async () => {
     const sessionId = await startSession(studentClient, [orderingId])
     const { error } = await studentClient.rpc('check_non_mc_answer', {
       p_question_id: orderingId,
@@ -401,7 +410,7 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     expect(error?.message).toContain('answer_type_mismatch')
   })
 
-  it('rejects a short_answer question answered with p_order (answer_type_mismatch)', async () => {
+  it('rejects a short-answer question answered with an ordering payload', async () => {
     const sessionId = await startSession(studentClient, [saId])
     const { error } = await studentClient.rpc('check_non_mc_answer', {
       p_question_id: saId,
@@ -410,5 +419,19 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
     })
     expect(error).not.toBeNull()
     expect(error?.message).toContain('answer_type_mismatch')
+  })
+
+  it('rejects a non-array ordering payload instead of surfacing a raw JSON error', async () => {
+    // The jsonb_typeof array guard (mig 146) rejects a scalar/object p_order cleanly,
+    // before it can reach jsonb_array_length and surface a raw 22023 to the caller.
+    const sessionId = await startSession(studentClient, [orderingId])
+    const { error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: orderingId,
+      p_session_id: sessionId,
+      p_order: { not: 'array' } as unknown as string[],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('answer_type_mismatch')
+    expect(error?.code).not.toBe('22023')
   })
 })
