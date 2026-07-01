@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 
-type OrderingInputItemProps = {
+type OrderingInputItemProps = Readonly<{
   id: string
   text: string
   /** Drag/keyboard reordering disabled once submitted or while a session submit is in flight. */
@@ -13,7 +13,7 @@ type OrderingInputItemProps = {
   result?: 'correct' | 'incorrect'
   /** The canonical item text for this slot, revealed when the slot is wrong. */
   canonical?: string
-}
+}>
 
 export function OrderingInputItem({
   id,

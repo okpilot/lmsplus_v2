@@ -172,6 +172,33 @@ describe('OrderingInput', () => {
     expect(onSubmit).toHaveBeenCalledWith(['callsign', 'mayday', 'nature'])
   })
 
+  it('keeps the sequence unchanged when a drop lands after a session submit starts', () => {
+    // A drop that resolves after the parent flips `disabled` (session submit in flight)
+    // must not mutate the displayed order — otherwise the arrangement would diverge from
+    // what the server graded. Fires onDragEnd directly (same jsdom strategy as above).
+    const onSubmit = vi.fn()
+    const { rerender } = render(
+      <OrderingInput items={ITEMS} onSubmit={onSubmit} disabled={false} />,
+    )
+    rerender(<OrderingInput items={ITEMS} onSubmit={onSubmit} disabled />)
+
+    act(() => {
+      capturedOnDragEnd.current?.({
+        active: { id: 'mayday' },
+        over: { id: 'callsign' },
+      } as unknown as DragEndEvent)
+    })
+
+    const rendered = screen
+      .getAllByTestId(/^ordering-item-/)
+      .map((el) => el.getAttribute('data-testid'))
+    expect(rendered).toEqual([
+      'ordering-item-mayday',
+      'ordering-item-callsign',
+      'ordering-item-nature',
+    ])
+  })
+
   it('restores the student submitted sequence when revisiting an answered question', () => {
     // On revisit the runner remounts with `items` in delivery (shuffled) order. The
     // component must render the student's prior arrangement (submittedOrder) so the

@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { type OrderingItem, orderFromSubmitted } from './ordering-input-helpers'
 import { OrderingInputItem } from './ordering-input-item'
 
-type OrderingInputProps = {
+type OrderingInputProps = Readonly<{
   /** Items in the server-shuffled delivery order — the student's starting sequence. */
   items: OrderingItem[]
   onSubmit: (order: string[]) => void
@@ -39,7 +39,7 @@ type OrderingInputProps = {
    *  question the runner remounts with `items` in delivery (shuffled) order; this
    *  restores the student's arrangement so the per-slot badges align correctly. */
   submittedOrder?: string[]
-}
+}>
 
 export function OrderingInput({
   items,
@@ -70,8 +70,10 @@ export function OrderingInput({
     // Defense-in-depth: a touch begun before the RPC resolved can still fire
     // onDragEnd after `submitting` flips true (TouchSensor has a 250ms activation
     // delay), so ignore drops once locked or mid-check — the displayed order must
-    // not diverge from the sequence the server actually graded.
-    if (locked || submitting) return
+    // not diverge from the sequence the server actually graded. Also bail when the
+    // parent flips `disabled` (session submit in flight) mid-drag — same freeze
+    // intent as the item-level `disabled` on OrderingInputItem below.
+    if (locked || disabled || submitting) return
     const { active, over } = event
     if (!over || active.id === over.id) return
     setOrder((prev) => {

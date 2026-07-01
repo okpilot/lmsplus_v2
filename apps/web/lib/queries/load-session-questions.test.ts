@@ -214,7 +214,6 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-null'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
     expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
@@ -245,7 +244,36 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-bad'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
+    expect(result.questions).toHaveLength(1)
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
+  it('discards an ordering payload with fewer than two items', async () => {
+    // An ordering question is a permutation of ≥2 items; a single-item array can't be
+    // reordered. The mapper yields null so the UI shows the fail-closed refresh prompt
+    // rather than a nonsensical one-item drag area.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord-short',
+          question_text: 'Sequence the steps',
+          question_image_url: null,
+          question_number: '003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [{ id: 'a', text: 'Alpha' }],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord-short'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
     expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
@@ -279,7 +307,6 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-blank'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
     expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
@@ -313,7 +340,6 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q-ord-blank-text'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    // Single-question fixture → exactly one mapped question; pins index 0 as populated.
     expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
   })

@@ -53,7 +53,11 @@ function isOrderingItem(value: unknown): value is { id: string; text: string } {
 }
 
 function isOrderingItemArray(value: unknown): value is { id: string; text: string }[] {
-  return Array.isArray(value) && value.every(isOrderingItem)
+  // length >= 2: an ordering question is a permutation of ≥2 items (mirrors the
+  // `order` `.min(2)` in check-non-mc-answer-schema.ts and the DB CHECK).
+  // Without it, every() is vacuously true on [] / single-item, leaking an
+  // unusable ordering question through this query layer.
+  return Array.isArray(value) && value.length >= 2 && value.every(isOrderingItem)
 }
 
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {

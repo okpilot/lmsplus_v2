@@ -1,11 +1,11 @@
 import { Check, X } from 'lucide-react'
 import type { OrderingSlotResult } from '@/lib/queries/quiz-report'
 
-type Props = {
+type Props = Readonly<{
   slots: OrderingSlotResult[]
   correctCount: number
   totalItems: number
-}
+}>
 
 // Renders an ordering question's per-slot result. Leads with the partial
 // fraction (X/N positions correct), then lists each slot's placed item vs the

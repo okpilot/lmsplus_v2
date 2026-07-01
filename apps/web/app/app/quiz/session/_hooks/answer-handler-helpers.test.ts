@@ -387,7 +387,7 @@ describe('recordAnswerFeedback', () => {
 describe('buildAnswerHandlers — handleOrderingAnswer', () => {
   const ORDER_PAYLOAD = ['a', 'b', 'c']
 
-  it('records the item-id array as the draft answer', async () => {
+  it('stores the submitted ordering for the current question', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(ORD_SUCCESS)
     const { handlers, capturedAttempts } = makeHandlers()
 
@@ -397,7 +397,7 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
     expect(capturedAttempts[0]?.draft).toMatchObject({ order: ORDER_PAYLOAD })
   })
 
-  it('calls checkNonMcAnswer with questionId, sessionId, and the order array', async () => {
+  it('checks the submitted ordering for the current question', async () => {
     mockCheckNonMcAnswer.mockResolvedValue(ORD_SUCCESS)
     const { handlers } = makeHandlers()
 
@@ -432,7 +432,7 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
     expect(correctOrder).toEqual(['mayday', 'callsign', 'intentions'])
   })
 
-  it('throws when checkNonMcAnswer returns success: false', async () => {
+  it('fails the submission when validation is unsuccessful', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
       await expect(input.check(Q_ID)).rejects.toThrow('check failed')
@@ -447,8 +447,7 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
     await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
   })
 
-  it('throws when checkNonMcAnswer returns a wrong question type', async () => {
-    // Returns short_answer when ordering was expected — should throw.
+  it('rejects non-ordering feedback results', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ ...ORD_SUCCESS, questionType: 'short_answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
       await expect(input.check(Q_ID)).rejects.toThrow('check failed')

@@ -122,6 +122,7 @@ vi.mock('./ordering-input', () => ({
     disabled,
     submitting,
     submitted,
+    submittedOrder,
   }: {
     items: { id: string; text: string }[]
     onSubmit: (order: string[]) => void
@@ -129,12 +130,14 @@ vi.mock('./ordering-input', () => ({
     submitting?: boolean
     submitted?: boolean
     correctOrder?: string[]
+    submittedOrder?: string[]
   }) => (
     <div
       data-testid="ordering-input"
       data-disabled={String(disabled)}
       data-submitting={String(submitting ?? false)}
       data-submitted={String(submitted ?? false)}
+      data-submitted-order={JSON.stringify(submittedOrder ?? null)}
       data-items={JSON.stringify(items.map((it) => it.id))}
     >
       <button
@@ -448,6 +451,11 @@ describe('QuizMainPanel', () => {
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
+      // The prior arrangement must be forwarded so the per-slot badges align on revisit.
+      expect(screen.getByTestId('ordering-input')).toHaveAttribute(
+        'data-submitted-order',
+        JSON.stringify(['a', 'b']),
+      )
       // The lock must actually prevent submission, not just flip the flag: clicking the
       // (now-disabled) submit must not fire the handler for an already-answered question.
       await userEvent.click(screen.getByTestId('ordering-submit'))
