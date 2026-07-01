@@ -43,7 +43,7 @@ export function OrderingReport({ slots, correctCount, totalItems }: Props) {
               <>
                 <X size={12} aria-hidden className="ml-1 shrink-0" />
                 {slot.canonicalText && (
-                  <span className="text-green-600">(correct: {slot.canonicalText})</span>
+                  <span className="text-green-600">(expected: {slot.canonicalText})</span>
                 )}
               </>
             )}

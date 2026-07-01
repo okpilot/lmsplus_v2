@@ -84,6 +84,14 @@ AS $$
                   OR jsonb_typeof(e->'text') IS DISTINCT FROM 'string'
                   OR btrim(e->>'id') = ''
                   OR btrim(e->>'text') = ''
+                  -- Exact shape: reject extra keys (#998 CR). The canonical array
+                  -- order IS the answer key, so an item must not carry answer-bearing
+                  -- metadata (correct, position, correct_order, …). CASE-wrapped so a
+                  -- non-object element (already rejected above) never hits `jsonb - text`
+                  -- on a scalar → keeps the function TOTAL (clean 23514, never a 22023).
+                  OR CASE WHEN jsonb_typeof(e) = 'object'
+                          THEN (e - 'id' - 'text') <> '{}'::jsonb
+                          ELSE false END
              ) = 0
          AND count(*) = count(DISTINCT e->>'id')
       FROM jsonb_array_elements(

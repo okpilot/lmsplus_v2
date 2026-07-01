@@ -57,7 +57,11 @@ function isOrderingItemArray(value: unknown): value is { id: string; text: strin
   // `order` `.min(2)` in check-non-mc-answer-schema.ts and the DB CHECK).
   // Without it, every() is vacuously true on [] / single-item, leaking an
   // unusable ordering question through this query layer.
-  return Array.isArray(value) && value.length >= 2 && value.every(isOrderingItem)
+  // Distinct ids: a permutation has no repeats — a duplicate id would break the
+  // id-keyed drag-and-drop rendering downstream (parity with the DB CHECK
+  // is_valid_ordering_items and the quiz-session-validators uniqueness guards).
+  if (!Array.isArray(value) || value.length < 2 || !value.every(isOrderingItem)) return false
+  return new Set(value.map((v) => v.id)).size === value.length
 }
 
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {

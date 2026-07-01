@@ -455,4 +455,32 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
   })
+
+  it('rejects an ordering item that carries answer-bearing metadata beyond id and text', async () => {
+    // Exact-shape guard (#998 CR round 2): the canonical array order IS the answer key,
+    // so an item must store ONLY {id,text} — a stray `correct`/`position`/`correct_order`
+    // key could smuggle answer metadata into the sensitive column. The CHECK's
+    // `(e - 'id' - 'text') <> '{}'` clause rejects it at authoring (23514). The delivery
+    // RPC already strips to {id,text}, so this is defense-in-depth at the write boundary.
+    const malformedItems = [
+      { id: 'a', text: 'Alpha', correct: true },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — extra key on item',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
 })

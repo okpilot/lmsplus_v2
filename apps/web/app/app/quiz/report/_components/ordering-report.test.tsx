@@ -22,7 +22,7 @@ describe('OrderingReport', () => {
 
   it('shows the canonical item for a wrongly-placed position', () => {
     render(<OrderingReport slots={partialSlots} correctCount={1} totalItems={2} />)
-    expect(screen.getByText('(correct: position)')).toBeInTheDocument()
+    expect(screen.getByText('(expected: position)')).toBeInTheDocument()
   })
 
   it('shows a full fraction when every position is correct', () => {

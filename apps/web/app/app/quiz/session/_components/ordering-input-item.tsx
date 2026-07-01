@@ -22,7 +22,15 @@ export function OrderingInputItem({
   result,
   canonical,
 }: OrderingInputItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id,
     disabled,
   })
@@ -51,6 +59,7 @@ export function OrderingInputItem({
       {!disabled && (
         <button
           type="button"
+          ref={setActivatorNodeRef}
           aria-label={`Reorder ${text}`}
           className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
           {...attributes}

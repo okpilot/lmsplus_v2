@@ -278,6 +278,39 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
+  it('discards an ordering payload whose ids are not all distinct', async () => {
+    // An ordering answer is a permutation — a repeated id can't be rendered as a
+    // stable drag key. The mapper yields null (fail-closed) rather than passing a
+    // non-permutation to the UI.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-ord-dup',
+          question_text: 'Sequence the steps',
+          question_image_url: null,
+          question_number: '004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: [
+            { id: 'a', text: 'Alpha' },
+            { id: 'a', text: 'Alpha again' },
+          ],
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-ord-dup'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions).toHaveLength(1)
+    expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
   it('discards ordering items when an element has a blank or whitespace-only id or text', async () => {
     // Mirrors the DB CHECK (mig 143: btrim(id) != '' AND btrim(text) != ''). A blank
     // id breaks id-keyed grading and a blank text renders an empty slot — the mapper
