@@ -65,12 +65,23 @@ const SOFTDEL_STUDENT_PASSWORD = E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD
 // Hermeticity markers for the non-MC questions this spec inserts (egmont has none).
 const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
 const EN_DIALOG_FILL_QNUM = `${E2E_REDTEAM_EN_MARKER} dialog-fill`
+const EN_ORDERING_QNUM = `${E2E_REDTEAM_EN_MARKER} ordering`
+
+// NB: '_' in the marker is a LIKE single-char wildcard, but no other E2E fixture
+// shares the [E2E_REDTEAM_EN] namespace, so over-match is impossible here.
+const EN_MARKER_LIKE = `${E2E_REDTEAM_EN_MARKER}%`
 
 const SHORT_ANSWER_CANONICAL = 'cleared to land'
 const DIALOG_BLANKS = [
   { index: 0, canonical: 'cleared to land', synonyms: [] as string[] },
   { index: 1, canonical: 'two seven', synonyms: ['27'] },
 ]
+const ORDER_ITEMS = [
+  { id: 'ord-a', text: 'MAYDAY MAYDAY MAYDAY' },
+  { id: 'ord-b', text: 'Golf Bravo Charlie' },
+  { id: 'ord-c', text: 'engine failure' },
+]
+const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 
 test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   let admin: ReturnType<typeof getAdminClient>
@@ -86,12 +97,26 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   let createdBy: string
   let shortAnswerQuestionId: string
   let dialogFillQuestionId: string
+  let orderingQuestionId: string
 
   const createdSessionIds = new Set<string>()
-  const createdQuestionIds = new Set<string>()
 
   test.beforeAll(async () => {
     admin = getAdminClient()
+
+    // #995: sweep orphaned EN fixture questions from a prior aborted run (marker-based, crash-resilient)
+    const { data: sweptQ, error: sweepErr } = await admin
+      .from('questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .like('question_number', EN_MARKER_LIKE)
+      .is('deleted_at', null)
+      .select('id')
+    if (sweepErr) throw new Error(`EN fixture pre-sweep failed: ${sweepErr.message}`)
+    if ((sweptQ?.length ?? 0) > 0)
+      console.log(
+        `[report-answer-keys] pre-swept ${sweptQ?.length} orphaned EN fixture question(s)`,
+      )
+
     const seed = await seedRedTeamUsers()
     victimUserId = seed.victimUserId
     orgId = seed.orgId
@@ -153,7 +178,6 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       .single()
     if (saErr || !saRow) throw new Error(`beforeAll: short_answer insert: ${saErr?.message}`)
     shortAnswerQuestionId = saRow.id
-    createdQuestionIds.add(saRow.id)
 
     const { data: dfRow, error: dfErr } = await admin
       .from('questions')
@@ -173,7 +197,24 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       .single()
     if (dfErr || !dfRow) throw new Error(`beforeAll: dialog_fill insert: ${dfErr?.message}`)
     dialogFillQuestionId = dfRow.id
-    createdQuestionIds.add(dfRow.id)
+
+    const { data: ordRow, error: ordErr } = await admin
+      .from('questions')
+      .insert({
+        ...baseQuestion,
+        question_number: EN_ORDERING_QNUM,
+        question_text: `${E2E_REDTEAM_EN_MARKER} ordering fixture`,
+        question_type: 'ordering',
+        ordering_items: ORDER_ITEMS,
+        canonical_answer: null,
+        accepted_synonyms: [],
+        dialog_template: null,
+        blanks_config: [],
+      })
+      .select('id')
+      .single()
+    if (ordErr || !ordRow) throw new Error(`beforeAll: ordering insert: ${ordErr?.message}`)
+    orderingQuestionId = ordRow.id
   })
 
   // Seed a victim-owned session. When completed + answered, the RPC returns its keys.
@@ -258,19 +299,18 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   })
 
   test.afterAll(async () => {
-    // Soft-delete the non-MC fixture questions (questions is soft-deletable).
-    if (createdQuestionIds.size === 0) return
-    const { data, error } = await admin
+    // #995: marker-based, crash-resilient cleanup — soft-delete every EN fixture
+    // question (questions is soft-deletable) by marker rather than by an in-memory id
+    // Set, so a crash mid-run still tears down whatever was inserted.
+    const { data: deletedQ, error } = await admin
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
-      .in('id', Array.from(createdQuestionIds))
+      .like('question_number', EN_MARKER_LIKE)
       .is('deleted_at', null)
       .select('id')
-    if (error) throw new Error(`afterAll question cleanup: ${error.message}`)
-    if ((data?.length ?? 0) > 0) {
-      console.log(`[report-answer-keys] soft-deleted ${data?.length} fixture question(s)`)
-    }
-    createdQuestionIds.clear()
+    if (error) throw new Error(`EN fixture cleanup failed: ${error.message}`)
+    if ((deletedQ?.length ?? 0) > 0)
+      console.log(`[report-answer-keys] soft-deleted ${deletedQ?.length} fixture question(s)`)
   })
 
   test('positive control: the owner reads non-MC answer keys for a completed session', async () => {
@@ -317,6 +357,45 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       expect(match?.question_type).toBe('dialog_fill')
       expect(match?.answer_key).toBe(blank.canonical)
     }
+  })
+
+  test('positive control: the owner reads per-slot ordering answer keys for a completed session', async () => {
+    const sessionId = await seedSession({
+      studentId: victimUserId,
+      completed: true,
+      questionIds: [orderingQuestionId],
+    })
+    // #996: get_report_answer_keys JOINs quiz_session_answers, so per-slot answer rows are REQUIRED
+    const answerRows = ORDER_ITEMS.map((item, i) => ({
+      session_id: sessionId,
+      question_id: orderingQuestionId,
+      selected_option_id: null,
+      response_text: item.id,
+      blank_index: i,
+      is_correct: true,
+      response_time_ms: 5000,
+    }))
+    const { error: ansErr } = await admin.from('quiz_session_answers').insert(answerRows)
+    if (ansErr) throw new Error(`ordering answer seed failed: ${ansErr.message}`)
+
+    const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
+    expect(error).toBeNull()
+    const rows = (data ?? []) as {
+      question_id: string
+      question_type: string
+      blank_index: number | null
+      answer_key: string | null
+    }[]
+    expect(rows).toHaveLength(ORDER_ITEMS.length)
+    for (const row of rows) {
+      expect(row.question_type).toBe('ordering')
+      expect(row.question_id).toBe(orderingQuestionId)
+    }
+    const byIndex = new Map(rows.map((r) => [r.blank_index, r.answer_key]))
+    expect([...byIndex.keys()].sort((a, b) => Number(a) - Number(b))).toEqual([0, 1, 2])
+    expect(byIndex.get(0)).toBe(ORDER_CANONICAL_TEXTS[0])
+    expect(byIndex.get(1)).toBe(ORDER_CANONICAL_TEXTS[1])
+    expect(byIndex.get(2)).toBe(ORDER_CANONICAL_TEXTS[2])
   })
 
   test('EN1: an unauthenticated caller is rejected', async () => {
