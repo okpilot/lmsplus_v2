@@ -19,6 +19,8 @@
  *        'user not found or inactive' (active-user gate, fires before ownership).
  *  - positive control: the owner reads keys for a completed session seeded with
  *        a real short_answer + dialog_fill question (non-vacuity for EN1-EN4).
+ *  - positive control (ordering, #996): the owner reads per-slot keys for a completed
+ *        session seeded with a real ordering question (blank_index 0/1/2 -> canonical item text).
  *
  * Non-vacuity (code-style.md §7): the positive control seeds real non-MC questions
  * — egmont seeds MC-only, so without this the RPC would return 0 rows for an
@@ -67,8 +69,9 @@ const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
 const EN_DIALOG_FILL_QNUM = `${E2E_REDTEAM_EN_MARKER} dialog-fill`
 const EN_ORDERING_QNUM = `${E2E_REDTEAM_EN_MARKER} ordering`
 
-// NB: '_' in the marker is a LIKE single-char wildcard, but no other E2E fixture
-// shares the [E2E_REDTEAM_EN] namespace, so over-match is impossible here.
+// NB: '_' in the marker is a LIKE single-char wildcard. No other E2E fixture shares the
+// [E2E_REDTEAM_EN] namespace (the EO family diverges at the N/O position, outside the
+// wildcard slots), so no cross-spec over-match occurs today.
 const EN_MARKER_LIKE = `${E2E_REDTEAM_EN_MARKER}%`
 
 const SHORT_ANSWER_CANONICAL = 'cleared to land'
@@ -277,6 +280,22 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     if (error) throw new Error(`seed answers: ${error.message}`)
   }
 
+  // Seed per-slot ordering answers so get_report_answer_keys' ordering branch (JOIN on
+  // quiz_session_answers) returns rows. response_text is the item id at that slot.
+  const seedOrderingAnswers = async (sessionId: string, questionId: string): Promise<void> => {
+    const answerRows = ORDER_ITEMS.map((item, i) => ({
+      session_id: sessionId,
+      question_id: questionId,
+      selected_option_id: null,
+      response_text: item.id,
+      blank_index: i,
+      is_correct: true,
+      response_time_ms: 5000,
+    }))
+    const { error } = await admin.from('quiz_session_answers').insert(answerRows)
+    if (error) throw new Error(`ordering answer seed failed: ${error.message}`)
+  }
+
   test.afterEach(async () => {
     // Soft-delete only the sessions; the immutable quiz_session_answers rows are
     // never hard-deleted and cannot pollute other specs once their session is
@@ -302,6 +321,8 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     // #995: marker-based, crash-resilient cleanup — soft-delete every EN fixture
     // question (questions is soft-deletable) by marker rather than by an in-memory id
     // Set, so a crash mid-run still tears down whatever was inserted.
+    // Guard against admin being undefined if getAdminClient() threw in beforeAll.
+    if (!admin) return
     const { data: deletedQ, error } = await admin
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
@@ -366,17 +387,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       questionIds: [orderingQuestionId],
     })
     // #996: get_report_answer_keys JOINs quiz_session_answers, so per-slot answer rows are REQUIRED
-    const answerRows = ORDER_ITEMS.map((item, i) => ({
-      session_id: sessionId,
-      question_id: orderingQuestionId,
-      selected_option_id: null,
-      response_text: item.id,
-      blank_index: i,
-      is_correct: true,
-      response_time_ms: 5000,
-    }))
-    const { error: ansErr } = await admin.from('quiz_session_answers').insert(answerRows)
-    if (ansErr) throw new Error(`ordering answer seed failed: ${ansErr.message}`)
+    await seedOrderingAnswers(sessionId, orderingQuestionId)
 
     const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
     expect(error).toBeNull()
