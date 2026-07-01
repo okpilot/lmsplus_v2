@@ -75,6 +75,7 @@ const THREE_QUESTIONS = [
     question_type: 'multiple_choice' as const,
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
   {
     id: Q2_ID,
@@ -87,6 +88,7 @@ const THREE_QUESTIONS = [
     question_type: 'multiple_choice' as const,
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
   {
     id: Q3_ID,
@@ -99,6 +101,7 @@ const THREE_QUESTIONS = [
     question_type: 'multiple_choice' as const,
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
 ]
 

@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CheckNonMcAnswerSchema,
   isDialogFillRpcResult,
+  isOrderingRpcResult,
   isShortAnswerRpcResult,
   toClientBlanks,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
-
-const QID = '00000000-0000-4000-a000-000000000001'
-const SID = '00000000-0000-4000-a000-000000000002'
 
 // ---- isShortAnswerRpcResult -------------------------------------------------
 
@@ -214,6 +211,123 @@ describe('isDialogFillRpcResult', () => {
   })
 })
 
+// ---- isOrderingRpcResult ----------------------------------------------------
+
+describe('isOrderingRpcResult', () => {
+  it('accepts a well-formed ordering RPC row', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['MAYDAY', 'callsign', 'distress'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an empty correct_order array', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: [],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a single-item correct_order', () => {
+    // An ordering canonical order is ≥2 items (the CHECK enforces it); a one-item
+    // correct_order is corrupt RPC data — fail closed rather than grade against it.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['only-step'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a correct_order longer than fifty items', () => {
+    // Upper-bound parity with the submit + draft validators (all `.max(50)`); the
+    // canonical item count is DB-bounded, so >50 is corrupt RPC data.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: Array.from({ length: 51 }, (_, i) => `item-${i}`),
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_order contains a non-string entry', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['a', 42],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_order repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id is a malformed RPC result.
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['a', 'b', 'a'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when blanks is an array (dialog_fill shape)', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: [{ index: 0, is_correct: true, canonical: 'x' }],
+        correct_order: ['a', 'b'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_answer is not null', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: 'leak',
+        blanks: null,
+        correct_order: ['a', 'b'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects null input', () => {
+    expect(isOrderingRpcResult(null)).toBe(false)
+  })
+})
+
 // ---- toRpcBlankAnswers ------------------------------------------------------
 
 describe('toRpcBlankAnswers', () => {
@@ -262,88 +376,5 @@ describe('toClientBlanks', () => {
     expect(result[0]?.index).toBe(5)
     expect(result[0]?.isCorrect).toBe(false)
     expect(result[0]?.canonical).toBe('echo')
-  })
-})
-
-// ---- CheckNonMcAnswerSchema (client-input guardrail) ------------------------
-
-describe('CheckNonMcAnswerSchema', () => {
-  it('accepts a short_answer payload', () => {
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: QID,
-        sessionId: SID,
-        responseText: 'cleared to land',
-      }).success,
-    ).toBe(true)
-  })
-
-  it('accepts a dialog_fill payload', () => {
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: QID,
-        sessionId: SID,
-        blankAnswers: [{ index: 0, text: 'cleared to land' }],
-      }).success,
-    ).toBe(true)
-  })
-
-  it('rejects a mixed payload carrying both responseText and blankAnswers', () => {
-    // `.strict()` on both members stops z.union from stripping the extra key and
-    // silently grading a hybrid as short_answer.
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: QID,
-        sessionId: SID,
-        responseText: 'cleared to land',
-        blankAnswers: [{ index: 0, text: 'cleared to land' }],
-      }).success,
-    ).toBe(false)
-  })
-
-  it('rejects an empty blankAnswers array', () => {
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: QID,
-        sessionId: SID,
-        blankAnswers: [],
-      }).success,
-    ).toBe(false)
-  })
-
-  it('rejects a payload carrying neither answer field', () => {
-    expect(CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID }).success).toBe(
-      false,
-    )
-  })
-
-  it('rejects a non-uuid questionId', () => {
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: 'not-a-uuid',
-        sessionId: SID,
-        responseText: 'x',
-      }).success,
-    ).toBe(false)
-  })
-
-  it('rejects duplicate blank indices', () => {
-    expect(
-      CheckNonMcAnswerSchema.safeParse({
-        questionId: QID,
-        sessionId: SID,
-        blankAnswers: [
-          { index: 0, text: 'a' },
-          { index: 0, text: 'b' },
-        ],
-      }).success,
-    ).toBe(false)
-  })
-
-  it('rejects more than the maximum number of blanks', () => {
-    const blankAnswers = Array.from({ length: 51 }, (_, i) => ({ index: i, text: 'x' }))
-    expect(
-      CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, blankAnswers }).success,
-    ).toBe(false)
   })
 })

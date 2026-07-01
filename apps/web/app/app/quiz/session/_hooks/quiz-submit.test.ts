@@ -79,6 +79,7 @@ function makeAnswers(
         selectedOptionId?: string
         responseText?: string
         blankAnswers?: { index: number; text: string }[]
+        order?: string[]
         responseTimeMs: number
       },
     ]
@@ -281,6 +282,40 @@ describe('submitQuizSession', () => {
         { questionId: Q1_ID, blankIndex: 0, responseText: 'north', responseTimeMs: 2500 },
         { questionId: Q1_ID, blankIndex: 1, responseText: 'south', responseTimeMs: 2500 },
       ],
+    })
+  })
+
+  it('submits an ordering answer as one entry per slot with the item id and slot position', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const orderingMap = makeAnswers([
+      [Q1_ID, { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 }],
+    ])
+
+    await submitQuizSession(SESSION_ID, orderingMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [
+        { questionId: Q1_ID, selectedOptionId: 'item-c', blankIndex: 0, responseTimeMs: 4000 },
+        { questionId: Q1_ID, selectedOptionId: 'item-a', blankIndex: 1, responseTimeMs: 4000 },
+        { questionId: Q1_ID, selectedOptionId: 'item-b', blankIndex: 2, responseTimeMs: 4000 },
+      ],
+    })
+  })
+
+  it('emits no rows for an ordering question with an empty order', async () => {
+    // fanOutOrderingAnswer maps `(a.order ?? [])` — an empty array fans out to zero
+    // entries. The defensive Array.isArray(a.order) branch in fanOutAnswer routes
+    // ordering BEFORE the MC default, so an empty order must NOT produce a bogus
+    // `{ selectedOptionId: undefined }` row.
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const emptyOrderMap = makeAnswers([[Q1_ID, { order: [], responseTimeMs: 2000 }]])
+
+    await submitQuizSession(SESSION_ID, emptyOrderMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [],
     })
   })
 

@@ -23,6 +23,7 @@ const QUESTIONS: SessionQuestion[] = [
     question_type: 'multiple_choice',
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
   {
     id: 'q2',
@@ -38,6 +39,7 @@ const QUESTIONS: SessionQuestion[] = [
     question_type: 'multiple_choice',
     dialog_template: null,
     blanks_safe: null,
+    ordering_items: null,
   },
 ]
 

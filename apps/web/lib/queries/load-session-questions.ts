@@ -11,9 +11,10 @@ type QuizQuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: unknown
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
   dialog_template: string | null
   blanks_safe: unknown
+  ordering_items_shuffled: unknown
 }
 
 type Question = {
@@ -24,12 +25,44 @@ type Question = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
+  ordering_items: { id: string; text: string }[] | null
 }
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
+
+// Element-level guard for the ordering_items_shuffled RPC payload (#998 CR). Array.isArray
+// alone would admit a malformed array whose elements lack string id/text and pass it through
+// as trusted ordering items; this narrows the cast per code-style §5 (pair a cast with a
+// runtime guard). The id/text values are CHECK-enforced server-side (mig 143), so this is
+// defense-in-depth, but it keeps the mapper honest against future RPC drift.
+function isOrderingItem(value: unknown): value is { id: string; text: string } {
+  if (typeof value !== 'object' || value === null) return false
+  const { id, text } = value as { id?: unknown; text?: unknown }
+  // Mirror the DB CHECK (mig 143 is_valid_ordering_items: btrim(id) != '' AND
+  // btrim(text) != '') — a blank id breaks id-keyed grading, a blank text renders
+  // an empty draggable slot. Reject empty/whitespace-only strings, not just non-strings.
+  return (
+    typeof id === 'string' &&
+    id.trim().length > 0 &&
+    typeof text === 'string' &&
+    text.trim().length > 0
+  )
+}
+
+function isOrderingItemArray(value: unknown): value is { id: string; text: string }[] {
+  // length >= 2: an ordering question is a permutation of ≥2 items (mirrors the
+  // `order` `.min(2)` in check-non-mc-answer-schema.ts and the DB CHECK).
+  // Without it, every() is vacuously true on [] / single-item, leaking an
+  // unusable ordering question through this query layer.
+  // Distinct ids: a permutation has no repeats — a duplicate id would break the
+  // id-keyed drag-and-drop rendering downstream (parity with the DB CHECK
+  // is_valid_ordering_items and the quiz-session-validators uniqueness guards).
+  if (!Array.isArray(value) || value.length < 2 || !value.every(isOrderingItem)) return false
+  return new Set(value.map((v) => v.id)).size === value.length
+}
 
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
   const supabase = await createServerSupabaseClient()
@@ -68,6 +101,9 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     question_type: q.question_type,
     dialog_template: q.dialog_template,
     blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
+    ordering_items: isOrderingItemArray(q.ordering_items_shuffled)
+      ? q.ordering_items_shuffled
+      : null,
   }))
 
   // Preserve the order from questionIds

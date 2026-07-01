@@ -17,6 +17,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     handleSelectAnswer,
     handleTextAnswer,
     handleDialogFillAnswer,
+    handleOrderingAnswer,
     clearError: clearAnswerError,
     pendingQuestionIdRef,
   } = useAnswerHandler({
@@ -70,6 +71,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     handleSelectAnswer,
     handleTextAnswer,
     handleDialogFillAnswer,
+    handleOrderingAnswer,
     navigateTo,
     navigate,
     submitted,

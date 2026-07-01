@@ -1,10 +1,14 @@
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { DialogFillReport } from './dialog-fill-report'
 import { OptionsList } from './options-list'
+import { OrderingReport } from './ordering-report'
 import { ShortAnswerReport } from './short-answer-report'
 
 // Renders the per-type answer body for one report question, narrowing the
-// discriminated union to the matching sub-renderer (MC / short_answer / dialog_fill).
+// discriminated union to the matching sub-renderer (MC / short_answer /
+// ordering / dialog_fill). Each of the four variants has its own explicit
+// guard; the trailing `never` exhaustiveness check causes a compile-time error
+// if a future QuizReportQuestion variant is added without a matching branch.
 export function ReportAnswerBody({ question }: { question: QuizReportQuestion }) {
   if (question.questionType === 'multiple_choice') {
     return (
@@ -24,11 +28,24 @@ export function ReportAnswerBody({ question }: { question: QuizReportQuestion })
       />
     )
   }
-  return (
-    <DialogFillReport
-      blanks={question.blanks}
-      correctCount={question.correctCount}
-      totalBlanks={question.totalBlanks}
-    />
-  )
+  if (question.questionType === 'ordering') {
+    return (
+      <OrderingReport
+        slots={question.slots}
+        correctCount={question.correctCount}
+        totalItems={question.totalItems}
+      />
+    )
+  }
+  if (question.questionType === 'dialog_fill') {
+    return (
+      <DialogFillReport
+        blanks={question.blanks}
+        correctCount={question.correctCount}
+        totalBlanks={question.totalBlanks}
+      />
+    )
+  }
+  const _exhaustive: never = question
+  return _exhaustive
 }

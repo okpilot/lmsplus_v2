@@ -87,6 +87,57 @@ describe('isValidDraftAnswer', () => {
     ).toBe(true)
   })
 
+  it('accepts an ordering draft carrying an order array of item ids', () => {
+    expect(
+      isValidDraftAnswer({ order: ['item-a', 'item-b', 'item-c'], responseTimeMs: 1500 }),
+    ).toBe(true)
+  })
+
+  it('rejects an ordering draft with an empty order array', () => {
+    expect(isValidDraftAnswer({ order: [], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects an ordering draft with a single-item order (min 2 required)', () => {
+    // An ordering question always has ≥2 items; a one-item saved order is either
+    // corrupt data or a truncated submit — reject it (CR finding #10).
+    expect(isValidDraftAnswer({ order: ['item-a'], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects an ordering draft whose order contains an empty string', () => {
+    expect(isValidDraftAnswer({ order: ['item-a', ''], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects an ordering draft whose order repeats an item id', () => {
+    // A submitted order is a permutation — a duplicate id means a tampered/corrupt draft.
+    expect(
+      isValidDraftAnswer({ order: ['item-a', 'item-b', 'item-a'], responseTimeMs: 1500 }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering draft whose order exceeds fifty items', () => {
+    // Upper-bound parity with the save schema (.max(50)) and the RPC guard — a
+    // tampered localStorage blob with >50 ids must not load as a valid draft.
+    const order = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('accepts an ordering draft with exactly fifty items (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    const order = Array.from({ length: 50 }, (_, i) => `item-${i}`)
+    expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(true)
+  })
+
+  it('rejects a hybrid draft carrying both an order array and a selected option', () => {
+    expect(
+      isValidDraftAnswer({
+        order: ['item-a', 'item-b'],
+        selectedOptionId: 'opt-a',
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects a draft with no answer payload at all', () => {
     expect(isValidDraftAnswer({ responseTimeMs: 1500 })).toBe(false)
   })
@@ -248,6 +299,97 @@ describe('isValidFeedbackEntry', () => {
         explanationImageUrl: null,
       }),
     ).toBe(true)
+  })
+
+  it('accepts an ordering feedback entry with the revealed canonical order', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY', 'callsign', 'distress'],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an ordering feedback entry with an empty correctOrder array', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: [],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry with only one item in correctOrder (min 2 required)', () => {
+    // An ordering question always has ≥2 items — four-way parity with the save schema
+    // (.min(2)), the RPC guard, and the DB-load path. A single-item array is corrupt.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY'],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder contains an empty string', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY', ''],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder exceeds fifty items', () => {
+    // Upper-bound parity with the save schema (.max(50)) and the RPC guard — a
+    // tampered sessionStorage feedback blob with >50 ids must not rehydrate.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: Array.from({ length: 51 }, (_, i) => `item-${i}`),
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('accepts an ordering feedback entry with exactly fifty items in correctOrder (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: Array.from({ length: 50 }, (_, i) => `item-${i}`),
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id means a corrupt entry.
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY', 'callsign', 'MAYDAY'],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
   })
 
   it('rejects a feedback entry with an unknown questionType tag', () => {

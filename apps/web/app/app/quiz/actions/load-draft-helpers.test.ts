@@ -97,6 +97,154 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(rowToDraftData(buildRow({ feedback })).feedback).toEqual(feedback)
   })
 
+  it('preserves already-tagged ordering feedback on resume', () => {
+    // Sibling-validator parity with the sessionStorage rehydrate + save paths:
+    // a draft carrying ordering feedback must round-trip, not be silently dropped.
+    const feedback = {
+      q1: {
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY MAYDAY MAYDAY', 'callsign and position', 'nature of emergency'],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+    expect(rowToDraftData(buildRow({ feedback })).feedback).toEqual(feedback)
+  })
+
+  it('rejects an ordering entry whose correctOrder array is empty', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: [],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry with a non-string element in correctOrder', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: ['step one', 42],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry whose correctOrder contains an empty string', () => {
+    // Sibling-validator parity: toFeedbackEntry's ordering branch checks
+    // s.length > 0 on every element, matching isValidFeedbackEntry in
+    // quiz-session-validators.ts. An empty string is distinct from a non-string
+    // and must be rejected by its own guard.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: false,
+            correctOrder: ['MAYDAY', ''],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry whose correctOrder exceeds fifty items', () => {
+    // Upper-bound parity (.max(50)) with the save schema, the RPC guard, and the
+    // sessionStorage rehydrate path — a tampered DB draft with >50 ids is voided on load.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: Array.from({ length: 51 }, (_, i) => `step-${i}`),
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('preserves ordering feedback with exactly fifty items in correctOrder (upper boundary)', () => {
+    // 50 is the inclusive upper bound — the 51-item rejection test alone does not
+    // prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    const correctOrder = Array.from({ length: 50 }, (_, i) => `step-${i}`)
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder,
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback?.q1).toMatchObject({ questionType: 'ordering', correctOrder })
+  })
+
+  it('rejects an ordering entry whose correctOrder has only one item', () => {
+    // Four-way parity: min-2 guard in isValidFeedbackEntry (sessionStorage rehydrate),
+    // the save schema (draft-schema .min(2)), the RPC guard, and toFeedbackEntry here.
+    // A single-item correctOrder is corrupt data — voided on load so resume is clean.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: ['only-step'],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry whose correctOrder repeats an id', () => {
+    // A canonical order is a permutation — a duplicate id is corrupt data, voided on
+    // load (parity with isValidFeedbackEntry rehydrate, the RPC guard, and the save schema).
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: true,
+            correctOrder: ['step-a', 'step-b', 'step-a'],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
   it('returns undefined feedback when the column is null', () => {
     expect(rowToDraftData(buildRow({ feedback: null })).feedback).toBeUndefined()
   })

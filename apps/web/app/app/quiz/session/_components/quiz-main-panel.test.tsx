@@ -47,6 +47,7 @@ vi.mock('./quiz-tab-content', () => ({
 // Fixed payloads the mock inputs fire so a handler swap (text vs dialog) is detectable.
 const SHORT_ANSWER_PAYLOAD = 'cleared to land'
 const DIALOG_FILL_PAYLOAD = [{ index: 0, text: 'alpha' }]
+const ORDERING_PAYLOAD = ['b', 'a']
 
 vi.mock('./short-answer-input', () => ({
   ShortAnswerInput: ({
@@ -114,6 +115,46 @@ vi.mock('./dialog-fill-input', () => ({
   ),
 }))
 
+vi.mock('./ordering-input', () => ({
+  OrderingInput: ({
+    items,
+    onSubmit,
+    disabled,
+    submitting,
+    submitted,
+    submittedOrder,
+  }: {
+    items: { id: string; text: string }[]
+    onSubmit: (order: string[]) => void
+    disabled: boolean
+    submitting?: boolean
+    submitted?: boolean
+    correctOrder?: string[]
+    submittedOrder?: string[]
+  }) => (
+    <div
+      data-testid="ordering-input"
+      data-disabled={String(disabled)}
+      data-submitting={String(submitting ?? false)}
+      data-submitted={String(submitted ?? false)}
+      data-submitted-order={JSON.stringify(submittedOrder ?? null)}
+      data-items={JSON.stringify(items.map((it) => it.id))}
+    >
+      <button
+        type="button"
+        data-testid="ordering-submit"
+        disabled={disabled || submitted}
+        onClick={() => {
+          if (disabled || submitted) return
+          onSubmit(ORDERING_PAYLOAD)
+        }}
+      >
+        submit
+      </button>
+    </div>
+  ),
+}))
+
 // ---- Subject under test ----------------------------------------------------
 
 import { QuizMainPanel } from './quiz-main-panel'
@@ -131,6 +172,7 @@ function makeState(overrides: Partial<QuizState> = {}): QuizState {
       explanation_text: null,
       explanation_image_url: null,
       options: [{ id: 'a', text: 'A force' }],
+      question_type: 'multiple_choice',
     },
     questionId: 'q1',
     answeredCount: 0,
@@ -144,6 +186,7 @@ function makeState(overrides: Partial<QuizState> = {}): QuizState {
     handleSelectAnswer: vi.fn(),
     handleTextAnswer: vi.fn(),
     handleDialogFillAnswer: vi.fn(),
+    handleOrderingAnswer: vi.fn(),
     navigateTo: vi.fn(),
     navigate: vi.fn(),
     togglePin: vi.fn(),
@@ -256,6 +299,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -278,6 +322,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         handleTextAnswer,
       } as Partial<QuizState>)
@@ -300,6 +345,7 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
         },
         handleDialogFillAnswer,
       } as Partial<QuizState>)
@@ -321,12 +367,128 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
       expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+    })
+
+    it('shows a sortable list for an ordering question', () => {
+      const s = makeState({
+        question: {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: '050-01-01-004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: [
+            { id: 'a', text: 'first' },
+            { id: 'b', text: 'second' },
+          ],
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('ordering-input')).toBeInTheDocument()
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
+    })
+
+    it('submits the chosen item order for an ordering question', async () => {
+      const handleOrderingAnswer = vi.fn()
+      const s = makeState({
+        question: {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: '050-01-01-004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: [
+            { id: 'a', text: 'first' },
+            { id: 'b', text: 'second' },
+          ],
+        },
+        handleOrderingAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      await userEvent.click(screen.getByTestId('ordering-submit'))
+      expect(handleOrderingAnswer).toHaveBeenCalledWith(['b', 'a'])
+    })
+
+    it('locks ordering submission when an answer already exists', async () => {
+      const handleOrderingAnswer = vi.fn()
+      const s = makeState({
+        question: {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: '050-01-01-004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: [
+            { id: 'a', text: 'first' },
+            { id: 'b', text: 'second' },
+          ],
+        },
+        existingAnswer: { order: ['a', 'b'], responseTimeMs: 700 },
+        handleOrderingAnswer,
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
+      // The prior arrangement must be forwarded so the per-slot badges align on revisit.
+      expect(screen.getByTestId('ordering-input')).toHaveAttribute(
+        'data-submitted-order',
+        JSON.stringify(['a', 'b']),
+      )
+      // The lock must actually prevent submission, not just flip the flag: clicking the
+      // (now-disabled) submit must not fire the handler for an already-answered question.
+      await userEvent.click(screen.getByTestId('ordering-submit'))
+      expect(handleOrderingAnswer).not.toHaveBeenCalled()
+    })
+
+    it('renders an ordering question with its item ids in the delivered order', () => {
+      // Regression guard: the mock previously ignored `items`, so QuizMainPanel
+      // could render an empty list and all existing tests would still pass. The
+      // data-items attribute now exposes the rendered ids so this gap is visible.
+      const s = makeState({
+        question: {
+          id: 'q-ord',
+          question_text: 'Order the MAYDAY call',
+          question_image_url: null,
+          question_number: '050-01-01-004',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'ordering',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: [
+            { id: 'a', text: 'first' },
+            { id: 'b', text: 'second' },
+          ],
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      // The item ids from question.ordering_items must reach OrderingInput unchanged.
+      expect(screen.getByTestId('ordering-input').getAttribute('data-items')).toBe(
+        JSON.stringify(['a', 'b']),
+      )
     })
 
     it('shows multiple-choice options for a multiple_choice question', () => {
@@ -342,12 +504,36 @@ describe('QuizMainPanel', () => {
           question_type: 'multiple_choice',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('answer-options')).toBeInTheDocument()
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
       expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
+    })
+
+    it('fails closed with an unsupported-type message for an unknown question type', () => {
+      // A type not yet wired into AnswerInput (e.g. a future diagram_label, or loader
+      // drift) must not be reinterpreted as MC and submit an MC-shaped payload.
+      const s = makeState({
+        question: {
+          id: 'q-future',
+          question_text: 'A not-yet-supported question',
+          question_image_url: null,
+          question_number: '050-01-01-099',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items: null,
+        },
+      } as unknown as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByRole('alert')).toHaveTextContent('not yet supported')
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
     })
 
     it('shows the short-answer loading state while a per-answer check is in flight', () => {
@@ -363,6 +549,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         answering: true,
         submitting: false,
@@ -388,6 +575,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         existingAnswer: { responseText: 'cleared', responseTimeMs: 400 },
         currentFeedback: {
@@ -418,6 +606,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
         currentFeedback: {
           questionType: 'multiple_choice',
@@ -446,6 +635,7 @@ describe('QuizMainPanel', () => {
           question_type: 'short_answer',
           dialog_template: null,
           blanks_safe: null,
+          ordering_items: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -468,6 +658,7 @@ describe('QuizMainPanel', () => {
           question_type: 'dialog_fill',
           dialog_template: '[atc] {{0}}.',
           blanks_safe: [{ index: 0 }],
+          ordering_items: null,
         },
         existingAnswer: {
           blankAnswers: [{ index: 0, text: 'alpha' }],

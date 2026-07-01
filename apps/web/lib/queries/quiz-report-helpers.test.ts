@@ -65,4 +65,38 @@ describe('buildAnswerKeyMap', () => {
     expect(map.get('q1')?.type).toBe('short_answer')
     expect(map.get('q2')?.type).toBe('dialog_fill')
   })
+
+  it('collapses ordering slot rows into a per-position canonical map', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q4', question_type: 'ordering', blank_index: 0, answer_key: 'mayday' },
+      { question_id: 'q4', question_type: 'ordering', blank_index: 1, answer_key: 'position' },
+    ]
+    const entry = buildAnswerKeyMap(rows).get('q4')
+    expect(entry?.type).toBe('ordering')
+    if (entry?.type !== 'ordering') throw new Error('expected ordering entry')
+    expect(entry.canonicalBySlot.get(0)).toBe('mayday')
+    expect(entry.canonicalBySlot.get(1)).toBe('position')
+  })
+
+  it('omits an ordering slot whose index or key is null', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q5', question_type: 'ordering', blank_index: 0, answer_key: 'mayday' },
+      { question_id: 'q5', question_type: 'ordering', blank_index: null, answer_key: 'x' },
+      { question_id: 'q5', question_type: 'ordering', blank_index: 1, answer_key: null },
+    ]
+    const entry = buildAnswerKeyMap(rows).get('q5')
+    if (entry?.type !== 'ordering') throw new Error('expected ordering entry')
+    expect(entry.canonicalBySlot.size).toBe(1)
+    expect(entry.canonicalBySlot.get(0)).toBe('mayday')
+  })
+
+  it('keeps ordering and dialog-fill keys separate in one pass', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q2', question_type: 'dialog_fill', blank_index: 0, answer_key: 'wilco' },
+      { question_id: 'q4', question_type: 'ordering', blank_index: 0, answer_key: 'mayday' },
+    ]
+    const map = buildAnswerKeyMap(rows)
+    expect(map.get('q2')?.type).toBe('dialog_fill')
+    expect(map.get('q4')?.type).toBe('ordering')
+  })
 })

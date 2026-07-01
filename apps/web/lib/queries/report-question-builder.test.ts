@@ -606,6 +606,24 @@ const dialogQuestion: QuizReportQuestion = {
   responseTimeMs: 3000,
 }
 
+const orderingQuestion: QuizReportQuestion = {
+  questionId: 'q4',
+  questionText: 'Order the distress call.',
+  questionNumber: null,
+  questionType: 'ordering',
+  isCorrect: false,
+  slots: [
+    { position: 0, responseText: 'mayday', canonicalText: 'mayday', isCorrect: true },
+    { position: 1, responseText: null, canonicalText: 'position', isCorrect: false },
+  ],
+  correctCount: 1,
+  totalItems: 2,
+  explanationText: null,
+  explanationImageUrl: null,
+  questionImageUrl: null,
+  responseTimeMs: 4000,
+}
+
 describe('isQuestionAnswered', () => {
   it('treats a multiple-choice selection that matches an option as answered', () => {
     expect(isQuestionAnswered(mcQuestion)).toBe(true)
@@ -631,6 +649,18 @@ describe('isQuestionAnswered', () => {
     const empty: QuizReportQuestion = {
       ...dialogQuestion,
       blanks: [{ index: 0, responseText: null, canonical: 'x', isCorrect: false }],
+    }
+    expect(isQuestionAnswered(empty)).toBe(false)
+  })
+
+  it('treats an ordering question with at least one placed item as answered', () => {
+    expect(isQuestionAnswered(orderingQuestion)).toBe(true)
+  })
+
+  it('treats an ordering question with every slot empty as unanswered', () => {
+    const empty: QuizReportQuestion = {
+      ...orderingQuestion,
+      slots: [{ position: 0, responseText: null, canonicalText: 'mayday', isCorrect: false }],
     }
     expect(isQuestionAnswered(empty)).toBe(false)
   })

@@ -115,6 +115,7 @@ function makeQuestions() {
       question_type: 'multiple_choice' as const,
       dialog_template: null,
       blanks_safe: null,
+      ordering_items: null,
     },
     {
       id: 'q2',
@@ -127,6 +128,7 @@ function makeQuestions() {
       question_type: 'multiple_choice' as const,
       dialog_template: null,
       blanks_safe: null,
+      ordering_items: null,
     },
   ]
 }

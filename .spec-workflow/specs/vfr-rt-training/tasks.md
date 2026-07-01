@@ -112,10 +112,23 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 5 — `ordering` type (Part 3 sequencing)
 
-- [ ] **5.1 Add dnd-kit** — add dependency to `apps/web`; document the choice (touch/iPad) in decisions. Run `pnpm check-types --force` after the bump.
-- [ ] **5.2 Migration — `ordering` type** — widen `questions_question_type_check` IN-list + `questions_question_type_columns_check`; add `ordering_items JSONB` (canonical order). Extend `get_quiz_questions` to deliver items **shuffled** (no order leak); extend grader (sequence match) + `batch_submit_quiz` (persist order) + `get_report_correct_options` (reveal order). Confirm whether `ordering_items` needs REVOKE. Integration tests + plan.md count.
-- [ ] **5.3 `OrderingInput` (dnd-kit sortable) + `OrderingReport` (+ tests)**; dispatch entries in panel + report row; widen `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions.
-- [ ] **5.4 Seed ordering fixtures** (MAYDAY + position-report) in the training seed.
+> **DEVIATION FROM N7 (ratified — Decision 51, 2026-06-25).** N7 said ordering stores ONE JSON
+> row per question. It instead stores **PER-SLOT rows like dialog_fill** (one row per sequence slot,
+> `blank_index`=slot, `response_text`=item text, `is_correct` per slot). Reason: a single binary
+> `is_correct` row cannot express the partial credit Decision 47 requires through the
+> `batch_submit_quiz` `count(correct rows)/total_blanks` rollup; per-slot rows reuse the entire
+> proven dialog_fill pipeline (rollup `total_blanks` CASE only), report builder, answer-key RPC,
+> pagination. Required widening the mig-131 blank_index⇔dialog_fill trigger to include `ordering`
+> (a new migration the original plan missed — caught by Opus plan-critic). Migration set (7,
+> renumbered past the master merge): 143 column+CHECK, 144 trigger, 145
+> get_quiz_questions(+ordering_items_shuffled), 146 check_non_mc_answer(+p_order), 147
+> _grade_record_ordering helper, 148 batch_submit_quiz dispatch, 149 get_report_answer_keys.
+> `ordering_items` is REVOKE-gated by omission from mig 094's grant (N6).
+
+- [x] **5.1 Add dnd-kit** — add dependency to `apps/web`; document the choice (touch/iPad) in decisions. Run `pnpm check-types --force` after the bump. _(@dnd-kit/core+sortable+utilities; Decision 50; check-types --force clean; commit a7c55e2f.)_
+- [x] **5.2 Migration — `ordering` type** — migs 143–149 (column+4-branch CHECK, mig-131 trigger widened, get_quiz_questions+ordering_items_shuffled shuffled, check_non_mc_answer+p_order, _grade_record_ordering REVOKE-helper, batch_submit_quiz dispatch+partial-credit rollup, get_report_answer_keys+ordering branch). `ordering_items` REVOKE-gated by omission (N6). Per-slot rows (Decision 51 / N7 deviation). +28 integration tests (3-of-5→60%; trigger; helper REVOKE), +304 unit; plan.md 220→248. Commits 124fa73f + 74fb7364. _(2 Opus plan-critic rounds + Opus impl-critic; post-commit fleet clean; red-team gap → #996.)_
+- [x] **5.3 `OrderingInput` (dnd-kit sortable) + `OrderingReport` (+ tests)**; dispatch entries in panel + report row; widen `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions. _(AnswerInput dispatcher split out of quiz-main-panel; id-vs-text reveal contract; submittedOrder restore-on-revisit; report builder + ordering-report. Commits d8a6e7c3 + 517b066a; CR-local r1–r4 + post-commit fixes 0a9ff0f3/3a58c471/d051d50a/b63b47a1/30131d83.)_
+- [x] **5.4 Seed ordering fixtures** (MAYDAY + position-report) in the training seed. _(seed-vfr-rt-training-eval.ts; commit c00c3bee.)_
   - _Eval:_ drag-to-order MAYDAY/position end-to-end (answer → feedback → report).
 
 ## Phase 6 — `diagram_label` type (Part 3 traffic pattern)

@@ -55,6 +55,15 @@ const DF_SUCCESS = {
   explanationImageUrl: null,
 }
 
+const ORD_SUCCESS = {
+  success: true as const,
+  questionType: 'ordering' as const,
+  isCorrect: true,
+  correctOrder: ['mayday', 'callsign', 'intentions'],
+  explanationText: null,
+  explanationImageUrl: null,
+}
+
 // ---- Helpers ---------------------------------------------------------------
 
 function makeHandlers() {
@@ -370,5 +379,86 @@ describe('recordAnswerFeedback', () => {
       expect(stored.blanks).toHaveLength(1)
       expect(stored.blanks[0]?.canonical).toBe('27')
     }
+  })
+})
+
+// ---- buildAnswerHandlers — handleOrderingAnswer -----------------------------
+
+describe('buildAnswerHandlers — handleOrderingAnswer', () => {
+  const ORDER_PAYLOAD = ['a', 'b', 'c']
+
+  it('stores the submitted ordering for the current question', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(ORD_SUCCESS)
+    const { handlers, capturedAttempts } = makeHandlers()
+
+    await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
+
+    expect(capturedAttempts).toHaveLength(1)
+    expect(capturedAttempts[0]?.draft).toMatchObject({ order: ORDER_PAYLOAD })
+  })
+
+  it('checks the submitted ordering for the current question', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(ORD_SUCCESS)
+    const { handlers } = makeHandlers()
+
+    await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
+
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
+      questionId: Q_ID,
+      sessionId: SESSION_ID,
+      order: ORDER_PAYLOAD,
+    })
+  })
+
+  it('returns ordering feedback with the canonical order', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(ORD_SUCCESS)
+    let capturedResult: AnswerFeedback | null = null
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      capturedResult = await input.check(Q_ID)
+      return true
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
+
+    expect(capturedResult).not.toBeNull()
+    expect((capturedResult as AnswerFeedback | null)?.questionType).toBe('ordering')
+    expect((capturedResult as AnswerFeedback | null)?.isCorrect).toBe(true)
+    const correctOrder = (capturedResult as { correctOrder?: string[] } | null)?.correctOrder
+    expect(correctOrder).toEqual(['mayday', 'callsign', 'intentions'])
+  })
+
+  it('fails the submission when validation is unsuccessful', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      return false
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
+  })
+
+  it('rejects non-ordering feedback results', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue({ ...ORD_SUCCESS, questionType: 'short_answer' })
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      return false
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
   })
 })

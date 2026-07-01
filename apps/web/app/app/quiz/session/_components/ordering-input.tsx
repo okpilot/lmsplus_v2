@@ -1,0 +1,140 @@
+'use client'
+
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { type OrderingItem, orderFromSubmitted } from './ordering-input-helpers'
+import { OrderingInputItem } from './ordering-input-item'
+
+type OrderingInputProps = Readonly<{
+  /** Items in the server-shuffled delivery order — the student's starting sequence. */
+  items: OrderingItem[]
+  onSubmit: (order: string[]) => void
+  /** Disabled while a session-level submit is in flight. */
+  disabled: boolean
+  /** True only while this answer is being checked — drives the spinner. */
+  submitting?: boolean
+  /** Whether an answer has been submitted (locks dragging + drives reveal). */
+  submitted?: boolean
+  /** Canonical order (item ids) once submitted, used to mark each slot. Ids are
+   *  compared (unambiguous); the correct item's display text is resolved locally
+   *  from `items`. */
+  correctOrder?: string[]
+  /** The student's previously submitted id sequence. On revisiting an answered
+   *  question the runner remounts with `items` in delivery (shuffled) order; this
+   *  restores the student's arrangement so the per-slot badges align correctly. */
+  submittedOrder?: string[]
+}>
+
+export function OrderingInput({
+  items,
+  onSubmit,
+  disabled,
+  submitting = false,
+  submitted = false,
+  correctOrder,
+  submittedOrder,
+}: OrderingInputProps) {
+  const [order, setOrder] = useState<OrderingItem[]>(() =>
+    orderFromSubmitted(items, submitted, submittedOrder),
+  )
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const locked = submitted
+  const graded = locked && correctOrder != null
+  // Compare by id (the grader reveals canonical ids); map ids back to display text.
+  const idToText = new Map(items.map((it) => [it.id, it.text]))
+  const allCorrect = graded && order.every((it, i) => it.id === correctOrder[i])
+
+  function handleDragEnd(event: DragEndEvent) {
+    // Defense-in-depth: a touch begun before the RPC resolved can still fire
+    // onDragEnd after `submitting` flips true (TouchSensor has a 250ms activation
+    // delay), so ignore drops once locked or mid-check — the displayed order must
+    // not diverge from the sequence the server actually graded. Also bail when the
+    // parent flips `disabled` (session submit in flight) mid-drag — same freeze
+    // intent as the item-level `disabled` on OrderingInputItem below.
+    if (locked || disabled || submitting) return
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setOrder((prev) => {
+      const from = prev.findIndex((it) => it.id === active.id)
+      const to = prev.findIndex((it) => it.id === over.id)
+      if (from === -1 || to === -1) return prev
+      return arrayMove(prev, from, to)
+    })
+  }
+
+  function handleSubmit() {
+    onSubmit(order.map((it) => it.id))
+  }
+
+  function slotResult(index: number): 'correct' | 'incorrect' | undefined {
+    if (!graded) return undefined
+    return order[index]?.id === correctOrder[index] ? 'correct' : 'incorrect'
+  }
+
+  return (
+    <div className="space-y-3">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={order.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+          <ol className="space-y-2">
+            {order.map((it, i) => (
+              <OrderingInputItem
+                key={it.id}
+                id={it.id}
+                text={it.text}
+                // Also lock during `submitting`: reordering mid-check would make the
+                // post-result badges (slotResult/canonical) compare a sequence the
+                // server never graded, so the reveal would disagree with is_correct.
+                disabled={locked || disabled || submitting}
+                result={slotResult(i)}
+                canonical={graded ? idToText.get(correctOrder[i] ?? '') : undefined}
+              />
+            ))}
+          </ol>
+        </SortableContext>
+      </DndContext>
+
+      {graded && (
+        <p data-testid="ordering-result" role="status" aria-live="polite" className="sr-only">
+          {allCorrect ? 'Correct' : 'Incorrect'}
+        </p>
+      )}
+
+      {!locked && (
+        <button
+          type="button"
+          disabled={disabled || submitting}
+          aria-busy={submitting || undefined}
+          onClick={handleSubmit}
+          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          <span className="inline-flex items-center justify-center gap-2">
+            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            Submit Answer
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}

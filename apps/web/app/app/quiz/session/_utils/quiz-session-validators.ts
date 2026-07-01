@@ -33,11 +33,29 @@ export function isValidDraftAnswer(v: unknown): boolean {
   const hasSelectedOption = r.selectedOptionId !== undefined
   const hasResponseText = r.responseText !== undefined
   const hasBlankAnswers = r.blankAnswers !== undefined
-  if ([hasSelectedOption, hasResponseText, hasBlankAnswers].filter(Boolean).length !== 1) {
+  const hasOrder = r.order !== undefined
+  if (
+    [hasSelectedOption, hasResponseText, hasBlankAnswers, hasOrder].filter(Boolean).length !== 1
+  ) {
     return false
   }
   if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
   if (hasResponseText) return isNonEmptyString(r.responseText)
+  if (hasOrder) {
+    // An ordering question always has ≥2 items, so a submitted order is ≥2 — parity
+    // with the save schema (draft-schema `order: z.array(...).min(2)`). The ids form a
+    // permutation, so they must be unique — parity with the save-schema `.refine`
+    // (a tampered/corrupt draft could carry duplicate ids the save path rejects).
+    return (
+      Array.isArray(r.order) &&
+      r.order.length >= 2 &&
+      // Upper-bound parity with the RPC guard (isOrderingRpcResult) and the save
+      // schema (OrderingInput .max(50)) — a tampered draft with >50 ids is corrupt.
+      r.order.length <= 50 &&
+      r.order.every(isNonEmptyString) &&
+      new Set(r.order).size === r.order.length
+    )
+  }
   return isValidBlankAnswers(r.blankAnswers)
 }
 
@@ -76,6 +94,21 @@ export function isValidFeedbackEntry(v: unknown): boolean {
       return isNullableString(r.correctAnswer)
     case 'dialog_fill':
       return isValidDialogFillFeedback(r.blanks)
+    case 'ordering':
+      return (
+        Array.isArray(r.correctOrder) &&
+        // An ordering question always has ≥2 items, so the canonical order is ≥2
+        // — four-way parity with the save schema (draft-schema .min(2)), the RPC
+        // guard (isOrderingRpcResult) and the DB-load path (toFeedbackEntry).
+        r.correctOrder.length >= 2 &&
+        // Upper-bound parity with the same family (.max(50)) — a tampered
+        // sessionStorage feedback blob with >50 ids is corrupt.
+        r.correctOrder.length <= 50 &&
+        r.correctOrder.every(isNonEmptyString) &&
+        // A canonical order is a permutation — ids must be unique (parity with the
+        // RPC guard isOrderingRpcResult and the save-schema .refine).
+        new Set(r.correctOrder).size === r.correctOrder.length
+      )
     default:
       return false
   }

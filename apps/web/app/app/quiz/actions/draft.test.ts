@@ -408,6 +408,188 @@ describe('saveDraft', () => {
     expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
   })
 
+  it('persists an ordering answer + feedback on save', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const answers = {
+      [Q1_ID]: { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 },
+    }
+    const feedbackPayload = {
+      [Q1_ID]: {
+        questionType: 'ordering',
+        isCorrect: false,
+        correctOrder: ['MAYDAY', 'callsign', 'distress'],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, answers, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg!.answers).toEqual(answers)
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('rejects an ordering answer carrying fewer than two items', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order: ['item-a'], responseTimeMs: 4000 } },
+    })
+    // Assert the exact validation-rejection shape (matches the neighboring cases) —
+    // a bare success:false also passes on auth/lookup failures, so it wouldn't catch
+    // a regression where ordering validation stops being the rejection path.
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering answer with duplicate item ids', async () => {
+    // The .refine() on SaveDraftInput.answers.order enforces unique ids —
+    // a permutation cannot repeat the same item (CR finding #3).
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { order: ['item-a', 'item-b', 'item-a'], responseTimeMs: 4000 },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('accepts a valid ordering answer whose ids are all unique', async () => {
+    // Positive control for the duplicate-id .refine() guard.
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 },
+      },
+    })
+    expect(result).toEqual({ success: true })
+    expect((capturedInsertArg!.answers as Record<string, unknown>)[Q1_ID]).toMatchObject({
+      order: ['item-c', 'item-a', 'item-b'],
+    })
+  })
+
+  it('rejects an ordering answer with more than 50 items', async () => {
+    // Mirrors the answers.blankAnswers .max(50) cap — parity for ordering.
+    setupAuthenticatedUser()
+    const order = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order, responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering answer containing an item id longer than 200 characters', async () => {
+    // Mirrors the answers.blankAnswers text .max(200) cap — parity for ordering item ids.
+    setupAuthenticatedUser()
+    const longId = 'a'.repeat(201)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order: ['item-a', longId], responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder has fewer than two items', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: true,
+          correctOrder: ['MAYDAY'],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    // Assert the exact validation-rejection shape (matches the neighboring cases) —
+    // a bare success:false also passes on auth/lookup failures, so it wouldn't catch
+    // a regression where ordering-feedback validation stops being the rejection path.
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder exceeds 50 items', async () => {
+    // Parity with "rejects an ordering answer with more than 50 items" — schema comment
+    // documents .max(50) as mirroring the sibling blanks-feedback cap.
+    setupAuthenticatedUser()
+    const correctOrder = Array.from({ length: 51 }, (_, i) => `item-${i}`)
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: true,
+          correctOrder,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering feedback entry with duplicate ids in correctOrder', async () => {
+    // Parity with "rejects an ordering answer with duplicate item ids" — schema comment:
+    // "A canonical order is a permutation — duplicate ids mean corrupt feedback."
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: false,
+          correctOrder: ['MAYDAY', 'callsign', 'MAYDAY'],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined

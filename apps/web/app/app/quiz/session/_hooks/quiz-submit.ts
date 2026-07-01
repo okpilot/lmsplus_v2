@@ -23,6 +23,17 @@ type AnswerEntry = {
   responseTimeMs: number
 }
 
+// ordering: one entry per slot — item id rides in selectedOptionId, the slot
+// position in blankIndex (the batch_submit dispatcher reads them per slot).
+function fanOutOrderingAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
+  return (a.order ?? []).map((id, i) => ({
+    questionId,
+    selectedOptionId: id,
+    blankIndex: i,
+    responseTimeMs: a.responseTimeMs,
+  }))
+}
+
 function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
   if (a.blankAnswers && a.blankAnswers.length > 0) {
     // dialog_fill: fan out one entry per blank
@@ -37,6 +48,10 @@ function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
     // short_answer: single entry with responseText
     return [{ questionId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
   }
+  // ordering: any array (including empty) is an ordering answer — route it here so
+  // an empty order produces zero entries rather than falling through to the MC
+  // default and emitting a bogus `{ selectedOptionId: undefined }`.
+  if (Array.isArray(a.order)) return fanOutOrderingAnswer(questionId, a)
   // MC (default): single entry with selectedOptionId
   return [{ questionId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs }]
 }

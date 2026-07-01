@@ -73,6 +73,7 @@ export function useExamPipeline(opts: {
     handleSelectAnswer,
     handleTextAnswer: noopNonMcHandler,
     handleDialogFillAnswer: noopNonMcHandler,
+    handleOrderingAnswer: noopNonMcHandler,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,

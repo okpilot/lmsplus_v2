@@ -1,0 +1,486 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcResult, requireRpcRows } from './guards'
+import { seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+
+// get_quiz_questions delivers the `ordering` question type (mig 136, #697 Phase 5).
+//
+// An ordering question's answer key IS the canonical array order of
+// questions.ordering_items. mig 136 delivers the items SHUFFLED (ORDER BY random)
+// projecting only {id,text}, NULL for non-ordering rows — the shuffle destroys the
+// canonical sequence and ordering_items itself is REVOKE-gated from `authenticated`
+// by omission from mig 094's column grant (N6). These behaviors only run when the
+// function EXECUTES against real rows; a `db reset` proves only that the body parses.
+
+async function insertQuestion(
+  admin: SupabaseClient,
+  row: Record<string, unknown>,
+): Promise<string> {
+  const { data, error } = await admin.from('questions').insert(row).select('id').single()
+  if (error) throw new Error(`insertQuestion: ${error.message}`)
+  const id = requireRpcResult<{ id: string }>(data, 'insertQuestion').id
+  if (typeof id !== 'string' || id.length === 0) throw new Error('insertQuestion: no id')
+  return id
+}
+
+type OrderingItem = { id: string; text: string }
+
+describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key)', () => {
+  const admin = getAdminClient()
+  let orgId = ''
+  let adminUserId: string
+  let bankId: string
+  let studentClient: SupabaseClient
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
+  const userIds: string[] = []
+  const suffix = Date.now()
+
+  let orderingId: string
+  let mcId: string
+
+  // Canonical sequence = ARRAY ORDER. IDs are OPAQUE (semantic codes, NOT 1..N) so
+  // the id ordering itself cannot leak the canonical sequence (seed invariant, N6).
+  const ORDERING_ITEMS: OrderingItem[] = [
+    { id: 'distress-prefix', text: 'MAYDAY MAYDAY MAYDAY' },
+    { id: 'callsign', text: 'Golf Bravo Charlie' },
+    { id: 'nature', text: 'engine failure' },
+    { id: 'intentions', text: 'forced landing' },
+  ]
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({
+      admin,
+      name: `Test Org OrderQQ ${suffix}`,
+      slug: `test-orderqq-${suffix}`,
+    })
+    adminUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `admin-orderqq-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    userIds.push(adminUserId)
+    const studentId = await createTestUser({
+      admin,
+      orgId,
+      email: `student-orderqq-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'student',
+    })
+    userIds.push(studentId)
+    studentClient = await getAuthenticatedClient({
+      email: `student-orderqq-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `OQ${suffix}`,
+      subjectName: `OrderQQ Subject ${suffix}`,
+      topicCode: `OQ${suffix}-01`,
+      topicName: `OrderQQ Topic ${suffix}`,
+    })
+
+    const { data: bank, error: bankErr } = await admin
+      .from('question_banks')
+      .insert({ organization_id: orgId, name: `OrderQQ Bank ${suffix}`, created_by: adminUserId })
+      .select('id')
+      .single()
+    if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
+    bankId = requireRpcResult<{ id: string }>(bank, 'question_banks insert').id
+
+    const base = {
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs.subjectId,
+      topic_id: refs.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+    }
+
+    orderingId = await insertQuestion(admin, {
+      ...base,
+      question_type: 'ordering',
+      question_text: 'Sequence the distress call',
+      ordering_items: ORDERING_ITEMS,
+      explanation_text: 'Ordering explanation',
+    })
+    mcId = await insertQuestion(admin, {
+      ...base,
+      question_type: 'multiple_choice',
+      question_text: 'MC question',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      correct_option_id: 'a',
+      explanation_text: 'MC explanation',
+    })
+  })
+
+  afterAll(async () => {
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  type QuizQuestionRow = {
+    id: string
+    question_type: string
+    options: unknown
+    dialog_template: string | null
+    blanks_safe: unknown
+    ordering_items_shuffled: unknown
+  }
+
+  async function fetchRow(ids: string[], targetId: string): Promise<QuizQuestionRow> {
+    const { data, error } = await studentClient.rpc('get_quiz_questions', { p_question_ids: ids })
+    expect(error).toBeNull()
+    const rows = requireRpcRows<QuizQuestionRow>(data, 'get_quiz_questions')
+    const row = rows.find((r) => r.id === targetId)
+    if (!row) throw new Error(`row for ${targetId} not in response`)
+    return row
+  }
+
+  it('delivers ordering items as a {id,text} array of the authored length with the other type columns null', async () => {
+    // Non-vacuity: the ordering question exists with its canonical items before probing as student.
+    const { data: exists, error: existsErr } = await admin
+      .from('questions')
+      .select('id')
+      .eq('id', orderingId)
+      .single<{ id: string }>()
+    expect(existsErr).toBeNull()
+    expect(exists?.id).toBe(orderingId)
+
+    const row = await fetchRow([orderingId], orderingId)
+    expect(row.question_type).toBe('ordering')
+    expect(row.options).toBeNull()
+    expect(row.dialog_template).toBeNull()
+    expect(row.blanks_safe).toBeNull()
+
+    if (!Array.isArray(row.ordering_items_shuffled)) {
+      throw new Error('ordering_items_shuffled is not an array')
+    }
+    const items = row.ordering_items_shuffled as Array<Record<string, unknown>>
+    expect(items).toHaveLength(ORDERING_ITEMS.length)
+    // Each delivered item carries ONLY {id,text} — no canonical-order signal beyond
+    // the (shuffleable) array. Every authored id+text is present exactly once.
+    for (const item of items) {
+      expect(Object.keys(item).sort()).toEqual(['id', 'text'])
+    }
+    expect((items as OrderingItem[]).map((i) => i.id).sort()).toEqual(
+      ORDERING_ITEMS.map((i) => i.id).sort(),
+    )
+    expect((items as OrderingItem[]).map((i) => i.text).sort()).toEqual(
+      ORDERING_ITEMS.map((i) => i.text).sort(),
+    )
+    // Security: the delivered order must be SHUFFLED, not canonical — the canonical
+    // sequence IS the answer key. Set equality alone would pass even if the RPC
+    // leaked ordering_items in canonical order. Resample until at least one delivery
+    // differs from canonical (4 items → P(canonical)=1/24; 8 samples → ~5.6e-12).
+    const canonicalIds = ORDERING_ITEMS.map((i) => i.id).join('|')
+    let sawNonCanonical = (items as OrderingItem[]).map((i) => i.id).join('|') !== canonicalIds
+    for (let attempt = 0; attempt < 7 && !sawNonCanonical; attempt++) {
+      const retry = await fetchRow([orderingId], orderingId)
+      if (!Array.isArray(retry.ordering_items_shuffled)) {
+        throw new Error('ordering_items_shuffled is not an array')
+      }
+      sawNonCanonical =
+        (retry.ordering_items_shuffled as OrderingItem[]).map((i) => i.id).join('|') !==
+        canonicalIds
+    }
+    expect(sawNonCanonical).toBe(true)
+    // No raw answer-key column surfaces on the delivered row.
+    expect('ordering_items' in row).toBe(false)
+  })
+
+  it('returns ordering_items_shuffled null for a multiple_choice row', async () => {
+    const row = await fetchRow([mcId], mcId)
+    expect(row.question_type).toBe('multiple_choice')
+    expect(row.ordering_items_shuffled).toBeNull()
+    if (!Array.isArray(row.options)) throw new Error('MC options is not an array')
+  })
+
+  it('never exposes the raw ordering_items answer-key column to an authenticated client', async () => {
+    // ordering_items is an answer key (its array order). mig 094 REVOKEd the blanket
+    // SELECT and re-granted an EXPLICIT column list; a column added after that grant
+    // is excluded, so `authenticated` cannot SELECT it via PostgREST. Direct select
+    // of ordering_items must fail (or omit the column), whereas the service role can.
+    // Positive control (non-vacuity): the student CAN see the row itself via the
+    // tenant_isolation RLS policy (same org), so a missing ordering_items column proves
+    // the COLUMN REVOKE hid the key — not that RLS blocked the whole row.
+    const { data: visibleRows, error: visibleErr } = await studentClient
+      .from('questions')
+      .select('id')
+      .eq('id', orderingId)
+    expect(visibleErr).toBeNull()
+    expect(visibleRows?.some((r) => r.id === orderingId)).toBe(true)
+
+    const { data: studentData, error: studentErr } = await studentClient
+      .from('questions')
+      .select('id, ordering_items')
+      .eq('id', orderingId)
+    // PostgREST raises 42501 (permission denied for column) when a non-granted column
+    // is requested. Either the request errors, or — defensively — the column is absent.
+    if (studentErr) {
+      const code = (studentErr as { code?: string }).code
+      const message = studentErr.message.toLowerCase()
+      expect(
+        code === '42501' ||
+          message.includes('permission denied') ||
+          message.includes('ordering_items'),
+        `unexpected error: ${code}: ${studentErr.message}`,
+      ).toBe(true)
+    } else {
+      // If no error, the row IS visible (positive control above) but the answer-key
+      // column must NOT have leaked — assert the row is present so this isn't vacuous.
+      const rows = (studentData ?? []) as Array<Record<string, unknown>>
+      expect(rows).toHaveLength(1)
+      for (const r of rows) {
+        expect('ordering_items' in r).toBe(false)
+      }
+    }
+
+    // Non-vacuity: the service role (which bypasses the column REVOKE) CAN read it,
+    // proving the column genuinely exists and carries the canonical-order key.
+    const { data: adminData, error: adminErr } = await admin
+      .from('questions')
+      .select('id, ordering_items')
+      .eq('id', orderingId)
+      .single<{ id: string; ordering_items: OrderingItem[] }>()
+    expect(adminErr).toBeNull()
+    expect(adminData?.ordering_items.map((i) => i.id)).toEqual(ORDERING_ITEMS.map((i) => i.id))
+  })
+
+  it('rejects an ordering question whose items contain a duplicate id', async () => {
+    // mig 134 is_valid_ordering_items() CHECK: ordering_items must have non-empty,
+    // DISTINCT ids and non-empty text — the array order is the answer key, so a duplicate
+    // id is a non-permutation that get_quiz_questions could not render or grade. The DB
+    // rejects it at authoring (23514) rather than persist it. Regression guard for the
+    // CHANGE-1 CHECK (#998 CR #452) — without it a refactor dropping the helper from the
+    // columns_check would pass db reset + every CI gate silently.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — duplicate id',
+      ordering_items: [
+        { id: 'dup', text: 'first' },
+        { id: 'dup', text: 'second' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item has blank text', async () => {
+    // Same CHECK: each item needs non-empty text (the rendered label). (#998 CR #452)
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — blank text',
+      ordering_items: [
+        { id: 'a', text: '' },
+        { id: 'b', text: 'Bravo' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item id is not a string', async () => {
+    // mig 134 is_valid_ordering_items() enforces jsonb_typeof(id/text) = 'string'.
+    // `->>` coerces a JSON number to text, so before the string-type check a numeric id
+    // like 42 would have passed as '42'. The app layer treats ids as strings throughout,
+    // so the DB rejects a non-string id at authoring (23514). Regression guard (#998 CR).
+    // The cast feeds a deliberately-malformed payload (number id) past the insert type;
+    // the assertion is on the RPC error, so no result-shape guard is needed here.
+    const malformedItems = [
+      { id: 42, text: 'first' },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-string id',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item text is not a string', async () => {
+    // Symmetric to the non-string-id guard: jsonb_typeof(text) IS DISTINCT FROM 'string'.
+    // `->>` coerces a JSON number to text, so before the type check a numeric text like
+    // 42 would have passed the old blank-only check. Regression guard for the text side
+    // of the typeof clause (#998 CR) — distinct mechanism from the id-side test above.
+    const malformedItems = [
+      { id: 'a', text: 42 },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-string text',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item id is whitespace-only', async () => {
+    // btrim(id) = '' guard: the old coalesce(id,'') = '' check missed '   ' (non-empty raw
+    // string, blank after trim). A whitespace-only id is not a usable stable key. Regression
+    // guard for the btrim clause (#998 CR) — distinct mechanism from the type guards above.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — whitespace-only id',
+      ordering_items: [
+        { id: '   ', text: 'Alpha' },
+        { id: 'b', text: 'Bravo' },
+      ],
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose item is missing the text key', async () => {
+    // Isolates the IS DISTINCT FROM 'string' (not <> 'string') operator choice: a missing
+    // text key makes e->'text' jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string'
+    // is NULL (not counted) — the element would slip through `<>`. IS DISTINCT FROM 'string'
+    // is TRUE for NULL, so it is rejected. Targets `text` (not `id`) on a DISTINCT-id pair so
+    // rejection comes ONLY from the typeof-text clause: the dedup clause keys on id (both
+    // present + distinct → passes) and btrim(NULL)='' is NULL (not counted). Regression guard
+    // for the operator choice — a swap to `<>` would let this row through (#998 CR).
+    const malformedItems = [{ id: 'a' }, { id: 'b', text: 'Bravo' }] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — missing text key',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering question whose ordering_items is a non-array JSON value', async () => {
+    // Totality of the columns_check (#998 CR): a non-array ordering_items (here a JSON
+    // object) must fail the CHECK cleanly with 23514 — NOT raise a raw 22023 from an
+    // unguarded jsonb_array_length. The branch emptiness checks use `= '[]'::jsonb` and
+    // the ordering length check CASE-wraps its argument, so jsonb_array_length never runs
+    // on a non-array. A 22023 here (instead of 23514) means the totality guard regressed.
+    const malformedItems = { not: 'an-array' } as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — non-array ordering_items',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an ordering item that carries answer-bearing metadata beyond id and text', async () => {
+    // Exact-shape guard (#998 CR round 2): the canonical array order IS the answer key,
+    // so an item must store ONLY {id,text} — a stray `correct`/`position`/`correct_order`
+    // key could smuggle answer metadata into the sensitive column. The CHECK's
+    // `(e - 'id' - 'text') <> '{}'` clause rejects it at authoring (23514). The delivery
+    // RPC already strips to {id,text}, so this is defense-in-depth at the write boundary.
+    const malformedItems = [
+      { id: 'a', text: 'Alpha', correct: true },
+      { id: 'b', text: 'Bravo' },
+    ] as unknown as OrderingItem[]
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs!.subjectId,
+      topic_id: refs!.topicId,
+      subtopic_id: null,
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+      question_type: 'ordering',
+      question_text: 'Malformed ordering — extra key on item',
+      ordering_items: malformedItems,
+      explanation_text: 'should not insert',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+})
