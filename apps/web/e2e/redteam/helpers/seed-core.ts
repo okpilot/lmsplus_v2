@@ -23,11 +23,33 @@ export async function getOrCreateOtherOrg(
 ): Promise<string> {
   const { data, error } = await admin
     .from('organizations')
-    .upsert({ name: 'Red Team Other Org', slug: OTHER_ORG_SLUG }, { onConflict: 'slug' })
+    // deleted_at: null un-soft-deletes the row if a prior teardown ever removed
+    // it (slug's UNIQUE is non-partial, so a soft-deleted row still holds the slot).
+    .upsert(
+      { name: 'Red Team Other Org', slug: OTHER_ORG_SLUG, deleted_at: null },
+      { onConflict: 'slug' },
+    )
     .select('id')
     .single()
   if (error || !data) throw new Error(`Could not upsert redteam-other-org: ${error?.message}`)
   return data.id
+}
+
+/**
+ * Find an auth user by email, paging through the full admin list. The admin API
+ * returns 50 users/page by default; the shared red-team project accumulates
+ * users across dozens of specs, so a single unpaginated listUsers() would miss
+ * any email past page 1 — the caller would then re-create it and hit an
+ * "already registered" error. Pages until the email is found or exhausted.
+ */
+async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClient>, email: string) {
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 })
+    if (error) throw new Error(`Could not list users: ${error.message}`)
+    const match = data.users.find((u) => u.email === email)
+    if (match) return match
+    if (data.users.length < 200) return undefined
+  }
 }
 
 export async function upsertUser(
@@ -37,11 +59,8 @@ export async function upsertUser(
   orgId: string,
   role: 'student' | 'admin' | 'instructor' = 'student',
 ): Promise<string> {
-  // Check if auth user already exists
-  const { data: list, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`Could not list users: ${listError.message}`)
-
-  const existing = list.users.find((u) => u.email === email)
+  // Check if auth user already exists (paginated — see findAuthUserByEmail).
+  const existing = await findAuthUserByEmail(admin, email)
   if (existing) {
     // Ensure public.users row exists (may have been cleaned up) AND has the
     // expected role + org. Re-running the helper across spec files must be

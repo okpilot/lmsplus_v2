@@ -144,8 +144,27 @@ export async function ensureExamConfig(
       })
       .select('id')
       .single()
-    if (createError || !created) throw new Error(`ensureExamConfig insert: ${createError?.message}`)
-    configId = created.id
+    if (createError?.code === '23505') {
+      // Lost a check-then-insert race with a parallel worker: the partial unique
+      // index uq_exam_configs_org_subject_active (mig 044, WHERE deleted_at IS NULL)
+      // rejects the duplicate. Re-read the row the winner created — it inserted the
+      // same enabled payload, so no re-enable is needed. (A partial index can't be
+      // an ON CONFLICT target via PostgREST, so upsert is not an option here.)
+      const { data: raced, error: racedError } = await admin
+        .from('exam_configs')
+        .select('id')
+        .eq('organization_id', orgId)
+        .eq('subject_id', subjectId)
+        .is('deleted_at', null)
+        .single()
+      if (racedError || !raced)
+        throw new Error(`ensureExamConfig race reselect: ${racedError?.message}`)
+      configId = raced.id
+    } else if (createError || !created) {
+      throw new Error(`ensureExamConfig insert: ${createError?.message}`)
+    } else {
+      configId = created.id
+    }
   }
 
   // Ensure at least one distribution row.
