@@ -23,14 +23,14 @@ describe('OralExamPending', () => {
   })
 
   it('does not render a meta refresh tag when scoring failed', () => {
-    render(<OralExamPending state="failed" sessionId="sess-1" />)
+    render(<OralExamPending state="failed" />)
 
     expect(document.querySelector('meta[http-equiv="refresh"]')).toBeNull()
     expect(screen.getByText(/scoring failed/i)).toBeInTheDocument()
   })
 
   it('links back to the practice entry page when scoring failed', () => {
-    render(<OralExamPending state="failed" sessionId="sess-1" />)
+    render(<OralExamPending state="failed" />)
     expect(screen.getByRole('link')).toHaveAttribute('href', '/app/elp')
   })
 })

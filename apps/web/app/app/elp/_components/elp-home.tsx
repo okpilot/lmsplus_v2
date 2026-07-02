@@ -7,6 +7,24 @@ import { startOralExam } from '../actions/start-oral-exam'
 
 type Props = Readonly<{ activeSession: OralSessionSummary | null }>
 
+type ResumePromptProps = Readonly<{ activeSession: OralSessionSummary }>
+
+/** Shown when the student already has an in-progress session — presentational only. */
+function ElpResumePrompt({ activeSession }: ResumePromptProps) {
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold tracking-tight">ICAO English Prep</h1>
+      <p className="text-sm text-muted-foreground">You have a session in progress.</p>
+      <a
+        href={`/app/elp/session/${activeSession.id}`}
+        className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+      >
+        Resume your session
+      </a>
+    </div>
+  )
+}
+
 /** Entry point for §1 Interview practice: resumes an in-progress session, or
  * starts a new one. Client-only so the Start button can call the Server Action
  * and navigate — the page itself stays a Server Component. */
@@ -41,18 +59,7 @@ export function ElpHome({ activeSession }: Props) {
   }
 
   if (activeSession) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">ICAO English Prep</h1>
-        <p className="text-sm text-muted-foreground">You have a session in progress.</p>
-        <a
-          href={`/app/elp/session/${activeSession.id}`}
-          className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          Resume your session
-        </a>
-      </div>
-    )
+    return <ElpResumePrompt activeSession={activeSession} />
   }
 
   return (

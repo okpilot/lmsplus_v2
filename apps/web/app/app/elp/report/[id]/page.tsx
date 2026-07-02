@@ -26,12 +26,14 @@ export default async function OralExamReportPage({
     )
   }
 
+  if (session.responses.length === 0) redirect(`/app/elp/session/${id}`)
+
   const hasFailedResponse = session.responses.some((r) => r.status === 'failed')
 
   return (
     <main className="space-y-6">
       {hasFailedResponse ? (
-        <OralExamPending state="failed" sessionId={id} />
+        <OralExamPending state="failed" />
       ) : (
         <OralExamPending state="grading" sessionId={id} />
       )}

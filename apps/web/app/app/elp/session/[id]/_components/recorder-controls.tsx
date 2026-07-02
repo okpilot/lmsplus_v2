@@ -1,6 +1,7 @@
 'use client'
 
 import type { AudioRecorderStatus } from '../../../_hooks/use-audio-recorder'
+import { PlaybackControls } from './playback-controls'
 
 type Props = Readonly<{
   status: AudioRecorderStatus
@@ -35,15 +36,7 @@ export function RecorderControls({ status, audioUrl, error, onStart, onStop, onR
   }
 
   if (status === 'recorded') {
-    return (
-      <div className="space-y-2">
-        {/* biome-ignore lint/a11y/useMediaCaption: recorded spoken answer, no caption track available */}
-        <audio controls src={audioUrl ?? undefined} className="w-full" />
-        <button type="button" onClick={onReset} className={BUTTON_CLASS}>
-          Re-record
-        </button>
-      </div>
-    )
+    return <PlaybackControls audioUrl={audioUrl} onReset={onReset} />
   }
 
   return (

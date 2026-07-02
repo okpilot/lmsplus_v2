@@ -6,6 +6,7 @@ import { useAudioRecorder } from '../../../_hooks/use-audio-recorder'
 import type { InterviewPrompt } from '../../../prompts'
 import { useSectionSubmit } from '../_hooks/use-section-submit'
 import { RecorderControls } from './recorder-controls'
+import { SectionSubmitButton } from './section-submit-button'
 
 // This slice practices §1 Interview only — the runner always submits section 1.
 const SECTION_NO = 1
@@ -44,20 +45,12 @@ export function OralSectionRunner({ session, prompt }: Props) {
         onReset={recorder.reset}
       />
 
-      {submitError && (
-        <p role="alert" className="text-sm text-destructive">
-          {submitError}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={handleSubmit}
+      <SectionSubmitButton
+        submitting={submitting}
+        error={submitError}
+        onSubmit={handleSubmit}
         disabled={!recorder.file || submitting}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-      >
-        {submitting ? 'Submitting…' : 'Submit Answer'}
-      </button>
+      />
     </div>
   )
 }

@@ -1,4 +1,22 @@
-type Props = Readonly<{ state: 'grading' | 'failed'; sessionId?: string }>
+type OralExamPendingProps = { state: 'grading'; sessionId: string } | { state: 'failed' }
+
+/** Shown when scoring failed — presentational only, no session context needed. */
+function ScoringFailedPanel() {
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+      <h1 className="font-semibold text-lg">Scoring failed</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        We couldn&apos;t score your answer. Please start over.
+      </p>
+      <a
+        href="/app/elp"
+        className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4"
+      >
+        Back to §1 Interview Practice
+      </a>
+    </div>
+  )
+}
 
 /**
  * Shown on the report route while a submitted section is still being scored, or
@@ -6,25 +24,9 @@ type Props = Readonly<{ state: 'grading' | 'failed'; sessionId?: string }>
  * (no client polling — code-style.md §6) so the page re-fetches session status
  * every 5s until the report is ready.
  */
-export function OralExamPending({ state, sessionId }: Props) {
-  if (state === 'failed') {
-    return (
-      <div
-        data-session-id={sessionId}
-        className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center"
-      >
-        <h1 className="font-semibold text-lg">Scoring failed</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We couldn&apos;t score your answer. Please start over.
-        </p>
-        <a
-          href="/app/elp"
-          className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4"
-        >
-          Back to §1 Interview Practice
-        </a>
-      </div>
-    )
+export function OralExamPending(props: Readonly<OralExamPendingProps>) {
+  if (props.state === 'failed') {
+    return <ScoringFailedPanel />
   }
 
   return (
@@ -35,7 +37,7 @@ export function OralExamPending({ state, sessionId }: Props) {
         This usually takes under a minute. This page will refresh automatically.
       </p>
       <a
-        href={`/app/elp/report/${sessionId ?? ''}`}
+        href={`/app/elp/report/${props.sessionId}`}
         className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4"
       >
         Refresh now

@@ -13,6 +13,25 @@ export type UseSectionSubmitResult = {
 }
 
 /**
+ * Builds the multipart FormData payload for `submitSectionResponse`. 4 params —
+ * each maps to a required field of the Server Action's payload (infrastructure
+ * exception, code-style.md §3).
+ */
+function buildSectionFormData(
+  sessionId: string,
+  sectionNo: number,
+  file: File,
+  durationMs: number,
+): FormData {
+  const formData = new FormData()
+  formData.append('audio', file)
+  formData.append('sessionId', sessionId)
+  formData.append('sectionNo', String(sectionNo))
+  formData.append('durationMs', String(durationMs))
+  return formData
+}
+
+/**
  * Owns the §1 Interview submit workflow: builds the FormData the Server Action
  * expects, guards re-entry synchronously, and navigates to the report on success.
  * `useTransition` drives the `submitting` flag for the UI, but the real re-entry
@@ -34,11 +53,7 @@ export function useSectionSubmit({
     setError(null)
 
     startTransition(async () => {
-      const formData = new FormData()
-      formData.append('audio', file)
-      formData.append('sessionId', sessionId)
-      formData.append('sectionNo', String(sectionNo))
-      formData.append('durationMs', String(durationMs))
+      const formData = buildSectionFormData(sessionId, sectionNo, file, durationMs)
 
       try {
         const result = await submitSectionResponse(formData)
