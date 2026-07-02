@@ -115,8 +115,10 @@ function isDiagramConfig(value: unknown): value is DiagramConfigRow {
   if (typeof image_ref !== 'string' || image_ref.trim().length === 0) return false
   if (!Array.isArray(zones) || zones.length === 0 || zones.length > MAX_ZONES) return false
   if (!zones.every(isDiagramZone)) return false
+  if (new Set(zones.map((z) => (z as { id: string }).id)).size !== zones.length) return false
   if (!Array.isArray(labels) || labels.length === 0 || labels.length > MAX_LABELS) return false
   if (!labels.every(isDiagramLabel)) return false
+  if (new Set(labels.map((l) => (l as { id: string }).id)).size !== labels.length) return false
   return true
 }
 

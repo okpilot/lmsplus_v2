@@ -16,10 +16,12 @@
 --   * answer     — the answer key: one {zone_id,label_id} entry per zone,
 --                  each zone covered EXACTLY once. Unused labels are fine.
 --
--- SECURITY invariant (seed-enforced, not DB-enforced): zone ids and label ids
--- must use UNRELATED random id schemes — otherwise the zone_id/label_id
--- pairing in a delivered-but-answer-stripped payload (mig 152) could leak the
--- answer via naming correlation even with `answer` omitted.
+-- SECURITY invariant: zone ids and label ids must use UNRELATED random id
+-- schemes — otherwise the zone_id/label_id pairing in a delivered-but-answer-
+-- stripped payload (mig 152) could leak the answer via naming correlation even
+-- with `answer` omitted. Equality-disjointness (no zone_id EQUALS any label_id)
+-- is now DB-enforced by is_valid_diagram_config below; the stronger full
+-- de-correlation (e.g. no positional z1<->l1 parallel) remains seed-enforced.
 --
 -- SECURITY — diagram_config.answer is an answer key (same mechanism as
 -- ordering_items' array order, mig 143). mig 094 REVOKEd the blanket SELECT on
@@ -108,6 +110,10 @@ AS $$
       count(*) AS n,
       count(*) FILTER (
         WHERE jsonb_typeof(z) <> 'object'
+           -- exact key set — no extra author metadata may ride along
+           OR CASE WHEN jsonb_typeof(z) = 'object' THEN EXISTS (
+                SELECT 1 FROM jsonb_object_keys(z) AS k(key) WHERE k.key NOT IN ('id','x','y','w','h')
+              ) ELSE false END
            OR jsonb_typeof(z->'id') IS DISTINCT FROM 'string'
            OR btrim(z->>'id') = ''
            OR jsonb_typeof(z->'x') IS DISTINCT FROM 'number'
@@ -133,6 +139,9 @@ AS $$
       count(*) AS n,
       count(*) FILTER (
         WHERE jsonb_typeof(l) <> 'object'
+           OR CASE WHEN jsonb_typeof(l) = 'object' THEN EXISTS (
+                SELECT 1 FROM jsonb_object_keys(l) AS k(key) WHERE k.key NOT IN ('id','text')
+              ) ELSE false END
            OR jsonb_typeof(l->'id') IS DISTINCT FROM 'string'
            OR jsonb_typeof(l->'text') IS DISTINCT FROM 'string'
            OR btrim(l->>'id') = ''
@@ -146,6 +155,9 @@ AS $$
       count(*) AS n,
       count(*) FILTER (
         WHERE jsonb_typeof(a) <> 'object'
+           OR CASE WHEN jsonb_typeof(a) = 'object' THEN EXISTS (
+                SELECT 1 FROM jsonb_object_keys(a) AS k(key) WHERE k.key NOT IN ('zone_id','label_id')
+              ) ELSE false END
            OR jsonb_typeof(a->'zone_id') IS DISTINCT FROM 'string'
            OR jsonb_typeof(a->'label_id') IS DISTINCT FROM 'string'
            OR btrim(a->>'zone_id') = ''
@@ -170,6 +182,9 @@ AS $$
     AND jsonb_typeof(p_config->'answer') = 'array'
     AND (SELECT n >= 1 AND n_invalid = 0 AND n = n_distinct_ids FROM zones_valid)
     AND (SELECT n >= 1 AND n_invalid = 0 AND n = n_distinct_ids FROM labels_valid)
+    -- SECURITY: enforce the documented zone-id / label-id disjointness (header
+    -- note) — a shared id could correlate a delivered zone to its answer label.
+    AND NOT EXISTS (SELECT 1 FROM zones z JOIN labels l ON l.label_id = z.zone_id)
     AND (
       SELECT
         av.n_invalid = 0

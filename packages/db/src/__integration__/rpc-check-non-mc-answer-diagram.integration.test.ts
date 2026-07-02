@@ -328,7 +328,8 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
       .select('id')
       .single<{ id: string }>()
     if (sessErr) throw new Error(`mock_exam session insert: ${sessErr.message}`)
-    const examSessionId = sessRow.id
+    // sessErr checked above; PostgREST .single() returns a row or an error, never both null.
+    const examSessionId = sessRow!.id
     try {
       const { data, error } = await studentClient.rpc('check_non_mc_answer', {
         p_question_id: diagramAId,
@@ -362,7 +363,8 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
       .select('id')
       .single<{ id: string }>()
     if (sessErr) throw new Error(`internal_exam session insert: ${sessErr.message}`)
-    const examSessionId = sessRow.id
+    // sessErr checked above; PostgREST .single() returns a row or an error, never both null.
+    const examSessionId = sessRow!.id
     try {
       const { error } = await studentClient.rpc('check_non_mc_answer', {
         p_question_id: diagramAId,

@@ -270,6 +270,44 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects a zone object carrying an extra key', async () => {
+    // mig 150's exact-key-set guard: only id/x/y/w/h are allowed on a zone —
+    // no extra author metadata may ride along.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], foo: 'bar' }
+    const { error } = await insertDiagram(config, 'zone with extra key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a label object carrying an extra key', async () => {
+    // Same exact-key-set guard, mirrored for labels: only id/text are allowed.
+    const config = baseValidConfig()
+    const labels = config.labels as Array<Record<string, unknown>>
+    labels[0] = { ...labels[0], foo: 'bar' }
+    const { error } = await insertDiagram(config, 'label with extra key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a config where a zone id equals a label id', async () => {
+    // SECURITY: mig 150 enforces zone-id / label-id disjointness — a shared id
+    // could correlate a delivered zone to its answer label (header note).
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    const labels = config.labels as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], id: 'shared-id' }
+    labels[0] = { ...labels[0], id: 'shared-id' }
+    config.answer = [
+      { zone_id: 'shared-id', label_id: 'shared-id' },
+      { zone_id: 'zn2', label_id: 'lb2' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'zone id equals label id')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('accepts a valid diagram_config with an unused distractor label', async () => {
     // Positive control: baseValidConfig's lb3 is never referenced by `answer`
     // — Decision 52 explicitly allows distractors, so this must succeed.

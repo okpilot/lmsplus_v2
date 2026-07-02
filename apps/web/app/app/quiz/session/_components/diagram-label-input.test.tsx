@@ -29,6 +29,7 @@ vi.mock('./diagrams/registry', () => ({
 }))
 
 import { DiagramLabelInput } from './diagram-label-input'
+import { DIAGRAM_POOL_DROPPABLE_ID } from './diagram-label-input-helpers'
 
 const ZONES = [
   { id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
@@ -174,7 +175,7 @@ describe('DiagramLabelInput', () => {
       />,
     )
     fireDragEnd('l1', 'z1')
-    fireDragEnd('l1', '__diagram_label_pool__')
+    fireDragEnd('l1', DIAGRAM_POOL_DROPPABLE_ID)
     expect(screen.getByTestId('diagram-label-pool')).toContainElement(
       screen.getByTestId('diagram-label-chip-l1'),
     )

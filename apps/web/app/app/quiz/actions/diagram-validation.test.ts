@@ -93,6 +93,14 @@ describe('isDiagramMappingArray', () => {
     expect(isDiagramMappingArray([])).toBe(false)
   })
 
+  it('accepts an array of exactly MAX_ZONES entries', () => {
+    const atLimit = Array.from({ length: MAX_ZONES }, (_, i) => ({
+      zoneId: `z${i}`,
+      labelId: `l${i}`,
+    }))
+    expect(isDiagramMappingArray(atLimit)).toBe(true)
+  })
+
   it('rejects an array longer than MAX_ZONES', () => {
     const tooMany = Array.from({ length: MAX_ZONES + 1 }, (_, i) => ({
       zoneId: `z${i}`,
