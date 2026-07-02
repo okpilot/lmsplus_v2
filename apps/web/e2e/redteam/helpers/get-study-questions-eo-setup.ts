@@ -16,6 +16,8 @@ import { createAuthenticatedClient } from './redteam-client'
 import {
   createCrossOrgUser,
   E2E_REDTEAM_EO_MARKER,
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
   pickSubjectWithQuestions,
   seedRedTeamStudent,
   VICTIM_EMAIL,
@@ -299,4 +301,68 @@ export async function cleanupEoFixtures(
     console.log(`[get-study-questions-eo] soft-deleted ${data?.length} fixture question(s)`)
   }
   createdQuestionIds.clear()
+}
+
+// Create (or realign) the dedicated throwaway EO-SD student, ensuring it is NOT
+// soft-deleted from a prior aborted run, and return its user id. perPage well above
+// any test-env user count so a reused student on a later page is never missed (which
+// would wrongly fall through to createUser and fail on the duplicate email).
+export async function ensureEoSoftDelStudent(
+  admin: ReturnType<typeof getAdminClient>,
+  orgId: string,
+): Promise<string> {
+  const { data: authList, error: listError } = await admin.auth.admin.listUsers({
+    perPage: 1000,
+  })
+  if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
+  const existing = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
+
+  if (existing) {
+    const { data: userRow, error: userRowErr } = await admin
+      .from('users')
+      .select('id, organization_id, role, deleted_at')
+      .eq('id', existing.id)
+      .maybeSingle()
+    if (userRowErr) throw new Error(`EO-SD beforeAll: users lookup: ${userRowErr.message}`)
+    if (!userRow) {
+      const { error: insErr } = await admin.from('users').insert({
+        id: existing.id,
+        organization_id: orgId,
+        email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+        full_name: 'Red Team Soft-Delete Study Student',
+        role: 'student',
+      })
+      if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+    } else if (
+      userRow.organization_id !== orgId ||
+      userRow.role !== 'student' ||
+      userRow.deleted_at !== null
+    ) {
+      const { data: realigned, error: updErr } = await admin
+        .from('users')
+        .update({ organization_id: orgId, role: 'student', deleted_at: null })
+        .eq('id', existing.id)
+        .select('id')
+      if (updErr) throw new Error(`EO-SD beforeAll: realign user: ${updErr.message}`)
+      if (!realigned?.length) throw new Error('EO-SD beforeAll: realign affected 0 rows')
+    }
+    return existing.id
+  }
+
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+    password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+    email_confirm: true,
+  })
+  if (createErr || !created.user)
+    throw new Error(`EO-SD beforeAll: createUser: ${createErr?.message}`)
+  const { error: insErr } = await admin.from('users').insert({
+    id: created.user.id,
+    organization_id: orgId,
+    email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+    full_name: 'Red Team Soft-Delete Study Student',
+    role: 'student',
+  })
+  if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+  return created.user.id
 }

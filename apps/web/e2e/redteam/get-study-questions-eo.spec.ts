@@ -52,6 +52,7 @@ import {
   cleanupEoFixtures,
   EG_MC_ACTIVE_KEY,
   type EoFixtures,
+  ensureEoSoftDelStudent,
   OTHER_ORG_MC_KEY,
   RPC,
   type StudyQuestionRow,
@@ -270,65 +271,7 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     let softDelStudentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
 
     test.beforeAll(async () => {
-      // Create (or realign) the dedicated throwaway student, ensuring it is NOT
-      // soft-deleted from a prior aborted run. perPage well above any test-env user
-      // count so a reused student on a later page is never missed (which would wrongly
-      // fall through to createUser and fail on the duplicate email).
-      const { data: authList, error: listError } = await fx.admin.auth.admin.listUsers({
-        perPage: 1000,
-      })
-      if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
-      const existing = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
-
-      if (existing) {
-        softDelStudentId = existing.id
-        const { data: userRow, error: userRowErr } = await fx.admin
-          .from('users')
-          .select('id, organization_id, role, deleted_at')
-          .eq('id', existing.id)
-          .maybeSingle()
-        if (userRowErr) throw new Error(`EO-SD beforeAll: users lookup: ${userRowErr.message}`)
-        if (!userRow) {
-          const { error: insErr } = await fx.admin.from('users').insert({
-            id: existing.id,
-            organization_id: fx.orgId,
-            email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
-            full_name: 'Red Team Soft-Delete Study Student',
-            role: 'student',
-          })
-          if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
-        } else if (
-          userRow.organization_id !== fx.orgId ||
-          userRow.role !== 'student' ||
-          userRow.deleted_at !== null
-        ) {
-          const { data: realigned, error: updErr } = await fx.admin
-            .from('users')
-            .update({ organization_id: fx.orgId, role: 'student', deleted_at: null })
-            .eq('id', existing.id)
-            .select('id')
-          if (updErr) throw new Error(`EO-SD beforeAll: realign user: ${updErr.message}`)
-          if (!realigned?.length) throw new Error('EO-SD beforeAll: realign affected 0 rows')
-        }
-      } else {
-        const { data: created, error: createErr } = await fx.admin.auth.admin.createUser({
-          email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
-          password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
-          email_confirm: true,
-        })
-        if (createErr || !created.user)
-          throw new Error(`EO-SD beforeAll: createUser: ${createErr?.message}`)
-        softDelStudentId = created.user.id
-        const { error: insErr } = await fx.admin.from('users').insert({
-          id: softDelStudentId,
-          organization_id: fx.orgId,
-          email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
-          full_name: 'Red Team Soft-Delete Study Student',
-          role: 'student',
-        })
-        if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
-      }
-
+      softDelStudentId = await ensureEoSoftDelStudent(fx.admin, fx.orgId)
       // Authenticate BEFORE soft-delete — holds a still-valid JWT for the post-delete call.
       softDelStudentClient = await createAuthenticatedClient(
         E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
@@ -375,18 +318,21 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
 
       // Soft-delete + post-delete call in a try/finally so the user is always restored
       // to a clean state (noUnsafeFinally: the assertions live OUTSIDE the finally).
+      // The try block is pure state-mutation — every assertion runs after the finally,
+      // so a restore always fires even if a captured value later fails an assertion.
       let restoreError: string | null = null
       let result: { data: unknown; error: { message: string } | null } | null = null
+      let delErr: unknown = null
+      let deleted: { id: string }[] | null = null
       try {
-        const { data: deleted, error: delErr } = await fx.admin
+        const res = await fx.admin
           .from('users')
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', softDelStudentId)
           .is('deleted_at', null)
           .select('id')
-        expect(delErr).toBeNull()
-        // Non-vacuity: confirm the soft-delete actually changed a row.
-        expect(deleted?.length).toBe(1)
+        delErr = res.error
+        deleted = res.data
 
         const r = await softDelStudentClient.rpc(RPC, { p_question_ids: [fx.egMcActiveId] })
         result = { data: r.data, error: r.error }
@@ -400,11 +346,15 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
         else if ((restored?.length ?? 0) === 0) restoreError = 'restore matched no rows'
       }
 
+      // Soft-delete succeeded and actually changed a row (non-vacuity).
+      expect(delErr).toBeNull()
+      expect(deleted?.length).toBe(1)
+
       // Reachability guard: result is set only if the soft-delete + post-delete RPC
       // call both ran, so the security proof below can never pass vacuously.
       expect(result).not.toBeNull()
 
-      // Security proof first: the active-user gate rejects and no key is leaked.
+      // Security proof: the active-user gate rejects and no key is leaked.
       expect(result?.error).not.toBeNull()
       expect(result?.error?.message ?? '').toMatch(/user_not_found_or_inactive/i)
       expect(result?.data).toBeNull()
