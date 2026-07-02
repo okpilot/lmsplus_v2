@@ -74,7 +74,7 @@ describe('getOralExamReport', () => {
     expect(result?.endedAt).toBe('2026-07-02T10:30:00Z')
   })
 
-  it('coerces total_final_level to a number', async () => {
+  it('returns the final level as a number even when the RPC sends it as a string', async () => {
     mockRpc.mockResolvedValue({ data: { ...RPC_RESULT, total_final_level: '4' }, error: null })
     const result = await getOralExamReport(SESSION_ID)
     expect(result?.totalFinalLevel).toBe(4)
@@ -129,7 +129,7 @@ describe('getOralExamReport', () => {
     expect(result?.descriptors[0]?.rationale).toBeNull()
   })
 
-  it('returns null transcript_text for a section where no transcription is available', async () => {
+  it('shows no transcript for a section where transcription is unavailable', async () => {
     const rawData = {
       ...RPC_RESULT,
       sections: [{ section_no: 2, status: 'pending', transcript_text: null, scores: [] }],
@@ -139,7 +139,7 @@ describe('getOralExamReport', () => {
     expect(result?.sections[0]?.transcriptText).toBeNull()
   })
 
-  it('coerces section_no to a number and uses zero as the fallback when it is absent', async () => {
+  it('numbers each section even when the RPC sends the index as a string, defaulting to zero when missing', async () => {
     const rawData = {
       ...RPC_RESULT,
       sections: [{ section_no: '3', status: 'graded', transcript_text: null, scores: [] }],

@@ -71,7 +71,10 @@ function setupOrgLookup(orgId: string | null = ORG_ID) {
 }
 
 function setupStorage(
-  opts: { uploadError?: { message: string } | null; removeError?: { message: string } | null } = {},
+  opts: {
+    uploadError?: { message: string; statusCode?: string } | null
+    removeError?: { message: string } | null
+  } = {},
 ) {
   const { uploadError = null, removeError = null } = opts
   const mockUpload = vi.fn().mockResolvedValue({ error: uploadError })
@@ -142,6 +145,16 @@ describe('submitSectionResponse', () => {
     const result = await submitSectionResponse(makeFormData())
     consoleSpy.mockRestore()
     expect(result).toEqual({ success: false, error: 'Audio upload failed' })
+  })
+
+  it('reports the section as already submitted when the recording upload hits a storage conflict', async () => {
+    setupAuth()
+    setupOrgLookup()
+    setupStorage({
+      uploadError: { message: 'The resource already exists', statusCode: '409' },
+    })
+    const result = await submitSectionResponse(makeFormData())
+    expect(result).toEqual({ success: false, error: 'This section was already submitted.' })
   })
 
   it('removes the uploaded file when the section RPC fails after a successful upload', async () => {

@@ -35,7 +35,9 @@ CREATE POLICY elp_recordings_student_read
   USING (
     bucket_id = 'elp-recordings'
     AND (storage.foldername(name))[2] = auth.uid()::text
-    AND EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND deleted_at IS NULL)
+    AND (storage.foldername(name))[1] = (
+      SELECT organization_id::text FROM users WHERE id = auth.uid() AND deleted_at IS NULL
+    )
   );
 
 -- Instructor/admin reads recordings in their own org (for review).

@@ -55,7 +55,9 @@ function toScore(raw: RawScore): OralDescriptorScore {
 }
 
 function toScores(raw: unknown): OralDescriptorScore[] {
-  return Array.isArray(raw) ? raw.map((s) => toScore(s as RawScore)) : []
+  return Array.isArray(raw)
+    ? raw.filter((s): s is RawScore => typeof s === 'object' && s !== null).map(toScore)
+    : []
 }
 
 function toSection(raw: RawSection): OralSectionReport {
@@ -91,7 +93,9 @@ export async function getOralExamReport(sessionId: string): Promise<OralExamRepo
     endedAt: data.ended_at,
     descriptors: toScores(data.descriptors),
     sections: Array.isArray(data.sections)
-      ? data.sections.map((s) => toSection(s as RawSection))
+      ? data.sections
+          .filter((s): s is RawSection => typeof s === 'object' && s !== null)
+          .map(toSection)
       : [],
   }
 }

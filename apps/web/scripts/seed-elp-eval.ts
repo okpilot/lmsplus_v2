@@ -155,10 +155,14 @@ async function main() {
 
   const { data: startData, error: startErr } = await student.rpc('start_oral_exam_session')
   if (startErr) throw new Error(`start: ${startErr.message}`)
-  if (startData === null || typeof startData !== 'object' || !('session_id' in startData)) {
+  const rawSessionId =
+    startData && typeof startData === 'object' && 'session_id' in startData
+      ? (startData as { session_id: unknown }).session_id
+      : undefined
+  if (typeof rawSessionId !== 'string' || rawSessionId.length === 0) {
     throw new Error('start_oral_exam_session did not return a session_id')
   }
-  const sessionId = (startData as { session_id: string }).session_id
+  const sessionId = rawSessionId
 
   const placeholder = new Blob([new Uint8Array([0x00])], { type: 'audio/webm' })
   for (let n = 1; n <= 5; n++) {

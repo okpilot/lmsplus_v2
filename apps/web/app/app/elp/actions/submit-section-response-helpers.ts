@@ -79,6 +79,12 @@ export async function uploadAndRecord(
     upsert: false,
   })
   if (uploadError) {
+    // Deterministic audioPath + upsert:false means a retry/double-submit fails here with
+    // a 409 before the RPC's UNIQUE(session_id, section_no) constraint can fire — surface
+    // it as the same "already submitted" outcome, not a generic upload error.
+    if ((uploadError as { statusCode?: string }).statusCode === '409') {
+      return { success: false, error: 'This section was already submitted.' }
+    }
     console.error('[submitSectionResponse] Storage error:', uploadError.message)
     return { success: false, error: 'Audio upload failed' }
   }
