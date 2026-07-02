@@ -139,7 +139,7 @@ describe('getOralExamReport', () => {
     expect(result?.sections[0]?.transcriptText).toBeNull()
   })
 
-  it('numbers each section even when the RPC sends the index as a string, defaulting to zero when missing', async () => {
+  it('numbers each section even when the RPC sends the index as a string', async () => {
     const rawData = {
       ...RPC_RESULT,
       sections: [{ section_no: '3', status: 'graded', transcript_text: null, scores: [] }],
@@ -148,6 +148,16 @@ describe('getOralExamReport', () => {
     const result = await getOralExamReport(SESSION_ID)
     expect(result?.sections[0]?.sectionNo).toBe(3)
     expect(typeof result?.sections[0]?.sectionNo).toBe('number')
+  })
+
+  it('defaults sectionNo to zero when the RPC omits section_no', async () => {
+    const rawData = {
+      ...RPC_RESULT,
+      sections: [{ status: 'graded', transcript_text: null, scores: [] }],
+    }
+    mockRpc.mockResolvedValue({ data: rawData, error: null })
+    const result = await getOralExamReport(SESSION_ID)
+    expect(result?.sections[0]?.sectionNo).toBe(0)
   })
 
   it('coerces nested descriptor level to a number', async () => {

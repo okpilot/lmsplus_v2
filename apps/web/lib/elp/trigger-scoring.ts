@@ -22,12 +22,18 @@ export function triggerSectionScoring(
     return
   }
 
+  // Bound the fire-and-forget invoke so a hung Edge Function doesn't leak a
+  // dangling request past the request lifecycle.
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10_000)
+
   void fetch(`${base}/score-oral-section`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-webhook-secret': secret },
     body: JSON.stringify({
       record: { id: responseId, audio_path: audioPath, section_no: sectionNo },
     }),
+    signal: controller.signal,
   })
     .then(async (r) => {
       // fetch resolves (not rejects) on 401/5xx, so a bad secret or crashed
@@ -39,4 +45,5 @@ export function triggerSectionScoring(
       }
     })
     .catch((e) => console.error('[triggerSectionScoring] invoke failed:', e))
+    .finally(() => clearTimeout(timeoutId))
 }

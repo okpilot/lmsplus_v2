@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { requireRpcResult } from './guards'
+import { sixScores } from './oral-exam-fixtures'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 // AI ICAO ELP session modes (migs 153-154): start_oral_exam_session(p_mode)
@@ -10,23 +11,6 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // the session's OWN planned count (frozen in config at start) instead of a
 // hardcoded 5. Mocked clients can't see the real config JSONB shape or the
 // ON CONFLICT inference, so this must run against real Postgres.
-
-const DESCRIPTORS = [
-  'pronunciation',
-  'structure',
-  'vocabulary',
-  'fluency',
-  'comprehension',
-  'interaction',
-] as const
-
-function sixScores(level: number, overrides: Record<string, number> = {}) {
-  return DESCRIPTORS.map((descriptor) => ({
-    descriptor,
-    level: overrides[descriptor] ?? level,
-    rationale: `evidence for ${descriptor}`,
-  }))
-}
 
 type StartResult = { session_id: string; status: string; mode: string }
 

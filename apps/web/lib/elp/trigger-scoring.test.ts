@@ -32,6 +32,7 @@ describe('triggerSectionScoring', () => {
         body: JSON.stringify({
           record: { id: RESPONSE_ID, audio_path: AUDIO_PATH, section_no: 1 },
         }),
+        signal: expect.any(AbortSignal),
       },
     )
   })

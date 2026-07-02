@@ -66,6 +66,16 @@ describe('OralSectionRunner — prompt', () => {
     expect(screen.getByText(PROMPT.text)).toBeInTheDocument()
     expect(screen.getByLabelText('Interview question')).toHaveAttribute('src', PROMPT.audioSrc)
   })
+
+  it('labels the heading Practice for a practice-mode session', () => {
+    render(<OralSectionRunner session={SESSION} prompt={PROMPT} />)
+    expect(screen.getByRole('heading', { name: '§1 Interview Practice' })).toBeInTheDocument()
+  })
+
+  it('labels the heading Mock Exam for a mock-mode session', () => {
+    render(<OralSectionRunner session={{ ...SESSION, mode: 'mock' }} prompt={PROMPT} />)
+    expect(screen.getByRole('heading', { name: '§1 Interview Mock Exam' })).toBeInTheDocument()
+  })
 })
 
 describe('OralSectionRunner — recorder states', () => {

@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildAnswerFile,
+  buildCaptureHandlers,
   isRecordingSupported,
   pickAudioMimeType,
+  type RecorderRefs,
   releaseMediaStream,
   revokeObjectUrl,
   startRecorderSession,
@@ -189,5 +191,44 @@ describe('startRecorderSession', () => {
     const file = firstCall[0] as File
     expect(file.name).toBe('answer.webm')
     expect(file.type).toBe('audio/webm')
+  })
+})
+
+describe('buildCaptureHandlers — onDenied', () => {
+  function buildRefs(startingCurrent: boolean): RecorderRefs {
+    return {
+      recorderRef: { current: null },
+      streamRef: { current: null },
+      startedAtRef: { current: 0 },
+      urlRef: { current: null },
+      startingRef: { current: startingCurrent },
+    }
+  }
+
+  it('sets status to denied when the capture was not cancelled', () => {
+    const refs = buildRefs(true)
+    const setState = vi.fn()
+    const handlers = buildCaptureHandlers(refs, setState)
+
+    handlers.onDenied()
+
+    expect(setState).toHaveBeenCalledTimes(1)
+    const updater = setState.mock.calls[0]?.[0] as (s: {
+      status: string
+      error: string | null
+    }) => { status: string; error: string | null }
+    const next = updater({ status: 'idle', error: null })
+    expect(next.status).toBe('denied')
+    expect(next.error).toBe('Microphone access was denied.')
+  })
+
+  it('does not touch state when reset()/unmount already cancelled the pending capture', () => {
+    const refs = buildRefs(false)
+    const setState = vi.fn()
+    const handlers = buildCaptureHandlers(refs, setState)
+
+    handlers.onDenied()
+
+    expect(setState).not.toHaveBeenCalled()
   })
 })

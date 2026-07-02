@@ -31,7 +31,9 @@ export function OralSectionRunner({ session, prompt }: Props) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">§1 Interview Practice</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        §1 Interview {session.mode === 'mock' ? 'Mock Exam' : 'Practice'}
+      </h1>
 
       <AudioPromptPlayer src={prompt.audioSrc} label="Interview question" />
       <p className="text-base">{prompt.text}</p>

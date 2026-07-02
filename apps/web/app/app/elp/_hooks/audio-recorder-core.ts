@@ -4,7 +4,7 @@
  * the hook itself stays under the §1 hook line cap.
  */
 
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { Dispatch, RefObject, SetStateAction } from 'react'
 
 export type AudioRecorderStatus = 'idle' | 'recording' | 'recorded' | 'denied' | 'unsupported'
 
@@ -69,13 +69,13 @@ export function startRecorderSession(
 }
 
 /** Stops every track on the held stream and clears the ref. */
-export function releaseMediaStream(streamRef: MutableRefObject<MediaStream | null>): void {
+export function releaseMediaStream(streamRef: RefObject<MediaStream | null>): void {
   for (const track of streamRef.current?.getTracks() ?? []) track.stop()
   streamRef.current = null
 }
 
 /** Revokes the held blob URL (if any) and clears the ref. */
-export function revokeObjectUrl(urlRef: MutableRefObject<string | null>): void {
+export function revokeObjectUrl(urlRef: RefObject<string | null>): void {
   if (urlRef.current) URL.revokeObjectURL(urlRef.current)
   urlRef.current = null
 }
@@ -85,9 +85,9 @@ export function revokeObjectUrl(urlRef: MutableRefObject<string | null>): void {
  * revokes the blob URL. Safe from any state — used by reset() and unmount so a
  * cancel mid-recording cannot later overwrite idle state or leave the mic live. */
 export function teardownCapture(
-  recorderRef: MutableRefObject<MediaRecorder | null>,
-  streamRef: MutableRefObject<MediaStream | null>,
-  urlRef: MutableRefObject<string | null>,
+  recorderRef: RefObject<MediaRecorder | null>,
+  streamRef: RefObject<MediaStream | null>,
+  urlRef: RefObject<string | null>,
 ): void {
   const recorder = recorderRef.current
   if (recorder) {
@@ -123,11 +123,11 @@ export function runCapture(handlers: CaptureHandlers): void {
 }
 
 export type RecorderRefs = {
-  recorderRef: MutableRefObject<MediaRecorder | null>
-  streamRef: MutableRefObject<MediaStream | null>
-  startedAtRef: MutableRefObject<number>
-  urlRef: MutableRefObject<string | null>
-  startingRef: MutableRefObject<boolean>
+  recorderRef: RefObject<MediaRecorder | null>
+  streamRef: RefObject<MediaStream | null>
+  startedAtRef: RefObject<number>
+  urlRef: RefObject<string | null>
+  startingRef: RefObject<boolean>
 }
 
 /** Builds the runCapture handler set — keeps the state transitions and the
@@ -165,8 +165,12 @@ export function buildCaptureHandlers(
         error: null,
       })
     },
-    onDenied: () =>
-      setState((s) => ({ ...s, status: 'denied', error: 'Microphone access was denied.' })),
+    onDenied: () => {
+      // Mirrors onRecording's guard: reset()/unmount cancelled the pending capture
+      // while getUserMedia's rejection was still in flight — don't stomp idle state.
+      if (!refs.startingRef.current) return
+      setState((s) => ({ ...s, status: 'denied', error: 'Microphone access was denied.' }))
+    },
     onSettled: () => {
       refs.startingRef.current = false
     },

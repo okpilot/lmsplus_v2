@@ -201,6 +201,34 @@ describe('useAudioRecorder', () => {
     expect(trackStop).toHaveBeenCalled()
   })
 
+  it('stays idle when the microphone is denied after reset cancelled the pending capture', async () => {
+    let deny: (reason: Error) => void = () => {}
+    mockGetUserMedia.mockImplementationOnce(
+      () =>
+        new Promise<MediaStream>((_resolve, reject) => {
+          deny = reject
+        }),
+    )
+    const { result } = renderHook(() => useAudioRecorder())
+
+    // start() launches getUserMedia but the prompt is still pending — status stays idle.
+    act(() => {
+      result.current.start()
+    })
+    // Cancel while the permission prompt is up.
+    act(() => {
+      result.current.reset()
+    })
+
+    // The denial resolves AFTER reset: onDenied must not stomp idle back to 'denied'.
+    await act(async () => {
+      deny(new Error('Permission denied'))
+    })
+
+    expect(result.current.status).toBe('idle')
+    expect(result.current.error).toBeNull()
+  })
+
   it('releases the mic when the component unmounts while a permission grant is still pending', async () => {
     let grant: (stream: MediaStream) => void = () => {}
     mockGetUserMedia.mockImplementationOnce(

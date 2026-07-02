@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { getSessionRedirectPath } from '@/lib/elp/session-redirect'
 import { getOralExamSession } from '@/lib/queries/oral-exam-session'
 import { INTERVIEW_PROMPTS } from '../../prompts'
 import { OralSectionRunner } from './_components/oral-section-runner'
@@ -11,18 +12,19 @@ export default async function OralExamSessionPage({
   const { id } = await params
 
   const session = await getOralExamSession(id)
-  if (!session) redirect('/app/elp')
-  // A session that has moved past in_progress (graded, still grading, or a
-  // section failed) has nothing left for the recorder to do — send it to the
-  // report/pending view instead of re-rendering a fresh, unusable runner.
-  if (session.status !== 'in_progress') redirect(`/app/elp/report/${id}`)
+  const redirectPath = getSessionRedirectPath(session, id)
+  if (redirectPath) redirect(redirectPath)
 
   const prompt = INTERVIEW_PROMPTS[0]
   if (!prompt) redirect('/app/elp')
 
+  // getSessionRedirectPath returns non-null exactly when `session` is null, so a
+  // null redirectPath guarantees session is present at this point.
+  const activeSession = session as NonNullable<typeof session>
+
   return (
     <main>
-      <OralSectionRunner session={session} prompt={prompt} />
+      <OralSectionRunner session={activeSession} prompt={prompt} />
     </main>
   )
 }

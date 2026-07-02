@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { requireRpcResult } from './guards'
+import { sixScores } from './oral-exam-fixtures'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 // AI ICAO ELP oral-exam RPCs (migs 150–152) against the real local Postgres.
@@ -11,30 +12,12 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // see the grant model, the partial unique indexes, or the ON CONFLICT inference,
 // so these must run against real Postgres.
 
-const DESCRIPTORS = [
-  'pronunciation',
-  'structure',
-  'vocabulary',
-  'fluency',
-  'comprehension',
-  'interaction',
-] as const
-
 type ReportShape = {
   status: string
   total_final_level: number | null
   ended_at: string | null
   descriptors: Array<{ descriptor: string; level: number }>
   sections: Array<{ section_no: number; status: string }>
-}
-
-// Six per-section descriptor scores, all `level` unless a descriptor is overridden.
-function sixScores(level: number, overrides: Record<string, number> = {}) {
-  return DESCRIPTORS.map((descriptor) => ({
-    descriptor,
-    level: overrides[descriptor] ?? level,
-    rationale: `evidence for ${descriptor}`,
-  }))
 }
 
 describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', () => {
