@@ -20,8 +20,12 @@ const BatchSubmitInput = z.object({
         selectedOptionId: z.string().min(1).optional(),
         // diagram_label fan-out repurposes this field to carry the target zone id
         // (mig 155 header note) — same generic entry shape as short_answer's free
-        // text, no separate field needed.
-        responseText: z.string().optional(),
+        // text, no separate field needed. .trim().min(1) shares selectedOptionId's
+        // reject-empty intent (with an added .trim(), since responseText can carry
+        // free short_answer text): an empty/whitespace zone id (or short_answer
+        // text) would otherwise pass Zod and throw/mis-grade inside the RPC instead
+        // of failing cleanly here.
+        responseText: z.string().trim().min(1).optional(),
         // Required by dialog_fill (blank slot) / ordering (sequence slot) /
         // diagram_label (dedup index only — discarded server-side, mig 155) fan-out.
         blankIndex: z.number().int().nonnegative().optional(),

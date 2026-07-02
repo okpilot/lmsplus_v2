@@ -252,6 +252,25 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
     expect(result.explanation_text).toBe('Diagram A explanation')
   })
 
+  it('grades a correct mapping submitted in a shuffled order as is_correct:true (set comparison, not positional)', async () => {
+    // The grader (mig 153) compares the submitted {zone_id,label_id} SET, so a
+    // correct mapping in a different array order must still grade true. Every
+    // other is_correct case submits CONFIG_A.answer in canonical order — without
+    // this case a regression to positional/array-ordinal comparison would pass
+    // them all.
+    const shuffled = [...CONFIG_A.answer].reverse()
+    const sessionId = await startSession(studentClient, [diagramAId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: diagramAId,
+      p_session_id: sessionId,
+      p_mapping: shuffled,
+    })
+    expect(error).toBeNull()
+    const result = asResult(data)
+    expect(result.is_correct).toBe(true)
+    expect(result.correct_mapping).toEqual(CONFIG_A.answer)
+  })
+
   it('grades a mapping with two swapped zones as is_correct:false but still reveals the canonical mapping', async () => {
     const swapped: AnswerEntry[] = [
       { zone_id: 'zone-nw', label_id: 'lbl-bravo' },
