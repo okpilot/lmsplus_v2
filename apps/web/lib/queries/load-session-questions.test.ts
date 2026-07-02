@@ -422,6 +422,43 @@ describe('loadSessionQuestions', () => {
     expect(q.ordering_items).toBeNull()
   })
 
+  it('strips any extra field the RPC leaks on a diagram zone or label', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1, correct: 'l1' }],
+            labels: [{ id: 'l1', text: 'Upwind leg', hint: 'z1' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    // The reconstruction rebuilds from validated fields only, so a leaked
+    // `correct`/`hint` key never reaches the student payload.
+    expect(result.questions[0]!.diagram_config).toEqual({
+      image_ref: 'rwy-2709-lh-pattern',
+      zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1 }],
+      labels: [{ id: 'l1', text: 'Upwind leg' }],
+    })
+  })
+
   it('provides no diagram_config when a diagram_label question omits its public config', async () => {
     mockRpc.mockResolvedValue({
       data: [

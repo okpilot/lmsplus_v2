@@ -93,24 +93,30 @@ export function DiagramLabelInput({
     onSubmit(serializeMapping(placement))
   }
 
+  // Fail closed on an unknown image_ref: alert only, no drop-zones/pool/Submit.
+  if (!DiagramArt) {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground"
+      >
+        This diagram could not be loaded. Please refresh the page.
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-border bg-card p-2">
-          {DiagramArt ? (
-            <DiagramArt />
-          ) : (
-            <div role="alert" className="p-6 text-sm text-muted-foreground">
-              This diagram could not be loaded. Please refresh the page.
-            </div>
-          )}
+          <DiagramArt />
           {zones.map((zone) => (
             <DiagramLabelZone
               key={zone.id}
               zone={zone}
               placedLabel={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
               disabled={itemsDisabled}
-              result={zoneResult(zone.id, placement, correctMapping)}
+              result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}
               canonicalText={graded ? canonicalTextFor(zone.id, labels, correctMapping) : undefined}
             />
           ))}

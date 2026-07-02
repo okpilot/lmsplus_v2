@@ -32,4 +32,17 @@ describe('DiagramLabelChip', () => {
     render(<DiagramLabelChip id="l1" text="Upwind" disabled={true} result="incorrect" />)
     expect(screen.getByTestId('diagram-label-chip-l1')).toHaveAttribute('data-result', 'incorrect')
   })
+
+  it('exposes only the label text to assistive tech before grading', () => {
+    render(<DiagramLabelChip id="l1" text="Upwind leg" disabled={false} />)
+    expect(screen.getByTestId('diagram-label-chip-l1')).toHaveAttribute('aria-label', 'Upwind leg')
+  })
+
+  it('announces the graded correctness to assistive tech', () => {
+    render(<DiagramLabelChip id="l1" text="Upwind leg" disabled={true} result="correct" />)
+    expect(screen.getByTestId('diagram-label-chip-l1')).toHaveAttribute(
+      'aria-label',
+      'Upwind leg, correct',
+    )
+  })
 })

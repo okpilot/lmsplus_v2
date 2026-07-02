@@ -120,6 +120,19 @@ function isDiagramConfig(value: unknown): value is DiagramConfigRow {
   return true
 }
 
+// Reconstruct from ONLY the validated fields. A `value is T` predicate asserts
+// shape but does NOT strip extra properties, so a future RPC regression that
+// leaked an extra key (e.g. an answer hint on a zone/label) would otherwise pass
+// straight through to the student. Rebuilding is the real "defense-in-depth
+// against RPC drift" the isDiagramConfig comment promises.
+function toDiagramConfigRow(value: DiagramConfigRow): DiagramConfigRow {
+  return {
+    image_ref: value.image_ref,
+    zones: value.zones.map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+    labels: value.labels.map(({ id, text }) => ({ id, text })),
+  }
+}
+
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
   const supabase = await createServerSupabaseClient()
 
@@ -160,7 +173,9 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     ordering_items: isOrderingItemArray(q.ordering_items_shuffled)
       ? q.ordering_items_shuffled
       : null,
-    diagram_config: isDiagramConfig(q.diagram_config_public) ? q.diagram_config_public : null,
+    diagram_config: isDiagramConfig(q.diagram_config_public)
+      ? toDiagramConfigRow(q.diagram_config_public)
+      : null,
   }))
 
   // Preserve the order from questionIds

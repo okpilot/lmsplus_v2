@@ -40,6 +40,9 @@ export function DiagramLabelChip({ id, text, disabled, result }: DiagramLabelChi
       disabled={disabled}
       data-testid={`diagram-label-chip-${id}`}
       data-result={result ?? ''}
+      // Announce the graded state to screen readers / colorblind users — the
+      // border colour + data-result attribute alone are not accessible.
+      aria-label={result ? `${text}, ${result}` : text}
       className={`touch-none cursor-grab rounded-md border px-2 py-1 text-xs font-medium active:cursor-grabbing disabled:cursor-default disabled:opacity-70 ${stateClass}`}
       {...attributes}
       {...listeners}

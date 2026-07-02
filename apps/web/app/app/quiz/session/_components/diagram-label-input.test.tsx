@@ -82,6 +82,10 @@ describe('DiagramLabelInput', () => {
       />,
     )
     expect(screen.getByRole('alert')).toHaveTextContent(/refresh/i)
+    // Fail closed: no drop-zones and no Submit — a student must not be able to
+    // answer a diagram they cannot see.
+    expect(screen.queryByTestId('diagram-label-zone-z1')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
   })
 
   it('renders every label as a chip in the pool before any placement', () => {
