@@ -182,7 +182,14 @@ export async function ensureExamConfig(
       subtopic_id: null,
       question_count: 1,
     })
-    if (distError) throw new Error(`ensureExamConfig distribution: ${distError.message}`)
+    // A parallel worker may have inserted the same distribution first: treat a
+    // unique-violation (23505) as success — the "≥1 distribution" invariant
+    // holds. (With subtopic_id NULL / NULLS-DISTINCT the conflict usually won't
+    // fire and a benign duplicate is made instead; specs read the total from
+    // exam_configs.total_questions, not a distribution row count.)
+    if (distError && distError.code !== '23505') {
+      throw new Error(`ensureExamConfig distribution: ${distError.message}`)
+    }
   }
 
   return configId

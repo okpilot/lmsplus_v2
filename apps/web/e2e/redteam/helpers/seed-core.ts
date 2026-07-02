@@ -61,59 +61,47 @@ export async function upsertUser(
   orgId: string,
   role: 'student' | 'admin' | 'instructor' = 'student',
 ): Promise<string> {
-  // Check if auth user already exists (paginated — see findAuthUserByEmail).
+  // Resolve the auth user id — reuse an existing one, else create it. Both the
+  // lookup and the create can lose a race to a parallel worker, so a
+  // duplicate-email createUser failure means "another worker already made it":
+  // re-fetch instead of crashing.
   const existing = await findAuthUserByEmail(admin, email)
+  let userId: string
   if (existing) {
-    // Ensure public.users row exists (may have been cleaned up) AND has the
-    // expected role + org. Re-running the helper across spec files must be
-    // idempotent; a user that drifted (org changed, role demoted) gets fixed.
-    const { data: userRow, error: userRowErr } = await admin
-      .from('users')
-      .select('id, organization_id, role')
-      .eq('id', existing.id)
-      .maybeSingle()
-    if (userRowErr) throw new Error(`upsertUser: users lookup failed: ${userRowErr.message}`)
-    if (!userRow) {
-      const { error: insertError } = await admin.from('users').insert({
-        id: existing.id,
-        organization_id: orgId,
-        email,
-        full_name: `Red Team ${email.split('@')[0]}`,
-        role,
-      })
-      if (insertError)
-        throw new Error(`Could not insert user row for ${email}: ${insertError.message}`)
-    } else if (userRow.organization_id !== orgId || userRow.role !== role) {
-      const { error: updateError } = await admin
-        .from('users')
-        .update({ organization_id: orgId, role })
-        .eq('id', existing.id)
-      if (updateError)
-        throw new Error(`Could not realign user row for ${email}: ${updateError.message}`)
+    userId = existing.id
+  } else {
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+    if (createError || !created?.user) {
+      const raced = await findAuthUserByEmail(admin, email)
+      if (!raced) {
+        const reason = createError ? `: ${createError.message}` : ' (create returned no user)'
+        throw new Error(`Could not create or find auth user ${email}${reason}`)
+      }
+      userId = raced.id
+    } else {
+      userId = created.user.id
     }
-    return existing.id
   }
 
-  // Create auth user
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  })
-  if (createError || !created.user)
-    throw new Error(`Could not create auth user ${email}: ${createError?.message}`)
-
-  const userId = created.user.id
-
-  // Insert into users table
-  const { error: insertError } = await admin.from('users').insert({
-    id: userId,
-    organization_id: orgId,
-    email,
-    full_name: `Red Team ${email.split('@')[0]}`,
-    role,
-  })
-  if (insertError) throw new Error(`Could not insert user row for ${email}: ${insertError.message}`)
+  // Idempotently converge the public.users row via an upsert on the PK id, so
+  // parallel workers can't race an insert into a duplicate-key failure and a
+  // drifted org/role is realigned. deleted_at is intentionally NOT in the
+  // payload: the EN/EO soft-delete throwaway students must stay soft-deleted.
+  const { error: upsertError } = await admin.from('users').upsert(
+    {
+      id: userId,
+      organization_id: orgId,
+      email,
+      full_name: `Red Team ${email.split('@')[0]}`,
+      role,
+    },
+    { onConflict: 'id' },
+  )
+  if (upsertError) throw new Error(`Could not upsert user row for ${email}: ${upsertError.message}`)
 
   return userId
 }
