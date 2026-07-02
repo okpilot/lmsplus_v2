@@ -25,6 +25,10 @@ export const E2E_REDTEAM_EN_MARKER = '[E2E_REDTEAM_EN]'
 export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_EMAIL =
   'redteam-softdel-report-keys-student@lmsplus.local'
 export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-keys-student-2026!'
+// Dedicated throwaway student for the get_study_questions EO-SD soft-deleted-caller sub-vector.
+// Distinct email so a soft-delete blast radius is bounded to get-study-questions-eo.spec.ts.
+export const E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL = 'redteam-softdel-study-student@lmsplus.local'
+export const E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-study-student-2026!'
 // get_study_questions spec (Vector EO): marks the throwaway MC/short_answer
 // questions it inserts (egmont + redteam-other-org) so cleanup/maintenance can
 // target them by question_text/question_number. get_study_questions deliberately
