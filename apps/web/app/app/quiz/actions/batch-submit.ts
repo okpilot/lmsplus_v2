@@ -25,7 +25,7 @@ const BatchSubmitInput = z.object({
         // free short_answer text): an empty/whitespace zone id (or short_answer
         // text) would otherwise pass Zod and throw/mis-grade inside the RPC instead
         // of failing cleanly here.
-        responseText: z.string().trim().min(1).optional(),
+        responseText: z.string().trim().min(1).max(500).optional(),
         // Required by dialog_fill (blank slot) / ordering (sequence slot) /
         // diagram_label (dedup index only — discarded server-side, mig 155) fan-out.
         blankIndex: z.number().int().nonnegative().optional(),

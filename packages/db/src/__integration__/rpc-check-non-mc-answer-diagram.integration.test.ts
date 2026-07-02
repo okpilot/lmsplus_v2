@@ -305,6 +305,28 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
     expect(result.correct_mapping).not.toEqual(CONFIG_A.answer)
   })
 
+  it('grades a mapping that double-covers one zone and skips another as is_correct:false', async () => {
+    // Locks mig-153 condition 2 (count(DISTINCT zone_id) = N): full length + every
+    // individual pair valid, but zone-ne is placed twice and zone-sw is uncovered.
+    // Conditions 1 (length) and 3 (all pairs canonical) pass — only the distinct-zone
+    // guard rejects it, so dropping that guard would silently regress to is_correct:true.
+    const dup: AnswerEntry[] = [
+      { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
+      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+    ]
+    const sessionId = await startSession(studentClient, [diagramAId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: diagramAId,
+      p_session_id: sessionId,
+      p_mapping: dup,
+    })
+    expect(error).toBeNull()
+    const result = asResult(data)
+    expect(result.is_correct).toBe(false)
+    expect(result.correct_mapping).toEqual(CONFIG_A.answer)
+  })
+
   it('grades a partial mapping (fewer entries than zones) as is_correct:false (full-coverage rule)', async () => {
     const partial = CONFIG_A.answer.slice(0, 2)
     const sessionId = await startSession(studentClient, [diagramAId])

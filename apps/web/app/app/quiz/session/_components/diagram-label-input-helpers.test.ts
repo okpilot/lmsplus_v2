@@ -86,7 +86,7 @@ describe('poolLabels', () => {
     expect(pool.map((l) => l.id)).toEqual(['l2', 'l3'])
   })
 
-  it('returns an empty pool once every label is placed', () => {
+  it('leaves an unplaced distractor label in the pool when all non-distractor labels are placed', () => {
     const placement = new Map([
       ['z1', 'l1'],
       ['z2', 'l2'],
