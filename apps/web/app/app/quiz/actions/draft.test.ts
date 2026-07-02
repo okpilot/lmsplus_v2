@@ -687,6 +687,36 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  it('rejects a diagram_label answer whose mapping has a whitespace-only zoneId', async () => {
+    // .trim() before min/max on DiagramMappingSchema — parity with
+    // isDiagramMappingEntry — a whitespace-only id must not persist in a draft.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [{ zoneId: '   ', labelId: 'l1' }],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label answer whose mapping has a whitespace-only labelId', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [{ zoneId: 'z1', labelId: '   ' }],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('accepts a valid partial diagram_label mapping (not every zone filled)', async () => {
     // Positive control: unlike ordering, a diagram mapping is not required to be
     // complete — partial submissions are explicitly allowed (Decision 52).

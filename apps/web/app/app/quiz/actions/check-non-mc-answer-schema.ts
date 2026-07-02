@@ -2,7 +2,7 @@
 // check-non-mc-answer-helpers.ts to keep that file ≤200 lines
 // (code-style.md §1).
 import { z } from 'zod'
-import { isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
+import { diagramIdSchema, isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const MAX_DIALOG_BLANKS = 50
@@ -72,8 +72,10 @@ const DiagramInput = z
       .array(
         z
           .object({
-            zoneId: z.string().min(1).max(200),
-            labelId: z.string().min(1).max(200),
+            // Shared trimmed id schema — parity with the save-draft sibling
+            // (draft-schema.ts) and isDiagramMappingEntry.
+            zoneId: diagramIdSchema,
+            labelId: diagramIdSchema,
           })
           .strict(),
       )

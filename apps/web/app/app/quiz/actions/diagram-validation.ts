@@ -10,6 +10,13 @@
  * (load-draft-helpers.ts) so they stay in sync without hand-maintained parity
  * comments (mirrors the role ordering-validation.ts plays for `order`).
  */
+import { z } from 'zod'
+
+// Shared Zod fragment for a single submitted zone/label id. `.trim()` before
+// min/max so a whitespace-only token can't pass `min(1)` — keeps the save-draft
+// (draft-schema.ts) and grade (check-non-mc-answer-schema.ts) sibling schemas at
+// parity, and matches isDiagramMappingEntry's `.trim().length > 0` runtime guard.
+export const diagramIdSchema = z.string().trim().min(1).max(200)
 
 // Upper bound for a submitted mapping / delivered zones array. Distractors
 // mean labels.length MAY exceed zones.length (Decision 52), so labels get

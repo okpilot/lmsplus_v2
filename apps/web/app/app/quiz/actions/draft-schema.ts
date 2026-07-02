@@ -7,18 +7,17 @@
 // + duplicate-index rejection — so a draft can never persist a payload the grader
 // would later reject on resume.
 import { z } from 'zod'
-import { isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
+import { diagramIdSchema, isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const DiagramMappingSchema = z
   .array(
     z
       .object({
-        // .trim() before min/max — parity with isDiagramMappingEntry (which uses
-        // .trim().length > 0) so a whitespace-only id can't persist in a draft and
-        // then be dropped on resume.
-        zoneId: z.string().trim().min(1).max(200),
-        labelId: z.string().trim().min(1).max(200),
+        // Shared trimmed id schema — parity with the grade sibling
+        // (check-non-mc-answer-schema.ts) and isDiagramMappingEntry.
+        zoneId: diagramIdSchema,
+        labelId: diagramIdSchema,
       })
       .strict(),
   )
