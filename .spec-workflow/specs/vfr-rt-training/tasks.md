@@ -133,16 +133,30 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 ## Phase 6 — `diagram_label` type (Part 3 traffic pattern)
 
-- [ ] **6.1 Migration — `diagram_label` type** — widen the two CHECKs; add `diagram_config JSONB` (`image_ref`, `zones`, `labels`, `answer`). Extend `get_quiz_questions` to deliver image+zones+labels and **strip `answer`**; extend grader (zone→label map, per-zone correctness) + `batch_submit_quiz` + `get_report_correct_options`. Gate the mapping (REVOKE/RPC-only). Integration tests + plan.md count.
-- [ ] **6.2 `DiagramLabelInput` (dnd-kit drag onto positioned zones, touch/responsive) + `DiagramLabelReport` (+ tests)**; dispatch entries; widen unions.
-- [ ] **6.3 Seed 27/09 pattern** — static image asset (`apps/web/public/...`) + zones + label pool fixture in the training seed (admin authoring deferred).
+> **DEVIATION FROM 6.3's literal wording (image_ref = inline SVG registry key, not a static
+> image asset — ratified, Decision 52, 2026-07-02).** The task text below predates the
+> user-confirmed design decisions. `image_ref` resolves through an in-code SVG component
+> registry (`_components/diagrams/registry.ts` → `rwy-2709-lh-pattern.tsx`), not a file under
+> `apps/web/public/`; zones are `%`-fraction overlays on the inline SVG. Distractor labels are
+> allowed (`labels.length` may exceed `zones.length`). Storage reuses the Decision-51 per-slot
+> row model (per-zone rows, `blank_index` = derived zone ordinal). Migration set (7,
+> `packages/db/migrations/150–156` ≡ `supabase/migrations/20260702000100–20260702000700`): 150
+> column+CHECK (`is_valid_diagram_config`), 151 trigger widened to admit `diagram_label`, 152
+> `get_quiz_questions`(+diagram_config_public), 153 `check_non_mc_answer`(+p_mapping, 6-arg),
+> 154 `_grade_record_diagram_label` REVOKE-gated helper, 155 `batch_submit_quiz` dispatch +
+> INVERTED self-defence (distinct zone_id/label_id, NOT a complete-permutation guard — partial
+> submission + unused distractors are explicitly allowed), 156 `get_report_answer_keys`.
+
+- [x] **6.1 Migration — `diagram_label` type** — widen the two CHECKs; add `diagram_config JSONB` (`image_ref`, `zones`, `labels`, `answer`). Extend `get_quiz_questions` to deliver image+zones+labels and **strip `answer`**; extend grader (zone→label map, per-zone correctness) + `batch_submit_quiz` + `get_report_answer_keys`. Gate the mapping (REVOKE/RPC-only). Integration tests + plan.md count. _(Migs 150–156; `is_valid_diagram_config()` shape guard; `check_non_mc_answer` widened to 6-arg `p_mapping`; `_grade_record_diagram_label` REVOKE-gated per-zone helper; `batch_submit_quiz` INVERTED self-defence + partial-credit rollup; `get_report_answer_keys` 2-hop answer-key resolve. Decision 52.)_
+- [x] **6.2 `DiagramLabelInput` (dnd-kit drag onto positioned zones, touch/responsive) + `DiagramLabelReport` (+ tests)**; dispatch entries; widen unions. _(`DiagramLabelInput`/`-chip`/`-pool`/`-zone` sub-components + `diagram-label-input-helpers.ts`; `DiagramLabelReport`; dispatch wired through the answer-input dispatcher, `use-answer-pipeline`, `use-quiz-state`, report row dispatcher; `DraftAnswer`/`AnswerFeedback`/`QuizReportQuestion` unions widened; `load-draft-helpers.ts` `toFeedbackEntry` diagram_label case for DB-draft resume.)_
+- [x] **6.3 Seed 27/09 pattern** — 9-zone (5 legs + 4 turns) RWY 27/09 left-hand pattern fixture + label pool (incl. distractors) in the training seed, rendered via the inline SVG registry (`rwy-2709-lh-pattern.tsx`) — **not** a static image asset under `apps/web/public/` (see the deviation note above; admin authoring deferred).
   - _Eval:_ drag labels onto the drawn pattern end-to-end (answer → per-zone feedback → report).
 
 ## Phase 7 — Cleanup, tests, docs
 
 - [ ] **7.1 Remove temporary scaffolding** (e.g. Phase-1 MC-only filter); confirm no dead code.
-- [ ] **7.2 Full suite green** — unit + integration + types + biome; red-team if a trigger/RPC security path was touched.
-- [ ] **7.3 Docs** — `docs/database.md` (extended `get_quiz_questions`, new grader RPC, extended `batch_submit_quiz`/`get_report_correct_options`, new types); `docs/plan.md` (phase status + final integration count); decisions (dnd-kit, `ordering`/`diagram_label` types).
+- [x] **7.2 Full suite green** — unit + integration + types + biome; red-team if a trigger/RPC security path was touched. (web 5018/5018, packages/db integration 370/370, types + biome + build clean; Red Team relies on the authoritative CI required check per VFR-RT local-unreliability guidance.)
+- [x] **7.3 Docs** — `docs/database.md` (extended `get_quiz_questions`, new grader RPC, extended `batch_submit_quiz`/`get_report_correct_options`, new types); `docs/plan.md` (phase status + final integration count); decisions (dnd-kit, `ordering`/`diagram_label` types).
 - [ ] **7.4 #923 disposition note** — bespoke exam UI stays parked; timed exam returns later as exam-mode on this shared UI (inheriting all 5 types).
 
 ---

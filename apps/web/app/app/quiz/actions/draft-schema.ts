@@ -7,6 +7,7 @@
 // + duplicate-index rejection — so a draft can never persist a payload the grader
 // would later reject on resume.
 import { z } from 'zod'
+import { DiagramMappingSchema } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 export const SaveDraftInput = z
@@ -49,12 +50,13 @@ export const SaveDraftInput = z
             .max(MAX_ORDER_ITEMS)
             .refine(isUniquePermutation, 'Ordering ids must be unique')
             .optional(),
+          mapping: DiagramMappingSchema.optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
-        // Exactly one answer payload must be present (MC / short / dialog / ordering).
+        // Exactly one answer payload must be present (MC / short / dialog / ordering / diagram).
         .refine(
           (a) =>
-            [a.selectedOptionId, a.responseText, a.blankAnswers, a.order].filter(
+            [a.selectedOptionId, a.responseText, a.blankAnswers, a.order, a.mapping].filter(
               (x) => x !== undefined,
             ).length === 1,
           { message: 'Draft answer must carry exactly one answer payload' },
@@ -121,6 +123,13 @@ export const SaveDraftInput = z
               .min(MIN_ORDER_ITEMS)
               .max(MAX_ORDER_ITEMS)
               .refine(isUniquePermutation, 'Ordering ids must be unique'),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+          z.object({
+            questionType: z.literal('diagram_label'),
+            isCorrect: z.boolean(),
+            correctMapping: DiagramMappingSchema,
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),

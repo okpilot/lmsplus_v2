@@ -7,6 +7,11 @@ import {
   MIN_ORDER_ITEMS,
 } from '@/app/app/quiz/actions/ordering-validation'
 import { rpc } from '@/lib/supabase-rpc'
+import {
+  type DiagramConfigRow,
+  isDiagramConfig,
+  toDiagramConfigRow,
+} from './load-session-diagram-guards'
 
 type QuizQuestionRow = {
   id: string
@@ -16,10 +21,11 @@ type QuizQuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: unknown
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
   dialog_template: string | null
   blanks_safe: unknown
   ordering_items_shuffled: unknown
+  diagram_config_public: unknown
 }
 
 type Question = {
@@ -30,10 +36,11 @@ type Question = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
   ordering_items: { id: string; text: string }[] | null
+  diagram_config: DiagramConfigRow | null
 }
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
@@ -107,6 +114,9 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
     ordering_items: isOrderingItemArray(q.ordering_items_shuffled)
       ? q.ordering_items_shuffled
+      : null,
+    diagram_config: isDiagramConfig(q.diagram_config_public)
+      ? toDiagramConfigRow(q.diagram_config_public)
       : null,
   }))
 

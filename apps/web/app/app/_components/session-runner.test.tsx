@@ -24,6 +24,7 @@ const QUESTIONS: SessionQuestion[] = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
   {
     id: 'q2',
@@ -40,6 +41,7 @@ const QUESTIONS: SessionQuestion[] = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
 ]
 

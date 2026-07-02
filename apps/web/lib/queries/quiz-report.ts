@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
+import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 
 // Fields shared by every question variant in the report. The per-type variants
 // below extend this with their type-specific shape (MC options, short-answer
@@ -67,6 +68,7 @@ export type QuizReportQuestion =
       correctCount: number
       totalItems: number
     })
+  | DiagramLabelQuestion
 
 export type QuizReportSummary = {
   sessionId: string

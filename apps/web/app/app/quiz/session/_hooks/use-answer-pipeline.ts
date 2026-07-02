@@ -18,6 +18,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     handleTextAnswer,
     handleDialogFillAnswer,
     handleOrderingAnswer,
+    handleDiagramLabelAnswer,
     clearError: clearAnswerError,
     pendingQuestionIdRef,
   } = useAnswerHandler({
@@ -34,7 +35,6 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     onAnswerReverted: (a) => checkpoint(a, opts.getCurrentIndex(), feedbackRef.current),
   })
   feedbackRef.current = feedback
-
   const {
     submitted,
     error: submitError,
@@ -53,7 +53,6 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
-
   const { navigateTo, navigate } = buildPersistenceNavigation({
     checkpoint,
     navigateTo: opts.navigateTo,
@@ -72,6 +71,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     handleTextAnswer,
     handleDialogFillAnswer,
     handleOrderingAnswer,
+    handleDiagramLabelAnswer,
     navigateTo,
     navigate,
     submitted,

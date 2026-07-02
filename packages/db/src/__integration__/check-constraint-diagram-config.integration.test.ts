@@ -1,0 +1,376 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
+import { seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient } from './setup'
+
+// mig 150's is_valid_diagram_config(jsonb) CHECK guards questions.diagram_config
+// at authoring time — the answer key + the geometry it protects must be
+// structurally valid before a `diagram_label` row can be inserted. Every risky
+// cast (numeric coord parse) is CASE-guarded on jsonb_typeof BEFORE casting,
+// and all three arrays (zones/labels/answer) are CASE-guarded on
+// jsonb_typeof = 'array' before jsonb_array_elements() — a non-array input
+// must degrade to 23514 (check_violation), never a raw 22023/22P02. These
+// totality guards only run when the CHECK actually EXECUTES against an INSERT
+// — a `db reset` proves only that the function body parses.
+
+type AnswerEntry = { zone_id: string; label_id: string }
+
+type DiagramConfig = {
+  image_ref: string
+  zones: unknown
+  labels: unknown
+  answer: unknown
+}
+
+function baseValidConfig(): DiagramConfig {
+  return {
+    image_ref: 'rwy-27-09-lh-pattern',
+    zones: [
+      { id: 'zn1', x: 0.2, y: 0.2, w: 0.1, h: 0.1 },
+      { id: 'zn2', x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
+    ],
+    labels: [
+      { id: 'lb1', text: 'Label One' },
+      { id: 'lb2', text: 'Label Two' },
+      { id: 'lb3', text: 'Distractor' },
+    ],
+    answer: [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn2', label_id: 'lb2' },
+    ] satisfies AnswerEntry[],
+  }
+}
+
+describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () => {
+  const admin = getAdminClient()
+  let orgId = ''
+  let adminUserId: string
+  let bankId: string
+  let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
+  const userIds: string[] = []
+  const suffix = Date.now()
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({
+      admin,
+      name: `Test Org DiagramCheck ${suffix}`,
+      slug: `test-diagramcheck-${suffix}`,
+    })
+    adminUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `admin-diagramcheck-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    userIds.push(adminUserId)
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `DV${suffix}`,
+      subjectName: `DiagramCheck Subject ${suffix}`,
+      topicCode: `DV${suffix}-01`,
+      topicName: `DiagramCheck Topic ${suffix}`,
+    })
+
+    const { data: bank, error: bankErr } = await admin
+      .from('question_banks')
+      .insert({
+        organization_id: orgId,
+        name: `DiagramCheck Bank ${suffix}`,
+        created_by: adminUserId,
+      })
+      .select('id')
+      .single()
+    if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
+    bankId = requireRpcResult<{ id: string }>(bank, 'question_banks insert').id
+  })
+
+  afterAll(async () => {
+    // §7 per-step accumulator: isolate each cleanup so a failure in one does not
+    // skip the next (and leak rows). Reference cleanup is FK-dependent on test
+    // cleanup, so it is gated on `errors.length === 0`.
+    const errors: string[] = []
+    if (orgId) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (refs && errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  async function insertDiagram(
+    config: unknown,
+    label: string,
+  ): Promise<{ error: { code?: string; message: string } | null; id?: string }> {
+    const { data, error } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        bank_id: bankId,
+        subject_id: refs!.subjectId,
+        topic_id: refs!.topicId,
+        subtopic_id: null,
+        difficulty: 'medium',
+        status: 'active',
+        created_by: adminUserId,
+        question_type: 'diagram_label',
+        question_text: `Diagram CHECK — ${label}`,
+        diagram_config: config,
+        explanation_text: 'CHECK test',
+      })
+      .select('id')
+      .single<{ id: string }>()
+    return { error: error as { code?: string; message: string } | null, id: data?.id }
+  }
+
+  it('rejects a zone whose coordinate is not a number', async () => {
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], x: '0.2' } // string, not number
+    const { error } = await insertDiagram(config, 'non-number coord')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a zone coordinate that is out of the [0,1] range', async () => {
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], x: 1.5 } // valid number type, out of range
+    const { error } = await insertDiagram(config, 'out-of-range coord')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a zone with zero-size width (w <= 0)', async () => {
+    // A zero-width zone is an unusable drop target — mig 150's w/h guard
+    // requires strictly positive size, not just presence.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], w: 0 }
+    const { error } = await insertDiagram(config, 'zero-size zone width')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a zone that overflows the [0,1] canvas (x + w > 1)', async () => {
+    // Valid x/w individually (both in [0,1]), but the box extends past the
+    // right edge of the diagram — mig 150's overflow guard rejects this.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], x: 0.95, w: 0.15 }
+    const { error } = await insertDiagram(config, 'overflowing zone (x + w > 1)')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config carrying an unknown top-level key', async () => {
+    // The validator pins the top-level shape to exactly {image_ref, zones, labels,
+    // answer}. A stray key (e.g. answer_key) must not persist even though
+    // get_quiz_questions re-projects on delivery — defence in depth.
+    const config = { ...baseValidConfig(), answer_key: 'lb1' } as unknown
+    const { error } = await insertDiagram(config, 'unknown top-level key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config exceeding the MAX_ZONES (50) cap', async () => {
+    // The validator caps zones at 50 (mirrors diagram-validation.ts MAX_ZONES) so an
+    // oversized config cannot be stored, delivered, or graded. Build 51 valid,
+    // disjoint zones with a bijective answer so ONLY the count violates the CHECK.
+    const n = 51
+    const zones = Array.from({ length: n }, (_, i) => ({
+      id: `zn${i}`,
+      x: 0,
+      y: 0,
+      w: 0.01,
+      h: 0.01,
+    }))
+    const labels = Array.from({ length: n }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
+    const answer = Array.from({ length: n }, (_, i) => ({ zone_id: `zn${i}`, label_id: `lb${i}` }))
+    const { error } = await insertDiagram(
+      { image_ref: 'rwy-27-09-lh-pattern', zones, labels, answer },
+      '51 zones',
+    )
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config exceeding the MAX_LABELS (60) cap', async () => {
+    // The validator caps labels at 60 (mirrors diagram-validation.ts MAX_LABELS) for
+    // DB/client parity. Two answered zones + 61 distinct labels (59 distractors) so
+    // ONLY the label count violates the CHECK.
+    const config = baseValidConfig()
+    config.labels = Array.from({ length: 61 }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb0' },
+      { zone_id: 'zn2', label_id: 'lb1' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, '61 labels')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config missing the top-level image_ref key', async () => {
+    // Before wrapping the validator's final SELECT in COALESCE(..., false), a
+    // config missing image_ref made the boolean-AND chain evaluate to NULL —
+    // and a Postgres CHECK constraint treats a NULL result as PASSING (only
+    // FALSE fails), so the insert was wrongly ACCEPTED. COALESCE forces the
+    // NULL case to false so the row is rejected.
+    const config = baseValidConfig() as unknown as Record<string, unknown>
+    delete config.image_ref
+    const { error } = await insertDiagram(config, 'missing image_ref key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config whose zones is a non-array JSON value', async () => {
+    // Totality guard: a non-array `zones` must fail cleanly with 23514 — NOT a
+    // raw 22023 from an unguarded jsonb_array_elements.
+    const config = baseValidConfig()
+    ;(config as unknown as { zones: unknown }).zones = { not: 'an-array' }
+    const { error } = await insertDiagram(config, 'non-array zones')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config whose labels is a non-array JSON value', async () => {
+    const config = baseValidConfig()
+    ;(config as unknown as { labels: unknown }).labels = { not: 'an-array' }
+    const { error } = await insertDiagram(config, 'non-array labels')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config whose answer is a non-array JSON value', async () => {
+    const config = baseValidConfig()
+    ;(config as unknown as { answer: unknown }).answer = { not: 'an-array' }
+    const { error } = await insertDiagram(config, 'non-array answer')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an answer that leaves a zone uncovered', async () => {
+    const config = baseValidConfig()
+    // Only zn1 covered; zn2 has no answer entry — answer count (1) != zone count (2).
+    config.answer = [{ zone_id: 'zn1', label_id: 'lb1' }] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'uncovered zone')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an answer entry that references an unknown zone id', async () => {
+    const config = baseValidConfig()
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn-does-not-exist', label_id: 'lb2' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'unknown zone ref')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an answer entry that references an unknown label id', async () => {
+    const config = baseValidConfig()
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn2', label_id: 'lb-does-not-exist' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'unknown label ref')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an answer that covers the same zone twice', async () => {
+    const config = baseValidConfig()
+    // Both entries target zn1; zn2 is never referenced — distinct zone_id
+    // count (1) != zone count (2).
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn1', label_id: 'lb2' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'duplicate zone in answer')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects an answer that maps the same label to two different zones', async () => {
+    // Inverse of "duplicate zone in answer": lb1 covers both zn1 and zn2, so
+    // lb2 is never referenced — distinct label_id ref count (1) != zone count
+    // (2), same one-to-one bijection guard from the other direction.
+    const config = baseValidConfig()
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn2', label_id: 'lb1' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'duplicate label in answer')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a zone object carrying an extra key', async () => {
+    // mig 150's exact-key-set guard: only id/x/y/w/h are allowed on a zone —
+    // no extra author metadata may ride along.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], foo: 'bar' }
+    const { error } = await insertDiagram(config, 'zone with extra key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a label object carrying an extra key', async () => {
+    // Same exact-key-set guard, mirrored for labels: only id/text are allowed.
+    const config = baseValidConfig()
+    const labels = config.labels as Array<Record<string, unknown>>
+    labels[0] = { ...labels[0], foo: 'bar' }
+    const { error } = await insertDiagram(config, 'label with extra key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a config where a zone id equals a label id', async () => {
+    // SECURITY: mig 150 enforces zone-id / label-id disjointness — a shared id
+    // could correlate a delivered zone to its answer label (header note).
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    const labels = config.labels as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], id: 'shared-id' }
+    labels[0] = { ...labels[0], id: 'shared-id' }
+    config.answer = [
+      { zone_id: 'shared-id', label_id: 'shared-id' },
+      { zone_id: 'zn2', label_id: 'lb2' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'zone id equals label id')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('accepts a valid diagram_config with an unused distractor label', async () => {
+    // Positive control: baseValidConfig's lb3 is never referenced by `answer`
+    // — Decision 52 explicitly allows distractors, so this must succeed.
+    const config = baseValidConfig()
+    const { error, id } = await insertDiagram(config, 'valid with distractor')
+    expect(error).toBeNull()
+    expect(typeof id).toBe('string')
+
+    // Non-vacuity: the row is genuinely persisted with the distractor label intact.
+    const { data: stored, error: readErr } = await admin
+      .from('questions')
+      .select('diagram_config')
+      .eq('id', id as string)
+      .single<{ diagram_config: DiagramConfig }>()
+    expect(readErr).toBeNull()
+    const labels = stored?.diagram_config.labels as Array<{ id: string }> | undefined
+    expect(labels?.map((l) => l.id)).toContain('lb3')
+  })
+})

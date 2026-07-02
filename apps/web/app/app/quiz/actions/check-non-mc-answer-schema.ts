@@ -2,6 +2,7 @@
 // check-non-mc-answer-helpers.ts to keep that file ≤200 lines
 // (code-style.md §1).
 import { z } from 'zod'
+import { DiagramMappingSchema } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const MAX_DIALOG_BLANKS = 50
@@ -59,4 +60,22 @@ const OrderingInput = z
   })
   .strict()
 
-export const CheckNonMcAnswerSchema = z.union([ShortAnswerInput, DialogFillInput, OrderingInput])
+const DiagramInput = z
+  .object({
+    questionId: z.uuid(),
+    sessionId: z.uuid(),
+    // Bound array + element length (parity with OrderingInput). A diagram
+    // mapping is a partial injective function zoneId -> labelId — distinct
+    // zoneId AND distinct labelId (a chip is consumed on placement), but
+    // (unlike ordering) NOT required to be complete (Decision 52). Shared
+    // schema — parity with the save-draft sibling (draft-schema.ts).
+    mapping: DiagramMappingSchema,
+  })
+  .strict()
+
+export const CheckNonMcAnswerSchema = z.union([
+  ShortAnswerInput,
+  DialogFillInput,
+  OrderingInput,
+  DiagramInput,
+])

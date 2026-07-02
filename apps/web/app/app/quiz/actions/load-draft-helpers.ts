@@ -3,6 +3,7 @@
 // 100-line cap (code-style.md §1). No `'use server'` — these are pure transforms.
 import type { Database } from '@repo/db/types'
 import type { AnswerFeedback, DialogBlankResult, DraftAnswer, DraftData } from '../types'
+import { isDiagramMappingArray } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
@@ -82,6 +83,13 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
         r.correctOrder.every((s) => typeof s === 'string' && s.length > 0) &&
         isUniquePermutation(r.correctOrder as string[])
         ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }
+        : null
+    case 'diagram_label':
+      // Sibling-validator parity (agent-semantic-reviewer.md, count=3): reuse the
+      // shared isDiagramMappingArray guard (presence + shape + bounds) so an
+      // empty/absent mapping doesn't silently pass and discard the draft's feedback.
+      return isDiagramMappingArray(r.correctMapping)
+        ? { questionType: 'diagram_label', correctMapping: r.correctMapping, ...base }
         : null
     default:
       return null

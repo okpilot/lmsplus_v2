@@ -80,6 +80,7 @@ function makeAnswers(
         responseText?: string
         blankAnswers?: { index: number; text: string }[]
         order?: string[]
+        mapping?: { zoneId: string; labelId: string }[]
         responseTimeMs: number
       },
     ]
@@ -312,6 +313,56 @@ describe('submitQuizSession', () => {
     const emptyOrderMap = makeAnswers([[Q1_ID, { order: [], responseTimeMs: 2000 }]])
 
     await submitQuizSession(SESSION_ID, emptyOrderMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [],
+    })
+  })
+
+  it('submits a diagram_label answer as one entry per placed zone with the label/zone ids inverted', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const diagramMap = makeAnswers([
+      [
+        Q1_ID,
+        {
+          mapping: [
+            { zoneId: 'z1', labelId: 'l1' },
+            { zoneId: 'z2', labelId: 'l2' },
+          ],
+          responseTimeMs: 3000,
+        },
+      ],
+    ])
+
+    await submitQuizSession(SESSION_ID, diagramMap, USER_ID)
+
+    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      answers: [
+        {
+          questionId: Q1_ID,
+          selectedOptionId: 'l1',
+          responseText: 'z1',
+          blankIndex: 0,
+          responseTimeMs: 3000,
+        },
+        {
+          questionId: Q1_ID,
+          selectedOptionId: 'l2',
+          responseText: 'z2',
+          blankIndex: 1,
+          responseTimeMs: 3000,
+        },
+      ],
+    })
+  })
+
+  it('emits no rows for a diagram_label question with an empty mapping', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const emptyMappingMap = makeAnswers([[Q1_ID, { mapping: [], responseTimeMs: 2000 }]])
+
+    await submitQuizSession(SESSION_ID, emptyMappingMap, USER_ID)
 
     expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,

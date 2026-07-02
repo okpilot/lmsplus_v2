@@ -3,6 +3,7 @@ import type {
   QuizReportQuestion,
   QuizReportQuestionCommon,
 } from './quiz-report'
+import { buildDiagram } from './report-diagram-label-helpers'
 import { buildOrdering } from './report-ordering-helpers'
 
 export type AnswerRow = {
@@ -35,11 +36,13 @@ export type QuestionRow = {
 //  - short_answer: a single canonical string (canonical).
 //  - dialog_fill:  a Map from blank index → canonical string.
 //  - ordering:     a Map from slot position → canonical item text.
+//  - diagram_label: a Map from zone (blank_index) → correct label text.
 //  - MC questions are absent (their key comes from get_report_correct_options).
 export type AnswerKeyEntry =
   | { type: 'short_answer'; canonical: string | null }
   | { type: 'dialog_fill'; canonicalByIndex: Map<number, string> }
   | { type: 'ordering'; canonicalBySlot: Map<number, string> }
+  | { type: 'diagram_label'; correctLabelByZone: Map<number, string> }
 
 // Group answer rows by question_id, preserving first-seen order. Returns the
 // per-question row groups plus the first-seen order array.
@@ -118,6 +121,10 @@ export function buildReportQuestions(
       return buildOrdering(common, rows, answerKeyMap.get(questionId))
     }
 
+    if (type === 'diagram_label') {
+      return buildDiagram(common, rows, answerKeyMap.get(questionId))
+    }
+
     // multiple_choice (default)
     const row = rows[0]
     const options = question?.options ?? []
@@ -174,22 +181,4 @@ function buildDialogFill(
     correctCount,
     totalBlanks: blanks.length,
   }
-}
-
-// "Answered" differs per type: MC needs a selected option present in the list;
-// short_answer needs response text; dialog_fill needs at least one filled blank;
-// ordering needs at least one slot with a placed item.
-export function isQuestionAnswered(question: QuizReportQuestion): boolean {
-  if (question.questionType === 'multiple_choice') {
-    return question.options.some((o) => o.id === question.selectedOptionId)
-  }
-  if (question.questionType === 'short_answer') {
-    return question.responseText !== null && question.responseText.trim().length > 0
-  }
-  if (question.questionType === 'ordering') {
-    // response_text is the resolved item text — always non-empty per
-    // _grade_record_ordering's guard (it throws on empty/null before INSERT).
-    return question.slots.some((s) => s.responseText !== null && s.responseText.trim().length > 0)
-  }
-  return question.blanks.some((b) => b.responseText !== null && b.responseText.trim().length > 0)
 }

@@ -70,6 +70,24 @@ const orderingQuestion: QuizReportQuestion = {
   responseTimeMs: 4000,
 }
 
+const diagramQuestion: QuizReportQuestion = {
+  questionId: 'q5',
+  questionText: 'Label the pattern legs.',
+  questionNumber: null,
+  questionType: 'diagram_label',
+  isCorrect: false,
+  zones: [
+    { blankIndex: 0, placedLabel: 'Upwind', correctLabel: 'Upwind', isCorrect: true },
+    { blankIndex: 1, placedLabel: 'Downwind', correctLabel: 'Crosswind', isCorrect: false },
+  ],
+  correctCount: 1,
+  totalZones: 2,
+  explanationText: null,
+  explanationImageUrl: null,
+  questionImageUrl: null,
+  responseTimeMs: 5000,
+}
+
 describe('ReportAnswerBody', () => {
   it('renders the option list for a multiple-choice question', () => {
     render(<ReportAnswerBody question={mcQuestion} />)
@@ -89,5 +107,10 @@ describe('ReportAnswerBody', () => {
   it('renders the position fraction for an ordering question', () => {
     render(<ReportAnswerBody question={orderingQuestion} />)
     expect(screen.getByText('1 / 2 positions correct')).toBeInTheDocument()
+  })
+
+  it('renders the zone fraction for a diagram-label question', () => {
+    render(<ReportAnswerBody question={diagramQuestion} />)
+    expect(screen.getByText('1 / 2 zones correct')).toBeInTheDocument()
   })
 })

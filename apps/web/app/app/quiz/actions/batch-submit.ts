@@ -12,11 +12,22 @@ const BatchSubmitInput = z.object({
       z.object({
         questionId: z.uuid(),
         // .min(1): for ordering fan-out this carries the item id passed to
-        // _grade_record_ordering(p_item_id) — an empty string would pass Zod and
-        // throw inside the RPC instead of failing cleanly here (parity with the
-        // OrderingInput element .min(1) in check-non-mc-answer-schema.ts).
+        // _grade_record_ordering(p_item_id); for diagram_label fan-out it carries
+        // the placed label id passed to _grade_record_diagram_label(p_label_id,
+        // mig 155) — an empty string would pass Zod and throw inside the RPC
+        // instead of failing cleanly here (parity with the OrderingInput element
+        // .min(1) in check-non-mc-answer-schema.ts).
         selectedOptionId: z.string().min(1).optional(),
-        responseText: z.string().optional(),
+        // diagram_label fan-out repurposes this field to carry the target zone id
+        // (mig 155 header note) — same generic entry shape as short_answer's free
+        // text, no separate field needed. .trim().min(1) shares selectedOptionId's
+        // reject-empty intent (with an added .trim(), since responseText can carry
+        // free short_answer text): an empty/whitespace zone id (or short_answer
+        // text) would otherwise pass Zod and throw/mis-grade inside the RPC instead
+        // of failing cleanly here.
+        responseText: z.string().trim().min(1).max(500).optional(),
+        // Required by dialog_fill (blank slot) / ordering (sequence slot) /
+        // diagram_label (dedup index only — discarded server-side, mig 155) fan-out.
         blankIndex: z.number().int().nonnegative().optional(),
         responseTimeMs: z.number().int().positive(),
       }),

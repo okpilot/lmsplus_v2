@@ -310,6 +310,7 @@ const QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
   {
     id: 'q2',
@@ -326,6 +327,7 @@ const QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
   {
     id: 'q3',
@@ -342,6 +344,7 @@ const QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
 ]
 

@@ -64,6 +64,15 @@ const ORD_SUCCESS = {
   explanationImageUrl: null,
 }
 
+const DG_SUCCESS = {
+  success: true as const,
+  questionType: 'diagram_label' as const,
+  isCorrect: true,
+  correctMapping: [{ zoneId: 'z1', labelId: 'l1' }],
+  explanationText: null,
+  explanationImageUrl: null,
+}
+
 // ---- Helpers ---------------------------------------------------------------
 
 function makeHandlers() {
@@ -460,5 +469,88 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
     })
 
     await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
+  })
+})
+
+// ---- buildAnswerHandlers — handleDiagramLabelAnswer -------------------------
+
+describe('buildAnswerHandlers — handleDiagramLabelAnswer', () => {
+  const MAPPING_PAYLOAD = [{ zoneId: 'z1', labelId: 'l1' }]
+
+  it('stores the submitted mapping for the current question', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DG_SUCCESS)
+    const { handlers, capturedAttempts } = makeHandlers()
+
+    await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
+
+    expect(capturedAttempts).toHaveLength(1)
+    expect(capturedAttempts[0]?.draft).toMatchObject({ mapping: MAPPING_PAYLOAD })
+  })
+
+  it('checks the submitted mapping for the current question', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DG_SUCCESS)
+    const { handlers } = makeHandlers()
+
+    await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
+
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
+      questionId: Q_ID,
+      sessionId: SESSION_ID,
+      mapping: MAPPING_PAYLOAD,
+    })
+  })
+
+  it('returns diagram_label feedback with the canonical mapping', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue(DG_SUCCESS)
+    let capturedResult: AnswerFeedback | null = null
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      capturedResult = await input.check(Q_ID)
+      return true
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
+
+    expect(capturedResult).not.toBeNull()
+    expect((capturedResult as AnswerFeedback | null)?.questionType).toBe('diagram_label')
+    expect((capturedResult as AnswerFeedback | null)?.isCorrect).toBe(true)
+    const correctMapping = (
+      capturedResult as { correctMapping?: { zoneId: string; labelId: string }[] } | null
+    )?.correctMapping
+    expect(correctMapping).toEqual([{ zoneId: 'z1', labelId: 'l1' }])
+  })
+
+  it('fails the submission when validation is unsuccessful', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      return false
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
+  })
+
+  it('rejects non-diagram_label feedback results', async () => {
+    mockCheckNonMcAnswer.mockResolvedValue({ ...DG_SUCCESS, questionType: 'short_answer' })
+    const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
+      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      return false
+    })
+    const handlers = buildAnswerHandlers({
+      sessionId: SESSION_ID,
+      getAnswerStartTime: () => Date.now(),
+      runAttempt,
+    })
+
+    await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
   })
 })

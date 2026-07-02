@@ -116,6 +116,7 @@ function makeQuestions() {
       dialog_template: null,
       blanks_safe: null,
       ordering_items: null,
+      diagram_config: null,
     },
     {
       id: 'q2',
@@ -129,6 +130,7 @@ function makeQuestions() {
       dialog_template: null,
       blanks_safe: null,
       ordering_items: null,
+      diagram_config: null,
     },
   ]
 }

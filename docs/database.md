@@ -193,39 +193,45 @@ CREATE TABLE questions (
   version         INT NOT NULL DEFAULT 1,
   has_calculations BOOLEAN NOT NULL DEFAULT false,  -- admin-tagged: question requires a calculation; drives the quiz-start calc filter (mig 107, #837)
   question_type   TEXT NOT NULL DEFAULT 'multiple_choice'
-                    CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill', 'ordering')),  -- ordering added mig 143 (#697 Phase 5)
+                    CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label')),  -- ordering added mig 143 (#697 Phase 5); diagram_label added mig 150 (#697 Phase 6)
   canonical_answer TEXT NULL,                  -- short_answer grading key
   accepted_synonyms TEXT[] NOT NULL DEFAULT '{}',  -- short_answer synonyms
   dialog_template TEXT NULL,                   -- dialog_fill raw template with {{n|canonical; syn}} tokens
   blanks_config   JSONB NOT NULL DEFAULT '[]'::jsonb,  -- dialog_fill: [{index, canonical, synonyms}]
   ordering_items  JSONB NOT NULL DEFAULT '[]'::jsonb,  -- ordering: [{id, text}] in CANONICAL order (mig 143); answer key by array order — REVOKE-gated by omission from mig 094 grant (N6); delivered shuffled via get_quiz_questions
+  diagram_config  JSONB NULL DEFAULT NULL,     -- diagram_label: {image_ref, zones:[{id,x,y,w,h}], labels:[{id,text}], answer:[{zone_id,label_id}]} (mig 150); answer is the zone->label key — REVOKE-gated by omission from mig 094 grant (N6, mirrors ordering_items); delivered as {image_ref,zones,labels(shuffled)} via get_quiz_questions, answer omitted
   created_by      UUID NOT NULL REFERENCES users(id),
   deleted_at      TIMESTAMPTZ NULL,            -- soft delete = question retired from bank
   deleted_by      UUID REFERENCES users(id) NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  -- 4-branch type<->column discriminator (mig 143 added the ordering branch; #998 CR
-  -- made it TOTAL — exact `ordering_items = '[]'::jsonb` on every non-ordering branch +
-  -- a CASE-wrapped length check on the ordering branch, so a non-array ordering_items
-  -- fails cleanly with 23514 instead of raising a raw 22023).
+  -- 5-branch type<->column discriminator (mig 143 added the ordering branch, mig 150
+  -- added the diagram_label branch; #998 CR made it TOTAL — exact
+  -- `ordering_items = '[]'::jsonb` / `diagram_config IS NULL` on every branch that
+  -- doesn't own that column + a CASE-wrapped length check on the ordering/diagram_label
+  -- branches, so a non-array ordering_items/diagram_config fails cleanly with 23514
+  -- instead of raising a raw 22023).
   CONSTRAINT questions_question_type_columns_check CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND ordering_items = '[]'::jsonb)
+       AND ordering_items = '[]'::jsonb
+       AND diagram_config IS NULL)
     OR (question_type = 'short_answer'
        AND canonical_answer IS NOT NULL
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0
-       AND ordering_items = '[]'::jsonb)
+       AND ordering_items = '[]'::jsonb
+       AND diagram_config IS NULL)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0
-       AND ordering_items = '[]'::jsonb)
+       AND ordering_items = '[]'::jsonb
+       AND diagram_config IS NULL)
     OR (question_type = 'ordering'
        AND canonical_answer IS NULL
        AND accepted_synonyms = '{}'::TEXT[]
@@ -234,7 +240,16 @@ CREATE TABLE questions (
        AND jsonb_array_length(
              CASE WHEN jsonb_typeof(ordering_items) = 'array' THEN ordering_items ELSE '[]'::jsonb END
            ) >= 2
-       AND is_valid_ordering_items(ordering_items))
+       AND is_valid_ordering_items(ordering_items)
+       AND diagram_config IS NULL)
+    OR (question_type = 'diagram_label'
+       AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0
+       AND ordering_items = '[]'::jsonb
+       AND diagram_config IS NOT NULL
+       AND is_valid_diagram_config(diagram_config))
   ),
   CONSTRAINT questions_mc_correct_option_id_check CHECK (
     (question_type = 'multiple_choice')
@@ -254,6 +269,8 @@ All grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected
 - `questions_dialog_fill_blanks_delimiter_free` — every `blanks_config` canonical/synonym is delimiter-free, enforced via the `IMMUTABLE PARALLEL SAFE` helper `dialog_fill_blanks_delimiter_free(jsonb)`. This is an authoring-hygiene / consistency invariant (keeps template tokens and `blanks_config` delimiter-free in lockstep), NOT a direct leak path — `blanks_safe` is index-only, so `blanks_config` values never reach students.
 
 **ordering shape guard (mig 143, #998):** The `is_valid_ordering_items()` CHECK validates that `ordering_items` conforms to its structural contract (a JSONB array where each element is an object whose keys are **exactly** `{id, text}`, both JSON **strings** that are non-blank after trimming, with all `id`s distinct). The length-only check (`jsonb_array_length(ordering_items) >= 2`) alone was insufficient — a row with duplicate item ids, blank/whitespace id or text, or a non-string id/text (e.g. a numeric `id` that `->>` would coerce to text) would satisfy length but be un-renderable and un-gradable. It also rejects any item carrying **extra keys** beyond `{id, text}` (e.g. `correct`, `position`, `correct_order`) via `CASE WHEN jsonb_typeof(e) = 'object' THEN (e - 'id' - 'text') <> '{}'::jsonb ELSE false END` — the canonical array order IS the answer key, so an item must not smuggle answer-bearing metadata into the answer-key column (#998 CR). The CASE guard keeps the delete-key operator off scalar elements so the function stays TOTAL (clean 23514, never a 22023 abort). The string-type clauses use `jsonb_typeof(e->'id') IS DISTINCT FROM 'string'` (not `<> 'string'`) so a **missing** `id`/`text` key — whose `jsonb_typeof` is NULL — is also rejected. The `IMMUTABLE PARALLEL SAFE` helper function rejects malformed items at INSERT with a clean `23514 CHECK violation`, preventing render/grade failures downstream. CASE-wrapped like `dialog_fill_blanks_delimiter_free` to return `false` (not throw) on non-array input.
+
+**diagram_label shape guard (mig 150, #697 Phase 6):** The `is_valid_diagram_config()` CHECK (`IMMUTABLE PARALLEL SAFE`, same TOTAL/CASE-guarded-cast discipline as `is_valid_ordering_items`) validates `diagram_config = {image_ref, zones, labels, answer}`: `image_ref` a non-blank string; `zones`/`labels`/`answer` each arrays (CASE-wrapped to `'[]'` before `jsonb_array_elements` so a non-array degrades to 0 rows, never a 22023 abort); every zone `{id: non-blank string, x/y/w/h: number in [0,1]}` (each numeric cast CASE-guarded on `jsonb_typeof(...) = 'number'` first — Postgres does not guarantee OR-chain short-circuit, so the cast must be inside its own CASE, not after an `OR`), zone ids distinct, **at least one zone and at most 50 zones** (MAX_ZONES = 50, mirrors `apps/web/app/app/quiz/actions/diagram-validation.ts`); every label `{id: non-blank string, text: non-blank string}`, label ids distinct, **at least one label and at most 60 labels** (MAX_LABELS = 60, mirrors `apps/web/app/app/quiz/actions/diagram-validation.ts` for DB/client parity); every answer entry `{zone_id, label_id}` both non-blank strings referencing a real zone/label; **answer covers every zone EXACTLY once** (`answer` count = zone count AND distinct `answer.zone_id` count = zone count, which combined with the referential + distinctness guards forms a bijection zones → answer entries), and each `label_id` appears at most once (a one-to-one, *injective* zone→label assignment — NOT a full zone↔label bijection, since distractor labels may be unused; a repeated label would be unwinnable under consume-on-place). Labels MAY be unused (distractors are allowed by design — Decision 52); there is no requirement that every label appears in `answer`. **Reject unknown top-level keys:** the config shape is strictly `{image_ref, zones, labels, answer}` — any stray key (e.g., `answer_key`) is rejected by the CHECK (defence in depth, since `get_quiz_questions` re-projects on delivery). **Security invariant (seed-enforced, not DB-enforced):** zone ids and label ids must use unrelated random id schemes — otherwise the zone_id/label_id pairing in the answer-stripped delivery payload (mig 152) could leak the answer via naming correlation even with `answer` omitted.
 
 **Indexes:** Partial index on `(question_type, subject_id)` WHERE `deleted_at IS NULL AND status = 'active'` supports VFR RT part-based sampling (mig 094).
 
@@ -409,7 +426,7 @@ CREATE TABLE quiz_session_answers (
 
 **Answer shape discriminator (mig 095):** Exactly one of `(selected_option_id, response_text)` must be set per row. `blank_index` is non-null only for `dialog_fill` (multiple rows per question). `UNIQUE NULLS NOT DISTINCT` allows multiple rows per `(session_id, question_id)` when `blank_index` differs (blank_index NULL for MC/short_answer, int for dialog_fill). Supports both old one-row-per-question and new per-blank-per-question semantics.
 
-**`blank_index` ⇔ `dialog_fill` write-time trigger (mig 131, #828):** A `BEFORE INSERT` trigger `trg_enforce_blank_index_shape_qsa` (mirrored on `student_responses` as `trg_enforce_blank_index_shape_sr`) enforces the biconditional `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` by reading the answered question's type — something the single-row `*_answer_shape_check` CHECK structurally cannot do (a CHECK cannot read another table). It rejects a non-`dialog_fill` row carrying a `blank_index`, and a `dialog_fill` row missing one. Shared trigger function `enforce_answer_blank_index_shape()` is **SECURITY INVOKER** (repo trigger convention — every answer insert originates inside a postgres-owned SECURITY DEFINER grading RPC, so the `questions` read runs as postgres and bypasses RLS) with **no `deleted_at` filter** (the question is reached via the session's frozen write-once `config.question_ids`; soft-deleted questions are still scored — §15 carve-out, see §3). Closes the gap where a future inserter or admin-form/import bug could persist a malformed `blank_index`.
+**`blank_index` ⇔ multi-row-answer-type write-time trigger (mig 131, #828; widened mig 144 for `ordering`, mig 151 for `diagram_label`):** A `BEFORE INSERT` trigger `trg_enforce_blank_index_shape_qsa` (mirrored on `student_responses` as `trg_enforce_blank_index_shape_sr`) enforces the biconditional `question_type IN ('dialog_fill', 'ordering', 'diagram_label') ⇔ blank_index IS NOT NULL` by reading the answered question's type — something the single-row `*_answer_shape_check` CHECK structurally cannot do (a CHECK cannot read another table). It rejects a non-multi-row-type row carrying a `blank_index`, and a `dialog_fill`/`ordering`/`diagram_label` row missing one (`ordering`'s `blank_index` = slot; `diagram_label`'s `blank_index` = the zone's derived ordinal position, mig 154). Shared trigger function `enforce_answer_blank_index_shape()` is **SECURITY INVOKER** (repo trigger convention — every answer insert originates inside a postgres-owned SECURITY DEFINER grading RPC, so the `questions` read runs as postgres and bypasses RLS) with **no `deleted_at` filter** (the question is reached via the session's frozen write-once `config.question_ids`; soft-deleted questions are still scored — §15 carve-out, see §3). Closes the gap where a future inserter or admin-form/import bug could persist a malformed `blank_index`.
 
 ### student_responses
 ```sql
@@ -437,7 +454,7 @@ CREATE TABLE student_responses (
 );
 ```
 
-**Answer shape discriminator (mig 095):** Mirrors `quiz_session_answers` constraint. Legacy callers omit `blank_index` (lands as NULL); rows conflict on the old `(session_id, question_id)` constraint semantics unchanged. New dialog_fill paths supply per-blank rows. The `blank_index` ⇔ `dialog_fill` write-time trigger (mig 131, #828) applies here too via `trg_enforce_blank_index_shape_sr` — see the `quiz_session_answers` note above.
+**Answer shape discriminator (mig 095):** Mirrors `quiz_session_answers` constraint. Legacy callers omit `blank_index` (lands as NULL); rows conflict on the old `(session_id, question_id)` constraint semantics unchanged. New dialog_fill/ordering/diagram_label paths supply per-blank/per-slot/per-zone rows. The `blank_index` ⇔ multi-row-answer-type write-time trigger (mig 131, #828; widened mig 144/151) applies here too via `trg_enforce_blank_index_shape_sr` — see the `quiz_session_answers` note above.
 
 ### fsrs_cards
 ```sql
@@ -681,7 +698,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (mig 119), `batch_submit_quiz` (migs 120/121 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), and `get_report_answer_keys` (migs 133/149) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149) for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
+**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (migs 119/146/153 — widened for `ordering`/`diagram_label`), `batch_submit_quiz` (migs 120/121/155 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), and `get_report_answer_keys` (migs 133/149/156) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149; per-zone canonical label text for diagram_label via a 2-hop resolve, mig 156) for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -746,14 +763,14 @@ Use Postgres functions (RPCs) for:
 
 ```
 verb_noun pattern:
-  get_quiz_questions         ← read, strips correct answers; widened in mig 118 to 15 RETURNS TABLE columns (+ question_type, dialog_template [tokens stripped to {{n}}], blanks_safe [index-only]; mig 145 adds the 16th column ordering_items_shuffled — canonical order hidden via shuffle, {id,text}-projected, NULL for non-ordering) + active-user gate (security.md rule 12); supports multiple_choice, short_answer, dialog_fill, ordering; dialog_fill strip delimiter-hardened (mig 126) behind the mig-125 delimiter CHECK (#951)
+  get_quiz_questions         ← read, strips correct answers; widened in mig 118 to 15 RETURNS TABLE columns (+ question_type, dialog_template [tokens stripped to {{n}}], blanks_safe [index-only]; mig 145 adds the 16th column ordering_items_shuffled — canonical order hidden via shuffle, {id,text}-projected, NULL for non-ordering; mig 152 adds the 17th column diagram_config_public — {image_ref,zones,labels(shuffled)}, `answer` OMITTED, NULL for non-diagram_label) + active-user gate (security.md rule 12); supports multiple_choice, short_answer, dialog_fill, ordering, diagram_label; dialog_fill strip delimiter-hardened (mig 126) behind the mig-125 delimiter CHECK (#951)
   get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); active-user gate (mig 114, #856); reads from questions.correct_option_id (mig 114, #823)
-  get_report_answer_keys           ← read, type-aware non-MC answer-key delivery for completed-session reports (student-scoped; sibling of get_report_correct_options): short_answer per-question canonical, dialog_fill per-blank canonical, ordering per-slot canonical item text; §15 carve-out on the questions read; active-user + ended_at gate; SECURITY DEFINER (migs 133/149, #697 Phases 4/5)
+  get_report_answer_keys           ← read, type-aware non-MC answer-key delivery for completed-session reports (student-scoped; sibling of get_report_correct_options): short_answer per-question canonical, dialog_fill per-blank canonical, ordering per-slot canonical item text, diagram_label per-zone canonical label text (2-hop resolve: zone → answer entry → label text); §15 carve-out on the questions read; active-user + ended_at gate; SECURITY DEFINER (migs 133/149/156, #697 Phases 4/5/6)
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 114, #823)
   check_quiz_answer                ← read, verify MC answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 117, #823); practice-mode only (smart_review/quick_quiz)
-  check_non_mc_answer              ← read, verify short_answer, dialog_fill, or ordering answer (immediate feedback); returns canonical + per-blank results / revealed canonical order; §15 carve-out; practice-mode only (smart_review/quick_quiz); SECURITY DEFINER; widened for ordering in mig 146 (+p_order param, ordering grading branch); sibling of check_quiz_answer (mig 119, #697 Phases 2/5)
+  check_non_mc_answer              ← read, verify short_answer, dialog_fill, ordering, or diagram_label answer (immediate feedback); returns canonical + per-blank results / revealed canonical order / revealed canonical zone->label mapping; §15 carve-out; practice-mode only (smart_review/quick_quiz); SECURITY DEFINER; widened for ordering in mig 146 (+p_order param); widened for diagram_label in mig 153 (+p_mapping param, 6-arg signature, DROP+CREATE — CREATE OR REPLACE cannot change the arg list); sibling of check_quiz_answer (mig 119, #697 Phases 2/5/6)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823); §15 frozen-config carve-out — no deleted_at filter on the question lookup (mig 123, #855)
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (mig 121, #697 Phase 2); per-type dispatch to internal helpers (_grade_record_mc/_short_answer/_dialog_fill/_ordering, migs 120/147, REVOKE EXECUTE FROM PUBLIC, anon, authenticated); DISTINCT-question partial-credit scoring for dialog_fill + ordering (Decision 47/51; ordering stores per-slot rows, mig 148); last_active_at stamped by trigger on quiz_sessions.ended_at update (mig 092); reads from questions.correct_option_id for MC grading (mig 121, #823)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (mig 121, #697 Phase 2); per-type dispatch to internal helpers (_grade_record_mc/_short_answer/_dialog_fill/_ordering/_diagram_label, migs 120/147/154, REVOKE EXECUTE FROM PUBLIC, anon, authenticated); DISTINCT-question partial-credit scoring for dialog_fill + ordering + diagram_label (Decision 47/51/52; ordering stores per-slot rows [mig 148], diagram_label stores per-zone rows [mig 155] — INVERTED self-defence vs ordering: distinct zone_id/label_id is the integrity key, partial submission + unused distractor labels are explicitly allowed); last_active_at stamped by trigger on quiz_sessions.ended_at update (mig 092); reads from questions.correct_option_id for MC grading (mig 121, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500); single-active-session guard raises 'another_session_active' if any other-mode active session exists (mig 141, #1011)
   start_discovery_session    ← write, student: create the real ephemeral 'discovery' (Study Mode/Discovery) session row; persists the MC id set in config.question_ids; validates p_question_ids (mirrors start_quiz_session); single-active-session guard raises 'another_session_active' (mig 137, #1011); ephemeral + non-resumable (localStorage firewall rejects 'discovery') + nothing-scored; torn down by the endDiscovery Server Action (soft-delete) on Exit or auto-soft-deleted by the next start RPC; SECURITY DEFINER, EXECUTE TO authenticated
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; single-active-session guard raises 'another_session_active' if a non-mock-exam active session exists (mig 138, #1011); maps unique_violation to friendly domain error (mig 088, #754); returns started_at
@@ -822,7 +839,7 @@ $$;
 
 #### `get_quiz_questions` — strips correct answers
 
-Widened in **mig 118** (supabase `20260621000100`) to support non-MC question types (`short_answer`, `dialog_fill`) for the VFR RT training practice quiz. The previous body used `CROSS JOIN LATERAL jsonb_array_elements(q.options)`, which silently dropped every row whose `options` is `'[]'` (i.e. all non-MC rows). The correlated-subquery `CASE` form from mig 105 replaces it. Widened again in **mig 145** (VFR RT Phase 5) to add a 16th column `ordering_items_shuffled` for the `ordering` question type.
+Widened in **mig 118** (supabase `20260621000100`) to support non-MC question types (`short_answer`, `dialog_fill`) for the VFR RT training practice quiz. The previous body used `CROSS JOIN LATERAL jsonb_array_elements(q.options)`, which silently dropped every row whose `options` is `'[]'` (i.e. all non-MC rows). The correlated-subquery `CASE` form from mig 105 replaces it. Widened again in **mig 145** (VFR RT Phase 5) to add a 16th column `ordering_items_shuffled` for the `ordering` question type. Widened again in **mig 152** (VFR RT Phase 6) to add a 17th column `diagram_config_public` for the `diagram_label` question type.
 
 **Signature change:** `DROP FUNCTION IF EXISTS` required before `CREATE FUNCTION` (RETURNS TABLE widened — same precedent as mig 059, mig 105, and mig 118).
 
@@ -833,9 +850,10 @@ Widened in **mig 118** (supabase `20260621000100`) to support non-MC question ty
 - `short_answer` — `options` column returns NULL; `canonical_answer` and `accepted_synonyms` are never selected.
 - `dialog_fill` — `dialog_template` has every `{{n|canonical; syn...}}` token rewritten to `{{n}}` via `regexp_replace`; `blanks_safe` is `[{index}]` only (`blanks_config` canonicals/synonyms stripped). The strip regex was **delimiter-hardened in mig 126/127 (#951)** — the value class `(?:[^}]|\}(?!\}))*` anchors on `}}` so a stray `}` in a value cannot terminate the strip early; paired with the mig-125 `questions_dialog_fill_template_wellformed` CHECK that forbids such values at INSERT.
 - `ordering` — `ordering_items_shuffled` delivers `[{id, text}]` in randomised order (`ORDER BY random()`). The canonical sequence IS the stored array order of `questions.ordering_items`; shuffling destroys it. `ordering_items` itself is REVOKE-gated from `authenticated` (mig 094 omission), so SECURITY DEFINER is the only path. Item `id` values are opaque and non-sequential (seed invariant), so the id ordering cannot reveal the canonical sequence. NULL for non-ordering types.
+- `diagram_label` — `diagram_config_public` delivers `{image_ref, zones, labels}`; `answer` (the zone_id→label_id mapping) is **OMITTED entirely** and `labels` are shuffled (`ORDER BY random()`, same primitive as MC/ordering) so label array position cannot correlate back to a zone. `diagram_config` itself is REVOKE-gated from `authenticated` by omission from mig 094's grant (mirrors `ordering_items`, N6). NULL for non-diagram_label types.
 
 ```sql
--- Migration 145 — DROP + CREATE (RETURNS TABLE widened, 16th column added)
+-- Migration 152 — DROP + CREATE (RETURNS TABLE widened, 17th column added)
 DROP FUNCTION IF EXISTS get_quiz_questions(uuid[]);
 
 CREATE FUNCTION get_quiz_questions(p_question_ids uuid[])
@@ -852,10 +870,11 @@ RETURNS TABLE (
   explanation_text        text,
   explanation_image_url   text,
   question_number         text,
-  question_type           text,     -- 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  question_type           text,     -- 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
   dialog_template         text,     -- dialog_fill only: {{n}} markers (canonicals stripped); NULL otherwise
   blanks_safe             jsonb,    -- dialog_fill only: [{index}] (canonicals stripped); NULL otherwise
-  ordering_items_shuffled jsonb     -- ordering only: [{id, text}] shuffled (canonical order hidden); NULL otherwise
+  ordering_items_shuffled jsonb,    -- ordering only: [{id, text}] shuffled (canonical order hidden); NULL otherwise
+  diagram_config_public   jsonb     -- diagram_label only: {image_ref, zones, labels(shuffled)} (`answer` omitted); NULL otherwise
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -919,7 +938,22 @@ BEGIN
          ORDER BY random()
        )
        FROM jsonb_array_elements(q.ordering_items) AS e)
-    ELSE NULL END AS ordering_items_shuffled
+    ELSE NULL END AS ordering_items_shuffled,
+    -- diagram_label only: {image_ref, zones, labels(shuffled)}. `answer` is
+    -- OMITTED entirely — it is the answer key. NULL for non-diagram_label.
+    CASE WHEN q.question_type = 'diagram_label' THEN
+      jsonb_build_object(
+        'image_ref', q.diagram_config->'image_ref',
+        'zones',     q.diagram_config->'zones',
+        'labels',    (
+          SELECT jsonb_agg(
+            jsonb_build_object('id', lbl->>'id', 'text', lbl->>'text')
+            ORDER BY random()
+          )
+          FROM jsonb_array_elements(q.diagram_config->'labels') AS lbl
+        )
+      )
+    ELSE NULL END AS diagram_config_public
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
   JOIN easa_topics    t  ON t.id = q.topic_id
@@ -934,7 +968,7 @@ $$;
 GRANT EXECUTE ON FUNCTION get_quiz_questions(uuid[]) TO authenticated;
 ```
 
-**Randomization:** MC options and ordering items are returned in random order via `ORDER BY random()`. Non-MC/non-ordering types have no options array; non-ordering types have no ordering items — both CASE branches return NULL.
+**Randomization:** MC options, ordering items, and diagram_label labels are all returned in random order via `ORDER BY random()`. Types that don't own a given array return NULL for that column.
 
 #### `submit_quiz_answer` — atomic answer submission (deprecated: use `batch_submit_quiz`)
 
@@ -1096,6 +1130,8 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 
 **Mig 148 (#697 Phase 5):** Extended to support `ordering` question type as a per-slot dispatcher (parallel to `dialog_fill` structure). Widened `_batch_questions` to include `ordering_items`. See Decision 51 in `docs/decisions.md`. Adds a **permutation completeness guard** before per-slot dispatch: for each ordering question, verifies `count(*) = N AND count(DISTINCT selected_option) = N` where N is the item count. This ensures a malformed payload (duplicate item ids across slots, subset-of-items, or out-of-catalogue ids) is rejected before any answer row reaches the immutable tables — the per-slot grader alone cannot see the whole answer set.
 
+**Mig 155 (#697 Phase 6):** Extended to support `diagram_label` as a per-zone dispatcher. Widened `_batch_questions` to include `diagram_config`. See Decision 52 in `docs/decisions.md`. Adds an **INVERTED self-defence check** — deliberately NOT a clone of ordering's complete-permutation guard, because `diagram_label` allows both partial submission (unanswered zones, same as a skipped MC question) and unused distractor labels (Decision 52), so cardinality is not the integrity key. Instead it verifies, per diagram_label question: every submitted zone_id (`response_text`) references a real zone on the question, no zone_id is submitted twice, and no label_id (`selected_option`) is submitted twice (a chip cannot be placed on two zones at once — "consume on place"). A submitted label_id that does not reference a real label is left to the per-zone grader (`_grade_record_diagram_label`, mig 154), which RAISEs and aborts the whole batch on a forged/garbage id.
+
 **Key behavior:**
 - Allows partial submissions. Study mode: score = `correct_credit / answered`. Exam mode: score = `correct_credit / total` (unanswered = wrong); incomplete mock_exam auto-fails regardless of score.
 - Enforces server-side time limit with 30-second grace period; beyond grace period, auto-ends session with zero score and returns `expired: true`.
@@ -1103,8 +1139,9 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - `short_answer` — `_grade_record_short_answer` helper (mig 120): normalizes via `normalize_answer()`, writes quiz_session_answers + student_responses (blank_index = NULL, one row per question).
 - `dialog_fill` — `_grade_record_dialog_fill` helper (mig 120): one call per blank (blank_index required in payload); writes quiz_session_answers + student_responses per blank.
 - `ordering` — `_grade_record_ordering` helper (mig 147): one call per slot (slot in blank_index, item id in selected_option); writes quiz_session_answers + student_responses per slot. Permutation guard (mig 148) ensures completeness before any row is written.
-- **Internal helpers (mig 120, mig 147):** `_grade_record_mc/_short_answer/_dialog_fill/_ordering` are each `SECURITY DEFINER SET search_path = public` with `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` — not callable via PostgREST by anon/authenticated users (`FROM PUBLIC` alone is insufficient: Supabase default-grants EXECUTE to anon/authenticated separately; #952). The dispatcher is the single authorization boundary; `service_role` (trusted backend) retains EXECUTE. See Decision 47.
-- **DISTINCT-question score aggregation (migs 121/148, Decision 47/51):** a `dialog_fill` or `ordering` question with N items/blanks produces N `quiz_session_answers` rows but counts as one question. `v_correct_credit` (numeric) is the sum of per-question `LEAST(correct_rows / total_blanks, 1.0)` partial credit (for dialog_fill: blanks; for ordering: items); `v_correct_count` (int) counts correct items (blank-rows / slot-rows) — `sum(correct_rows)` — unified with exam `submit_vfr_rt_exam_answers` (mig 132, #697 Phase 4). `v_answered` = DISTINCT question count (not row count). This matches `submit_vfr_rt_exam_answers` scoring so the same question type grades identically in practice and exam.
+- `diagram_label` — `_grade_record_diagram_label` helper (mig 154): one call per submitted zone placement (zone id carried in `response_text`, label id carried in `selected_option` — `diagram_label` has no free-text response field, so `response_text` is repurposed to carry the target zone id, mirroring how `ordering` repurposes `selected_option` to carry an item id). `blank_index` is required on the entry only to satisfy the `(question_id, blank_index)` dup-guard (same as ordering's slot) but is **discarded before calling the grader** — the grader derives the true zone ordinal itself from `diagram_config.zones` (the single ordinal source, shared by `get_report_answer_keys` mig 156). `response_text` in the written row is overwritten with the placed label's display TEXT (resolved server-side), not the raw zone/label ids.
+- **Internal helpers (migs 120/147/154):** `_grade_record_mc/_short_answer/_dialog_fill/_ordering/_diagram_label` are each `SECURITY DEFINER SET search_path = public` with `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` — not callable via PostgREST by anon/authenticated users (`FROM PUBLIC` alone is insufficient: Supabase default-grants EXECUTE to anon/authenticated separately; #952). The dispatcher is the single authorization boundary; `service_role` (trusted backend) retains EXECUTE. See Decision 47.
+- **DISTINCT-question score aggregation (migs 121/148/155, Decision 47/51/52):** a `dialog_fill`, `ordering`, or `diagram_label` question with N items/blanks/zones produces N `quiz_session_answers` rows but counts as one question. `v_correct_credit` (numeric) is the sum of per-question `LEAST(correct_rows / total_blanks, 1.0)` partial credit (for dialog_fill: blanks; for ordering: items; for diagram_label: `greatest(jsonb_array_length(diagram_config->'zones'), 1)`); `v_correct_count` (int) counts correct items (blank-rows / slot-rows / zone-rows) — `sum(correct_rows)` — unified with exam `submit_vfr_rt_exam_answers` (mig 132, #697 Phase 4). `v_answered` = DISTINCT question count (not row count). This matches `submit_vfr_rt_exam_answers` scoring so the same question type grades identically in practice and exam.
 - Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean). `expired` is absent on normal completion; on idempotent replay of an expired session (replay branch), detects expiry via audit-event lookup (`event_type LIKE '%.expired'` — matches any mode-keyed expiry event for the owned session) and re-adds the flag, ensuring a retry returns the same `expired:true` payload as the original (mig 130, #839).
 - **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both audit INSERTs — closing the TOCTOU window (PR #599 CR root-cause fix).
 - **Legacy-mode whitelist (migration 095c, #838; unchanged in mig 121):** rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`, `mock_exam`, `internal_exam`) with `unsupported_session_mode` — a `vfr_rt_exam` session must submit answers via `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
@@ -1745,15 +1782,16 @@ Same return shape as `get_report_correct_options` but scoped by organization ins
 
 #### `get_report_answer_keys` — non-MC answer keys for reports
 
-Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4); extended in **mig 149** (VFR RT Phase 5) with an `ordering` branch.
+Type-aware sibling of `get_report_correct_options`: delivers the correct answers for the **non-MC** questions answered in a completed session owned by the caller, so the report can show the canonical answer alongside the student's response. MC keys still come from `get_report_correct_options` (this RPC returns no rows for MC questions). Added in migration 133 (#697, VFR RT Phase 4); extended in **mig 149** (VFR RT Phase 5) with an `ordering` branch; extended in **mig 156** (VFR RT Phase 6) with a `diagram_label` branch. `RETURNS TABLE` is unchanged across all three extensions, so each uses `CREATE OR REPLACE` (no DROP) — every existing branch is re-emitted verbatim.
 
 **Returns:** `(question_id uuid, question_type text, blank_index int, answer_key text)` —
 - `short_answer`: one row per question, `blank_index = NULL`, `answer_key = canonical_answer`.
 - `dialog_fill`: one row **per blank** (`blank_index` from `blanks_config` `'index'`, `answer_key` from `'canonical'`).
 - `ordering`: one row **per slot** — `blank_index` = 0-based slot index (from `WITH ORDINALITY`, `idx - 1`), `answer_key` = the canonical item TEXT at that slot (the stored array order of `questions.ordering_items`). `ordering_items` is REVOKE-gated from `authenticated`; SECURITY DEFINER bypasses the gate, scoped to the owning student's own completed session.
+- `diagram_label`: one row **per zone** — `blank_index` = the zone's 0-based ordinal position within `diagram_config.zones` (from `WITH ORDINALITY`, `idx - 1` — the SAME index `_grade_record_diagram_label`, mig 154, derives, so report rows line up with `quiz_session_answers.blank_index` by construction), `answer_key` = the display TEXT of the label canonically assigned to that zone via a **2-hop resolve**: zone (at this ordinal) → the `diagram_config.answer` entry matching `zone_id` → its `label_id` → that label's `text` in `diagram_config.labels`. Not a single-expression projection like ordering's `elem->>'text'`, because the canonical answer for a zone is not embedded in the zone object itself. `diagram_config` is REVOKE-gated from `authenticated` by omission from mig 094's grant (mirrors `ordering_items`, N6); SECURITY DEFINER bypasses the gate, scoped to the owning student's own completed session.
 - `multiple_choice`: no rows.
 
-**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
+**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`, `diagram_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
 
 **Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
 
@@ -1884,11 +1922,11 @@ END;
 $$;
 ```
 
-#### `check_non_mc_answer` — immediate-feedback grader for short_answer, dialog_fill, and ordering (migs 119/146)
+#### `check_non_mc_answer` — immediate-feedback grader for short_answer, dialog_fill, ordering, and diagram_label (migs 119/146/153)
 
-Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mig 146** (VFR RT Phase 5) to add `ordering` grading and a 5th parameter `p_order`. Companion to `check_quiz_answer` (mig 117): that RPC handles `multiple_choice`; this one handles `short_answer`, `dialog_fill`, and `ordering`. All are practice-mode-only immediate-feedback graders.
+Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mig 146** (VFR RT Phase 5) to add `ordering` grading and a 5th parameter `p_order`. Extended in **mig 153** (VFR RT Phase 6) to add `diagram_label` grading and a 6th parameter `p_mapping`. Companion to `check_quiz_answer` (mig 117): that RPC handles `multiple_choice`; this one handles `short_answer`, `dialog_fill`, `ordering`, and `diagram_label`. All are practice-mode-only immediate-feedback graders.
 
-**Signature change (mig 146):** `DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb)` then `CREATE FUNCTION` with the 5-arg signature (CREATE OR REPLACE cannot change the argument list; the old 4-arg overload is removed to avoid ambiguous-call errors).
+**Signature change (mig 153):** `DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb, jsonb)` then `CREATE FUNCTION` with the 6-arg signature (CREATE OR REPLACE cannot change the argument list; the old 5-arg overload is removed to avoid ambiguous-call errors). Every existing branch (short_answer/dialog_fill/ordering) and the guard prologue is re-emitted **verbatim** from the latest definition (mig 146) — only the `diagram_label` branch + the `diagram_config` fetch + the `p_mapping` param are new. The 4-way `answer_type_mismatch` parity is maintained: every branch's mismatch guard now also rejects a non-NULL `p_mapping` when `p_mapping` is not that branch's own param.
 
 **Guard set (mirrors `check_quiz_answer` exactly — security.md rule 11c sibling-guard consistency):**
 1. Auth check — `auth.uid()` NULL raises `not_authenticated`.
@@ -1906,21 +1944,23 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 ```json
 {
   "is_correct": true,
-  "correct_answer": "Wilco",          // short_answer: canonical text; null for dialog_fill and ordering
-  "blanks": [                          // dialog_fill: per-blank results; null for short_answer and ordering
+  "correct_answer": "Wilco",          // short_answer: canonical text; null for dialog_fill, ordering, and diagram_label
+  "blanks": [                          // dialog_fill: per-blank results; null for short_answer, ordering, and diagram_label
     { "index": 0, "is_correct": true, "canonical": "Wilco" },
     { "index": 1, "is_correct": false, "canonical": "Negative" }
   ],
-  "correct_order": ["id-a", "id-b"],  // ordering: canonical item IDs in array order; null for short_answer and dialog_fill
+  "correct_order": ["id-a", "id-b"],  // ordering: canonical item IDs in array order; null for short_answer, dialog_fill, and diagram_label
+  "correct_mapping": [{ "zone_id": "z1", "label_id": "l3" }],  // diagram_label: raw canonical zone->label answer array; null otherwise
   "explanation_text": "...",
   "explanation_image_url": null
 }
 ```
 
 **Grading semantics:**
-- `short_answer` — `p_response_text` required, `p_blank_answers` and `p_order` must be NULL. Uses `normalize_answer()` (mig 101) for case/whitespace/punctuation-insensitive comparison against `canonical_answer` and `accepted_synonyms`.
-- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text` and `p_order` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100).
-- `ordering` — `p_order` (jsonb array of item IDs in the student's submitted sequence) required, `p_response_text` and `p_blank_answers` must be NULL. Correct iff the submitted ID sequence equals the canonical stored array order of `ordering_items`, element-for-element (binary — partial credit is a batch-submit/report concern, not immediate feedback's signal). The revealed `correct_order` is an array of **canonical item IDs** (not texts) because two items may share display text; the client maps each id back to its text for display.
+- `short_answer` — `p_response_text` required, `p_blank_answers`, `p_order`, and `p_mapping` must be NULL. Uses `normalize_answer()` (mig 101) for case/whitespace/punctuation-insensitive comparison against `canonical_answer` and `accepted_synonyms`.
+- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text`, `p_order`, and `p_mapping` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100).
+- `ordering` — `p_order` (jsonb array of item IDs in the student's submitted sequence) required, `p_response_text`, `p_blank_answers`, and `p_mapping` must be NULL. Correct iff the submitted ID sequence equals the canonical stored array order of `ordering_items`, element-for-element (binary — partial credit is a batch-submit/report concern, not immediate feedback's signal). The revealed `correct_order` is an array of **canonical item IDs** (not texts) because two items may share display text; the client maps each id back to its text for display.
+- `diagram_label` — `p_mapping` (jsonb array of `{zone_id, label_id}` the student placed) required, `p_response_text`, `p_blank_answers`, and `p_order` must be NULL. Correctness is a **SET comparison** (order in the array is meaningless, unlike `ordering`): every zone must be covered exactly once (`jsonb_array_length(p_mapping) = jsonb_array_length(diagram_config.answer)` AND distinct `zone_id` count matches) and every submitted `{zone_id, label_id}` pair must match the canonical `diagram_config.answer` entry for that zone. The revealed `correct_mapping` is the raw `{zone_id, label_id}` answer array — the client already holds the full zones + labels arrays from the initial delivery (mig 152), so it resolves ids to display text/position locally, same posture as `ordering`'s revealed id-only `correct_order`.
 
 **Parameters:**
 - `p_question_id` — UUID of the question being answered
@@ -1928,17 +1968,19 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 - `p_response_text` — student's free-text answer (`short_answer` only; DEFAULT NULL)
 - `p_blank_answers` — array of `{blank_index, response_text}` objects (`dialog_fill` only; DEFAULT NULL)
 - `p_order` — array of item IDs in student's submitted sequence (`ordering` only; DEFAULT NULL)
+- `p_mapping` — array of `{zone_id, label_id}` the student placed (`diagram_label` only; DEFAULT NULL)
 
 **Signature:**
 ```sql
-DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb);
+DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb, jsonb);
 
 CREATE FUNCTION check_non_mc_answer(
   p_question_id   uuid,
   p_session_id    uuid,
   p_response_text text  DEFAULT NULL,
   p_blank_answers jsonb DEFAULT NULL,
-  p_order         jsonb DEFAULT NULL
+  p_order         jsonb DEFAULT NULL,
+  p_mapping       jsonb DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -1946,7 +1988,7 @@ SECURITY DEFINER
 SET search_path = public
 ```
 
-`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb) TO authenticated;`
+`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb, jsonb) TO authenticated;`
 
 ---
 
@@ -2935,4 +2977,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
+*Last updated: 2026-07-02 (migs 150–156 / VFR RT Training Phase 6 #697: `diagram_label` question type end-to-end — `questions.diagram_config` JSONB `{image_ref, zones:[{id,x,y,w,h}], labels:[{id,text}], answer:[{zone_id,label_id}]}` + `is_valid_diagram_config()` CHECK enforcing distinct non-blank zone/label ids, coords in [0,1], and answer covering every zone exactly once + question_type widening [mig 150]; blank_index write-invariant trigger widened to also admit diagram_label [mig 151]; `get_quiz_questions` delivers `{image_ref,zones,labels(shuffled)}` with `answer` omitted, 17th RETURNS TABLE column `diagram_config_public` [mig 152]; `check_non_mc_answer` widened to a 6-arg signature +`p_mapping` diagram_label grader (SET comparison, revealed `correct_mapping`) [mig 153]; new REVOKE-gated `_grade_record_diagram_label` per-zone helper deriving the zone ordinal server-side as the single ordinal authority [mig 154]; `batch_submit_quiz` diagram_label dispatch + INVERTED self-defence (distinct zone_id/label_id is the integrity key — partial submission + unused distractor labels explicitly allowed, unlike ordering's forced complete permutation) + partial-credit rollup [mig 155]; `get_report_answer_keys` per-zone canonical reveal via a 2-hop resolve (zone→answer entry→label text) [mig 156]. Decision 52 documented (inline SVG registry keyed by `image_ref`, distractors allowed, 9-zone RWY 27/09 LH pattern seed, general schema). Fixed stale doc drift from Phase 5: the `blank_index` write-invariant trigger note (§2 `quiz_session_answers`) and the `docs/security.md` §15 companion carve-out list had never been updated for mig 144's `ordering` widening — both corrected in this pass alongside the diagram_label addition.) | Earlier 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*

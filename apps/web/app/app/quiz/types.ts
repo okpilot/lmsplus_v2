@@ -1,3 +1,4 @@
+import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validation'
 import type { ActionResult } from '@/lib/action-result'
 
 export type SubmitRpcResult = {
@@ -123,6 +124,15 @@ export type AnswerFeedback =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      questionType: 'diagram_label'
+      isCorrect: boolean
+      /** Canonical zone_id -> label_id mapping (ids only; the client resolves
+       * display text from the delivered zones/labels arrays). */
+      correctMapping: DiagramMappingEntry[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
 
 export type CheckNonMcAnswerResult =
   | {
@@ -150,6 +160,16 @@ export type CheckNonMcAnswerResult =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      success: true
+      questionType: 'diagram_label'
+      isCorrect: boolean
+      /** Canonical zone_id -> label_id mapping (ids only; the client resolves
+       * display text from the delivered zones/labels arrays). */
+      correctMapping: DiagramMappingEntry[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
   | { success: false; error: string }
 
 export type DraftAnswer = {
@@ -157,6 +177,7 @@ export type DraftAnswer = {
   responseText?: string
   blankAnswers?: { index: number; text: string }[]
   order?: string[]
+  mapping?: DiagramMappingEntry[]
   responseTimeMs: number
 }
 

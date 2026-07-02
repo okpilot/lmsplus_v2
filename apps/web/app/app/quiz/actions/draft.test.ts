@@ -590,6 +590,230 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  it('persists a diagram_label answer + feedback on save', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const answers = {
+      [Q1_ID]: {
+        mapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l2' },
+        ],
+        responseTimeMs: 4000,
+      },
+    }
+    const feedbackPayload = {
+      [Q1_ID]: {
+        questionType: 'diagram_label',
+        isCorrect: false,
+        correctMapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l3' },
+        ],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, answers, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg!.answers).toEqual(answers)
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('rejects a diagram_label answer whose mapping is empty', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { mapping: [], responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label answer whose mapping repeats a zoneId', async () => {
+    // isValidDiagramMapping's array-level self-defence: a zone can only be
+    // placed once — a duplicate zoneId is not a valid submitted mapping.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [
+            { zoneId: 'z1', labelId: 'l1' },
+            { zoneId: 'z1', labelId: 'l2' },
+          ],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label answer whose mapping reuses a labelId', async () => {
+    // A chip is consumed on placement — it cannot occupy two zones simultaneously.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [
+            { zoneId: 'z1', labelId: 'l1' },
+            { zoneId: 'z2', labelId: 'l1' },
+          ],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label answer whose mapping has a whitespace-only zoneId', async () => {
+    // .trim() before min/max on DiagramMappingSchema — parity with
+    // isDiagramMappingEntry — a whitespace-only id must not persist in a draft.
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [{ zoneId: '   ', labelId: 'l1' }],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label answer whose mapping has a whitespace-only labelId', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [{ zoneId: 'z1', labelId: '   ' }],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('accepts a valid partial diagram_label mapping (not every zone filled)', async () => {
+    // Positive control: unlike ordering, a diagram mapping is not required to be
+    // complete — partial submissions are explicitly allowed (Decision 52).
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { mapping: [{ zoneId: 'z1', labelId: 'l1' }], responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: true })
+    expect((capturedInsertArg!.answers as Record<string, unknown>)[Q1_ID]).toMatchObject({
+      mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+    })
+  })
+
+  it('rejects a diagram_label answer whose mapping exceeds MAX_ZONES', async () => {
+    setupAuthenticatedUser()
+    const mapping = Array.from({ length: 51 }, (_, i) => ({ zoneId: `z${i}`, labelId: `l${i}` }))
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { mapping, responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an answer payload carrying both a mapping and an order', async () => {
+    // Exactly one answer payload must be present — a hybrid diagram/ordering
+    // payload is corrupt (draft-schema's five-way exclusivity .refine()).
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: {
+          mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+          order: ['item-a', 'item-b'],
+          responseTimeMs: 4000,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label feedback entry whose correctMapping is empty', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'diagram_label',
+          isCorrect: true,
+          correctMapping: [],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects a diagram_label feedback entry with a duplicate zoneId in correctMapping', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'diagram_label',
+          isCorrect: false,
+          correctMapping: [
+            { zoneId: 'z1', labelId: 'l1' },
+            { zoneId: 'z1', labelId: 'l2' },
+          ],
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('writes an empty feedback object when feedback is omitted', async () => {
     setupAuthenticatedUser()
     let capturedInsertArg: Record<string, unknown> | undefined

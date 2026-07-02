@@ -4,15 +4,12 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckNonMcAnswerResult } from '../types'
+import { checkDiagramLabelAnswer, checkDialogFillAnswer } from './check-non-mc-answer-dispatch'
 import {
-  type DialogFillRpcResult,
-  isDialogFillRpcResult,
   isOrderingRpcResult,
   isShortAnswerRpcResult,
   type OrderingRpcResult,
   type ShortAnswerRpcResult,
-  toClientBlanks,
-  toRpcBlankAnswers,
   verifySessionMembership,
 } from './check-non-mc-answer-helpers'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
@@ -80,21 +77,9 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     }
   }
 
-  const { data, error } = await rpc<DialogFillRpcResult>(supabase, 'check_non_mc_answer', {
-    p_question_id: questionId,
-    p_session_id: sessionId,
-    p_blank_answers: toRpcBlankAnswers(parsed.blankAnswers),
-  })
-  if (error || !isDialogFillRpcResult(data)) {
-    console.error('[checkNonMcAnswer] dialog_fill RPC error:', error?.message)
-    return { success: false, error: 'Could not check answer' }
+  if ('mapping' in parsed) {
+    return checkDiagramLabelAnswer(supabase, questionId, sessionId, parsed.mapping)
   }
-  return {
-    success: true,
-    questionType: 'dialog_fill',
-    isCorrect: data.is_correct,
-    blanks: toClientBlanks(data.blanks),
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+
+  return checkDialogFillAnswer(supabase, questionId, sessionId, parsed.blankAnswers)
 }
