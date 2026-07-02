@@ -60,8 +60,14 @@ export async function resolveOrgId(
   return profile?.organization_id ?? null
 }
 
-// Uploads the audio to the private bucket, records the response via the RPC, and
-// best-effort cleans up the orphaned object if the RPC fails.
+/**
+ * Uploads the audio to the private bucket, records the response via the RPC, and
+ * best-effort cleans up the orphaned object if the RPC fails.
+ *
+ * 4 params (§3 infrastructure-helper exception): `supabase` is the injected client;
+ * `input`/`audioPath`/`file` are distinct domain arguments — same shape as the
+ * documented `updateFsrsCard(supabase, …)` precedent.
+ */
 export async function uploadAndRecord(
   supabase: SupabaseClient,
   input: SubmitSectionInputType,

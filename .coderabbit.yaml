@@ -20,6 +20,7 @@ reviews:
     - "!**/.next/**"
     - "!**/coverage/**"
     - "!**/pnpm-lock.yaml"
+    - "!supabase/functions/**" # Deno Edge Functions — deno fmt/lint, not Biome/CodeRabbit (mirrors biome.json)
 
   auto_review:
     enabled: true
