@@ -1,6 +1,8 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { after } from 'next/server'
+import { triggerSectionScoring } from '@/lib/elp/trigger-scoring'
 import {
   audioExt,
   extractAudioFile,
@@ -31,7 +33,11 @@ export async function submitSectionResponse(formData: FormData): Promise<SubmitS
     if (!orgId) return { success: false, error: 'Could not resolve organization' }
 
     const path = `${orgId}/${user.id}/${input.sessionId}/${input.sectionNo}.${audioExt(file.name)}`
-    return await uploadAndRecord(supabase, input, path, file)
+    const result = await uploadAndRecord(supabase, input, path, file)
+    if (result.success) {
+      after(() => triggerSectionScoring(result.responseId, path, input.sectionNo))
+    }
+    return result
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[submitSectionResponse] Uncaught error:', message)

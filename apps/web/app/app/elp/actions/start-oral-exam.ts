@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 
 export type OralExamSection = { sectionNo: number; type: string }
@@ -12,8 +13,11 @@ export type StartOralExamResult =
       status: string
       sections: OralExamSection[]
       startedAt: string
+      mode: string
     }
   | { success: false; error: string }
+
+const OralExamMode = z.enum(['practice', 'mock'])
 
 // Wire shape returned by start_oral_exam_session().
 type StartRpcResult = {
@@ -21,6 +25,7 @@ type StartRpcResult = {
   status: string
   sections: unknown
   started_at: string
+  mode: string
 }
 
 function toSections(raw: unknown): OralExamSection[] {
@@ -32,7 +37,14 @@ function toSections(raw: unknown): OralExamSection[] {
     .map((row) => ({ sectionNo: Number(row.section_no ?? 0), type: String(row.type ?? '') }))
 }
 
-export async function startOralExam(): Promise<StartOralExamResult> {
+export async function startOralExam(rawMode: unknown): Promise<StartOralExamResult> {
+  let mode: z.infer<typeof OralExamMode>
+  try {
+    mode = OralExamMode.parse(rawMode)
+  } catch {
+    return { success: false, error: 'Invalid mode' }
+  }
+
   try {
     const supabase = await createServerSupabaseClient()
     const {
@@ -41,7 +53,9 @@ export async function startOralExam(): Promise<StartOralExamResult> {
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-    const { data, error } = await rpc<StartRpcResult>(supabase, 'start_oral_exam_session', {})
+    const { data, error } = await rpc<StartRpcResult>(supabase, 'start_oral_exam_session', {
+      p_mode: mode,
+    })
     if (error || !data) {
       console.error('[startOralExam] RPC error:', error?.message ?? 'no data returned')
       const msg = error?.message ?? ''
@@ -59,6 +73,7 @@ export async function startOralExam(): Promise<StartOralExamResult> {
       status: data.status,
       sections: toSections(data.sections),
       startedAt: data.started_at,
+      mode: data.mode,
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

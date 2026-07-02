@@ -34,6 +34,7 @@ const RPC_SUCCESS = {
     { section_no: 2, type: 'listening' },
   ],
   started_at: '2026-07-02T10:00:00Z',
+  mode: 'practice',
 }
 
 // ---- Setup ----------------------------------------------------------------
@@ -57,7 +58,7 @@ function setupAuth({
 describe('startOralExam', () => {
   it('returns failure when the user is not authenticated', async () => {
     setupAuth({ user: null })
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
@@ -66,7 +67,7 @@ describe('startOralExam', () => {
       data: { user: null },
       error: { message: 'JWT expired' },
     })
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
@@ -74,7 +75,7 @@ describe('startOralExam', () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: null, error: { message: 'another_oral_exam_active' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     consoleSpy.mockRestore()
     expect(result).toEqual({ success: false, error: 'You already have an oral exam in progress.' })
   })
@@ -83,7 +84,7 @@ describe('startOralExam', () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: null, error: { message: 'user_not_found_or_inactive' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     consoleSpy.mockRestore()
     expect(result).toEqual({
       success: false,
@@ -95,7 +96,7 @@ describe('startOralExam', () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: null, error: { message: 'database_error' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     consoleSpy.mockRestore()
     expect(result).toEqual({
       success: false,
@@ -107,7 +108,7 @@ describe('startOralExam', () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: null, error: null })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     consoleSpy.mockRestore()
     expect(result).toEqual({
       success: false,
@@ -119,7 +120,7 @@ describe('startOralExam', () => {
     setupAuth()
     mockRpc.mockRejectedValue(new Error('network failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     consoleSpy.mockRestore()
     expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
   })
@@ -127,7 +128,7 @@ describe('startOralExam', () => {
   it('returns session data with camelCase field names on success', async () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: RPC_SUCCESS, error: null })
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     expect(result).toEqual({
       success: true,
       sessionId: SESSION_ID,
@@ -137,13 +138,30 @@ describe('startOralExam', () => {
         { sectionNo: 2, type: 'listening' },
       ],
       startedAt: '2026-07-02T10:00:00Z',
+      mode: 'practice',
     })
+  })
+
+  it('calls start_oral_exam_session with the caller-selected mode', async () => {
+    setupAuth()
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS, error: null })
+    await startOralExam('mock')
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'start_oral_exam_session', {
+      p_mode: 'mock',
+    })
+  })
+
+  it('returns an invalid-mode error without calling the RPC when the mode is not recognised', async () => {
+    const result = await startOralExam('bogus')
+    expect(result).toEqual({ success: false, error: 'Invalid mode' })
+    expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockGetUser).not.toHaveBeenCalled()
   })
 
   it('returns an empty sections array when the RPC returns a non-array value for sections', async () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: { ...RPC_SUCCESS, sections: null }, error: null })
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sections).toEqual([])
@@ -155,7 +173,7 @@ describe('startOralExam', () => {
       data: { ...RPC_SUCCESS, sections: [{ section_no: '3', type: 42 }] },
       error: null,
     })
-    const result = await startOralExam()
+    const result = await startOralExam('practice')
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sections).toEqual([{ sectionNo: 3, type: '42' }])
