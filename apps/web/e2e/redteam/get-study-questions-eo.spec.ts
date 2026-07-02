@@ -58,6 +58,11 @@ import {
   setupEoFixtures,
   VALID_OPTION_IDS,
 } from './helpers/get-study-questions-eo-setup'
+import { createAuthenticatedClient } from './helpers/redteam-client'
+import {
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+} from './helpers/seed'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 // Fail fast: a missing Supabase URL must surface as a deterministic setup error at
@@ -250,5 +255,162 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     const ids = (data as StudyQuestionRow[]).map((r) => r.id)
     expect(ids).not.toContain(fx.egShortAnswerId)
     expect(ids).toContain(fx.egMcActiveId)
+  })
+
+  // --- EO-SD: soft-deleted caller (active-user gate) ---
+
+  test.describe('EO-SD: a soft-deleted caller is rejected by the active-user gate', () => {
+    // A dedicated throwaway student can read a Study Mode MC answer key while active.
+    // After soft-delete (users.deleted_at set), get_study_questions' active-user gate
+    // (which fires right after auth.uid(), BEFORE p_question_ids is validated) must
+    // reject with 'user_not_found_or_inactive' — proving a deactivated account holding
+    // a still-valid JWT cannot keep reading the deliberately-exposed MC key. Mirrors
+    // EN4 (rpc-report-answer-keys.spec.ts) for the get_study_questions surface.
+    let softDelStudentId = ''
+    let softDelStudentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+
+    test.beforeAll(async () => {
+      // Create (or realign) the dedicated throwaway student, ensuring it is NOT
+      // soft-deleted from a prior aborted run. perPage well above any test-env user
+      // count so a reused student on a later page is never missed (which would wrongly
+      // fall through to createUser and fail on the duplicate email).
+      const { data: authList, error: listError } = await fx.admin.auth.admin.listUsers({
+        perPage: 1000,
+      })
+      if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
+      const existing = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
+
+      if (existing) {
+        softDelStudentId = existing.id
+        const { data: userRow, error: userRowErr } = await fx.admin
+          .from('users')
+          .select('id, organization_id, role, deleted_at')
+          .eq('id', existing.id)
+          .maybeSingle()
+        if (userRowErr) throw new Error(`EO-SD beforeAll: users lookup: ${userRowErr.message}`)
+        if (!userRow) {
+          const { error: insErr } = await fx.admin.from('users').insert({
+            id: existing.id,
+            organization_id: fx.orgId,
+            email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+            full_name: 'Red Team Soft-Delete Study Student',
+            role: 'student',
+          })
+          if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+        } else if (
+          userRow.organization_id !== fx.orgId ||
+          userRow.role !== 'student' ||
+          userRow.deleted_at !== null
+        ) {
+          const { data: realigned, error: updErr } = await fx.admin
+            .from('users')
+            .update({ organization_id: fx.orgId, role: 'student', deleted_at: null })
+            .eq('id', existing.id)
+            .select('id')
+          if (updErr) throw new Error(`EO-SD beforeAll: realign user: ${updErr.message}`)
+          if (!realigned?.length) throw new Error('EO-SD beforeAll: realign affected 0 rows')
+        }
+      } else {
+        const { data: created, error: createErr } = await fx.admin.auth.admin.createUser({
+          email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+          password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+          email_confirm: true,
+        })
+        if (createErr || !created.user)
+          throw new Error(`EO-SD beforeAll: createUser: ${createErr?.message}`)
+        softDelStudentId = created.user.id
+        const { error: insErr } = await fx.admin.from('users').insert({
+          id: softDelStudentId,
+          organization_id: fx.orgId,
+          email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+          full_name: 'Red Team Soft-Delete Study Student',
+          role: 'student',
+        })
+        if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+      }
+
+      // Authenticate BEFORE soft-delete — holds a still-valid JWT for the post-delete call.
+      softDelStudentClient = await createAuthenticatedClient(
+        E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+        E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+      )
+    })
+
+    test.afterAll(async () => {
+      // Soft-delete the throwaway users row (security rule 6) so it neither pollutes
+      // active-student queries nor blocks on FKs; the next run's beforeAll realigns it
+      // (deleted_at=null) for reuse. A failed soft-delete would leave the student ACTIVE
+      // and leak into downstream specs sharing this Supabase project, so THROW on a real
+      // error (code-style.md §7). Zero rows is non-fatal: the row may already be
+      // soft-deleted from a prior run.
+      if (!softDelStudentId) return
+      const { data, error } = await fx.admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', softDelStudentId)
+        .is('deleted_at', null)
+        .select('id')
+      if (error) {
+        throw new Error(
+          `[get-study-questions-eo] EO-SD afterAll soft-delete failed: ${error.message}`,
+        )
+      }
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[get-study-questions-eo] EO-SD soft-deleted ${data?.length} student(s)`)
+      }
+    })
+
+    test('the caller can read a study key until soft-deleted, then is rejected', async () => {
+      // Non-vacuous setup: as the still-active throwaway student, prove the MC key IS
+      // readable BEFORE soft-deletion — so the post-delete rejection proves the
+      // active-user gate fired, not that the JWT was already invalid.
+      const before = await softDelStudentClient.rpc(RPC, {
+        p_question_ids: [fx.egMcActiveId],
+      })
+      expect(before.error).toBeNull()
+      expect(Array.isArray(before.data)).toBe(true)
+      const beforeRows = before.data as StudyQuestionRow[]
+      expect(beforeRows).toHaveLength(1)
+      expect(beforeRows[0]?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)
+
+      // Soft-delete + post-delete call in a try/finally so the user is always restored
+      // to a clean state (noUnsafeFinally: the assertions live OUTSIDE the finally).
+      let restoreError: string | null = null
+      let result: { data: unknown; error: { message: string } | null } | null = null
+      try {
+        const { data: deleted, error: delErr } = await fx.admin
+          .from('users')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', softDelStudentId)
+          .is('deleted_at', null)
+          .select('id')
+        expect(delErr).toBeNull()
+        // Non-vacuity: confirm the soft-delete actually changed a row.
+        expect(deleted?.length).toBe(1)
+
+        const r = await softDelStudentClient.rpc(RPC, { p_question_ids: [fx.egMcActiveId] })
+        result = { data: r.data, error: r.error }
+      } finally {
+        const { data: restored, error: restoreErr } = await fx.admin
+          .from('users')
+          .update({ deleted_at: null })
+          .eq('id', softDelStudentId)
+          .select('id')
+        if (restoreErr) restoreError = restoreErr.message
+        else if ((restored?.length ?? 0) === 0) restoreError = 'restore matched no rows'
+      }
+
+      // Reachability guard: result is set only if the soft-delete + post-delete RPC
+      // call both ran, so the security proof below can never pass vacuously.
+      expect(result).not.toBeNull()
+
+      // Security proof first: the active-user gate rejects and no key is leaked.
+      expect(result?.error).not.toBeNull()
+      expect(result?.error?.message ?? '').toMatch(/user_not_found_or_inactive/i)
+      expect(result?.data).toBeNull()
+
+      // Infra check last so a restore failure never masks the security proof.
+      expect(restoreError).toBeNull()
+    })
   })
 })
