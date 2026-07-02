@@ -19,6 +19,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 ### NEVER
 - Let the agent modify production code. It writes tests only.
 - Skip running the tests the agent wrote. Always verify they pass.
+- Treat `pnpm test` green as sufficient — vitest uses esbuild (strips types, no lint), so green tests do NOT mean clean `tsc` or Biome. After test-writer produces tests, the orchestrator MUST run `pnpm check-types` AND `pnpm check` (biome) on the new test files before committing them. (Promoted count=4, 2026-07-02 — recurring test-writer output that passed vitest but failed a gate: e.g. a `setupAuth` param type inferred from its default excluding `null` [tsc], and an unused `type FromClient` [Biome `noUnusedVariables`]; both invisible to `pnpm test`.)
 - Commit failing tests. If tests fail, fix them (or the production code) first.
 - Write tests for the same files the agent is covering — avoid duplicate work.
 - Ignore test failures as "flaky" without investigation.
