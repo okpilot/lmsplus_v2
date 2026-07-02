@@ -13,6 +13,23 @@ export async function getEgmontOrgId(admin: ReturnType<typeof getAdminClient>): 
   return org.id
 }
 
+/**
+ * Resolve (or atomically create) the redteam-other-org used by cross-org specs.
+ * Uses an idempotent upsert on the UNIQUE `slug` column so parallel Playwright
+ * workers can't race a check-then-insert into a duplicate-key crash.
+ */
+export async function getOrCreateOtherOrg(
+  admin: ReturnType<typeof getAdminClient>,
+): Promise<string> {
+  const { data, error } = await admin
+    .from('organizations')
+    .upsert({ name: 'Red Team Other Org', slug: OTHER_ORG_SLUG }, { onConflict: 'slug' })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Could not upsert redteam-other-org: ${error?.message}`)
+  return data.id
+}
+
 export async function upsertUser(
   admin: ReturnType<typeof getAdminClient>,
   email: string,

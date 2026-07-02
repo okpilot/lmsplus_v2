@@ -1,5 +1,5 @@
 import { getAdminClient } from '../../helpers/supabase'
-import { getEgmontOrgId, OTHER_ORG_SLUG, upsertUser } from './seed-core'
+import { getEgmontOrgId, getOrCreateOtherOrg, upsertUser } from './seed-core'
 
 export const ATTACKER_EMAIL = 'redteam-attacker@lmsplus.local'
 export const VICTIM_EMAIL = 'redteam-victim@lmsplus.local'
@@ -21,28 +21,8 @@ export async function seedRedTeamUsers(): Promise<{
 
   const orgId = await getEgmontOrgId(admin)
 
-  // Create redteam-other-org (idempotent)
-  const { data: existingOtherOrg, error: existingOtherOrgErr } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', OTHER_ORG_SLUG)
-    .maybeSingle()
-  if (existingOtherOrgErr)
-    throw new Error(`seedRedTeamUsers: org lookup failed: ${existingOtherOrgErr.message}`)
-
-  let otherOrgId: string
-  if (existingOtherOrg) {
-    otherOrgId = existingOtherOrg.id
-  } else {
-    const { data: newOrg, error: newOrgError } = await admin
-      .from('organizations')
-      .insert({ name: 'Red Team Other Org', slug: OTHER_ORG_SLUG })
-      .select('id')
-      .single()
-    if (newOrgError || !newOrg)
-      throw new Error(`Could not create redteam-other-org: ${newOrgError?.message}`)
-    otherOrgId = newOrg.id
-  }
+  // Create redteam-other-org (idempotent, race-safe upsert)
+  const otherOrgId = await getOrCreateOtherOrg(admin)
 
   // Create attacker user (idempotent)
   const attackerUserId = await upsertUser(admin, ATTACKER_EMAIL, ATTACKER_PASSWORD, orgId)
@@ -61,26 +41,7 @@ export async function createCrossOrgUser(): Promise<{
 }> {
   const admin = getAdminClient()
 
-  const { data: otherOrg, error: otherOrgError } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', OTHER_ORG_SLUG)
-    .maybeSingle()
-  if (otherOrgError) throw new Error(`Could not query redteam-other-org: ${otherOrgError.message}`)
-
-  let orgId: string
-  if (otherOrg) {
-    orgId = otherOrg.id
-  } else {
-    const { data: newOrg, error: newOrgError } = await admin
-      .from('organizations')
-      .insert({ name: 'Red Team Other Org', slug: OTHER_ORG_SLUG })
-      .select('id')
-      .single()
-    if (newOrgError || !newOrg)
-      throw new Error(`Could not create redteam-other-org: ${newOrgError?.message}`)
-    orgId = newOrg.id
-  }
+  const orgId = await getOrCreateOtherOrg(admin)
 
   const email = 'redteam-crossorg@lmsplus.local'
   const password = 'redteam-crossorg-2026!'
@@ -117,27 +78,7 @@ export async function seedCrossOrgAdmin(): Promise<{
   password: string
 }> {
   const admin = getAdminClient()
-  const { data: existingOtherOrg, error: existingOtherOrgErr } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', OTHER_ORG_SLUG)
-    .maybeSingle()
-  if (existingOtherOrgErr)
-    throw new Error(`seedCrossOrgAdmin: org lookup failed: ${existingOtherOrgErr.message}`)
-
-  let orgId: string
-  if (existingOtherOrg) {
-    orgId = existingOtherOrg.id
-  } else {
-    const { data: newOrg, error: newOrgError } = await admin
-      .from('organizations')
-      .insert({ name: 'Red Team Other Org', slug: OTHER_ORG_SLUG })
-      .select('id')
-      .single()
-    if (newOrgError || !newOrg)
-      throw new Error(`Could not create redteam-other-org: ${newOrgError?.message}`)
-    orgId = newOrg.id
-  }
+  const orgId = await getOrCreateOtherOrg(admin)
 
   const adminUserId = await upsertUser(
     admin,
