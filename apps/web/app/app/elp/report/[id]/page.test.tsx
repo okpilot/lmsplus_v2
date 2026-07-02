@@ -170,5 +170,6 @@ describe('OralExamReportPage — pending session', () => {
     expect(mockRedirect).not.toHaveBeenCalled()
     const pending = screen.getByTestId('oral-exam-pending')
     expect(pending.dataset.state).toBe('failed')
+    expect(pending.dataset.sessionId).toBe(SESSION_ID)
   })
 })

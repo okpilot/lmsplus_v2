@@ -12,7 +12,10 @@ export default async function OralExamSessionPage({
 
   const session = await getOralExamSession(id)
   if (!session) redirect('/app/elp')
-  if (session.status === 'graded') redirect(`/app/elp/report/${id}`)
+  // A session that has moved past in_progress (graded, still grading, or a
+  // section failed) has nothing left for the recorder to do — send it to the
+  // report/pending view instead of re-rendering a fresh, unusable runner.
+  if (session.status !== 'in_progress') redirect(`/app/elp/report/${id}`)
 
   const prompt = INTERVIEW_PROMPTS[0]
   if (!prompt) redirect('/app/elp')

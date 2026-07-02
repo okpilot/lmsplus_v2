@@ -33,7 +33,7 @@ export default async function OralExamReportPage({
   return (
     <main className="space-y-6">
       {hasFailedResponse ? (
-        <OralExamPending state="failed" />
+        <OralExamPending state="failed" sessionId={id} />
       ) : (
         <OralExamPending state="grading" sessionId={id} />
       )}

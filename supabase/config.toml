@@ -369,9 +369,15 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# ELP oral-exam scoring worker. Invoked by a Supabase Database Webhook (not a user
-# session), so JWT verification is off; it authenticates the caller via the
-# ELP_WEBHOOK_SECRET shared-secret header instead (fail-closed in index.ts).
+# ELP oral-exam scoring worker. Slice-1 AUTHORITATIVE trigger is app-layer:
+# submitSectionResponse() -> triggerSectionScoring() invokes this function
+# directly (not a user session), so JWT verification is off; it authenticates
+# the caller via the ELP_WEBHOOK_SECRET shared-secret header instead
+# (fail-closed in index.ts). A Supabase Database Webhook on INSERT to
+# oral_exam_section_responses is a possible prod alternative but must NOT be
+# wired at the same time as the app-invoke — both firing would double
+# transcribe/score (double STT + LLM billing). Exactly one trigger is chosen
+# at merge time.
 [functions.score-oral-section]
 enabled = true
 verify_jwt = false

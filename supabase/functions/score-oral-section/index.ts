@@ -1,15 +1,25 @@
 // Edge Function: score-oral-section
 //
-// Triggered by a Supabase Database Webhook on INSERT into
-// oral_exam_section_responses (configured in the Dashboard/Management API — NOT in
-// migrations/config.toml, so `db reset` does not wire it). Runs OFF the request
-// path so it survives the student's tab closing. Pipeline:
+// Slice-1 AUTHORITATIVE trigger: invoked directly by the app layer —
+// submitSectionResponse() (apps/web/app/app/elp/actions/submit-section-response.ts)
+// fires triggerSectionScoring() (apps/web/lib/elp/trigger-scoring.ts) via
+// next/server's after(), which POSTs here with the x-webhook-secret header.
+// Runs OFF the request path so it survives the student's tab closing. Pipeline:
 //   audio (service-role download) -> ElevenLabs Scribe (STT) -> Claude (cached
 //   rubric, structured 1..6 per descriptor) -> write_oral_section_grade (service-role).
 //
+// A Supabase Database Webhook on INSERT into oral_exam_section_responses
+// (configured in the Dashboard/Management API — NOT in migrations/config.toml,
+// so `db reset` does not wire it) is a possible prod-ops alternative trigger —
+// this function accepts the same {record} payload shape from either source —
+// but it must NOT be wired at the same time as the app-invoke: both firing for
+// the same submission would double-transcribe and double-score (double STT +
+// LLM billing). Exactly one trigger is active in prod at a time.
+//
 // The grader RPC is the ONLY sanctioned writer of scores/usage and is idempotent
-// on section state ('grading'), so a re-fired webhook is safe. On any failure we
-// flip the section to 'failed' and return 200 (so pg_net does not hot-retry).
+// on section state ('grading'), so a re-fired request (webhook retry or a
+// duplicate app-invoke) is safe. On any failure we flip the section to 'failed'
+// and return 200 (so a webhook caller does not hot-retry).
 //
 // Secrets (supabase secrets set): ELEVENLABS_API_KEY, ANTHROPIC_API_KEY,
 // ELP_WEBHOOK_SECRET. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are ambient.

@@ -1,19 +1,18 @@
-type OralExamPendingProps = { state: 'grading'; sessionId: string } | { state: 'failed' }
+import { DiscardAndRestartButton } from './discard-and-restart-button'
 
-/** Shown when scoring failed — presentational only, no session context needed. */
-function ScoringFailedPanel() {
+type OralExamPendingProps = { state: 'grading' | 'failed'; sessionId: string }
+
+/** Shown when scoring failed — offers a working "Start over" that discards
+ * the stuck session, since a failed session stays active and would otherwise
+ * strand the student (the single-active-session guard blocks a fresh start). */
+function ScoringFailedPanel({ sessionId }: Readonly<{ sessionId: string }>) {
   return (
     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
       <h1 className="font-semibold text-lg">Scoring failed</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        We couldn&apos;t score your answer. Please start over.
+        We couldn&apos;t score your answer. Start over to try again.
       </p>
-      <a
-        href="/app/elp"
-        className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4"
-      >
-        Back to §1 Interview Practice
-      </a>
+      <DiscardAndRestartButton sessionId={sessionId} />
     </div>
   )
 }
@@ -26,7 +25,7 @@ function ScoringFailedPanel() {
  */
 export function OralExamPending(props: Readonly<OralExamPendingProps>) {
   if (props.state === 'failed') {
-    return <ScoringFailedPanel />
+    return <ScoringFailedPanel sessionId={props.sessionId} />
   }
 
   return (

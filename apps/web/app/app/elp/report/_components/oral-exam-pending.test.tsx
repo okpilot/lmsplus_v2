@@ -1,5 +1,16 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// DiscardAndRestartButton has its own test file — stub it so this test only
+// exercises OralExamPending's own state branching.
+vi.mock('./discard-and-restart-button', () => ({
+  DiscardAndRestartButton: ({ sessionId }: { sessionId: string }) => (
+    <button type="button" data-testid="discard-and-restart" data-session-id={sessionId}>
+      Start over
+    </button>
+  ),
+}))
+
 import { OralExamPending } from './oral-exam-pending'
 
 describe('OralExamPending', () => {
@@ -23,14 +34,16 @@ describe('OralExamPending', () => {
   })
 
   it('does not render a meta refresh tag when scoring failed', () => {
-    render(<OralExamPending state="failed" />)
+    render(<OralExamPending state="failed" sessionId="sess-1" />)
 
     expect(document.querySelector('meta[http-equiv="refresh"]')).toBeNull()
     expect(screen.getByText(/scoring failed/i)).toBeInTheDocument()
   })
 
-  it('links back to the practice entry page when scoring failed', () => {
-    render(<OralExamPending state="failed" />)
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/app/elp')
+  it('offers a start-over control scoped to the stuck session when scoring failed', () => {
+    render(<OralExamPending state="failed" sessionId="sess-1" />)
+
+    const control = screen.getByTestId('discard-and-restart')
+    expect(control.dataset.sessionId).toBe('sess-1')
   })
 })

@@ -80,6 +80,34 @@ describe('OralExamSessionPage', () => {
     expect(mockRedirect).toHaveBeenCalledWith(`/app/elp/report/${SESSION_ID}`)
   })
 
+  it('redirects to the report page when the session is still being scored', async () => {
+    const gradingSession: OralSessionDetail = {
+      id: SESSION_ID,
+      status: 'grading',
+      mode: 'practice',
+      sections: [{ sectionNo: 1, type: 'interview' }],
+      responses: [{ sectionNo: 1, status: 'grading' }],
+    }
+    mockGetOralExamSession.mockResolvedValue(gradingSession)
+
+    await expect(callPage()).rejects.toThrow(`REDIRECT:/app/elp/report/${SESSION_ID}`)
+    expect(mockRedirect).toHaveBeenCalledWith(`/app/elp/report/${SESSION_ID}`)
+  })
+
+  it('redirects to the report page (not a fresh recorder) when a section failed scoring', async () => {
+    const failedSession: OralSessionDetail = {
+      id: SESSION_ID,
+      status: 'grading',
+      mode: 'practice',
+      sections: [{ sectionNo: 1, type: 'interview' }],
+      responses: [{ sectionNo: 1, status: 'failed' }],
+    }
+    mockGetOralExamSession.mockResolvedValue(failedSession)
+
+    await expect(callPage()).rejects.toThrow(`REDIRECT:/app/elp/report/${SESSION_ID}`)
+    expect(mockRedirect).toHaveBeenCalledWith(`/app/elp/report/${SESSION_ID}`)
+  })
+
   it('renders the practice runner and does not redirect for an in-progress session', async () => {
     const inProgressSession: OralSessionDetail = {
       id: SESSION_ID,
