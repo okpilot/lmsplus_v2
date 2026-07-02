@@ -50,6 +50,8 @@
 
 - **Splitting a test file is a faithful MOVE — the moved `describe` block must carry ALL of the source's sentinel-var declarations + `if(sentinel)` cleanup guards + every branch, not just the happy path.** It is easy to silently drop a defensive guard during the extraction. Before committing a split, re-diff the moved block's setup/`beforeAll`/`afterAll` against the source. Count=2: #698/#666 dashboard-query split dropped error-path/edge-case branches; #951 mig-125 split dropped the `if(orgId)` guard on the `afterAll` `cleanupTestData` call (both caught pre-commit by impl-critic). Also carry the §7 multi-step-cleanup shape intact (error-accumulator + `finally { ids.length = 0 }` reset + per-step `errors.length === 0`-gated try/catch).
 
+- **`lib/queries/*.ts` files that have only an `*.integration.test.ts` need a co-located unit test for pure JSONB-mapping branches.** Integration tests use real DB data written by the RPC (always well-formed), so defensive guards (`config.sections` missing/non-array → `[]`, `config.mode` non-string → fallback string, embedded FK result null → `[]`) are never exercised. Write a unit test with a locally-defined `makeChain(returnValue)` Proxy that forwards every Supabase chain method back to itself and resolves to `returnValue`. First confirmed: `oral-exam-session.test.ts` (2026-07-02, ELP Phase 1c-A).
+
 ## Topics
 
 - [test-recipes](topics/test-recipes.md) — full scaffolding: `vi.hoisted`/`buildChain`, Supabase/Next/Base-UI/recharts mocks, timer & ref recipes, jsdom quirks, E2E helper patterns.
