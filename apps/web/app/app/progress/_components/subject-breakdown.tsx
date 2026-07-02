@@ -7,7 +7,7 @@ type SubjectBreakdownProps = {
   subjects: SubjectDetail[]
 }
 
-export function SubjectBreakdown({ subjects }: SubjectBreakdownProps) {
+export function SubjectBreakdown({ subjects }: Readonly<SubjectBreakdownProps>) {
   if (subjects.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No subjects with questions available yet.</p>
@@ -23,7 +23,7 @@ export function SubjectBreakdown({ subjects }: SubjectBreakdownProps) {
   )
 }
 
-function SubjectRow({ subject }: { subject: SubjectDetail }) {
+function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
   const [expanded, setExpanded] = useState(false)
 
   return (

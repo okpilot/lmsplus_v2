@@ -12,7 +12,7 @@ export function progressColor(pct: number): string {
   return 'text-primary'
 }
 
-export function DraftCard({ draft, userId }: { draft: DraftData; userId: string }) {
+export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId: string }>) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)

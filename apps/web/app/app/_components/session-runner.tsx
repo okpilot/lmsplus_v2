@@ -17,7 +17,7 @@ export function SessionRunner({
   questions,
   onSubmitAnswer,
   onComplete,
-}: SessionRunnerProps) {
+}: Readonly<SessionRunnerProps>) {
   const s = useSessionState({ sessionId, questions, onSubmitAnswer, onComplete })
   const question = questions[s.currentIndex]
   if (!question) return null

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { AppShell } from './_components/app-shell'
 import { UserProvider } from './_components/user-context'
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },

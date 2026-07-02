@@ -10,7 +10,7 @@ type Props = {
   onChange: (distributions: DistRow[]) => void
 }
 
-export function DistributionEditor({ topics, distributions, onChange }: Props) {
+export function DistributionEditor({ topics, distributions, onChange }: Readonly<Props>) {
   function updateCount(topicId: string, subtopicId: string | null, value: number) {
     const next = distributions.map((d) =>
       d.topicId === topicId && d.subtopicId === subtopicId

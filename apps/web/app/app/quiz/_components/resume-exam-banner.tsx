@@ -33,7 +33,7 @@ type DiscardOnlyProps = {
 
 type Props = NormalProps | DiscardOnlyProps
 
-export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Props) {
+export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Readonly<Props>) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

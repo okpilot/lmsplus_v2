@@ -5,7 +5,12 @@ type QuizNavBarProps = {
   onNext: () => void
 }
 
-export function QuizNavBar({ currentIndex, totalQuestions, onPrev, onNext }: QuizNavBarProps) {
+export function QuizNavBar({
+  currentIndex,
+  totalQuestions,
+  onPrev,
+  onNext,
+}: Readonly<QuizNavBarProps>) {
   return (
     <>
       <button

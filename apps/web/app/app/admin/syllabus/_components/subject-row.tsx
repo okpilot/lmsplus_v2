@@ -17,7 +17,7 @@ type Props = {
   subject: SyllabusSubject
 }
 
-export function SubjectRow({ subject }: Props) {
+export function SubjectRow({ subject }: Readonly<Props>) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()

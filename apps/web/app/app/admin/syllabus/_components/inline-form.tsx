@@ -25,7 +25,7 @@ export function InlineForm({
   onCancel,
   isPending,
   submitLabel = 'Add',
-}: InlineFormProps) {
+}: Readonly<InlineFormProps>) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     for (const field of fields) {

@@ -10,7 +10,7 @@ type Props = {
 // Renders a dialog_fill question's per-blank result. Leads with the partial
 // fraction (X/N blanks correct), then lists each blank's student answer vs the
 // canonical. 3-state: fully correct / partial / none correct.
-export function DialogFillReport({ blanks, correctCount, totalBlanks }: Props) {
+export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly<Props>) {
   const allCorrect = totalBlanks > 0 && correctCount === totalBlanks
   const noneCorrect = correctCount === 0
 

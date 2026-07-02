@@ -13,7 +13,7 @@ export function FeedbackPanel({
   explanationText,
   explanationImageUrl,
   onNext,
-}: FeedbackPanelProps) {
+}: Readonly<FeedbackPanelProps>) {
   return (
     <div
       className={`space-y-3 rounded-lg border p-4 ${

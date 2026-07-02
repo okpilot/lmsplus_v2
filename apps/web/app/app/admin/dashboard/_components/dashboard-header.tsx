@@ -16,7 +16,7 @@ type Props = {
   currentRange: TimeRange
 }
 
-export function DashboardHeader({ currentRange }: Props) {
+export function DashboardHeader({ currentRange }: Readonly<Props>) {
   const updateParams = useUpdateSearchParams()
 
   const handleRangeChange = useCallback(

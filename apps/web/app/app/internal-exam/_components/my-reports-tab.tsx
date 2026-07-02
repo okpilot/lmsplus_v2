@@ -27,7 +27,7 @@ function formatScore(score: number | null): string {
   return `${Math.round(score)}%`
 }
 
-export function MyReportsTab({ rows }: Props) {
+export function MyReportsTab({ rows }: Readonly<Props>) {
   if (rows.length === 0) {
     return (
       <div
@@ -63,7 +63,7 @@ export function MyReportsTab({ rows }: Props) {
   )
 }
 
-function ReportRow({ row: r }: { row: InternalExamHistoryEntry }) {
+function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
   const router = useRouter()
   const href = `/app/internal-exam/report?session=${r.id}`
   const label = r.subjectName || r.subjectShort || '—'

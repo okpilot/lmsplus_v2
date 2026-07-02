@@ -11,7 +11,7 @@ type CommentsTabProps = {
   currentUserId: string
 }
 
-export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
+export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabProps>) {
   const { comments, isLoading, error, addComment, removeComment } = useComments(questionId)
   const [body, setBody] = useState('')
   const [submitting, setSubmitting] = useState(false)

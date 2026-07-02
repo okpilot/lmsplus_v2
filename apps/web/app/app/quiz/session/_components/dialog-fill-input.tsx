@@ -25,7 +25,7 @@ export function DialogFillInput({
   submitting = false,
   submitted = false,
   blanks,
-}: DialogFillInputProps) {
+}: Readonly<DialogFillInputProps>) {
   const { lines, values, results, allFilled, handleChange, collectSubmission } = useDialogFillInput(
     template,
     blanks,

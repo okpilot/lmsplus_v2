@@ -1,6 +1,11 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import {
+  isUniquePermutation,
+  MAX_ORDER_ITEMS,
+  MIN_ORDER_ITEMS,
+} from '@/app/app/quiz/actions/ordering-validation'
 import { rpc } from '@/lib/supabase-rpc'
 
 type QuizQuestionRow = {
@@ -53,15 +58,14 @@ function isOrderingItem(value: unknown): value is { id: string; text: string } {
 }
 
 function isOrderingItemArray(value: unknown): value is { id: string; text: string }[] {
-  // length >= 2: an ordering question is a permutation of ≥2 items (mirrors the
-  // `order` `.min(2)` in check-non-mc-answer-schema.ts and the DB CHECK).
-  // Without it, every() is vacuously true on [] / single-item, leaking an
-  // unusable ordering question through this query layer.
-  // Distinct ids: a permutation has no repeats — a duplicate id would break the
-  // id-keyed drag-and-drop rendering downstream (parity with the DB CHECK
-  // is_valid_ordering_items and the quiz-session-validators uniqueness guards).
-  if (!Array.isArray(value) || value.length < 2 || !value.every(isOrderingItem)) return false
-  return new Set(value.map((v) => v.id)).size === value.length
+  if (
+    !Array.isArray(value) ||
+    value.length < MIN_ORDER_ITEMS ||
+    value.length > MAX_ORDER_ITEMS ||
+    !value.every(isOrderingItem)
+  )
+    return false
+  return isUniquePermutation(value.map((v) => v.id))
 }
 
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {

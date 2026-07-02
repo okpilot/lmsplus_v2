@@ -15,7 +15,7 @@ export function QuestionCard({
   questionNumber,
   totalQuestions,
   dbQuestionNumber,
-}: QuestionCardProps) {
+}: Readonly<QuestionCardProps>) {
   return (
     <div className="space-y-4">
       {questionNumber != null && totalQuestions != null && (

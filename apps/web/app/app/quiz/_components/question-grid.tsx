@@ -33,7 +33,7 @@ export function QuestionGrid({
   isExamMode,
   answeredIds,
   seenIds,
-}: QuestionGridProps) {
+}: Readonly<QuestionGridProps>) {
   const [filter, setFilter] = useState<GridFilter>('all')
   const flaggedCount = flaggedIds.size
   const pinnedCount = pinnedIds.size

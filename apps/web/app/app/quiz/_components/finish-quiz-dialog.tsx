@@ -39,7 +39,7 @@ export function FinishQuizDialog({
   isExam,
   examMode,
   timeExpired,
-}: FinishQuizDialogProps) {
+}: Readonly<FinishQuizDialogProps>) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
   const countdown = useAutoSubmitCountdown({
@@ -170,7 +170,10 @@ export function FinishQuizDialog({
   )
 }
 
-function ExpiredNotice({ submitting, countdown }: { submitting: boolean; countdown: number }) {
+function ExpiredNotice({
+  submitting,
+  countdown,
+}: Readonly<{ submitting: boolean; countdown: number }>) {
   return (
     <div
       role="alert"
@@ -201,7 +204,7 @@ function DialogFooter({
   onSave,
   onDiscardOpen,
   onClose,
-}: {
+}: Readonly<{
   answeredCount: number
   submitting: boolean
   pendingAction?: QuizPendingAction
@@ -214,7 +217,7 @@ function DialogFooter({
   onSave: () => void
   onDiscardOpen: () => void
   onClose: () => void
-}) {
+}>) {
   // Every button is disabled while any action runs (`submitting`), but the spinner
   // and "…ing" label belong only to the button whose own action is in flight.
   const isSubmitting = pendingAction === 'submit'
@@ -285,7 +288,7 @@ function ConfirmPanel({
   submitting,
   busy,
   variant,
-}: {
+}: Readonly<{
   message: string
   confirmLabel: string
   onConfirm: () => void
@@ -295,7 +298,7 @@ function ConfirmPanel({
   /** True only while THIS panel's own action runs — drives aria-busy. */
   busy: boolean
   variant: 'warning' | 'destructive'
-}) {
+}>) {
   const isWarn = variant === 'warning'
   return (
     <div

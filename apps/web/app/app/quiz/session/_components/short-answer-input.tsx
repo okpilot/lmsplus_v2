@@ -24,7 +24,7 @@ export function ShortAnswerInput({
   submittedText,
   isCorrect,
   correctAnswer,
-}: ShortAnswerInputProps) {
+}: Readonly<ShortAnswerInputProps>) {
   const [value, setValue] = useState('')
   const locked = submittedText != null
   const showResult = locked && isCorrect != null

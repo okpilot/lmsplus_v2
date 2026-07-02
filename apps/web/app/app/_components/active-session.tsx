@@ -27,7 +27,7 @@ export function ActiveSession({
   state,
   onSubmit,
   onNext,
-}: ActiveSessionProps) {
+}: Readonly<ActiveSessionProps>) {
   const feedbackData = feedback?.success ? feedback : null
   return (
     <div className="mx-auto max-w-2xl space-y-6">

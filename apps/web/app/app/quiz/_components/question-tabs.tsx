@@ -14,7 +14,7 @@ const TABS: { value: QuestionTab; label: string }[] = [
   { value: 'statistics', label: 'Stats' },
 ]
 
-export function QuestionTabs({ activeTab, onTabChange }: QuestionTabsProps) {
+export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsProps>) {
   return (
     <div className="flex justify-center border-b border-border">
       {TABS.map((tab) => {

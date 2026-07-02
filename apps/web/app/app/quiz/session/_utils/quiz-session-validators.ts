@@ -1,3 +1,8 @@
+import {
+  isUniquePermutation,
+  MAX_ORDER_ITEMS,
+  MIN_ORDER_ITEMS,
+} from '@/app/app/quiz/actions/ordering-validation'
 import { EXAM_MODES } from '@/lib/constants/exam-modes'
 
 export function isNonEmptyString(value: unknown): value is string {
@@ -42,18 +47,12 @@ export function isValidDraftAnswer(v: unknown): boolean {
   if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
   if (hasResponseText) return isNonEmptyString(r.responseText)
   if (hasOrder) {
-    // An ordering question always has ≥2 items, so a submitted order is ≥2 — parity
-    // with the save schema (draft-schema `order: z.array(...).min(2)`). The ids form a
-    // permutation, so they must be unique — parity with the save-schema `.refine`
-    // (a tampered/corrupt draft could carry duplicate ids the save path rejects).
     return (
       Array.isArray(r.order) &&
-      r.order.length >= 2 &&
-      // Upper-bound parity with the RPC guard (isOrderingRpcResult) and the save
-      // schema (OrderingInput .max(50)) — a tampered draft with >50 ids is corrupt.
-      r.order.length <= 50 &&
+      r.order.length >= MIN_ORDER_ITEMS &&
+      r.order.length <= MAX_ORDER_ITEMS &&
       r.order.every(isNonEmptyString) &&
-      new Set(r.order).size === r.order.length
+      isUniquePermutation(r.order as string[])
     )
   }
   return isValidBlankAnswers(r.blankAnswers)
@@ -97,17 +96,10 @@ export function isValidFeedbackEntry(v: unknown): boolean {
     case 'ordering':
       return (
         Array.isArray(r.correctOrder) &&
-        // An ordering question always has ≥2 items, so the canonical order is ≥2
-        // — four-way parity with the save schema (draft-schema .min(2)), the RPC
-        // guard (isOrderingRpcResult) and the DB-load path (toFeedbackEntry).
-        r.correctOrder.length >= 2 &&
-        // Upper-bound parity with the same family (.max(50)) — a tampered
-        // sessionStorage feedback blob with >50 ids is corrupt.
-        r.correctOrder.length <= 50 &&
+        r.correctOrder.length >= MIN_ORDER_ITEMS &&
+        r.correctOrder.length <= MAX_ORDER_ITEMS &&
         r.correctOrder.every(isNonEmptyString) &&
-        // A canonical order is a permutation — ids must be unique (parity with the
-        // RPC guard isOrderingRpcResult and the save-schema .refine).
-        new Set(r.correctOrder).size === r.correctOrder.length
+        isUniquePermutation(r.correctOrder as string[])
       )
     default:
       return false

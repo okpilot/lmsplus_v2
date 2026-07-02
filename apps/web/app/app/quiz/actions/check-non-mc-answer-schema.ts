@@ -2,11 +2,9 @@
 // check-non-mc-answer-helpers.ts to keep that file ≤200 lines
 // (code-style.md §1).
 import { z } from 'zod'
+import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const MAX_DIALOG_BLANKS = 50
-
-// An ordering answer is a permutation — each item id must appear exactly once.
-const allUnique = (ids: string[]): boolean => new Set(ids).size === ids.length
 
 // `.strict()` rejects a mixed payload ({responseText, blankAnswers}) instead of
 // letting z.union strip the extra key and grade it as short_answer.
@@ -55,9 +53,9 @@ const OrderingInput = z
     // An ordering answer is a permutation, so duplicate ids are invalid.
     order: z
       .array(z.string().min(1).max(200))
-      .min(2)
-      .max(50)
-      .refine(allUnique, 'Ordering ids must be unique'),
+      .min(MIN_ORDER_ITEMS)
+      .max(MAX_ORDER_ITEMS)
+      .refine(isUniquePermutation, 'Ordering ids must be unique'),
   })
   .strict()
 

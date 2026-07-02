@@ -18,7 +18,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function PassFailBadge({ passed }: { passed: boolean }) {
+function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
   return passed ? (
     <span className="rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-sm font-semibold text-green-600 dark:text-green-400">
       PASSED

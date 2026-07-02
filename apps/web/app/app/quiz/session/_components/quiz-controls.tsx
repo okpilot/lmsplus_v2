@@ -106,7 +106,7 @@ function ActionButton({
   testId,
   activeClass,
   disabled,
-}: {
+}: Readonly<{
   active: boolean
   onClick: () => void
   icon: React.ReactNode
@@ -114,7 +114,7 @@ function ActionButton({
   testId: string
   activeClass: string
   disabled?: boolean
-}) {
+}>) {
   return (
     <button
       type="button"

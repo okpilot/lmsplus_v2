@@ -23,7 +23,14 @@ function blankClass(result: BlankResult | undefined): string {
     : 'border-destructive bg-destructive/10'
 }
 
-export function DialogLine({ line, values, onChange, disabled, results, locked }: DialogLineProps) {
+export function DialogLine({
+  line,
+  values,
+  onChange,
+  disabled,
+  results,
+  locked,
+}: Readonly<DialogLineProps>) {
   return (
     <p className="flex flex-wrap items-center gap-1 text-sm leading-7">
       {line.speaker && (

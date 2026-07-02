@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useQuizRecovery } from '../_hooks/use-quiz-recovery'
 
-export function QuizRecoveryBanner({ userId }: { userId: string }) {
+export function QuizRecoveryBanner({ userId }: Readonly<{ userId: string }>) {
   const { session, loading, error, handleResume, handleSave, handleDiscard } =
     useQuizRecovery(userId)
 

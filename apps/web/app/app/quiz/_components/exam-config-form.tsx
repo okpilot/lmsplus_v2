@@ -16,7 +16,11 @@ function formatTime(seconds: number): string {
   return `${m} min`
 }
 
-export function ExamConfigForm({ examSubjects, subjectId, onSubjectChange }: ExamConfigFormProps) {
+export function ExamConfigForm({
+  examSubjects,
+  subjectId,
+  onSubjectChange,
+}: Readonly<ExamConfigFormProps>) {
   const selected = examSubjects.find((s) => s.id === subjectId)
 
   const subjectOptions = examSubjects.map((s) => ({

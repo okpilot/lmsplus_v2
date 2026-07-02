@@ -10,7 +10,7 @@ type QuestionCountProps = {
 
 const PRESETS = [10, 25, 50] as const
 
-export function QuestionCount({ value, max, onValueChange }: QuestionCountProps) {
+export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCountProps>) {
   if (max === 0) {
     return (
       <div className="space-y-3">

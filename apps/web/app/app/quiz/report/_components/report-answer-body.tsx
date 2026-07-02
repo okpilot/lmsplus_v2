@@ -9,7 +9,7 @@ import { ShortAnswerReport } from './short-answer-report'
 // ordering / dialog_fill). Each of the four variants has its own explicit
 // guard; the trailing `never` exhaustiveness check causes a compile-time error
 // if a future QuizReportQuestion variant is added without a matching branch.
-export function ReportAnswerBody({ question }: { question: QuizReportQuestion }) {
+export function ReportAnswerBody({ question }: Readonly<{ question: QuizReportQuestion }>) {
   if (question.questionType === 'multiple_choice') {
     return (
       <OptionsList

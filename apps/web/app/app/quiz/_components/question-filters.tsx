@@ -21,7 +21,7 @@ export function QuestionFilters({
   imageMode,
   onImageModeChange,
   unseenLabel,
-}: QuestionFiltersProps) {
+}: Readonly<QuestionFiltersProps>) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
     const isActive = withoutAll.includes(filter)

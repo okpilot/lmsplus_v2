@@ -5,7 +5,7 @@ import { DraftCard } from './draft-card'
 
 type SavedDraftCardProps = { drafts: DraftData[]; userId: string }
 
-export function SavedDraftCard({ drafts, userId }: SavedDraftCardProps) {
+export function SavedDraftCard({ drafts, userId }: Readonly<SavedDraftCardProps>) {
   if (drafts.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-6 text-center">

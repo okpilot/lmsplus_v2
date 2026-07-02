@@ -26,7 +26,7 @@ function getBarColor(mastery: number): string {
   return 'bg-green-500'
 }
 
-export function SubjectGrid({ subjects }: SubjectGridProps) {
+export function SubjectGrid({ subjects }: Readonly<SubjectGridProps>) {
   if (subjects.length === 0) {
     return <p className="text-sm text-muted-foreground">No subjects available yet.</p>
   }
@@ -40,7 +40,7 @@ export function SubjectGrid({ subjects }: SubjectGridProps) {
   )
 }
 
-function SubjectCard({ subject }: { subject: SubjectProgress }) {
+function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
   const barColor = getBarColor(subject.masteryPercentage)
   const relativeDate = getRelativeDate(subject.lastPracticedAt)
 

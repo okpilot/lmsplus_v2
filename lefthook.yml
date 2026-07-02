@@ -40,7 +40,7 @@ pre-commit:
 commit-msg:
   commands:
     commitlint:
-      run: npx commitlint --edit {1}
+      run: npx commitlint --edit "{1}"
 
 post-commit:
   commands:

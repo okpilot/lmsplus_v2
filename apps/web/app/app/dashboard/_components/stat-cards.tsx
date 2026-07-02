@@ -14,7 +14,7 @@ export function StatCards({
   questionsToday,
   currentStreak,
   bestStreak,
-}: StatCardsProps) {
+}: Readonly<StatCardsProps>) {
   const readinessPct =
     examReadiness.totalCount > 0
       ? Math.round((examReadiness.readyCount / examReadiness.totalCount) * 100)

@@ -8,7 +8,7 @@ type StatisticsTabProps = {
   hasAnswered: boolean
 }
 
-export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
+export function StatisticsTab({ questionId, hasAnswered }: Readonly<StatisticsTabProps>) {
   const { stats, isLoading, error, loadStats } = useQuestionStats(questionId)
   if (isLoading) return <LoadingSkeleton />
   if (error) return <ErrorMessage message={error} onRetry={loadStats} />
@@ -16,7 +16,7 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   return <StatsDisplay stats={stats} />
 }
 
-function NotAnsweredMessage({ hasAnswered }: { hasAnswered: boolean }) {
+function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>) {
   const message = hasAnswered
     ? 'No statistics available for this question yet.'
     : 'Answer this question to see statistics.'
@@ -33,7 +33,7 @@ function LoadingSkeleton() {
   )
 }
 
-function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorMessage({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) {
   return (
     <div className="space-y-2 py-8 text-center">
       <p className="text-sm text-destructive">{message}</p>
@@ -44,7 +44,7 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
   )
 }
 
-function StatsDisplay({ stats }: { stats: QuestionStats }) {
+function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
 
@@ -85,11 +85,11 @@ function StatRow({
   label,
   value,
   className,
-}: {
+}: Readonly<{
   label: string
   value: string
   className?: string
-}) {
+}>) {
   return (
     <div className="flex justify-between px-4 py-3">
       <span className="text-sm text-muted-foreground">{label}</span>

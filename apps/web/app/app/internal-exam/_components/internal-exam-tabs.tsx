@@ -20,7 +20,7 @@ function readTabParam(value: string | null): TabKey {
   return value === 'reports' ? 'reports' : 'available'
 }
 
-export function InternalExamTabs({ available, history, userId }: Props) {
+export function InternalExamTabs({ available, history, userId }: Readonly<Props>) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const [tab, setTab] = useState<TabKey>(readTabParam(tabParam))
@@ -99,13 +99,13 @@ function TabButton({
   label,
   badge,
   onClick,
-}: {
+}: Readonly<{
   id: string
   active: boolean
   label: string
   badge?: number
   onClick: () => void
-}) {
+}>) {
   return (
     <button
       type="button"

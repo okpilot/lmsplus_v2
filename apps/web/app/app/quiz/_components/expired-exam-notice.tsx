@@ -6,7 +6,7 @@ type Props = {
   sessionId: string
 }
 
-export function ExpiredExamNotice({ sessionId }: Props) {
+export function ExpiredExamNotice({ sessionId }: Readonly<Props>) {
   const router = useRouter()
 
   function handleViewResults() {

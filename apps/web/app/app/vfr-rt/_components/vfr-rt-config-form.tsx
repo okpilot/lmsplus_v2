@@ -14,7 +14,7 @@ type VfrRtConfigFormProps = {
   parts: TopicWithSubtopics[]
 }
 
-export function VfrRtConfigForm({ userId, subjectId, parts }: VfrRtConfigFormProps) {
+export function VfrRtConfigForm({ userId, subjectId, parts }: Readonly<VfrRtConfigFormProps>) {
   const [count, setCount] = useState(10)
   const partsState = useVfrRtParts(parts)
 

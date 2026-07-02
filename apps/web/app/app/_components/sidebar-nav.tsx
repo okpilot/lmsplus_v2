@@ -11,7 +11,7 @@ type SidebarNavProps = {
   onToggle: () => void
 }
 
-export function SidebarNav({ userRole, collapsed, onToggle }: SidebarNavProps) {
+export function SidebarNav({ userRole, collapsed, onToggle }: Readonly<SidebarNavProps>) {
   const pathname = usePathname()
   const isAdmin = userRole === 'admin'
 

@@ -321,6 +321,21 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(Array.isArray(data) ? data.length : 0).toBe(0)
   })
 
+  test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
+    // startStudy (study.ts) chains get_random_question_ids (anon → 0 ids → short-circuits,
+    // already covered above) then get_study_questions; this pins the SECURITY DEFINER
+    // answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700 raises
+    // 'Not authenticated') so no correct_option_id is reachable anon. The
+    // Server-Action-shape assertion in #1005's AC is infeasible (can't invoke the
+    // Server Action from a red-team spec); this is the durable RPC mirror.
+    const { data, error } = await unauthClient.rpc('get_study_questions', {
+      p_question_ids: [knownQuestionId],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data).toBeNull()
+  })
+
   test('get_filtered_question_counts returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
     // Same SECURITY INVOKER + tenant_isolation empty-set defense as
     // get_random_question_ids — anon enumerates no per-topic counts.

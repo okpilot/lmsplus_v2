@@ -18,7 +18,15 @@ type TabButtonProps = {
   badge?: number
 }
 
-function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: TabButtonProps) {
+function TabButton({
+  id,
+  isActive,
+  label,
+  testId,
+  panelId,
+  onClick,
+  badge,
+}: Readonly<TabButtonProps>) {
   return (
     <button
       type="button"
@@ -52,7 +60,11 @@ type TabName = 'new' | 'saved'
 const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved' }
 const TAB_COUNT = 2
 
-export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent }: QuizTabsProps) {
+export function QuizTabs({
+  draftCount = null,
+  newQuizContent,
+  savedDraftContent,
+}: Readonly<QuizTabsProps>) {
   const [tab, setTab] = useState<TabName>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
   const pendingFocusRef = useRef<string | null>(null)

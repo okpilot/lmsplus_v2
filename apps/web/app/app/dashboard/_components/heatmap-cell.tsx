@@ -14,7 +14,7 @@ export function HeatmapCell({
   incorrect,
   isFuture,
   isToday,
-}: HeatmapCellProps) {
+}: Readonly<HeatmapCellProps>) {
   const ring = isToday ? ' ring-2 ring-primary' : ''
   const hasActivity = !isFuture && total > 0
 

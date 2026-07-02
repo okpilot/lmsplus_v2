@@ -14,13 +14,13 @@ export function StudyConfigForm({
   subjects,
   unseenLabel,
   header,
-}: {
+}: Readonly<{
   userId: string
   subjects: SubjectOption[]
   unseenLabel?: string
   /** Optional slot rendered at the top of Card 1 (e.g. the Discovery ModeToggle). */
   header?: ReactNode
-}) {
+}>) {
   const config = useStudyConfig({ userId, subjects })
 
   return (

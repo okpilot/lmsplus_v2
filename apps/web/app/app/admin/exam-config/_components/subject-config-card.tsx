@@ -10,7 +10,7 @@ type Props = {
   onEdit: () => void
 }
 
-export function SubjectConfigCard({ subject, onEdit }: Props) {
+export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
   const config = subject.config
 

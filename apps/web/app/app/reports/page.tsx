@@ -18,7 +18,9 @@ function parseSortDir(value: string | string[] | undefined): SortDir {
   return 'desc'
 }
 
-export default async function ReportsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ReportsPage({
+  searchParams,
+}: Readonly<{ searchParams: SearchParams }>) {
   const params = await searchParams
   const page = parsePageParam(params.page)
   const sort = parseSortKey(params.sort)

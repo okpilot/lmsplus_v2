@@ -17,7 +17,7 @@ export function useUser(): UserContextValue {
 
 type UserProviderProps = UserContextValue & { children: ReactNode }
 
-export function UserProvider({ displayName, userRole, children }: UserProviderProps) {
+export function UserProvider({ displayName, userRole, children }: Readonly<UserProviderProps>) {
   const value = useMemo(() => ({ displayName, userRole }), [displayName, userRole])
   return <UserContext value={value}>{children}</UserContext>
 }

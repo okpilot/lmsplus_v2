@@ -121,12 +121,12 @@ function TabButton({
   active,
   label,
   onClick,
-}: {
+}: Readonly<{
   id: string
   active: boolean
   label: string
   onClick: () => void
-}) {
+}>) {
   return (
     <button
       type="button"

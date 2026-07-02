@@ -24,7 +24,7 @@ export function QuizFinishDialogHost({
   totalQuestions,
   examMode,
   timeExpired,
-}: QuizFinishDialogHostProps) {
+}: Readonly<QuizFinishDialogHostProps>) {
   if (isDiscovery) return null
   return (
     <FinishQuizDialog

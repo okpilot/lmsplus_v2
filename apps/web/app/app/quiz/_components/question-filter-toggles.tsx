@@ -59,7 +59,7 @@ export const IMAGE_TOGGLES: { mode: Exclude<ImageMode, 'all'>; label: string; hi
   },
 ]
 
-function FilterHint({ hint, label }: { hint: string; label: string }) {
+function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -95,12 +95,12 @@ export function FilterToggle({
   hint,
   checked,
   onToggle,
-}: {
+}: Readonly<{
   label: string
   hint: string
   checked: boolean
   onToggle: () => void
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between">
       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">

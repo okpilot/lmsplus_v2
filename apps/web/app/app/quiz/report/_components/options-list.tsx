@@ -8,7 +8,11 @@ type OptionsListProps = {
   selectedOptionId: string | null
 }
 
-export function OptionsList({ options, correctOptionId, selectedOptionId }: OptionsListProps) {
+export function OptionsList({
+  options,
+  correctOptionId,
+  selectedOptionId,
+}: Readonly<OptionsListProps>) {
   if (options.length === 0) return null
 
   return (

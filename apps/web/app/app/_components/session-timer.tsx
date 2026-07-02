@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-export function SessionTimer({ className }: { className?: string }) {
+export function SessionTimer({ className }: Readonly<{ className?: string }>) {
   const startedAtRef = useRef(Date.now())
   const [now, setNow] = useState(Date.now())
 

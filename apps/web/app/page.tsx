@@ -15,7 +15,7 @@ type Props = {
   searchParams: Promise<{ error?: string }>
 }
 
-export default async function LoginPage({ searchParams }: Props) {
+export default async function LoginPage({ searchParams }: Readonly<Props>) {
   const { error } = await searchParams
   const initialError = error
     ? (ERROR_MESSAGES[error] ?? 'Something went wrong. Please try again.')

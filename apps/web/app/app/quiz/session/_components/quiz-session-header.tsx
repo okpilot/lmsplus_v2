@@ -40,7 +40,7 @@ export function QuizSessionHeader({
   onTabChange,
   onTimeExpired,
   onFinishClick,
-}: QuizSessionHeaderProps) {
+}: Readonly<QuizSessionHeaderProps>) {
   const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
 

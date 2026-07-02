@@ -7,7 +7,7 @@ import { SubjectConfigCard } from './subject-config-card'
 
 type Props = { subjects: SubjectWithConfig[] }
 
-export function ExamConfigPageShell({ subjects }: Props) {
+export function ExamConfigPageShell({ subjects }: Readonly<Props>) {
   const [editingSubject, setEditingSubject] = useState<SubjectWithConfig | null>(null)
 
   return (

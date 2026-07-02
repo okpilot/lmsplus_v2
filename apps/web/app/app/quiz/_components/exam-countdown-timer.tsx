@@ -29,7 +29,7 @@ export function ExamCountdownTimer({
   startedAt,
   onExpired,
   className,
-}: ExamCountdownTimerProps) {
+}: Readonly<ExamCountdownTimerProps>) {
   const expiredRef = useRef(false)
   const timeLimitRef = useRef(timeLimitSeconds)
   const startedAtRef = useRef(startedAt)
