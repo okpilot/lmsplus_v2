@@ -20,12 +20,8 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ADMIN_EMAIL,
-  ADMIN_PASSWORD,
-  pickSubjectWithQuestions,
-  seedRedTeamAdmin,
-} from './helpers/seed'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, seedRedTeamAdmin } from './helpers/seed-users'
 
 test.describe('Red Team: exam_config reactivation-guard trigger (Vector AJ)', () => {
   let admin: ReturnType<typeof getAdminClient>

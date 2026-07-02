@@ -48,13 +48,13 @@
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   createCrossOrgUser,
-  pickSubjectWithQuestions,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 test.describe('Vector CU — start_quiz_session question-ID smuggling (issue #625)', () => {
   let admin: ReturnType<typeof getAdminClient>

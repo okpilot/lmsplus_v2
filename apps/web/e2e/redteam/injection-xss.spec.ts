@@ -17,7 +17,7 @@ import {
 import { ensureTestUser, getAdminClient, TEST_EMAIL, TEST_PASSWORD } from '../helpers/supabase'
 import { XSS_PAYLOADS } from './helpers/payloads'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { E2E_XSS_MARKER as MARKER } from './helpers/seed'
+import { E2E_XSS_MARKER as MARKER } from './helpers/seed-markers'
 
 type Field = 'question_text' | 'explanation_text'
 

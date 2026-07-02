@@ -17,15 +17,14 @@ import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_CODE_PREFIX } from './helpers/seed-markers'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   createCrossOrgUser,
-  E2E_REDTEAM_CODE_PREFIX,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation — Reports and Seeding Tests', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

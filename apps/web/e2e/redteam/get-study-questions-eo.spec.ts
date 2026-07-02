@@ -63,7 +63,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-markers'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 // Fail fast: a missing Supabase URL must surface as a deterministic setup error at

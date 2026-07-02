@@ -55,7 +55,7 @@ import {
   CURRENT_TOS_VERSION,
 } from '../../lib/consent/versions'
 import { forceTokenRefresh, readAuthSession } from './helpers/force-token-refresh'
-import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed'
+import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const BASE_URL = 'http://localhost:3000'
 const ANTI_CACHE_HEADERS = ['cache-control', 'expires', 'pragma'] as const

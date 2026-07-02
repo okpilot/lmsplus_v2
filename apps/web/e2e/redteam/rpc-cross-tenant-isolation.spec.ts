@@ -19,14 +19,9 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  createCrossOrgUser,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
-  seedCrossOrgAdmin,
-  seedRedTeamUsers,
-  seedVictimResponses,
-} from './helpers/seed'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { seedVictimResponses } from './helpers/seed-responses'
+import { createCrossOrgUser, seedCrossOrgAdmin, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

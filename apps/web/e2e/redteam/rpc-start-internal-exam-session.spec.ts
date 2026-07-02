@@ -20,16 +20,15 @@ import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_CODE_PREFIX } from './helpers/seed-markers'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  E2E_REDTEAM_CODE_PREFIX,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

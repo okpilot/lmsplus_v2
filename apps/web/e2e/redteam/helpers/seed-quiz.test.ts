@@ -20,7 +20,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 // vitest hoists the vi.mock calls above this import — so the helper
 // module gets the mock implementation before seed.ts loads it.
-import { pickSubjectWithQuestions } from './seed'
+import { pickSubjectWithQuestions } from './seed-quiz'
 
 // buildChain returns a Proxy that forwards every method call back to itself,
 // and resolves to `returnValue` when awaited. This mirrors the project-wide

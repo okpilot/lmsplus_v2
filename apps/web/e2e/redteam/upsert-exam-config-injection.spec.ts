@@ -25,15 +25,15 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  pickSubjectWithQuestions,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 // A syntactically valid UUID that need not exist in easa_topics: used for cases
 // whose rejection fires during row-expression evaluation (a bad question_count

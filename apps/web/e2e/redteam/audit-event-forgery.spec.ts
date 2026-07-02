@@ -16,12 +16,8 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
-  seedRedTeamUsers,
-  USER_CONSENTS_FORGED_VERSION,
-} from './helpers/seed'
+import { USER_CONSENTS_FORGED_VERSION } from './helpers/seed-consent'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: Audit Event Forgery', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

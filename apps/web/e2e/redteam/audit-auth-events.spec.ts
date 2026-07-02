@@ -25,7 +25,7 @@ import {
   ATTACKER_PASSWORD,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 test.describe('Red Team: Audit Auth Event Completeness', () => {
   let admin: ReturnType<typeof getAdminClient>

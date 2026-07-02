@@ -30,16 +30,15 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_CODE_PREFIX } from './helpers/seed-markers'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  E2E_REDTEAM_CODE_PREFIX,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 // Note: the unauthenticated guard (Vector DZ → not_authenticated) lives in
 // server-action-unauthenticated.spec.ts alongside the other anon-RPC vectors —
