@@ -9,7 +9,7 @@ function getBarColor(score: number): string {
   return 'bg-green-500'
 }
 
-export function WeakTopicsList({ topics }: Readonly<Props>) {
+export function WeakTopicsList({ topics }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <h2 className="text-lg font-semibold">Weakest Topics</h2>

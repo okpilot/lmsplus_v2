@@ -3,6 +3,7 @@
 // 100-line cap (code-style.md §1). No `'use server'` — these are pure transforms.
 import type { Database } from '@repo/db/types'
 import type { AnswerFeedback, DialogBlankResult, DraftAnswer, DraftData } from '../types'
+import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
@@ -74,12 +75,12 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
       // load path returned null for ordering and toFeedbackRecord discarded the
       // WHOLE draft's feedback on resume.
       return Array.isArray(r.correctOrder) &&
-        r.correctOrder.length >= 2 &&
+        r.correctOrder.length >= MIN_ORDER_ITEMS &&
         // Upper-bound parity with the same family (.max(50)) — a tampered DB draft
         // with >50 ids is corrupt.
-        r.correctOrder.length <= 50 &&
+        r.correctOrder.length <= MAX_ORDER_ITEMS &&
         r.correctOrder.every((s) => typeof s === 'string' && s.length > 0) &&
-        new Set(r.correctOrder).size === r.correctOrder.length
+        isUniquePermutation(r.correctOrder as string[])
         ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }
         : null
     default:

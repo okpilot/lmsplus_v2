@@ -2,6 +2,7 @@
 // Zod input schemas live in check-non-mc-answer-schema.ts (hoisted to keep both
 // files under the 100/200-line caps — code-style.md §1).
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -122,19 +123,19 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     // An ordering question always has ≥2 items (input is `order.min(2)` and the
     // CHECK enforces `>= 2` items), so a correct_order shorter than 2 is a
     // malformed RPC result — reject it rather than returning success.
-    v.correct_order.length >= 2 &&
+    v.correct_order.length >= MIN_ORDER_ITEMS &&
     // Upper-bound parity with the three sibling ordering validators (submit
     // OrderingInput, draft `order`, draft `correctOrder` feedback) — all `.max(50)`.
     // The 50 cap is the Zod submit schema (OrderingInput.order.max(50)); the DB CHECK
     // (mig 143's ordering column-population CHECK) enforces only a `>= 2` floor, so a
     // >50 result is data no submittable answer can produce — treat it as corrupt RPC
     // data (#998 CR).
-    v.correct_order.length <= 50 &&
+    v.correct_order.length <= MAX_ORDER_ITEMS &&
     // Non-empty strings — four-way parity with isValidFeedbackEntry (rehydrate)
     // and toFeedbackEntry (DB-load), which both require s.length > 0.
     v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
     // A canonical order is a permutation — duplicate ids mean a malformed RPC result.
-    new Set(v.correct_order).size === v.correct_order.length &&
+    isUniquePermutation(v.correct_order as string[]) &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)
   )

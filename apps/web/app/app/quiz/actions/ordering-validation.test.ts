@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 describe('ordering-validation constants', () => {
-  it('MIN_ORDER_ITEMS equals 2', () => {
+  it('an ordering answer requires at least 2 items', () => {
     expect(MIN_ORDER_ITEMS).toBe(2)
   })
 
-  it('MAX_ORDER_ITEMS equals 50', () => {
+  it('an ordering answer allows at most 50 items', () => {
     expect(MAX_ORDER_ITEMS).toBe(50)
   })
 })

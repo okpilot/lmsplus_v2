@@ -1,7 +1,11 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { isUniquePermutation, MIN_ORDER_ITEMS } from '@/app/app/quiz/actions/ordering-validation'
+import {
+  isUniquePermutation,
+  MAX_ORDER_ITEMS,
+  MIN_ORDER_ITEMS,
+} from '@/app/app/quiz/actions/ordering-validation'
 import { rpc } from '@/lib/supabase-rpc'
 
 type QuizQuestionRow = {
@@ -54,7 +58,12 @@ function isOrderingItem(value: unknown): value is { id: string; text: string } {
 }
 
 function isOrderingItemArray(value: unknown): value is { id: string; text: string }[] {
-  if (!Array.isArray(value) || value.length < MIN_ORDER_ITEMS || !value.every(isOrderingItem))
+  if (
+    !Array.isArray(value) ||
+    value.length < MIN_ORDER_ITEMS ||
+    value.length > MAX_ORDER_ITEMS ||
+    !value.every(isOrderingItem)
+  )
     return false
   return isUniquePermutation(value.map((v) => v.id))
 }

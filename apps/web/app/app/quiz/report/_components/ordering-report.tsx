@@ -10,7 +10,7 @@ type Props = Readonly<{
 // Renders an ordering question's per-slot result. Leads with the partial
 // fraction (X/N positions correct), then lists each slot's placed item vs the
 // canonical. 3-state: fully correct / partial / none correct.
-export function OrderingReport({ slots, correctCount, totalItems }: Readonly<Props>) {
+export function OrderingReport({ slots, correctCount, totalItems }: Props) {
   const allCorrect = totalItems > 0 && correctCount === totalItems
   const noneCorrect = correctCount === 0
 

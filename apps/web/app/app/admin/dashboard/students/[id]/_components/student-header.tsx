@@ -5,7 +5,7 @@ import type { StudentDetail } from '../../../types'
 
 type Props = Readonly<{ student: StudentDetail }>
 
-export function StudentHeader({ student }: Readonly<Props>) {
+export function StudentHeader({ student }: Props) {
   return (
     <div className="space-y-3">
       <nav className="text-sm text-muted-foreground">

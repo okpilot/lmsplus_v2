@@ -9,7 +9,7 @@ type Props = Readonly<{
   pageSize: number
 }>
 
-export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Readonly<Props>) {
+export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">

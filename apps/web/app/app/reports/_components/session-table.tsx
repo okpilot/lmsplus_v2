@@ -15,7 +15,7 @@ type Props = Readonly<{
   onSort: (field: SortKey) => void
 }>
 
-export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
+export function SessionTable({ sessions, sort, dir, onSort }: Props) {
   return (
     <table className="w-full text-sm">
       <thead>

@@ -321,7 +321,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(Array.isArray(data) ? data.length : 0).toBe(0)
   })
 
-  test('rejects an unauthenticated get_study_questions call — the startStudy answer-key path (#1005)', async () => {
+  test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
     // startStudy (study.ts) chains get_random_question_ids (anon → 0 ids → short-circuits,
     // already covered above) then get_study_questions; this pins the SECURITY DEFINER
     // answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700 raises

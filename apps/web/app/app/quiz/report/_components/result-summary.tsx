@@ -32,7 +32,7 @@ function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
 
 type Props = Readonly<{ summary: QuizReportSummary }>
 
-export function ResultSummary({ summary }: Readonly<Props>) {
+export function ResultSummary({ summary }: Props) {
   const dateStr = summary.endedAt ?? summary.startedAt
   const skipped = summary.totalQuestions - summary.answeredQuestions
   const isExam = isExamMode(summary.mode)

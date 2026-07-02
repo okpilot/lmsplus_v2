@@ -14,7 +14,7 @@ type Props = Readonly<{
   onRangeChange: (value: string | null) => void
 }>
 
-export function SessionRangeHeader({ range, onRangeChange }: Readonly<Props>) {
+export function SessionRangeHeader({ range, onRangeChange }: Props) {
   return (
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Session History</h2>

@@ -20,7 +20,7 @@ export function SortableTableHead<T extends string>({
   onSort,
   className,
   align = 'left',
-}: Readonly<SortableTableHeadProps<T>>) {
+}: SortableTableHeadProps<T>) {
   const isActive = activeSort === field
   const indicator = isActive ? (activeDir === 'asc' ? ' ▲' : ' ▼') : ''
   const justify = align === 'right' ? 'justify-end' : 'justify-start'

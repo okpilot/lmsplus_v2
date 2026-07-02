@@ -5,7 +5,7 @@ type Props = Readonly<{
   size?: number
 }>
 
-export function ScoreRing({ percentage, size = 120 }: Readonly<Props>) {
+export function ScoreRing({ percentage, size = 120 }: Props) {
   const clamped = Math.min(100, Math.max(0, percentage))
   const radius = (size - 16) / 2
   const circumference = 2 * Math.PI * radius

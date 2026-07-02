@@ -49,7 +49,7 @@ export function OrderingInput({
   submitted = false,
   correctOrder,
   submittedOrder,
-}: Readonly<OrderingInputProps>) {
+}: OrderingInputProps) {
   const [order, setOrder] = useState<OrderingItem[]>(() =>
     orderFromSubmitted(items, submitted, submittedOrder),
   )
