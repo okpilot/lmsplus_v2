@@ -74,11 +74,13 @@ function sixScores(level: number, overrides: Record<string, number> = {}) {
 }
 
 async function ensureOrg(): Promise<string> {
-  const { data: existing } = await admin
+  const { data: existing, error: orgLookupErr } = await admin
     .from('organizations')
     .select('id')
     .eq('slug', 'egmont')
+    .is('deleted_at', null)
     .maybeSingle()
+  if (orgLookupErr) throw new Error(`ensureOrg lookup: ${orgLookupErr.message}`)
   if (existing?.id) return existing.id as string
   const { data, error } = await admin
     .from('organizations')
@@ -95,11 +97,13 @@ async function ensureUser(opts: {
   password: string
   role: 'admin' | 'student'
 }): Promise<string> {
-  const { data: existing } = await admin
+  const { data: existing, error: userLookupErr } = await admin
     .from('users')
     .select('id')
     .eq('email', opts.email)
+    .is('deleted_at', null)
     .maybeSingle()
+  if (userLookupErr) throw new Error(`ensureUser lookup: ${userLookupErr.message}`)
   if (existing?.id) return existing.id as string
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email: opts.email,

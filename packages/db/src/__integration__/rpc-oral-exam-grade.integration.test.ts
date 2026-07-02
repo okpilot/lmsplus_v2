@@ -131,11 +131,12 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     const { sessionId, responseIds } = await startAndSubmitAll(student)
 
     // Non-vacuous precondition: the section genuinely exists in 'grading'.
-    const { data: before } = await admin
+    const { data: before, error: beforeErr } = await admin
       .from('oral_exam_section_responses')
       .select('status')
       .eq('id', responseIds[0])
       .single()
+    if (beforeErr) throw new Error(`before: ${beforeErr.message}`)
     expect(before?.status).toBe('grading')
 
     // The attack: an authenticated student POSTs forged all-6 scores to the grader.
@@ -150,16 +151,18 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect(error).not.toBeNull()
 
     // And the state is unchanged: still 'grading', no scores written.
-    const { data: after } = await admin
+    const { data: after, error: afterErr } = await admin
       .from('oral_exam_section_responses')
       .select('status')
       .eq('id', responseIds[0])
       .single()
+    if (afterErr) throw new Error(`after: ${afterErr.message}`)
     expect(after?.status).toBe('grading')
-    const { data: scoreRows } = await admin
+    const { data: scoreRows, error: scoreRowsErr } = await admin
       .from('oral_exam_descriptor_scores')
       .select('id')
       .eq('session_id', sessionId)
+    if (scoreRowsErr) throw new Error(`scoreRows: ${scoreRowsErr.message}`)
     expect(scoreRows ?? []).toHaveLength(0)
   })
 
@@ -186,11 +189,12 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       if (error) throw new Error(`grade ${i}: ${error.message}`)
     }
 
-    const { data: sessionRow } = await admin
+    const { data: sessionRow, error: sessionRowErr } = await admin
       .from('oral_exam_sessions')
       .select('status, total_final_level, ended_at')
       .eq('id', sessionId)
       .single()
+    if (sessionRowErr) throw new Error(`sessionRow: ${sessionRowErr.message}`)
     expect(sessionRow?.status).toBe('graded')
     expect(sessionRow?.total_final_level).toBe(3)
     expect(sessionRow?.ended_at).not.toBeNull()
@@ -210,10 +214,11 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect(report.descriptors.find((d) => d.descriptor === 'vocabulary')?.level).toBe(4)
 
     // Usage ledger was written by the grader (5 sections × 1 stt event).
-    const { data: usage } = await admin
+    const { data: usage, error: usageErr } = await admin
       .from('elp_usage_events')
       .select('id')
       .eq('session_id', sessionId)
+    if (usageErr) throw new Error(`usage: ${usageErr.message}`)
     expect((usage ?? []).length).toBe(5)
   })
 
@@ -243,20 +248,22 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect(r4.error).toBeNull()
     expect(r5.error).toBeNull()
 
-    const { data: sessionRow } = await admin
+    const { data: sessionRow, error: sessionRowErr } = await admin
       .from('oral_exam_sessions')
       .select('status, total_final_level, ended_at')
       .eq('id', sessionId)
       .single()
+    if (sessionRowErr) throw new Error(`sessionRow: ${sessionRowErr.message}`)
     expect(sessionRow?.status).toBe('graded')
     expect(sessionRow?.total_final_level).toBe(4)
     expect(sessionRow?.ended_at).not.toBeNull()
     // Exactly six aggregate rows — no double-finalize duplicated any.
-    const { data: aggregates } = await admin
+    const { data: aggregates, error: aggregatesErr } = await admin
       .from('oral_exam_descriptor_scores')
       .select('id')
       .eq('session_id', sessionId)
       .is('section_no', null)
+    if (aggregatesErr) throw new Error(`aggregates: ${aggregatesErr.message}`)
     expect((aggregates ?? []).length).toBe(6)
   })
 
@@ -289,28 +296,31 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect(replay.reason).toBe('not_grading')
 
     // Replay wrote no duplicate usage or scores.
-    const { data: usage } = await admin
+    const { data: usage, error: usageErr } = await admin
       .from('elp_usage_events')
       .select('id')
       .eq('session_id', sessionId)
       .eq('section_no', 1)
+    if (usageErr) throw new Error(`usage: ${usageErr.message}`)
     expect((usage ?? []).length).toBe(1)
-    const { data: scores } = await admin
+    const { data: scores, error: scoresErr } = await admin
       .from('oral_exam_descriptor_scores')
       .select('id')
       .eq('session_id', sessionId)
       .eq('section_no', 1)
+    if (scoresErr) throw new Error(`scores: ${scoresErr.message}`)
     expect((scores ?? []).length).toBe(6)
   })
 
   it("rejects submitting a section to another student's session", async () => {
     const { sessionId } = await startAndSubmitAll(student)
     // Non-vacuous: the victim session genuinely exists (service-role read).
-    const { data: victim } = await admin
+    const { data: victim, error: victimErr } = await admin
       .from('oral_exam_sessions')
       .select('id')
       .eq('id', sessionId)
       .single()
+    if (victimErr) throw new Error(`victim: ${victimErr.message}`)
     expect(victim?.id).toBe(sessionId)
 
     const { error } = await other.rpc('submit_oral_section_response', {
@@ -335,10 +345,11 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     })
     expect(error?.message).toContain('invalid_audio_path')
     // Non-vacuous: no section row was created.
-    const { data: rows } = await admin
+    const { data: rows, error: rowsErr } = await admin
       .from('oral_exam_section_responses')
       .select('id')
       .eq('session_id', s.session_id)
+    if (rowsErr) throw new Error(`rows: ${rowsErr.message}`)
     expect((rows ?? []).length).toBe(0)
   })
 
@@ -356,12 +367,13 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect(s2.session_id).toBe(s1.session_id)
 
     // Exactly one active oral session exists for the student.
-    const { data: active } = await admin
+    const { data: active, error: activeErr } = await admin
       .from('oral_exam_sessions')
       .select('id')
       .eq('student_id', studentId)
       .is('ended_at', null)
       .is('deleted_at', null)
+    if (activeErr) throw new Error(`active: ${activeErr.message}`)
     expect((active ?? []).length).toBe(1)
   })
 })
