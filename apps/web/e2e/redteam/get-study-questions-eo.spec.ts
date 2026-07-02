@@ -258,6 +258,36 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     expect(ids).toContain(fx.egMcActiveId)
   })
 
+  // --- EO8/EO9: caller-supplied array cardinality guard (mig 20260629000700 L103-108) ---
+
+  test('EO8: returns no rows and no error for an empty question id list', async () => {
+    // An empty array is a documented fast-return no-op (mig L103-105:
+    // IF cardinality(p_question_ids) = 0 THEN RETURN). The in-org egmont student
+    // holds no active session, so the active-exam guard passes and the empty-array
+    // branch is the path under test. NON-VACUOUS: assert the call succeeds AND
+    // returns exactly zero rows — not that it errored or returned unrelated rows.
+    const { data, error } = await fx.studentClient.rpc(RPC, { p_question_ids: [] })
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    expect(data as StudyQuestionRow[]).toHaveLength(0)
+  })
+
+  test('EO9: rejects a study-key request for more than 500 questions', async () => {
+    // The RPC is GRANTed to authenticated and reads an arbitrary p_question_ids, so
+    // a direct caller (bypassing the Server Action's Zod cap) is bounded server-side
+    // at 500 (mig L106-108: IF cardinality(p_question_ids) > 500 THEN RAISE
+    // 'too_many_questions'). Build a genuinely oversized array of 501 distinct uuids.
+    const overCap = Array.from({ length: 501 }, () => crypto.randomUUID())
+    // NON-VACUOUS: prove the array truly exceeds the 500 cap before the call, so a
+    // pass proves the >500 branch fired — not an off-by-one or an unrelated rejection.
+    expect(overCap.length).toBeGreaterThan(500)
+
+    const { data, error } = await fx.studentClient.rpc(RPC, { p_question_ids: overCap })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/too_many_questions/i)
+    expect(data).toBeNull()
+  })
+
   // --- EO-SD: soft-deleted caller (active-user gate) ---
 
   test.describe('EO-SD: a soft-deleted caller is rejected by the active-user gate', () => {
