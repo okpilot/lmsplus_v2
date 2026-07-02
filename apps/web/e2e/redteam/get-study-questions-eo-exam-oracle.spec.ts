@@ -132,17 +132,18 @@ test.describe('Red Team: get_study_questions RPC (Vector EO — exam oracle)', (
     // mig 137) rather than a hand-inserted row: p_subject_id NULL bypasses the subject
     // filter, and [egMcActiveId] is an active in-org MC question that satisfies the
     // RPC's per-id MC/active/in-org/non-deleted validation.
-    const started = await fx.studentClient.rpc('start_discovery_session', {
-      p_subject_id: null,
-      p_question_ids: [fx.egMcActiveId],
-    })
-    expect(started.error).toBeNull()
-    // §5 cast-guard: confirm the RPC returned a string id before reading it.
-    expect(typeof started.data).toBe('string')
-    const discoverySessionId = started.data as string
-
     let cleanupError: string | null = null
+    let discoverySessionId: string | undefined
     try {
+      const started = await fx.studentClient.rpc('start_discovery_session', {
+        p_subject_id: null,
+        p_question_ids: [fx.egMcActiveId],
+      })
+      expect(started.error).toBeNull()
+      // §5 cast-guard: confirm the RPC returned a string id before reading it.
+      expect(typeof started.data).toBe('string')
+      discoverySessionId = started.data as string
+
       // NON-VACUOUS: service-role read proves the discovery session genuinely exists
       // and is active — so a later success proves discovery was excluded from the
       // deny-list, not that no session was ever created.
@@ -172,16 +173,20 @@ test.describe('Red Team: get_study_questions RPC (Vector EO — exam oracle)', (
       // quiz_sessions is soft-delete only — soft-delete the seeded discovery session
       // so it does not linger as an active row for downstream specs sharing this
       // student. Biome noUnsafeFinally forbids throw-in-finally: accumulate here,
-      // throw after the try/finally.
-      const { data: del, error: delErr } = await fx.admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', discoverySessionId)
-        .is('deleted_at', null)
-        .select('id')
-      if (delErr) {
-        cleanupError = `discovery cleanup failed: ${delErr.message}`
-      } else if ((del?.length ?? 0) === 0) {
+      // throw after the try/finally. The ternary skips the query when the RPC or its
+      // guards threw before the id was captured (nothing to clean up), keeping this
+      // flat at the §3 three-level nesting cap.
+      const cleanup = discoverySessionId
+        ? await fx.admin
+            .from('quiz_sessions')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', discoverySessionId)
+            .is('deleted_at', null)
+            .select('id')
+        : null
+      if (cleanup?.error) {
+        cleanupError = `discovery cleanup failed: ${cleanup.error.message}`
+      } else if (cleanup && (cleanup.data?.length ?? 0) === 0) {
         cleanupError = `discovery cleanup matched no rows: ${discoverySessionId}`
       }
     }
