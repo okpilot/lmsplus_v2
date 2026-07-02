@@ -154,6 +154,15 @@ describe('RPC: _grade_record_diagram_label — REVOKE FROM PUBLIC/anon/authentic
     }
   }
 
+  // Positive control (§7 non-vacuity): the admin (service-role) call must
+  // resolve the signature — it may fail later (e.g. FK violation on the
+  // dummy session id), but NOT with PGRST202 — so a PGRST202 in a denial
+  // check genuinely means REVOKE, not an argument-shape drift.
+  async function expectHelperSignatureResolves(payload: Record<string, unknown>) {
+    const { error } = await admin.rpc('_grade_record_diagram_label', payload)
+    expect(error?.code, `signature must resolve: ${error?.message}`).not.toBe('PGRST202')
+  }
+
   it('prevents an authenticated caller from grading a diagram outside the guarded dispatch path', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 154): the helper
     // must not be callable via PostgREST by an authenticated user — a direct
@@ -163,14 +172,7 @@ describe('RPC: _grade_record_diagram_label — REVOKE FROM PUBLIC/anon/authentic
     // EXECUTE permission check, so the assertion would pass vacuously even if
     // the REVOKE regressed (code-style.md §7).
     const payload = buildPayload()
-    // Positive control (§7 non-vacuity): the admin (service-role) call must
-    // resolve the signature — it may fail later (e.g. FK violation on the
-    // dummy session id), but NOT with PGRST202 — so a PGRST202 in the
-    // authenticated call below genuinely means REVOKE, not an argument-shape drift.
-    const { error: signatureErr } = await admin.rpc('_grade_record_diagram_label', payload)
-    expect(signatureErr?.code, `signature must resolve: ${signatureErr?.message}`).not.toBe(
-      'PGRST202',
-    )
+    await expectHelperSignatureResolves(payload)
     const { error } = await studentClient.rpc('_grade_record_diagram_label', payload)
     expect(error, '_grade_record_diagram_label must be uncallable by authenticated').not.toBeNull()
     const code = (error as { code?: string }).code
@@ -192,6 +194,7 @@ describe('RPC: _grade_record_diagram_label — REVOKE FROM PUBLIC/anon/authentic
     // argument-shape drift (code-style.md §7).
     const anon = getAnonClient()
     const payload = buildPayload()
+    await expectHelperSignatureResolves(payload)
     const { error } = await anon.rpc('_grade_record_diagram_label', payload)
     expect(error, '_grade_record_diagram_label must be uncallable by anon').not.toBeNull()
     const code = (error as { code?: string }).code

@@ -22,6 +22,11 @@ export type PatternPoint = { x: number; y: number }
 /** Logical image_ref key — the public, non-secret lookup key into the SVG registry. */
 export const RWY_2709_IMAGE_REF = 'rwy-2709-lh-pattern'
 
+/** Shared SVG viewBox dimensions (landscape 16:9) — single source for every
+ *  artwork piece that shares this coordinate space. */
+export const RWY_2709_VBW = 160
+export const RWY_2709_VBH = 90
+
 /** Runway centerline, as fractions of the [0,1] artwork/zone coordinate space.
  *  The runway sits near the TOP of the canvas and the circuit hangs down from
  *  it, so the pattern fills the square artwork vertically (minimal whitespace). */

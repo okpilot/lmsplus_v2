@@ -2,7 +2,7 @@
 // check-non-mc-answer-helpers.ts to keep that file ≤200 lines
 // (code-style.md §1).
 import { z } from 'zod'
-import { diagramIdSchema, isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
+import { DiagramMappingSchema } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const MAX_DIALOG_BLANKS = 50
@@ -67,24 +67,9 @@ const DiagramInput = z
     // Bound array + element length (parity with OrderingInput). A diagram
     // mapping is a partial injective function zoneId -> labelId — distinct
     // zoneId AND distinct labelId (a chip is consumed on placement), but
-    // (unlike ordering) NOT required to be complete (Decision 52).
-    mapping: z
-      .array(
-        z
-          .object({
-            // Shared trimmed id schema — parity with the save-draft sibling
-            // (draft-schema.ts) and isDiagramMappingEntry.
-            zoneId: diagramIdSchema,
-            labelId: diagramIdSchema,
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(MAX_ZONES)
-      .refine(
-        isValidDiagramMapping,
-        'Diagram mapping must have distinct zones and distinct labels',
-      ),
+    // (unlike ordering) NOT required to be complete (Decision 52). Shared
+    // schema — parity with the save-draft sibling (draft-schema.ts).
+    mapping: DiagramMappingSchema,
   })
   .strict()
 

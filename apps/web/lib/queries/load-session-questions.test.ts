@@ -378,22 +378,35 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.ordering_items).toBeNull()
   })
 
+  // Factory for the diagram_label RPC row shape shared by the tests below —
+  // varies only id, diagram_config_public, and (rarely) question_text.
+  function diagramRow(
+    id: string,
+    diagramConfigPublic: unknown,
+    questionText = 'Label the pattern',
+  ) {
+    return {
+      id,
+      question_text: questionText,
+      question_image_url: null,
+      question_number: null,
+      explanation_text: null,
+      explanation_image_url: null,
+      options: null,
+      question_type: 'diagram_label' as const,
+      dialog_template: null,
+      blanks_safe: null,
+      ordering_items_shuffled: null,
+      diagram_config_public: diagramConfigPublic,
+    }
+  }
+
   it('provides the diagram_config for a diagram_label question', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag',
-          question_text: 'Label the RWY 27 left-hand pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
+        diagramRow(
+          'q-diag',
+          {
             image_ref: 'rwy-2709-lh-pattern',
             zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1 }],
             labels: [
@@ -401,7 +414,8 @@ describe('loadSessionQuestions', () => {
               { id: 'l2', text: 'Distractor' },
             ],
           },
-        },
+          'Label the RWY 27 left-hand pattern',
+        ),
       ],
       error: null,
     })
@@ -425,24 +439,11 @@ describe('loadSessionQuestions', () => {
   it('strips any extra field the RPC leaks on a diagram zone or label', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1, correct: 'l1' }],
-            labels: [{ id: 'l1', text: 'Upwind leg', hint: 'z1' }],
-          },
-        },
+        diagramRow('q-diag', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1, correct: 'l1' }],
+          labels: [{ id: 'l1', text: 'Upwind leg', hint: 'z1' }],
+        }),
       ],
       error: null,
     })
@@ -461,22 +462,7 @@ describe('loadSessionQuestions', () => {
 
   it('provides no diagram_config when a diagram_label question omits its public config', async () => {
     mockRpc.mockResolvedValue({
-      data: [
-        {
-          id: 'q-diag-null',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: null,
-        },
-      ],
+      data: [diagramRow('q-diag-null', null)],
       error: null,
     })
 
@@ -489,24 +475,11 @@ describe('loadSessionQuestions', () => {
   it('discards diagram_config when image_ref is blank', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-blank-ref',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: '   ',
-            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-blank-ref', {
+          image_ref: '   ',
+          zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -523,24 +496,11 @@ describe('loadSessionQuestions', () => {
     // box overflows the edge (x + w > 1) must fail closed rather than render off-canvas.
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-oob',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-27-09-lh-pattern',
-            zones: [{ id: 'z1', x: 0.95, y: 0.1, w: 0.2, h: 0.1 }],
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-oob', {
+          image_ref: 'rwy-27-09-lh-pattern',
+          zones: [{ id: 'z1', x: 0.95, y: 0.1, w: 0.2, h: 0.1 }],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -556,24 +516,11 @@ describe('loadSessionQuestions', () => {
     // is malformed RPC data, fail-closed rather than rendering an unlabeled diagram.
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-no-zones',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [],
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-no-zones', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -587,24 +534,11 @@ describe('loadSessionQuestions', () => {
   it('discards diagram_config when a zone element is missing a coordinate', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-bad-zone',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1 }],
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-bad-zone', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1 }],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -622,24 +556,11 @@ describe('loadSessionQuestions', () => {
     for (const badCoord of nonFiniteCoords) {
       mockRpc.mockResolvedValue({
         data: [
-          {
-            id: 'q-diag-nonfinite',
-            question_text: 'Label the pattern',
-            question_image_url: null,
-            question_number: null,
-            explanation_text: null,
-            explanation_image_url: null,
-            options: null,
-            question_type: 'diagram_label',
-            dialog_template: null,
-            blanks_safe: null,
-            ordering_items_shuffled: null,
-            diagram_config_public: {
-              image_ref: 'rwy-2709-lh-pattern',
-              zones: [{ id: 'z1', x: badCoord, y: 0.1, w: 0.1, h: 0.1 }],
-              labels: [{ id: 'l1', text: 'Upwind' }],
-            },
-          },
+          diagramRow('q-diag-nonfinite', {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: badCoord, y: 0.1, w: 0.1, h: 0.1 }],
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          }),
         ],
         error: null,
       })
@@ -654,24 +575,11 @@ describe('loadSessionQuestions', () => {
   it('discards diagram_config when labels is empty', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-no-labels',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-            labels: [],
-          },
-        },
+        diagramRow('q-diag-no-labels', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+          labels: [],
+        }),
       ],
       error: null,
     })
@@ -685,24 +593,11 @@ describe('loadSessionQuestions', () => {
   it('discards diagram_config when a label element has a blank text field', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-blank-label',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-            labels: [{ id: 'l1', text: '   ' }],
-          },
-        },
+        diagramRow('q-diag-blank-label', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+          labels: [{ id: 'l1', text: '   ' }],
+        }),
       ],
       error: null,
     })
@@ -716,27 +611,14 @@ describe('loadSessionQuestions', () => {
   it('discards diagram_config when two zones share the same id', async () => {
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-dup-zone-id',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [
-              { id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
-              { id: 'z1', x: 0.3, y: 0.3, w: 0.1, h: 0.1 },
-            ],
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-dup-zone-id', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [
+            { id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
+            { id: 'z1', x: 0.3, y: 0.3, w: 0.1, h: 0.1 },
+          ],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -757,24 +639,11 @@ describe('loadSessionQuestions', () => {
     }))
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-too-many-zones',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones,
-            labels: [{ id: 'l1', text: 'Upwind' }],
-          },
-        },
+        diagramRow('q-diag-too-many-zones', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones,
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        }),
       ],
       error: null,
     })
@@ -792,24 +661,11 @@ describe('loadSessionQuestions', () => {
     }))
     mockRpc.mockResolvedValue({
       data: [
-        {
-          id: 'q-diag-too-many-labels',
-          question_text: 'Label the pattern',
-          question_image_url: null,
-          question_number: null,
-          explanation_text: null,
-          explanation_image_url: null,
-          options: null,
-          question_type: 'diagram_label',
-          dialog_template: null,
-          blanks_safe: null,
-          ordering_items_shuffled: null,
-          diagram_config_public: {
-            image_ref: 'rwy-2709-lh-pattern',
-            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-            labels,
-          },
-        },
+        diagramRow('q-diag-too-many-labels', {
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+          labels,
+        }),
       ],
       error: null,
     })

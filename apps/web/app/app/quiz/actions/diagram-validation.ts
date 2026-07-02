@@ -35,14 +35,7 @@ export type DiagramMappingEntry = { zoneId: string; labelId: string }
 export function isDiagramMappingEntry(value: unknown): value is DiagramMappingEntry {
   if (typeof value !== 'object' || value === null) return false
   const { zoneId, labelId } = value as { zoneId?: unknown; labelId?: unknown }
-  return (
-    typeof zoneId === 'string' &&
-    zoneId.trim().length > 0 &&
-    zoneId.trim().length <= 200 &&
-    typeof labelId === 'string' &&
-    labelId.trim().length > 0 &&
-    labelId.trim().length <= 200
-  )
+  return diagramIdSchema.safeParse(zoneId).success && diagramIdSchema.safeParse(labelId).success
 }
 
 /**
@@ -58,6 +51,25 @@ export function isValidDiagramMapping(mapping: DiagramMappingEntry[]): boolean {
   const labelIds = mapping.map((m) => m.labelId)
   return new Set(zoneIds).size === zoneIds.length && new Set(labelIds).size === labelIds.length
 }
+
+/**
+ * Shared Zod schema for a submitted diagram mapping array — the single
+ * source for the {zoneId, labelId}[] shape, so the bound + dedup rule can't
+ * drift between the save-draft schema (draft-schema.ts) and the grade schema
+ * (check-non-mc-answer-schema.ts).
+ */
+export const DiagramMappingSchema = z
+  .array(
+    z
+      .object({
+        zoneId: diagramIdSchema,
+        labelId: diagramIdSchema,
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(MAX_ZONES)
+  .refine(isValidDiagramMapping, 'Diagram mapping must have distinct zones and distinct labels')
 
 /**
  * Combined per-element + array-level + bounds check, for narrowing an

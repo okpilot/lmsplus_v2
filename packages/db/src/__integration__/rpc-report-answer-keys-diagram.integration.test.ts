@@ -70,9 +70,9 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
       { id: 'lbl-distract', text: 'Base Leg (unused)' },
     ],
     answer: [
+      { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
       { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
       { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
-      { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
     ],
   }
   const CANONICAL_TEXTS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg']
@@ -170,13 +170,17 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
     if (startErr) throw new Error(`startSession: ${startErr.message}`)
     if (typeof sd !== 'string') throw new Error('startSession: no session id')
     const sessionId = sd
-    const answers = CONFIG.answer.map((a, i) => ({
-      question_id: diagramId,
-      selected_option: a.label_id,
-      response_text: a.zone_id,
-      blank_index: i,
-      response_time_ms: 1000,
-    }))
+    const answers = CONFIG.zones.map((zone, i) => {
+      const entry = CONFIG.answer.find((a) => a.zone_id === zone.id)
+      if (!entry) throw new Error(`missing answer for zone ${zone.id}`)
+      return {
+        question_id: diagramId,
+        selected_option: entry.label_id,
+        response_text: zone.id,
+        blank_index: i,
+        response_time_ms: 1000,
+      }
+    })
     const { error: submitErr } = await client.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,

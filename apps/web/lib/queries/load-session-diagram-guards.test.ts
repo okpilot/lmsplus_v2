@@ -76,6 +76,27 @@ describe('isDiagramConfig', () => {
     expect(isDiagramConfig(c)).toBe(false)
   })
 
+  it('accepts exactly MAX_ZONES zones', () => {
+    const c = validConfig()
+    c.zones = Array.from({ length: MAX_ZONES }, (_, i) => ({
+      id: `z${i}`,
+      x: 0,
+      y: 0,
+      w: 0.01,
+      h: 0.01,
+    }))
+    expect(isDiagramConfig(c)).toBe(true)
+  })
+
+  it('accepts exactly MAX_LABELS labels', () => {
+    const c = validConfig()
+    c.labels = Array.from({ length: MAX_LABELS }, (_, i) => ({
+      id: `l${i}`,
+      text: `Label ${i}`,
+    }))
+    expect(isDiagramConfig(c)).toBe(true)
+  })
+
   it('rejects a null or non-object value', () => {
     expect(isDiagramConfig(null)).toBe(false)
     expect(isDiagramConfig('nope')).toBe(false)

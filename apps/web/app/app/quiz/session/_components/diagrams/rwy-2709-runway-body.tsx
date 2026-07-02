@@ -6,11 +6,7 @@
 // Coordinate space matches the parent SVG: a landscape 16:9 viewBox (160 x 90),
 // with the runway derived from the shared [0,1] fractions in `rwy-2709-layout.ts`.
 
-import { RWY_2709_RUNWAY } from './rwy-2709-layout'
-
-// Must match the viewBox in `rwy-2709-lh-pattern.tsx`.
-const VBW = 160
-const VBH = 90
+import { RWY_2709_RUNWAY, RWY_2709_VBH as VBH, RWY_2709_VBW as VBW } from './rwy-2709-layout'
 
 const runway = {
   x1: RWY_2709_RUNWAY.xThreshold09 * VBW,

@@ -219,6 +219,20 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     expect((labels as Label[]).map((l) => l.id).sort()).toEqual(LABELS.map((l) => l.id).sort())
     expect((labels as Label[]).map((l) => l.text).sort()).toEqual(LABELS.map((l) => l.text).sort())
 
+    // Shuffle regression guard: get_quiz_questions must ORDER BY random() the
+    // labels. Re-fetch until we observe an order different from stored — if SQL
+    // ever returns stored order deterministically, every observation equals it
+    // and the assertion fails. (P(false fail) ~ (1/n!)^k, negligible.)
+    const storedOrder = LABELS.map((l) => l.id).join('|')
+    const observedOrders = new Set<string>([(labels as Label[]).map((l) => l.id).join('|')])
+    for (let i = 0; i < 12 && observedOrders.size === 1; i += 1) {
+      const rerow = await fetchRow([diagramId], diagramId)
+      const reconfig = rerow.diagram_config_public as Record<string, unknown>
+      if (!Array.isArray(reconfig.labels)) throw new Error('labels is not an array')
+      observedOrders.add((reconfig.labels as Label[]).map((l) => l.id).join('|'))
+    }
+    expect([...observedOrders]).not.toEqual([storedOrder])
+
     // The answer key must never surface on the delivered payload.
     expect('answer' in config).toBe(false)
   })

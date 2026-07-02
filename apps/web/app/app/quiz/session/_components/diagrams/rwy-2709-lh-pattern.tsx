@@ -13,11 +13,14 @@
 // in a 160-wide viewBox scaled to the container = fx of the container width;
 // likewise fy on height).
 
-import { type PatternPoint, RWY_2709_PATH_POINTS, RWY_2709_RUNWAY } from './rwy-2709-layout'
+import {
+  type PatternPoint,
+  RWY_2709_PATH_POINTS,
+  RWY_2709_RUNWAY,
+  RWY_2709_VBH as VBH,
+  RWY_2709_VBW as VBW,
+} from './rwy-2709-layout'
 import { RunwayBody } from './rwy-2709-runway-body'
-
-const VBW = 160
-const VBH = 90
 
 function scaled(p: PatternPoint) {
   return { x: p.x * VBW, y: p.y * VBH }
