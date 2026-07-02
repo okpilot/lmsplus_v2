@@ -3,12 +3,11 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import {
   audioExt,
-  BUCKET,
   extractAudioFile,
   parseInput,
-  recordResponse,
   resolveOrgId,
   type SubmitSectionResult,
+  uploadAndRecord,
 } from './submit-section-response-helpers'
 
 export type { SubmitSectionResult }
@@ -32,25 +31,7 @@ export async function submitSectionResponse(formData: FormData): Promise<SubmitS
     if (!orgId) return { success: false, error: 'Could not resolve organization' }
 
     const path = `${orgId}/${user.id}/${input.sessionId}/${input.sectionNo}.${audioExt(file.name)}`
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-      contentType: file.type || 'application/octet-stream',
-      upsert: false,
-    })
-    if (uploadError) {
-      console.error('[submitSectionResponse] Storage error:', uploadError.message)
-      return { success: false, error: 'Audio upload failed' }
-    }
-
-    const result = await recordResponse(supabase, input, path)
-    if (!result.success) {
-      // Best-effort: remove the just-uploaded object so a failed RPC (e.g. session
-      // no longer active) does not leave an orphaned recording in storage.
-      const { error: rmError } = await supabase.storage.from(BUCKET).remove([path])
-      if (rmError) {
-        console.error('[submitSectionResponse] orphan cleanup failed:', rmError.message)
-      }
-    }
-    return result
+    return await uploadAndRecord(supabase, input, path, file)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[submitSectionResponse] Uncaught error:', message)

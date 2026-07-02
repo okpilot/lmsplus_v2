@@ -119,7 +119,10 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
         p_duration_ms: 12000,
       })
       if (error) throw new Error(`submit ${n}: ${error.message}`)
-      responseIds.push(data as string)
+      if (typeof data !== 'string') {
+        throw new Error(`submit ${n}: expected a response id string, got ${typeof data}`)
+      }
+      responseIds.push(data)
     }
     return { sessionId, responseIds }
   }
@@ -212,6 +215,49 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       .select('id')
       .eq('session_id', sessionId)
     expect((usage ?? []).length).toBe(5)
+  })
+
+  it('finalizes when the last two sections are graded concurrently', async () => {
+    const { sessionId, responseIds } = await startAndSubmitAll(student)
+    const grade = (rid: string) =>
+      admin.rpc('write_oral_section_grade', {
+        p_response_id: rid,
+        p_transcript: 'concurrent',
+        p_transcript_meta: null,
+        p_descriptor_scores: sixScores(4),
+        p_usage: [],
+      })
+    expect(responseIds).toHaveLength(5)
+    // Grade sections 1-3 sequentially, then fire 4 and 5 concurrently. The session
+    // FOR UPDATE lock must still let exactly one call finalize — without it, both
+    // could count the other as 'grading' and strand the session in 'grading'.
+    for (let i = 0; i < 3; i++) {
+      const rid = responseIds[i]
+      if (!rid) throw new Error(`missing response id ${i}`)
+      const { error } = await grade(rid)
+      if (error) throw new Error(`grade ${i}: ${error.message}`)
+    }
+    const [id4, id5] = [responseIds[3], responseIds[4]]
+    if (!id4 || !id5) throw new Error('expected 5 response ids')
+    const [r4, r5] = await Promise.all([grade(id4), grade(id5)])
+    expect(r4.error).toBeNull()
+    expect(r5.error).toBeNull()
+
+    const { data: sessionRow } = await admin
+      .from('oral_exam_sessions')
+      .select('status, total_final_level, ended_at')
+      .eq('id', sessionId)
+      .single()
+    expect(sessionRow?.status).toBe('graded')
+    expect(sessionRow?.total_final_level).toBe(4)
+    expect(sessionRow?.ended_at).not.toBeNull()
+    // Exactly six aggregate rows — no double-finalize duplicated any.
+    const { data: aggregates } = await admin
+      .from('oral_exam_descriptor_scores')
+      .select('id')
+      .eq('session_id', sessionId)
+      .is('section_no', null)
+    expect((aggregates ?? []).length).toBe(6)
   })
 
   it('is idempotent on replay — re-grading a graded section is a no-op', async () => {

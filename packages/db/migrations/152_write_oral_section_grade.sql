@@ -67,9 +67,16 @@ BEGIN
   END IF;
 
   -- 2. Resolve org/student from the non-discarded session (rule 9 soft-delete).
+  -- FOR UPDATE takes a SESSION-level lock so concurrent grader calls for DIFFERENT
+  -- sections of the same session serialize here: without it, two final sections
+  -- grading at once could each count the other as still 'grading' (READ COMMITTED
+  -- hides the other's uncommitted flip) and BOTH skip finalize, stranding a fully
+  -- graded exam in 'grading' forever. Lock order is always section (step 1) then
+  -- session (here), identical for every caller, so no deadlock.
   SELECT s.organization_id, s.student_id INTO v_org_id, v_student_id
   FROM oral_exam_sessions s
-  WHERE s.id = v_session_id AND s.deleted_at IS NULL;
+  WHERE s.id = v_session_id AND s.deleted_at IS NULL
+  FOR UPDATE;
   IF v_org_id IS NULL THEN
     -- Session discarded mid-grading — nothing to persist.
     RETURN jsonb_build_object('status', 'skipped', 'reason', 'session_discarded', 'section_no', v_section_no);

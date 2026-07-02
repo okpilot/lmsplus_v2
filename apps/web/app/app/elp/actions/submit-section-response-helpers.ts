@@ -60,6 +60,35 @@ export async function resolveOrgId(
   return profile?.organization_id ?? null
 }
 
+// Uploads the audio to the private bucket, records the response via the RPC, and
+// best-effort cleans up the orphaned object if the RPC fails.
+export async function uploadAndRecord(
+  supabase: SupabaseClient,
+  input: SubmitSectionInputType,
+  audioPath: string,
+  file: File,
+): Promise<SubmitSectionResult> {
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(audioPath, file, {
+    contentType: file.type || 'application/octet-stream',
+    upsert: false,
+  })
+  if (uploadError) {
+    console.error('[submitSectionResponse] Storage error:', uploadError.message)
+    return { success: false, error: 'Audio upload failed' }
+  }
+
+  const result = await recordResponse(supabase, input, audioPath)
+  if (!result.success) {
+    // Best-effort: remove the just-uploaded object so a failed RPC does not leave
+    // an orphaned recording in storage.
+    const { error: rmError } = await supabase.storage.from(BUCKET).remove([audioPath])
+    if (rmError) {
+      console.error('[submitSectionResponse] orphan cleanup failed:', rmError.message)
+    }
+  }
+  return result
+}
+
 export async function recordResponse(
   supabase: SupabaseClient,
   input: SubmitSectionInputType,

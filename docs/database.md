@@ -627,6 +627,94 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 
 **Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) and two student readers (`list_my_active_internal_exam_codes()` for unconsumed/unvoided/unexpired codes, `list_my_internal_exam_history()` for session history). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The `list_my_active_internal_exam_codes` reader omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
+### oral_exam_sessions
+
+**Mig 150 — AI ICAO ELP Foundation Schema**
+
+```sql
+CREATE TABLE oral_exam_sessions (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id    UUID NOT NULL REFERENCES organizations(id),
+  student_id         UUID NOT NULL REFERENCES users(id),
+  status             TEXT NOT NULL DEFAULT 'in_progress'
+                       CHECK (status IN ('in_progress', 'grading', 'graded', 'discarded')),
+  config             JSONB NOT NULL DEFAULT '{}',
+  started_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at           TIMESTAMPTZ NULL,
+  total_final_level  SMALLINT NULL CHECK (total_final_level IS NULL OR total_final_level BETWEEN 1 AND 6),
+  deleted_at         TIMESTAMPTZ NULL,
+  deleted_by         UUID NULL REFERENCES users(id),
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+Mutable state machine for a student's AI ICAO ELP oral exam attempt. Soft-deletable (`deleted_at + deleted_by`). Tracks exam lifecycle: `in_progress` (recording sections) → `grading` (all sections submitted, awaiting transcription/scoring) → `graded` (final level computed, report available) or `discarded` (student abandon). `total_final_level` is NULL until all 5 sections are graded, then set to MIN across the 6 descriptor aggregate rows (weakest-link scoring). One active row per student globally (via partial unique index `uq_one_active_oral_exam_per_student`, independent of `quiz_sessions` invariant).
+
+### oral_exam_section_responses
+
+**Mig 150 — append-only, immutable**
+
+```sql
+CREATE TABLE oral_exam_section_responses (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id       UUID NOT NULL REFERENCES oral_exam_sessions(id),
+  section_no       SMALLINT NOT NULL CHECK (section_no BETWEEN 1 AND 5),
+  audio_path       TEXT NOT NULL,
+  transcript_text  TEXT NULL,
+  transcript_meta  JSONB NULL,
+  duration_ms      INT NULL CHECK (duration_ms IS NULL OR duration_ms >= 0),
+  status           TEXT NOT NULL DEFAULT 'grading'
+                     CHECK (status IN ('grading', 'graded', 'failed')),
+  recorded_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (session_id, section_no)
+);
+```
+
+Immutable per-section audio/transcript records. NO `deleted_at` (append-only). One row per section (1–5) per session via UNIQUE constraint. Status tracks processing: `grading` (awaiting ElevenLabs Scribe + Claude scoring via Edge Function), `graded` (scores written by `write_oral_section_grade`), `failed` (transcription or scoring error). `transcript_text` and `transcript_meta` populated by the Edge Function webhook.
+
+### oral_exam_descriptor_scores
+
+**Mig 150 — append-only, immutable**
+
+```sql
+CREATE TABLE oral_exam_descriptor_scores (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id   UUID NOT NULL REFERENCES oral_exam_sessions(id),
+  section_no   SMALLINT NULL CHECK (section_no IS NULL OR section_no BETWEEN 1 AND 5),
+  descriptor   TEXT NOT NULL CHECK (descriptor IN
+                 ('pronunciation', 'structure', 'vocabulary', 'fluency', 'comprehension', 'interaction')),
+  level        SMALLINT NOT NULL CHECK (level BETWEEN 1 AND 6),
+  rationale    TEXT NULL,
+  evidence     JSONB NULL,
+  scored_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+Immutable per-descriptor 1–6 level scores. NO `deleted_at`. `section_no NOT NULL` = per-section row; `section_no IS NULL` = aggregate/final row (one per descriptor per session). Partial unique indexes prevent dedup issues: per-section rows (session_id, section_no, descriptor) and final rows (session_id, descriptor). All rows written atomically by `write_oral_section_grade` RPC (mig 152) when all 5 sections are graded. Final level computed as MIN(level) across aggregate rows.
+
+### elp_usage_events
+
+**Mig 150 — immutable metering ledger**
+
+```sql
+CREATE TABLE elp_usage_events (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id       UUID NOT NULL REFERENCES organizations(id),
+  student_id            UUID NOT NULL REFERENCES users(id),
+  session_id            UUID NULL REFERENCES oral_exam_sessions(id),
+  section_no            SMALLINT NULL CHECK (section_no IS NULL OR section_no BETWEEN 1 AND 5),
+  event_type            TEXT NOT NULL CHECK (event_type IN
+                          ('stt_seconds', 'tts_chars', 'convai_seconds', 'llm_input_tokens', 'llm_output_tokens')),
+  quantity              NUMERIC NOT NULL CHECK (quantity >= 0),
+  provider              TEXT NULL,
+  cost_estimate_micros  BIGINT NULL CHECK (cost_estimate_micros IS NULL OR cost_estimate_micros >= 0),
+  metadata              JSONB NOT NULL DEFAULT '{}',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+Immutable billing metering ledger. NO `deleted_at`. Tracks usage: STT seconds (ElevenLabs Scribe), TTS character equivalents, conversational AI (Claude) token counts, and cost estimates. NO `authenticated` INSERT policy — students cannot insert; service role writes via `write_oral_section_grade` (mig 152) from actual provider responses, closing the misreporting vector. Students read via RLS policy (`students_own_usage`); staff read org-scoped. Part of V2 billing foundation (Stripe + credits model).
+
 ---
 
 ## 3. Soft Delete
@@ -723,6 +811,10 @@ ORDER BY deleted_at DESC;
 | `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` is SECURITY DEFINER and bypasses RLS, so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 | `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
+| `oral_exam_sessions` | Yes | Exam attempts can be discarded mid-stream (soft-deleted via `deleted_at + deleted_by`) |
+| `oral_exam_section_responses` | No | Immutable per-section recording records |
+| `oral_exam_descriptor_scores` | No | Immutable per-descriptor scoring records (append-only across finalization) |
+| `elp_usage_events` | No | Immutable metering ledger for V2 billing |
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
 
@@ -788,6 +880,11 @@ verb_noun pattern:
   record_auth_event          ← write, audit: records auth-related events (user.password_changed, user.password_reset, user.deactivated, user.created) after Server Action mutations. Self-defending: whitelist + role/org checks + best-effort (audit failure does not surface to caller). EXECUTE granted to authenticated, invoked through the acting user's client (not service role) so auth.uid() is the real actor.
   record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
   check_consent_status       ← read, GDPR: returns (has_tos, has_privacy) boolean flags for specified document versions
+  start_oral_exam_session    ← write, student: initialize AI ICAO ELP oral exam; idempotent resume of in-flight session; returns {session_id, status, sections, started_at}; single-active-session guard (mig 150, Decision 52)
+  submit_oral_section_response ← write, student: record audio path + duration for a section; validates section_no (1–5), audio_path prefix (ownership scoped), section_no UNIQUE constraint (idempotent dup rejection); auto-advances session status to 'grading' when all 5 sections recorded (mig 151, Decision 52)
+  discard_oral_exam_session  ← write, student: soft-delete the session (sets status='discarded', deleted_at=now(), deleted_by=auth.uid()); owner-scoped; returns boolean (mig 151, Decision 52)
+  get_oral_exam_report       ← read, student: fetch completed exam report (ended_at-gated reveal); returns {session_id, status, total_final_level, started_at, ended_at, descriptors: [{descriptor, level, rationale}], sections: [{section_no, status, transcript_text, scores: [...]}]}; owner + ended_at gate closes the report-leakage vector (mig 151, Decision 52)
+  write_oral_section_grade   ← write, grader-only (Class B): SECURITY DEFINER, REVOKE EXECUTE FROM PUBLIC/anon/authenticated, GRANT service_role only; no auth.uid() check; state-based replay guard (process only if section status='grading'); writes transcript + per-descriptor scores + metering ledger atomically; finalizes session when all 5 sections graded (computes per-descriptor aggregate MIN, sets session.status='graded' + total_final_level); FOR UPDATE serialization on section + session (mig 152, Decision 52)
 ```
 
 ### Security Model
@@ -2935,4 +3032,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
+*Last updated: 2026-07-02 (migs 150–152 / AI ICAO ELP Slice 0 #[TBD]: async-graded oral exam foundation — `oral_exam_sessions` mutable state machine (soft-deletable, status in_progress/grading/graded/discarded), `oral_exam_section_responses` append-only per-section records (5 per session), `oral_exam_descriptor_scores` append-only per-descriptor 1–6 levels (per-section + final aggregate), `elp_usage_events` immutable metering ledger; start_oral_exam_session / submit_oral_section_response / discard_oral_exam_session / get_oral_exam_report (Class A, SECURITY DEFINER, authenticated) + write_oral_section_grade (Class B grader-only, REVOKE EXECUTE FROM PUBLIC/anon/authenticated, GRANT service_role, no auth.uid() check, state-based replay guard); Decision 52; RLS policies + FORCE RLS per tenant isolation; storage bucket `elp-recordings` + Edge Function `score-oral-section` for async Scribe/Claude grading) | Earlier 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
