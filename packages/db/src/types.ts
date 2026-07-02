@@ -1779,7 +1779,7 @@ export type Database = {
         }[]
       }
       start_oral_exam_session: {
-        Args: never
+        Args: { p_mode?: string }
         Returns: Json
       }
       start_quiz_session: {
