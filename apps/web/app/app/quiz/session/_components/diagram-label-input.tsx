@@ -1,11 +1,11 @@
 'use client'
 
 import {
+  closestCenter,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
-  pointerWithin,
   TouchSensor,
   useSensor,
   useSensors,
@@ -107,7 +107,7 @@ export function DiagramLabelInput({
 
   return (
     <div className="space-y-3">
-      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-border bg-card p-2">
           <DiagramArt />
           {zones.map((zone) => (
