@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Supabase admin-client mock — the real `e2e/helpers/supabase.ts` throws at
 // module-import time if SUPABASE_SERVICE_ROLE_KEY isn't set (it's intended
 // for live Playwright E2E runs, not jsdom unit tests). Mock the helper
-// module BEFORE importing seed.ts so the env check never fires.
+// module BEFORE importing seed-quiz.ts so the env check never fires.
 // ---------------------------------------------------------------------------
 
 const mockFrom = vi.hoisted(() => vi.fn())
@@ -19,7 +19,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }))
 
 // vitest hoists the vi.mock calls above this import — so the helper
-// module gets the mock implementation before seed.ts loads it.
+// module gets the mock implementation before seed-quiz.ts loads it.
 import { pickSubjectWithQuestions } from './seed-quiz'
 
 // buildChain returns a Proxy that forwards every method call back to itself,
@@ -49,7 +49,7 @@ const COUNT_PASS = { count: 5, error: null }
 // A subject count response that fails to meet the threshold.
 const COUNT_FAIL = { count: 0, error: null }
 
-// The admin client produced by getAdminClient() in seed.ts.
+// The admin client produced by getAdminClient() in seed-quiz.ts.
 // Because we mocked @supabase/supabase-js above, every call to
 // createClient() returns { from: mockFrom }. We pass that object directly
 // to pickSubjectWithQuestions as `admin`.
