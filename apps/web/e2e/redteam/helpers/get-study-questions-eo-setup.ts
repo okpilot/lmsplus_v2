@@ -304,29 +304,40 @@ export async function cleanupEoFixtures(
 }
 
 // Create (or realign) the dedicated throwaway EO-SD student, ensuring it is NOT
-// soft-deleted from a prior aborted run, and return its user id. perPage well above
-// any test-env user count so a reused student on a later page is never missed (which
-// would wrongly fall through to createUser and fail on the duplicate email).
+// soft-deleted from a prior aborted run, and return its user id. Pages through
+// listUsers (a single page caps at perPage, so a reused student on a later page must
+// not be missed — that would wrongly fall through to createUser and fail on the
+// duplicate email). The reuse path also resets the auth password + confirmation so
+// signInWithPassword succeeds even if the password constant or auth record drifted.
 export async function ensureEoSoftDelStudent(
   admin: ReturnType<typeof getAdminClient>,
   orgId: string,
 ): Promise<string> {
-  const { data: authList, error: listError } = await admin.auth.admin.listUsers({
-    perPage: 1000,
-  })
-  if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
-  const existing = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
+  let existingId: string | undefined
+  for (let page = 1; ; page++) {
+    const { data: authList, error: listError } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    })
+    if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
+    const match = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
+    if (match) {
+      existingId = match.id
+      break
+    }
+    if (authList.users.length < 200) break
+  }
 
-  if (existing) {
+  if (existingId) {
     const { data: userRow, error: userRowErr } = await admin
       .from('users')
       .select('id, organization_id, role, deleted_at')
-      .eq('id', existing.id)
+      .eq('id', existingId)
       .maybeSingle()
     if (userRowErr) throw new Error(`EO-SD beforeAll: users lookup: ${userRowErr.message}`)
     if (!userRow) {
       const { error: insErr } = await admin.from('users').insert({
-        id: existing.id,
+        id: existingId,
         organization_id: orgId,
         email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
         full_name: 'Red Team Soft-Delete Study Student',
@@ -341,12 +352,19 @@ export async function ensureEoSoftDelStudent(
       const { data: realigned, error: updErr } = await admin
         .from('users')
         .update({ organization_id: orgId, role: 'student', deleted_at: null })
-        .eq('id', existing.id)
+        .eq('id', existingId)
         .select('id')
       if (updErr) throw new Error(`EO-SD beforeAll: realign user: ${updErr.message}`)
       if (!realigned?.length) throw new Error('EO-SD beforeAll: realign affected 0 rows')
     }
-    return existing.id
+    // Mirror the create branch's auth setup on reuse so signInWithPassword works even
+    // if the password constant changed or the auth record drifted since a prior run.
+    const { error: authErr } = await admin.auth.admin.updateUserById(existingId, {
+      password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+      email_confirm: true,
+    })
+    if (authErr) throw new Error(`EO-SD beforeAll: auth realign: ${authErr.message}`)
+    return existingId
   }
 
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
