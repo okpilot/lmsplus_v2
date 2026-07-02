@@ -114,6 +114,35 @@ export async function cleanupTestData(opts: {
     'exam_configs',
     admin.from('exam_configs').delete().eq('organization_id', orgId),
   )
+
+  // ELP oral-exam tables (mig 150). FK order: descriptor_scores + section_responses
+  // + usage_events reference oral_exam_sessions(id); sessions + usage reference the
+  // org/users being deleted below. Delete the children first (by session id), then
+  // the sessions, before users/org.
+  const { data: oralSessionIds, error: oralSessionErr } = await admin
+    .from('oral_exam_sessions')
+    .select('id')
+    .eq('organization_id', orgId)
+  if (oralSessionErr)
+    throw new Error(`cleanupTestData: oral_exam_sessions lookup failed: ${oralSessionErr.message}`)
+  const oralIds = oralSessionIds?.map((s: { id: string }) => s.id) ?? []
+  await deleteOrLog(
+    'oral_exam_descriptor_scores',
+    admin.from('oral_exam_descriptor_scores').delete().in('session_id', oralIds),
+  )
+  await deleteOrLog(
+    'oral_exam_section_responses',
+    admin.from('oral_exam_section_responses').delete().in('session_id', oralIds),
+  )
+  await deleteOrLog(
+    'elp_usage_events',
+    admin.from('elp_usage_events').delete().eq('organization_id', orgId),
+  )
+  await deleteOrLog(
+    'oral_exam_sessions',
+    admin.from('oral_exam_sessions').delete().eq('organization_id', orgId),
+  )
+
   await deleteOrLog('users', admin.from('users').delete().in('id', userIds))
   await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))
 

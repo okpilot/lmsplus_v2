@@ -231,6 +231,48 @@ export type Database = {
           },
         ]
       }
+      elp_usage_events: {
+        Row: {
+          cost_estimate_micros: number | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          organization_id: string
+          provider: string | null
+          quantity: number
+          section_no: number | null
+          session_id: string | null
+          student_id: string
+        }
+        Insert: {
+          cost_estimate_micros?: number | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          organization_id: string
+          provider?: string | null
+          quantity?: number
+          section_no?: number | null
+          session_id?: string | null
+          student_id: string
+        }
+        Update: {
+          cost_estimate_micros?: number | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          provider?: string | null
+          quantity?: number
+          section_no?: number | null
+          session_id?: string | null
+          student_id?: string
+        }
+        Relationships: []
+      }
       exam_config_distributions: {
         Row: {
           exam_config_id: string
@@ -618,6 +660,117 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      oral_exam_descriptor_scores: {
+        Row: {
+          descriptor: string
+          evidence: Json | null
+          id: string
+          level: number
+          rationale: string | null
+          scored_at: string
+          section_no: number | null
+          session_id: string
+        }
+        Insert: {
+          descriptor: string
+          evidence?: Json | null
+          id?: string
+          level: number
+          rationale?: string | null
+          scored_at?: string
+          section_no?: number | null
+          session_id: string
+        }
+        Update: {
+          descriptor?: string
+          evidence?: Json | null
+          id?: string
+          level?: number
+          rationale?: string | null
+          scored_at?: string
+          section_no?: number | null
+          session_id?: string
+        }
+        Relationships: []
+      }
+      oral_exam_section_responses: {
+        Row: {
+          audio_path: string
+          duration_ms: number | null
+          id: string
+          recorded_at: string
+          section_no: number
+          session_id: string
+          status: string
+          transcript_meta: Json | null
+          transcript_text: string | null
+        }
+        Insert: {
+          audio_path: string
+          duration_ms?: number | null
+          id?: string
+          recorded_at?: string
+          section_no: number
+          session_id: string
+          status?: string
+          transcript_meta?: Json | null
+          transcript_text?: string | null
+        }
+        Update: {
+          audio_path?: string
+          duration_ms?: number | null
+          id?: string
+          recorded_at?: string
+          section_no?: number
+          session_id?: string
+          status?: string
+          transcript_meta?: Json | null
+          transcript_text?: string | null
+        }
+        Relationships: []
+      }
+      oral_exam_sessions: {
+        Row: {
+          config: Json
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          ended_at: string | null
+          id: string
+          organization_id: string
+          started_at: string
+          status: string
+          student_id: string
+          total_final_level: number | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          ended_at?: string | null
+          id?: string
+          organization_id: string
+          started_at?: string
+          status?: string
+          student_id: string
+          total_final_level?: number | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          ended_at?: string | null
+          id?: string
+          organization_id?: string
+          started_at?: string
+          status?: string
+          student_id?: string
+          total_final_level?: number | null
+        }
+        Relationships: []
       }
       organizations: {
         Row: {
@@ -1350,6 +1503,10 @@ export type Database = {
           total_questions: number
         }[]
       }
+      discard_oral_exam_session: {
+        Args: { p_session_id: string }
+        Returns: boolean
+      }
       get_admin_dashboard_kpis: {
         Args: { p_range_days?: number }
         Returns: Json
@@ -1415,6 +1572,10 @@ export type Database = {
           subtopic_id: string
           topic_id: string
         }[]
+      }
+      get_oral_exam_report: {
+        Args: { p_session_id: string }
+        Returns: Json
       }
       get_question_authoring_fields: {
         Args: { p_question_id: string }
@@ -1617,6 +1778,10 @@ export type Database = {
           total_questions: number
         }[]
       }
+      start_oral_exam_session: {
+        Args: never
+        Returns: Json
+      }
       start_quiz_session: {
         Args: {
           p_mode: string
@@ -1629,6 +1794,15 @@ export type Database = {
       start_vfr_rt_exam_session: {
         Args: { p_subject_id: string }
         Returns: Json
+      }
+      submit_oral_section_response: {
+        Args: {
+          p_audio_path: string
+          p_duration_ms?: number
+          p_section_no: number
+          p_session_id: string
+        }
+        Returns: string
       }
       submit_quiz_answer: {
         Args: {

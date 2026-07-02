@@ -1,0 +1,166 @@
+-- Migration 152: AI ICAO ELP — write_oral_section_grade (Class B, grader-only).
+--
+-- ⚠️ SECURITY LINCHPIN. This is the single authoritative writer of transcripts,
+-- per-descriptor scores, and the metering ledger. It is called ONLY by the
+-- score-oral-section Edge Function using the service-role key (auth.uid() is NULL
+-- in that context), so it carries NO auth.uid() guard. Its replay/abuse guard is
+-- STATE-BASED: it processes a section only while that section is in 'grading'.
+--
+-- GRANT MODEL (mandatory, mirrors mig 120's helpers, hardened by #952):
+--   Every new public function is auto-granted EXECUTE to PUBLIC (Postgres default)
+--   AND to anon/authenticated (Supabase ALTER DEFAULT PRIVILEGES). *Not granting*
+--   does NOT withhold — so we REVOKE from all three explicitly, then GRANT only to
+--   service_role. Without the REVOKE, a student could POST /rest/v1/rpc/
+--   write_oral_section_grade with forged all-6 scores (score-forgery, #611 class).
+--
+-- RLS bypass: owned by postgres (BYPASSRLS) like every definer here, so its writes
+-- pass FORCE RLS on the append-only tables (mig 150). No ALTER FUNCTION OWNER is
+-- needed — the migration runs as postgres.
+--
+-- DEFERRED-VALIDATION SQL: the two ON CONFLICT clauses infer partial unique
+-- indexes (mig 150) and validate only at execution, not at CREATE — this migration
+-- MUST be exercised (idempotent replay) before it is trusted. Depends on migs 150, 151.
+
+CREATE OR REPLACE FUNCTION public.write_oral_section_grade(
+  p_response_id       uuid,
+  p_transcript        text,
+  p_transcript_meta   jsonb,
+  p_descriptor_scores jsonb,
+  p_usage             jsonb DEFAULT '[]'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_session_id  uuid;
+  v_section_no  smallint;
+  v_status      text;
+  v_org_id      uuid;
+  v_student_id  uuid;
+  v_score       jsonb;
+  v_descriptor  text;
+  v_level       int;
+  v_usage       jsonb;
+  v_ungraded    int;
+  v_total       int;
+  v_final_level smallint;
+  v_finalized   boolean := false;
+BEGIN
+  -- 1. Locate + LOCK the section. State-based replay guard (NO auth.uid()). The
+  -- FOR UPDATE serializes concurrent webhook double-fires for the same section:
+  -- the second caller blocks here, then re-reads status = 'graded' and skips — so
+  -- the non-idempotent elp_usage_events inserts (step 5) cannot double-count.
+  SELECT r.session_id, r.section_no, r.status
+  INTO v_session_id, v_section_no, v_status
+  FROM oral_exam_section_responses r
+  WHERE r.id = p_response_id
+  FOR UPDATE;
+  IF v_session_id IS NULL THEN
+    RAISE EXCEPTION 'response_not_found';
+  END IF;
+  -- Idempotent replay: only a section still in 'grading' is processed; a re-fired
+  -- webhook (already 'graded'/'failed') is a no-op.
+  IF v_status <> 'grading' THEN
+    RETURN jsonb_build_object('status', 'skipped', 'reason', 'not_grading', 'section_no', v_section_no);
+  END IF;
+
+  -- 2. Resolve org/student from the non-discarded session (rule 9 soft-delete).
+  SELECT s.organization_id, s.student_id INTO v_org_id, v_student_id
+  FROM oral_exam_sessions s
+  WHERE s.id = v_session_id AND s.deleted_at IS NULL;
+  IF v_org_id IS NULL THEN
+    -- Session discarded mid-grading — nothing to persist.
+    RETURN jsonb_build_object('status', 'skipped', 'reason', 'session_discarded', 'section_no', v_section_no);
+  END IF;
+
+  -- 3. Validate + insert this section's descriptor scores.
+  IF p_descriptor_scores IS NULL OR jsonb_typeof(p_descriptor_scores) <> 'array'
+     OR jsonb_array_length(p_descriptor_scores) = 0 THEN
+    RAISE EXCEPTION 'invalid_descriptor_scores';
+  END IF;
+  FOR v_score IN SELECT jsonb_array_elements(p_descriptor_scores)
+  LOOP
+    v_descriptor := v_score->>'descriptor';
+    v_level := (v_score->>'level')::int;
+    IF v_descriptor NOT IN
+       ('pronunciation','structure','vocabulary','fluency','comprehension','interaction') THEN
+      RAISE EXCEPTION 'invalid_descriptor: %', v_descriptor;
+    END IF;
+    IF v_level IS NULL OR v_level < 1 OR v_level > 6 THEN
+      RAISE EXCEPTION 'invalid_level for descriptor %', v_descriptor;
+    END IF;
+    INSERT INTO oral_exam_descriptor_scores
+      (session_id, section_no, descriptor, level, rationale, evidence)
+    VALUES
+      (v_session_id, v_section_no, v_descriptor, v_level::smallint,
+       v_score->>'rationale', v_score->'evidence')
+    ON CONFLICT (session_id, section_no, descriptor) WHERE section_no IS NOT NULL DO NOTHING;
+  END LOOP;
+
+  -- 4. Persist transcript + flip the section to graded.
+  UPDATE oral_exam_section_responses
+  SET transcript_text = p_transcript, transcript_meta = p_transcript_meta, status = 'graded'
+  WHERE id = p_response_id AND status = 'grading';
+
+  -- 5. Metering ledger — the grader is the ONLY writer (values from the actual
+  -- Scribe/Claude provider responses, never client input).
+  IF p_usage IS NOT NULL AND jsonb_typeof(p_usage) = 'array' THEN
+    FOR v_usage IN SELECT jsonb_array_elements(p_usage)
+    LOOP
+      IF (v_usage->>'event_type') IN
+         ('stt_seconds','tts_chars','convai_seconds','llm_input_tokens','llm_output_tokens')
+         AND COALESCE((v_usage->>'quantity')::numeric, -1) >= 0 THEN
+        INSERT INTO elp_usage_events
+          (organization_id, student_id, session_id, section_no, event_type,
+           quantity, provider, cost_estimate_micros, metadata)
+        VALUES (
+          v_org_id, v_student_id, v_session_id, v_section_no, v_usage->>'event_type',
+          (v_usage->>'quantity')::numeric, v_usage->>'provider',
+          NULLIF(v_usage->>'cost_estimate_micros', '')::bigint,
+          COALESCE(v_usage->'metadata', '{}'::jsonb)
+        );
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 6. Finalize when all 5 sections exist and every one is graded. Aggregate
+  -- level per descriptor = MIN across sections (weakest-link); overall final level
+  -- = MIN across the aggregate rows. Only descriptors with per-section scores get
+  -- an aggregate row, so MIN is never over an empty group (no 23502).
+  SELECT count(*) FILTER (WHERE status <> 'graded'), count(*)
+  INTO v_ungraded, v_total
+  FROM oral_exam_section_responses
+  WHERE session_id = v_session_id;
+
+  IF v_ungraded = 0 AND v_total >= 5 THEN
+    INSERT INTO oral_exam_descriptor_scores (session_id, section_no, descriptor, level)
+    SELECT v_session_id, NULL, d.descriptor, MIN(d.level)::smallint
+    FROM oral_exam_descriptor_scores d
+    WHERE d.session_id = v_session_id AND d.section_no IS NOT NULL
+    GROUP BY d.descriptor
+    ON CONFLICT (session_id, descriptor) WHERE section_no IS NULL DO NOTHING;
+
+    SELECT MIN(level) INTO v_final_level
+    FROM oral_exam_descriptor_scores
+    WHERE session_id = v_session_id AND section_no IS NULL;
+
+    UPDATE oral_exam_sessions
+    SET status = 'graded', total_final_level = v_final_level, ended_at = COALESCE(ended_at, now())
+    WHERE id = v_session_id AND deleted_at IS NULL;
+
+    v_finalized := true;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'status', 'graded', 'section_no', v_section_no, 'session_finalized', v_finalized
+  );
+END;
+$$;
+
+-- ⚠️ THE forgery-prevention lines. Do NOT grant to anon/authenticated.
+REVOKE EXECUTE ON FUNCTION public.write_oral_section_grade(uuid, text, jsonb, jsonb, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.write_oral_section_grade(uuid, text, jsonb, jsonb, jsonb)
+  TO service_role;

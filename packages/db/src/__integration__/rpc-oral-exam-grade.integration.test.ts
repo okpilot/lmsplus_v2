@@ -1,0 +1,321 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { cleanupTestData } from './cleanup'
+import { requireRpcResult } from './guards'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+
+// AI ICAO ELP oral-exam RPCs (migs 150–152) against the real local Postgres.
+// The crown-jewel test is the score-forgery regression: write_oral_section_grade
+// is REVOKEd from `authenticated`, so a student cannot POST forged scores — the
+// grader is callable only by the service-role Edge Function. Mocked clients can't
+// see the grant model, the partial unique indexes, or the ON CONFLICT inference,
+// so these must run against real Postgres.
+
+const DESCRIPTORS = [
+  'pronunciation',
+  'structure',
+  'vocabulary',
+  'fluency',
+  'comprehension',
+  'interaction',
+] as const
+
+type ReportShape = {
+  status: string
+  total_final_level: number | null
+  ended_at: string | null
+  descriptors: Array<{ descriptor: string; level: number }>
+  sections: Array<{ section_no: number; status: string }>
+}
+
+// Six per-section descriptor scores, all `level` unless a descriptor is overridden.
+function sixScores(level: number, overrides: Record<string, number> = {}) {
+  return DESCRIPTORS.map((descriptor) => ({
+    descriptor,
+    level: overrides[descriptor] ?? level,
+    rationale: `evidence for ${descriptor}`,
+  }))
+}
+
+describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', () => {
+  const admin = getAdminClient()
+  let orgId: string
+  let adminUserId: string
+  let studentId: string
+  let student: SupabaseClient
+  let otherStudentId: string
+  let other: SupabaseClient
+  const userIds: string[] = []
+  const suffix = Date.now()
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({ admin, name: `ELP Org ${suffix}`, slug: `elp-${suffix}` })
+    adminUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `elp-admin-${suffix}@test.local`,
+      password: 'pw',
+      role: 'admin',
+    })
+    studentId = await createTestUser({
+      admin,
+      orgId,
+      email: `elp-stud-${suffix}@test.local`,
+      password: 'pw',
+      role: 'student',
+    })
+    otherStudentId = await createTestUser({
+      admin,
+      orgId,
+      email: `elp-other-${suffix}@test.local`,
+      password: 'pw',
+      role: 'student',
+    })
+    userIds.push(adminUserId, studentId, otherStudentId)
+    student = await getAuthenticatedClient({
+      email: `elp-stud-${suffix}@test.local`,
+      password: 'pw',
+    })
+    other = await getAuthenticatedClient({
+      email: `elp-other-${suffix}@test.local`,
+      password: 'pw',
+    })
+  })
+
+  afterAll(async () => {
+    await cleanupTestData({ admin, orgId, userIds })
+  })
+
+  // Each test starts from a clean slate: soft-delete any active oral session for the
+  // reused students so the single-active unique index does not block a fresh start.
+  beforeEach(async () => {
+    const { error } = await admin
+      .from('oral_exam_sessions')
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: 'discarded',
+        ended_at: new Date().toISOString(),
+      })
+      .in('student_id', [studentId, otherStudentId])
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    if (error) throw new Error(`clearActiveOral: ${error.message}`)
+  })
+
+  async function startAndSubmitAll(
+    client: SupabaseClient,
+  ): Promise<{ sessionId: string; responseIds: string[] }> {
+    const { data: startData, error: startErr } = await client.rpc('start_oral_exam_session')
+    if (startErr) throw new Error(`start: ${startErr.message}`)
+    const start = requireRpcResult<{ session_id: string }>(startData, 'start_oral_exam_session')
+    const sessionId = start.session_id
+    const responseIds: string[] = []
+    for (let n = 1; n <= 5; n++) {
+      const { data, error } = await client.rpc('submit_oral_section_response', {
+        p_session_id: sessionId,
+        p_section_no: n,
+        p_audio_path: `${orgId}/${studentId}/${sessionId}/${n}.webm`,
+        p_duration_ms: 12000,
+      })
+      if (error) throw new Error(`submit ${n}: ${error.message}`)
+      responseIds.push(data as string)
+    }
+    return { sessionId, responseIds }
+  }
+
+  it('rejects a student calling the grader directly with forged scores', async () => {
+    const { sessionId, responseIds } = await startAndSubmitAll(student)
+
+    // Non-vacuous precondition: the section genuinely exists in 'grading'.
+    const { data: before } = await admin
+      .from('oral_exam_section_responses')
+      .select('status')
+      .eq('id', responseIds[0])
+      .single()
+    expect(before?.status).toBe('grading')
+
+    // The attack: an authenticated student POSTs forged all-6 scores to the grader.
+    const { error } = await student.rpc('write_oral_section_grade', {
+      p_response_id: responseIds[0],
+      p_transcript: 'forged',
+      p_transcript_meta: null,
+      p_descriptor_scores: sixScores(6),
+      p_usage: [],
+    })
+    // REVOKEd from authenticated → PostgREST denies it.
+    expect(error).not.toBeNull()
+
+    // And the state is unchanged: still 'grading', no scores written.
+    const { data: after } = await admin
+      .from('oral_exam_section_responses')
+      .select('status')
+      .eq('id', responseIds[0])
+      .single()
+    expect(after?.status).toBe('grading')
+    const { data: scoreRows } = await admin
+      .from('oral_exam_descriptor_scores')
+      .select('id')
+      .eq('session_id', sessionId)
+    expect(scoreRows ?? []).toHaveLength(0)
+  })
+
+  it('grades all sections and finalizes at the weakest-link minimum', async () => {
+    const { sessionId, responseIds } = await startAndSubmitAll(student)
+
+    for (let i = 0; i < responseIds.length; i++) {
+      // Section 3 gets fluency=3; every other descriptor everywhere is 4 → final = 3.
+      const scores = i === 2 ? sixScores(4, { fluency: 3 }) : sixScores(4)
+      const { error } = await admin.rpc('write_oral_section_grade', {
+        p_response_id: responseIds[i],
+        p_transcript: `section ${i + 1}`,
+        p_transcript_meta: { words: [] },
+        p_descriptor_scores: scores,
+        p_usage: [
+          {
+            event_type: 'stt_seconds',
+            quantity: 12,
+            provider: 'elevenlabs',
+            cost_estimate_micros: null,
+          },
+        ],
+      })
+      if (error) throw new Error(`grade ${i}: ${error.message}`)
+    }
+
+    const { data: sessionRow } = await admin
+      .from('oral_exam_sessions')
+      .select('status, total_final_level, ended_at')
+      .eq('id', sessionId)
+      .single()
+    expect(sessionRow?.status).toBe('graded')
+    expect(sessionRow?.total_final_level).toBe(3)
+    expect(sessionRow?.ended_at).not.toBeNull()
+
+    const { data: reportData, error: reportErr } = await student.rpc('get_oral_exam_report', {
+      p_session_id: sessionId,
+    })
+    expect(reportErr).toBeNull()
+    const report = requireRpcResult<ReportShape>(reportData, 'get_oral_exam_report')
+    expect(report.status).toBe('graded')
+    expect(report.total_final_level).toBe(3)
+    expect(report.descriptors).toHaveLength(6)
+    expect(report.sections).toHaveLength(5)
+    const fluency = report.descriptors.find((d) => d.descriptor === 'fluency')
+    expect(fluency?.level).toBe(3)
+    // Non-vacuous: a non-weakest descriptor stays at 4 (proves MIN, not a global floor).
+    expect(report.descriptors.find((d) => d.descriptor === 'vocabulary')?.level).toBe(4)
+
+    // Usage ledger was written by the grader (5 sections × 1 stt event).
+    const { data: usage } = await admin
+      .from('elp_usage_events')
+      .select('id')
+      .eq('session_id', sessionId)
+    expect((usage ?? []).length).toBe(5)
+  })
+
+  it('is idempotent on replay — re-grading a graded section is a no-op', async () => {
+    const { sessionId, responseIds } = await startAndSubmitAll(student)
+    const gradeOnce = () =>
+      admin.rpc('write_oral_section_grade', {
+        p_response_id: responseIds[0],
+        p_transcript: 't',
+        p_transcript_meta: null,
+        p_descriptor_scores: sixScores(5),
+        p_usage: [
+          {
+            event_type: 'stt_seconds',
+            quantity: 10,
+            provider: 'elevenlabs',
+            cost_estimate_micros: null,
+          },
+        ],
+      })
+    const { error: e1 } = await gradeOnce()
+    expect(e1).toBeNull()
+    const { data: replayData, error: e2 } = await gradeOnce()
+    expect(e2).toBeNull()
+    const replay = requireRpcResult<{ status: string; reason?: string }>(
+      replayData,
+      'grader replay',
+    )
+    expect(replay.status).toBe('skipped')
+    expect(replay.reason).toBe('not_grading')
+
+    // Replay wrote no duplicate usage or scores.
+    const { data: usage } = await admin
+      .from('elp_usage_events')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('section_no', 1)
+    expect((usage ?? []).length).toBe(1)
+    const { data: scores } = await admin
+      .from('oral_exam_descriptor_scores')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('section_no', 1)
+    expect((scores ?? []).length).toBe(6)
+  })
+
+  it("rejects submitting a section to another student's session", async () => {
+    const { sessionId } = await startAndSubmitAll(student)
+    // Non-vacuous: the victim session genuinely exists (service-role read).
+    const { data: victim } = await admin
+      .from('oral_exam_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .single()
+    expect(victim?.id).toBe(sessionId)
+
+    const { error } = await other.rpc('submit_oral_section_response', {
+      p_session_id: sessionId,
+      p_section_no: 1,
+      p_audio_path: `x/y/${sessionId}/1.webm`,
+      p_duration_ms: 1000,
+    })
+    expect(error?.message).toContain('oral_session_not_found')
+  })
+
+  it("rejects an audio path outside the caller's own owner prefix", async () => {
+    const { data: startData } = await student.rpc('start_oral_exam_session')
+    const s = requireRpcResult<{ session_id: string }>(startData, 'start')
+    // Path whose owner segment ([2]) is another student — the service-role grader
+    // would otherwise dereference it (bypassing storage RLS) and leak that recording.
+    const { error } = await student.rpc('submit_oral_section_response', {
+      p_session_id: s.session_id,
+      p_section_no: 1,
+      p_audio_path: `${orgId}/${otherStudentId}/${s.session_id}/1.webm`,
+      p_duration_ms: 1000,
+    })
+    expect(error?.message).toContain('invalid_audio_path')
+    // Non-vacuous: no section row was created.
+    const { data: rows } = await admin
+      .from('oral_exam_section_responses')
+      .select('id')
+      .eq('session_id', s.session_id)
+    expect((rows ?? []).length).toBe(0)
+  })
+
+  it('gates the report behind exam completion (ended_at)', async () => {
+    const { sessionId } = await startAndSubmitAll(student)
+    const { error } = await student.rpc('get_oral_exam_report', { p_session_id: sessionId })
+    expect(error?.message).toContain('oral_exam_not_complete')
+  })
+
+  it('resumes the same session on a second start (single-active invariant)', async () => {
+    const { data: first } = await student.rpc('start_oral_exam_session')
+    const s1 = requireRpcResult<{ session_id: string }>(first, 'start 1')
+    const { data: second } = await student.rpc('start_oral_exam_session')
+    const s2 = requireRpcResult<{ session_id: string }>(second, 'start 2')
+    expect(s2.session_id).toBe(s1.session_id)
+
+    // Exactly one active oral session exists for the student.
+    const { data: active } = await admin
+      .from('oral_exam_sessions')
+      .select('id')
+      .eq('student_id', studentId)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+    expect((active ?? []).length).toBe(1)
+  })
+})

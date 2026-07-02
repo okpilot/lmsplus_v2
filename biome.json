@@ -16,7 +16,8 @@
       "!**/*.lock",
       "!**/pnpm-lock.yaml",
       "!**/.turbo",
-      "!**/next-env.d.ts"
+      "!**/next-env.d.ts",
+      "!supabase/functions"
     ]
   },
   "formatter": {

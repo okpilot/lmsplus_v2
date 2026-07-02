@@ -369,6 +369,13 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
+# ELP oral-exam scoring worker. Invoked by a Supabase Database Webhook (not a user
+# session), so JWT verification is off; it authenticates the caller via the
+# ELP_WEBHOOK_SECRET shared-secret header instead (fail-closed in index.ts).
+[functions.score-oral-section]
+enabled = true
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
