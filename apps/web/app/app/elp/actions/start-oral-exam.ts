@@ -44,9 +44,12 @@ export async function startOralExam(): Promise<StartOralExamResult> {
     const { data, error } = await rpc<StartRpcResult>(supabase, 'start_oral_exam_session', {})
     if (error || !data) {
       console.error('[startOralExam] RPC error:', error?.message ?? 'no data returned')
-      const userMessage = (error?.message ?? '').includes('another_oral_exam_active')
+      const msg = error?.message ?? ''
+      const userMessage = msg.includes('another_oral_exam_active')
         ? 'You already have an oral exam in progress.'
-        : 'Failed to start oral exam. Please try again.'
+        : msg.includes('user_not_found_or_inactive')
+          ? 'Your account is inactive. Please contact your administrator.'
+          : 'Failed to start oral exam. Please try again.'
       return { success: false, error: userMessage }
     }
 

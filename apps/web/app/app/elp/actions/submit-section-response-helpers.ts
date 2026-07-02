@@ -109,6 +109,12 @@ export async function recordResponse(
   if (error || !data) {
     console.error('[submitSectionResponse] RPC error:', error?.message ?? 'no data returned')
     const msg = error?.message ?? ''
+    if (msg.includes('user_not_found_or_inactive')) {
+      return {
+        success: false,
+        error: 'Your account is inactive. Please contact your administrator.',
+      }
+    }
     if (msg.includes('section_already_submitted')) {
       return { success: false, error: 'This section was already submitted.' }
     }

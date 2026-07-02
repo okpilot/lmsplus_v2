@@ -28,9 +28,12 @@ export async function discardOralExam(raw: unknown): Promise<ActionResult> {
     })
     if (error || data === null) {
       console.error('[discardOralExam] RPC error:', error?.message ?? 'no data returned')
-      const userMessage = (error?.message ?? '').includes('oral_session_not_found')
-        ? 'Oral exam session not found.'
-        : 'Failed to discard oral exam. Please try again.'
+      const msg = error?.message ?? ''
+      const userMessage = msg.includes('user_not_found_or_inactive')
+        ? 'Your account is inactive. Please contact your administrator.'
+        : msg.includes('oral_session_not_found')
+          ? 'Oral exam session not found.'
+          : 'Failed to discard oral exam. Please try again.'
       return { success: false, error: userMessage }
     }
 
