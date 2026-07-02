@@ -34,6 +34,13 @@ function toSummary(row: { id: string; status: string; config: unknown }): OralSe
   }
 }
 
+function toResponses(raw: unknown): OralSectionStatus[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((r): r is RawResponse => typeof r === 'object' && r !== null)
+    .map((r) => ({ sectionNo: Number(r.section_no ?? 0), status: String(r.status ?? '') }))
+}
+
 /**
  * Fetch the caller's active (not-yet-ended, not-deleted) oral exam session, if
  * any. RLS (students_own_oral_sessions) scopes rows to the caller. Returns
@@ -83,15 +90,8 @@ export async function getOralExamSession(sessionId: string): Promise<OralSession
   }
   if (!data) return null
 
-  const responsesRaw = Array.isArray(data.oral_exam_section_responses)
-    ? data.oral_exam_section_responses
-    : []
-  const responses: OralSectionStatus[] = responsesRaw
-    .filter((r): r is RawResponse => typeof r === 'object' && r !== null)
-    .map((r) => ({ sectionNo: Number(r.section_no ?? 0), status: String(r.status ?? '') }))
-
   return {
     ...toSummary(data),
-    responses,
+    responses: toResponses(data.oral_exam_section_responses),
   }
 }

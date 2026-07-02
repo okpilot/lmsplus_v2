@@ -37,13 +37,21 @@ function toSections(raw: unknown): OralExamSection[] {
     .map((row) => ({ sectionNo: Number(row.section_no ?? 0), type: String(row.type ?? '') }))
 }
 
+function validateMode(rawMode: unknown): z.infer<typeof OralExamMode> | null {
+  const parsed = OralExamMode.safeParse(rawMode)
+  return parsed.success ? parsed.data : null
+}
+
+function mapStartRpcError(msg: string): string {
+  if (msg.includes('another_oral_exam_active')) return 'You already have an oral exam in progress.'
+  if (msg.includes('user_not_found_or_inactive'))
+    return 'Your account is inactive. Please contact your administrator.'
+  return 'Failed to start oral exam. Please try again.'
+}
+
 export async function startOralExam(rawMode: unknown): Promise<StartOralExamResult> {
-  let mode: z.infer<typeof OralExamMode>
-  try {
-    mode = OralExamMode.parse(rawMode)
-  } catch {
-    return { success: false, error: 'Invalid mode' }
-  }
+  const mode = validateMode(rawMode)
+  if (!mode) return { success: false, error: 'Invalid mode' }
 
   try {
     const supabase = await createServerSupabaseClient()
@@ -58,13 +66,7 @@ export async function startOralExam(rawMode: unknown): Promise<StartOralExamResu
     })
     if (error || !data) {
       console.error('[startOralExam] RPC error:', error?.message ?? 'no data returned')
-      const msg = error?.message ?? ''
-      const userMessage = msg.includes('another_oral_exam_active')
-        ? 'You already have an oral exam in progress.'
-        : msg.includes('user_not_found_or_inactive')
-          ? 'Your account is inactive. Please contact your administrator.'
-          : 'Failed to start oral exam. Please try again.'
-      return { success: false, error: userMessage }
+      return { success: false, error: mapStartRpcError(error?.message ?? '') }
     }
 
     return {

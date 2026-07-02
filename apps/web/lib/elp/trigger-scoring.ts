@@ -28,5 +28,15 @@ export function triggerSectionScoring(
     body: JSON.stringify({
       record: { id: responseId, audio_path: audioPath, section_no: sectionNo },
     }),
-  }).catch((e) => console.error('[triggerSectionScoring] invoke failed:', e))
+  })
+    .then(async (r) => {
+      // fetch resolves (not rejects) on 401/5xx, so a bad secret or crashed
+      // function would otherwise be silently dropped — leaving the section stuck
+      // in 'grading' with no server-side signal.
+      if (!r.ok) {
+        const body = await r.text().catch(() => '')
+        console.error('[triggerSectionScoring] invoke returned', r.status, body)
+      }
+    })
+    .catch((e) => console.error('[triggerSectionScoring] invoke failed:', e))
 }
