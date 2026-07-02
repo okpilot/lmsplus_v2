@@ -79,7 +79,7 @@ export function DiagramLabelInput({
     // what the server actually graded (itemsDisabled = locked || disabled || submitting).
     if (itemsDisabled) return
     const { active, over } = event
-    if (!over) return
+    if (!over) return // closestCenter always resolves a nearest droppable; guards the zero-zone case only
     const labelId = String(active.id)
     const overId = String(over.id)
     if (overId === DIAGRAM_POOL_DROPPABLE_ID) {
