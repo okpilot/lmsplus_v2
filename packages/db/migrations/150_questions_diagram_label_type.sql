@@ -175,13 +175,26 @@ AS $$
   -- validator to a hard boolean so the columns_check rejects such a config.
   SELECT COALESCE((
     jsonb_typeof(p_config) = 'object'
+    -- Reject unknown TOP-LEVEL keys — the shape is exactly
+    -- {image_ref, zones, labels, answer}. A stray key (e.g. answer_key) must not
+    -- persist even though get_quiz_questions re-projects on delivery (defence in depth).
+    AND CASE WHEN jsonb_typeof(p_config) = 'object' THEN NOT EXISTS (
+          SELECT 1 FROM jsonb_object_keys(p_config) AS k(key)
+          WHERE k.key NOT IN ('image_ref','zones','labels','answer')
+        ) ELSE false END
     AND jsonb_typeof(p_config->'image_ref') = 'string'
     AND btrim(p_config->>'image_ref') <> ''
     AND jsonb_typeof(p_config->'zones') = 'array'
     AND jsonb_typeof(p_config->'labels') = 'array'
     AND jsonb_typeof(p_config->'answer') = 'array'
-    AND (SELECT n >= 1 AND n_invalid = 0 AND n = n_distinct_ids FROM zones_valid)
-    AND (SELECT n >= 1 AND n_invalid = 0 AND n = n_distinct_ids FROM labels_valid)
+    -- Cap zones at MAX_ZONES (mirrors diagram-validation.ts MAX_ZONES = 50) so an
+    -- oversized config cannot be stored, delivered, or graded. answers.n = zones.n
+    -- (av.n = zv.n below), so bounding zones also bounds the answer array.
+    AND (SELECT n BETWEEN 1 AND 50 AND n_invalid = 0 AND n = n_distinct_ids FROM zones_valid)
+    -- Cap labels at MAX_LABELS (mirrors diagram-validation.ts MAX_LABELS = 60) for
+    -- DB/client parity — otherwise a >60-label config passes the DB CHECK but the
+    -- client isDiagramConfig rejects it, failing closed to "could not load".
+    AND (SELECT n BETWEEN 1 AND 60 AND n_invalid = 0 AND n = n_distinct_ids FROM labels_valid)
     -- SECURITY: enforce the documented zone-id / label-id disjointness (header
     -- note) — a shared id could correlate a delivered zone to its answer label.
     AND NOT EXISTS (SELECT 1 FROM zones z JOIN labels l ON l.label_id = z.zone_id)
@@ -189,6 +202,7 @@ AS $$
       SELECT
         av.n_invalid = 0
         AND av.n = zv.n
+        AND zv.n <= 50
         AND av.n_distinct_zone_refs = zv.n
         -- Every zone's canonical label is DISTINCT: consume-on-place means one
         -- chip cannot satisfy two zones, so a repeated answer.label_id would make

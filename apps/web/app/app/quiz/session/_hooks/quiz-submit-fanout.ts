@@ -42,8 +42,11 @@ function fanOutDiagramLabelAnswer(questionId: string, a: DraftAnswer): AnswerEnt
 }
 
 export function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
-  if (a.blankAnswers && a.blankAnswers.length > 0) {
-    // dialog_fill: fan out one entry per blank
+  // dialog_fill: any array (including empty) is a dialog_fill answer — route it
+  // here, before the ordering/MC branches, so an empty blankAnswers produces zero
+  // entries rather than falling through to the MC default and emitting a bogus
+  // `{ selectedOptionId: undefined }` (same fix as the mapping/order branches).
+  if (Array.isArray(a.blankAnswers)) {
     return a.blankAnswers.map((b) => ({
       questionId,
       blankIndex: b.index,

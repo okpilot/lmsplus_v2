@@ -40,6 +40,13 @@ describe('fanOutAnswer — dialog_fill', () => {
       { questionId: Q_ID, blankIndex: 1, responseText: 'south', responseTimeMs: 1000 },
     ])
   })
+
+  it('emits no rows for an empty blankAnswers array', () => {
+    // The Array.isArray(a.blankAnswers) branch routes dialog_fill BEFORE the MC
+    // default, so an empty blankAnswers (nothing filled) must NOT fall through and
+    // produce a bogus `{ selectedOptionId: undefined }` row.
+    expect(fanOutAnswer(Q_ID, draft({ blankAnswers: [] }))).toEqual([])
+  })
 })
 
 describe('fanOutAnswer — ordering', () => {

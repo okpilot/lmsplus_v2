@@ -517,6 +517,40 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.diagram_config).toBeNull()
   })
 
+  it('discards diagram_config when a zone falls outside the unit canvas', async () => {
+    // The DB CHECK (mig 150) already bounds zone geometry to the [0,1] canvas, but
+    // the client guard mirrors it as defense-in-depth against RPC drift: a zone whose
+    // box overflows the edge (x + w > 1) must fail closed rather than render off-canvas.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-oob',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-27-09-lh-pattern',
+            zones: [{ id: 'z1', x: 0.95, y: 0.1, w: 0.2, h: 0.1 }],
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-oob'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
   it('discards diagram_config when zones is empty', async () => {
     // A diagram question always has ≥1 zone (mig 150 CHECK) — an empty zones array
     // is malformed RPC data, fail-closed rather than rendering an unlabeled diagram.

@@ -12,6 +12,17 @@ export type Question = NonNullable<QuizState['question']>
 
 type ControlProps = Readonly<{ s: QuizState; question: Question }>
 
+// Fail-closed placeholder shared by the ordering/diagram_label controls when the
+// delivered payload violates its render invariant (a data-import bug, since prod
+// data is CHECK-enforced). Extracted so the two clones can't drift in wording.
+function MissingConfigAlert() {
+  return (
+    <div role="alert" className="text-sm text-muted-foreground">
+      This question could not be loaded. Please refresh the page.
+    </div>
+  )
+}
+
 export function ShortAnswerAnswer({ s, question }: ControlProps) {
   const fb = s.currentFeedback?.questionType === 'short_answer' ? s.currentFeedback : null
   return (
@@ -49,13 +60,7 @@ export function OrderingAnswer({ s, question }: ControlProps) {
   // (prod data is CHECK-enforced ≥2); fail closed with a refresh prompt rather than a
   // blank or nonsensical single-item drag area the student could still submit.
   const items = question.ordering_items
-  if (!items || items.length < 2) {
-    return (
-      <div role="alert" className="text-sm text-muted-foreground">
-        This question could not be loaded. Please refresh the page.
-      </div>
-    )
-  }
+  if (!items || items.length < 2) return <MissingConfigAlert />
   return (
     <OrderingInput
       key={question.id}
@@ -78,13 +83,8 @@ export function DiagramLabelAnswer({ s, question }: ControlProps) {
   // CHECK-enforced); fail closed with a refresh prompt rather than a broken or
   // empty diagram surface the student could still submit.
   const config = question.diagram_config
-  if (!config || config.zones.length === 0 || config.labels.length === 0) {
-    return (
-      <div role="alert" className="text-sm text-muted-foreground">
-        This question could not be loaded. Please refresh the page.
-      </div>
-    )
-  }
+  if (!config || config.zones.length === 0 || config.labels.length === 0)
+    return <MissingConfigAlert />
   return (
     <DiagramLabelInput
       key={question.id}

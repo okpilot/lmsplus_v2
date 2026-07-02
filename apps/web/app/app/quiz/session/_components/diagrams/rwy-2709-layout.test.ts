@@ -78,12 +78,21 @@ describe('zone/label id disjointness (answer-oracle invariant)', () => {
 
   it('uses unrelated id schemes — no zone id textually matches its own leg/turn name', () => {
     // A parallel-naming leak would look like a zone id containing the same word as
-    // its intended correct label (e.g. zone id "upwind-1"). None of the opaque ids
-    // below should contain any correct label text (case-insensitive).
-    const lowerCorrectWords = CORRECT_LABEL_TEXTS.map((t) => t.toLowerCase().replace(/\s+/g, ''))
+    // its intended correct label (e.g. zone id "upwind-1"). Check the DISTINCTIVE
+    // words of each label — not the whole normalized phrase — so a per-word leak
+    // like "upwind-1" is caught (the phrase "upwind leg" → "upwindleg" would miss
+    // it). Generic words shared by every leg ("leg", "turn", "approach") carry no
+    // answer signal, so they're excluded.
+    const genericWords = new Set(['leg', 'turn', 'approach'])
+    const leakedAnswerWords = CORRECT_LABEL_TEXTS.flatMap((text) =>
+      text
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((word) => !genericWords.has(word)),
+    )
     for (const zone of RWY_2709_ZONES) {
       const lowerId = zone.id.toLowerCase()
-      for (const word of lowerCorrectWords) {
+      for (const word of leakedAnswerWords) {
         expect(lowerId.includes(word)).toBe(false)
       }
     }

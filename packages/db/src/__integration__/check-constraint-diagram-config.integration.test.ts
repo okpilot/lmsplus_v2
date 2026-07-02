@@ -173,6 +173,53 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects a diagram_config carrying an unknown top-level key', async () => {
+    // The validator pins the top-level shape to exactly {image_ref, zones, labels,
+    // answer}. A stray key (e.g. answer_key) must not persist even though
+    // get_quiz_questions re-projects on delivery — defence in depth.
+    const config = { ...baseValidConfig(), answer_key: 'lb1' } as unknown
+    const { error } = await insertDiagram(config, 'unknown top-level key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config exceeding the MAX_ZONES (50) cap', async () => {
+    // The validator caps zones at 50 (mirrors diagram-validation.ts MAX_ZONES) so an
+    // oversized config cannot be stored, delivered, or graded. Build 51 valid,
+    // disjoint zones with a bijective answer so ONLY the count violates the CHECK.
+    const n = 51
+    const zones = Array.from({ length: n }, (_, i) => ({
+      id: `zn${i}`,
+      x: 0,
+      y: 0,
+      w: 0.01,
+      h: 0.01,
+    }))
+    const labels = Array.from({ length: n }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
+    const answer = Array.from({ length: n }, (_, i) => ({ zone_id: `zn${i}`, label_id: `lb${i}` }))
+    const { error } = await insertDiagram(
+      { image_ref: 'rwy-27-09-lh-pattern', zones, labels, answer },
+      '51 zones',
+    )
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a diagram_config exceeding the MAX_LABELS (60) cap', async () => {
+    // The validator caps labels at 60 (mirrors diagram-validation.ts MAX_LABELS) for
+    // DB/client parity. Two answered zones + 61 distinct labels (59 distractors) so
+    // ONLY the label count violates the CHECK.
+    const config = baseValidConfig()
+    config.labels = Array.from({ length: 61 }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb0' },
+      { zone_id: 'zn2', label_id: 'lb1' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, '61 labels')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('rejects a diagram_config missing the top-level image_ref key', async () => {
     // Before wrapping the validator's final SELECT in COALESCE(..., false), a
     // config missing image_ref made the boolean-AND chain evaluate to NULL —

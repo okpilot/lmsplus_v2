@@ -14,8 +14,11 @@ const DiagramMappingSchema = z
   .array(
     z
       .object({
-        zoneId: z.string().min(1).max(200),
-        labelId: z.string().min(1).max(200),
+        // .trim() before min/max — parity with isDiagramMappingEntry (which uses
+        // .trim().length > 0) so a whitespace-only id can't persist in a draft and
+        // then be dropped on resume.
+        zoneId: z.string().trim().min(1).max(200),
+        labelId: z.string().trim().min(1).max(200),
       })
       .strict(),
   )
