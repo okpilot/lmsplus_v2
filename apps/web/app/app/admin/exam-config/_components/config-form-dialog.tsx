@@ -27,7 +27,7 @@ type Props = {
 
 type DistRow = { topicId: string; subtopicId: string | null; questionCount: number }
 
-export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
+export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props>) {
   const config = subject.config
   const [isPending, startTransition] = useTransition()
   const [totalQuestions, setTotalQuestions] = useState(config?.totalQuestions ?? 16)

@@ -13,7 +13,13 @@ type Props = Readonly<{
   pageSize: number
 }>
 
-export function AdminReportCard({ summary, questions, page, totalCount, pageSize }: Props) {
+export function AdminReportCard({
+  summary,
+  questions,
+  page,
+  totalCount,
+  pageSize,
+}: Readonly<Props>) {
   return (
     <div className="space-y-6">
       <ResultSummary summary={summary} />

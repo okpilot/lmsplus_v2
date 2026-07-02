@@ -23,7 +23,7 @@ const TAB_SHORTCUTS: { keys: string; action: string }[] = [
  * only on pointer-with-keyboard layouts (desktop) by the caller. Self-contained
  * popover (same click-to-toggle pattern as the filter hints) — no dependency.
  */
-export function KeyboardLegend({ isExam = false }: { isExam?: boolean }) {
+export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }>) {
   const [open, setOpen] = useState(false)
   const shortcuts = isExam ? NAV_SHORTCUTS : [...NAV_SHORTCUTS, ...TAB_SHORTCUTS]
 

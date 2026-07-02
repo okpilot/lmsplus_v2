@@ -16,7 +16,7 @@ export function StartButton({
   label,
   loadingLabel = 'Starting...',
   onClick,
-}: StartButtonProps) {
+}: Readonly<StartButtonProps>) {
   return (
     <button
       type="button"

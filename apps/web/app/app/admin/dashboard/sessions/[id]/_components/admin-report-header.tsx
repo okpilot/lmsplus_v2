@@ -5,7 +5,7 @@ type Props = Readonly<{
   studentName: string | null
 }>
 
-export function AdminReportHeader({ studentId, studentName }: Props) {
+export function AdminReportHeader({ studentId, studentName }: Readonly<Props>) {
   return (
     <div className="space-y-1">
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">

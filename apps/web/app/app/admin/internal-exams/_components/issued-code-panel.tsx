@@ -14,7 +14,7 @@ type Props = {
   onDismiss: () => void
 }
 
-export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Props) {
+export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly<Props>) {
   const [copied, setCopied] = useState(false)
   const [sent, setSent] = useState(false)
   const [isSending, startSending] = useTransition()

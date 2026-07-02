@@ -18,7 +18,7 @@ export function HeatmapHeader({
   atMinOffset,
   onBack,
   onForward,
-}: HeaderProps) {
+}: Readonly<HeaderProps>) {
   const navBtnBase =
     'flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30'
   return (

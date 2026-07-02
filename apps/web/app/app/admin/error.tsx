@@ -7,10 +7,10 @@ import { useEffect } from 'react'
 export default function AdminErrorPage({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string }
   reset: () => void
-}) {
+}>) {
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])

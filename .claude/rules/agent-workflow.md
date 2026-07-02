@@ -334,6 +334,25 @@ No in-flight findings at push time.
 - Skip a finding to avoid the work. Skip is reserved for "wrong on the merits."
 - Push with in-flight findings (no terminal state assigned).
 
+## PR Batching — Combine Issues Aggressively (MANDATORY for multi-issue runs)
+
+> **The full pipeline cost is PER-PR, not per-issue.** impl-critic + the 4–5 post-commit agents + PR-level semantic sweep + multi-round CR-local each run once per PR, at 1–15 min per subagent. A one-issue PR pays that entire fixed cost for a single change. Ten one-issue PRs = 10× the overhead; one PR of ten issues = 1×.
+
+When a run spans multiple issues (`/automerge`, `/autonomerge`, any batch), the orchestrator's FIRST planning act is to group the issue list into the **fewest coherent PRs** — never one-per-issue.
+
+### How to group
+- **By nature:** all test-only red-team/integration specs together; all mechanical/rule/config chores together; related production changes together.
+- **Target ~3–8 issues per PR** when they are test-only or mechanical. Do all edits across the combined issues FIRST (parallel subagents on non-overlapping file sets), then run the pipeline ONCE on the whole branch.
+- **Split only for a real merge-gate reason:** a production change needing manual eval must not ride with auto-mergeable test-only work; a migration PR stays separate (auto-deploys on merge); a change that must land independently for rollback safety.
+
+### Batch the fixups too
+Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one commit per finding. Each fixup commit re-triggers the review cycle, so per-finding commits multiply the cost the batching is meant to avoid.
+
+### Anti-pattern (what this rule exists to stop)
+One issue → one branch → full pipeline → merge → repeat. It makes a multi-issue run crawl. If you catch yourself opening a PR that closes a single issue during a batch run, stop and ask what else belongs on that branch. (User directive 2026-07-02, mid-`/automerge` batch: "why the fuck one test in the whole PR? combine combine combine.")
+
+---
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**

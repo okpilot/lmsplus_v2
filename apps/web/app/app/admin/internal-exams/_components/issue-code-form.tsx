@@ -20,7 +20,7 @@ type Props = {
   onIssued: (issued: { codeId: string; code: string; expiresAt: string }) => void
 }
 
-export function IssueCodeForm({ students, subjects, onIssued }: Props) {
+export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>) {
   const [studentId, setStudentId] = useState<string>('')
   const [subjectId, setSubjectId] = useState<string>('')
   const [isPending, startTransition] = useTransition()

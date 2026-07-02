@@ -8,7 +8,7 @@ type Props = {
 
 // Renders a short_answer question's result: the student's typed answer compared
 // against the canonical answer, with a correct/incorrect marker.
-export function ShortAnswerReport({ responseText, canonicalAnswer, isCorrect }: Props) {
+export function ShortAnswerReport({ responseText, canonicalAnswer, isCorrect }: Readonly<Props>) {
   const hasResponse = responseText !== null && responseText.trim().length > 0
 
   return (

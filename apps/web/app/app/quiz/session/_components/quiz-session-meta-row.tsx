@@ -21,7 +21,7 @@ export function QuizSessionMetaRow({
   timeLimitSeconds,
   timerStart,
   onTimeExpired,
-}: QuizSessionMetaRowProps) {
+}: Readonly<QuizSessionMetaRowProps>) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="hidden font-medium md:inline">

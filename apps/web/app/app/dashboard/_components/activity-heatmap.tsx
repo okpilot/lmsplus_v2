@@ -13,7 +13,7 @@ type ActivityHeatmapProps = {
 const MIN_MONTH_OFFSET = -11
 const MAX_MONTH_OFFSET = 0
 
-export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
   const now = useMemo(() => new Date(), [])
   const [offset, setOffset] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)

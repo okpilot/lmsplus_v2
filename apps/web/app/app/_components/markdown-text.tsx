@@ -31,7 +31,7 @@ type MarkdownTextProps = {
   className?: string
 }
 
-export function MarkdownText({ children, className }: MarkdownTextProps) {
+export function MarkdownText({ children, className }: Readonly<MarkdownTextProps>) {
   return (
     <div className={className}>
       <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MARKDOWN_COMPONENTS}>

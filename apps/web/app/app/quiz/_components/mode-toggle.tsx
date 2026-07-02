@@ -8,7 +8,11 @@ type ModeToggleProps = {
   examAvailable?: boolean
 }
 
-export function ModeToggle({ value, onValueChange, examAvailable = false }: ModeToggleProps) {
+export function ModeToggle({
+  value,
+  onValueChange,
+  examAvailable = false,
+}: Readonly<ModeToggleProps>) {
   return (
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Mode</span>

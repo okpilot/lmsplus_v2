@@ -6,7 +6,7 @@ import { clampIndex } from '../_utils/clamp-index'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
-export function QuizSessionLoader({ userId }: { userId: string }) {
+export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const bs = useSessionBootstrap(userId)
 
   if (bs.recovery) {

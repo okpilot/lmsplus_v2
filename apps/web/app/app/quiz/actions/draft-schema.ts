@@ -7,6 +7,7 @@
 // + duplicate-index rejection — so a draft can never persist a payload the grader
 // would later reject on resume.
 import { z } from 'zod'
+import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 export const SaveDraftInput = z
   .object({
@@ -42,14 +43,11 @@ export const SaveDraftInput = z
               }
             })
             .optional(),
-          // Bound the array + element length (parity with blankAnswers .max(50) /
-          // text .max(200)) — client input parsed in a Server Action; ids are short.
-          // An ordering answer is a permutation, so duplicate ids are invalid.
           order: z
             .array(z.string().min(1).max(200))
-            .min(2)
-            .max(50)
-            .refine((ids) => new Set(ids).size === ids.length, 'Ordering ids must be unique')
+            .min(MIN_ORDER_ITEMS)
+            .max(MAX_ORDER_ITEMS)
+            .refine(isUniquePermutation, 'Ordering ids must be unique')
             .optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
@@ -118,20 +116,11 @@ export const SaveDraftInput = z
           z.object({
             questionType: z.literal('ordering'),
             isCorrect: z.boolean(),
-            // An ordering question always reveals ≥2 NON-EMPTY canonical item
-            // texts — four-way parity with the rehydrate validator
-            // (isValidFeedbackEntry), the DB-load validator (toFeedbackEntry), and
-            // the RPC guard (isOrderingRpcResult), which all require non-empty strings.
-            // .max(50) mirrors the sibling blanks-feedback cap (item count is DB-bounded);
-            // .max(200) per-id mirrors the `order` field above (client-roundtripped draft
-            // data → bound the element length so a tampered payload can't stuff arbitrarily
-            // large strings into the feedback JSONB column).
-            // A canonical order is a permutation — duplicate ids mean corrupt feedback.
             correctOrder: z
               .array(z.string().min(1).max(200))
-              .min(2)
-              .max(50)
-              .refine((ids) => new Set(ids).size === ids.length, 'Ordering ids must be unique'),
+              .min(MIN_ORDER_ITEMS)
+              .max(MAX_ORDER_ITEMS)
+              .refine(isUniquePermutation, 'Ordering ids must be unique'),
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),

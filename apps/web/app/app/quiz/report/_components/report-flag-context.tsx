@@ -15,10 +15,10 @@ const ReportFlagContext = createContext<ReportFlagContextValue | null>(null)
 export function ReportFlagProvider({
   initialFlaggedIds,
   children,
-}: {
+}: Readonly<{
   initialFlaggedIds: string[]
   children: React.ReactNode
-}) {
+}>) {
   // Seeded server-side; remounted per page via a `key` on this provider so each
   // page's server-read state re-seeds on pagination.
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set(initialFlaggedIds))

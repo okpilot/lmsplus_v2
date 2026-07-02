@@ -12,7 +12,7 @@ type AnswerInputProps = {
   keyboardHighlightedId?: string | null
 }
 
-function ShortAnswerAnswer({ s, question }: { s: QuizState; question: Question }) {
+function ShortAnswerAnswer({ s, question }: Readonly<{ s: QuizState; question: Question }>) {
   const fb = s.currentFeedback?.questionType === 'short_answer' ? s.currentFeedback : null
   return (
     <ShortAnswerInput
@@ -27,7 +27,7 @@ function ShortAnswerAnswer({ s, question }: { s: QuizState; question: Question }
   )
 }
 
-function DialogFillAnswer({ s, question }: { s: QuizState; question: Question }) {
+function DialogFillAnswer({ s, question }: Readonly<{ s: QuizState; question: Question }>) {
   const fb = s.currentFeedback?.questionType === 'dialog_fill' ? s.currentFeedback : null
   return (
     <DialogFillInput
@@ -42,7 +42,7 @@ function DialogFillAnswer({ s, question }: { s: QuizState; question: Question })
   )
 }
 
-function OrderingAnswer({ s, question }: { s: QuizState; question: Question }) {
+function OrderingAnswer({ s, question }: Readonly<{ s: QuizState; question: Question }>) {
   const fb = s.currentFeedback?.questionType === 'ordering' ? s.currentFeedback : null
   // Defensive: an ordering question must carry ≥2 items (the invariant this control
   // renders). A null/empty/one-item payload can only arise from a data-import bug
@@ -75,7 +75,7 @@ function McAnswer({
   question,
   onSelectionChange,
   keyboardHighlightedId,
-}: AnswerInputProps & { question: Question }) {
+}: Readonly<AnswerInputProps & { question: Question }>) {
   const fb = s.currentFeedback?.questionType === 'multiple_choice' ? s.currentFeedback : null
   return (
     <AnswerOptions
@@ -96,7 +96,7 @@ function McAnswer({
   )
 }
 
-function UnsupportedQuestionType({ message }: { message: string }) {
+function UnsupportedQuestionType({ message }: Readonly<{ message: string }>) {
   return (
     <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
       {message}

@@ -25,7 +25,7 @@ type Props = Readonly<{
   filters: DashboardFilters
 }>
 
-export function StudentTableShell({ students, totalCount, filters }: Props) {
+export function StudentTableShell({ students, totalCount, filters }: Readonly<Props>) {
   const router = useRouter()
   const updateParams = useUpdateSearchParams()
 

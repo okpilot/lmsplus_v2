@@ -9,13 +9,13 @@ export function NumField({
   min,
   max,
   onChange,
-}: {
+}: Readonly<{
   label: string
   value: number
   min: number
   max: number
   onChange: (v: number) => void
-}) {
+}>) {
   return (
     <div>
       <label className={labelCls}>

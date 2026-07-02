@@ -11,7 +11,7 @@ type Props = {
   initialTree: SyllabusTree
 }
 
-export function SyllabusManager({ initialTree }: Props) {
+export function SyllabusManager({ initialTree }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
 
   function handleAddSubject(data: Record<string, string>) {

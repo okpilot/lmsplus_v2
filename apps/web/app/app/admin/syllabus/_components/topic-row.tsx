@@ -18,7 +18,7 @@ type Props = {
   subjectId: string
 }
 
-export function TopicRow({ topic, subjectId }: Props) {
+export function TopicRow({ topic, subjectId }: Readonly<Props>) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()

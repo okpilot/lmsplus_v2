@@ -8,7 +8,7 @@ import type { DraftData } from '../types'
 
 type ResumeDraftBannerProps = { draft: DraftData; userId: string }
 
-export function ResumeDraftBanner({ draft, userId }: ResumeDraftBannerProps) {
+export function ResumeDraftBanner({ draft, userId }: Readonly<ResumeDraftBannerProps>) {
   const router = useRouter()
   const [visible, setVisible] = useState(true)
   const [discarding, setDiscarding] = useState(false)

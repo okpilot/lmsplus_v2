@@ -20,7 +20,7 @@ export function SessionAnswerBlock({
   feedbackData,
   selectedOption,
   onNext,
-}: SessionAnswerBlockProps) {
+}: Readonly<SessionAnswerBlockProps>) {
   return (
     <>
       <AnswerOptions

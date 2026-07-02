@@ -25,7 +25,7 @@ export function TopicRow({
   isExpanded,
   onToggleExpand,
   indented,
-}: TopicRowProps) {
+}: Readonly<TopicRowProps>) {
   return (
     <div className={`flex items-center gap-2 py-1.5 pr-3 ${indented ? 'pl-14' : 'pl-2'}`}>
       {onToggleExpand ? (

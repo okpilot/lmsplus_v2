@@ -14,7 +14,7 @@ type Props = {
   topicId: string
 }
 
-export function SubtopicRow({ subtopic, topicId }: Props) {
+export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
 

@@ -6,7 +6,7 @@ import { formatRelativeTime } from './student-table-helpers'
 
 type Props = Readonly<{ sessions: RecentSession[] }>
 
-export function RecentActivityList({ sessions }: Props) {
+export function RecentActivityList({ sessions }: Readonly<Props>) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <h2 className="text-lg font-semibold">Recent Activity</h2>

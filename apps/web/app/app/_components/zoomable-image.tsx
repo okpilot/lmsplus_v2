@@ -14,7 +14,7 @@ type ZoomableImageProps = {
   className?: string
 }
 
-export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
+export function ZoomableImage({ src, alt, className }: Readonly<ZoomableImageProps>) {
   return (
     <a
       href={src}

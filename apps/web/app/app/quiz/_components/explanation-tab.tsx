@@ -11,7 +11,7 @@ export function ExplanationTab({
   explanationText,
   explanationImageUrl,
   learningObjective,
-}: ExplanationTabProps) {
+}: Readonly<ExplanationTabProps>) {
   return (
     <div className="space-y-3 py-4">
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
@@ -27,7 +27,10 @@ export function ExplanationTab({
   )
 }
 
-function ExplanationContent({ text, imageUrl }: { text: string | null; imageUrl: string | null }) {
+function ExplanationContent({
+  text,
+  imageUrl,
+}: Readonly<{ text: string | null; imageUrl: string | null }>) {
   return (
     <>
       {imageUrl && (

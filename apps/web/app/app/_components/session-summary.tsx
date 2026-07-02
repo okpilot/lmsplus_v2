@@ -12,7 +12,7 @@ export function SessionSummary({
   answeredCount,
   correctCount,
   scorePercentage,
-}: SessionSummaryProps) {
+}: Readonly<SessionSummaryProps>) {
   const label = 'Quiz'
   const skippedCount = totalQuestions - answeredCount
   const incorrectCount = answeredCount - correctCount

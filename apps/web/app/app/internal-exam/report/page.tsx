@@ -10,9 +10,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export default async function InternalExamReportPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ session?: string; page?: string }>
-}) {
+}>) {
   const { session: sessionId, page: pageParam } = await searchParams
   if (!sessionId || !UUID_RE.test(sessionId)) redirect('/app/internal-exam?tab=reports')
 

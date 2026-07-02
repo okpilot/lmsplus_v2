@@ -32,7 +32,7 @@ function LoadingButton({
   disabled,
   children,
   ...props
-}: LoadingButtonProps) {
+}: Readonly<LoadingButtonProps>) {
   return (
     <Button {...props} disabled={loading || disabled} aria-busy={loading || undefined}>
       {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}

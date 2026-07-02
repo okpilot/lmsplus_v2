@@ -22,7 +22,7 @@ export function DiscoveryModePanel({
   examAvailable,
   subjects,
   userId,
-}: DiscoveryModePanelProps) {
+}: Readonly<DiscoveryModePanelProps>) {
   return (
     <StudyConfigForm
       userId={userId}

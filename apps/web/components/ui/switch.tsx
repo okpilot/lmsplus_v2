@@ -8,9 +8,11 @@ function Switch({
   className,
   size = 'default',
   ...props
-}: SwitchPrimitive.Root.Props & {
-  size?: 'sm' | 'default'
-}) {
+}: Readonly<
+  SwitchPrimitive.Root.Props & {
+    size?: 'sm' | 'default'
+  }
+>) {
   return (
     <SwitchPrimitive.Root
       data-slot="switch"

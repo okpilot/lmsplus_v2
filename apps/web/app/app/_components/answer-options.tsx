@@ -60,7 +60,7 @@ export function AnswerOptions({
   onSelectionChange,
   isExam,
   keyboardHighlightedId,
-}: AnswerOptionsProps) {
+}: Readonly<AnswerOptionsProps>) {
   const [selected, setSelected] = useState<string | null>(null)
   const currentSelection = lockedSelection ?? selected
   const showResult = lockedSelection != null && correctOptionId != null

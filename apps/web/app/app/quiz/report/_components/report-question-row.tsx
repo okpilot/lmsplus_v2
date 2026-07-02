@@ -13,10 +13,10 @@ import { useReportFlag } from './report-flag-context'
 export function ReportQuestionRow({
   question,
   index,
-}: {
+}: Readonly<{
   question: QuizReportQuestion
   index: number
-}) {
+}>) {
   const [expanded, setExpanded] = useState(false)
 
   // Null on admin report views (no provider) — the flag toggle is student-only.

@@ -5,7 +5,10 @@ type SessionProgressBarProps = {
   totalQuestions: number
 }
 
-export function SessionProgressBar({ currentIndex, totalQuestions }: SessionProgressBarProps) {
+export function SessionProgressBar({
+  currentIndex,
+  totalQuestions,
+}: Readonly<SessionProgressBarProps>) {
   return (
     <div className="flex items-center gap-3">
       <div className="h-1.5 flex-1 rounded-full bg-muted">

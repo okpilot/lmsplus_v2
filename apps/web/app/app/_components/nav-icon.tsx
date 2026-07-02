@@ -79,7 +79,7 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   ),
 }
 
-export function NavIcon({ name, className = 'h-5 w-5' }: NavIconProps) {
+export function NavIcon({ name, className = 'h-5 w-5' }: Readonly<NavIconProps>) {
   const paths = ICON_PATHS[name]
   if (!paths) return null
   return (

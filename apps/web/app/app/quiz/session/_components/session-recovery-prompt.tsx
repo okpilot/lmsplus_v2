@@ -38,7 +38,7 @@ export function SessionRecoveryPrompt({
   error,
   mode,
   examMode,
-}: SessionRecoveryPromptProps) {
+}: Readonly<SessionRecoveryPromptProps>) {
   const isExam = mode === 'exam'
   const examLabel = MODE_LABELS[examMode ?? 'mock_exam'] ?? 'Exam'
   return (

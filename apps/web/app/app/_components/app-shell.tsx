@@ -14,7 +14,7 @@ type AppShellProps = {
   children: ReactNode
 }
 
-export function AppShell({ displayName, userRole, children }: AppShellProps) {
+export function AppShell({ displayName, userRole, children }: Readonly<AppShellProps>) {
   const pathname = usePathname()
   const { collapsed, toggle } = useSidebar()
   const isFullscreen = pathname.split('/').includes('session')

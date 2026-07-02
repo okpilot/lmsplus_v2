@@ -6,7 +6,7 @@ import { StudentTableShell } from './student-table-shell'
 
 type Props = Readonly<{ filters: DashboardFilters }>
 
-export async function StudentTableContent({ filters }: Props) {
+export async function StudentTableContent({ filters }: Readonly<Props>) {
   try {
     const { students, totalCount } = await getDashboardStudents(filters)
     return <StudentTableShell students={students} totalCount={totalCount} filters={filters} />

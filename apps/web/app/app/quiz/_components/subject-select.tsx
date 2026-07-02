@@ -11,7 +11,7 @@ type SubjectSelectProps = {
   onValueChange: (value: string) => void
 }
 
-export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectProps) {
+export function SubjectSelect({ subjects, value, onValueChange }: Readonly<SubjectSelectProps>) {
   const [open, setOpen] = useState(false)
   const selected = subjects.find((s) => s.id === value)
 

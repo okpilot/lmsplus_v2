@@ -24,7 +24,7 @@ type DeleteButtonProps = {
   questionCount: number
 }
 
-export function DeleteButton({ id, table, label, questionCount }: DeleteButtonProps) {
+export function DeleteButton({ id, table, label, questionCount }: Readonly<DeleteButtonProps>) {
   const [isPending, startTransition] = useTransition()
   const hasQuestions = questionCount > 0
 

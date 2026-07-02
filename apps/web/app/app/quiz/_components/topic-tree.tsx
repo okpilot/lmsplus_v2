@@ -119,7 +119,7 @@ export function TopicTree({
   allSelected,
   filteredByTopic,
   filteredBySubtopic,
-}: TopicTreeProps) {
+}: Readonly<TopicTreeProps>) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   function toggleExpand(topicId: string) {

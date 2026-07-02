@@ -20,7 +20,7 @@ type QuizConfigFormProps = {
   examSubjects: ExamSubjectOption[]
 }
 
-export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFormProps) {
+export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<QuizConfigFormProps>) {
   const config = useQuizConfig({ userId, subjects })
   const isExam = config.mode === 'exam'
 

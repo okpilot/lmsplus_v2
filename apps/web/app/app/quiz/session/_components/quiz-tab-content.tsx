@@ -22,7 +22,7 @@ export function QuizTabContent({
   explanationImageUrl,
   userId,
   learningObjective,
-}: QuizTabContentProps) {
+}: Readonly<QuizTabContentProps>) {
   if (activeTab === 'explanation') {
     return (
       <ExplanationTab
