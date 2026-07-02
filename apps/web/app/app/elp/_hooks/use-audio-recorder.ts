@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  buildCaptureHandlers,
   INITIAL_RECORDER_STATE,
   isRecordingSupported,
   type RecorderState,
-  releaseMediaStream,
-  revokeObjectUrl,
   runCapture,
   teardownCapture,
 } from './audio-recorder-core'
@@ -27,8 +26,6 @@ export function useAudioRecorder(): UseAudioRecorderResult {
   const startedAtRef = useRef(0)
   const urlRef = useRef<string | null>(null)
 
-  const releaseStream = useCallback(() => releaseMediaStream(streamRef), [])
-  const revokeUrl = useCallback(() => revokeObjectUrl(urlRef), [])
   // Full teardown on unmount (discard recorder, release mic, revoke URL) — cleanup, not data fetching.
   useEffect(() => {
     return () => teardownCapture(recorderRef, streamRef, urlRef)
@@ -42,34 +39,19 @@ export function useAudioRecorder(): UseAudioRecorderResult {
     }
     startingRef.current = true
     setState((s) => ({ ...s, error: null }))
-    runCapture({
-      onRecording: (stream, recorder) => {
-        streamRef.current = stream
-        recorderRef.current = recorder
-        startedAtRef.current = Date.now()
-        setState((s) => ({ ...s, status: 'recording' }))
-      },
-      onRecorded: (answerFile) => {
-        revokeUrl()
-        const audioUrl = URL.createObjectURL(answerFile)
-        urlRef.current = audioUrl
-        releaseStream()
-        const durationMs = Date.now() - startedAtRef.current
-        setState({ status: 'recorded', file: answerFile, audioUrl, durationMs, error: null })
-      },
-      onDenied: () =>
-        setState((s) => ({ ...s, status: 'denied', error: 'Microphone access was denied.' })),
-      onSettled: () => {
-        startingRef.current = false
-      },
-    })
-  }, [state.status, releaseStream, revokeUrl])
+    runCapture(
+      buildCaptureHandlers({ recorderRef, streamRef, startedAtRef, urlRef, startingRef }, setState),
+    )
+  }, [state.status])
 
   const stop = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
   }, [])
 
+  // reset() clears startingRef too, so a still-pending getUserMedia is cancelled:
+  // buildCaptureHandlers' onRecording checks startingRef and tears down if it is false.
   const reset = useCallback(() => {
+    startingRef.current = false
     teardownCapture(recorderRef, streamRef, urlRef)
     setState(INITIAL_RECORDER_STATE)
   }, [])

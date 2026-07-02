@@ -5,6 +5,8 @@ import {
   pickAudioMimeType,
   releaseMediaStream,
   revokeObjectUrl,
+  startRecorderSession,
+  teardownCapture,
 } from './audio-recorder-core'
 
 beforeEach(() => {
@@ -92,5 +94,97 @@ describe('revokeObjectUrl', () => {
     const urlRef = { current: null }
     revokeObjectUrl(urlRef)
     expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+  })
+})
+
+describe('teardownCapture', () => {
+  it('nulls onstop before stopping an active recorder so the in-flight File is dropped', () => {
+    // The invariant: onstop must be null AT THE MOMENT stop() fires. If stop() is
+    // called before onstop is nulled, the pending File lands after reset() and the
+    // hook's setState(INITIAL) call would mask it — but the mic stays live and the
+    // state briefly becomes 'recorded' (a race). The ordering below prevents this.
+    let onstopAtStopTime: (() => void) | null | undefined
+    const recObj: { state: string; onstop: (() => void) | null; stop: ReturnType<typeof vi.fn> } = {
+      state: 'recording',
+      onstop: vi.fn(),
+      stop: vi.fn(() => {
+        onstopAtStopTime = recObj.onstop
+      }),
+    }
+    const recorderRef = { current: recObj as unknown as MediaRecorder }
+    const streamRef = { current: null as MediaStream | null }
+    const urlRef = { current: null as string | null }
+
+    teardownCapture(recorderRef, streamRef, urlRef)
+
+    expect(recObj.stop).toHaveBeenCalledOnce()
+    expect(onstopAtStopTime).toBeNull() // onstop nulled BEFORE stop() fired
+    expect(recorderRef.current).toBeNull()
+  })
+
+  it('skips stop when the recorder is already inactive', () => {
+    const recObj = {
+      state: 'inactive',
+      onstop: vi.fn() as (() => void) | null,
+      stop: vi.fn(),
+    }
+    const recorderRef = { current: recObj as unknown as MediaRecorder }
+    const streamRef = { current: null as MediaStream | null }
+    const urlRef = { current: null as string | null }
+
+    teardownCapture(recorderRef, streamRef, urlRef)
+
+    expect(recObj.stop).not.toHaveBeenCalled()
+    expect(recorderRef.current).toBeNull()
+  })
+
+  it('releases the stream and revokes the URL even when no recorder is held', () => {
+    vi.stubGlobal('URL', { revokeObjectURL: vi.fn(), createObjectURL: vi.fn() })
+    const stopTrack = vi.fn()
+    const recorderRef = { current: null as MediaRecorder | null }
+    const streamRef = {
+      current: { getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream,
+    }
+    const urlRef = { current: 'blob:some-url' as string | null }
+
+    teardownCapture(recorderRef, streamRef, urlRef)
+
+    expect(stopTrack).toHaveBeenCalledOnce()
+    expect(streamRef.current).toBeNull()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:some-url')
+    expect(urlRef.current).toBeNull()
+  })
+})
+
+describe('startRecorderSession', () => {
+  it('falls back to audio/webm when no MIME type is supported by the environment', () => {
+    // When pickAudioMimeType() returns undefined (all types unsupported), the
+    // buildAnswerFile call must use the 'audio/webm' fallback via `mimeType ?? 'audio/webm'`.
+    class NoMimeRecorder {
+      ondataavailable: ((e: { data: Blob }) => void) | null = null
+      onstop: (() => void) | null = null
+      static isTypeSupported = (_type: string) => false
+      start() {}
+      stop() {
+        // fire chunk then onstop synchronously, mirroring FakeMediaRecorder
+        this.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/ogg' }) })
+        this.onstop?.()
+      }
+    }
+    vi.stubGlobal('MediaRecorder', NoMimeRecorder)
+
+    const onStop = vi.fn()
+    const stream = { getTracks: () => [] } as unknown as MediaStream
+    const recorder = startRecorderSession(stream, onStop)
+
+    recorder.stop()
+
+    expect(onStop).toHaveBeenCalledOnce()
+    // cast-guarded per code-style §5: narrowing before treating as typed shape
+    const firstCall = onStop.mock.calls[0]
+    if (!firstCall) throw new Error('onStop was not called')
+    const file = firstCall[0] as File
+    expect(file.name).toBe('answer.webm')
+    expect(file.type).toBe('audio/webm')
   })
 })

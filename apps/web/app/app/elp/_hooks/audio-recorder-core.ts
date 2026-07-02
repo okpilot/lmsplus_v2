@@ -4,7 +4,7 @@
  * the hook itself stays under the §1 hook line cap.
  */
 
-import type { MutableRefObject } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 
 export type AudioRecorderStatus = 'idle' | 'recording' | 'recorded' | 'denied' | 'unsupported'
 
@@ -90,9 +90,12 @@ export function teardownCapture(
   urlRef: MutableRefObject<string | null>,
 ): void {
   const recorder = recorderRef.current
-  if (recorder && recorder.state !== 'inactive') {
+  if (recorder) {
+    // Null onstop unconditionally: stop() flips state to 'inactive' synchronously but
+    // fires the 'stop' event async, so an already-'inactive' recorder may still have a
+    // pending onstop that would set state on an unmounted component after teardown.
     recorder.onstop = null
-    recorder.stop()
+    if (recorder.state !== 'inactive') recorder.stop()
   }
   recorderRef.current = null
   releaseMediaStream(streamRef)
@@ -117,4 +120,55 @@ export function runCapture(handlers: CaptureHandlers): void {
     })
     .catch(() => handlers.onDenied())
     .finally(() => handlers.onSettled())
+}
+
+export type RecorderRefs = {
+  recorderRef: MutableRefObject<MediaRecorder | null>
+  streamRef: MutableRefObject<MediaStream | null>
+  startedAtRef: MutableRefObject<number>
+  urlRef: MutableRefObject<string | null>
+  startingRef: MutableRefObject<boolean>
+}
+
+/** Builds the runCapture handler set — keeps the state transitions and the
+ * "reset() cancelled the pending capture" guard out of the hook body so the hook
+ * stays within the §3 function-length limit. */
+export function buildCaptureHandlers(
+  refs: RecorderRefs,
+  setState: Dispatch<SetStateAction<RecorderState>>,
+): CaptureHandlers {
+  return {
+    onRecording: (stream, recorder) => {
+      // reset() cleared startingRef while getUserMedia was still pending — cancel
+      // this capture instead of overwriting idle state / leaving the mic live.
+      if (!refs.startingRef.current) {
+        recorder.onstop = null
+        recorder.stop()
+        for (const track of stream.getTracks()) track.stop()
+        return
+      }
+      refs.streamRef.current = stream
+      refs.recorderRef.current = recorder
+      refs.startedAtRef.current = Date.now()
+      setState((s) => ({ ...s, status: 'recording' }))
+    },
+    onRecorded: (answerFile) => {
+      revokeObjectUrl(refs.urlRef)
+      const audioUrl = URL.createObjectURL(answerFile)
+      refs.urlRef.current = audioUrl
+      releaseMediaStream(refs.streamRef)
+      setState({
+        status: 'recorded',
+        file: answerFile,
+        audioUrl,
+        durationMs: Date.now() - refs.startedAtRef.current,
+        error: null,
+      })
+    },
+    onDenied: () =>
+      setState((s) => ({ ...s, status: 'denied', error: 'Microphone access was denied.' })),
+    onSettled: () => {
+      refs.startingRef.current = false
+    },
+  }
 }

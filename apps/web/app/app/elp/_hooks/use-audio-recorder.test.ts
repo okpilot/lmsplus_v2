@@ -134,6 +134,26 @@ describe('useAudioRecorder', () => {
     expect(mockRevokeObjectUrl).toHaveBeenCalledWith('blob:mock-url')
   })
 
+  it('records a non-negative duration bounded well below Date.now() after a completed recording', async () => {
+    // Regression guard: if startedAtRef.current is never set (stays 0),
+    // durationMs = Date.now() - 0 ≈ 1.75 × 10¹² — wrong but previously undetected.
+    const { result } = renderHook(() => useAudioRecorder())
+    act(() => {
+      result.current.start()
+    })
+    await waitFor(() => expect(result.current.status).toBe('recording'))
+
+    act(() => {
+      result.current.stop()
+    })
+
+    expect(result.current.status).toBe('recorded')
+    expect(result.current.durationMs).toBeGreaterThanOrEqual(0)
+    // Upper bound: a test-suite round-trip is never more than 5 s; a never-set
+    // startedAt gives ~5.6 × 10¹³ ms, so 10_000 is a tight but safe ceiling.
+    expect(result.current.durationMs).toBeLessThan(10_000)
+  })
+
   it('discards the in-flight recording and stays idle when reset while still recording', async () => {
     const { result } = renderHook(() => useAudioRecorder())
     act(() => {
@@ -149,5 +169,35 @@ describe('useAudioRecorder', () => {
 
     expect(result.current.status).toBe('idle')
     expect(result.current.file).toBeNull()
+  })
+
+  it('cancels a pending capture and releases the mic when reset before permission is granted', async () => {
+    let grant: (stream: MediaStream) => void = () => {}
+    mockGetUserMedia.mockImplementationOnce(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          grant = resolve
+        }),
+    )
+    const { result } = renderHook(() => useAudioRecorder())
+
+    // start() launches getUserMedia but the prompt is still pending — status stays idle.
+    act(() => {
+      result.current.start()
+    })
+    // Cancel while the permission prompt is up.
+    act(() => {
+      result.current.reset()
+    })
+
+    // The grant resolves AFTER reset: onRecording must cancel + stop the stream, not record.
+    const trackStop = vi.fn()
+    const lateStream = { getTracks: () => [{ stop: trackStop }] } as unknown as MediaStream
+    await act(async () => {
+      grant(lateStream)
+    })
+
+    expect(result.current.status).toBe('idle')
+    expect(trackStop).toHaveBeenCalled()
   })
 })
