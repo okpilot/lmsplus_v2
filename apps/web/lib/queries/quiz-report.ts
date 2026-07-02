@@ -30,6 +30,14 @@ export type OrderingSlotResult = {
   isCorrect: boolean
 }
 
+// One report entry per ZONE of a diagram_label question.
+export type DiagramZoneResult = {
+  blankIndex: number
+  placedLabel: string | null
+  correctLabel: string
+  isCorrect: boolean
+}
+
 // Discriminated union on `questionType`. Consumers MUST narrow on it before
 // touching any type-specific field (MC `options`, short_answer `responseText`,
 // dialog_fill `blanks`). The MC variant is the default the builder emits when a
@@ -66,6 +74,15 @@ export type QuizReportQuestion =
       // Number of correct positions and total items, for the 3-state partial display.
       correctCount: number
       totalItems: number
+    })
+  | (QuizReportQuestionCommon & {
+      questionType: 'diagram_label'
+      // True only when every zone is correctly labeled.
+      isCorrect: boolean
+      zones: DiagramZoneResult[]
+      // Number of correct zones and total zones, for the 3-state partial display.
+      correctCount: number
+      totalZones: number
     })
 
 export type QuizReportSummary = {

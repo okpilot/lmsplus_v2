@@ -74,6 +74,7 @@ export function useQuizState(opts: QuizStateOpts) {
     handleTextAnswer: p.handleTextAnswer,
     handleDialogFillAnswer: p.handleDialogFillAnswer,
     handleOrderingAnswer: p.handleOrderingAnswer,
+    handleDiagramLabelAnswer: p.handleDiagramLabelAnswer,
     navigateTo: p.navigateTo,
     navigate: p.navigate,
     togglePin: () => togglePinById(questionId),

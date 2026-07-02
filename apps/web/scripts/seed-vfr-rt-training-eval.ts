@@ -26,6 +26,15 @@
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
+import type {
+  DiagramLabel,
+  DiagramZone,
+} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import {
+  RWY_2709_IMAGE_REF,
+  RWY_2709_LABELS,
+  RWY_2709_ZONES,
+} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -361,6 +370,77 @@ const ORDERING: Ordering[] = [
   },
 ]
 
+type DiagramLabelQuestion = {
+  num: string
+  text: string
+  // The zone_id -> label_id answer key. This mapping lives ONLY here (a
+  // server-side seed script) — never in the frontend layout module (see the
+  // SECURITY note atop rwy-2709-layout.ts). Distractor labels (Approach,
+  // Departure, Threshold) exist in RWY_2709_LABELS but are intentionally
+  // absent from this mapping.
+  answer: { zone_id: string; label_id: string }[]
+}
+
+// Part 3 — diagram_label. Label the RWY 27/09 left-hand traffic pattern by
+// dragging each chip onto its matching leg or turn zone.
+const DIAGRAM_LABEL: DiagramLabelQuestion[] = [
+  {
+    num: 'VRT-P3-DIAG-2709',
+    text: 'Label the RWY 27/09 left-hand traffic pattern: drag each label onto its matching leg or turn.',
+    answer: [
+      { zone_id: 'z9f2a1c', label_id: 'lk3f81a' }, // upwind leg -> Upwind
+      { zone_id: 'zb84e7d', label_id: 'lm70cd2' }, // crosswind turn -> Crosswind turn
+      { zone_id: 'z3c1908', label_id: 'lp9e64b' }, // crosswind leg -> Crosswind
+      { zone_id: 'ze52af6', label_id: 'lq2a17f' }, // downwind turn -> Downwind turn
+      { zone_id: 'z71bd3a', label_id: 'lr58c93' }, // downwind leg -> Downwind
+      { zone_id: 'zd0946f', label_id: 'ls6b4e0' }, // base turn -> Base turn
+      { zone_id: 'z2e6c81', label_id: 'lt3d829' }, // base leg -> Base
+      { zone_id: 'za47b02', label_id: 'lu91f5c' }, // final turn -> Final turn
+      { zone_id: 'zc19d5e', label_id: 'lv7a26d' }, // final leg -> Final
+    ],
+  },
+]
+
+/**
+ * Seed-time guard for the diagram_label answer-oracle security invariant
+ * (see rwy-2709-layout.ts + phase6-plan.md): zone ids and label ids must be
+ * disjoint sets, and the answer key must cover every zone exactly once.
+ * Fails loudly — a silently-wrong answer key makes every manual eval wrong.
+ */
+function assertDiagramConfigInvariants(
+  zones: DiagramZone[],
+  labels: DiagramLabel[],
+  answer: { zone_id: string; label_id: string }[],
+): void {
+  const zoneIds = new Set(zones.map((z) => z.id))
+  const labelIds = new Set(labels.map((l) => l.id))
+  const collisions = [...zoneIds].filter((id) => labelIds.has(id))
+  if (collisions.length > 0) {
+    throw new Error(`diagram_config invariant: zone/label id collision: ${collisions.join(', ')}`)
+  }
+  if (answer.length !== zoneIds.size) {
+    throw new Error(
+      `diagram_config invariant: answer has ${answer.length} entries, expected exactly ${zoneIds.size} (one per zone)`,
+    )
+  }
+  const answeredZoneIds = new Set(answer.map((a) => a.zone_id))
+  if (answeredZoneIds.size !== zoneIds.size) {
+    throw new Error(
+      'diagram_config invariant: answer does not cover each zone exactly once (duplicate zone_id)',
+    )
+  }
+  for (const a of answer) {
+    if (!zoneIds.has(a.zone_id)) {
+      throw new Error(`diagram_config invariant: answer references unknown zone_id '${a.zone_id}'`)
+    }
+    if (!labelIds.has(a.label_id)) {
+      throw new Error(
+        `diagram_config invariant: answer references unknown label_id '${a.label_id}'`,
+      )
+    }
+  }
+}
+
 type QuestionRow = Record<string, unknown> & { question_number: string }
 
 async function insertQuestionIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
@@ -489,8 +569,45 @@ async function seed(): Promise<void> {
     if (added) inserted++
   }
 
-  const total = MULTIPLE_CHOICE.length + SHORT_ANSWER.length + DIALOG_FILL.length + ORDERING.length
-  console.log('VFR RT Training eval seed complete (MC + short_answer + dialog_fill + ordering).')
+  // Part 3 — diagram_label (answer key in diagram_config.answer; zones/labels
+  // come from the canonical layout module shared with the SVG runner so the
+  // seeded config always matches what's rendered — see rwy-2709-layout.ts)
+  for (const q of DIAGRAM_LABEL) {
+    assertDiagramConfigInvariants(RWY_2709_ZONES, RWY_2709_LABELS, q.answer)
+    const added = await insertQuestionIfMissing(bankId, {
+      ...base,
+      explanation_text:
+        'Left-hand traffic pattern for RWY 27/09: upwind, crosswind turn, crosswind, downwind turn, downwind, base turn, base, final turn, final.',
+      question_number: q.num,
+      topic_id: p3TopicId,
+      question_type: 'diagram_label',
+      question_text: q.text,
+      options: [],
+      canonical_answer: null,
+      accepted_synonyms: [],
+      dialog_template: null,
+      blanks_config: [],
+      ordering_items: [],
+      correct_option_id: null,
+      diagram_config: {
+        image_ref: RWY_2709_IMAGE_REF,
+        zones: RWY_2709_ZONES,
+        labels: RWY_2709_LABELS,
+        answer: q.answer,
+      },
+    })
+    if (added) inserted++
+  }
+
+  const total =
+    MULTIPLE_CHOICE.length +
+    SHORT_ANSWER.length +
+    DIALOG_FILL.length +
+    ORDERING.length +
+    DIAGRAM_LABEL.length
+  console.log(
+    'VFR RT Training eval seed complete (MC + short_answer + dialog_fill + ordering + diagram_label).',
+  )
   console.log(`  Org:              Egmont Aviation (${org.id})`)
   console.log(`  Admin:            ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`)
   console.log(`  Student:          ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
@@ -499,11 +616,11 @@ async function seed(): Promise<void> {
     `  Topics:           P1_ACRONYMS=${p1TopicId} P2_DIALOG=${p2TopicId} P3_MC=${p3TopicId}`,
   )
   console.log(
-    `  Questions added:  ${inserted} (of ${total}: ${MULTIPLE_CHOICE.length} MC + ${SHORT_ANSWER.length} short_answer + ${DIALOG_FILL.length} dialog_fill + ${ORDERING.length} ordering)`,
+    `  Questions added:  ${inserted} (of ${total}: ${MULTIPLE_CHOICE.length} MC + ${SHORT_ANSWER.length} short_answer + ${DIALOG_FILL.length} dialog_fill + ${ORDERING.length} ordering + ${DIAGRAM_LABEL.length} diagram_label)`,
   )
   console.log('  No exam_config — training uses /app/vfr-rt (quick_quiz study mode)')
   console.log(
-    '  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice + ordering (drag)',
+    '  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice + ordering (drag) + diagram_label (drag-to-label)',
   )
   console.log('  Start at:         http://localhost:3000/app/vfr-rt')
 }

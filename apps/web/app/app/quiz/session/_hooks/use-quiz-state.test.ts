@@ -76,6 +76,7 @@ const THREE_QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
   {
     id: Q2_ID,
@@ -89,6 +90,7 @@ const THREE_QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
   {
     id: Q3_ID,
@@ -102,6 +104,7 @@ const THREE_QUESTIONS = [
     dialog_template: null,
     blanks_safe: null,
     ordering_items: null,
+    diagram_config: null,
   },
 ]
 

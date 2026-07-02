@@ -1,12 +1,17 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { MAX_LABELS, MAX_ZONES } from '@/app/app/quiz/actions/diagram-validation'
 import {
   isUniquePermutation,
   MAX_ORDER_ITEMS,
   MIN_ORDER_ITEMS,
 } from '@/app/app/quiz/actions/ordering-validation'
 import { rpc } from '@/lib/supabase-rpc'
+
+type DiagramZoneRow = { id: string; x: number; y: number; w: number; h: number }
+type DiagramLabelRow = { id: string; text: string }
+type DiagramConfigRow = { image_ref: string; zones: DiagramZoneRow[]; labels: DiagramLabelRow[] }
 
 type QuizQuestionRow = {
   id: string
@@ -16,10 +21,11 @@ type QuizQuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: unknown
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
   dialog_template: string | null
   blanks_safe: unknown
   ordering_items_shuffled: unknown
+  diagram_config_public: unknown
 }
 
 type Question = {
@@ -30,10 +36,11 @@ type Question = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering'
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
   ordering_items: { id: string; text: string }[] | null
+  diagram_config: DiagramConfigRow | null
 }
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
@@ -66,6 +73,45 @@ function isOrderingItemArray(value: unknown): value is { id: string; text: strin
   )
     return false
   return isUniquePermutation(value.map((v) => v.id))
+}
+
+function isDiagramZone(value: unknown): value is DiagramZoneRow {
+  if (typeof value !== 'object' || value === null) return false
+  const { id, x, y, w, h } = value as Record<string, unknown>
+  return (
+    typeof id === 'string' &&
+    id.trim().length > 0 &&
+    typeof x === 'number' &&
+    typeof y === 'number' &&
+    typeof w === 'number' &&
+    typeof h === 'number'
+  )
+}
+
+function isDiagramLabel(value: unknown): value is DiagramLabelRow {
+  if (typeof value !== 'object' || value === null) return false
+  const { id, text } = value as Record<string, unknown>
+  return (
+    typeof id === 'string' &&
+    id.trim().length > 0 &&
+    typeof text === 'string' &&
+    text.trim().length > 0
+  )
+}
+
+// Element + bounds guard for the diagram_config_public RPC payload (parity
+// with isOrderingItemArray above, code-style §5 cast-guard rule). The DB
+// CHECK (mig 150, is_valid_diagram_config) enforces the same shape
+// server-side — this is defense-in-depth against RPC drift.
+function isDiagramConfig(value: unknown): value is DiagramConfigRow {
+  if (typeof value !== 'object' || value === null) return false
+  const { image_ref, zones, labels } = value as Record<string, unknown>
+  if (typeof image_ref !== 'string' || image_ref.trim().length === 0) return false
+  if (!Array.isArray(zones) || zones.length === 0 || zones.length > MAX_ZONES) return false
+  if (!zones.every(isDiagramZone)) return false
+  if (!Array.isArray(labels) || labels.length === 0 || labels.length > MAX_LABELS) return false
+  if (!labels.every(isDiagramLabel)) return false
+  return true
 }
 
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
@@ -108,6 +154,7 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     ordering_items: isOrderingItemArray(q.ordering_items_shuffled)
       ? q.ordering_items_shuffled
       : null,
+    diagram_config: isDiagramConfig(q.diagram_config_public) ? q.diagram_config_public : null,
   }))
 
   // Preserve the order from questionIds

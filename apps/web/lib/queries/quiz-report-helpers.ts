@@ -1,9 +1,10 @@
 import type { AnswerKeyEntry } from './report-question-builder'
 
 // One row per non-MC answer key from get_report_answer_keys.
-//  - short_answer: blank_index NULL, answer_key = the canonical answer.
-//  - dialog_fill:  one row per blank, blank_index set, answer_key = blank canonical.
-//  - ordering:     one row per slot, blank_index = slot position, answer_key = canonical item text.
+//  - short_answer:  blank_index NULL, answer_key = the canonical answer.
+//  - dialog_fill:   one row per blank, blank_index set, answer_key = blank canonical.
+//  - ordering:      one row per slot, blank_index = slot position, answer_key = canonical item text.
+//  - diagram_label: one row per zone, blank_index = zone ordinal, answer_key = correct label text.
 export type AnswerKeyRow = {
   question_id: string
   question_type: string
@@ -45,6 +46,16 @@ export function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEn
           : { type: 'ordering', canonicalBySlot: new Map<number, string>() }
       if (row.blank_index !== null && row.answer_key !== null) {
         entry.canonicalBySlot.set(row.blank_index, row.answer_key)
+      }
+      map.set(row.question_id, entry)
+    } else if (row.question_type === 'diagram_label') {
+      const existing = map.get(row.question_id)
+      const entry: AnswerKeyEntry =
+        existing?.type === 'diagram_label'
+          ? existing
+          : { type: 'diagram_label', correctLabelByZone: new Map<number, string>() }
+      if (row.blank_index !== null && row.answer_key !== null) {
+        entry.correctLabelByZone.set(row.blank_index, row.answer_key)
       }
       map.set(row.question_id, entry)
     } else {

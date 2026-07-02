@@ -85,7 +85,29 @@ export function buildAnswerHandlers(deps: {
     })
   }
 
-  return { handleSelectAnswer, handleTextAnswer, handleDialogFillAnswer, handleOrderingAnswer }
+  function handleDiagramLabelAnswer(
+    mapping: { zoneId: string; labelId: string }[],
+  ): Promise<boolean> {
+    const responseTimeMs = Date.now() - getAnswerStartTime()
+    return runAttempt({
+      draft: { mapping, responseTimeMs },
+      check: async (questionId) => {
+        const r = await checkNonMcAnswer({ questionId, sessionId, mapping })
+        if (!r.success || r.questionType !== 'diagram_label') throw new Error('check failed')
+        // feedback already carries questionType; drop the success flag.
+        const { success: _success, ...feedback } = r
+        return feedback
+      },
+    })
+  }
+
+  return {
+    handleSelectAnswer,
+    handleTextAnswer,
+    handleDialogFillAnswer,
+    handleOrderingAnswer,
+    handleDiagramLabelAnswer,
+  }
 }
 
 export function recordAnswerFeedback(

@@ -624,6 +624,24 @@ const orderingQuestion: QuizReportQuestion = {
   responseTimeMs: 4000,
 }
 
+const diagramQuestion: QuizReportQuestion = {
+  questionId: 'q5',
+  questionText: 'Label the pattern legs.',
+  questionNumber: null,
+  questionType: 'diagram_label',
+  isCorrect: false,
+  zones: [
+    { blankIndex: 0, placedLabel: 'Upwind', correctLabel: 'Upwind', isCorrect: true },
+    { blankIndex: 1, placedLabel: null, correctLabel: 'Crosswind', isCorrect: false },
+  ],
+  correctCount: 1,
+  totalZones: 2,
+  explanationText: null,
+  explanationImageUrl: null,
+  questionImageUrl: null,
+  responseTimeMs: 5000,
+}
+
 describe('isQuestionAnswered', () => {
   it('treats a multiple-choice selection that matches an option as answered', () => {
     expect(isQuestionAnswered(mcQuestion)).toBe(true)
@@ -661,6 +679,18 @@ describe('isQuestionAnswered', () => {
     const empty: QuizReportQuestion = {
       ...orderingQuestion,
       slots: [{ position: 0, responseText: null, canonicalText: 'mayday', isCorrect: false }],
+    }
+    expect(isQuestionAnswered(empty)).toBe(false)
+  })
+
+  it('treats a diagram-label question with at least one placed zone as answered', () => {
+    expect(isQuestionAnswered(diagramQuestion)).toBe(true)
+  })
+
+  it('treats a diagram-label question with every zone unplaced as unanswered', () => {
+    const empty: QuizReportQuestion = {
+      ...diagramQuestion,
+      zones: [{ blankIndex: 0, placedLabel: null, correctLabel: 'Upwind', isCorrect: false }],
     }
     expect(isQuestionAnswered(empty)).toBe(false)
   })

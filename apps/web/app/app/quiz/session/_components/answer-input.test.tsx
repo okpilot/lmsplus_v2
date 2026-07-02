@@ -22,6 +22,12 @@ vi.mock('./ordering-input', () => ({
   ),
 }))
 
+vi.mock('./diagram-label-input', () => ({
+  DiagramLabelInput: ({ zones }: { zones: { id: string }[] }) => (
+    <div data-testid="diagram-label-input" data-zone-ids={JSON.stringify(zones.map((z) => z.id))} />
+  ),
+}))
+
 // ---- Subject under test ----------------------------------------------------
 
 import { AnswerInput } from './answer-input'
@@ -46,6 +52,7 @@ function makeOrderingState(
       dialog_template: null,
       blanks_safe: null,
       ordering_items: orderingItems,
+      diagram_config: null,
     },
     questionId: 'q-ord',
     currentFeedback: null,
@@ -56,6 +63,45 @@ function makeOrderingState(
     handleTextAnswer: vi.fn(),
     handleDialogFillAnswer: vi.fn(),
     handleOrderingAnswer: vi.fn(),
+    handleDiagramLabelAnswer: vi.fn(),
+    ...overrides,
+  } as unknown as QuizState
+}
+
+function makeDiagramLabelState(
+  diagramConfig: {
+    image_ref: string
+    zones: { id: string; x: number; y: number; w: number; h: number }[]
+    labels: { id: string; text: string }[]
+  } | null,
+  overrides: Partial<QuizState> = {},
+): QuizState {
+  return {
+    isExam: false,
+    question: {
+      id: 'q-diagram',
+      question_text: 'Label the traffic pattern',
+      question_image_url: null,
+      question_number: '050-01-01-005',
+      explanation_text: null,
+      explanation_image_url: null,
+      options: [],
+      question_type: 'diagram_label',
+      dialog_template: null,
+      blanks_safe: null,
+      ordering_items: null,
+      diagram_config: diagramConfig,
+    },
+    questionId: 'q-diagram',
+    currentFeedback: null,
+    existingAnswer: undefined,
+    submitting: false,
+    answering: false,
+    handleSelectAnswer: vi.fn(),
+    handleTextAnswer: vi.fn(),
+    handleDialogFillAnswer: vi.fn(),
+    handleOrderingAnswer: vi.fn(),
+    handleDiagramLabelAnswer: vi.fn(),
     ...overrides,
   } as unknown as QuizState
 }
@@ -116,6 +162,78 @@ describe('AnswerInput — ordering question item guard', () => {
     )
     expect(screen.getByTestId('ordering-input').getAttribute('data-items')).toBe(
       JSON.stringify(['step-1', 'step-2', 'step-3']),
+    )
+  })
+})
+
+describe('AnswerInput — diagram_label question config guard', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('shows a refresh prompt when the diagram config is absent', () => {
+    render(<AnswerInput s={makeDiagramLabelState(null)} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('refresh')
+    expect(screen.queryByTestId('diagram-label-input')).not.toBeInTheDocument()
+  })
+
+  it('shows a refresh prompt when the diagram config has no zones', () => {
+    render(
+      <AnswerInput
+        s={makeDiagramLabelState({
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        })}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('refresh')
+    expect(screen.queryByTestId('diagram-label-input')).not.toBeInTheDocument()
+  })
+
+  it('shows a refresh prompt when the diagram config has no labels', () => {
+    render(
+      <AnswerInput
+        s={makeDiagramLabelState({
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0, y: 0, w: 0.1, h: 0.1 }],
+          labels: [],
+        })}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('refresh')
+    expect(screen.queryByTestId('diagram-label-input')).not.toBeInTheDocument()
+  })
+
+  it('renders the diagram label input when a valid config is provided', () => {
+    render(
+      <AnswerInput
+        s={makeDiagramLabelState({
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [{ id: 'z1', x: 0, y: 0, w: 0.1, h: 0.1 }],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        })}
+      />,
+    )
+    expect(screen.getByTestId('diagram-label-input')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('passes the delivered zone ids to the diagram label input', () => {
+    render(
+      <AnswerInput
+        s={makeDiagramLabelState({
+          image_ref: 'rwy-2709-lh-pattern',
+          zones: [
+            { id: 'z1', x: 0, y: 0, w: 0.1, h: 0.1 },
+            { id: 'z2', x: 0.2, y: 0.2, w: 0.1, h: 0.1 },
+          ],
+          labels: [{ id: 'l1', text: 'Upwind' }],
+        })}
+      />,
+    )
+    expect(screen.getByTestId('diagram-label-input').getAttribute('data-zone-ids')).toBe(
+      JSON.stringify(['z1', 'z2']),
     )
   })
 })

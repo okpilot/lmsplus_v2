@@ -1,4 +1,10 @@
 import {
+  isDiagramMappingArray,
+  isDiagramMappingEntry,
+  isValidDiagramMapping,
+  MAX_ZONES,
+} from '@/app/app/quiz/actions/diagram-validation'
+import {
   isUniquePermutation,
   MAX_ORDER_ITEMS,
   MIN_ORDER_ITEMS,
@@ -39,8 +45,10 @@ export function isValidDraftAnswer(v: unknown): boolean {
   const hasResponseText = r.responseText !== undefined
   const hasBlankAnswers = r.blankAnswers !== undefined
   const hasOrder = r.order !== undefined
+  const hasMapping = r.mapping !== undefined
   if (
-    [hasSelectedOption, hasResponseText, hasBlankAnswers, hasOrder].filter(Boolean).length !== 1
+    [hasSelectedOption, hasResponseText, hasBlankAnswers, hasOrder, hasMapping].filter(Boolean)
+      .length !== 1
   ) {
     return false
   }
@@ -55,6 +63,7 @@ export function isValidDraftAnswer(v: unknown): boolean {
       isUniquePermutation(r.order as string[])
     )
   }
+  if (hasMapping) return isDiagramMappingArray(r.mapping)
   return isValidBlankAnswers(r.blankAnswers)
 }
 
@@ -100,6 +109,14 @@ export function isValidFeedbackEntry(v: unknown): boolean {
         r.correctOrder.length <= MAX_ORDER_ITEMS &&
         r.correctOrder.every(isNonEmptyString) &&
         isUniquePermutation(r.correctOrder as string[])
+      )
+    case 'diagram_label':
+      return (
+        Array.isArray(r.correctMapping) &&
+        r.correctMapping.length > 0 &&
+        r.correctMapping.length <= MAX_ZONES &&
+        r.correctMapping.every(isDiagramMappingEntry) &&
+        isValidDiagramMapping(r.correctMapping as { zoneId: string; labelId: string }[])
       )
     default:
       return false

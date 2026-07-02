@@ -2,9 +2,10 @@
 // Zod input schemas live in check-non-mc-answer-schema.ts (hoisted to keep both
 // files under the 100/200-line caps — code-style.md §1).
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { MAX_ZONES } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
-type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
+export type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 // Defense-in-depth session ownership + membership check (mirrors check-answer.ts).
 // The RPC self-guards, but the action fails fast on a foreign/closed session or a
@@ -61,6 +62,19 @@ export type OrderingRpcResult = {
   correct_answer: null
   blanks: null
   correct_order: string[]
+  explanation_text: string | null
+  explanation_image_url: string | null
+}
+
+// Raw jsonb shape for a diagram_label mapping row inside check_non_mc_answer's
+// correct_mapping (mig 153).
+export type DiagramMappingRow = { zone_id: string; label_id: string }
+
+export type DiagramRpcResult = {
+  is_correct: boolean
+  correct_answer: null
+  blanks: null
+  correct_mapping: DiagramMappingRow[]
   explanation_text: string | null
   explanation_image_url: string | null
 }
@@ -136,6 +150,35 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
     // A canonical order is a permutation — duplicate ids mean a malformed RPC result.
     isUniquePermutation(v.correct_order as string[]) &&
+    isNullableString(v.explanation_text) &&
+    isNullableString(v.explanation_image_url)
+  )
+}
+
+function isDiagramMappingRow(v: unknown): v is DiagramMappingRow {
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  return (
+    typeof r.zone_id === 'string' &&
+    r.zone_id.length > 0 &&
+    typeof r.label_id === 'string' &&
+    r.label_id.length > 0
+  )
+}
+
+export function isDiagramRpcResult(value: unknown): value is DiagramRpcResult {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.is_correct === 'boolean' &&
+    v.correct_answer === null &&
+    v.blanks === null &&
+    Array.isArray(v.correct_mapping) &&
+    // A diagram question always has ≥1 zone (mig 150 CHECK, is_valid_diagram_config),
+    // so an empty correct_mapping is a malformed RPC result — reject it.
+    v.correct_mapping.length > 0 &&
+    v.correct_mapping.length <= MAX_ZONES &&
+    v.correct_mapping.every(isDiagramMappingRow) &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)
   )

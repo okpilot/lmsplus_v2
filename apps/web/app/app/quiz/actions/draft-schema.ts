@@ -7,7 +7,21 @@
 // + duplicate-index rejection — so a draft can never persist a payload the grader
 // would later reject on resume.
 import { z } from 'zod'
+import { isValidDiagramMapping, MAX_ZONES } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
+
+const DiagramMappingSchema = z
+  .array(
+    z
+      .object({
+        zoneId: z.string().min(1).max(200),
+        labelId: z.string().min(1).max(200),
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(MAX_ZONES)
+  .refine(isValidDiagramMapping, 'Diagram mapping must have distinct zones and distinct labels')
 
 export const SaveDraftInput = z
   .object({
@@ -49,12 +63,13 @@ export const SaveDraftInput = z
             .max(MAX_ORDER_ITEMS)
             .refine(isUniquePermutation, 'Ordering ids must be unique')
             .optional(),
+          mapping: DiagramMappingSchema.optional(),
           responseTimeMs: z.number().int().nonnegative(),
         })
-        // Exactly one answer payload must be present (MC / short / dialog / ordering).
+        // Exactly one answer payload must be present (MC / short / dialog / ordering / diagram).
         .refine(
           (a) =>
-            [a.selectedOptionId, a.responseText, a.blankAnswers, a.order].filter(
+            [a.selectedOptionId, a.responseText, a.blankAnswers, a.order, a.mapping].filter(
               (x) => x !== undefined,
             ).length === 1,
           { message: 'Draft answer must carry exactly one answer payload' },
@@ -121,6 +136,13 @@ export const SaveDraftInput = z
               .min(MIN_ORDER_ITEMS)
               .max(MAX_ORDER_ITEMS)
               .refine(isUniquePermutation, 'Ordering ids must be unique'),
+            explanationText: z.string().nullable(),
+            explanationImageUrl: z.string().nullable(),
+          }),
+          z.object({
+            questionType: z.literal('diagram_label'),
+            isCorrect: z.boolean(),
+            correctMapping: DiagramMappingSchema,
             explanationText: z.string().nullable(),
             explanationImageUrl: z.string().nullable(),
           }),

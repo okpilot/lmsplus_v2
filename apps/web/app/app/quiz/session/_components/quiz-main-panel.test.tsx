@@ -300,6 +300,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -323,6 +324,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
         handleTextAnswer,
       } as Partial<QuizState>)
@@ -346,6 +348,7 @@ describe('QuizMainPanel', () => {
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
           ordering_items: null,
+          diagram_config: null,
         },
         handleDialogFillAnswer,
       } as Partial<QuizState>)
@@ -368,6 +371,7 @@ describe('QuizMainPanel', () => {
           dialog_template: '[atc] {{0}} runway {{1}}.',
           blanks_safe: [{ index: 0 }, { index: 1 }],
           ordering_items: null,
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -393,6 +397,7 @@ describe('QuizMainPanel', () => {
             { id: 'a', text: 'first' },
             { id: 'b', text: 'second' },
           ],
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -419,6 +424,7 @@ describe('QuizMainPanel', () => {
             { id: 'a', text: 'first' },
             { id: 'b', text: 'second' },
           ],
+          diagram_config: null,
         },
         handleOrderingAnswer,
       } as Partial<QuizState>)
@@ -445,6 +451,7 @@ describe('QuizMainPanel', () => {
             { id: 'a', text: 'first' },
             { id: 'b', text: 'second' },
           ],
+          diagram_config: null,
         },
         existingAnswer: { order: ['a', 'b'], responseTimeMs: 700 },
         handleOrderingAnswer,
@@ -482,6 +489,7 @@ describe('QuizMainPanel', () => {
             { id: 'a', text: 'first' },
             { id: 'b', text: 'second' },
           ],
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -505,6 +513,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -514,8 +523,10 @@ describe('QuizMainPanel', () => {
     })
 
     it('fails closed with an unsupported-type message for an unknown question type', () => {
-      // A type not yet wired into AnswerInput (e.g. a future diagram_label, or loader
-      // drift) must not be reinterpreted as MC and submit an MC-shaped payload.
+      // A type not wired into AnswerInput at all (loader drift producing a value
+      // outside the QuestionType union) must not be reinterpreted as MC and submit
+      // an MC-shaped payload. diagram_label is now a REAL, wired type — use a
+      // genuinely bogus value so this still exercises the UNKNOWN-type branch.
       const s = makeState({
         question: {
           id: 'q-future',
@@ -525,10 +536,11 @@ describe('QuizMainPanel', () => {
           explanation_text: null,
           explanation_image_url: null,
           options: [],
-          question_type: 'diagram_label',
+          question_type: 'not_a_real_type',
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
       } as unknown as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -550,6 +562,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
         answering: true,
         submitting: false,
@@ -576,6 +589,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
         existingAnswer: { responseText: 'cleared', responseTimeMs: 400 },
         currentFeedback: {
@@ -607,6 +621,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
         currentFeedback: {
           questionType: 'multiple_choice',
@@ -636,6 +651,7 @@ describe('QuizMainPanel', () => {
           dialog_template: null,
           blanks_safe: null,
           ordering_items: null,
+          diagram_config: null,
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
@@ -659,6 +675,7 @@ describe('QuizMainPanel', () => {
           dialog_template: '[atc] {{0}}.',
           blanks_safe: [{ index: 0 }],
           ordering_items: null,
+          diagram_config: null,
         },
         existingAnswer: {
           blankAnswers: [{ index: 0, text: 'alpha' }],

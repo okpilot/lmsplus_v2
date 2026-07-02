@@ -99,4 +99,43 @@ describe('buildAnswerKeyMap', () => {
     expect(map.get('q2')?.type).toBe('dialog_fill')
     expect(map.get('q4')?.type).toBe('ordering')
   })
+
+  it('collapses diagram-label zone rows into a per-zone correct-label map', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q6', question_type: 'diagram_label', blank_index: 0, answer_key: 'Upwind' },
+      {
+        question_id: 'q6',
+        question_type: 'diagram_label',
+        blank_index: 1,
+        answer_key: 'Crosswind',
+      },
+    ]
+    const entry = buildAnswerKeyMap(rows).get('q6')
+    expect(entry?.type).toBe('diagram_label')
+    if (entry?.type !== 'diagram_label') throw new Error('expected diagram_label entry')
+    expect(entry.correctLabelByZone.get(0)).toBe('Upwind')
+    expect(entry.correctLabelByZone.get(1)).toBe('Crosswind')
+  })
+
+  it('omits a diagram-label zone whose index or key is null', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q7', question_type: 'diagram_label', blank_index: 0, answer_key: 'Upwind' },
+      { question_id: 'q7', question_type: 'diagram_label', blank_index: null, answer_key: 'x' },
+      { question_id: 'q7', question_type: 'diagram_label', blank_index: 1, answer_key: null },
+    ]
+    const entry = buildAnswerKeyMap(rows).get('q7')
+    if (entry?.type !== 'diagram_label') throw new Error('expected diagram_label entry')
+    expect(entry.correctLabelByZone.size).toBe(1)
+    expect(entry.correctLabelByZone.get(0)).toBe('Upwind')
+  })
+
+  it('keeps diagram-label and ordering keys separate in one pass', () => {
+    const rows: AnswerKeyRow[] = [
+      { question_id: 'q4', question_type: 'ordering', blank_index: 0, answer_key: 'mayday' },
+      { question_id: 'q6', question_type: 'diagram_label', blank_index: 0, answer_key: 'Upwind' },
+    ]
+    const map = buildAnswerKeyMap(rows)
+    expect(map.get('q4')?.type).toBe('ordering')
+    expect(map.get('q6')?.type).toBe('diagram_label')
+  })
 })

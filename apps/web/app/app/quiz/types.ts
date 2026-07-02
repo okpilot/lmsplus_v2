@@ -123,6 +123,15 @@ export type AnswerFeedback =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      questionType: 'diagram_label'
+      isCorrect: boolean
+      /** Canonical zone_id -> label_id mapping (ids only; the client resolves
+       * display text from the delivered zones/labels arrays). */
+      correctMapping: { zoneId: string; labelId: string }[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
 
 export type CheckNonMcAnswerResult =
   | {
@@ -150,6 +159,16 @@ export type CheckNonMcAnswerResult =
       explanationText: string | null
       explanationImageUrl: string | null
     }
+  | {
+      success: true
+      questionType: 'diagram_label'
+      isCorrect: boolean
+      /** Canonical zone_id -> label_id mapping (ids only; the client resolves
+       * display text from the delivered zones/labels arrays). */
+      correctMapping: { zoneId: string; labelId: string }[]
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
   | { success: false; error: string }
 
 export type DraftAnswer = {
@@ -157,6 +176,7 @@ export type DraftAnswer = {
   responseText?: string
   blankAnswers?: { index: number; text: string }[]
   order?: string[]
+  mapping?: { zoneId: string; labelId: string }[]
   responseTimeMs: number
 }
 
