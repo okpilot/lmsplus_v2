@@ -151,7 +151,11 @@ AS $$
       count(DISTINCT a->>'label_id') AS n_distinct_label_refs
     FROM answers
   )
-  SELECT
+  -- COALESCE(..., false): a missing top-level key (e.g. image_ref absent) makes
+  -- jsonb_typeof(p_config->'key') return NULL, so the AND-chain evaluates to NULL
+  -- rather than false — and a CHECK constraint ACCEPTS an UNKNOWN result. Pin the
+  -- validator to a hard boolean so the columns_check rejects such a config.
+  SELECT COALESCE((
     jsonb_typeof(p_config) = 'object'
     AND jsonb_typeof(p_config->'image_ref') = 'string'
     AND btrim(p_config->>'image_ref') <> ''
@@ -171,7 +175,8 @@ AS $$
         -- requiring distinct label refs = n forces a one-to-one zone<->label map.
         AND av.n_distinct_label_refs = zv.n
       FROM answers_valid av, zones_valid zv
-    );
+    )
+  ), false);
 $$;
 
 -- ------------------------------------------------------------------

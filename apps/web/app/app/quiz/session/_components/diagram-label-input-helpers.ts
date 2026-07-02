@@ -104,3 +104,17 @@ export function allPlacementsCorrect(
 ): boolean {
   return correctMapping.every((m) => placement.get(m.zoneId) === m.labelId)
 }
+
+/**
+ * The canonical (correct) label text for a zone, once graded. Undefined
+ * before grading data arrives, when the zone has no canonical mapping entry,
+ * or when the mapped label id does not resolve to a known label.
+ */
+export function canonicalTextFor(
+  zoneId: string,
+  labels: DiagramLabelChipData[],
+  correctMapping: DiagramMapping[] | undefined,
+): string | undefined {
+  const correctLabelId = correctMapping?.find((m) => m.zoneId === zoneId)?.labelId
+  return labels.find((l) => l.id === correctLabelId)?.text
+}

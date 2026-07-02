@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   allPlacementsCorrect,
+  canonicalTextFor,
   DIAGRAM_POOL_DROPPABLE_ID,
   type DiagramLabelChipData,
   type DiagramMapping,
@@ -242,5 +243,24 @@ describe('allPlacementsCorrect', () => {
       ['z2', 'l1'],
     ])
     expect(allPlacementsCorrect(placement, CORRECT)).toBe(false)
+  })
+})
+
+describe('canonicalTextFor', () => {
+  const CORRECT: DiagramMapping[] = [
+    { zoneId: 'z1', labelId: 'l1' },
+    { zoneId: 'z2', labelId: 'l2' },
+  ]
+
+  it('resolves the canonical label text for a zone with a mapping entry', () => {
+    expect(canonicalTextFor('z1', LABELS, CORRECT)).toBe('Upwind')
+  })
+
+  it('is undefined for a zone with no entry in the canonical mapping', () => {
+    expect(canonicalTextFor('unknown-zone', LABELS, CORRECT)).toBeUndefined()
+  })
+
+  it('is undefined when there is no canonical mapping yet', () => {
+    expect(canonicalTextFor('z1', LABELS, undefined)).toBeUndefined()
   })
 })

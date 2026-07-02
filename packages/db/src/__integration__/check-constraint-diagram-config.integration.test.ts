@@ -151,6 +151,19 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects a diagram_config missing the top-level image_ref key', async () => {
+    // Before wrapping the validator's final SELECT in COALESCE(..., false), a
+    // config missing image_ref made the boolean-AND chain evaluate to NULL —
+    // and a Postgres CHECK constraint treats a NULL result as PASSING (only
+    // FALSE fails), so the insert was wrongly ACCEPTED. COALESCE forces the
+    // NULL case to false so the row is rejected.
+    const config = baseValidConfig() as unknown as Record<string, unknown>
+    delete config.image_ref
+    const { error } = await insertDiagram(config, 'missing image_ref key')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('rejects a diagram_config whose zones is a non-array JSON value', async () => {
     // Totality guard: a non-array `zones` must fail cleanly with 23514 — NOT a
     // raw 22023 from an unguarded jsonb_array_elements.

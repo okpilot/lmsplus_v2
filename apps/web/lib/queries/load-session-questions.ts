@@ -78,13 +78,19 @@ function isOrderingItemArray(value: unknown): value is { id: string; text: strin
 function isDiagramZone(value: unknown): value is DiagramZoneRow {
   if (typeof value !== 'object' || value === null) return false
   const { id, x, y, w, h } = value as Record<string, unknown>
+  // Number.isFinite (not typeof === 'number') rejects NaN/Infinity — fail-closed,
+  // mirroring the guard style used elsewhere in this file (isOrderingItem).
   return (
     typeof id === 'string' &&
     id.trim().length > 0 &&
     typeof x === 'number' &&
+    Number.isFinite(x) &&
     typeof y === 'number' &&
+    Number.isFinite(y) &&
     typeof w === 'number' &&
-    typeof h === 'number'
+    Number.isFinite(w) &&
+    typeof h === 'number' &&
+    Number.isFinite(h)
   )
 }
 

@@ -89,16 +89,19 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
   /** Build the fan-out payload the client produces: one entry per submitted
    *  zone placement. zone id in response_text, label id in selected_option;
    *  blank_index only satisfies the (question_id,blank_index) dedup-guard and
-   *  is DISCARDED server-side — the grader derives the true zone ordinal. */
+   *  is DISCARDED server-side — the grader derives the true zone ordinal. Each
+   *  placement may pin an arbitrary `blankIndex` (defaults to submission
+   *  order) so a test can prove the persisted blank_index is SERVER-derived
+   *  rather than an echo of whatever the client sent. */
   function diagramPayload(
     qId: string,
-    placements: Array<{ zoneId: string; labelId: string }>,
+    placements: Array<{ zoneId: string; labelId: string; blankIndex?: number }>,
   ): Array<Record<string, unknown>> {
     return placements.map((p, i) => ({
       question_id: qId,
       selected_option: p.labelId,
       response_text: p.zoneId,
-      blank_index: i,
+      blank_index: p.blankIndex ?? i,
       response_time_ms: 1000,
     }))
   }
@@ -207,14 +210,21 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
     return data
   }
 
-  it('persists one row per submitted zone (label text, derived zone-ordinal blank_index, no selected_option_id) and never places the unused distractor', async () => {
+  it('persists one row per submitted zone with a server-derived zone-ordinal blank_index, even when the client submits zones out of order with unrelated dedup indexes', async () => {
     const sessionId = await startSession([diagramId])
+    // Shuffled submission order + arbitrary dedup-only blank indexes (99/42/17)
+    // that do NOT match CONFIG.zones order. If the server merely echoed the
+    // client's blank_index (or its submission order), the persisted values
+    // below would come out as 99/42/17 (or in submission order) instead of
+    // the zone-ordinal 0/1/2 asserted here — this is what makes the
+    // assertion non-vacuous versus submitting in CONFIG.zones order.
     const { error } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
-      p_answers: diagramPayload(
-        diagramId,
-        CONFIG.answer.map((a) => ({ zoneId: a.zone_id, labelId: a.label_id })),
-      ),
+      p_answers: diagramPayload(diagramId, [
+        { zoneId: 'zone-sw', labelId: 'lbl-charlie', blankIndex: 99 },
+        { zoneId: 'zone-nw', labelId: 'lbl-alpha', blankIndex: 42 },
+        { zoneId: 'zone-ne', labelId: 'lbl-bravo', blankIndex: 17 },
+      ]),
     })
     expect(error).toBeNull()
 
@@ -233,13 +243,15 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
       blank_index: number | null
       is_correct: boolean
     }>
-    // Server-derived zone ordinals: zone-nw=0, zone-ne=1, zone-sw=2 (CONFIG.zones order).
+    // Persisted blank_index is the SERVER-derived zone ordinal (CONFIG.zones
+    // position: zone-nw=0, zone-ne=1, zone-sw=2) — never the client's 99/42/17.
     expect(typed.map((r) => r.blank_index)).toEqual([0, 1, 2])
     for (const r of typed) {
       expect(r.selected_option_id).toBeNull()
       expect(r.is_correct).toBe(true)
     }
-    // response_text is the PLACED LABEL's display text, not its id.
+    // response_text is the PLACED LABEL's display text, not its id, and is
+    // ordered by the derived ordinal — not by the shuffled submission order.
     expect(typed.map((r) => r.response_text)).toEqual([
       'Upwind Leg',
       'Crosswind Leg',

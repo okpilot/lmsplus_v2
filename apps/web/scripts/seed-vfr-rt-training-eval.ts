@@ -429,6 +429,10 @@ function assertDiagramConfigInvariants(
       'diagram_config invariant: answer does not cover each zone exactly once (duplicate zone_id)',
     )
   }
+  const answeredLabelIds = new Set(answer.map((a) => a.label_id))
+  if (answeredLabelIds.size !== answer.length) {
+    throw new Error('diagram_config invariant: answer uses the same label_id more than once')
+  }
   for (const a of answer) {
     if (!zoneIds.has(a.zone_id)) {
       throw new Error(`diagram_config invariant: answer references unknown zone_id '${a.zone_id}'`)

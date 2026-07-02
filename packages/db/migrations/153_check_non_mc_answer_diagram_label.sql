@@ -323,6 +323,16 @@ BEGIN
       RAISE EXCEPTION 'answer_type_mismatch';
     END IF;
 
+    -- Every element must be an object (mirrors the dialog_fill per-entry guard):
+    -- a scalar element like [1,2,3] would otherwise resolve pm->>'zone_id' to NULL
+    -- and grade as a silent wrong answer instead of a clean rejection.
+    IF EXISTS (
+      SELECT 1 FROM jsonb_array_elements(p_mapping) AS pm
+      WHERE jsonb_typeof(pm) <> 'object'
+    ) THEN
+      RAISE EXCEPTION 'answer_type_mismatch';
+    END IF;
+
     v_n          := jsonb_array_length(v_diagram_config->'answer');
     v_is_correct := (
       jsonb_array_length(p_mapping) = v_n

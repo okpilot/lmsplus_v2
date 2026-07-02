@@ -14,6 +14,7 @@ import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import {
   allPlacementsCorrect,
+  canonicalTextFor,
   DIAGRAM_POOL_DROPPABLE_ID,
   type DiagramLabelChipData,
   type DiagramMapping,
@@ -92,10 +93,6 @@ export function DiagramLabelInput({
     onSubmit(serializeMapping(placement))
   }
 
-  function canonicalTextFor(zoneId: string): string | undefined {
-    const correctLabelId = correctMapping?.find((m) => m.zoneId === zoneId)?.labelId
-    return labels.find((l) => l.id === correctLabelId)?.text
-  }
   return (
     <div className="space-y-3">
       <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
@@ -114,7 +111,7 @@ export function DiagramLabelInput({
               placedLabel={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
               disabled={itemsDisabled}
               result={zoneResult(zone.id, placement, correctMapping)}
-              canonicalText={graded ? canonicalTextFor(zone.id) : undefined}
+              canonicalText={graded ? canonicalTextFor(zone.id, labels, correctMapping) : undefined}
             />
           ))}
         </div>

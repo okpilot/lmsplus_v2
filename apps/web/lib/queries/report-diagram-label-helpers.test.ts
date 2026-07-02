@@ -169,9 +169,7 @@ describe('buildDiagram', () => {
     expect(unplaced2?.correctLabel).toBe('Downwind')
   })
 
-  it('ignores a null blank_index row when a real zone-0 row coexists', () => {
-    // buildDiagram filters rows where blank_index != null before building rowByZone.
-    // A stray null-index row must NOT overwrite zone 0.
+  it('keeps the placed zone when an unplaced row is present', () => {
     const answers: AnswerRow[] = [
       {
         question_id: 'q1',
@@ -193,7 +191,6 @@ describe('buildDiagram', () => {
 
     const result = buildReportQuestions(answers, diagramQuestionMap(), new Map(), new Map())
     const diagram = asDiagram(result[0])
-    // The null-index row is silently dropped — only the real zone-0 row survives.
     expect(diagram.zones).toHaveLength(1)
     expect(diagram.zones[0]?.blankIndex).toBe(0)
     expect(diagram.zones[0]?.placedLabel).toBe('Upwind')

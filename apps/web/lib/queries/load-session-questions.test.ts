@@ -544,6 +544,42 @@ describe('loadSessionQuestions', () => {
     expect(result.questions[0]!.diagram_config).toBeNull()
   })
 
+  it('discards diagram_config when a zone coordinate is NaN or Infinity', async () => {
+    // typeof NaN and typeof Infinity are both 'number', so a typeof-only guard
+    // would wrongly admit them — Number.isFinite is required to fail closed.
+    const nonFiniteCoords = [Number.NaN, Number.POSITIVE_INFINITY]
+    for (const badCoord of nonFiniteCoords) {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            id: 'q-diag-nonfinite',
+            question_text: 'Label the pattern',
+            question_image_url: null,
+            question_number: null,
+            explanation_text: null,
+            explanation_image_url: null,
+            options: null,
+            question_type: 'diagram_label',
+            dialog_template: null,
+            blanks_safe: null,
+            ordering_items_shuffled: null,
+            diagram_config_public: {
+              image_ref: 'rwy-2709-lh-pattern',
+              zones: [{ id: 'z1', x: badCoord, y: 0.1, w: 0.1, h: 0.1 }],
+              labels: [{ id: 'l1', text: 'Upwind' }],
+            },
+          },
+        ],
+        error: null,
+      })
+
+      const result = await loadSessionQuestions(['q-diag-nonfinite'])
+      expect(result.success).toBe(true)
+      if (!result.success) continue
+      expect(result.questions[0]!.diagram_config).toBeNull()
+    }
+  })
+
   it('discards diagram_config when labels is empty', async () => {
     mockRpc.mockResolvedValue({
       data: [

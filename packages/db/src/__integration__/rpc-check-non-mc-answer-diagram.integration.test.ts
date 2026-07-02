@@ -510,4 +510,20 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
     expect(error?.message).toContain('answer_type_mismatch')
     expect(error?.code).not.toBe('22023')
   })
+
+  it('rejects a diagram mapping whose elements are scalars instead of {zone_id,label_id} objects', async () => {
+    // Per-element guard (mig 153): each p_mapping array element must be a JSON
+    // object, mirroring the dialog_fill per-entry guard — a scalar element
+    // must be rejected cleanly, not throw a raw error when the function tries
+    // to read zone_id/label_id off it.
+    const sessionId = await startSession(studentClient, [diagramAId])
+    const { error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: diagramAId,
+      p_session_id: sessionId,
+      p_mapping: [1, 2, 3] as unknown as AnswerEntry[],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('answer_type_mismatch')
+    expect(error?.code).not.toBe('22023')
+  })
 })

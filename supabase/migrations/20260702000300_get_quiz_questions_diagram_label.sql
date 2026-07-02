@@ -112,7 +112,22 @@ BEGIN
     CASE WHEN q.question_type = 'diagram_label' THEN
       jsonb_build_object(
         'image_ref', q.diagram_config->'image_ref',
-        'zones',     q.diagram_config->'zones',
+        -- Re-project zones to EXACTLY {id,x,y,w,h} (original order preserved) so
+        -- any extra author-supplied key on a stored zone cannot ride along into
+        -- the student-visible payload — mirrors the labels re-projection below.
+        'zones',     (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', z.elem->>'id',
+              'x',  z.elem->'x',
+              'y',  z.elem->'y',
+              'w',  z.elem->'w',
+              'h',  z.elem->'h'
+            )
+            ORDER BY z.ord
+          )
+          FROM jsonb_array_elements(q.diagram_config->'zones') WITH ORDINALITY AS z(elem, ord)
+        ),
         'labels',    (
           SELECT jsonb_agg(
             jsonb_build_object('id', lbl->>'id', 'text', lbl->>'text')
