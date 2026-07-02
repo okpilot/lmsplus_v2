@@ -230,24 +230,19 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     if (!Array.isArray(row.options)) throw new Error('MC options is not an array')
   })
 
-  it('strips extra author-only keys from a zone at delivery, keeping exactly {id,x,y,w,h}', async () => {
-    // mig 152: zones are now re-projected to exactly {id,x,y,w,h} — any other
-    // author-side metadata on a zone object must not survive to delivery.
-    const zoneWithExtraKey = {
-      id: 'zone-extra',
-      x: 0.3,
-      y: 0.3,
-      w: 0.15,
-      h: 0.15,
-      internal_note: 'author scratch note — must never reach the student payload',
-    }
-    const configWithExtraKey = {
+  it('delivers each zone as exactly {id,x,y,w,h} (re-projected shape)', async () => {
+    // mig 152 re-projects zones to exactly {id,x,y,w,h}. Extra author keys can
+    // never be STORED — the mig 150 CHECK rejects them at write time (covered in
+    // check-constraint-diagram-config) — so here we confirm the delivered shape is
+    // exactly the re-projected field set for a valid config (the re-projection is
+    // defense-in-depth against any future write-path that bypasses the CHECK).
+    const validConfig = {
       image_ref: 'rwy-27-09-lh-pattern',
-      zones: [zoneWithExtraKey],
+      zones: [{ id: 'zone-shape', x: 0.3, y: 0.3, w: 0.15, h: 0.15 }],
       labels: [{ id: 'lbl-solo', text: 'Solo Label' }],
-      answer: [{ zone_id: 'zone-extra', label_id: 'lbl-solo' }],
+      answer: [{ zone_id: 'zone-shape', label_id: 'lbl-solo' }],
     }
-    const extraKeyId = await insertQuestion(admin, {
+    const shapeId = await insertQuestion(admin, {
       organization_id: orgId,
       bank_id: bankId,
       subject_id: refs!.subjectId,
@@ -257,12 +252,12 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
       status: 'active',
       created_by: adminUserId,
       question_type: 'diagram_label',
-      question_text: 'Zone carries an extra author-only key',
-      diagram_config: configWithExtraKey,
-      explanation_text: 'Extra-key explanation',
+      question_text: 'Zone delivered as the re-projected field set',
+      diagram_config: validConfig,
+      explanation_text: 'Re-projection shape explanation',
     })
 
-    const row = await fetchRow([extraKeyId], extraKeyId)
+    const row = await fetchRow([shapeId], shapeId)
     if (
       row.diagram_config_public === null ||
       typeof row.diagram_config_public !== 'object' ||
@@ -274,6 +269,5 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     if (!Array.isArray(deliveredConfig.zones)) throw new Error('zones is not an array')
     const deliveredZone = deliveredConfig.zones[0] as Record<string, unknown>
     expect(Object.keys(deliveredZone).sort()).toEqual(['h', 'id', 'w', 'x', 'y'])
-    expect('internal_note' in deliveredZone).toBe(false)
   })
 })
