@@ -194,15 +194,16 @@ describe('submitSectionResponse', () => {
     expect(mockTriggerSectionScoring).not.toHaveBeenCalled()
   })
 
-  it('logs a warning when the orphan-file removal also fails', async () => {
+  it('retries the orphan-file removal before logging when the first attempt also fails', async () => {
     setupAuth()
     setupOrgLookup()
-    setupStorage({ removeError: { message: 'storage unavailable' } })
+    const { mockRemove } = setupStorage({ removeError: { message: 'storage unavailable' } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'oral_session_not_active' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await submitSectionResponse(makeFormData())
     const logMessages = consoleSpy.mock.calls.map((c) => String(c[0]))
     consoleSpy.mockRestore()
+    expect(mockRemove).toHaveBeenCalledTimes(2)
     expect(logMessages.some((m) => m.includes('orphan cleanup failed'))).toBe(true)
   })
 

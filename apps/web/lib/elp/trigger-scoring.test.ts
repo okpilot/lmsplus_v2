@@ -69,4 +69,22 @@ describe('triggerSectionScoring', () => {
       expect.any(Error),
     )
   })
+
+  it('logs the status and body when the Edge Function responds with a non-ok status', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => 'unauthorized',
+    })
+
+    triggerSectionScoring(RESPONSE_ID, AUDIO_PATH, 1)
+    // Let the fire-and-forget promise's .then() handler flush.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(console.error).toHaveBeenCalledWith(
+      '[triggerSectionScoring] invoke returned',
+      401,
+      'unauthorized',
+    )
+  })
 })

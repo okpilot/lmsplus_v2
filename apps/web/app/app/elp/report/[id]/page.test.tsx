@@ -145,6 +145,25 @@ describe('OralExamReportPage — pending session', () => {
     expect(mockRedirect).toHaveBeenCalledWith(`/app/elp/session/${SESSION_ID}`)
   })
 
+  it('redirects to the session runner when a mock session has submitted only some of its planned sections', async () => {
+    // Regression: a mock exam has 5 planned sections. Submitting only 2 must
+    // still redirect to the runner, not fall through to a permanent "grading"
+    // state — checking `responses.length === 0` alone would miss this case.
+    mockGetOralExamSession.mockResolvedValue(
+      pendingSession({
+        mode: 'mock',
+        sections: [1, 2, 3, 4, 5].map((sectionNo) => ({ sectionNo, type: 'interview' })),
+        responses: [
+          { sectionNo: 1, status: 'grading' },
+          { sectionNo: 2, status: 'grading' },
+        ],
+      }),
+    )
+
+    await expect(callPage()).rejects.toThrow(`REDIRECT:/app/elp/session/${SESSION_ID}`)
+    expect(mockRedirect).toHaveBeenCalledWith(`/app/elp/session/${SESSION_ID}`)
+  })
+
   it('shows the grading-in-progress state when no section has failed', async () => {
     mockGetOralExamSession.mockResolvedValue(
       pendingSession({ responses: [{ sectionNo: 1, status: 'grading' }] }),

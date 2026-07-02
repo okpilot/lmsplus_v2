@@ -1,5 +1,3 @@
-'use client'
-
 type AudioPromptPlayerProps = {
   src: string
   label?: string

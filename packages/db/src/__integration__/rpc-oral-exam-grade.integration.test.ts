@@ -147,8 +147,11 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       p_descriptor_scores: sixScores(6),
       p_usage: [],
     })
-    // REVOKEd from authenticated → PostgREST denies it.
+    // REVOKEd from authenticated → PostgREST denies it with a permission-denied
+    // error. Assert the exact code (not just non-null) so a silently-restored
+    // grant or a signature drift can't mask a regression here.
     expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
 
     // And the state is unchanged: still 'grading', no scores written.
     const { data: after, error: afterErr } = await admin
