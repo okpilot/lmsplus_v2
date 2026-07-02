@@ -151,6 +151,28 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects a zone with zero-size width (w <= 0)', async () => {
+    // A zero-width zone is an unusable drop target — mig 150's w/h guard
+    // requires strictly positive size, not just presence.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], w: 0 }
+    const { error } = await insertDiagram(config, 'zero-size zone width')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a zone that overflows the [0,1] canvas (x + w > 1)', async () => {
+    // Valid x/w individually (both in [0,1]), but the box extends past the
+    // right edge of the diagram — mig 150's overflow guard rejects this.
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], x: 0.95, w: 0.15 }
+    const { error } = await insertDiagram(config, 'overflowing zone (x + w > 1)')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('rejects a diagram_config missing the top-level image_ref key', async () => {
     // Before wrapping the validator's final SELECT in COALESCE(..., false), a
     // config missing image_ref made the boolean-AND chain evaluate to NULL —

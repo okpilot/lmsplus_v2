@@ -116,8 +116,14 @@ AS $$
            OR jsonb_typeof(z->'h') IS DISTINCT FROM 'number'
            OR CASE WHEN jsonb_typeof(z->'x') = 'number' THEN (z->>'x')::numeric NOT BETWEEN 0 AND 1 ELSE false END
            OR CASE WHEN jsonb_typeof(z->'y') = 'number' THEN (z->>'y')::numeric NOT BETWEEN 0 AND 1 ELSE false END
-           OR CASE WHEN jsonb_typeof(z->'w') = 'number' THEN (z->>'w')::numeric NOT BETWEEN 0 AND 1 ELSE false END
-           OR CASE WHEN jsonb_typeof(z->'h') = 'number' THEN (z->>'h')::numeric NOT BETWEEN 0 AND 1 ELSE false END
+           -- w/h must be strictly positive — a zero-size zone is an unusable drop target
+           OR CASE WHEN jsonb_typeof(z->'w') = 'number' THEN ((z->>'w')::numeric <= 0 OR (z->>'w')::numeric > 1) ELSE false END
+           OR CASE WHEN jsonb_typeof(z->'h') = 'number' THEN ((z->>'h')::numeric <= 0 OR (z->>'h')::numeric > 1) ELSE false END
+           -- the box must stay within the [0,1] canvas (no overflow past the edges)
+           OR CASE WHEN jsonb_typeof(z->'x') = 'number' AND jsonb_typeof(z->'w') = 'number'
+                   THEN (z->>'x')::numeric + (z->>'w')::numeric > 1 ELSE false END
+           OR CASE WHEN jsonb_typeof(z->'y') = 'number' AND jsonb_typeof(z->'h') = 'number'
+                   THEN (z->>'y')::numeric + (z->>'h')::numeric > 1 ELSE false END
       ) AS n_invalid,
       count(DISTINCT zone_id) AS n_distinct_ids
     FROM zones

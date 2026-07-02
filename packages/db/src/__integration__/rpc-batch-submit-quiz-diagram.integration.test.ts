@@ -210,6 +210,18 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
     return data
   }
 
+  // Non-vacuity check shared by the three self-defence rejection tests below:
+  // each RAISE aborts the whole function, so nothing should have persisted.
+  async function assertNoAnswersPersisted(sessionId: string): Promise<void> {
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_answers')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('question_id', diagramId)
+    expect(rowsErr).toBeNull()
+    expect(rows ?? []).toHaveLength(0)
+  }
+
   it('persists one row per submitted zone with a server-derived zone-ordinal blank_index, even when the client submits zones out of order with unrelated dedup indexes', async () => {
     const sessionId = await startSession([diagramId])
     // Shuffled submission order + arbitrary dedup-only blank indexes (99/42/17)
@@ -306,13 +318,7 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
     expect(error).not.toBeNull()
     expect((error?.message ?? '').toLowerCase()).toContain('duplicate')
     // Non-vacuity: the RAISE aborts the whole function, so nothing was persisted.
-    const { data: rows, error: rowsErr } = await admin
-      .from('quiz_session_answers')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('question_id', diagramId)
-    expect(rowsErr).toBeNull()
-    expect(rows ?? []).toHaveLength(0)
+    await assertNoAnswersPersisted(sessionId)
   })
 
   it('rejects a diagram answer that places the same label on two different zones', async () => {
@@ -326,13 +332,7 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
     })
     expect(error).not.toBeNull()
     expect((error?.message ?? '').toLowerCase()).toContain('duplicate')
-    const { data: rows, error: rowsErr } = await admin
-      .from('quiz_session_answers')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('question_id', diagramId)
-    expect(rowsErr).toBeNull()
-    expect(rows ?? []).toHaveLength(0)
+    await assertNoAnswersPersisted(sessionId)
   })
 
   it('rejects a diagram answer that references a zone id not on the question', async () => {
@@ -343,12 +343,6 @@ describe('RPC: batch_submit_quiz — diagram_label dispatch + partial credit + s
     })
     expect(error).not.toBeNull()
     expect((error?.message ?? '').toLowerCase()).toContain('unknown zone')
-    const { data: rows, error: rowsErr } = await admin
-      .from('quiz_session_answers')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('question_id', diagramId)
-    expect(rowsErr).toBeNull()
-    expect(rows ?? []).toHaveLength(0)
+    await assertNoAnswersPersisted(sessionId)
   })
 })

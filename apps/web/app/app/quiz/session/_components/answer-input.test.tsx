@@ -219,7 +219,7 @@ describe('AnswerInput — diagram_label question config guard', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('passes the delivered zone ids to the diagram label input', () => {
+  it('renders a drop-zone for each delivered zone id', () => {
     render(
       <AnswerInput
         s={makeDiagramLabelState({
