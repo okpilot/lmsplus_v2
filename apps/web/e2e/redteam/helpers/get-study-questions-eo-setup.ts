@@ -315,6 +315,10 @@ export async function ensureEoSoftDelStudent(
 ): Promise<string> {
   let existingId: string | undefined
   for (let page = 1; ; page++) {
+    // Belt-and-suspenders ceiling: if the SDK ever ignores `page` and returns a full
+    // page every call, fail loudly instead of hanging until the beforeAll timeout.
+    if (page > 50)
+      throw new Error('EO-SD beforeAll: listUsers exceeded 50 pages — possible API bug')
     const { data: authList, error: listError } = await admin.auth.admin.listUsers({
       page,
       perPage: 200,
