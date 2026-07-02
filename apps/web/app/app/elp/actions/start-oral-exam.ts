@@ -25,10 +25,11 @@ type StartRpcResult = {
 
 function toSections(raw: unknown): OralExamSection[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((s) => {
-    const row = s as { section_no?: unknown; type?: unknown }
-    return { sectionNo: Number(row.section_no ?? 0), type: String(row.type ?? '') }
-  })
+  return raw
+    .filter(
+      (s): s is { section_no?: unknown; type?: unknown } => typeof s === 'object' && s !== null,
+    )
+    .map((row) => ({ sectionNo: Number(row.section_no ?? 0), type: String(row.type ?? '') }))
 }
 
 export async function startOralExam(): Promise<StartOralExamResult> {

@@ -64,7 +64,8 @@ CREATE POLICY "students_own_oral_sessions" ON oral_exam_sessions
 
 CREATE POLICY "staff_read_oral_sessions" ON oral_exam_sessions
   FOR SELECT USING (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
+    deleted_at IS NULL
+    AND organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
   );
 
@@ -103,6 +104,7 @@ CREATE POLICY "staff_read_oral_responses" ON oral_exam_section_responses
     session_id IN (
       SELECT s.id FROM oral_exam_sessions s
       WHERE s.organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
+        AND s.deleted_at IS NULL
         AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
     )
   );
@@ -151,6 +153,7 @@ CREATE POLICY "staff_read_oral_scores" ON oral_exam_descriptor_scores
     session_id IN (
       SELECT s.id FROM oral_exam_sessions s
       WHERE s.organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
+        AND s.deleted_at IS NULL
         AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
     )
   );

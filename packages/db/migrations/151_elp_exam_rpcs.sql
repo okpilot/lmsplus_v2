@@ -139,10 +139,14 @@ BEGIN
     RAISE EXCEPTION 'missing_audio_path';
   END IF;
 
-  -- Ownership + active scope (explicit, not via RLS — rule 11).
+  -- Ownership + active scope (explicit, not via RLS — rule 11). FOR UPDATE locks the
+  -- session row so two concurrent final-section submits serialize: without it each
+  -- could see only 4 committed responses (READ COMMITTED hides the other's uncommitted
+  -- insert) and neither would flip the session to 'grading', stranding it in_progress.
   SELECT s.status INTO v_status
   FROM public.oral_exam_sessions s
-  WHERE s.id = p_session_id AND s.student_id = v_student_id AND s.deleted_at IS NULL;
+  WHERE s.id = p_session_id AND s.student_id = v_student_id AND s.deleted_at IS NULL
+  FOR UPDATE;
   IF v_status IS NULL THEN
     RAISE EXCEPTION 'oral_session_not_found';
   END IF;
@@ -208,9 +212,13 @@ BEGIN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
+  -- Discard applies to an in-flight attempt only (in_progress/grading). A completed
+  -- 'graded' report is preserved — it already has ended_at set and is not "active",
+  -- so excluding it here prevents throwing away a finished report via "discard".
   UPDATE public.oral_exam_sessions
   SET status = 'discarded', deleted_at = now(), deleted_by = v_student_id, ended_at = now()
-  WHERE id = p_session_id AND student_id = v_student_id AND deleted_at IS NULL;
+  WHERE id = p_session_id AND student_id = v_student_id AND deleted_at IS NULL
+    AND status <> 'graded';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'oral_session_not_found';
   END IF;
@@ -257,7 +265,10 @@ BEGIN
   IF v_session.id IS NULL THEN
     RAISE EXCEPTION 'oral_session_not_found';
   END IF;
-  IF v_session.ended_at IS NULL THEN
+  -- Reveal gate: scores readable only once grading is finalized. status='graded'
+  -- implies ended_at is set; checking status (not just ended_at) hardens against any
+  -- future path that sets ended_at without finalizing (defense-in-depth).
+  IF v_session.status <> 'graded' OR v_session.ended_at IS NULL THEN
     RAISE EXCEPTION 'oral_exam_not_complete';
   END IF;
 

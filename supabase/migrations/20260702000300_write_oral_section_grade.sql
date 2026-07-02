@@ -48,6 +48,13 @@ DECLARE
   v_final_level smallint;
   v_finalized   boolean := false;
 BEGIN
+  -- Defense-in-depth vs grant drift: this grader is invoked ONLY by the service-role
+  -- Edge Function, where auth.uid() is NULL. Any authenticated caller has a non-null
+  -- auth.uid(), so this rejects a forged call even if the REVOKE below is ever undone.
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
+
   -- 1. Locate + LOCK the section. State-based replay guard (NO auth.uid()). The
   -- FOR UPDATE serializes concurrent webhook double-fires for the same section:
   -- the second caller blocks here, then re-reads status = 'graded' and skips — so
@@ -84,7 +91,15 @@ BEGIN
 
   -- 3. Validate + insert this section's descriptor scores.
   IF p_descriptor_scores IS NULL OR jsonb_typeof(p_descriptor_scores) <> 'array'
-     OR jsonb_array_length(p_descriptor_scores) = 0 THEN
+     OR jsonb_array_length(p_descriptor_scores) <> 6 THEN
+    RAISE EXCEPTION 'invalid_descriptor_scores';
+  END IF;
+  -- Require the six canonical descriptors with no duplicates: a short/partial array
+  -- would mark the section graded and let finalization aggregate an incomplete
+  -- descriptor set, inflating the weakest-link MIN. The per-element loop below rejects
+  -- any descriptor outside the canonical six, so 6-distinct here ⟹ exactly the six.
+  IF (SELECT count(DISTINCT e->>'descriptor')
+      FROM jsonb_array_elements(p_descriptor_scores) e) <> 6 THEN
     RAISE EXCEPTION 'invalid_descriptor_scores';
   END IF;
   FOR v_score IN SELECT jsonb_array_elements(p_descriptor_scores)

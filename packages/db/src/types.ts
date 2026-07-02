@@ -233,40 +233,40 @@ export type Database = {
       }
       elp_usage_events: {
         Row: {
-          cost_estimate_micros: number | null
+          cost_estimate_micros: number | string | null
           created_at: string
           event_type: string
           id: string
           metadata: Json
           organization_id: string
           provider: string | null
-          quantity: number
+          quantity: number | string
           section_no: number | null
           session_id: string | null
           student_id: string
         }
         Insert: {
-          cost_estimate_micros?: number | null
+          cost_estimate_micros?: number | string | null
           created_at?: string
           event_type: string
           id?: string
           metadata?: Json
           organization_id: string
           provider?: string | null
-          quantity?: number
+          quantity: number | string
           section_no?: number | null
           session_id?: string | null
           student_id: string
         }
         Update: {
-          cost_estimate_micros?: number | null
+          cost_estimate_micros?: number | string | null
           created_at?: string
           event_type?: string
           id?: string
           metadata?: Json
           organization_id?: string
           provider?: string | null
-          quantity?: number
+          quantity?: number | string
           section_no?: number | null
           session_id?: string | null
           student_id?: string

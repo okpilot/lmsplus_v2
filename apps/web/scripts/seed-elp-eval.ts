@@ -46,9 +46,15 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 })
 
 const STUDENT_EMAIL = 'student@lmsplus.local'
-const STUDENT_PASSWORD = 'student123!'
 const ADMIN_EMAIL = 'admin@lmsplus.local'
-const ADMIN_PASSWORD = 'admin123!'
+// Fixed local dev passwords; for a non-local (--force-remote) target these MUST come
+// from env so we never provision known-weak credentials on a shared instance.
+const STUDENT_PASSWORD = process.env.ELP_SEED_STUDENT_PASSWORD ?? (isLocal ? 'student123!' : '')
+const ADMIN_PASSWORD = process.env.ELP_SEED_ADMIN_PASSWORD ?? (isLocal ? 'admin123!' : '')
+if (!STUDENT_PASSWORD || !ADMIN_PASSWORD) {
+  console.error('Remote seeding requires ELP_SEED_STUDENT_PASSWORD and ELP_SEED_ADMIN_PASSWORD')
+  process.exit(1)
+}
 
 const DESCRIPTORS = [
   'pronunciation',
@@ -149,6 +155,9 @@ async function main() {
 
   const { data: startData, error: startErr } = await student.rpc('start_oral_exam_session')
   if (startErr) throw new Error(`start: ${startErr.message}`)
+  if (startData === null || typeof startData !== 'object' || !('session_id' in startData)) {
+    throw new Error('start_oral_exam_session did not return a session_id')
+  }
   const sessionId = (startData as { session_id: string }).session_id
 
   const placeholder = new Blob([new Uint8Array([0x00])], { type: 'audio/webm' })
@@ -167,11 +176,14 @@ async function main() {
       p_duration_ms: 12000,
     })
     if (subErr) throw new Error(`submit ${n}: ${subErr.message}`)
+    if (typeof respId !== 'string' || respId.length === 0) {
+      throw new Error(`submit ${n}: RPC did not return a response id`)
+    }
 
     // Simulate the Edge Function grader (service-role) with canned scores.
     const scores = n === 3 ? sixScores(4, { fluency: 3 }) : sixScores(4)
     const { error: gradeErr } = await admin.rpc('write_oral_section_grade', {
-      p_response_id: respId as string,
+      p_response_id: respId,
       p_transcript: `Seed transcript for section ${n}.`,
       p_transcript_meta: { words: [] },
       p_descriptor_scores: scores,
@@ -183,7 +195,9 @@ async function main() {
   }
 
   console.log('✅ ELP seed complete.')
-  console.log(`   Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
+  console.log(
+    isLocal ? `   Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}` : `   Student: ${STUDENT_EMAIL}`,
+  )
   console.log(`   Graded oral exam session: ${sessionId}`)
   console.log(`   Report: /app/elp/report/${sessionId}  (final level = 3, weakest link = fluency)`)
 }
