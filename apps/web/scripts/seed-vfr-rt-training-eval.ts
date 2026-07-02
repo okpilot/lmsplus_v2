@@ -375,7 +375,7 @@ type DiagramLabelQuestion = {
   text: string
   // The zone_id -> label_id answer key. This mapping lives ONLY here (a
   // server-side seed script) — never in the frontend layout module (see the
-  // SECURITY note atop rwy-2709-layout.ts). Distractor labels (Approach,
+  // SECURITY note atop rwy-2709-layout.ts). Distractor labels (Go-around,
   // Departure, Threshold) exist in RWY_2709_LABELS but are intentionally
   // absent from this mapping.
   answer: { zone_id: string; label_id: string }[]
@@ -388,15 +388,15 @@ const DIAGRAM_LABEL: DiagramLabelQuestion[] = [
     num: 'VRT-P3-DIAG-2709',
     text: 'Label the RWY 27/09 left-hand traffic pattern: drag each label onto its matching leg or turn.',
     answer: [
-      { zone_id: 'z9f2a1c', label_id: 'lk3f81a' }, // upwind leg -> Upwind
+      { zone_id: 'z9f2a1c', label_id: 'lk3f81a' }, // upwind leg -> Upwind leg
       { zone_id: 'zb84e7d', label_id: 'lm70cd2' }, // crosswind turn -> Crosswind turn
-      { zone_id: 'z3c1908', label_id: 'lp9e64b' }, // crosswind leg -> Crosswind
+      { zone_id: 'z3c1908', label_id: 'lp9e64b' }, // crosswind leg -> Crosswind leg
       { zone_id: 'ze52af6', label_id: 'lq2a17f' }, // downwind turn -> Downwind turn
-      { zone_id: 'z71bd3a', label_id: 'lr58c93' }, // downwind leg -> Downwind
+      { zone_id: 'z71bd3a', label_id: 'lr58c93' }, // downwind leg -> Downwind leg
       { zone_id: 'zd0946f', label_id: 'ls6b4e0' }, // base turn -> Base turn
-      { zone_id: 'z2e6c81', label_id: 'lt3d829' }, // base leg -> Base
+      { zone_id: 'z2e6c81', label_id: 'lt3d829' }, // base leg -> Base leg
       { zone_id: 'za47b02', label_id: 'lu91f5c' }, // final turn -> Final turn
-      { zone_id: 'zc19d5e', label_id: 'lv7a26d' }, // final leg -> Final
+      { zone_id: 'zc19d5e', label_id: 'lv7a26d' }, // final leg -> Final approach
     ],
   },
 ]
