@@ -5,6 +5,8 @@
 
 red-team maps security-sensitive diffs to red-team Playwright specs and flags coverage gaps. It does NOT run specs (advisory, non-blocking). Trigger paths and full vector→spec mapping live in the topic file below.
 
+Last updated: 2026-07-02 (commit d19f512c / branch chore/1005-1036-1044-1027-1031-combined — ELP oral exam mode generalization, migs 153–154). 2 new sub-vectors flagged (p_mode injection = EU group; practice-section-bound overflow = EX group). Both integration-covered, neither Playwright-covered. Verdict: expand #1054 scope, do NOT file a new issue. Grader REVOKE gate confirmed verbatim (PUBLIC, anon, authenticated all named). ELP Playwright spec count unchanged at 0 (zero E2E red-team specs exist for ELP; all 15 Slice-0 vectors EU–FI remain deferred to #1054).
+
 ## Topic pointers
 
 - [attack-surface](topics/attack-surface.md) — **PROTECTED** vector→spec mapping matrix (vectors, spec files, Files-to-Watch, dated Lessons Learned). Never auto-curated, never pruned, never inlined into this index. This is the source of truth for which spec covers which attack vector — consult it on every review.
