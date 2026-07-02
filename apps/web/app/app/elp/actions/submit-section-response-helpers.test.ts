@@ -217,6 +217,17 @@ describe('recordResponse', () => {
     expect(result).toEqual({ success: true, responseId: RESPONSE_ID })
   })
 
+  it('returns an account-inactive message when the student account is soft-deleted', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'user_not_found_or_inactive' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await recordResponse(fakeClient, VALID_INPUT, AUDIO_PATH)
+    consoleSpy.mockRestore()
+    expect(result).toEqual({
+      success: false,
+      error: 'Your account is inactive. Please contact your administrator.',
+    })
+  })
+
   it('returns an already-submitted error when the section was already recorded', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'section_already_submitted' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

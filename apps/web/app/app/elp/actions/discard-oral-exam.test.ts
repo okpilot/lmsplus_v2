@@ -80,6 +80,18 @@ describe('discardOralExam', () => {
     expect(result).toEqual({ success: false, error: 'Oral exam session not found.' })
   })
 
+  it('returns an account-inactive message when the student account is soft-deleted', async () => {
+    setupAuth()
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'user_not_found_or_inactive' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await discardOralExam(VALID_INPUT)
+    consoleSpy.mockRestore()
+    expect(result).toEqual({
+      success: false,
+      error: 'Your account is inactive. Please contact your administrator.',
+    })
+  })
+
   it('returns a generic error for an unrecognised RPC failure', async () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected_error' } })
