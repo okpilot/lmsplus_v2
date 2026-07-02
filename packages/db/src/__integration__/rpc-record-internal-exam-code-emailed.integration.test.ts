@@ -26,7 +26,8 @@ import {
  *  (e) voided code (state guard) → throws 'code_not_found'
  *  (f) expired code (state guard) → throws 'code_not_found'
  *  (g) soft-deleted code (rule 9: deleted_at filter) → throws 'code_not_found'
- *  (h) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
+ *  (h) resend on an already-emailed code (no emailed_at IS NULL guard) → later timestamp
+ *  (i) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
  *
  * Hermetic: internal_exam_codes rows created here are HARD-deleted in afterAll
  * (test teardown only) — the table has no FK children, and cleanupTestData
@@ -430,7 +431,53 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (h) Unauthenticated caller is rejected ──────────────────────────────────
+  // ── (h) Resend re-stamps emailed_at (no emailed_at IS NULL guard) ───────────
+
+  it('re-stamps emailed_at to a later time when the code is emailed again', async () => {
+    const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
+
+    // First send: stamp emailed_at for the first time.
+    const { error: firstErr } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(firstErr).toBeNull()
+
+    const { data: afterFirst, error: firstReadErr } = await admin
+      .from('internal_exam_codes')
+      .select('emailed_at')
+      .eq('id', codeId)
+      .single()
+    expect(firstReadErr).toBeNull()
+    expect(afterFirst!.emailed_at).not.toBeNull()
+    // Safe: the firstReadErr null-check above means .single() returned a non-null row.
+    const firstEmailedAt = afterFirst!.emailed_at as string
+
+    // Second send on the SAME code: the RPC has no `emailed_at IS NULL` guard,
+    // so it re-runs the UPDATE and stamps a new (later) transaction timestamp.
+    const { error: secondErr } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(secondErr).toBeNull()
+
+    const { data: afterSecond, error: secondReadErr } = await admin
+      .from('internal_exam_codes')
+      .select('emailed_at')
+      .eq('id', codeId)
+      .single()
+    expect(secondReadErr).toBeNull()
+    expect(afterSecond!.emailed_at).not.toBeNull()
+    // Safe: the secondReadErr null-check above means .single() returned a non-null row.
+    const secondEmailedAt = afterSecond!.emailed_at as string
+
+    // The two RPC calls are separate Postgres transactions — their now() timestamps
+    // differ. The intermediate SELECT read between the calls guarantees at least one
+    // network roundtrip of elapsed time, so T2 > T1 is reliable in practice. Strictly
+    // greater (not >=) so a regression adding `AND emailed_at IS NULL` — which would
+    // make the second UPDATE a no-op, leaving T2 === T1 — fails here instead of passing.
+    expect(new Date(secondEmailedAt).getTime()).toBeGreaterThan(new Date(firstEmailedAt).getTime())
+  })
+
+  // ── (i) Unauthenticated caller is rejected ──────────────────────────────────
 
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })

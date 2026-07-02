@@ -16,6 +16,8 @@ import { createAuthenticatedClient } from './redteam-client'
 import {
   createCrossOrgUser,
   E2E_REDTEAM_EO_MARKER,
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+  E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
   pickSubjectWithQuestions,
   seedRedTeamStudent,
   VICTIM_EMAIL,
@@ -299,4 +301,90 @@ export async function cleanupEoFixtures(
     console.log(`[get-study-questions-eo] soft-deleted ${data?.length} fixture question(s)`)
   }
   createdQuestionIds.clear()
+}
+
+// Create (or realign) the dedicated throwaway EO-SD student, ensuring it is NOT
+// soft-deleted from a prior aborted run, and return its user id. Pages through
+// listUsers (a single page caps at perPage, so a reused student on a later page must
+// not be missed — that would wrongly fall through to createUser and fail on the
+// duplicate email). The reuse path also resets the auth password + confirmation so
+// signInWithPassword succeeds even if the password constant or auth record drifted.
+export async function ensureEoSoftDelStudent(
+  admin: ReturnType<typeof getAdminClient>,
+  orgId: string,
+): Promise<string> {
+  let existingId: string | undefined
+  for (let page = 1; ; page++) {
+    // Belt-and-suspenders ceiling: if the SDK ever ignores `page` and returns a full
+    // page every call, fail loudly instead of hanging until the beforeAll timeout.
+    if (page > 50)
+      throw new Error('EO-SD beforeAll: listUsers exceeded 50 pages — possible API bug')
+    const { data: authList, error: listError } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    })
+    if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
+    const match = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
+    if (match) {
+      existingId = match.id
+      break
+    }
+    if (authList.users.length < 200) break
+  }
+
+  if (existingId) {
+    const { data: userRow, error: userRowErr } = await admin
+      .from('users')
+      .select('id, organization_id, role, deleted_at')
+      .eq('id', existingId)
+      .maybeSingle()
+    if (userRowErr) throw new Error(`EO-SD beforeAll: users lookup: ${userRowErr.message}`)
+    if (!userRow) {
+      const { error: insErr } = await admin.from('users').insert({
+        id: existingId,
+        organization_id: orgId,
+        email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+        full_name: 'Red Team Soft-Delete Study Student',
+        role: 'student',
+      })
+      if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+    } else if (
+      userRow.organization_id !== orgId ||
+      userRow.role !== 'student' ||
+      userRow.deleted_at !== null
+    ) {
+      const { data: realigned, error: updErr } = await admin
+        .from('users')
+        .update({ organization_id: orgId, role: 'student', deleted_at: null })
+        .eq('id', existingId)
+        .select('id')
+      if (updErr) throw new Error(`EO-SD beforeAll: realign user: ${updErr.message}`)
+      if (!realigned?.length) throw new Error('EO-SD beforeAll: realign affected 0 rows')
+    }
+    // Mirror the create branch's auth setup on reuse so signInWithPassword works even
+    // if the password constant changed or the auth record drifted since a prior run.
+    const { error: authErr } = await admin.auth.admin.updateUserById(existingId, {
+      password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+      email_confirm: true,
+    })
+    if (authErr) throw new Error(`EO-SD beforeAll: auth realign: ${authErr.message}`)
+    return existingId
+  }
+
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+    password: E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
+    email_confirm: true,
+  })
+  if (createErr || !created.user)
+    throw new Error(`EO-SD beforeAll: createUser: ${createErr?.message}`)
+  const { error: insErr } = await admin.from('users').insert({
+    id: created.user.id,
+    organization_id: orgId,
+    email: E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
+    full_name: 'Red Team Soft-Delete Study Student',
+    role: 'student',
+  })
+  if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+  return created.user.id
 }
