@@ -135,6 +135,9 @@ describe('teardownCapture', () => {
     teardownCapture(recorderRef, streamRef, urlRef)
 
     expect(recObj.stop).not.toHaveBeenCalled()
+    // onstop is nulled even on the already-inactive path — a pending async 'stop'
+    // event must not deliver a File after teardown.
+    expect(recObj.onstop).toBeNull()
     expect(recorderRef.current).toBeNull()
   })
 
