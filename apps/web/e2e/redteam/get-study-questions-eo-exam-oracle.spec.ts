@@ -117,4 +117,74 @@ test.describe('Red Team: get_study_questions RPC (Vector EO — exam oracle)', (
     // reject spuriously; surface the failure immediately.
     if (cleanupError) throw new Error(`[get-study-questions-eo] EO6: ${cleanupError}`)
   })
+
+  test('EO10: serves study keys to a caller with an active discovery session', async () => {
+    // Positive control for the mig 142 (20260629000700) behavioral change: the
+    // active-exam-session guard EXCLUDES the caller's own 'discovery' session from
+    // the deny-list (mode NOT IN ('smart_review','quick_quiz','discovery')). Study
+    // Mode is discovery-backed (#1011, mig 137), so a discovery session must NOT
+    // block its own get_study_questions key reads — otherwise Study never loads. A
+    // regression dropping 'discovery' from the allowlist would raise
+    // 'active_exam_session' here (while EO6's mock_exam block stays green), so this
+    // is the ONLY red-team signal at the E2E tier for that regression.
+    //
+    // Create a REAL ephemeral discovery session as the student (start_discovery_session,
+    // mig 137) rather than a hand-inserted row: p_subject_id NULL bypasses the subject
+    // filter, and [egMcActiveId] is an active in-org MC question that satisfies the
+    // RPC's per-id MC/active/in-org/non-deleted validation.
+    const started = await fx.studentClient.rpc('start_discovery_session', {
+      p_subject_id: null,
+      p_question_ids: [fx.egMcActiveId],
+    })
+    expect(started.error).toBeNull()
+    // §5 cast-guard: confirm the RPC returned a string id before reading it.
+    expect(typeof started.data).toBe('string')
+    const discoverySessionId = started.data as string
+
+    let cleanupError: string | null = null
+    try {
+      // NON-VACUOUS: service-role read proves the discovery session genuinely exists
+      // and is active — so a later success proves discovery was excluded from the
+      // deny-list, not that no session was ever created.
+      const { data: sessionRow, error: sessionErr } = await fx.admin
+        .from('quiz_sessions')
+        .select('id, mode, ended_at, deleted_at')
+        .eq('id', discoverySessionId)
+        .single()
+      expect(sessionErr).toBeNull()
+      expect(sessionRow?.mode).toBe('discovery')
+      expect(sessionRow?.ended_at).toBeNull()
+      expect(sessionRow?.deleted_at).toBeNull()
+
+      // With the discovery session active, the same student reads the MC key without
+      // tripping 'active_exam_session' — proving discovery does NOT block Study Mode.
+      const { data, error } = await fx.studentClient.rpc(RPC, {
+        p_question_ids: [fx.egMcActiveId],
+      })
+      expect(error).toBeNull()
+      expect(Array.isArray(data)).toBe(true)
+      const rows = data as StudyQuestionRow[]
+      expect(rows).toHaveLength(1)
+      // NON-VACUOUS: the returned row is the seeded question WITH its answer key.
+      expect(rows[0]?.id).toBe(fx.egMcActiveId)
+      expect(rows[0]?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)
+    } finally {
+      // quiz_sessions is soft-delete only — soft-delete the seeded discovery session
+      // so it does not linger as an active row for downstream specs sharing this
+      // student. Biome noUnsafeFinally forbids throw-in-finally: accumulate here,
+      // throw after the try/finally.
+      const { data: del, error: delErr } = await fx.admin
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', discoverySessionId)
+        .is('deleted_at', null)
+        .select('id')
+      if (delErr) {
+        cleanupError = `discovery cleanup failed: ${delErr.message}`
+      } else if ((del?.length ?? 0) === 0) {
+        cleanupError = `discovery cleanup matched no rows: ${discoverySessionId}`
+      }
+    }
+    if (cleanupError) throw new Error(`[get-study-questions-eo] EO10: ${cleanupError}`)
+  })
 })
