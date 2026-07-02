@@ -93,6 +93,14 @@ describe('poolLabels', () => {
     // l3 remains in the pool — distractors are never forced into a zone.
     expect(poolLabels(LABELS, placement).map((l) => l.id)).toEqual(['l3'])
   })
+
+  it('returns a fully empty array when every label, including distractors, is placed', () => {
+    // Distinct from the case above: only a truly empty result array proves the
+    // "All labels placed" empty-pool message renders — a residual distractor
+    // would leave a non-empty array that looks superficially similar.
+    const placement = new Map(LABELS.map((l, i) => [`z${i}`, l.id]))
+    expect(poolLabels(LABELS, placement)).toEqual([])
+  })
 })
 
 describe('serializeMapping', () => {

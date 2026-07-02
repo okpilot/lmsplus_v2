@@ -22,12 +22,14 @@ export type PatternPoint = { x: number; y: number }
 /** Logical image_ref key — the public, non-secret lookup key into the SVG registry. */
 export const RWY_2709_IMAGE_REF = 'rwy-2709-lh-pattern'
 
-/** Runway centerline, as fractions of the [0,1] artwork/zone coordinate space. */
+/** Runway centerline, as fractions of the [0,1] artwork/zone coordinate space.
+ *  The runway sits near the TOP of the canvas and the circuit hangs down from
+ *  it, so the pattern fills the square artwork vertically (minimal whitespace). */
 export const RWY_2709_RUNWAY = {
   xThreshold09: 0.4,
   xThreshold27: 0.6,
-  y: 0.5,
-  halfWidth: 0.018,
+  y: 0.15,
+  halfWidth: 0.024,
 }
 
 /**
@@ -44,14 +46,14 @@ export const RWY_2709_PATH_POINTS: readonly [
   PatternPoint,
   PatternPoint,
 ] = [
-  { x: 0.15, y: 0.5 }, // crosswind-turn corner (upwind end)
-  { x: 0.15, y: 0.85 }, // downwind-turn corner (crosswind end)
-  { x: 0.85, y: 0.85 }, // base-turn corner (downwind end)
-  { x: 0.85, y: 0.5 }, // final-turn corner (base end)
+  { x: 0.1, y: 0.15 }, // crosswind-turn corner (upwind end)
+  { x: 0.1, y: 0.88 }, // downwind-turn corner (crosswind end)
+  { x: 0.9, y: 0.88 }, // base-turn corner (downwind end)
+  { x: 0.9, y: 0.15 }, // final-turn corner (base end)
 ]
 
-const ZONE_W = 0.1
-const ZONE_H = 0.06
+const ZONE_W = 0.15
+const ZONE_H = 0.08
 
 function midpoint(a: PatternPoint, b: PatternPoint): PatternPoint {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
@@ -94,16 +96,16 @@ export const RWY_2709_ZONES: DiagramZone[] = [
  * pairing is intentionally NOT encoded anywhere in this module.
  */
 export const RWY_2709_LABELS: DiagramLabel[] = [
-  { id: 'lk3f81a', text: 'Upwind' },
+  { id: 'lk3f81a', text: 'Upwind leg' },
   { id: 'lm70cd2', text: 'Crosswind turn' },
-  { id: 'lp9e64b', text: 'Crosswind' },
+  { id: 'lp9e64b', text: 'Crosswind leg' },
   { id: 'lq2a17f', text: 'Downwind turn' },
-  { id: 'lr58c93', text: 'Downwind' },
+  { id: 'lr58c93', text: 'Downwind leg' },
   { id: 'ls6b4e0', text: 'Base turn' },
-  { id: 'lt3d829', text: 'Base' },
+  { id: 'lt3d829', text: 'Base leg' },
   { id: 'lu91f5c', text: 'Final turn' },
-  { id: 'lv7a26d', text: 'Final' },
-  { id: 'lw4c018', text: 'Approach' }, // distractor
+  { id: 'lv7a26d', text: 'Final approach' },
+  { id: 'lw4c018', text: 'Go-around' }, // distractor
   { id: 'lx82b7e', text: 'Departure' }, // distractor
   { id: 'ly5f39a', text: 'Threshold' }, // distractor
 ]

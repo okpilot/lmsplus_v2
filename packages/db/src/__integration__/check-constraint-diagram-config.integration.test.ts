@@ -221,6 +221,20 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects an answer that maps the same label to two different zones', async () => {
+    // Inverse of "duplicate zone in answer": lb1 covers both zn1 and zn2, so
+    // lb2 is never referenced — distinct label_id ref count (1) != zone count
+    // (2), same one-to-one bijection guard from the other direction.
+    const config = baseValidConfig()
+    config.answer = [
+      { zone_id: 'zn1', label_id: 'lb1' },
+      { zone_id: 'zn2', label_id: 'lb1' },
+    ] satisfies AnswerEntry[]
+    const { error } = await insertDiagram(config, 'duplicate label in answer')
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('accepts a valid diagram_config with an unused distractor label', async () => {
     // Positive control: baseValidConfig's lb3 is never referenced by `answer`
     // — Decision 52 explicitly allows distractors, so this must succeed.

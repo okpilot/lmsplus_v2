@@ -17,6 +17,7 @@ import {
 } from './check-non-mc-answer-helpers'
 import type { DiagramMappingEntry } from './diagram-validation'
 
+/** 4 params: supabase client, question id, session id, blank answers — each a distinct domain role */
 export async function checkDialogFillAnswer(
   supabase: SupabaseClient,
   questionId: string,
@@ -42,6 +43,7 @@ export async function checkDialogFillAnswer(
   }
 }
 
+/** 4 params: supabase client, question id, session id, zone/label mapping — each a distinct domain role */
 export async function checkDiagramLabelAnswer(
   supabase: SupabaseClient,
   questionId: string,

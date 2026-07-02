@@ -1,5 +1,5 @@
 import { Check, X } from 'lucide-react'
-import type { DiagramZoneResult } from '@/lib/queries/quiz-report'
+import type { DiagramZoneResult } from '@/lib/queries/quiz-report-diagram-types'
 
 type Props = Readonly<{
   zones: DiagramZoneResult[]

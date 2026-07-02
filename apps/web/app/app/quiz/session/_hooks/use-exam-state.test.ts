@@ -146,6 +146,7 @@ describe('useExamPipeline — return shape', () => {
     expect(keys).toContain('handleDiscard')
     expect(keys).toContain('showFinishDialog')
     expect(keys).toContain('setShowFinishDialog')
+    expect(keys).toContain('handleDiagramLabelAnswer')
   })
 })
 
@@ -292,6 +293,24 @@ describe('useExamPipeline — answers forwarding', () => {
   it('surfaces the answers map from useExamAnswerBuffer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.answers).toBe(mockAnswers)
+  })
+})
+
+// ---- non-MC noop handlers --------------------------------------------------
+
+describe('useExamPipeline — non-MC noop handlers', () => {
+  it.each([
+    ['handleTextAnswer', 'cleared to land'],
+    ['handleDialogFillAnswer', [{ index: 0, text: 'cleared' }]],
+    ['handleOrderingAnswer', ['item-a', 'item-b']],
+    ['handleDiagramLabelAnswer', [{ zoneId: 'z1', labelId: 'l1' }]],
+  ] as const)('%s resolves to false without touching checkpoint or submit', async (key, arg) => {
+    const { result } = renderHook(() => useExamPipeline(makeOpts()))
+    const handler = result.current[key] as (a: unknown) => Promise<boolean>
+    const resolved = await handler(arg)
+    expect(resolved).toBe(false)
+    expect(mockCheckpoint).not.toHaveBeenCalled()
+    expect(mockConfirmAnswer).not.toHaveBeenCalled()
   })
 })
 

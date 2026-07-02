@@ -1,4 +1,5 @@
-import type { DiagramZoneResult, QuizReportQuestion, QuizReportQuestionCommon } from './quiz-report'
+import type { QuizReportQuestion, QuizReportQuestionCommon } from './quiz-report'
+import type { DiagramZoneResult } from './quiz-report-diagram-types'
 import type { AnswerKeyEntry, AnswerRow } from './report-question-builder'
 
 // Resolve the zone order to render. Drive the zone set from the question's full

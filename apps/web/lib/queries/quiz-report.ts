@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
+import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 
 // Fields shared by every question variant in the report. The per-type variants
 // below extend this with their type-specific shape (MC options, short-answer
@@ -27,14 +28,6 @@ export type OrderingSlotResult = {
   position: number
   responseText: string | null
   canonicalText: string | null
-  isCorrect: boolean
-}
-
-// One report entry per ZONE of a diagram_label question.
-export type DiagramZoneResult = {
-  blankIndex: number
-  placedLabel: string | null
-  correctLabel: string
   isCorrect: boolean
 }
 
@@ -75,15 +68,7 @@ export type QuizReportQuestion =
       correctCount: number
       totalItems: number
     })
-  | (QuizReportQuestionCommon & {
-      questionType: 'diagram_label'
-      // True only when every zone is correctly labeled.
-      isCorrect: boolean
-      zones: DiagramZoneResult[]
-      // Number of correct zones and total zones, for the 3-state partial display.
-      correctCount: number
-      totalZones: number
-    })
+  | DiagramLabelQuestion
 
 export type QuizReportSummary = {
   sessionId: string

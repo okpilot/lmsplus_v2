@@ -334,6 +334,163 @@ describe('rowToDraftData — feedback normalization', () => {
     expect(draft.feedback).toBeUndefined()
   })
 
+  it('preserves already-tagged diagram_label feedback on resume', () => {
+    // Sibling-validator parity with the sessionStorage rehydrate + save paths:
+    // a draft carrying diagram_label feedback must round-trip, not be silently dropped.
+    const feedback = {
+      q1: {
+        questionType: 'diagram_label',
+        isCorrect: false,
+        correctMapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l2' },
+        ],
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+    expect(rowToDraftData(buildRow({ feedback })).feedback).toEqual(feedback)
+  })
+
+  it('rejects a diagram_label entry whose correctMapping array is empty', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping: [],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a diagram_label entry whose correctMapping is missing', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a diagram_label entry whose correctMapping repeats a zoneId', () => {
+    // isValidDiagramMapping's array-level self-defence: a zone can be placed at
+    // most once in the canonical mapping — a duplicate zoneId is corrupt data.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping: [
+              { zoneId: 'z1', labelId: 'l1' },
+              { zoneId: 'z1', labelId: 'l2' },
+            ],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a diagram_label entry whose correctMapping reuses a labelId', () => {
+    // A chip is consumed on placement — it cannot occupy two zones simultaneously.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping: [
+              { zoneId: 'z1', labelId: 'l1' },
+              { zoneId: 'z2', labelId: 'l1' },
+            ],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a diagram_label entry whose correctMapping element has a blank labelId', () => {
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping: [{ zoneId: 'z1', labelId: '' }],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects a diagram_label entry whose correctMapping exceeds MAX_ZONES', () => {
+    // Upper-bound parity with the save schema and RPC guard (.max(MAX_ZONES)) — a
+    // tampered DB draft with too many zones is corrupt, voided on load.
+    const correctMapping = Array.from({ length: 51 }, (_, i) => ({
+      zoneId: `z${i}`,
+      labelId: `l${i}`,
+    }))
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping,
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('preserves diagram_label feedback with exactly fifty items in correctMapping (upper boundary)', () => {
+    // 50 is the inclusive upper bound (MAX_ZONES) — the 51-item rejection test alone
+    // does not prove the bound is <= 50 rather than < 50. This pins the inclusive edge.
+    const correctMapping = Array.from({ length: 50 }, (_, i) => ({
+      zoneId: `z${i}`,
+      labelId: `l${i}`,
+    }))
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'diagram_label',
+            isCorrect: true,
+            correctMapping,
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback?.q1).toMatchObject({ questionType: 'diagram_label', correctMapping })
+  })
+
   it('rejects a dialog_fill entry whose blanks array is empty', () => {
     // A dialog_fill always grades ≥1 blank, so an empty array on a legacy/persisted
     // row is corrupt — voided here just as the rehydrate validator and save schema do.

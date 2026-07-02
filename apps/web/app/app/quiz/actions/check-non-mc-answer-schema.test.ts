@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
+import { MAX_ZONES } from './diagram-validation'
 
 const QID = '00000000-0000-4000-a000-000000000001'
 const SID = '00000000-0000-4000-a000-000000000002'
@@ -167,6 +168,69 @@ describe('CheckNonMcAnswerSchema', () => {
     const blankAnswers = Array.from({ length: 51 }, (_, i) => ({ index: i, text: 'x' }))
     expect(
       CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, blankAnswers }).success,
+    ).toBe(false)
+  })
+
+  it('accepts a diagram_label payload with a partial mapping', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects a diagram_label payload with an empty mapping array', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, mapping: [] }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label payload with a duplicate zoneId', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        mapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z1', labelId: 'l2' },
+        ],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label payload with a reused labelId (chip placed twice)', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        mapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l1' },
+        ],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label mapping longer than MAX_ZONES', () => {
+    const mapping = Array.from({ length: MAX_ZONES + 1 }, (_, i) => ({
+      zoneId: `z${i}`,
+      labelId: `l${i}`,
+    }))
+    expect(
+      CheckNonMcAnswerSchema.safeParse({ questionId: QID, sessionId: SID, mapping }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a mixed payload carrying both mapping and order', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+        order: ['item-a', 'item-b'],
+      }).success,
     ).toBe(false)
   })
 })

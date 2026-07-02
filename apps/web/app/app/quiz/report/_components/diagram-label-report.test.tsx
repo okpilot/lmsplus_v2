@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { DiagramZoneResult } from '@/lib/queries/quiz-report'
+import type { DiagramZoneResult } from '@/lib/queries/quiz-report-diagram-types'
 import { DiagramLabelReport } from './diagram-label-report'
 
 const partialZones: DiagramZoneResult[] = [

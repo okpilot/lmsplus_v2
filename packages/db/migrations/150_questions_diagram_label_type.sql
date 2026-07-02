@@ -73,9 +73,12 @@ ALTER TABLE questions
 -- entry {zone_id: non-blank string referencing a real zone, label_id:
 -- non-blank string referencing a real label}; answer covers every zone
 -- EXACTLY once (answer count = zone count AND distinct answer.zone_id count
--- = zone count — with the referential + distinctness guards above this forms
--- a bijection zones -> answer entries). Labels MAY be unused (distractors,
--- Decision 52) — no requirement that every label appears in answer.
+-- = zone count AND distinct answer.label_id count = zone count — with the
+-- referential + distinctness guards above this forms a one-to-one bijection
+-- zones <-> answer labels; distinct label_ids matter because consume-on-place
+-- means one chip cannot satisfy two zones, so a repeated canonical label would
+-- make the question unwinnable). Labels MAY be unused (distractors, Decision
+-- 52) — no requirement that every label appears in answer.
 CREATE OR REPLACE FUNCTION is_valid_diagram_config(p_config jsonb)
 RETURNS boolean
 LANGUAGE sql
@@ -144,7 +147,8 @@ AS $$
            OR NOT EXISTS (SELECT 1 FROM zones  z2 WHERE z2.zone_id  = a->>'zone_id')
            OR NOT EXISTS (SELECT 1 FROM labels l2 WHERE l2.label_id = a->>'label_id')
       ) AS n_invalid,
-      count(DISTINCT a->>'zone_id') AS n_distinct_zone_refs
+      count(DISTINCT a->>'zone_id') AS n_distinct_zone_refs,
+      count(DISTINCT a->>'label_id') AS n_distinct_label_refs
     FROM answers
   )
   SELECT
@@ -161,6 +165,11 @@ AS $$
         av.n_invalid = 0
         AND av.n = zv.n
         AND av.n_distinct_zone_refs = zv.n
+        -- Every zone's canonical label is DISTINCT: consume-on-place means one
+        -- chip cannot satisfy two zones, so a repeated answer.label_id would make
+        -- the question unwinnable. Distinct zone refs already = n (bijection), so
+        -- requiring distinct label refs = n forces a one-to-one zone<->label map.
+        AND av.n_distinct_label_refs = zv.n
       FROM answers_valid av, zones_valid zv
     );
 $$;

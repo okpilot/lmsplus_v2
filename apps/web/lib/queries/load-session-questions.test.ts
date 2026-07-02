@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MAX_LABELS, MAX_ZONES } from '@/app/app/quiz/actions/diagram-validation'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -375,6 +376,307 @@ describe('loadSessionQuestions', () => {
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
     expect(result.questions[0]!.ordering_items).toBeNull()
+  })
+
+  it('provides the diagram_config for a diagram_label question', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag',
+          question_text: 'Label the RWY 27 left-hand pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1 }],
+            labels: [
+              { id: 'l1', text: 'Upwind' },
+              { id: 'l2', text: 'Distractor' },
+            ],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    const q = result.questions[0]!
+    expect(q.question_type).toBe('diagram_label')
+    expect(q.diagram_config).toEqual({
+      image_ref: 'rwy-2709-lh-pattern',
+      zones: [{ id: 'z1', x: 0.1, y: 0.2, w: 0.1, h: 0.1 }],
+      labels: [
+        { id: 'l1', text: 'Upwind' },
+        { id: 'l2', text: 'Distractor' },
+      ],
+    })
+    expect(q.ordering_items).toBeNull()
+  })
+
+  it('provides no diagram_config when a diagram_label question omits its public config', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-null',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: null,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-null'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when image_ref is blank', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-blank-ref',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: '   ',
+            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-blank-ref'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when zones is empty', async () => {
+    // A diagram question always has ≥1 zone (mig 150 CHECK) — an empty zones array
+    // is malformed RPC data, fail-closed rather than rendering an unlabeled diagram.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-no-zones',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [],
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-no-zones'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when a zone element is missing a coordinate', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-bad-zone',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1 }],
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-bad-zone'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when labels is empty', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-no-labels',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+            labels: [],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-no-labels'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when a label element has a blank text field', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-blank-label',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+            labels: [{ id: 'l1', text: '   ' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-blank-label'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when zones exceeds MAX_ZONES', async () => {
+    const zones = Array.from({ length: MAX_ZONES + 1 }, (_, i) => ({
+      id: `z${i}`,
+      x: 0.1,
+      y: 0.1,
+      w: 0.05,
+      h: 0.05,
+    }))
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-too-many-zones',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones,
+            labels: [{ id: 'l1', text: 'Upwind' }],
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-too-many-zones'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
+  })
+
+  it('discards diagram_config when labels exceeds MAX_LABELS', async () => {
+    const labels = Array.from({ length: MAX_LABELS + 1 }, (_, i) => ({
+      id: `l${i}`,
+      text: `Label ${i}`,
+    }))
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'q-diag-too-many-labels',
+          question_text: 'Label the pattern',
+          question_image_url: null,
+          question_number: null,
+          explanation_text: null,
+          explanation_image_url: null,
+          options: null,
+          question_type: 'diagram_label',
+          dialog_template: null,
+          blanks_safe: null,
+          ordering_items_shuffled: null,
+          diagram_config_public: {
+            image_ref: 'rwy-2709-lh-pattern',
+            zones: [{ id: 'z1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+            labels,
+          },
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadSessionQuestions(['q-diag-too-many-labels'])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]!.diagram_config).toBeNull()
   })
 
   it('yields null blanks_safe and null dialog_template for a multiple_choice row', async () => {

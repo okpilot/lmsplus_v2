@@ -47,6 +47,14 @@ const ORDERING_INPUT = {
   sessionId: SESSION_ID,
   order: ['item-c', 'item-a', 'item-b'],
 }
+const DIAGRAM_INPUT = {
+  questionId: QUESTION_ID,
+  sessionId: SESSION_ID,
+  mapping: [
+    { zoneId: 'z1', labelId: 'l1' },
+    { zoneId: 'z2', labelId: 'l2' },
+  ],
+}
 
 const SHORT_RPC_RESULT = {
   is_correct: true,
@@ -73,6 +81,18 @@ const ORDERING_RPC_RESULT = {
   blanks: null,
   correct_order: ['itm-mayday', 'itm-callsign', 'itm-nature'],
   explanation_text: 'Distress before urgency.',
+  explanation_image_url: null,
+}
+
+const DIAGRAM_RPC_RESULT = {
+  is_correct: true,
+  correct_answer: null,
+  blanks: null,
+  correct_mapping: [
+    { zone_id: 'z1', label_id: 'l1' },
+    { zone_id: 'z2', label_id: 'l2' },
+  ],
+  explanation_text: 'RWY 27 left-hand pattern.',
   explanation_image_url: null,
 }
 
@@ -263,6 +283,67 @@ describe('checkNonMcAnswer', () => {
     const result = await checkNonMcAnswer({ ...ORDERING_INPUT, order: ['item-a'] })
     expect(result).toEqual({ success: false, error: 'Invalid input' })
     expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('grades a diagram_label answer and returns the revealed canonical mapping', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
+    const result = await checkNonMcAnswer(DIAGRAM_INPUT)
+    expect(result).toEqual({
+      success: true,
+      questionType: 'diagram_label',
+      isCorrect: true,
+      correctMapping: [
+        { zoneId: 'z1', labelId: 'l1' },
+        { zoneId: 'z2', labelId: 'l2' },
+      ],
+      explanationText: 'RWY 27 left-hand pattern.',
+      explanationImageUrl: null,
+    })
+  })
+
+  it('sends p_mapping in the zone_id/label_id snake_case shape for diagram_label', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
+    await checkNonMcAnswer(DIAGRAM_INPUT)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+      p_question_id: QUESTION_ID,
+      p_session_id: SESSION_ID,
+      p_mapping: [
+        { zone_id: 'z1', label_id: 'l1' },
+        { zone_id: 'z2', label_id: 'l2' },
+      ],
+    })
+  })
+
+  it('rejects a diagram_label payload with a duplicate zoneId', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({
+      ...DIAGRAM_INPUT,
+      mapping: [
+        { zoneId: 'z1', labelId: 'l1' },
+        { zoneId: 'z1', labelId: 'l2' },
+      ],
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a diagram_label payload with an empty mapping array', async () => {
+    setupAuthenticatedUser()
+    const result = await checkNonMcAnswer({ ...DIAGRAM_INPUT, mapping: [] })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure when the diagram_label RPC returns an unexpected shape', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
+    const result = await checkNonMcAnswer(DIAGRAM_INPUT)
+    expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 
   it('returns a generic failure when the ordering RPC returns an unexpected shape', async () => {

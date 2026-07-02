@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isDiagramRpcResult,
   isDialogFillRpcResult,
   isOrderingRpcResult,
   isShortAnswerRpcResult,
   toClientBlanks,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
+import { MAX_ZONES } from './diagram-validation'
 
 // ---- isShortAnswerRpcResult -------------------------------------------------
 
@@ -325,6 +327,114 @@ describe('isOrderingRpcResult', () => {
 
   it('rejects null input', () => {
     expect(isOrderingRpcResult(null)).toBe(false)
+  })
+})
+
+// ---- isDiagramRpcResult -----------------------------------------------------
+
+describe('isDiagramRpcResult', () => {
+  it('accepts a well-formed diagram_label RPC row', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [
+          { zone_id: 'z1', label_id: 'l1' },
+          { zone_id: 'z2', label_id: 'l2' },
+        ],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects an empty correct_mapping array', () => {
+    // A diagram question always has ≥1 zone (mig 150 CHECK), so an empty
+    // correct_mapping is malformed RPC data — reject it rather than grade against it.
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a correct_mapping longer than MAX_ZONES', () => {
+    const tooMany = Array.from({ length: MAX_ZONES + 1 }, (_, i) => ({
+      zone_id: `z${i}`,
+      label_id: `l${i}`,
+    }))
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: tooMany,
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when a correct_mapping element has a blank label_id', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [{ zone_id: 'z1', label_id: '' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_mapping is not an array (dialog_fill shape)', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: 'not-an-array',
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when blanks is an array (dialog_fill shape)', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: [{ index: 0, is_correct: true, canonical: 'x' }],
+        correct_mapping: [{ zone_id: 'z1', label_id: 'l1' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when correct_answer is not null', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: 'leak',
+        blanks: null,
+        correct_mapping: [{ zone_id: 'z1', label_id: 'l1' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects null input', () => {
+    expect(isDiagramRpcResult(null)).toBe(false)
   })
 })
 

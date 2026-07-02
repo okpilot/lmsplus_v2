@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { RWY_2709_IMAGE_REF, RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-layout'
 
 const CORRECT_LABEL_TEXTS = [
-  'Upwind',
+  'Upwind leg',
   'Crosswind turn',
-  'Crosswind',
+  'Crosswind leg',
   'Downwind turn',
-  'Downwind',
+  'Downwind leg',
   'Base turn',
-  'Base',
+  'Base leg',
   'Final turn',
-  'Final',
+  'Final approach',
 ]
 
 describe('RWY_2709_IMAGE_REF', () => {

@@ -128,6 +128,59 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ order, responseTimeMs: 1500 })).toBe(true)
   })
 
+  it('accepts a diagram_label draft carrying a partial mapping', () => {
+    // Unlike ordering, a diagram mapping is not required to be complete — partial
+    // submissions are explicitly allowed (Decision 52).
+    expect(
+      isValidDraftAnswer({ mapping: [{ zoneId: 'z1', labelId: 'l1' }], responseTimeMs: 1500 }),
+    ).toBe(true)
+  })
+
+  it('rejects a diagram_label draft with an empty mapping array', () => {
+    expect(isValidDraftAnswer({ mapping: [], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects a diagram_label draft whose mapping repeats a zoneId', () => {
+    expect(
+      isValidDraftAnswer({
+        mapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z1', labelId: 'l2' },
+        ],
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label draft whose mapping reuses a labelId', () => {
+    expect(
+      isValidDraftAnswer({
+        mapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l1' },
+        ],
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label draft whose mapping exceeds MAX_ZONES', () => {
+    // Upper-bound parity with the save schema and RPC guard — a tampered
+    // localStorage blob with too many zones must not load as a valid draft.
+    const mapping = Array.from({ length: 51 }, (_, i) => ({ zoneId: `z${i}`, labelId: `l${i}` }))
+    expect(isValidDraftAnswer({ mapping, responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects a hybrid draft carrying both a mapping and an order array', () => {
+    expect(
+      isValidDraftAnswer({
+        mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+        order: ['item-a', 'item-b'],
+        responseTimeMs: 1500,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects a hybrid draft carrying both an order array and a selected option', () => {
     expect(
       isValidDraftAnswer({
@@ -386,6 +439,81 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'ordering',
         isCorrect: true,
         correctOrder: ['MAYDAY', 'callsign', 'MAYDAY'],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('accepts a diagram_label feedback entry with the revealed canonical mapping', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'diagram_label',
+        isCorrect: false,
+        correctMapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l2' },
+        ],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects a diagram_label feedback entry with an empty correctMapping array', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'diagram_label',
+        isCorrect: true,
+        correctMapping: [],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label feedback entry whose correctMapping exceeds MAX_ZONES', () => {
+    // Upper-bound parity with the save schema (.max(MAX_ZONES)) and the RPC guard —
+    // a tampered sessionStorage feedback blob with too many zones must not rehydrate.
+    const correctMapping = Array.from({ length: 51 }, (_, i) => ({
+      zoneId: `z${i}`,
+      labelId: `l${i}`,
+    }))
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'diagram_label',
+        isCorrect: true,
+        correctMapping,
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label feedback entry whose correctMapping repeats a zoneId', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'diagram_label',
+        isCorrect: true,
+        correctMapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z1', labelId: 'l2' },
+        ],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects a diagram_label feedback entry whose correctMapping reuses a labelId', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'diagram_label',
+        isCorrect: true,
+        correctMapping: [
+          { zoneId: 'z1', labelId: 'l1' },
+          { zoneId: 'z2', labelId: 'l1' },
+        ],
         explanationText: null,
         explanationImageUrl: null,
       }),
