@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { RWY_2709_IMAGE_REF, RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-layout'
+import {
+  baseCenter,
+  crosswindCenter,
+  downwindCenter,
+  finalCenter,
+  RWY_2709_IMAGE_REF,
+  RWY_2709_LABELS,
+  RWY_2709_ZONES,
+  upwindCenter,
+} from './rwy-2709-layout'
 
 const CORRECT_LABEL_TEXTS = [
   'Upwind leg',
@@ -50,6 +59,28 @@ describe('RWY_2709_ZONES', () => {
         const overlapsY = a.y < b.y + b.h && b.y < a.y + a.h
         expect(overlapsX && overlapsY).toBe(false)
       }
+    }
+  })
+})
+
+describe('exported leg centers stay in sync with their drop zones', () => {
+  it('places each leg center at the center of its corresponding leg zone box', () => {
+    // The artwork's direction arrows (rwy-2709-lh-pattern.tsx) and the drop-zone
+    // boxes are both derived from these leg centers — so a leg center must sit at
+    // the center of its zone box, or the arrow and drop target would drift apart.
+    const legCenterByZoneIndex: ReadonlyArray<readonly [number, { x: number; y: number }]> = [
+      [0, upwindCenter], // upwind leg
+      [2, crosswindCenter], // crosswind leg
+      [4, downwindCenter], // downwind leg
+      [6, baseCenter], // base leg
+      [8, finalCenter], // final leg
+    ]
+    for (const [index, center] of legCenterByZoneIndex) {
+      const zone = RWY_2709_ZONES[index]
+      expect(zone).toBeDefined()
+      if (!zone) continue
+      expect(center.x).toBeCloseTo(zone.x + zone.w / 2)
+      expect(center.y).toBeCloseTo(zone.y + zone.h / 2)
     }
   })
 })

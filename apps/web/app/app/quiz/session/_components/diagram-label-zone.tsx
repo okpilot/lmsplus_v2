@@ -12,6 +12,8 @@ type DiagramLabelZoneProps = Readonly<{
   result?: 'correct' | 'incorrect'
   /** The canonical label text for this zone, revealed when the zone is wrong. */
   canonicalText?: string
+  /** Generic, index-based accessible name — must never reveal the answer. */
+  ariaLabel: string
 }>
 
 /** A single droppable drop-zone box, absolutely positioned over the diagram
@@ -22,6 +24,7 @@ export function DiagramLabelZone({
   disabled,
   result,
   canonicalText,
+  ariaLabel,
 }: DiagramLabelZoneProps) {
   const { setNodeRef, isOver } = useDroppable({ id: zone.id, disabled })
 
@@ -35,8 +38,11 @@ export function DiagramLabelZone({
           : 'border-dashed border-muted-foreground/50'
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an absolutely-positioned droppable box can't be a <fieldset> (layout + legend semantics); role="group" is the correct grouping role here
     <div
       ref={setNodeRef}
+      role="group"
+      aria-label={ariaLabel}
       data-testid={`diagram-label-zone-${zone.id}`}
       data-result={result ?? ''}
       style={{
