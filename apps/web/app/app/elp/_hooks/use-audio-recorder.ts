@@ -27,8 +27,14 @@ export function useAudioRecorder(): UseAudioRecorderResult {
   const urlRef = useRef<string | null>(null)
 
   // Full teardown on unmount (discard recorder, release mic, revoke URL) — cleanup, not data fetching.
+  // Clear startingRef BEFORE teardown, mirroring reset(): if getUserMedia is still
+  // pending when this fires, buildCaptureHandlers' onRecording checks startingRef and
+  // stops the late-granted stream instead of leaving the mic hot after unmount.
   useEffect(() => {
-    return () => teardownCapture(recorderRef, streamRef, urlRef)
+    return () => {
+      startingRef.current = false
+      teardownCapture(recorderRef, streamRef, urlRef)
+    }
   }, [])
 
   const start = useCallback(() => {

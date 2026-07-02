@@ -214,8 +214,11 @@ describe('RPC: ELP oral exam — session modes (practice vs mock)', () => {
     expect(finalSession?.ended_at).not.toBeNull()
   })
 
-  it('rejects a start request with an invalid mode', async () => {
-    const { error } = await student.rpc('start_oral_exam_session', { p_mode: 'invalid' })
+  it.each([
+    { mode: 'invalid' },
+    { mode: null },
+  ])('rejects a start request with an invalid mode ($mode)', async ({ mode }) => {
+    const { error } = await student.rpc('start_oral_exam_session', { p_mode: mode })
     expect(error?.message).toContain('invalid_mode')
 
     // Non-vacuous: no session row was created for the rejected start.

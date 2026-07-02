@@ -200,4 +200,31 @@ describe('useAudioRecorder', () => {
     expect(result.current.status).toBe('idle')
     expect(trackStop).toHaveBeenCalled()
   })
+
+  it('releases the mic when the component unmounts while a permission grant is still pending', async () => {
+    let grant: (stream: MediaStream) => void = () => {}
+    mockGetUserMedia.mockImplementationOnce(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          grant = resolve
+        }),
+    )
+    const { result, unmount } = renderHook(() => useAudioRecorder())
+
+    // start() launches getUserMedia but the prompt is still pending — status stays idle.
+    act(() => {
+      result.current.start()
+    })
+    // Unmount while the permission prompt is up.
+    unmount()
+
+    // The grant resolves AFTER unmount: onRecording must cancel + stop the stream.
+    const trackStop = vi.fn()
+    const lateStream = { getTracks: () => [{ stop: trackStop }] } as unknown as MediaStream
+    await act(async () => {
+      grant(lateStream)
+    })
+
+    expect(trackStop).toHaveBeenCalled()
+  })
 })

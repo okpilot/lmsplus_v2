@@ -108,7 +108,7 @@ describe('useSectionSubmit — failure path', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
-  it('allows a retry after a failed submit resets the re-entry lock', async () => {
+  it('allows submitting again after a failed submission', async () => {
     mockSubmitSectionResponse
       .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })
       .mockResolvedValueOnce({ success: true, responseId: 'resp-2' })

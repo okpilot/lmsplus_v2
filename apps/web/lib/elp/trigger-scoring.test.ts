@@ -37,7 +37,7 @@ describe('triggerSectionScoring', () => {
   })
 
   it('derives the functions base URL from NEXT_PUBLIC_SUPABASE_URL when SUPABASE_FUNCTIONS_URL is unset', () => {
-    process.env.SUPABASE_FUNCTIONS_URL = undefined
+    delete process.env.SUPABASE_FUNCTIONS_URL
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co'
 
     triggerSectionScoring(RESPONSE_ID, AUDIO_PATH, 2)
@@ -49,7 +49,7 @@ describe('triggerSectionScoring', () => {
   })
 
   it('skips the fetch and logs when ELP_WEBHOOK_SECRET is not set', () => {
-    process.env.ELP_WEBHOOK_SECRET = undefined
+    delete process.env.ELP_WEBHOOK_SECRET
 
     triggerSectionScoring(RESPONSE_ID, AUDIO_PATH, 1)
 

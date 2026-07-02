@@ -123,7 +123,7 @@ describe('discardOralExam', () => {
     expect(result).toEqual({ success: true })
   })
 
-  it('returns success when the RPC returns false, because false is not null', async () => {
+  it('treats an already-discarded session as a successful discard', async () => {
     setupAuth()
     mockRpc.mockResolvedValue({ data: false, error: null })
     const result = await discardOralExam(VALID_INPUT)

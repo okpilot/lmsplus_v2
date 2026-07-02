@@ -32,7 +32,7 @@ BEGIN
     RAISE EXCEPTION 'not_authenticated';
   END IF;
 
-  IF p_mode NOT IN ('practice', 'mock') THEN
+  IF p_mode IS NULL OR p_mode NOT IN ('practice', 'mock') THEN
     RAISE EXCEPTION 'invalid_mode';
   END IF;
 

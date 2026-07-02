@@ -106,14 +106,14 @@ BEGIN
   FOR v_score IN SELECT jsonb_array_elements(p_descriptor_scores)
   LOOP
     v_descriptor := v_score->>'descriptor';
-    v_level := (v_score->>'level')::int;
     IF v_descriptor NOT IN
        ('pronunciation','structure','vocabulary','fluency','comprehension','interaction') THEN
       RAISE EXCEPTION 'invalid_descriptor: %', v_descriptor;
     END IF;
-    IF v_level IS NULL OR v_level < 1 OR v_level > 6 THEN
+    IF v_score->>'level' IS NULL OR (v_score->>'level') !~ '^[1-6]$' THEN
       RAISE EXCEPTION 'invalid_level for descriptor %', v_descriptor;
     END IF;
+    v_level := (v_score->>'level')::int;
     INSERT INTO oral_exam_descriptor_scores
       (session_id, section_no, descriptor, level, rationale, evidence)
     VALUES
@@ -134,7 +134,9 @@ BEGIN
     LOOP
       IF (v_usage->>'event_type') IN
          ('stt_seconds','tts_chars','convai_seconds','llm_input_tokens','llm_output_tokens')
-         AND COALESCE((v_usage->>'quantity')::numeric, -1) >= 0 THEN
+         AND (v_usage->>'quantity') ~ '^\d+(\.\d+)?$'
+         AND (NULLIF(v_usage->>'cost_estimate_micros','') IS NULL
+              OR NULLIF(v_usage->>'cost_estimate_micros','') ~ '^\d+$') THEN
         INSERT INTO elp_usage_events
           (organization_id, student_id, session_id, section_no, event_type,
            quantity, provider, cost_estimate_micros, metadata)

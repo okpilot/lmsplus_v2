@@ -40,7 +40,8 @@ export function DiscardAndRestartButton({ sessionId }: Props) {
       setError(result.error)
       submittedRef.current = false
       setDiscarding(false)
-    } catch {
+    } catch (err) {
+      console.error('[DiscardAndRestart] discardOralExam threw:', err)
       setError('Something went wrong. Please try again.')
       submittedRef.current = false
       setDiscarding(false)

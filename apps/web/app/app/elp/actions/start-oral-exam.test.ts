@@ -167,7 +167,7 @@ describe('startOralExam', () => {
     expect(result.sections).toEqual([])
   })
 
-  it('coerces section_no to a number and type to a string when they arrive with unexpected types', async () => {
+  it('normalizes malformed section numbers and types from the server response', async () => {
     setupAuth()
     mockRpc.mockResolvedValue({
       data: { ...RPC_SUCCESS, sections: [{ section_no: '3', type: 42 }] },

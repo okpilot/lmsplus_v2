@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import type { OralSessionSummary } from '@/lib/queries/oral-exam-session'
@@ -15,12 +16,12 @@ function ElpResumePrompt({ activeSession }: ResumePromptProps) {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">ICAO English Prep</h1>
       <p className="text-sm text-muted-foreground">You have a session in progress.</p>
-      <a
+      <Link
         href={`/app/elp/session/${activeSession.id}`}
         className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
       >
         Resume your session
-      </a>
+      </Link>
     </div>
   )
 }
@@ -51,7 +52,8 @@ export function ElpHome({ activeSession }: Props) {
       setError(result.error)
       submittedRef.current = false
       setStarting(false)
-    } catch {
+    } catch (err) {
+      console.error('[ElpHome] startOralExam threw:', err)
       setError('Something went wrong. Please try again.')
       submittedRef.current = false
       setStarting(false)
