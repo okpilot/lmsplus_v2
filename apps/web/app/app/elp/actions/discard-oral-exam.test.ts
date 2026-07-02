@@ -124,9 +124,6 @@ describe('discardOralExam', () => {
   })
 
   it('returns success when the RPC returns false, because false is not null', async () => {
-    // discard_oral_exam_session returns a boolean; false means the session was
-    // already ended — the server decided, so the client treats it as success.
-    // The action checks `data === null`, not `!data`, so false → success.
     setupAuth()
     mockRpc.mockResolvedValue({ data: false, error: null })
     const result = await discardOralExam(VALID_INPUT)
