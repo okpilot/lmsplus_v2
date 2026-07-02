@@ -25,15 +25,14 @@ import {
   WHITESPACE_PAYLOADS,
 } from './helpers/payloads'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_CODE_PREFIX } from './helpers/seed-markers'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  E2E_REDTEAM_CODE_PREFIX,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 type IssuedCode = { id: string; code: string }
 

@@ -23,14 +23,14 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 type CompleteResult = {
   session_id: string

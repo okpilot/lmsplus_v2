@@ -12,13 +12,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  E2E_REDTEAM_UNAUTH_COMMENT_MARKER,
-  pickSubjectWithQuestions,
-  seedRedTeamUsers,
-  VICTIM_EMAIL,
-  VICTIM_PASSWORD,
-} from './helpers/seed'
+import { E2E_REDTEAM_UNAUTH_COMMENT_MARKER } from './helpers/seed-markers'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

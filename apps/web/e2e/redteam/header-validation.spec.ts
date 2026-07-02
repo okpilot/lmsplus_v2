@@ -29,7 +29,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // Two response classes carry different CSPs:
 // - Routed responses (`/`, `/auth/login`): full CSP from next.config.ts —

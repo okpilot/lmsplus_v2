@@ -29,16 +29,15 @@ import {
 } from './helpers/audit-helpers'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 /**
  * Assert the full within-time-limit `batch_submit_quiz` return contract (#818, §7).

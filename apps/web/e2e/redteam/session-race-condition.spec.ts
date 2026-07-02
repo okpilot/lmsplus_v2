@@ -25,13 +25,8 @@
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
-  seedRedTeamUsers,
-} from './helpers/seed'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: Session Race Condition', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

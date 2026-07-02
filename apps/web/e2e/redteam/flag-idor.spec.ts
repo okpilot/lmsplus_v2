@@ -16,7 +16,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

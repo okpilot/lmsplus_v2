@@ -21,15 +21,15 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_COMMENT_IDOR_MARKER as COMMENT_MARKER } from './helpers/seed-markers'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
-  E2E_REDTEAM_COMMENT_IDOR_MARKER as COMMENT_MARKER,
-  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 test.describe('Red Team: deleteComment cross-user IDOR (Vector P)', () => {
   let admin: ReturnType<typeof getAdminClient>

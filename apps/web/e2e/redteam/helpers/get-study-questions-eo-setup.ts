@@ -14,15 +14,12 @@
 import { getAdminClient } from '../../helpers/supabase'
 import { createAuthenticatedClient } from './redteam-client'
 import {
-  createCrossOrgUser,
   E2E_REDTEAM_EO_MARKER,
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
-  pickSubjectWithQuestions,
-  seedRedTeamStudent,
-  VICTIM_EMAIL,
-  VICTIM_PASSWORD,
-} from './seed'
+} from './seed-markers'
+import { pickSubjectWithQuestions } from './seed-quiz'
+import { createCrossOrgUser, seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './seed-users'
 
 export const RPC = 'get_study_questions'
 export const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const

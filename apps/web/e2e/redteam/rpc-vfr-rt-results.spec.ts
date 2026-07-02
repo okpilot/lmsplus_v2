@@ -31,7 +31,7 @@ import {
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 test.describe('Red Team: get_vfr_rt_exam_results RPC', () => {
   let admin: ReturnType<typeof getAdminClient>

@@ -43,12 +43,8 @@
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
-  pickSubjectWithQuestions,
-  seedRedTeamUsers,
-} from './helpers/seed'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Vector — start_quiz_session p_mode whitelist (issue #629)', () => {
   let admin: ReturnType<typeof getAdminClient>
