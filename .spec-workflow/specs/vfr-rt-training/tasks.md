@@ -155,8 +155,8 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 ## Phase 7 — Cleanup, tests, docs
 
 - [ ] **7.1 Remove temporary scaffolding** (e.g. Phase-1 MC-only filter); confirm no dead code.
-- [ ] **7.2 Full suite green** — unit + integration + types + biome; red-team if a trigger/RPC security path was touched.
-- [ ] **7.3 Docs** — `docs/database.md` (extended `get_quiz_questions`, new grader RPC, extended `batch_submit_quiz`/`get_report_correct_options`, new types); `docs/plan.md` (phase status + final integration count); decisions (dnd-kit, `ordering`/`diagram_label` types).
+- [x] **7.2 Full suite green** — unit + integration + types + biome; red-team if a trigger/RPC security path was touched. (web 5018/5018, packages/db integration 370/370, types + biome + build clean; Red Team relies on the authoritative CI required check per VFR-RT local-unreliability guidance.)
+- [x] **7.3 Docs** — `docs/database.md` (extended `get_quiz_questions`, new grader RPC, extended `batch_submit_quiz`/`get_report_correct_options`, new types); `docs/plan.md` (phase status + final integration count); decisions (dnd-kit, `ordering`/`diagram_label` types).
 - [ ] **7.4 #923 disposition note** — bespoke exam UI stays parked; timed exam returns later as exam-mode on this shared UI (inheriting all 5 types).
 
 ---
