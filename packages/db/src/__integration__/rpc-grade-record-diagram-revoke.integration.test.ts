@@ -154,7 +154,7 @@ describe('RPC: _grade_record_diagram_label — REVOKE FROM PUBLIC/anon/authentic
     }
   }
 
-  it('forbids direct authenticated access to the internal diagram grader', async () => {
+  it('prevents an authenticated caller from grading a diagram outside the guarded dispatch path', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 154): the helper
     // must not be callable via PostgREST by an authenticated user — a direct
     // call would bypass the dispatcher's auth/owner/mode guards and forge
@@ -184,7 +184,7 @@ describe('RPC: _grade_record_diagram_label — REVOKE FROM PUBLIC/anon/authentic
     expect(denied, `_grade_record_diagram_label error was ${code}: ${error?.message}`).toBe(true)
   })
 
-  it('forbids a direct anonymous call to the internal _grade_record_diagram_label helper', async () => {
+  it('prevents an anonymous caller from grading a diagram outside the guarded dispatch path', async () => {
     // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated: the authenticated
     // case above only proves the `authenticated` grant is gone. Without an
     // anon case, an anon-only grant leak would ship unnoticed. Same

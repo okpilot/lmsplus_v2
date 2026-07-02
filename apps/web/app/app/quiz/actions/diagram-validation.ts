@@ -38,8 +38,10 @@ export function isDiagramMappingEntry(value: unknown): value is DiagramMappingEn
   return (
     typeof zoneId === 'string' &&
     zoneId.trim().length > 0 &&
+    zoneId.trim().length <= 200 &&
     typeof labelId === 'string' &&
-    labelId.trim().length > 0
+    labelId.trim().length > 0 &&
+    labelId.trim().length <= 200
   )
 }
 

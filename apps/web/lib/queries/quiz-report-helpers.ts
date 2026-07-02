@@ -24,6 +24,14 @@ export function buildDistinctQuestionOrder(orderRows: { question_id: string }[])
   return ordered
 }
 
+// Seed the per-index canonical only when both fields are present — the shared
+// "set-if-both-non-null" step for every per-blank/slot/zone answer-key type.
+function setIndexedKey(indexMap: Map<number, string>, row: AnswerKeyRow): void {
+  if (row.blank_index !== null && row.answer_key !== null) {
+    indexMap.set(row.blank_index, row.answer_key)
+  }
+}
+
 // Collapse the flat answer-key rows into a per-question map the builder consumes.
 export function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEntry> {
   const map = new Map<string, AnswerKeyEntry>()
@@ -34,9 +42,7 @@ export function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEn
         existing?.type === 'dialog_fill'
           ? existing
           : { type: 'dialog_fill', canonicalByIndex: new Map<number, string>() }
-      if (row.blank_index !== null && row.answer_key !== null) {
-        entry.canonicalByIndex.set(row.blank_index, row.answer_key)
-      }
+      setIndexedKey(entry.canonicalByIndex, row)
       map.set(row.question_id, entry)
     } else if (row.question_type === 'ordering') {
       const existing = map.get(row.question_id)
@@ -44,9 +50,7 @@ export function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEn
         existing?.type === 'ordering'
           ? existing
           : { type: 'ordering', canonicalBySlot: new Map<number, string>() }
-      if (row.blank_index !== null && row.answer_key !== null) {
-        entry.canonicalBySlot.set(row.blank_index, row.answer_key)
-      }
+      setIndexedKey(entry.canonicalBySlot, row)
       map.set(row.question_id, entry)
     } else if (row.question_type === 'diagram_label') {
       const existing = map.get(row.question_id)
@@ -54,9 +58,7 @@ export function buildAnswerKeyMap(rows: AnswerKeyRow[]): Map<string, AnswerKeyEn
         existing?.type === 'diagram_label'
           ? existing
           : { type: 'diagram_label', correctLabelByZone: new Map<number, string>() }
-      if (row.blank_index !== null && row.answer_key !== null) {
-        entry.correctLabelByZone.set(row.blank_index, row.answer_key)
-      }
+      setIndexedKey(entry.correctLabelByZone, row)
       map.set(row.question_id, entry)
     } else {
       // short_answer (and any future single-key type)

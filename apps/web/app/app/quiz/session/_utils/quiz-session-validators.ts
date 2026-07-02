@@ -1,9 +1,4 @@
-import {
-  isDiagramMappingArray,
-  isDiagramMappingEntry,
-  isValidDiagramMapping,
-  MAX_ZONES,
-} from '@/app/app/quiz/actions/diagram-validation'
+import { isDiagramMappingArray } from '@/app/app/quiz/actions/diagram-validation'
 import {
   isUniquePermutation,
   MAX_ORDER_ITEMS,
@@ -111,13 +106,7 @@ export function isValidFeedbackEntry(v: unknown): boolean {
         isUniquePermutation(r.correctOrder as string[])
       )
     case 'diagram_label':
-      return (
-        Array.isArray(r.correctMapping) &&
-        r.correctMapping.length > 0 &&
-        r.correctMapping.length <= MAX_ZONES &&
-        r.correctMapping.every(isDiagramMappingEntry) &&
-        isValidDiagramMapping(r.correctMapping as { zoneId: string; labelId: string }[])
-      )
+      return isDiagramMappingArray(r.correctMapping)
     default:
       return false
   }

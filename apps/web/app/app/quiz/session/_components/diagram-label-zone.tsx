@@ -2,11 +2,11 @@
 
 import { useDroppable } from '@dnd-kit/core'
 import { DiagramLabelChip } from './diagram-label-chip'
-import type { DiagramZoneData } from './diagram-label-input-helpers'
+import type { DiagramLabelChipData, DiagramZoneData } from './diagram-label-input-helpers'
 
 type DiagramLabelZoneProps = Readonly<{
   zone: DiagramZoneData
-  placedLabel: { id: string; text: string } | null
+  placedLabel: DiagramLabelChipData | null
   /** Also lock during `submitting`/session-submit — mirrors OrderingInputItem. */
   disabled: boolean
   result?: 'correct' | 'incorrect'

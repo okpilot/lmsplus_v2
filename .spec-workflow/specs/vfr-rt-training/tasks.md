@@ -140,7 +140,7 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 > `apps/web/public/`; zones are `%`-fraction overlays on the inline SVG. Distractor labels are
 > allowed (`labels.length` may exceed `zones.length`). Storage reuses the Decision-51 per-slot
 > row model (per-zone rows, `blank_index` = derived zone ordinal). Migration set (7,
-> `packages/db/migrations/150–156` ≡ `supabase/migrations/20260702000100–000700`): 150
+> `packages/db/migrations/150–156` ≡ `supabase/migrations/20260702000100–20260702000700`): 150
 > column+CHECK (`is_valid_diagram_config`), 151 trigger widened to admit `diagram_label`, 152
 > `get_quiz_questions`(+diagram_config_public), 153 `check_non_mc_answer`(+p_mapping, 6-arg),
 > 154 `_grade_record_diagram_label` REVOKE-gated helper, 155 `batch_submit_quiz` dispatch +

@@ -179,6 +179,13 @@ export function isDiagramRpcResult(value: unknown): value is DiagramRpcResult {
     v.correct_mapping.length > 0 &&
     v.correct_mapping.length <= MAX_ZONES &&
     v.correct_mapping.every(isDiagramMappingRow) &&
+    // Fail closed on a corrupt revealed key: a canonical mapping is a bijection,
+    // so a repeated zone_id or reused label_id is malformed (parity with
+    // isOrderingRpcResult's permutation check). Cosmetic (display-only), not graded.
+    new Set(v.correct_mapping.map((m) => (m as DiagramMappingRow).zone_id)).size ===
+      v.correct_mapping.length &&
+    new Set(v.correct_mapping.map((m) => (m as DiagramMappingRow).label_id)).size ===
+      v.correct_mapping.length &&
     isNullableString(v.explanation_text) &&
     isNullableString(v.explanation_image_url)
   )

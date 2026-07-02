@@ -76,8 +76,8 @@ export function DiagramLabelInput({
   function handleDragEnd(event: DragEndEvent) {
     // Defense-in-depth, mirrors OrderingInput.handleDragEnd: ignore drops once
     // locked/mid-check/disabled, so the displayed placement can't diverge from
-    // what the server actually graded.
-    if (locked || disabled || submitting) return
+    // what the server actually graded (itemsDisabled = locked || disabled || submitting).
+    if (itemsDisabled) return
     const { active, over } = event
     if (!over) return
     const labelId = String(active.id)
