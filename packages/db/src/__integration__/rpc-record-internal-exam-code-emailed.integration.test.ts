@@ -449,6 +449,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       .single()
     expect(firstReadErr).toBeNull()
     expect(afterFirst!.emailed_at).not.toBeNull()
+    // Safe: the firstReadErr null-check above means .single() returned a non-null row.
     const firstEmailedAt = afterFirst!.emailed_at as string
 
     // Second send on the SAME code: the RPC has no `emailed_at IS NULL` guard,
@@ -465,10 +466,14 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       .single()
     expect(secondReadErr).toBeNull()
     expect(afterSecond!.emailed_at).not.toBeNull()
+    // Safe: the secondReadErr null-check above means .single() returned a non-null row.
     const secondEmailedAt = afterSecond!.emailed_at as string
 
     // The two RPC calls are separate Postgres transactions — their now() timestamps
-    // differ. The second emailed_at must be strictly later than the first.
+    // differ. The intermediate SELECT read between the calls guarantees at least one
+    // network roundtrip of elapsed time, so T2 > T1 is reliable in practice. Strictly
+    // greater (not >=) so a regression adding `AND emailed_at IS NULL` — which would
+    // make the second UPDATE a no-op, leaving T2 === T1 — fails here instead of passing.
     expect(new Date(secondEmailedAt).getTime()).toBeGreaterThan(new Date(firstEmailedAt).getTime())
   })
 
