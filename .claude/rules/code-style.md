@@ -316,17 +316,17 @@ if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 
 ### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
 
-In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — routing the empty array to its own branch — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path, silently producing a wrong submission row.
+In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — so an empty array is still handled by the array branch instead of falling through to a wrong default — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path, silently producing a wrong submission row.
 
 ```ts
 // ❌ WRONG — empty array is truthy; a length-only check drops the empty case down a wrong branch
 if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map(...)
 
-// ✅ CORRECT — Array.isArray routes the empty array to its own explicit branch
+// ✅ CORRECT — Array.isArray keeps the empty array in the array branch, not a wrong default
 if (Array.isArray(a.blankAnswers)) row.blanks = a.blankAnswers.map(...)
 ```
 
-When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position. **Precedent:** `quiz-submit-fanout.ts` `fanOutAnswer` — the `blankAnswers` branch shipped with the bare length-check in VFR RT Phase 2 (`75ea1de8`) and was cloud-CR-caught [Major] and fixed in Phase 6 (`2e8aaf7b`, #1059); the `order` branch had the same anti-pattern during Phase 5 development (fixed pre-squash, landed correct in `0168f7dc`). The `mapping` (diagram_label) branch was created correctly from the start and is the reference shape to copy. Promoted at learner count=3 (#1061); git history confirms two genuinely-wrong branches (`order`, `blankAnswers`) — `mapping` was always compliant. Promotion sweep found the sole matching dispatcher already fully compliant — zero remaining offenders.
+When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position. **Precedent:** `quiz-submit-fanout.ts` `fanOutAnswer` — the `blankAnswers` branch shipped with the bare length-check in VFR RT Phase 2 (`75ea1de8`) and was cloud-CR-caught [Major] and fixed in Phase 6 (`2e8aaf7b`, #1059); the `order` branch had the same anti-pattern during Phase 5 development (fixed pre-squash, landed correct in `0168f7dc`). The `mapping` (diagram_label) branch was created correctly from the start and is the reference shape to copy. The learner tracker logged this at count=3 (`order`/`mapping`/`blankAnswers`), but git history shows only two branches were ever actually wrong — `order` and `blankAnswers` — so the ≥2 promotion threshold is met on those two real offenders (`mapping` was counted but was never defective) (#1061). Promotion sweep found the sole matching dispatcher already fully compliant — zero remaining offenders.
 
 ### Soft-Delete Filter Requires the Column to Exist
 
@@ -904,6 +904,8 @@ expect(row.actor_role).toBe('student')
 
 // ✅ NON-VACUOUS — seed the actor with a role that differs from the fallback default, so a
 // filter-drop regression changes the observed value (or add an inline comment stating the limitation)
+seedActor({ role: 'admin' })            // real role ≠ the 'student' fallback
+expect(row.actor_role).toBe('admin')
 ```
 
 Sibling to "Red-Team RPC Specs Must Assert the Full Output Contract" (the two-seed rule above). Promoted at count=3 (2026-06-04 AQ idempotency-seed assertion; #839 replay assertion 2026-06-24; #1069 grader `oral_exam.graded` role assertion — which already carries an inline limitation comment as the documented-limitation escape hatch).
@@ -927,6 +929,7 @@ The `code-reviewer` agent flags these after every commit:
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
+- Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5)
 
 ---
 
