@@ -26,6 +26,7 @@
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
+import { fetchAllRows } from '../lib/supabase-paginate'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -50,8 +51,19 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 })
 
 async function main(): Promise<void> {
-  // 1. Collect every session id referenced by a saved draft.
-  const { data: drafts, error: draftErr } = await db.from('quiz_drafts').select('session_config')
+  // 1. Collect every session id referenced by a saved draft. Paginate: a plain
+  // .select() truncates at PostgREST's 1000-row cap, which would silently miss
+  // orphans and leave them behind (quiz_drafts holds up to 20 rows per student, so
+  // the table can exceed 1000 across an org).
+  const { data: drafts, error: draftErr } = await fetchAllRows<{ session_config: unknown }>(
+    () => db.from('quiz_drafts').select('*', { count: 'exact', head: true }),
+    (from, to) =>
+      db
+        .from('quiz_drafts')
+        .select('session_config')
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
   if (draftErr) throw new Error(`draft scan: ${draftErr.message}`)
 
   const referenced = new Set<string>()
@@ -66,17 +78,23 @@ async function main(): Promise<void> {
   }
 
   // 2. Soft-delete the active practice sessions among them (exam modes excluded).
-  const { data: cleaned, error: updErr } = await db
-    .from('quiz_sessions')
-    .update({ deleted_at: new Date().toISOString() })
-    .in('id', [...referenced])
-    .in('mode', PRACTICE_MODES)
-    .is('ended_at', null)
-    .is('deleted_at', null)
-    .select('id')
-  if (updErr) throw new Error(`cleanup update: ${updErr.message}`)
-
-  const count = cleaned?.length ?? 0
+  // Chunk the id list: a single unbounded .in('id', [...]) risks the PostgREST
+  // URL/query-length limit once the orphan backlog is large.
+  const ids = [...referenced]
+  const CHUNK = 200
+  let count = 0
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const { data: cleaned, error: updErr } = await db
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', ids.slice(i, i + CHUNK))
+      .in('mode', PRACTICE_MODES)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    if (updErr) throw new Error(`cleanup update: ${updErr.message}`)
+    count += cleaned?.length ?? 0
+  }
   console.log(`Target: ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
   if (count > 0) {
     console.log(`Soft-deleted ${count} orphaned active practice session(s).`)

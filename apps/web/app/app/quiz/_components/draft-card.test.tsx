@@ -182,7 +182,7 @@ describe('DraftCard — Resume', () => {
     render(<DraftCard draft={DRAFT_WITH_FEEDBACK} userId="user-1" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalled())
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
     const stored = JSON.parse(sessionStorage.getItem('quiz-session:user-1') ?? '{}')
     expect(stored.draftFeedback).toEqual(DRAFT_WITH_FEEDBACK.feedback)
   })
@@ -191,7 +191,7 @@ describe('DraftCard — Resume', () => {
     render(<DraftCard draft={DRAFT} userId="user-1" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalled())
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
     const stored = JSON.parse(sessionStorage.getItem('quiz-session:user-1') ?? '{}')
     // JSON.stringify omits undefined values, so the key should be absent.
     expect(stored.draftFeedback).toBeUndefined()
