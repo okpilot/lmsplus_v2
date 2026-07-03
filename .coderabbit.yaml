@@ -132,6 +132,7 @@ reviews:
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
+        - Fan-out/dispatch functions that switch on a discriminated question-type tag and map an optional array-valued field into a submission row must guard the field with Array.isArray(x) (route the empty array to its own branch), never a bare truthy/length check (code-style.md §5).
         - All Zod-validated inputs must use .parse() before use, not `as` casts.
         - PostgREST embedded resources MUST use `!fk_column` (FK-hint), NOT `:fk_column` (alias).
           The `:` form silently returns null on resolution failure; `!` errors loudly. Reserve `:`
@@ -310,6 +311,7 @@ reviews:
           guard (expect(data).not.toBeNull() then cast, or Array.isArray(...) / typeof) before
           consuming the value. An unguarded cast throws an opaque TypeError on a null/shape
           regression instead of failing cleanly (code-style.md §5).
+        - COALESCE/fallback-coincidence vacuity: when a test asserts a value producible by BOTH the correct-guard path AND a fallback/COALESCE default, seed a fixture whose real value differs from the fallback, or document the partial-vacuity limitation inline (code-style.md §7).
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"
