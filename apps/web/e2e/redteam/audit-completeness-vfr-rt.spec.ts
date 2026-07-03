@@ -40,13 +40,14 @@ async function startTrackedVfrRtSession(
   return sessionId
 }
 
-async function seedAdminVfrRtSession(
-  admin: ReturnType<typeof getAdminClient>,
-  orgId: string,
-  studentId: string,
-  startedAtMsAgo: number,
-  tracker: ReturnType<typeof createFixtureTracker>,
-): Promise<string> {
+async function seedAdminVfrRtSession(opts: {
+  admin: ReturnType<typeof getAdminClient>
+  orgId: string
+  studentId: string
+  startedAtMsAgo: number
+  tracker: ReturnType<typeof createFixtureTracker>
+}): Promise<string> {
+  const { admin, orgId, studentId, startedAtMsAgo, tracker } = opts
   const { data: sessionRow, error: insErr } = await admin
     .from('quiz_sessions')
     .insert({
@@ -136,7 +137,13 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     // the time limit → the non-overdue branch runs, emitting vfr_rt_exam.completed).
     // config.question_ids empty drives the "completed with no answers" path.
     // Service-role insert bypasses the immutable-columns trigger.
-    const sessionId = await seedAdminVfrRtSession(admin, orgId, victimUserId, 0, tracker)
+    const sessionId = await seedAdminVfrRtSession({
+      admin,
+      orgId,
+      studentId: victimUserId,
+      startedAtMsAgo: 0,
+      tracker,
+    })
 
     const testStart = new Date().toISOString()
     const { error: completeErr } = await victimClient.rpc('complete_empty_exam_session', {
@@ -154,7 +161,13 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     // overdue path): started 2000s ago > time_limit(1800)+30s grace → overdue.
     // config.question_ids empty → per-part scoring averages over zero rows
     // (COALESCE → 0). Service-role insert bypasses the immutable-columns trigger.
-    const sessionId = await seedAdminVfrRtSession(admin, orgId, victimUserId, 2_000_000, tracker)
+    const sessionId = await seedAdminVfrRtSession({
+      admin,
+      orgId,
+      studentId: victimUserId,
+      startedAtMsAgo: 2_000_000,
+      tracker,
+    })
 
     const testStart = new Date().toISOString()
     const { error: overdueErr } = await victimClient.rpc('complete_overdue_exam_session', {
