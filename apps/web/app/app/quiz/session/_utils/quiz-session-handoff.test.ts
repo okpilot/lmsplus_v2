@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearSessionHandoff, readSessionHandoff, sessionHandoffKey } from './quiz-session-handoff'
+import type { DraftData } from '../../types'
+import {
+  clearSessionHandoff,
+  readSessionHandoff,
+  sessionHandoffKey,
+  writeResumeHandoff,
+} from './quiz-session-handoff'
 
 const USER_ID = 'test-user-id'
 
@@ -351,5 +357,84 @@ describe('clearSessionHandoff', () => {
     })
 
     expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
+  })
+})
+
+// ---- writeResumeHandoff ------------------------------------------------------
+
+const DRAFT: DraftData = {
+  id: 'draft-9',
+  sessionId: 'old-sess',
+  questionIds: ['q1', 'q2'],
+  answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+  currentIndex: 1,
+  subjectName: 'Navigation',
+  subjectCode: 'NAV',
+  createdAt: '2026-07-04T00:00:00Z',
+}
+
+describe('writeResumeHandoff', () => {
+  let mockSession: ReturnType<typeof makeSessionStorageMock>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockSession = makeSessionStorageMock()
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: mockSession,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('writes the handoff under the user-scoped key with the fresh session id and returns true', () => {
+    const ok = writeResumeHandoff(USER_ID, 'new-sess', DRAFT)
+
+    expect(ok).toBe(true)
+    const stored = JSON.parse(mockSession._store.get(sessionHandoffKey(USER_ID)) ?? '{}')
+    // The handoff carries the NEW session id, never the draft's stale one.
+    expect(stored.sessionId).toBe('new-sess')
+    expect(stored.sessionId).not.toBe(DRAFT.sessionId)
+    expect(stored.userId).toBe(USER_ID)
+  })
+
+  it('maps draft fields onto the draft* handoff keys', () => {
+    writeResumeHandoff(USER_ID, 'new-sess', DRAFT)
+
+    const stored = JSON.parse(mockSession._store.get(sessionHandoffKey(USER_ID)) ?? '{}')
+    expect(stored.questionIds).toEqual(DRAFT.questionIds)
+    expect(stored.draftAnswers).toEqual(DRAFT.answers)
+    expect(stored.draftCurrentIndex).toBe(DRAFT.currentIndex)
+    expect(stored.draftId).toBe(DRAFT.id)
+    expect(stored.subjectName).toBe(DRAFT.subjectName)
+    expect(stored.subjectCode).toBe(DRAFT.subjectCode)
+  })
+
+  it('round-trips through readSessionHandoff', () => {
+    writeResumeHandoff(USER_ID, 'new-sess', DRAFT)
+
+    const read = readSessionHandoff(USER_ID)
+    expect(read?.sessionId).toBe('new-sess')
+    expect(read?.questionIds).toEqual(DRAFT.questionIds)
+    expect(read?.draftId).toBe(DRAFT.id)
+  })
+
+  it('returns false and logs when sessionStorage.setItem throws (quota/SecurityError)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: vi.fn(),
+        setItem: vi.fn(() => {
+          throw new DOMException('Quota exceeded', 'QuotaExceededError')
+        }),
+        removeItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    const ok = writeResumeHandoff(USER_ID, 'new-sess', DRAFT)
+
+    expect(ok).toBe(false)
+    expect(warnSpy).toHaveBeenCalled()
   })
 })

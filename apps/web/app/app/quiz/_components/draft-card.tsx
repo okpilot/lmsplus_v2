@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
 import { resumeQuizSession } from '../actions/resume'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { writeResumeHandoff } from '../session/_utils/quiz-session-handoff'
 import type { DraftData } from '../types'
 
 export function progressColor(pct: number): string {
@@ -35,6 +35,14 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
       })} UTC`
     : ''
 
+  // Reset a retryable resume failure: clear the in-flight state and release the
+  // one-shot ref so the user can try again. Never called on the success path.
+  function failResume(message: string) {
+    setError(message)
+    setResuming(false)
+    resumingRef.current = false
+  }
+
   async function handleResume() {
     // Synchronous one-shot guard (code-style.md §6): resume mints a server session,
     // so a double-click would fire two starts and the second hits another_session_active.
@@ -43,35 +51,23 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
     setResuming(true)
     setError(null)
 
-    // Mint a fresh session from the draft's questions; reuse its NEW id in the handoff.
-    const result = await resumeQuizSession({ draftId: draft.id })
-    if (!result.success) {
-      setError(result.error)
-      setResuming(false)
-      resumingRef.current = false // retryable failure — allow another attempt
+    // A framework-level throw (network failure, aborted fetch, RSC transport) rejects
+    // BEFORE the action's own try/catch runs, so guard here or the one-shot ref stays
+    // stuck true and the button is permanently disabled.
+    let result: Awaited<ReturnType<typeof resumeQuizSession>>
+    try {
+      result = await resumeQuizSession({ draftId: draft.id })
+    } catch (err) {
+      console.warn('[draft-card] resumeQuizSession threw:', err)
+      failResume('Unable to resume right now. Please try again.')
       return
     }
-
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify({
-          userId,
-          sessionId: result.sessionId,
-          questionIds: draft.questionIds,
-          draftAnswers: draft.answers,
-          draftFeedback: draft.feedback,
-          draftCurrentIndex: draft.currentIndex,
-          draftId: draft.id,
-          subjectName: draft.subjectName,
-          subjectCode: draft.subjectCode,
-        }),
-      )
-    } catch (err) {
-      console.warn('[draft-card] sessionStorage handoff failed:', err)
-      setError('Unable to resume right now. Please try again.')
-      setResuming(false)
-      resumingRef.current = false
+    if (!result.success) {
+      failResume(result.error)
+      return
+    }
+    if (!writeResumeHandoff(userId, result.sessionId, draft)) {
+      failResume('Unable to resume right now. Please try again.')
       return
     }
     // Terminal navigation is the last statement; ref intentionally NOT reset (success).

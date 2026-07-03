@@ -21,6 +21,12 @@
  * Local (default): runs against .env.local. Refuses a non-local URL without --force-remote.
  * Prod:  set -a && . ./.env.remote && set +a && npx tsx scripts/cleanup-orphaned-draft-sessions.ts --force-remote
  * (The harness classifier blocks Claude from running a prod WRITE directly — the USER runs it.)
+ *
+ * Safety flags (recommended for the prod run):
+ *   --dry-run          Report the count that WOULD be soft-deleted without mutating.
+ *   --cutoff <ISO>     Only touch sessions created before <ISO> — a self-defending guard
+ *                      so a run after the fix deploys can't soft-delete a freshly-resumed
+ *                      session. Pass the deploy timestamp, e.g. --cutoff 2026-07-04T00:00:00Z.
  */
 
 import { resolve } from 'node:path'
@@ -45,10 +51,50 @@ if (!isLocal && !FORCE_REMOTE) {
   process.exit(1)
 }
 
+const DRY_RUN = process.argv.includes('--dry-run')
+const cutoffIdx = process.argv.indexOf('--cutoff')
+const CUTOFF = cutoffIdx >= 0 ? process.argv[cutoffIdx + 1] : undefined
+if (cutoffIdx >= 0 && (!CUTOFF || Number.isNaN(Date.parse(CUTOFF)))) {
+  console.error('--cutoff requires a valid ISO timestamp, e.g. --cutoff 2026-07-04T00:00:00Z')
+  process.exit(1)
+}
+
 const PRACTICE_MODES = ['quick_quiz', 'smart_review']
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
+
+/**
+ * Soft-delete (or, in --dry-run, count) the active practice sessions in one id chunk.
+ * The mode/ended/deleted filters re-assert the strict orphan match on every chunk; the
+ * optional cutoff excludes any session created at/after the deploy timestamp.
+ */
+async function processChunk(slice: string[]): Promise<number> {
+  if (DRY_RUN) {
+    let q = db
+      .from('quiz_sessions')
+      .select('id')
+      .in('id', slice)
+      .in('mode', PRACTICE_MODES)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+    if (CUTOFF) q = q.lt('created_at', CUTOFF)
+    const { data, error } = await q
+    if (error) throw new Error(`cleanup dry-run select: ${error.message}`)
+    return data?.length ?? 0
+  }
+  let q = db
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', slice)
+    .in('mode', PRACTICE_MODES)
+    .is('ended_at', null)
+    .is('deleted_at', null)
+  if (CUTOFF) q = q.lt('created_at', CUTOFF)
+  const { data, error } = await q.select('id')
+  if (error) throw new Error(`cleanup update: ${error.message}`)
+  return data?.length ?? 0
+}
 
 async function main(): Promise<void> {
   // 1. Collect every session id referenced by a saved draft. Paginate: a plain
@@ -84,22 +130,17 @@ async function main(): Promise<void> {
   const CHUNK = 200
   let count = 0
   for (let i = 0; i < ids.length; i += CHUNK) {
-    const { data: cleaned, error: updErr } = await db
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .in('id', ids.slice(i, i + CHUNK))
-      .in('mode', PRACTICE_MODES)
-      .is('ended_at', null)
-      .is('deleted_at', null)
-      .select('id')
-    if (updErr) throw new Error(`cleanup update: ${updErr.message}`)
-    count += cleaned?.length ?? 0
+    count += await processChunk(ids.slice(i, i + CHUNK))
   }
-  console.log(`Target: ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
-  if (count > 0) {
-    console.log(`Soft-deleted ${count} orphaned active practice session(s).`)
-  } else {
+  const scope = FORCE_REMOTE ? '  [REMOTE]' : '  [local]'
+  const cutoffNote = CUTOFF ? `  cutoff<${CUTOFF}` : ''
+  console.log(`Target: ${SUPABASE_URL}${scope}${DRY_RUN ? '  [DRY-RUN]' : ''}${cutoffNote}`)
+  if (count === 0) {
     console.log('No orphaned active practice sessions found (already clean).')
+  } else if (DRY_RUN) {
+    console.log(`Would soft-delete ${count} orphaned active practice session(s). (dry-run)`)
+  } else {
+    console.log(`Soft-deleted ${count} orphaned active practice session(s).`)
   }
 }
 

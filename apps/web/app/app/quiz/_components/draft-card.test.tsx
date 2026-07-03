@@ -23,9 +23,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
 }))
 
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
+// quiz-session-handoff is used unmocked: writeResumeHandoff only touches jsdom
+// sessionStorage, so the assertions below validate the real handoff serialization.
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -229,6 +228,39 @@ describe('DraftCard — Resume', () => {
     expect(button).toBeDisabled()
     expect(screen.getByText('Resuming...')).toBeInTheDocument()
     expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not start a second resume while one is already in flight', () => {
+    // Never-resolving resume keeps the first call in flight; the synchronous one-shot
+    // ref (not the async disabled state) must block the second click in the same tick.
+    mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    const button = screen.getByTestId('resume-draft')
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-enables Resume after a thrown resume rejection so the user can retry', async () => {
+    mockResumeQuizSession.mockRejectedValueOnce(new Error('network down'))
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Unable to resume right now. Please try again.')).toBeInTheDocument(),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    // The one-shot ref was released: the button is enabled and a second attempt fires.
+    const button = screen.getByTestId('resume-draft')
+    expect(button).not.toBeDisabled()
+    mockResumeQuizSession.mockResolvedValueOnce({
+      success: true,
+      sessionId: NEW_SESSION_ID,
+      questionIds: DRAFT.questionIds,
+    })
+    fireEvent.click(button)
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
   })
 })
 
