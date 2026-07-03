@@ -65,6 +65,7 @@ describe('rowToDraftData — answers normalization', () => {
     expect(draft.answers).toEqual({})
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
     )
     consoleSpy.mockRestore()
   })
@@ -77,6 +78,7 @@ describe('rowToDraftData — answers normalization', () => {
     expect(draft.answers).toEqual({})
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
     )
     consoleSpy.mockRestore()
   })
@@ -89,6 +91,7 @@ describe('rowToDraftData — answers normalization', () => {
     expect(draft.answers).toEqual({})
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
     )
     consoleSpy.mockRestore()
   })
@@ -108,6 +111,7 @@ describe('rowToDraftData — answers normalization', () => {
     expect(draft.answers).toEqual({ q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Skipping malformed answer entry on draft',
+      'draft-1',
       'q2',
     )
     consoleSpy.mockRestore()

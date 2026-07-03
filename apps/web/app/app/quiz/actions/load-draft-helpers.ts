@@ -115,15 +115,15 @@ function toFeedbackRecord(v: unknown): Record<string, AnswerFeedback> | undefine
 // entry), a per-entry failure here SKIPS just the bad answer and keeps the valid
 // siblings: answers are the student's actual saved work, so one corrupt/legacy row
 // must not wipe the rest of their draft on resume.
-function toDraftAnswerRecord(raw: unknown): Record<string, DraftAnswer> {
+function toDraftAnswerRecord(raw: unknown, rowId: string): Record<string, DraftAnswer> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    console.error('[toDraftAnswerRecord] Malformed answers value on draft')
+    console.error('[toDraftAnswerRecord] Malformed answers value on draft', rowId)
     return {}
   }
   const out: Record<string, DraftAnswer> = {}
   for (const [k, v] of Object.entries(raw)) {
     if (!isValidDraftAnswer(v)) {
-      console.error('[toDraftAnswerRecord] Skipping malformed answer entry on draft', k)
+      console.error('[toDraftAnswerRecord] Skipping malformed answer entry on draft', rowId, k)
       continue
     }
     out[k] = v as DraftAnswer
@@ -141,7 +141,7 @@ export function rowToDraftData(row: QuizDraftRow): DraftData {
       id: row.id,
       sessionId: '',
       questionIds: row.question_ids,
-      answers: toDraftAnswerRecord(row.answers),
+      answers: toDraftAnswerRecord(row.answers, row.id),
       feedback,
       currentIndex: row.current_index,
       subjectName: undefined,
@@ -154,7 +154,7 @@ export function rowToDraftData(row: QuizDraftRow): DraftData {
     id: row.id,
     sessionId: config.sessionId,
     questionIds: row.question_ids,
-    answers: toDraftAnswerRecord(row.answers),
+    answers: toDraftAnswerRecord(row.answers, row.id),
     feedback,
     currentIndex: row.current_index,
     subjectName: config.subjectName,
