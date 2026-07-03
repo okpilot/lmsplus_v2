@@ -61,6 +61,10 @@ describe('isValidDraftAnswer', () => {
     expect(isValidDraftAnswer({ selectedOptionId: 42, responseTimeMs: 500 })).toBe(false)
   })
 
+  it('rejects a whitespace-only selectedOptionId', () => {
+    expect(isValidDraftAnswer({ selectedOptionId: '   ', responseTimeMs: 500 })).toBe(false)
+  })
+
   it('returns false when responseTimeMs is a string', () => {
     expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: 'fast' })).toBe(false)
   })
@@ -105,6 +109,10 @@ describe('isValidDraftAnswer', () => {
 
   it('rejects an ordering draft whose order contains an empty string', () => {
     expect(isValidDraftAnswer({ order: ['item-a', ''], responseTimeMs: 1500 })).toBe(false)
+  })
+
+  it('rejects an ordering draft whose order contains a whitespace-only string', () => {
+    expect(isValidDraftAnswer({ order: ['item-a', '   '], responseTimeMs: 1500 })).toBe(false)
   })
 
   it('rejects an ordering draft whose order repeats an item id', () => {
@@ -398,6 +406,18 @@ describe('isValidFeedbackEntry', () => {
         questionType: 'ordering',
         isCorrect: true,
         correctOrder: ['MAYDAY', ''],
+        explanationText: null,
+        explanationImageUrl: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder contains a whitespace-only string', () => {
+    expect(
+      isValidFeedbackEntry({
+        questionType: 'ordering',
+        isCorrect: true,
+        correctOrder: ['MAYDAY', '   '],
         explanationText: null,
         explanationImageUrl: null,
       }),

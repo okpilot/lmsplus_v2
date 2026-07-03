@@ -285,6 +285,19 @@ describe('isOrderingRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects when correct_order contains a whitespace-only entry', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['MAYDAY', '   ', 'distress'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects when correct_order repeats an id', () => {
     // A canonical order is a permutation — a duplicate id is a malformed RPC result.
     expect(
@@ -388,6 +401,32 @@ describe('isDiagramRpcResult', () => {
         correct_answer: null,
         blanks: null,
         correct_mapping: [{ zone_id: 'z1', label_id: '' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when a correct_mapping element has a whitespace-only zone_id', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [{ zone_id: '   ', label_id: 'l1' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when a correct_mapping element has a whitespace-only label_id', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [{ zone_id: 'z1', label_id: '   ' }],
         explanation_text: null,
         explanation_image_url: null,
       }),

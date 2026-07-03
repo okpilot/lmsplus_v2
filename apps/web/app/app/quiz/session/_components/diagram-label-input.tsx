@@ -75,8 +75,7 @@ export function DiagramLabelInput({
 
   function handleDragEnd(event: DragEndEvent) {
     // Defense-in-depth, mirrors OrderingInput.handleDragEnd: ignore drops once
-    // locked/mid-check/disabled, so the displayed placement can't diverge from
-    // what the server actually graded (itemsDisabled = locked || disabled || submitting).
+    // locked/mid-check/disabled so displayed placement can't diverge from graded.
     if (itemsDisabled) return
     const { active, over } = event
     if (!over) return // closestCenter always resolves a nearest droppable; guards the zero-zone case only
@@ -110,10 +109,11 @@ export function DiagramLabelInput({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-border bg-card p-2">
           <DiagramArt />
-          {zones.map((zone) => (
+          {zones.map((zone, i) => (
             <DiagramLabelZone
               key={zone.id}
               zone={zone}
+              ariaLabel={`Drop zone ${i + 1} of ${zones.length}`}
               placedLabel={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
               disabled={itemsDisabled}
               result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}

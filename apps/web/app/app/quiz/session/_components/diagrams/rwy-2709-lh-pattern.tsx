@@ -14,9 +14,15 @@
 // likewise fy on height).
 
 import {
+  baseCenter,
+  crosswindCenter,
+  downwindCenter,
+  finalCenter,
   type PatternPoint,
   RWY_2709_PATH_POINTS,
-  RWY_2709_RUNWAY,
+  runwayEast,
+  runwayWest,
+  upwindCenter,
   RWY_2709_VBH as VBH,
   RWY_2709_VBW as VBW,
 } from './rwy-2709-layout'
@@ -59,8 +65,6 @@ function TurnMarker({ point }: Readonly<{ point: PatternPoint }>) {
 }
 
 const [crosswindTurn, downwindTurn, baseTurn, finalTurn] = RWY_2709_PATH_POINTS
-const runwayWest = { x: RWY_2709_RUNWAY.xThreshold09, y: RWY_2709_RUNWAY.y }
-const runwayEast = { x: RWY_2709_RUNWAY.xThreshold27, y: RWY_2709_RUNWAY.y }
 
 const CIRCUIT_PATH = [runwayWest, crosswindTurn, downwindTurn, baseTurn, finalTurn, runwayEast]
   .map(scaled)
@@ -68,11 +72,11 @@ const CIRCUIT_PATH = [runwayWest, crosswindTurn, downwindTurn, baseTurn, finalTu
   .join(' ')
 
 const LEG_ARROWS: DirectionArrowProps[] = [
-  { center: { x: (runwayWest.x + crosswindTurn.x) / 2, y: RWY_2709_RUNWAY.y }, rotation: 180 }, // upwind: west
-  { center: { x: crosswindTurn.x, y: (crosswindTurn.y + downwindTurn.y) / 2 }, rotation: 90 }, // crosswind: south
-  { center: { x: (downwindTurn.x + baseTurn.x) / 2, y: downwindTurn.y }, rotation: 0 }, // downwind: east
-  { center: { x: baseTurn.x, y: (baseTurn.y + finalTurn.y) / 2 }, rotation: 270 }, // base: north
-  { center: { x: (finalTurn.x + runwayEast.x) / 2, y: RWY_2709_RUNWAY.y }, rotation: 180 }, // final: west
+  { center: upwindCenter, rotation: 180 }, // upwind: west
+  { center: crosswindCenter, rotation: 90 }, // crosswind: south
+  { center: downwindCenter, rotation: 0 }, // downwind: east
+  { center: baseCenter, rotation: 270 }, // base: north
+  { center: finalCenter, rotation: 180 }, // final: west
 ]
 
 /** Inline SVG schematic of the RWY 27/09 left-hand traffic pattern. */

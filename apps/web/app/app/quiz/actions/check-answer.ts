@@ -7,7 +7,7 @@ import type { CheckAnswerResult } from '../types'
 
 const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
-  selectedOptionId: z.string().min(1),
+  selectedOptionId: z.string().trim().min(1),
   sessionId: z.uuid(),
 })
 

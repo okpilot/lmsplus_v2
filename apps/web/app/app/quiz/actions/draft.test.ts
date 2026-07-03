@@ -285,6 +285,15 @@ describe('saveDraft', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
+  it('rejects a draft whose selectedOptionId is whitespace-only', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { selectedOptionId: '   ', responseTimeMs: 2000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('validates that answers have non-negative responseTimeMs', async () => {
     setupAuthenticatedUser()
     const result = await saveDraft({
@@ -520,6 +529,15 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  it('rejects an ordering answer whose order contains a whitespace-only item id', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { order: ['item-a', '   '], responseTimeMs: 4000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('rejects an ordering answer containing an item id longer than 200 characters', async () => {
     // Mirrors the answers.blankAnswers text .max(200) cap — parity for ordering item ids.
     setupAuthenticatedUser()
@@ -563,6 +581,23 @@ describe('saveDraft', () => {
           questionType: 'ordering',
           isCorrect: true,
           correctOrder,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('rejects an ordering feedback entry whose correctOrder contains a whitespace-only id', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          questionType: 'ordering',
+          isCorrect: true,
+          correctOrder: ['MAYDAY', '   '],
           explanationText: null,
           explanationImageUrl: null,
         },

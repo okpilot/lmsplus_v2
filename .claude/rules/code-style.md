@@ -314,6 +314,20 @@ if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 
 **The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` throws an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression instead of a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use. (Promoted count=4 — #818 red-team helper, #845, PR #927 [squash `fb2921c6`], PR #930 [squash `f4c76c83`]. The pre-existing offender sweep across the `packages/db` integration suite is tracked in #938.)
 
+### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
+
+In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — so an empty array is still handled by the array branch instead of falling through to a wrong default — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path, silently producing a wrong submission row.
+
+```ts
+// ❌ WRONG — empty array is truthy; a length-only check drops the empty case down a wrong branch
+if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map(...)
+
+// ✅ CORRECT — Array.isArray keeps the empty array in the array branch, not a wrong default
+if (Array.isArray(a.blankAnswers)) row.blanks = a.blankAnswers.map(...)
+```
+
+When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position. **Precedent:** `quiz-submit-fanout.ts` `fanOutAnswer` — the `blankAnswers` branch shipped with the bare length-check in VFR RT Phase 2 (`75ea1de8`) and was cloud-CR-caught [Major] and fixed in Phase 6 (`2e8aaf7b`, #1059); the `order` branch had the same anti-pattern during Phase 5 development (fixed pre-squash, landed correct in `0168f7dc`). The `mapping` (diagram_label) branch was created correctly from the start and is the reference shape to copy. The learner tracker logged this at count=3 (`order`/`mapping`/`blankAnswers`), but git history shows only two branches were ever actually wrong — `order` and `blankAnswers` — so the ≥2 promotion threshold is met on those two real offenders (`mapping` was counted but was never defective) (#1061). Promotion sweep found the sole matching dispatcher already fully compliant — zero remaining offenders.
+
 ### Soft-Delete Filter Requires the Column to Exist
 
 Only apply `.is('deleted_at', null)` (or `AND deleted_at IS NULL`) to a table that actually HAS a `deleted_at` column. Filtering a non-existent column is a schema-contract bug: PostgREST returns `42703 column ... does not exist` at runtime, but mocked Vitest chains ignore `.is()`, `tsc` accepts any string column name, and Biome can't see the schema — so it passes every pre-commit gate and breaks only in production. The seven no-soft-delete tables that lack the `deleted_at` column are `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts` (hard-delete-by-design or immutable). This is the set the mechanical guard enforces; `docs/database.md` §3 documents the fuller no-soft-delete matrix (which also includes hard-delete-exception tables that retain a `deleted_at` column). A chain-aware mechanical guard enforces this at pre-commit + CI: `.claude/hooks/check-soft-delete-guard.mjs`. Origin: `.is('deleted_at', null)` on `easa_subjects` reached production and escaped every gate except semantic-reviewer (#925). The schema-aware successor (#933) generalizes this to any column on any table.
@@ -879,6 +893,23 @@ In app-layer integration tests, verify every negative / isolation assertion is a
 
 (Promoted count=2, cross-commit within #925 Phase 1 — PR #927 [squash `fb2921c6`]; per-mechanism breakdown in the learner `tracker-archive.md` 2026-06-20 entry. The integration-tier analog of §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous." Sweep of the #925 integration files at promotion found them clean.)
 
+### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
+
+When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
+
+```ts
+// ❌ VACUOUS — the fixture's real actor_role is also 'student', so a regression dropping the
+// `deleted_at IS NULL` filter (security.md rule 10) from the role lookup still returns 'student'
+expect(row.actor_role).toBe('student')
+
+// ✅ NON-VACUOUS — seed the actor with a role that differs from the fallback default, so a
+// filter-drop regression changes the observed value (or add an inline comment stating the limitation)
+seedActor({ role: 'admin' })            // real role ≠ the 'student' fallback
+expect(row.actor_role).toBe('admin')
+```
+
+Sibling to "Red-Team RPC Specs Must Assert the Full Output Contract" (the two-seed rule above). Promoted at count=3 (2026-06-04 AQ idempotency-seed assertion; #839 replay assertion 2026-06-24; #1069 grader `oral_exam.graded` role assertion — which already carries an inline limitation comment as the documented-limitation escape hatch).
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
@@ -898,6 +929,7 @@ The `code-reviewer` agent flags these after every commit:
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
+- Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5)
 
 ---
 
@@ -913,4 +945,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-06-29 (added "Mark Component Props as `Readonly`" rule to §5 + §8 — issue #1027)*
+*Last updated: 2026-07-03 (added §5 fan-out `Array.isArray` guard rule [#1061] + §7 COALESCE/fallback test-vacuity rule [#1076])*
