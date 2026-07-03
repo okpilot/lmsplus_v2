@@ -61,6 +61,26 @@ export async function resolveOrgId(
 }
 
 /**
+ * Best-effort removes an orphaned upload, retrying once on failure. Deterministic
+ * audioPath + upsert:false means a leftover object from a failed cleanup makes
+ * every retried submission hit the upload's 409 "already submitted" branch
+ * instead of ever reaching the RPC again — a short retry closes most of that
+ * window before giving up and logging.
+ */
+async function removeOrphanedAudio(supabase: SupabaseClient, audioPath: string): Promise<void> {
+  const MAX_ATTEMPTS = 2
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const { error: rmError } = await supabase.storage.from(BUCKET).remove([audioPath])
+    if (!rmError) return
+    if (attempt === MAX_ATTEMPTS) {
+      console.error('[submitSectionResponse] orphan cleanup failed:', rmError.message)
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200 * attempt))
+  }
+}
+
+/**
  * Uploads the audio to the private bucket, records the response via the RPC, and
  * best-effort cleans up the orphaned object if the RPC fails.
  *
@@ -91,12 +111,7 @@ export async function uploadAndRecord(
 
   const result = await recordResponse(supabase, input, audioPath)
   if (!result.success) {
-    // Best-effort: remove the just-uploaded object so a failed RPC does not leave
-    // an orphaned recording in storage.
-    const { error: rmError } = await supabase.storage.from(BUCKET).remove([audioPath])
-    if (rmError) {
-      console.error('[submitSectionResponse] orphan cleanup failed:', rmError.message)
-    }
+    await removeOrphanedAudio(supabase, audioPath)
   }
   return result
 }

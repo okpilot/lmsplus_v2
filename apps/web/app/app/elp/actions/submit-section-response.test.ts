@@ -2,12 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockFrom, mockStorageFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
-  mockStorageFrom: vi.fn(),
-}))
+const { mockGetUser, mockRpc, mockFrom, mockStorageFrom, mockAfter, mockTriggerSectionScoring } =
+  vi.hoisted(() => ({
+    mockGetUser: vi.fn(),
+    mockRpc: vi.fn(),
+    mockFrom: vi.fn(),
+    mockStorageFrom: vi.fn(),
+    mockAfter: vi.fn(),
+    mockTriggerSectionScoring: vi.fn(),
+  }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
@@ -20,6 +23,17 @@ vi.mock('@repo/db/server', () => ({
 // rpc is used inside recordResponse (imported from helpers)
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
+}))
+
+vi.mock('next/server', () => ({
+  after: (cb: () => void) => {
+    mockAfter(cb)
+    cb()
+  },
+}))
+
+vi.mock('@/lib/elp/trigger-scoring', () => ({
+  triggerSectionScoring: (...args: unknown[]) => mockTriggerSectionScoring(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -168,15 +182,28 @@ describe('submitSectionResponse', () => {
     expect(mockRemove).toHaveBeenCalledOnce()
   })
 
-  it('logs a warning when the orphan-file removal also fails', async () => {
+  it('does not schedule section scoring when the section RPC fails', async () => {
     setupAuth()
     setupOrgLookup()
-    setupStorage({ removeError: { message: 'storage unavailable' } })
+    setupStorage()
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'oral_session_not_found' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await submitSectionResponse(makeFormData())
+    consoleSpy.mockRestore()
+    expect(mockAfter).not.toHaveBeenCalled()
+    expect(mockTriggerSectionScoring).not.toHaveBeenCalled()
+  })
+
+  it('retries the orphan-file removal before logging when the first attempt also fails', async () => {
+    setupAuth()
+    setupOrgLookup()
+    const { mockRemove } = setupStorage({ removeError: { message: 'storage unavailable' } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'oral_session_not_active' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await submitSectionResponse(makeFormData())
     const logMessages = consoleSpy.mock.calls.map((c) => String(c[0]))
     consoleSpy.mockRestore()
+    expect(mockRemove).toHaveBeenCalledTimes(2)
     expect(logMessages.some((m) => m.includes('orphan cleanup failed'))).toBe(true)
   })
 
@@ -187,6 +214,20 @@ describe('submitSectionResponse', () => {
     mockRpc.mockResolvedValue({ data: RESPONSE_ID, error: null })
     const result = await submitSectionResponse(makeFormData({ durationMs: '3000' }))
     expect(result).toEqual({ success: true, responseId: RESPONSE_ID })
+  })
+
+  it('schedules section scoring with the response id, stored path, and section number on success', async () => {
+    setupAuth()
+    setupOrgLookup()
+    setupStorage()
+    mockRpc.mockResolvedValue({ data: RESPONSE_ID, error: null })
+    await submitSectionResponse(makeFormData({ sectionNo: '1' }))
+    expect(mockAfter).toHaveBeenCalledOnce()
+    expect(mockTriggerSectionScoring).toHaveBeenCalledWith(
+      RESPONSE_ID,
+      expect.stringMatching(new RegExp(`^${ORG_ID}/${USER_ID}/${SESSION_ID}/1\\.`)),
+      1,
+    )
   })
 
   it('stores the audio at a path that includes org, user, session, and section', async () => {

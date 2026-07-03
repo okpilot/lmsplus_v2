@@ -5,6 +5,8 @@
 
 red-team maps security-sensitive diffs to red-team Playwright specs and flags coverage gaps. It does NOT run specs (advisory, non-blocking). Trigger paths and full vector→spec mapping live in the topic file below.
 
+Last updated: 2026-07-03 (commits 568326b5 + 1a9fea35 / branch feat/icao-english-prep — #1069 grader audit event + #1068 audio MIME). write_oral_section_grade's finalize branch now writes an 'oral_exam.graded' audit_events row (session-derived actor, rule-12-documented deviation); grader REVOKE/GRANT and the auth.uid() forbidden guard confirmed byte-identical, no new attack surface. 3 non-vacuous assertion blocks added to the EXISTING rpc-oral-exam-grade.integration.test.ts (positive audit assertion, resource_id-scoped negative on partial-grade replay, soft-deleted-actor COALESCE path). #1068 confirmed non-security. Verdict: COVERED, no new issue — fold 'oral_exam.graded' into #1054's audit-completeness sub-scope. ELP Playwright spec count unchanged at 0. PRIOR: 2026-07-02 (commit d19f512c — migs 153–154 ELP mode generalization). 2 new sub-vectors flagged (p_mode injection = EU group; practice-section-bound overflow = EX group). Both integration-covered, neither Playwright-covered. Verdict: expand #1054 scope, do NOT file a new issue. Grader REVOKE gate confirmed verbatim (PUBLIC, anon, authenticated all named). All 15 Slice-0 vectors EU–FI remain deferred to #1054.
+
 ## Topic pointers
 
 - [attack-surface](topics/attack-surface.md) — **PROTECTED** vector→spec mapping matrix (vectors, spec files, Files-to-Watch, dated Lessons Learned). Never auto-curated, never pruned, never inlined into this index. This is the source of truth for which spec covers which attack vector — consult it on every review.
