@@ -323,6 +323,8 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
         expect(q.key.accepted_synonyms).toBeDefined()
       } else if (q.question_type === 'dialog_fill') {
         expect(Array.isArray(q.key.blanks)).toBe(true)
+      } else {
+        throw new Error(`Unhandled question_type in answer-key assertion: ${q.question_type}`)
       }
     }
 

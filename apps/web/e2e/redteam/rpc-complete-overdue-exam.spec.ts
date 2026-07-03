@@ -230,6 +230,10 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect(result?.session_id).toBe(sessionId)
     expect(result?.passed).toBe(false)
     expect(result?.score_percentage).toEqual(0)
+    expect(result?.answered_count).toBe(0)
+    expect(result?.total_questions).toBe(1)
+    // score/answered_count=0 coincide with the fallback default for an overdue,
+    // unanswered session; the graded-nonzero path is covered in rpc-vfr-rt-submit.spec.ts (§7).
 
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')

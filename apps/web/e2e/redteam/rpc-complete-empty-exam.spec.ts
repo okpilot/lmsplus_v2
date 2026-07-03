@@ -309,6 +309,9 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     expect(result?.passed).toBe(false)
     expect(result?.score_percentage).toEqual(0)
     expect(result?.answered_count).toBe(0)
+    expect(result?.total_questions).toBe(1)
+    // passed/score_percentage=0 for an empty session coincide with the fallback
+    // default; the graded-nonzero path is covered in rpc-vfr-rt-submit.spec.ts (§7).
 
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
