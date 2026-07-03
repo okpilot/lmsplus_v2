@@ -235,6 +235,40 @@ describe('startRecorderSession', () => {
     expect(file.name).toBe('answer.m4a')
     expect(file.type).toBe('audio/mp4')
   })
+
+  it('prefers the recorder-reported mimeType over the requested pick even when both are truthy', () => {
+    // The picked `mimeType` (from pickAudioMimeType) and `recorder.mimeType` can
+    // both be truthy at once; `recorder.mimeType` must still win — it's the ground
+    // truth for what the browser ACTUALLY recorded, which can diverge from the
+    // request. Prior tests only prove recorder.mimeType wins when the picked value
+    // is undefined (Safari) or the fallback is reached (nothing supported) — this
+    // proves precedence holds even when the picked value is itself truthy.
+    class DivergentReportRecorder {
+      ondataavailable: ((e: { data: Blob }) => void) | null = null
+      onstop: (() => void) | null = null
+      mimeType = 'audio/mp4'
+      static isTypeSupported = (type: string) => type === 'audio/webm'
+      start() {}
+      stop() {
+        this.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/mp4' }) })
+        this.onstop?.()
+      }
+    }
+    vi.stubGlobal('MediaRecorder', DivergentReportRecorder)
+
+    const onStop = vi.fn()
+    const stream = { getTracks: () => [] } as unknown as MediaStream
+    const recorder = startRecorderSession(stream, onStop)
+
+    recorder.stop()
+
+    expect(onStop).toHaveBeenCalledOnce()
+    const firstCall = onStop.mock.calls[0]
+    if (!firstCall) throw new Error('onStop was not called')
+    const file = firstCall[0] as File
+    expect(file.name).toBe('answer.m4a')
+    expect(file.type).toBe('audio/mp4')
+  })
 })
 
 describe('buildCaptureHandlers — onDenied', () => {

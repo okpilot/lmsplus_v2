@@ -177,13 +177,10 @@ interface Transcription {
 async function transcribe(audio: Blob, apiKey: string, audioPath: string): Promise<Transcription> {
   const form = new FormData();
   form.append('model_id', 'scribe_v1');
-  // Derive the Scribe filename from the storage key's real extension (mp4/m4a
-  // for Safari, webm elsewhere) instead of hardcoding 'answer.webm' — the
-  // storage key already preserves the recorded container (see #1068).
+  // Scribe filename ext from the storage key's real container, not hardcoded webm (#1068).
   const ext = audioPath.split('.').pop() || 'webm';
   form.append('file', audio, `answer.${ext}`);
   form.append('timestamps_granularity', 'word');
-
   const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
     method: 'POST',
     headers: { 'xi-api-key': apiKey },

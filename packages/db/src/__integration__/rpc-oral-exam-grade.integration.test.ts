@@ -392,7 +392,7 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
     expect((active ?? []).length).toBe(1)
   })
 
-  it('finalizes and COALESCEs actor_role when the student is soft-deleted mid-grading', async () => {
+  it('still finalizes and records the grade when the student is soft-deleted mid-grading', async () => {
     const { sessionId, responseIds } = await startAndSubmitAll(student)
     const grade = (rid: string) =>
       admin.rpc('write_oral_section_grade', {
@@ -439,6 +439,11 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       if (gradedEventsErr) throw new Error(`gradedEvents: ${gradedEventsErr.message}`)
       expect(gradedEvents ?? []).toHaveLength(1)
       expect(gradedEvents?.[0]?.actor_id).toBe(studentId)
+      // Primary signal: the grade finalized at all (removing COALESCE → 23502 → throw above).
+      // Limitation: actor_role='student' can't uniquely prove the COALESCE-from-NULL branch,
+      // since the fixture's real role is also 'student' — a dropped `deleted_at IS NULL` filter
+      // would find the soft-deleted row and still return 'student'. A distinct-role fixture is
+      // semantically odd for a student-owned oral session, so the NOT-NULL/finalize signal stands.
       expect(gradedEvents?.[0]?.actor_role).toBe('student')
     } finally {
       // MANDATORY restore — studentId is a SHARED fixture reused across this describe
