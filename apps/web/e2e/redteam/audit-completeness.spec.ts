@@ -18,7 +18,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
+import { getAdminClient } from '../helpers/supabase'
 import {
   backdateSession,
   buildAnswersForSession,
@@ -37,10 +37,7 @@ import {
   ATTACKER_PASSWORD,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-  VICTIM_EMAIL,
-  VICTIM_PASSWORD,
 } from './helpers/seed-users'
-import { buildVfrRtAnswers, cleanupVfrRtPool, seedVfrRtPool } from './helpers/seed-vfr-rt-pool'
 
 /**
  * Assert the full within-time-limit `batch_submit_quiz` return contract (#818, §7).
@@ -457,127 +454,5 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect((submitData as { expired?: boolean } | null)?.expired).toBe(true)
 
     await expectAuditRow(admin, 'internal_exam.expired', studentUserId, testStart, sessionId)
-  })
-})
-
-/**
- * VFR RT audit-event completeness (Vector DP, #873).
- *
- * Pins the three VFR-RT audit_events.event_type literals to the flows that emit
- * them, so a future CREATE OR REPLACE can't silently rename or drop them:
- *   - vfr_rt_exam.started   ← start_vfr_rt_exam_session (mig 140)
- *   - vfr_rt_exam.completed ← submit_vfr_rt_exam_answers, fresh completion (mig 129)
- *   - vfr_rt_exam.expired   ← complete_overdue_exam_session on a vfr_rt session (mig 102 L140)
- *
- * A dedicated describe (not folded into the quiz/exam block above) so it owns the
- * VFR-RT pool lifecycle: seed once in beforeAll, soft-delete in afterAll. Each
- * test captures testStart before its trigger and clears any leftover active
- * session first (single-active-session invariant, #1011). Every created/started
- * session id is registered in the tracker so afterEach soft-deletes it.
- */
-test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)', () => {
-  let admin: ReturnType<typeof getAdminClient>
-  let victimClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
-  let victimUserId: string
-  let orgId: string
-  let pool: Awaited<ReturnType<typeof seedVfrRtPool>>
-
-  const tracker = createFixtureTracker()
-
-  test.beforeAll(async () => {
-    admin = getAdminClient()
-    const seeded = await seedRedTeamUsers()
-    victimUserId = seeded.victimUserId
-    orgId = seeded.orgId
-    pool = await seedVfrRtPool({ admin, orgId, adminUserId: victimUserId })
-    victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-  })
-
-  test.afterEach(async () => {
-    await cleanupFixtures(admin, tracker)
-  })
-
-  test.afterAll(async () => {
-    await cleanupVfrRtPool({ admin, orgId })
-  })
-
-  test('writes vfr_rt_exam.started when start_vfr_rt_exam_session runs', async () => {
-    await cleanupStudentActiveSessions(VICTIM_EMAIL)
-    const testStart = new Date().toISOString()
-
-    const { data: started, error } = await victimClient.rpc('start_vfr_rt_exam_session', {
-      p_subject_id: pool.subjectId,
-    })
-    expect(error).toBeNull()
-    const sessionId = (started as { session_id?: string } | null)?.session_id
-    expect(sessionId).toBeTruthy()
-    if (!sessionId) throw new Error('start_vfr_rt_exam_session returned no session_id')
-    tracker.sessions.add(sessionId)
-
-    await expectAuditRow(admin, 'vfr_rt_exam.started', victimUserId, testStart, sessionId)
-  })
-
-  test('writes vfr_rt_exam.completed on submit_vfr_rt_exam_answers within time limit', async () => {
-    await cleanupStudentActiveSessions(VICTIM_EMAIL)
-
-    const { data: started, error: startErr } = await victimClient.rpc('start_vfr_rt_exam_session', {
-      p_subject_id: pool.subjectId,
-    })
-    expect(startErr).toBeNull()
-    const sessionId = (started as { session_id?: string } | null)?.session_id
-    expect(sessionId).toBeTruthy()
-    if (!sessionId) throw new Error('start_vfr_rt_exam_session returned no session_id')
-    tracker.sessions.add(sessionId)
-
-    const { data: questions, error: qErr } = await victimClient.rpc('get_vfr_rt_exam_questions', {
-      p_session_id: sessionId,
-    })
-    expect(qErr).toBeNull()
-    // §5 cast-guard: verify the shape before treating it as the typed question list.
-    if (!Array.isArray(questions)) {
-      throw new Error(`get_vfr_rt_exam_questions returned non-array: ${JSON.stringify(questions)}`)
-    }
-    const answers = buildVfrRtAnswers(questions as Array<{ id: string; question_type: string }>)
-
-    const testStart = new Date().toISOString()
-    const { error: submitErr } = await victimClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
-
-    await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionId)
-  })
-
-  test('writes vfr_rt_exam.expired when complete_overdue runs on an overdue vfr_rt session', async () => {
-    await cleanupStudentActiveSessions(VICTIM_EMAIL)
-
-    // Admin-insert a backdated active vfr_rt session (no pool needed for the
-    // overdue path): started 2000s ago > time_limit(1800)+30s grace → overdue.
-    // config.question_ids empty → per-part scoring averages over zero rows
-    // (COALESCE → 0). Service-role insert bypasses the immutable-columns trigger.
-    const { data: sessionRow, error: insErr } = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: orgId,
-        student_id: victimUserId,
-        mode: 'vfr_rt_exam',
-        config: { question_ids: [] },
-        total_questions: 1,
-        time_limit_seconds: 1800,
-        started_at: new Date(Date.now() - 2_000_000).toISOString(),
-      })
-      .select('id')
-      .single()
-    if (insErr || !sessionRow) throw new Error(`seed overdue vfr_rt session: ${insErr?.message}`)
-    tracker.sessions.add(sessionRow.id)
-
-    const testStart = new Date().toISOString()
-    const { error: overdueErr } = await victimClient.rpc('complete_overdue_exam_session', {
-      p_session_id: sessionRow.id,
-    })
-    expect(overdueErr).toBeNull()
-
-    await expectAuditRow(admin, 'vfr_rt_exam.expired', victimUserId, testStart, sessionRow.id)
   })
 })

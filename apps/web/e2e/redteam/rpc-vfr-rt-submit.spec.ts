@@ -292,7 +292,11 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC — success / output con
     const questions = questionsRaw as PoolQuestion[]
     expect(questions.length).toBe(25)
 
-    return { started, answers: buildVfrRtAnswers(questions, { failPart2 }) }
+    const answers = buildVfrRtAnswers(questions, { failPart2 })
+    // Non-vacuous: one answer per question — guards a silent unknown-type skip
+    // in the helper that would otherwise under-count the graded payload.
+    expect(answers.length).toBe(questions.length)
+    return { started, answers }
   }
 
   test('grades a fully-correct submission and returns the scalar part contract', async () => {
