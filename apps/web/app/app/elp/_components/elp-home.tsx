@@ -1,10 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
 import type { OralSessionSummary } from '@/lib/queries/oral-exam-session'
-import { startOralExam } from '../actions/start-oral-exam'
+import { useOralExamStart } from '../_hooks/use-oral-exam-start'
 import { StartButtons } from './start-buttons'
 
 type Props = Readonly<{ activeSession: OralSessionSummary | null }>
@@ -32,40 +30,11 @@ function ElpResumePrompt({ activeSession }: ResumePromptProps) {
  * Interview practice or a full Mock Exam. Client-only so the Start buttons can
  * call the Server Action and navigate — the page itself stays a Server Component. */
 export function ElpHome({ activeSession }: Props) {
-  const router = useRouter()
-  const [starting, setStarting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Synchronous one-shot re-entry guard (code-style §6) — `starting` is async state
-  // and could let a double-click (or the two Start buttons) through before React
-  // commits the disabled buttons.
-  const submittedRef = useRef(false)
-
-  async function handleStart(mode: 'practice' | 'mock') {
-    if (submittedRef.current) return
-    submittedRef.current = true
-    setStarting(true)
-    setError(null)
-
-    try {
-      const result = await startOralExam(mode)
-      if (result.success) {
-        router.push(`/app/elp/session/${result.sessionId}`)
-        return
-      }
-      setError(result.error)
-      submittedRef.current = false
-      setStarting(false)
-    } catch (err) {
-      console.error('[ElpHome] startOralExam threw:', err)
-      setError('Something went wrong. Please try again.')
-      submittedRef.current = false
-      setStarting(false)
-    }
-  }
+  const { starting, error, start } = useOralExamStart()
 
   if (activeSession) {
     return <ElpResumePrompt activeSession={activeSession} />
   }
 
-  return <StartButtons onStart={handleStart} starting={starting} error={error} />
+  return <StartButtons onStart={start} starting={starting} error={error} />
 }
