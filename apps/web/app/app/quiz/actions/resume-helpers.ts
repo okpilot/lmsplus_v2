@@ -3,6 +3,7 @@
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
+import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -10,7 +11,8 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 // Distinct situations get distinct copy: a different active session vs a stale draft.
 // INVARIANT: keys must not be substrings of one another — mapResumeRpcError matches via
 // token.includes(key), so an overlapping key would make iteration order decide the mapping.
-const RESUME_ERROR_MESSAGES: Record<string, string> = {
+// Exported so a co-located test can assert the invariant holds as keys are added.
+export const RESUME_ERROR_MESSAGES: Record<string, string> = {
   another_session_active:
     'You already have an active session. Finish or discard it before resuming this one.',
   // Reachable on resume: the Supabase auth token can outlive a soft-deleted `users` row,
@@ -57,7 +59,7 @@ function validateSessionForResume(session: {
 }): string | null {
   // Only practice sessions can be recreated; refuse anything else with clean copy rather
   // than leaking a raw `mode_not_allowed` RPC error.
-  if (session.mode !== 'quick_quiz' && session.mode !== 'smart_review') {
+  if (!(PRACTICE_MODES as readonly string[]).includes(session.mode)) {
     return 'This saved quiz can’t be resumed.'
   }
   // quick_quiz always carries a subject; smart_review may be cross-subject (NULL subject_id),
@@ -69,18 +71,29 @@ function validateSessionForResume(session: {
   return null
 }
 
+type DraftForResume = {
+  questionIds: string[]
+  sessionId: string
+  subjectName?: string
+  subjectCode?: string
+}
+type DraftLoadResult = { ok: true; draft: DraftForResume } | { ok: false; error: string }
+
+// Untrusted shape of quiz_drafts.session_config (client-written JSONB) — every field
+// is re-narrowed at the read site below before use.
+type RawDraftConfig = { sessionId?: unknown; subjectName?: unknown; subjectCode?: unknown }
+
 /**
- * Load everything resume needs: the draft's question_ids + the ORIGINAL session's
- * mode/subject/topic (read from the session row, which survives the save-time
- * soft-delete because RLS `students_select_sessions` is student_id-only with no
- * deleted_at filter). Sourcing from the row — not client JSONB — avoids trusting
- * unvalidated client state and the multi-topic topic_id=NULL edge case.
+ * Fetch + validate the draft row: its question_ids and the ORIGINAL session id/labels
+ * from session_config. Split out of loadResumeContext to keep both under the §3
+ * 30-line rule. Sources labels from the draft JSONB (write-once at save) but the
+ * session id is re-validated against the session row by the caller.
  */
-export async function loadResumeContext(
+async function loadDraftForResume(
   supabase: SupabaseClient,
   draftId: string,
   userId: string,
-): Promise<ContextResult> {
+): Promise<DraftLoadResult> {
   const { data: draft, error: draftErr } = await supabase
     .from('quiz_drafts')
     .select('question_ids, session_config')
@@ -95,20 +108,41 @@ export async function loadResumeContext(
   if (!draft.question_ids || draft.question_ids.length === 0) {
     return { ok: false, error: 'This saved quiz has no questions.' }
   }
-
-  const config = (draft.session_config ?? {}) as {
-    sessionId?: unknown
-    subjectName?: unknown
-    subjectCode?: unknown
-  }
+  const config = (draft.session_config ?? {}) as RawDraftConfig
   if (typeof config.sessionId !== 'string') {
     return { ok: false, error: 'This saved quiz is missing its session reference.' }
   }
+  return {
+    ok: true,
+    draft: {
+      questionIds: draft.question_ids,
+      sessionId: config.sessionId,
+      subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
+      subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
+    },
+  }
+}
+
+/**
+ * Load everything resume needs: the draft's question_ids + the ORIGINAL session's
+ * mode/subject/topic (read from the session row, which survives the save-time
+ * soft-delete because RLS `students_select_sessions` is student_id-only with no
+ * deleted_at filter). Sourcing mode/subject from the row — not client JSONB — avoids
+ * trusting unvalidated client state and the multi-topic topic_id=NULL edge case.
+ */
+export async function loadResumeContext(
+  supabase: SupabaseClient,
+  draftId: string,
+  userId: string,
+): Promise<ContextResult> {
+  const draftResult = await loadDraftForResume(supabase, draftId, userId)
+  if (!draftResult.ok) return draftResult
+  const { questionIds, sessionId, subjectName, subjectCode } = draftResult.draft
 
   const { data: session, error: sErr } = await supabase
     .from('quiz_sessions')
     .select('mode, subject_id, topic_id')
-    .eq('id', config.sessionId)
+    .eq('id', sessionId)
     .eq('student_id', userId)
     .maybeSingle()
   if (sErr) {
@@ -124,13 +158,13 @@ export async function loadResumeContext(
   return {
     ok: true,
     ctx: {
-      oldSessionId: config.sessionId,
-      questionIds: draft.question_ids,
+      oldSessionId: sessionId,
+      questionIds,
       mode: session.mode,
       subjectId: session.subject_id,
       topicId: session.topic_id,
-      subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
-      subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
+      subjectName,
+      subjectCode,
     },
   }
 }

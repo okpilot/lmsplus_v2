@@ -367,6 +367,15 @@ const DRAFT: DraftData = {
   sessionId: 'old-sess',
   questionIds: ['q1', 'q2'],
   answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+  feedback: {
+    q1: {
+      questionType: 'multiple_choice',
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    },
+  },
   currentIndex: 1,
   subjectName: 'Navigation',
   subjectCode: 'NAV',
@@ -403,6 +412,7 @@ describe('writeResumeHandoff', () => {
     const stored = JSON.parse(mockSession._store.get(sessionHandoffKey(USER_ID)) ?? '{}')
     expect(stored.questionIds).toEqual(DRAFT.questionIds)
     expect(stored.draftAnswers).toEqual(DRAFT.answers)
+    expect(stored.draftFeedback).toEqual(DRAFT.feedback)
     expect(stored.draftCurrentIndex).toBe(DRAFT.currentIndex)
     expect(stored.draftId).toBe(DRAFT.id)
     expect(stored.subjectName).toBe(DRAFT.subjectName)

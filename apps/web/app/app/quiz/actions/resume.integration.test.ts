@@ -177,6 +177,9 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
       .eq('id', draftId)
       .single()
     if (rErr) throw new Error(rErr.message)
+    // Guard the cast (§5): a null JSONB column would throw an opaque TypeError instead
+    // of a clean assertion failure on a regression.
+    expect(repointed.session_config).not.toBeNull()
     expect((repointed.session_config as { sessionId: string }).sessionId).toBe(resume.sessionId)
   })
 

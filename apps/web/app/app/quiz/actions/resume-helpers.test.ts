@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResumeContext } from './resume-helpers'
-import { loadResumeContext, mapResumeRpcError, repointDraftSession } from './resume-helpers'
+import {
+  loadResumeContext,
+  mapResumeRpcError,
+  RESUME_ERROR_MESSAGES,
+  repointDraftSession,
+} from './resume-helpers'
 
 describe('mapResumeRpcError', () => {
   it('tells the user to resolve their other active session when one is already active', () => {
@@ -21,6 +26,18 @@ describe('mapResumeRpcError', () => {
 
   it('returns a generic retry message when no error is given', () => {
     expect(mapResumeRpcError(undefined)).toMatch(/failed to resume/i)
+  })
+
+  // Guards the documented INVARIANT: mapResumeRpcError matches via token.includes(key),
+  // so if one key were a substring of another, iteration order (not specificity) would
+  // decide the mapping. Fails the moment a future key addition breaks the invariant.
+  it('keeps every error key free of being a substring of another key', () => {
+    const keys = Object.keys(RESUME_ERROR_MESSAGES)
+    for (const a of keys) {
+      for (const b of keys) {
+        if (a !== b) expect(b.includes(a)).toBe(false)
+      }
+    }
   })
 })
 

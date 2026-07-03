@@ -1,5 +1,6 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
+import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer, DraftResult } from '../types'
 
 type QuizDraftInsert = Database['public']['Tables']['quiz_drafts']['Insert']
@@ -57,7 +58,7 @@ export async function closePracticeSessionForDraft(
       // for a post-fix draft (whose session is already soft-deleted) instead of refreshing
       // deleted_at and logging a spurious "soft-deleted" line.
       .is('deleted_at', null)
-      .in('mode', ['quick_quiz', 'smart_review'])
+      .in('mode', PRACTICE_MODES as readonly string[])
       .select('id')
     if (error) {
       console.error('[closePracticeSession] Session close error:', error.message)

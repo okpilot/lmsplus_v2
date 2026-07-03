@@ -32,6 +32,7 @@
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
+import { PRACTICE_MODES } from '../lib/constants/exam-modes'
 import { fetchAllRows } from '../lib/supabase-paginate'
 
 config({ path: resolve(__dirname, '../.env.local') })
@@ -59,38 +60,46 @@ if (cutoffIdx >= 0 && (!CUTOFF || Number.isNaN(Date.parse(CUTOFF)))) {
   process.exit(1)
 }
 
-const PRACTICE_MODES = ['quick_quiz', 'smart_review']
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// Structural shape of a Supabase filter builder for the columns this script filters on.
+// Each method returns the same builder, so a generic constrained to it preserves the
+// concrete select/update builder type through the chain — no `any`, no drift between the
+// dry-run and mutation paths (both go through applyOrphanFilters).
+type OrphanFilterable<T> = {
+  in(column: string, values: readonly string[]): T
+  is(column: string, value: null): T
+  lt(column: string, value: string): T
+}
+
+/**
+ * Re-assert the strict orphan match on a chunk's query: practice mode only, still active,
+ * and (optionally) created before the deploy cutoff. Shared by BOTH the dry-run select and
+ * the real update so a future filter edit cannot make --dry-run misreport the real run.
+ */
+function applyOrphanFilters<T extends OrphanFilterable<T>>(q: T): T {
+  const filtered = q
+    .in('mode', PRACTICE_MODES as readonly string[])
+    .is('ended_at', null)
+    .is('deleted_at', null)
+  return CUTOFF ? filtered.lt('created_at', CUTOFF) : filtered
+}
+
 /**
  * Soft-delete (or, in --dry-run, count) the active practice sessions in one id chunk.
- * The mode/ended/deleted filters re-assert the strict orphan match on every chunk; the
- * optional cutoff excludes any session created at/after the deploy timestamp.
  */
 async function processChunk(slice: string[]): Promise<number> {
   if (DRY_RUN) {
-    let q = db
-      .from('quiz_sessions')
-      .select('id')
-      .in('id', slice)
-      .in('mode', PRACTICE_MODES)
-      .is('ended_at', null)
-      .is('deleted_at', null)
-    if (CUTOFF) q = q.lt('created_at', CUTOFF)
+    const q = applyOrphanFilters(db.from('quiz_sessions').select('id').in('id', slice))
     const { data, error } = await q
     if (error) throw new Error(`cleanup dry-run select: ${error.message}`)
     return data?.length ?? 0
   }
-  let q = db
-    .from('quiz_sessions')
-    .update({ deleted_at: new Date().toISOString() })
-    .in('id', slice)
-    .in('mode', PRACTICE_MODES)
-    .is('ended_at', null)
-    .is('deleted_at', null)
-  if (CUTOFF) q = q.lt('created_at', CUTOFF)
+  const q = applyOrphanFilters(
+    db.from('quiz_sessions').update({ deleted_at: new Date().toISOString() }).in('id', slice),
+  )
   const { data, error } = await q.select('id')
   if (error) throw new Error(`cleanup update: ${error.message}`)
   return data?.length ?? 0
