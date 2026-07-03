@@ -128,6 +128,16 @@ describe('batchSubmitQuiz', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
+  it('returns failure when an answer has a whitespace-only selectedOptionId string', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await batchSubmitQuiz({
+      sessionId: SESSION_ID,
+      answers: [{ questionId: Q1_ID, selectedOptionId: '   ', responseTimeMs: 1000 }],
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
   it('returns failure when responseTimeMs is not a positive integer', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await batchSubmitQuiz({

@@ -127,6 +127,16 @@ describe('checkAnswer', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  it('returns failure for a whitespace-only selected option id', async () => {
+    setupAuthenticatedUser()
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: '   ',
+      sessionId: SESSION_ID,
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
   it('returns failure for input missing required fields', async () => {
     setupAuthenticatedUser()
     const result = await checkAnswer({})

@@ -53,7 +53,7 @@ const OrderingInput = z
     // Bound array + element length (parity with DialogFillInput blankAnswers caps) — client input.
     // An ordering answer is a permutation, so duplicate ids are invalid.
     order: z
-      .array(z.string().min(1).max(200))
+      .array(z.string().trim().min(1).max(200))
       .min(MIN_ORDER_ITEMS)
       .max(MAX_ORDER_ITEMS)
       .refine(isUniquePermutation, 'Ordering ids must be unique'),

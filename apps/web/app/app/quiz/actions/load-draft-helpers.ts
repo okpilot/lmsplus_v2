@@ -2,6 +2,7 @@
 // Hoisted out of load-draft.ts to keep the Server Action file under the
 // 100-line cap (code-style.md §1). No `'use server'` — these are pure transforms.
 import type { Database } from '@repo/db/types'
+import { isValidDraftAnswer } from '@/app/app/quiz/session/_utils/quiz-session-validators'
 import type { AnswerFeedback, DialogBlankResult, DraftAnswer, DraftData } from '../types'
 import { isDiagramMappingArray } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
@@ -80,7 +81,7 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
         // Upper-bound parity with the same family (.max(50)) — a tampered DB draft
         // with >50 ids is corrupt.
         r.correctOrder.length <= MAX_ORDER_ITEMS &&
-        r.correctOrder.every((s) => typeof s === 'string' && s.length > 0) &&
+        r.correctOrder.every((s) => typeof s === 'string' && s.trim().length > 0) &&
         isUniquePermutation(r.correctOrder as string[])
         ? { questionType: 'ordering', correctOrder: r.correctOrder as string[], ...base }
         : null
@@ -107,6 +108,29 @@ function toFeedbackRecord(v: unknown): Record<string, AnswerFeedback> | undefine
   return out
 }
 
+// Unlike toFeedbackRecord, `answers` is a REQUIRED field on DraftData (no `?`),
+// so malformation can't be signaled with `| undefined` — return {} instead so
+// the row still loads rather than a blind `as` cast trusting a corrupt column shape.
+// Also unlike toFeedbackRecord (display-only annotations, voided whole on any bad
+// entry), a per-entry failure here SKIPS just the bad answer and keeps the valid
+// siblings: answers are the student's actual saved work, so one corrupt/legacy row
+// must not wipe the rest of their draft on resume.
+function toDraftAnswerRecord(raw: unknown, rowId: string): Record<string, DraftAnswer> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    console.error('[toDraftAnswerRecord] Malformed answers value on draft', rowId)
+    return {}
+  }
+  const out: Record<string, DraftAnswer> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (!isValidDraftAnswer(v)) {
+      console.error('[toDraftAnswerRecord] Skipping malformed answer entry on draft', rowId, k)
+      continue
+    }
+    out[k] = v as DraftAnswer
+  }
+  return out
+}
+
 export function rowToDraftData(row: QuizDraftRow): DraftData {
   const raw = row.session_config
   const rawFeedback = (row as unknown as { feedback?: unknown }).feedback
@@ -117,7 +141,7 @@ export function rowToDraftData(row: QuizDraftRow): DraftData {
       id: row.id,
       sessionId: '',
       questionIds: row.question_ids,
-      answers: row.answers as Record<string, DraftAnswer>,
+      answers: toDraftAnswerRecord(row.answers, row.id),
       feedback,
       currentIndex: row.current_index,
       subjectName: undefined,
@@ -130,7 +154,7 @@ export function rowToDraftData(row: QuizDraftRow): DraftData {
     id: row.id,
     sessionId: config.sessionId,
     questionIds: row.question_ids,
-    answers: row.answers as Record<string, DraftAnswer>,
+    answers: toDraftAnswerRecord(row.answers, row.id),
     feedback,
     currentIndex: row.current_index,
     subjectName: config.subjectName,

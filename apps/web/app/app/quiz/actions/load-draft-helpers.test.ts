@@ -52,6 +52,72 @@ describe('rowToDraftData — session_config', () => {
   })
 })
 
+describe('rowToDraftData — answers normalization', () => {
+  it('preserves a well-formed answers record', () => {
+    const answers = { q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } }
+    const draft = rowToDraftData(buildRow({ answers }))
+    expect(draft.answers).toEqual(answers)
+  })
+
+  it('returns an empty answers object and logs when the answers column is not an object', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: 'not-an-object' }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns an empty answers object and logs when the answers column is null', () => {
+    // typeof null === 'object', so the null check is a distinct branch from the
+    // non-object check — realistic: the JSONB column can be null in the DB.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: null }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns an empty answers object and logs when the answers column is an array', () => {
+    // Array.isArray is a distinct branch: typeof [] === 'object', so it passes the
+    // non-object check; only the isArray guard catches it.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: ['opt-a'] }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+      'draft-1',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('skips a malformed entry and preserves the valid sibling answers', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(
+      buildRow({
+        answers: {
+          q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 },
+          q2: { responseTimeMs: 4000 }, // missing an answer payload — malformed
+        },
+      }),
+    )
+    // The valid answer survives; only the corrupt entry is dropped — a single bad
+    // row must not wipe the student's saved work on resume.
+    expect(draft.answers).toEqual({ q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Skipping malformed answer entry on draft',
+      'draft-1',
+      'q2',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
 describe('rowToDraftData — feedback normalization', () => {
   it('tags legacy untagged MC feedback as multiple_choice', () => {
     const draft = rowToDraftData(
@@ -158,6 +224,25 @@ describe('rowToDraftData — feedback normalization', () => {
             questionType: 'ordering',
             isCorrect: false,
             correctOrder: ['MAYDAY', ''],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry whose correctOrder contains a whitespace-only string', () => {
+    // Trim-reject parity with the sessionStorage rehydrate path (isNonBlankString)
+    // and the save schema (.trim().min(1)) — a whitespace-only id is corrupt data.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: false,
+            correctOrder: ['MAYDAY', '   '],
             explanationText: null,
             explanationImageUrl: null,
           },
