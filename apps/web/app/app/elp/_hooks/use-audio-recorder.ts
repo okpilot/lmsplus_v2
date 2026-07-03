@@ -16,7 +16,8 @@ export type UseAudioRecorderResult = RecorderState & {
   stop: () => void
   reset: () => void
 }
-/** Records a mic answer into an upload-ready webm File; denial is a status, not a throw. */
+/** Records a mic answer into an upload-ready File whose container follows MediaRecorder
+ *  (webm on Chrome, mp4 on Safari/iOS); denial is a status, not a throw. */
 export function useAudioRecorder(): UseAudioRecorderResult {
   const [state, setState] = useState<RecorderState>(INITIAL_RECORDER_STATE)
   // Sync one-shot re-entry guard while getUserMedia's prompt is pending (§6).
