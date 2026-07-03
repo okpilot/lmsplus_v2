@@ -9,10 +9,12 @@ describe('getSectionPrompt', () => {
     expect(prompt.audioSrc).toBe('/elp/prompts/interview-1.mp3')
   })
 
-  it('returns a labelled placeholder prompt with no audio for the picture type', () => {
+  it('returns the picture-description prompt with its illustration and no audio', () => {
     const prompt = getSectionPrompt('picture')
     expect(prompt.label).toBe('§2 Picture Description')
-    expect(prompt.text).toContain('[practice placeholder]')
+    expect(prompt.text).not.toContain('[practice placeholder]')
+    expect(prompt.text).toContain('describe')
+    expect(prompt.imageSrc).toBe('/elp/prompts/picture-1.svg')
     expect(prompt.audioSrc).toBeUndefined()
   })
 

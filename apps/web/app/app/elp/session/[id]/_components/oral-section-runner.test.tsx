@@ -44,7 +44,8 @@ const PROMPT = {
 const PLACEHOLDER_PROMPT = {
   id: 'picture-1',
   label: '§2 Picture Description',
-  text: '[practice placeholder] Describe an aviation scene in detail.',
+  text: 'Look at the picture and describe it in as much detail as you can. Talk about the setting, the aircraft or equipment, any people and what they are doing, and anything that looks unusual or important. Speak for about ninety seconds.',
+  imageSrc: '/elp/prompts/picture-1.svg',
 }
 
 function idleRecorder(overrides: Partial<Record<string, unknown>> = {}) {
@@ -74,12 +75,17 @@ describe('OralSectionRunner — prompt', () => {
     render(<OralSectionRunner session={SESSION} section={SECTION} prompt={PROMPT} />)
     expect(screen.getByText(PROMPT.text)).toBeInTheDocument()
     expect(screen.getByLabelText('Interview question')).toHaveAttribute('src', PROMPT.audioSrc)
+    expect(screen.queryByRole('link', { name: /open image in new tab/i })).not.toBeInTheDocument()
   })
 
-  it('renders the prompt text but no audio player when the prompt has no audio', () => {
+  it('renders the prompt text and its illustration but no audio player when the prompt has no audio', () => {
     render(<OralSectionRunner session={SESSION} section={SECTION} prompt={PLACEHOLDER_PROMPT} />)
     expect(screen.getByText(PLACEHOLDER_PROMPT.text)).toBeInTheDocument()
     expect(screen.queryByLabelText('Interview question')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /open image in new tab/i })).toHaveAttribute(
+      'href',
+      PLACEHOLDER_PROMPT.imageSrc,
+    )
   })
 
   it('labels the heading with the section label and Practice for a practice-mode session', () => {
