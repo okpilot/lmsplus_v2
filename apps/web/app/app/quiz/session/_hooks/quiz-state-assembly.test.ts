@@ -140,6 +140,11 @@ describe('assembleQuizState', () => {
     expect(state.handleSubmit).toBe(p.handleSubmit)
     expect(state.handleSave).toBe(p.handleSave)
     expect(state.handleDiscard).toBe(p.handleDiscard)
+    expect(state.navigate).toBe(p.navigate)
+    expect(state.navigateTo).toBe(p.navigateTo)
+    expect(state.error).toBe(p.error)
+    expect(state.answering).toBe(p.answering)
+    expect(state.feedback).toBe(p.feedback)
   })
 
   it('passes the question object through unchanged', () => {

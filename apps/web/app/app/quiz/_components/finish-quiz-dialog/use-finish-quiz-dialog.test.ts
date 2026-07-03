@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useFinishQuizDialog } from './use-finish-quiz-dialog'
 
 function baseOpts(overrides: Partial<Parameters<typeof useFinishQuizDialog>[0]> = {}) {
@@ -158,5 +158,65 @@ describe('useFinishQuizDialog', () => {
     const { result } = renderHook(() => useFinishQuizDialog(baseOpts()))
     expect(result.current.title).toBe('Finish Quiz')
     expect(result.current.examLabel).toBeNull()
+  })
+
+  // ---- countdown gate: active = open && timeExpired && isExam ----------------
+
+  describe('countdown gate', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('countdown stays at the initial value when isExam is false', () => {
+      const onSubmit = vi.fn()
+      const { result } = renderHook(() =>
+        useFinishQuizDialog(baseOpts({ open: true, timeExpired: true, isExam: false, onSubmit })),
+      )
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(result.current.countdown).toBe(10)
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('countdown stays at the initial value when the timer has not expired', () => {
+      const onSubmit = vi.fn()
+      const { result } = renderHook(() =>
+        useFinishQuizDialog(baseOpts({ open: true, timeExpired: false, isExam: true, onSubmit })),
+      )
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(result.current.countdown).toBe(10)
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('countdown stays at the initial value when the dialog is closed', () => {
+      const onSubmit = vi.fn()
+      const { result } = renderHook(() =>
+        useFinishQuizDialog(baseOpts({ open: false, timeExpired: true, isExam: true, onSubmit })),
+      )
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(result.current.countdown).toBe(10)
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('countdown decrements to zero and fires onSubmit when open, isExam, and timeExpired are all true', () => {
+      const onSubmit = vi.fn()
+      const { result } = renderHook(() =>
+        useFinishQuizDialog(baseOpts({ open: true, isExam: true, timeExpired: true, onSubmit })),
+      )
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(result.current.countdown).toBe(0)
+      expect(onSubmit).toHaveBeenCalledOnce()
+    })
   })
 })

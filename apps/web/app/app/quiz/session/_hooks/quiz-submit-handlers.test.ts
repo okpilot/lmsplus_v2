@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
@@ -27,7 +27,17 @@ import {
   buildHandleSave,
   buildHandleSubmit,
   buildSharedFor,
+  NAV_FALLBACK_MS,
 } from './quiz-submit-handlers'
+
+// jsdom's window.location is not fully writable, so replace it with a mockable stub.
+// Held in a named ref because a vi.fn() reached only via Object.defineProperty is not in
+// Vitest's mock registry, so vi.resetAllMocks() does not clear it — reset it explicitly.
+const mockLocationAssign = vi.fn()
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: mockLocationAssign },
+})
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -50,6 +60,7 @@ function makeBaseDeps(overrides: Partial<Parameters<typeof buildSharedFor>[0]> =
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockLocationAssign.mockReset()
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)
@@ -187,6 +198,29 @@ describe('buildHandleSubmit', () => {
     await handleSubmit()
     expect(deps.submitted.current).toBe(true)
     expect(deps.setShowFinishDialog).toHaveBeenCalledWith(false)
+  })
+
+  // ---- nav-fallback timer (#909 anti-stranding safeguard) ---------------------
+
+  describe('nav-fallback timer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('falls back to a hard navigation after the fallback delay when the soft redirect stalls', async () => {
+      const deps = makeSubmitDeps()
+      mockHandleSubmitSession.mockImplementation(async (opts: { onSuccess: () => void }) => {
+        opts.onSuccess()
+      })
+      const handleSubmit = buildHandleSubmit(deps)
+      await handleSubmit()
+      vi.advanceTimersByTime(NAV_FALLBACK_MS)
+      expect(mockLocationAssign).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    })
   })
 })
 
