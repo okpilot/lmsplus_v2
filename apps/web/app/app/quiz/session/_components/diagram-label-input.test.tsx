@@ -72,6 +72,29 @@ describe('DiagramLabelInput', () => {
     expect(screen.getByTestId('diagram-label-zone-z2')).toBeInTheDocument()
   })
 
+  it('gives each zone a 1-based positional aria-label reflecting its render order and total zone count', () => {
+    render(
+      <DiagramLabelInput
+        imageRef="known-diagram"
+        zones={ZONES}
+        labels={LABELS}
+        onSubmit={vi.fn()}
+        disabled={false}
+      />,
+    )
+    // Production code: ariaLabel={`Drop zone ${i + 1} of ${zones.length}`}
+    // ZONES has 2 entries; z1 is at index 0 → "Drop zone 1 of 2", z2 at index 1 → "Drop zone 2 of 2".
+    // This guards against off-by-one (i vs i+1) or wrong total (hardcoded vs zones.length).
+    expect(screen.getByTestId('diagram-label-zone-z1')).toHaveAttribute(
+      'aria-label',
+      'Drop zone 1 of 2',
+    )
+    expect(screen.getByTestId('diagram-label-zone-z2')).toHaveAttribute(
+      'aria-label',
+      'Drop zone 2 of 2',
+    )
+  })
+
   it('shows a fallback message instead of crashing when the image_ref is unknown', () => {
     render(
       <DiagramLabelInput
