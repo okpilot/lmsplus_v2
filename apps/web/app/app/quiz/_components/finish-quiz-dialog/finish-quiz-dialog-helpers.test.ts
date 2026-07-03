@@ -99,6 +99,19 @@ describe('getSubmitButtonLabel', () => {
     )
   })
 
+  it('falls back to a generic exam label when the exam name is explicitly null', () => {
+    // deriveFinishDialogView yields examLabel: string | null, so the runtime value
+    // for an exam can be null (not just undefined) — assert the ?? fallback still fires.
+    expect(
+      getSubmitButtonLabel({
+        isSubmitting: false,
+        isExam: true,
+        examLabel: null,
+        answeredCount: 5,
+      }),
+    ).toBe('Submit Exam')
+  })
+
   it('offers to submit a plain quiz once at least one question is answered', () => {
     expect(getSubmitButtonLabel({ isSubmitting: false, answeredCount: 1 })).toBe('Submit Quiz')
   })
