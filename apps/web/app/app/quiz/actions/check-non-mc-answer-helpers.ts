@@ -158,11 +158,14 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
 function isDiagramMappingRow(v: unknown): v is DiagramMappingRow {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
+  // Non-blank ids — parity with the diagram save/runtime/DB-load validators
+  // (diagramIdSchema `.trim().min(1)`, isDiagramMappingEntry, toFeedbackEntry),
+  // matching the trim-reject applied to isOrderingRpcResult above.
   return (
     typeof r.zone_id === 'string' &&
-    r.zone_id.length > 0 &&
+    r.zone_id.trim().length > 0 &&
     typeof r.label_id === 'string' &&
-    r.label_id.length > 0
+    r.label_id.trim().length > 0
   )
 }
 

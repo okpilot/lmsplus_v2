@@ -407,6 +407,19 @@ describe('isDiagramRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects when a correct_mapping element has a whitespace-only zone_id', () => {
+    expect(
+      isDiagramRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_mapping: [{ zone_id: '   ', label_id: 'l1' }],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects when correct_mapping is not an array (dialog_fill shape)', () => {
     expect(
       isDiagramRpcResult({
