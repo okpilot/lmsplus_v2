@@ -49,8 +49,8 @@ const RESPONSE_ID = '00000000-0000-4000-a000-000000000077'
 
 // ---- Helpers --------------------------------------------------------------
 
-function makeAudioFile(name = 'rec.webm', size = 1024): File {
-  return new File([new Uint8Array(size)], name, { type: 'audio/webm' })
+function makeAudioFile(name = 'rec.webm', size = 1024, type = 'audio/webm'): File {
+  return new File([new Uint8Array(size)], name, { type })
 }
 
 function makeFormData(
@@ -240,6 +240,57 @@ describe('submitSectionResponse', () => {
       expect.stringMatching(new RegExp(`^${ORG_ID}/${USER_ID}/${SESSION_ID}/2\\.`)),
       expect.any(File),
       expect.objectContaining({ upsert: false }),
+    )
+  })
+
+  it('stores a Safari mp4 recording with a matching mp4 extension and Content-Type', async () => {
+    setupAuth()
+    setupOrgLookup()
+    const { mockUpload } = setupStorage()
+    mockRpc.mockResolvedValue({ data: RESPONSE_ID, error: null })
+    await submitSectionResponse(
+      makeFormData({ audio: makeAudioFile('answer.m4a', 1024, 'audio/mp4'), sectionNo: '1' }),
+    )
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^${ORG_ID}/${USER_ID}/${SESSION_ID}/1\\.m4a$`)),
+      expect.any(File),
+      expect.objectContaining({ contentType: 'audio/mp4' }),
+    )
+  })
+
+  it('stores a Chrome webm recording with a matching webm extension and Content-Type', async () => {
+    setupAuth()
+    setupOrgLookup()
+    const { mockUpload } = setupStorage()
+    mockRpc.mockResolvedValue({ data: RESPONSE_ID, error: null })
+    await submitSectionResponse(
+      makeFormData({ audio: makeAudioFile('answer.webm', 1024, 'audio/webm'), sectionNo: '1' }),
+    )
+    // '.webm' equals the audioExt fallback, so the extension assertion here cannot alone
+    // distinguish "allowed-set hit" from "always-fallback" — the Safari mp4 test above
+    // ('.m4a' != the 'webm' fallback) is the non-vacuous proof that audioExt threads the
+    // extension. Here the contentType ('audio/webm' != the 'application/octet-stream'
+    // fallback) is the non-vacuous assertion for the webm path.
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^${ORG_ID}/${USER_ID}/${SESSION_ID}/1\\.webm$`)),
+      expect.any(File),
+      expect.objectContaining({ contentType: 'audio/webm' }),
+    )
+  })
+
+  it('uses a generic octet-stream Content-Type when the audio file carries no MIME type', async () => {
+    setupAuth()
+    setupOrgLookup()
+    const { mockUpload } = setupStorage()
+    mockRpc.mockResolvedValue({ data: RESPONSE_ID, error: null })
+    // A File with type '' is falsy — the upload must fall back to 'application/octet-stream'
+    // rather than sending an empty Content-Type header to the storage bucket.
+    const noTypeFile = new File([new Uint8Array(1024)], 'recording.webm', { type: '' })
+    await submitSectionResponse(makeFormData({ audio: noTypeFile }))
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(File),
+      expect.objectContaining({ contentType: 'application/octet-stream' }),
     )
   })
 
