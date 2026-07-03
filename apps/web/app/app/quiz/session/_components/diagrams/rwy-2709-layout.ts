@@ -69,13 +69,13 @@ function box(id: string, center: PatternPoint): DiagramZone {
 }
 
 const [crosswindTurn, downwindTurn, baseTurn, finalTurn] = RWY_2709_PATH_POINTS
-const runwayWest = { x: RWY_2709_RUNWAY.xThreshold09, y: RWY_2709_RUNWAY.y }
-const runwayEast = { x: RWY_2709_RUNWAY.xThreshold27, y: RWY_2709_RUNWAY.y }
-const upwindCenter = midpoint(runwayWest, crosswindTurn)
-const crosswindCenter = midpoint(crosswindTurn, downwindTurn)
-const downwindCenter = midpoint(downwindTurn, baseTurn)
-const baseCenter = midpoint(baseTurn, finalTurn)
-const finalCenter = midpoint(finalTurn, runwayEast)
+export const runwayWest = { x: RWY_2709_RUNWAY.xThreshold09, y: RWY_2709_RUNWAY.y }
+export const runwayEast = { x: RWY_2709_RUNWAY.xThreshold27, y: RWY_2709_RUNWAY.y }
+export const upwindCenter = midpoint(runwayWest, crosswindTurn)
+export const crosswindCenter = midpoint(crosswindTurn, downwindTurn)
+export const downwindCenter = midpoint(downwindTurn, baseTurn)
+export const baseCenter = midpoint(baseTurn, finalTurn)
+export const finalCenter = midpoint(finalTurn, runwayEast)
 
 /**
  * The 9 drop zones (5 legs + 4 turns), positioned along the circuit above, in
