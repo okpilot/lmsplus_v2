@@ -138,12 +138,14 @@ async function main(): Promise<void> {
   const ids = [...referenced]
   const CHUNK = 200
   let count = 0
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    count += await processChunk(ids.slice(i, i + CHUNK))
-  }
+  // Announce the target BEFORE mutating, so a wrong-target remote run is visible
+  // (and abortable) before any soft-delete lands rather than after.
   const scope = FORCE_REMOTE ? '  [REMOTE]' : '  [local]'
   const cutoffNote = CUTOFF ? `  cutoff<${CUTOFF}` : ''
   console.log(`Target: ${SUPABASE_URL}${scope}${DRY_RUN ? '  [DRY-RUN]' : ''}${cutoffNote}`)
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    count += await processChunk(ids.slice(i, i + CHUNK))
+  }
   if (count === 0) {
     console.log('No orphaned active practice sessions found (already clean).')
   } else if (DRY_RUN) {

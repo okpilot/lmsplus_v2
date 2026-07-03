@@ -219,6 +219,27 @@ describe('DraftCard — Resume', () => {
     expect(sessionStorage.getItem('quiz-session:user-1')).toBeNull()
   })
 
+  it('shows an error and does not navigate when the handoff write fails', async () => {
+    // Resume succeeds server-side (default mock), but persisting the handoff to
+    // sessionStorage fails (quota/unavailable) — the user must not be sent into a
+    // session with no answers to rehydrate. writeResumeHandoff catches + logs.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError')
+    })
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Unable to resume right now. Please try again.')).toBeInTheDocument(),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    // The one-shot ref was released so the user can retry.
+    expect(screen.getByTestId('resume-draft')).not.toBeDisabled()
+    setItemSpy.mockRestore()
+    warnSpy.mockRestore()
+  })
+
   it('disables the Resume button and shows a resuming state while resume is in flight', () => {
     mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
     render(<DraftCard draft={DRAFT} userId="user-1" />)
