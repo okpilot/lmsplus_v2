@@ -74,4 +74,31 @@ describe('nextUnsubmittedSection', () => {
     )
     expect(current).toEqual({ sectionNo: 1, type: 'interview', isLast: true })
   })
+
+  it('returns null when the sections array is empty', () => {
+    const current = nextUnsubmittedSection(makeSession({ sections: [] }))
+    expect(current).toBeNull()
+  })
+
+  it('identifies the 5th section as the final one in a 5-section mock when sections 1–4 are submitted', () => {
+    const current = nextUnsubmittedSection(
+      makeSession({
+        mode: 'mock',
+        sections: [
+          { sectionNo: 1, type: 'interview' },
+          { sectionNo: 2, type: 'picture' },
+          { sectionNo: 3, type: 'comms' },
+          { sectionNo: 4, type: 'listening' },
+          { sectionNo: 5, type: 'video' },
+        ],
+        responses: [
+          { sectionNo: 1, status: 'grading' },
+          { sectionNo: 2, status: 'grading' },
+          { sectionNo: 3, status: 'grading' },
+          { sectionNo: 4, status: 'grading' },
+        ],
+      }),
+    )
+    expect(current).toEqual({ sectionNo: 5, type: 'video', isLast: true })
+  })
 })

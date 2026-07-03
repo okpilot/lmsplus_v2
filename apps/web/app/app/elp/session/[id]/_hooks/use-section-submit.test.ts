@@ -125,6 +125,32 @@ describe('useSectionSubmit — failure path', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
+  it('surfaces the error, allows a retry, and does not advance when a non-final submit fails', async () => {
+    mockSubmitSectionResponse
+      .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })
+      .mockResolvedValueOnce({ success: true, responseId: 'resp-2' })
+    const { result } = renderHook(() =>
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: false }),
+    )
+
+    await act(async () => {
+      result.current.submit(makeAudioFile(), 1000)
+    })
+
+    await waitFor(() => expect(result.current.error).toBe('Failed to submit section.'))
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+
+    // The guard reset on failure allows another attempt; a non-final success then
+    // refreshes in place (never pushes to the report).
+    await act(async () => {
+      result.current.submit(makeAudioFile(), 1000)
+    })
+    await waitFor(() => expect(mockSubmitSectionResponse).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+
   it('allows submitting again after a failed submission', async () => {
     mockSubmitSectionResponse
       .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })

@@ -130,6 +130,58 @@ describe('ElpHome — no active session', () => {
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-new-2'))
   })
 
+  it('disables both start buttons while a practice start is in-flight, preventing a mock exam from launching', async () => {
+    let resolveStart!: (v: { success: true; sessionId: string }) => void
+    mockStartOralExam.mockReturnValue(
+      new Promise<{ success: true; sessionId: string }>((res) => {
+        resolveStart = res
+      }),
+    )
+    render(<ElpHome activeSession={null} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /start §1 interview practice/i }))
+
+    // Both buttons change to "Starting…" and become disabled — the mock exam
+    // button is unreachable while the shared re-entry lock is held.
+    const pendingButtons = screen.getAllByRole('button', { name: /starting/i })
+    expect(pendingButtons).toHaveLength(2)
+    for (const btn of pendingButtons) {
+      expect(btn).toBeDisabled()
+    }
+    expect(mockStartOralExam).toHaveBeenCalledTimes(1)
+    expect(mockStartOralExam).toHaveBeenCalledWith('practice')
+
+    resolveStart({ success: true, sessionId: 'sess-practice-1' })
+    await waitFor(() =>
+      expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-practice-1'),
+    )
+  })
+
+  it('disables both start buttons while a mock exam start is in-flight, preventing a practice start from launching', async () => {
+    let resolveStart!: (v: { success: true; sessionId: string }) => void
+    mockStartOralExam.mockReturnValue(
+      new Promise<{ success: true; sessionId: string }>((res) => {
+        resolveStart = res
+      }),
+    )
+    render(<ElpHome activeSession={null} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /start mock exam/i }))
+
+    // Both buttons change to "Starting…" and become disabled — the practice
+    // button is unreachable while the shared re-entry lock is held.
+    const pendingButtons = screen.getAllByRole('button', { name: /starting/i })
+    expect(pendingButtons).toHaveLength(2)
+    for (const btn of pendingButtons) {
+      expect(btn).toBeDisabled()
+    }
+    expect(mockStartOralExam).toHaveBeenCalledTimes(1)
+    expect(mockStartOralExam).toHaveBeenCalledWith('mock')
+
+    resolveStart({ success: true, sessionId: 'sess-mock-2' })
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-mock-2'))
+  })
+
   it('allows a retry after a failed start attempt', async () => {
     mockStartOralExam
       .mockResolvedValueOnce({ success: false, error: 'Failed to start oral exam.' })

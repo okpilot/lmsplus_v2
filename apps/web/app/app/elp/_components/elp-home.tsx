@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import type { OralSessionSummary } from '@/lib/queries/oral-exam-session'
 import { startOralExam } from '../actions/start-oral-exam'
+import { StartButtons } from './start-buttons'
 
 type Props = Readonly<{ activeSession: OralSessionSummary | null }>
 
@@ -66,36 +67,5 @@ export function ElpHome({ activeSession }: Props) {
     return <ElpResumePrompt activeSession={activeSession} />
   }
 
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">ICAO English Prep</h1>
-      <p className="text-sm text-muted-foreground">
-        Practice the §1 Interview, or sit the full 5-section Mock Exam — record your spoken answers
-        and get scored feedback.
-      </p>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={() => handleStart('practice')}
-          disabled={starting}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          {starting ? 'Starting…' : 'Start §1 Interview Practice'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStart('mock')}
-          disabled={starting}
-          className="rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary disabled:opacity-50"
-        >
-          {starting ? 'Starting…' : 'Start Mock Exam'}
-        </button>
-      </div>
-    </div>
-  )
+  return <StartButtons onStart={handleStart} starting={starting} error={error} />
 }

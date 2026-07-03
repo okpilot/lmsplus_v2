@@ -2,12 +2,10 @@
 
 import type { CurrentSection } from '@/lib/elp/section-progress'
 import type { OralSessionDetail } from '@/lib/queries/oral-exam-session'
-import { AudioPromptPlayer } from '../../../_components/audio-prompt-player'
 import { useAudioRecorder } from '../../../_hooks/use-audio-recorder'
 import type { SectionPrompt } from '../../../prompts'
 import { useSectionSubmit } from '../_hooks/use-section-submit'
-import { RecorderControls } from './recorder-controls'
-import { SectionSubmitButton } from './section-submit-button'
+import { SectionRunnerLayout } from './section-runner-layout'
 
 type Props = Readonly<{
   session: OralSessionDetail
@@ -32,6 +30,8 @@ export function OralSectionRunner({ session, section, prompt }: Props) {
   })
 
   const modeLabel = session.mode === 'mock' ? 'Mock Exam' : 'Practice'
+  const sectionPosition =
+    session.mode === 'mock' ? `Section ${section.sectionNo} of ${session.sections.length}` : null
 
   function handleSubmit() {
     if (!recorder.file) return
@@ -39,35 +39,26 @@ export function OralSectionRunner({ session, section, prompt }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {prompt.label} — {modeLabel}
-      </h1>
-
-      {session.mode === 'mock' && (
-        <p className="text-sm text-muted-foreground">
-          Section {section.sectionNo} of {session.sections.length}
-        </p>
-      )}
-
-      {prompt.audioSrc && <AudioPromptPlayer src={prompt.audioSrc} label="Interview question" />}
-      <p className="text-base">{prompt.text}</p>
-
-      <RecorderControls
-        status={recorder.status}
-        audioUrl={recorder.audioUrl}
-        error={recorder.error}
-        onStart={recorder.start}
-        onStop={recorder.stop}
-        onReset={recorder.reset}
-      />
-
-      <SectionSubmitButton
-        submitting={submitting}
-        error={submitError}
-        onSubmit={handleSubmit}
-        disabled={!recorder.file || submitting}
-      />
-    </div>
+    <SectionRunnerLayout
+      label={prompt.label}
+      modeLabel={modeLabel}
+      sectionPosition={sectionPosition}
+      audioSrc={prompt.audioSrc}
+      promptText={prompt.text}
+      recorder={{
+        status: recorder.status,
+        audioUrl: recorder.audioUrl,
+        error: recorder.error,
+        onStart: recorder.start,
+        onStop: recorder.stop,
+        onReset: recorder.reset,
+      }}
+      submit={{
+        submitting,
+        error: submitError,
+        onSubmit: handleSubmit,
+        disabled: !recorder.file || submitting,
+      }}
+    />
   )
 }
