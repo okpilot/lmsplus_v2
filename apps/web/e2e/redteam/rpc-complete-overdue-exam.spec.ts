@@ -218,6 +218,34 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect(row?.passed).toBe(false)
   })
 
+  test('positive: the owner can complete an overdue vfr_rt_exam session', async () => {
+    const sessionId = await seedSession({ mode: 'vfr_rt_exam', overdue: true })
+
+    const { data, error } = await victimClient.rpc('complete_overdue_exam_session', {
+      p_session_id: sessionId,
+    })
+
+    expect(error).toBeNull()
+    const result = data as CompleteResult | null
+    expect(result?.session_id).toBe(sessionId)
+    expect(result?.passed).toBe(false)
+    expect(Number(result?.score_percentage)).toEqual(0)
+    expect(result?.answered_count).toBe(0)
+    expect(result?.total_questions).toBe(1)
+    // score/answered_count=0 coincide with the fallback default for an overdue,
+    // unanswered session; the graded-nonzero path is covered in rpc-vfr-rt-submit.spec.ts (§7).
+
+    const { data: row, error: readErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, passed, score_percentage')
+      .eq('id', sessionId)
+      .single()
+    expect(readErr).toBeNull()
+    expect(row?.ended_at).not.toBeNull()
+    expect(row?.passed).toBe(false)
+    expect(Number(row?.score_percentage)).toEqual(0)
+  })
+
   test('the owner cannot complete once their account is soft-deleted', async () => {
     // Seed the session while the user is still active, then soft-delete the
     // user. The org lookup (deleted_at IS NULL) fails before any session work.
