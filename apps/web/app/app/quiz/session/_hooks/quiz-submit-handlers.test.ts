@@ -221,6 +221,19 @@ describe('buildHandleSubmit', () => {
       vi.advanceTimersByTime(NAV_FALLBACK_MS)
       expect(mockLocationAssign).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
     })
+
+    it('hard-navigates to the internal-exam report when an exam soft redirect stalls', async () => {
+      const deps = makeSubmitDeps({ examMode: 'internal_exam' })
+      mockHandleSubmitSession.mockImplementation(async (opts: { onSuccess: () => void }) => {
+        opts.onSuccess()
+      })
+      const handleSubmit = buildHandleSubmit(deps)
+      await handleSubmit()
+      vi.advanceTimersByTime(NAV_FALLBACK_MS)
+      expect(mockLocationAssign).toHaveBeenCalledWith(
+        `/app/internal-exam/report?session=${SESSION_ID}`,
+      )
+    })
   })
 })
 
