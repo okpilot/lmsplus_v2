@@ -110,8 +110,11 @@ function toFeedbackRecord(v: unknown): Record<string, AnswerFeedback> | undefine
 
 // Unlike toFeedbackRecord, `answers` is a REQUIRED field on DraftData (no `?`),
 // so malformation can't be signaled with `| undefined` — return {} instead so
-// the row still loads (with no answers) rather than a blind `as` cast trusting
-// a corrupt column shape.
+// the row still loads rather than a blind `as` cast trusting a corrupt column shape.
+// Also unlike toFeedbackRecord (display-only annotations, voided whole on any bad
+// entry), a per-entry failure here SKIPS just the bad answer and keeps the valid
+// siblings: answers are the student's actual saved work, so one corrupt/legacy row
+// must not wipe the rest of their draft on resume.
 function toDraftAnswerRecord(raw: unknown): Record<string, DraftAnswer> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     console.error('[toDraftAnswerRecord] Malformed answers value on draft')
@@ -120,8 +123,8 @@ function toDraftAnswerRecord(raw: unknown): Record<string, DraftAnswer> {
   const out: Record<string, DraftAnswer> = {}
   for (const [k, v] of Object.entries(raw)) {
     if (!isValidDraftAnswer(v)) {
-      console.error('[toDraftAnswerRecord] Malformed answer entry on draft', k)
-      return {}
+      console.error('[toDraftAnswerRecord] Skipping malformed answer entry on draft', k)
+      continue
     }
     out[k] = v as DraftAnswer
   }

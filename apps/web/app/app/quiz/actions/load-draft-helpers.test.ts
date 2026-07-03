@@ -93,7 +93,7 @@ describe('rowToDraftData — answers normalization', () => {
     consoleSpy.mockRestore()
   })
 
-  it('returns an empty answers object and logs when one entry is malformed', () => {
+  it('skips a malformed entry and preserves the valid sibling answers', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const draft = rowToDraftData(
       buildRow({
@@ -103,9 +103,11 @@ describe('rowToDraftData — answers normalization', () => {
         },
       }),
     )
-    expect(draft.answers).toEqual({})
+    // The valid answer survives; only the corrupt entry is dropped — a single bad
+    // row must not wipe the student's saved work on resume.
+    expect(draft.answers).toEqual({ q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } })
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[toDraftAnswerRecord] Malformed answer entry on draft',
+      '[toDraftAnswerRecord] Skipping malformed answer entry on draft',
       'q2',
     )
     consoleSpy.mockRestore()
