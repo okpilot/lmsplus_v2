@@ -4,18 +4,15 @@ import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import {
-  examReportUrl,
-  handleDiscardSession,
-  handleSaveSession,
-  handleSubmitSession,
-} from './quiz-submit'
+  buildHandleDiscard,
+  buildHandleSave,
+  buildHandleSubmit,
+  NAV_FALLBACK_MS,
+  type QuizPendingAction,
+} from './quiz-submit-handlers'
 
-/** Which finish-dialog action is currently in flight, or null when idle. */
-export type QuizPendingAction = 'submit' | 'save' | 'discard' | null
-
-/** If the post-submit soft navigation hasn't unmounted this component within this window,
- * hard-navigate to the report so the student is never stranded on "Submitting…". (#909) */
-export const NAV_FALLBACK_MS = 4000
+export type { QuizPendingAction }
+export { NAV_FALLBACK_MS }
 
 export function useQuizSubmit(opts: {
   userId: string
@@ -34,28 +31,15 @@ export function useQuizSubmit(opts: {
 }) {
   const submitted = useRef(false)
   // Synchronous one-shot re-entry guard for handleSubmit (multi-source: timer/click/keyboard).
-  // Separate from `submitted` (success flag) so failure resets the lock for retry.
+  // Separate from `submitted` (terminal success flag) so a failed submit releases the lock for
+  // retry — the two-ref reset logic lives in `buildSharedFor` (quiz-submit-handlers.ts).
   const inFlight = useRef(false)
   const navFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
-  // One action runs at a time (the dialog disables all buttons while any is pending),
-  // so a single discriminator drives both per-button spinners and the derived `submitting`.
+  // A single discriminator drives both per-button spinners and derived `submitting`.
   const [pendingAction, setPendingAction] = useState<QuizPendingAction>(null)
   const submitting = pendingAction !== null
   const [error, setError] = useState<string | null>(null)
-  const sharedFor = (action: Exclude<QuizPendingAction, null>) => ({
-    router: opts.router,
-    setSubmitting: (v: boolean) => {
-      setPendingAction(v ? action : null)
-      // Reset the submit re-entry lock when the submit finishes without having
-      // succeeded (on success, onSuccess sets submitted.current = true first, so
-      // inFlight stays locked — terminal; on error, submitted is still false —
-      // retryable). Scoped to 'submit' so a save/discard completion can never
-      // reset an in-flight submit's lock (inFlight is only set by handleSubmit).
-      if (!v && action === 'submit' && !submitted.current) inFlight.current = false
-    },
-    setError,
-  })
 
   useEffect(() => {
     return () => {
@@ -63,70 +47,12 @@ export function useQuizSubmit(opts: {
     }
   }, [])
 
-  async function handleSubmit() {
-    if (inFlight.current || submitted.current) return
-    inFlight.current = true
-    const pending = opts.pendingQuestionIdRef.current
-    const safeAnswers =
-      pending.size > 0
-        ? new Map([...opts.answersRef.current].filter(([qId]) => !pending.has(qId)))
-        : opts.answersRef.current
-    await handleSubmitSession({
-      userId: opts.userId,
-      sessionId: opts.sessionId,
-      answers: safeAnswers,
-      draftId: opts.draftId,
-      isExam: opts.isExam,
-      examMode: opts.examMode,
-      onSuccess: () => {
-        submitted.current = true
-        setShowFinishDialog(false)
-      },
-      ...sharedFor('submit'),
-    }).finally(() => {
-      // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
-      // so the student can retry. On success onSuccess set submitted.current = true first, so
-      // the lock intentionally stays engaged here (terminal — navigating to the report).
-      if (!submitted.current) inFlight.current = false
-    })
-    if (submitted.current) {
-      if (navFallbackTimer.current) clearTimeout(navFallbackTimer.current)
-      navFallbackTimer.current = setTimeout(() => {
-        // Soft nav didn't unmount us → it was cancelled (#909). Hard-navigate to the
-        // same destination; safe even if it fires after a slow-but-successful nav.
-        window.location.assign(examReportUrl(opts.examMode, opts.sessionId))
-      }, NAV_FALLBACK_MS)
-    }
-  }
-
-  function handleSave() {
-    const pending = opts.pendingQuestionIdRef.current
-    const safeAnswers =
-      pending.size > 0
-        ? new Map([...opts.answersRef.current].filter(([qId]) => !pending.has(qId)))
-        : opts.answersRef.current
-    return handleSaveSession({
-      userId: opts.userId,
-      sessionId: opts.sessionId,
-      questions: opts.questions,
-      answers: safeAnswers,
-      feedback: opts.feedbackRef.current,
-      currentIndex: opts.currentIndexRef.current,
-      draftId: opts.draftId,
-      subjectName: opts.subjectName,
-      subjectCode: opts.subjectCode,
-      ...sharedFor('save'),
-    })
-  }
-
-  function handleDiscard() {
-    return handleDiscardSession({
-      userId: opts.userId,
-      sessionId: opts.sessionId,
-      draftId: opts.draftId,
-      ...sharedFor('discard'),
-    })
-  }
+  // `shared` carries every opts field plus the local setters/refs — each builder below
+  // structurally picks only the subset it declares (excess fields are harmless).
+  const shared = { ...opts, setPendingAction, setError, submitted, inFlight }
+  const handleSubmit = buildHandleSubmit({ ...shared, navFallbackTimer, setShowFinishDialog })
+  const handleSave = buildHandleSave(shared)
+  const handleDiscard = buildHandleDiscard(shared)
 
   return {
     submitted,

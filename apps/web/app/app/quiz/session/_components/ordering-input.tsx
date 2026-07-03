@@ -1,25 +1,11 @@
 'use client'
 
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { closestCenter, DndContext } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
-import { type OrderingItem, orderFromSubmitted } from './ordering-input-helpers'
+import type { OrderingItem } from './ordering-input-helpers'
 import { OrderingInputItem } from './ordering-input-item'
+import { useOrderingInput } from './use-ordering-input'
 
 type OrderingInputProps = Readonly<{
   /** Items in the server-shuffled delivery order — the student's starting sequence. */
@@ -50,48 +36,19 @@ export function OrderingInput({
   correctOrder,
   submittedOrder,
 }: OrderingInputProps) {
-  const [order, setOrder] = useState<OrderingItem[]>(() =>
-    orderFromSubmitted(items, submitted, submittedOrder),
-  )
+  const { order, sensors, locked, graded, allCorrect, handleDragEnd, handleSubmit, slotResult } =
+    useOrderingInput({
+      items,
+      onSubmit,
+      disabled,
+      submitting,
+      submitted,
+      correctOrder,
+      submittedOrder,
+    })
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
-
-  const locked = submitted
-  const graded = locked && correctOrder != null
   // Compare by id (the grader reveals canonical ids); map ids back to display text.
   const idToText = new Map(items.map((it) => [it.id, it.text]))
-  const allCorrect = graded && order.every((it, i) => it.id === correctOrder[i])
-
-  function handleDragEnd(event: DragEndEvent) {
-    // Defense-in-depth: a touch begun before the RPC resolved can still fire
-    // onDragEnd after `submitting` flips true (TouchSensor has a 250ms activation
-    // delay), so ignore drops once locked or mid-check — the displayed order must
-    // not diverge from the sequence the server actually graded. Also bail when the
-    // parent flips `disabled` (session submit in flight) mid-drag — same freeze
-    // intent as the item-level `disabled` on OrderingInputItem below.
-    if (locked || disabled || submitting) return
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    setOrder((prev) => {
-      const from = prev.findIndex((it) => it.id === active.id)
-      const to = prev.findIndex((it) => it.id === over.id)
-      if (from === -1 || to === -1) return prev
-      return arrayMove(prev, from, to)
-    })
-  }
-
-  function handleSubmit() {
-    onSubmit(order.map((it) => it.id))
-  }
-
-  function slotResult(index: number): 'correct' | 'incorrect' | undefined {
-    if (!graded) return undefined
-    return order[index]?.id === correctOrder[index] ? 'correct' : 'incorrect'
-  }
 
   return (
     <div className="space-y-3">
@@ -108,7 +65,7 @@ export function OrderingInput({
                 // server never graded, so the reveal would disagree with is_correct.
                 disabled={locked || disabled || submitting}
                 result={slotResult(i)}
-                canonical={graded ? idToText.get(correctOrder[i] ?? '') : undefined}
+                canonical={graded ? idToText.get(correctOrder?.[i] ?? '') : undefined}
               />
             ))}
           </ol>

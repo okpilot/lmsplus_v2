@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { QuizStateOpts } from '../../session-types'
 import type { DraftAnswer } from '../../types'
+import { assembleQuizState } from './quiz-state-assembly'
 import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { usePinnedQuestions } from './use-pinned-questions'
@@ -56,37 +57,17 @@ export function useQuizState(opts: QuizStateOpts) {
   const answers = isExam ? exam.answers : studyAnswers
   const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
   useNavigationGuard(!isExam && answers.size > initialSize.current && !p.submitted.current)
+  const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
-  return {
-    currentIndex: nav.currentIndex,
-    seenIndices: nav.seenIndices,
+  return assembleQuizState({
+    nav,
     question,
     questionId,
-    answeredCount: answers.size,
-    existingAnswer: answers.get(questionId),
-    currentFeedback: p.feedback.get(questionId) ?? null,
-    questionIds: useMemo(() => opts.questions.map((q) => q.id), [opts.questions]),
-    answeredIds: new Set(answers.keys()),
-    feedback: p.feedback,
+    answers,
+    questionIds,
     pinnedQuestions,
-    isPinned: pinnedQuestions.has(questionId),
-    handleSelectAnswer: p.handleSelectAnswer,
-    handleTextAnswer: p.handleTextAnswer,
-    handleDialogFillAnswer: p.handleDialogFillAnswer,
-    handleOrderingAnswer: p.handleOrderingAnswer,
-    handleDiagramLabelAnswer: p.handleDiagramLabelAnswer,
-    navigateTo: p.navigateTo,
-    navigate: p.navigate,
     togglePin: () => togglePinById(questionId),
-    error: p.error,
+    p,
     isExam,
-    submitting: p.submitting,
-    pendingAction: p.pendingAction,
-    answering: p.answering,
-    handleSubmit: p.handleSubmit,
-    handleSave: p.handleSave,
-    handleDiscard: p.handleDiscard,
-    showFinishDialog: p.showFinishDialog,
-    setShowFinishDialog: p.setShowFinishDialog,
-  }
+  })
 }
