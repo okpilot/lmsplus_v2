@@ -21,7 +21,7 @@ const BASE_MIME_TO_EXT: Record<string, string> = {
  * would be REJECTED by the bucket where the old hardcoded 'audio/webm' always
  * passed. Falling back to webm mislabels a genuinely exotic container, but
  * preserves upload success, which matches today's behavior for the unknown case. */
-const FALLBACK = { baseMime: 'audio/webm', ext: 'webm' } as const
+export const FALLBACK = { baseMime: 'audio/webm', ext: 'webm' } as const
 
 /**
  * Parses a MediaRecorder-reported MIME type (which may carry codec params,

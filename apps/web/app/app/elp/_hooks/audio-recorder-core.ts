@@ -5,7 +5,7 @@
  */
 
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import { parseAudioMime } from './audio-mime'
+import { FALLBACK, parseAudioMime } from './audio-mime'
 
 export type AudioRecorderStatus = 'idle' | 'recording' | 'recorded' | 'denied' | 'unsupported'
 
@@ -70,7 +70,7 @@ export function startRecorderSession(
     // pickAudioMimeType() can return undefined on old Safari (no isTypeSupported),
     // in which case the browser falls back to its own default (often mp4) while
     // `mimeType` here stays undefined, so read from the recorder itself first.
-    const actual = recorder.mimeType || mimeType || 'audio/webm'
+    const actual = recorder.mimeType || mimeType || FALLBACK.baseMime
     onStop(buildAnswerFile(chunks, actual))
   }
   recorder.start()
