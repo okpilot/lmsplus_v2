@@ -60,6 +60,21 @@ export function deriveFinishDialogView(opts: {
   return { unanswered, isInternalExam, examLabel, title, canDismiss, canDiscard }
 }
 
+// Pure derivation of the submit button's label from the current action + exam state.
+// Kept out of the DialogFooter component so the quiz-domain gating is unit-testable
+// without rendering (code-style.md §2 — no business logic in components).
+export function getSubmitButtonLabel(opts: {
+  isSubmitting: boolean
+  isExam?: boolean
+  examLabel?: string | null
+  answeredCount: number
+}): string {
+  if (opts.isSubmitting) return 'Submitting...'
+  if (opts.isExam) return `Submit ${opts.examLabel ?? 'Exam'}`
+  if (opts.answeredCount > 0) return 'Submit Quiz'
+  return 'Answer at least one question'
+}
+
 // Builds the dialog's click handlers over the hook's setters + derived state. No hooks —
 // mirrors the builder-factory pattern in session/_hooks/quiz-submit-handlers.ts.
 export function buildFinishDialogHandlers(deps: {

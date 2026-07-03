@@ -2,6 +2,7 @@
 
 import { Loader2 } from 'lucide-react'
 import type { QuizPendingAction } from '../../session/_hooks/use-quiz-submit'
+import { getSubmitButtonLabel } from './finish-quiz-dialog-helpers'
 
 type DialogFooterProps = {
   answeredCount: number
@@ -36,12 +37,7 @@ export function DialogFooter({
   // and "…ing" label belong only to the button whose own action is in flight.
   const isSubmitting = pendingAction === 'submit'
   const isSaving = pendingAction === 'save'
-  function submitButtonLabel() {
-    if (isSubmitting) return 'Submitting...'
-    if (isExam) return `Submit ${examLabel ?? 'Exam'}`
-    if (answeredCount > 0) return 'Submit Quiz'
-    return 'Answer at least one question'
-  }
+  const submitLabel = getSubmitButtonLabel({ isSubmitting, isExam, examLabel, answeredCount })
   return (
     <div className="mt-6 flex flex-col gap-2">
       <button
@@ -53,7 +49,7 @@ export function DialogFooter({
       >
         <span className="inline-flex items-center justify-center gap-2">
           {isSubmitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {submitButtonLabel()}
+          {submitLabel}
         </span>
       </button>
       {!isExam && (

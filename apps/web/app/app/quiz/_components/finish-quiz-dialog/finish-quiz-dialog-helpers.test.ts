@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildFinishDialogHandlers, deriveFinishDialogView } from './finish-quiz-dialog-helpers'
+import {
+  buildFinishDialogHandlers,
+  deriveFinishDialogView,
+  getSubmitButtonLabel,
+} from './finish-quiz-dialog-helpers'
 
 describe('deriveFinishDialogView', () => {
   it('counts unanswered questions from the answered total', () => {
@@ -63,6 +67,46 @@ describe('deriveFinishDialogView', () => {
     })
     expect(view.canDismiss).toBe(true)
     expect(view.canDiscard).toBe(false)
+  })
+})
+
+describe('getSubmitButtonLabel', () => {
+  it('shows a submitting label while the submit is in flight', () => {
+    expect(
+      getSubmitButtonLabel({
+        isSubmitting: true,
+        isExam: true,
+        examLabel: 'Practice Exam',
+        answeredCount: 5,
+      }),
+    ).toBe('Submitting...')
+  })
+
+  it('labels the submit with the exam name when in an exam', () => {
+    expect(
+      getSubmitButtonLabel({
+        isSubmitting: false,
+        isExam: true,
+        examLabel: 'Practice Exam',
+        answeredCount: 5,
+      }),
+    ).toBe('Submit Practice Exam')
+  })
+
+  it('falls back to a generic exam label when the exam name is missing', () => {
+    expect(getSubmitButtonLabel({ isSubmitting: false, isExam: true, answeredCount: 5 })).toBe(
+      'Submit Exam',
+    )
+  })
+
+  it('offers to submit a plain quiz once at least one question is answered', () => {
+    expect(getSubmitButtonLabel({ isSubmitting: false, answeredCount: 1 })).toBe('Submit Quiz')
+  })
+
+  it('prompts to answer a question when none are answered yet', () => {
+    expect(getSubmitButtonLabel({ isSubmitting: false, answeredCount: 0 })).toBe(
+      'Answer at least one question',
+    )
   })
 })
 
