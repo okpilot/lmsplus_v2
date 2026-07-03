@@ -74,6 +74,7 @@ describe('useOralExamStart — failure path', () => {
       expect(result.current.error).toBe('You already have an oral exam in progress.'),
     )
     expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(result.current.starting).toBe(false)
 
     // The guard reset on failure allows another attempt; a success then navigates.
     await act(async () => {
@@ -99,6 +100,7 @@ describe('useOralExamStart — failure path', () => {
       expect(result.current.error).toBe('Something went wrong. Please try again.'),
     )
     expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(result.current.starting).toBe(false)
 
     await act(async () => {
       result.current.start('practice')

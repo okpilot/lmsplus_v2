@@ -30,6 +30,12 @@ function makeAudioFile(): File {
   return new File([new Uint8Array(10)], 'answer.webm', { type: 'audio/webm' })
 }
 
+function renderSectionSubmit(isLast: boolean) {
+  return renderHook(() =>
+    useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast }),
+  )
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
 })
@@ -39,9 +45,7 @@ beforeEach(() => {
 describe('useSectionSubmit — FormData contents', () => {
   it('builds FormData with the audio file, session id, section number, and duration', async () => {
     mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
     const file = makeAudioFile()
 
     await act(async () => {
@@ -60,9 +64,7 @@ describe('useSectionSubmit — FormData contents', () => {
 describe('useSectionSubmit — success path', () => {
   it('navigates to the report page after submitting the last section', async () => {
     mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -77,9 +79,7 @@ describe('useSectionSubmit — success path', () => {
 
   it('refreshes in place to advance when submitting a non-final section', async () => {
     mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: false }),
-    )
+    const { result } = renderSectionSubmit(false)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -97,9 +97,7 @@ describe('useSectionSubmit — failure path', () => {
       success: false,
       error: 'This section was already submitted.',
     })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -111,9 +109,7 @@ describe('useSectionSubmit — failure path', () => {
 
   it('surfaces a generic error and does not navigate when the action throws', async () => {
     mockSubmitSectionResponse.mockRejectedValue(new Error('network failure'))
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -129,9 +125,7 @@ describe('useSectionSubmit — failure path', () => {
     mockSubmitSectionResponse
       .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })
       .mockResolvedValueOnce({ success: true, responseId: 'resp-2' })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: false }),
-    )
+    const { result } = renderSectionSubmit(false)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -155,9 +149,7 @@ describe('useSectionSubmit — failure path', () => {
     mockSubmitSectionResponse
       .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })
       .mockResolvedValueOnce({ success: true, responseId: 'resp-2' })
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)
@@ -182,9 +174,7 @@ describe('useSectionSubmit — re-entry guard', () => {
         resolveSubmit = res
       }),
     )
-    const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
-    )
+    const { result } = renderSectionSubmit(true)
 
     await act(async () => {
       result.current.submit(makeAudioFile(), 1000)

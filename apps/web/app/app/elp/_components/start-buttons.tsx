@@ -8,7 +8,7 @@ type Props = Readonly<{
 
 /** ELP start screen shown when no session is in progress: heading, description,
  * error alert, and the two Start buttons. Presentational only — the start logic
- * and re-entry guard live in `ElpHome`. */
+ * and re-entry guard live in `useOralExamStart`. */
 export function StartButtons({ onStart, starting, error }: Props) {
   return (
     <div className="space-y-4">

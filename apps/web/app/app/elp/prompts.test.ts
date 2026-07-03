@@ -21,6 +21,18 @@ describe('getSectionPrompt', () => {
     expect(prompt.text).toContain('[practice placeholder]')
     expect(prompt.audioSrc).toBeUndefined()
   })
+
+  it.each([
+    'comms',
+    'listening',
+    'video',
+  ] as const)('returns the registered no-audio placeholder prompt for the %s type', (type) => {
+    const prompt = getSectionPrompt(type)
+    // Identity: the resolved prompt is exactly the registry entry for this type.
+    expect(prompt).toBe(SECTION_PROMPTS[type])
+    expect(prompt.text).toContain('[practice placeholder]')
+    expect(prompt.audioSrc).toBeUndefined()
+  })
 })
 
 describe('INTERVIEW_PROMPTS', () => {
