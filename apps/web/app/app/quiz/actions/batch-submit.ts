@@ -17,7 +17,7 @@ const BatchSubmitInput = z.object({
         // mig 155) — an empty string would pass Zod and throw inside the RPC
         // instead of failing cleanly here (parity with the OrderingInput element
         // .min(1) in check-non-mc-answer-schema.ts).
-        selectedOptionId: z.string().min(1).optional(),
+        selectedOptionId: z.string().trim().min(1).optional(),
         // diagram_label fan-out repurposes this field to carry the target zone id
         // (mig 155 header note) — same generic entry shape as short_answer's free
         // text, no separate field needed. .trim().min(1) shares selectedOptionId's

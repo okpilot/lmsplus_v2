@@ -52,6 +52,42 @@ describe('rowToDraftData — session_config', () => {
   })
 })
 
+describe('rowToDraftData — answers normalization', () => {
+  it('preserves a well-formed answers record', () => {
+    const answers = { q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } }
+    const draft = rowToDraftData(buildRow({ answers }))
+    expect(draft.answers).toEqual(answers)
+  })
+
+  it('returns an empty answers object and logs when the answers column is not an object', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: 'not-an-object' }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns an empty answers object and logs when one entry is malformed', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(
+      buildRow({
+        answers: {
+          q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 },
+          q2: { responseTimeMs: 4000 }, // missing an answer payload — malformed
+        },
+      }),
+    )
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answer entry on draft',
+      'q2',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
 describe('rowToDraftData — feedback normalization', () => {
   it('tags legacy untagged MC feedback as multiple_choice', () => {
     const draft = rowToDraftData(
@@ -158,6 +194,25 @@ describe('rowToDraftData — feedback normalization', () => {
             questionType: 'ordering',
             isCorrect: false,
             correctOrder: ['MAYDAY', ''],
+            explanationText: null,
+            explanationImageUrl: null,
+          },
+        },
+      }),
+    )
+    expect(draft.feedback).toBeUndefined()
+  })
+
+  it('rejects an ordering entry whose correctOrder contains a whitespace-only string', () => {
+    // Trim-reject parity with the sessionStorage rehydrate path (isNonBlankString)
+    // and the save schema (.trim().min(1)) — a whitespace-only id is corrupt data.
+    const draft = rowToDraftData(
+      buildRow({
+        feedback: {
+          q1: {
+            questionType: 'ordering',
+            isCorrect: false,
+            correctOrder: ['MAYDAY', '   '],
             explanationText: null,
             explanationImageUrl: null,
           },

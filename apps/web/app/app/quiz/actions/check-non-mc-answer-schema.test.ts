@@ -58,6 +58,16 @@ describe('CheckNonMcAnswerSchema', () => {
     ).toBe(false)
   })
 
+  it('rejects an ordering payload carrying a whitespace-only item id', () => {
+    expect(
+      CheckNonMcAnswerSchema.safeParse({
+        questionId: QID,
+        sessionId: SID,
+        order: ['item-a', '   '],
+      }).success,
+    ).toBe(false)
+  })
+
   it('rejects an ordering payload that repeats an item id', () => {
     // An ordering answer is a permutation — a repeated id is not a valid order.
     expect(

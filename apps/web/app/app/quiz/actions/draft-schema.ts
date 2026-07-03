@@ -19,7 +19,7 @@ export const SaveDraftInput = z
       z.string(),
       z
         .object({
-          selectedOptionId: z.string().min(1).optional(),
+          selectedOptionId: z.string().trim().min(1).optional(),
           responseText: z.string().trim().min(1).max(500).optional(),
           blankAnswers: z
             .array(
@@ -45,7 +45,7 @@ export const SaveDraftInput = z
             })
             .optional(),
           order: z
-            .array(z.string().min(1).max(200))
+            .array(z.string().trim().min(1).max(200))
             .min(MIN_ORDER_ITEMS)
             .max(MAX_ORDER_ITEMS)
             .refine(isUniquePermutation, 'Ordering ids must be unique')
@@ -119,7 +119,7 @@ export const SaveDraftInput = z
             questionType: z.literal('ordering'),
             isCorrect: z.boolean(),
             correctOrder: z
-              .array(z.string().min(1).max(200))
+              .array(z.string().trim().min(1).max(200))
               .min(MIN_ORDER_ITEMS)
               .max(MAX_ORDER_ITEMS)
               .refine(isUniquePermutation, 'Ordering ids must be unique'),

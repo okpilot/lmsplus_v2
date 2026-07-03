@@ -10,6 +10,13 @@ export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+// Stricter than isNonEmptyString: rejects whitespace-only strings too. Scoped
+// to the three ID-shaped fields below (selectedOptionId, order/correctOrder
+// elements) — these values are compared/looked-up as ids downstream, where a
+// whitespace-only string is corrupt data, not a valid id. isNonEmptyString
+// keeps its broader existing semantics for its other call sites.
+const isNonBlankString = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0
+
 function isNullableString(v: unknown): boolean {
   return v === null || typeof v === 'string'
 }
@@ -47,14 +54,14 @@ export function isValidDraftAnswer(v: unknown): boolean {
   ) {
     return false
   }
-  if (hasSelectedOption) return isNonEmptyString(r.selectedOptionId)
+  if (hasSelectedOption) return isNonBlankString(r.selectedOptionId)
   if (hasResponseText) return isNonEmptyString(r.responseText)
   if (hasOrder) {
     return (
       Array.isArray(r.order) &&
       r.order.length >= MIN_ORDER_ITEMS &&
       r.order.length <= MAX_ORDER_ITEMS &&
-      r.order.every(isNonEmptyString) &&
+      r.order.every(isNonBlankString) &&
       isUniquePermutation(r.order as string[])
     )
   }
@@ -102,7 +109,7 @@ export function isValidFeedbackEntry(v: unknown): boolean {
         Array.isArray(r.correctOrder) &&
         r.correctOrder.length >= MIN_ORDER_ITEMS &&
         r.correctOrder.length <= MAX_ORDER_ITEMS &&
-        r.correctOrder.every(isNonEmptyString) &&
+        r.correctOrder.every(isNonBlankString) &&
         isUniquePermutation(r.correctOrder as string[])
       )
     case 'diagram_label':
