@@ -24,6 +24,47 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 import { buildVfrRtAnswers, cleanupVfrRtPool, seedVfrRtPool } from './helpers/seed-vfr-rt-pool'
 
+async function startTrackedVfrRtSession(
+  client: Awaited<ReturnType<typeof createAuthenticatedClient>>,
+  subjectId: string,
+  tracker: ReturnType<typeof createFixtureTracker>,
+): Promise<string> {
+  const { data: started, error } = await client.rpc('start_vfr_rt_exam_session', {
+    p_subject_id: subjectId,
+  })
+  expect(error).toBeNull()
+  const sessionId = (started as { session_id?: string } | null)?.session_id
+  expect(sessionId).toBeTruthy()
+  if (!sessionId) throw new Error('start_vfr_rt_exam_session returned no session_id')
+  tracker.sessions.add(sessionId)
+  return sessionId
+}
+
+async function seedAdminVfrRtSession(
+  admin: ReturnType<typeof getAdminClient>,
+  orgId: string,
+  studentId: string,
+  startedAtMsAgo: number,
+  tracker: ReturnType<typeof createFixtureTracker>,
+): Promise<string> {
+  const { data: sessionRow, error: insErr } = await admin
+    .from('quiz_sessions')
+    .insert({
+      organization_id: orgId,
+      student_id: studentId,
+      mode: 'vfr_rt_exam',
+      config: { question_ids: [] },
+      total_questions: 1,
+      time_limit_seconds: 1800,
+      started_at: new Date(Date.now() - startedAtMsAgo).toISOString(),
+    })
+    .select('id')
+    .single()
+  if (insErr || !sessionRow) throw new Error(`seed vfr_rt session: ${insErr?.message}`)
+  tracker.sessions.add(sessionRow.id)
+  return sessionRow.id
+}
+
 test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let victimClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -54,14 +95,7 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     await cleanupStudentActiveSessions(VICTIM_EMAIL)
     const testStart = new Date().toISOString()
 
-    const { data: started, error } = await victimClient.rpc('start_vfr_rt_exam_session', {
-      p_subject_id: pool.subjectId,
-    })
-    expect(error).toBeNull()
-    const sessionId = (started as { session_id?: string } | null)?.session_id
-    expect(sessionId).toBeTruthy()
-    if (!sessionId) throw new Error('start_vfr_rt_exam_session returned no session_id')
-    tracker.sessions.add(sessionId)
+    const sessionId = await startTrackedVfrRtSession(victimClient, pool.subjectId, tracker)
 
     await expectAuditRow(admin, 'vfr_rt_exam.started', victimUserId, testStart, sessionId)
   })
@@ -69,14 +103,7 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
   test('writes vfr_rt_exam.completed on submit_vfr_rt_exam_answers within time limit', async () => {
     await cleanupStudentActiveSessions(VICTIM_EMAIL)
 
-    const { data: started, error: startErr } = await victimClient.rpc('start_vfr_rt_exam_session', {
-      p_subject_id: pool.subjectId,
-    })
-    expect(startErr).toBeNull()
-    const sessionId = (started as { session_id?: string } | null)?.session_id
-    expect(sessionId).toBeTruthy()
-    if (!sessionId) throw new Error('start_vfr_rt_exam_session returned no session_id')
-    tracker.sessions.add(sessionId)
+    const sessionId = await startTrackedVfrRtSession(victimClient, pool.subjectId, tracker)
 
     const { data: questions, error: qErr } = await victimClient.rpc('get_vfr_rt_exam_questions', {
       p_session_id: sessionId,
@@ -109,29 +136,15 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     // the time limit → the non-overdue branch runs, emitting vfr_rt_exam.completed).
     // config.question_ids empty drives the "completed with no answers" path.
     // Service-role insert bypasses the immutable-columns trigger.
-    const { data: sessionRow, error: insErr } = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: orgId,
-        student_id: victimUserId,
-        mode: 'vfr_rt_exam',
-        config: { question_ids: [] },
-        total_questions: 1,
-        time_limit_seconds: 1800,
-        started_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-    if (insErr || !sessionRow) throw new Error(`seed empty vfr_rt session: ${insErr?.message}`)
-    tracker.sessions.add(sessionRow.id)
+    const sessionId = await seedAdminVfrRtSession(admin, orgId, victimUserId, 0, tracker)
 
     const testStart = new Date().toISOString()
     const { error: completeErr } = await victimClient.rpc('complete_empty_exam_session', {
-      p_session_id: sessionRow.id,
+      p_session_id: sessionId,
     })
     expect(completeErr).toBeNull()
 
-    await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionRow.id)
+    await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionId)
   })
 
   test('writes vfr_rt_exam.expired when complete_overdue runs on an overdue vfr_rt session', async () => {
@@ -141,28 +154,14 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     // overdue path): started 2000s ago > time_limit(1800)+30s grace → overdue.
     // config.question_ids empty → per-part scoring averages over zero rows
     // (COALESCE → 0). Service-role insert bypasses the immutable-columns trigger.
-    const { data: sessionRow, error: insErr } = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: orgId,
-        student_id: victimUserId,
-        mode: 'vfr_rt_exam',
-        config: { question_ids: [] },
-        total_questions: 1,
-        time_limit_seconds: 1800,
-        started_at: new Date(Date.now() - 2_000_000).toISOString(),
-      })
-      .select('id')
-      .single()
-    if (insErr || !sessionRow) throw new Error(`seed overdue vfr_rt session: ${insErr?.message}`)
-    tracker.sessions.add(sessionRow.id)
+    const sessionId = await seedAdminVfrRtSession(admin, orgId, victimUserId, 2_000_000, tracker)
 
     const testStart = new Date().toISOString()
     const { error: overdueErr } = await victimClient.rpc('complete_overdue_exam_session', {
-      p_session_id: sessionRow.id,
+      p_session_id: sessionId,
     })
     expect(overdueErr).toBeNull()
 
-    await expectAuditRow(admin, 'vfr_rt_exam.expired', victimUserId, testStart, sessionRow.id)
+    await expectAuditRow(admin, 'vfr_rt_exam.expired', victimUserId, testStart, sessionId)
   })
 })
