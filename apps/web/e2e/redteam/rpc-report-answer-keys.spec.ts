@@ -21,6 +21,9 @@
  *        a real short_answer + dialog_fill question (non-vacuity for EN1-EN4).
  *  - positive control (ordering, #996): the owner reads per-slot keys for a completed
  *        session seeded with a real ordering question (blank_index 0/1/2 -> canonical item text).
+ *  - positive control (diagram_label, #1056): the owner reads per-zone keys for a completed
+ *        session seeded with a real diagram_label question (blank_index 0/1/2 -> the 2-hop
+ *        zone-ordinal -> answer entry -> label text resolve, mig 156).
  *
  * Non-vacuity (code-style.md §7): the positive control seeds real non-MC questions
  * — egmont seeds MC-only, so without this the RPC would return 0 rows for an
@@ -70,6 +73,7 @@ const SOFTDEL_STUDENT_PASSWORD = E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD
 const EN_SHORT_ANSWER_QNUM = `${E2E_REDTEAM_EN_MARKER} short-answer`
 const EN_DIALOG_FILL_QNUM = `${E2E_REDTEAM_EN_MARKER} dialog-fill`
 const EN_ORDERING_QNUM = `${E2E_REDTEAM_EN_MARKER} ordering`
+const EN_DIAGRAM_LABEL_QNUM = `${E2E_REDTEAM_EN_MARKER} diagram-label`
 
 // Escape LIKE metacharacters (the marker's '_' chars are single-char wildcards) so the
 // pre-sweep + cleanup match the exact [E2E_REDTEAM_EN] prefix, never an EN-shaped row.
@@ -90,6 +94,37 @@ const ORDER_ITEMS = [
 ]
 const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 
+// diagram_label fixture (mig 156): get_report_answer_keys returns one row PER ZONE —
+// blank_index = the zone's 0-based ordinal in diagram_config.zones, answer_key = a 2-HOP
+// resolve (zone -> answer entry by zone_id -> label by label_id -> label.text). zone ids
+// and label ids MUST be disjoint and the answer must cover every zone exactly once with a
+// distinct label per zone (mig 150 is_valid_diagram_config). Shape mirrors the integration
+// test rpc-report-answer-keys-diagram.integration.test.ts.
+const DIAGRAM_ZONES = [
+  { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+  { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+  { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+]
+const DIAGRAM_CONFIG = {
+  image_ref: 'rwy-27-09-lh-pattern',
+  zones: DIAGRAM_ZONES,
+  labels: [
+    { id: 'lbl-alpha', text: 'Upwind Leg' },
+    { id: 'lbl-bravo', text: 'Crosswind Leg' },
+    { id: 'lbl-charlie', text: 'Downwind Leg' },
+    { id: 'lbl-distract', text: 'Base Leg (unused)' },
+  ],
+  answer: [
+    { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
+    { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
+    { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+  ],
+}
+// Expected canonical label text per zone ORDINAL (the 2-hop resolve target):
+// zone-nw(0)->lbl-alpha='Upwind Leg', zone-ne(1)->lbl-bravo='Crosswind Leg',
+// zone-sw(2)->lbl-charlie='Downwind Leg'.
+const DIAGRAM_CANONICAL_TEXTS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg']
+
 test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -105,6 +140,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   let shortAnswerQuestionId: string
   let dialogFillQuestionId: string
   let orderingQuestionId: string
+  let diagramLabelQuestionId: string
 
   const createdSessionIds = new Set<string>()
 
@@ -222,6 +258,24 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       .single()
     if (ordErr || !ordRow) throw new Error(`beforeAll: ordering insert: ${ordErr?.message}`)
     orderingQuestionId = ordRow.id
+
+    const { data: dlRow, error: dlErr } = await admin
+      .from('questions')
+      .insert({
+        ...baseQuestion,
+        question_number: EN_DIAGRAM_LABEL_QNUM,
+        question_text: `${E2E_REDTEAM_EN_MARKER} diagram-label fixture`,
+        question_type: 'diagram_label',
+        diagram_config: DIAGRAM_CONFIG,
+        canonical_answer: null,
+        accepted_synonyms: [],
+        dialog_template: null,
+        blanks_config: [],
+      })
+      .select('id')
+      .single()
+    if (dlErr || !dlRow) throw new Error(`beforeAll: diagram_label insert: ${dlErr?.message}`)
+    diagramLabelQuestionId = dlRow.id
   })
 
   // Seed a victim-owned session. When completed + answered, the RPC returns its keys.
@@ -298,6 +352,23 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     }))
     const { error } = await admin.from('quiz_session_answers').insert(answerRows)
     if (error) throw new Error(`ordering answer seed failed: ${error.message}`)
+  }
+
+  // Seed per-zone diagram_label answers so get_report_answer_keys' diagram_label branch
+  // (JOIN on quiz_session_answers) returns rows. response_text is the zone id at that
+  // ordinal; blank_index is the zone's 0-based position in diagram_config.zones.
+  const seedDiagramLabelAnswers = async (sessionId: string, questionId: string): Promise<void> => {
+    const answerRows = DIAGRAM_ZONES.map((zone, i) => ({
+      session_id: sessionId,
+      question_id: questionId,
+      selected_option_id: null,
+      response_text: zone.id,
+      blank_index: i,
+      is_correct: true,
+      response_time_ms: 5000,
+    }))
+    const { error } = await admin.from('quiz_session_answers').insert(answerRows)
+    if (error) throw new Error(`diagram_label answer seed failed: ${error.message}`)
   }
 
   test.afterEach(async () => {
@@ -411,6 +482,37 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     expect(byIndex.get(0)).toBe(ORDER_CANONICAL_TEXTS[0])
     expect(byIndex.get(1)).toBe(ORDER_CANONICAL_TEXTS[1])
     expect(byIndex.get(2)).toBe(ORDER_CANONICAL_TEXTS[2])
+  })
+
+  test('positive control: the owner reads per-zone diagram-label answer keys for a completed session', async () => {
+    const sessionId = await seedSession({
+      studentId: victimUserId,
+      completed: true,
+      questionIds: [diagramLabelQuestionId],
+    })
+    // #1056: get_report_answer_keys JOINs quiz_session_answers, so per-zone answer rows are REQUIRED
+    await seedDiagramLabelAnswers(sessionId, diagramLabelQuestionId)
+
+    const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
+    expect(error).toBeNull()
+    const rows = (data ?? []) as {
+      question_id: string
+      question_type: string
+      blank_index: number | null
+      answer_key: string | null
+    }[]
+    expect(rows).toHaveLength(DIAGRAM_ZONES.length)
+    for (const row of rows) {
+      expect(row.question_type).toBe('diagram_label')
+      expect(row.question_id).toBe(diagramLabelQuestionId)
+    }
+    const byIndex = new Map(rows.map((r) => [r.blank_index, r.answer_key]))
+    expect([...byIndex.keys()].sort((a, b) => Number(a) - Number(b))).toEqual([0, 1, 2])
+    // 2-hop resolve (mig 156): zone at ordinal i -> answer entry by zone_id ->
+    // label by label_id -> label.text.
+    expect(byIndex.get(0)).toBe(DIAGRAM_CANONICAL_TEXTS[0])
+    expect(byIndex.get(1)).toBe(DIAGRAM_CANONICAL_TEXTS[1])
+    expect(byIndex.get(2)).toBe(DIAGRAM_CANONICAL_TEXTS[2])
   })
 
   test('EN1: an unauthenticated caller is rejected', async () => {
