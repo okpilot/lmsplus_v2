@@ -296,6 +296,31 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     expect(row?.passed).toBe(false)
   })
 
+  test('positive: the owner can complete an empty vfr_rt_exam session', async () => {
+    const sessionId = await seedSession({ mode: 'vfr_rt_exam' })
+
+    const { data, error } = await victimClient.rpc('complete_empty_exam_session', {
+      p_session_id: sessionId,
+    })
+
+    expect(error).toBeNull()
+    const result = data as CompleteResult | null
+    expect(result?.session_id).toBe(sessionId)
+    expect(result?.passed).toBe(false)
+    expect(result?.score_percentage).toEqual(0)
+    expect(result?.answered_count).toBe(0)
+
+    const { data: row, error: readErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, passed, score_percentage')
+      .eq('id', sessionId)
+      .single()
+    expect(readErr).toBeNull()
+    expect(row?.ended_at).not.toBeNull()
+    expect(row?.passed).toBe(false)
+    expect(row?.score_percentage).toEqual(0)
+  })
+
   test('positive: the owner can complete an empty session before the deadline (early submit)', async () => {
     // Unlike complete_overdue, complete_empty accepts a not-yet-overdue session
     // (student pressed submit with no answers before the timer expired).
