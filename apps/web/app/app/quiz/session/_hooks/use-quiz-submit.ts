@@ -31,6 +31,8 @@ export function useQuizSubmit(opts: {
 }) {
   const submitted = useRef(false)
   // Synchronous one-shot re-entry guard for handleSubmit (multi-source: timer/click/keyboard).
+  // Separate from `submitted` (terminal success flag) so a failed submit releases the lock for
+  // retry — the two-ref reset logic lives in `buildSharedFor` (quiz-submit-handlers.ts).
   const inFlight = useRef(false)
   const navFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
