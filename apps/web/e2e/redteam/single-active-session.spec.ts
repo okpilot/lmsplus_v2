@@ -48,13 +48,8 @@ import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ensureExamConfig,
-  pickSubjectWithQuestions,
-  seedRedTeamStudent,
-  VICTIM_EMAIL,
-  VICTIM_PASSWORD,
-} from './helpers/seed'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 if (!SUPABASE_URL) {

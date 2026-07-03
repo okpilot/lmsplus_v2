@@ -23,14 +23,12 @@ import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
   USER_CONSENTS_FORGED_VERSION as FORGED_VERSION,
   USER_CONSENTS_IDEMPOTENCY_VERSION as IDEMPOTENCY_VERSION,
   USER_CONSENTS_SEED_VERSION as SEED_VERSION,
   USER_CONSENTS_SELF_VERSION as SELF_VERSION,
-  seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-consent'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: user_consents Isolation', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

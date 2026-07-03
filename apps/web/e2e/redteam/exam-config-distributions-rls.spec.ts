@@ -13,7 +13,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { seedRedTeamAdmin } from './helpers/seed'
+import { seedRedTeamAdmin } from './helpers/seed-users'
 
 test.describe('Red Team: exam_config_distributions parent-soft-delete RLS', () => {
   let admin: ReturnType<typeof getAdminClient>

@@ -27,7 +27,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed'
+import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const VALID_OPTION_IDS = ['a', 'b', 'c', 'd']
 

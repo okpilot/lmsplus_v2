@@ -24,7 +24,12 @@
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers, VICTIM_EMAIL } from './helpers/seed'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  seedRedTeamUsers,
+  VICTIM_EMAIL,
+} from './helpers/seed-users'
 
 // A throwaway answer payload. The ownership/mode SELECT fires before payload
 // validation, so the entries are never inspected — any non-null jsonb array

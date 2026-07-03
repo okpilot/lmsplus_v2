@@ -44,12 +44,8 @@ import {
   CURRENT_TOS_VERSION,
 } from '../../lib/consent/versions'
 import { getAdminClient } from '../helpers/supabase'
-import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
-  seedConsentRecords,
-  seedRedTeamUsers,
-} from './helpers/seed'
+import { seedConsentRecords } from './helpers/seed-consent'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // ---------------------------------------------------------------------------
 // Vector V — Forged __consent cookie bypass

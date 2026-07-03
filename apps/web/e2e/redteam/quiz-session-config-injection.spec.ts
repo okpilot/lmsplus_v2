@@ -24,13 +24,8 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  ATTACKER_EMAIL,
-  ATTACKER_PASSWORD,
-  ensureExamConfig,
-  pickSubjectWithQuestions,
-  seedRedTeamUsers,
-} from './helpers/seed'
+import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Vector AM — quiz_sessions config injection (issue #554)', () => {
   let admin: ReturnType<typeof getAdminClient>

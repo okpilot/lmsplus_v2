@@ -35,12 +35,8 @@
 
 import { expect, test } from '@playwright/test'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import {
-  seedRedTeamInstructor,
-  seedRedTeamStudent,
-  seedRedTeamUsers,
-  seedVictimResponses,
-} from './helpers/seed'
+import { seedVictimResponses } from './helpers/seed-responses'
+import { seedRedTeamInstructor, seedRedTeamStudent, seedRedTeamUsers } from './helpers/seed-users'
 
 test.describe('Red Team: Dashboard Aggregation RPC Self-Scope (#673)', () => {
   let instructorClient: Awaited<ReturnType<typeof createAuthenticatedClient>>

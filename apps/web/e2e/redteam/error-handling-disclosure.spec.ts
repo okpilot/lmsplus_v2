@@ -38,7 +38,7 @@ import {
   ATTACKER_PASSWORD,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 // Patterns that would indicate a DB-internal leak. `permission denied` (42501)
 // is intentionally absent — it is an expected clean authorization verdict.

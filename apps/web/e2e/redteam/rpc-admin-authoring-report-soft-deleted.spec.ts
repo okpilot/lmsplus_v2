@@ -41,7 +41,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { seedRedTeamUsers } from './helpers/seed'
+import { seedRedTeamUsers } from './helpers/seed-users'
 
 // Dedicated throwaway admin — NOT the shared redteam-admin@lmsplus.local.
 // Soft-deleting the shared admin would cascade forbidden failures across every

@@ -50,7 +50,7 @@ import {
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamUsers,
-} from './helpers/seed'
+} from './helpers/seed-users'
 
 const RPC = 'record_auth_event'
 const ADMIN_EVENT_TYPES = ['user.created', 'user.password_reset', 'user.deactivated'] as const
