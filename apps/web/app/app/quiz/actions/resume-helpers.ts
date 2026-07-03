@@ -7,35 +7,6 @@ import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
-// RPC error token (from start_quiz_session, mig 20260629000600) → user message.
-// Distinct situations get distinct copy: a different active session vs a stale draft.
-// INVARIANT: keys must not be substrings of one another — mapResumeRpcError matches via
-// token.includes(key), so an overlapping key would make iteration order decide the mapping.
-// Exported so a co-located test can assert the invariant holds as keys are added.
-export const RESUME_ERROR_MESSAGES: Record<string, string> = {
-  another_session_active:
-    'You already have an active session. Finish or discard it before resuming this one.',
-  // Reachable on resume: the Supabase auth token can outlive a soft-deleted `users` row,
-  // so a deactivated account can pass the action's auth check yet hit this RPC guard.
-  'user not found or inactive': 'Your account is no longer active.',
-  invalid_question_ids:
-    'This saved quiz’s questions are no longer available — it may be out of date.',
-  no_questions_provided:
-    'This saved quiz’s questions are no longer available — it may be out of date.',
-  // Unreachable for a draft saved after the schema cap (.max(500)), but mapped for RPC
-  // error-token completeness (agent-semantic-reviewer.md) — a legacy row could carry >500 ids.
-  too_many_questions:
-    'This saved quiz has too many questions and can’t be resumed. Please contact support.',
-}
-
-export function mapResumeRpcError(message: string | undefined): string {
-  const token = message ?? ''
-  for (const [key, msg] of Object.entries(RESUME_ERROR_MESSAGES)) {
-    if (token.includes(key)) return msg
-  }
-  return 'Failed to resume this saved quiz. Please try again.'
-}
-
 export type ResumeContext = {
   oldSessionId: string
   questionIds: string[]
@@ -123,22 +94,20 @@ async function loadDraftForResume(
   }
 }
 
-/**
- * Load everything resume needs: the draft's question_ids + the ORIGINAL session's
- * mode/subject/topic (read from the session row, which survives the save-time
- * soft-delete because RLS `students_select_sessions` is student_id-only with no
- * deleted_at filter). Sourcing mode/subject from the row — not client JSONB — avoids
- * trusting unvalidated client state and the multi-topic topic_id=NULL edge case.
- */
-export async function loadResumeContext(
-  supabase: SupabaseClient,
-  draftId: string,
-  userId: string,
-): Promise<ContextResult> {
-  const draftResult = await loadDraftForResume(supabase, draftId, userId)
-  if (!draftResult.ok) return draftResult
-  const { questionIds, sessionId, subjectName, subjectCode } = draftResult.draft
+type OriginalSession = { mode: string; subject_id: string | null; topic_id: string | null }
+type SessionLoadResult = { ok: true; session: OriginalSession } | { ok: false; error: string }
 
+/**
+ * Read the draft's ORIGINAL session row (scoped to the caller) and confirm it is
+ * resume-eligible (practice mode + subject present). The session row survives the
+ * save-time soft-delete because RLS `students_select_sessions` is student_id-only with no
+ * deleted_at filter. Split out of loadResumeContext to keep it under the §3 30-line rule.
+ */
+async function loadOriginalSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  userId: string,
+): Promise<SessionLoadResult> {
   const { data: session, error: sErr } = await supabase
     .from('quiz_sessions')
     .select('mode, subject_id, topic_id')
@@ -154,6 +123,27 @@ export async function loadResumeContext(
   }
   const invalid = validateSessionForResume(session)
   if (invalid) return { ok: false, error: invalid }
+  return { ok: true, session }
+}
+
+/**
+ * Load everything resume needs: the draft's question_ids + the ORIGINAL session's
+ * mode/subject/topic. Sourcing mode/subject from the session row — not the client-written
+ * JSONB — avoids trusting unvalidated client state and the multi-topic topic_id=NULL edge
+ * case. Orchestrates loadDraftForResume + loadOriginalSession.
+ */
+export async function loadResumeContext(
+  supabase: SupabaseClient,
+  draftId: string,
+  userId: string,
+): Promise<ContextResult> {
+  const draftResult = await loadDraftForResume(supabase, draftId, userId)
+  if (!draftResult.ok) return draftResult
+  const { questionIds, sessionId, subjectName, subjectCode } = draftResult.draft
+
+  const sessionResult = await loadOriginalSession(supabase, sessionId, userId)
+  if (!sessionResult.ok) return sessionResult
+  const { session } = sessionResult
 
   return {
     ok: true,

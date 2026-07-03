@@ -138,3 +138,25 @@ export async function insertNewDraft(
   }
   return { success: true }
 }
+
+/**
+ * New-draft path: resolve the caller's organization, then insert. Split out of saveDraft
+ * so the Server Action orchestrator stays within the §3 line grace.
+ */
+export async function insertNewDraftForUser(
+  supabase: SupabaseClient,
+  input: SaveDraftParsed,
+  userId: string,
+): Promise<DraftResult> {
+  const { data: u, error: userError } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', userId)
+    .single<{ organization_id: string }>()
+  if (userError) {
+    console.error('[saveDraft] Users query error:', userError.message)
+    return { success: false, error: 'Failed to look up user' }
+  }
+  if (!u?.organization_id) return { success: false, error: 'User organization not found' }
+  return insertNewDraft(supabase, input, userId, u.organization_id)
+}

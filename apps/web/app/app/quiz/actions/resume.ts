@@ -4,12 +4,8 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import { closePracticeSessionForDraft } from './draft-helpers'
-import {
-  loadResumeContext,
-  mapResumeRpcError,
-  type ResumeContext,
-  repointDraftSession,
-} from './resume-helpers'
+import { mapResumeRpcError } from './resume-error-messages'
+import { loadResumeContext, type ResumeContext, repointDraftSession } from './resume-helpers'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -31,6 +27,11 @@ async function startResumedSession(
   ctx: ResumeContext,
   userId: string,
 ): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> {
+  // The heal is intentionally UNCONDITIONAL and runs before the start: if start_quiz_session
+  // then fails (e.g. another_session_active), the original practice session stays parked and
+  // no new one is minted — which is the desired end state (the draft is intact; a retry
+  // re-reads the parked row and re-mints). Do NOT reorder the heal after a successful mint —
+  // that would leave this draft's own session active and deadlock start on another_session_active.
   await closePracticeSessionForDraft(supabase, ctx.oldSessionId, userId)
 
   const { data: newSessionId, error: rpcErr } = await rpc<string>(supabase, 'start_quiz_session', {

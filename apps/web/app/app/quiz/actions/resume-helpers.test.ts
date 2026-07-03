@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mapResumeRpcError, RESUME_ERROR_MESSAGES } from './resume-error-messages'
 import type { ResumeContext } from './resume-helpers'
-import {
-  loadResumeContext,
-  mapResumeRpcError,
-  RESUME_ERROR_MESSAGES,
-  repointDraftSession,
-} from './resume-helpers'
+import { loadResumeContext, repointDraftSession } from './resume-helpers'
 
 describe('mapResumeRpcError', () => {
   it('tells the user to resolve their other active session when one is already active', () => {
