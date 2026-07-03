@@ -15,10 +15,9 @@
  *              any payload validation.
  *
  * DQ1 (unauthenticated) is covered in the Hub A server-action-unauthenticated
- * spec. The success / output-contract path (real grading) requires a seeded
- * VFR-RT question pool that does not yet exist in the red-team E2E env — it is
- * covered at the integration layer (rpc-vfr-rt-submit.integration.test.ts) and
- * the E2E success-path is deferred (see #825 follow-up).
+ * spec. The success / output-contract path (real grading) is covered both at the
+ * integration layer (rpc-vfr-rt-submit.integration.test.ts) and, via the
+ * seed-vfr-rt-pool helper, in the success describe block below (#873).
  */
 
 import { expect, test } from '@playwright/test'

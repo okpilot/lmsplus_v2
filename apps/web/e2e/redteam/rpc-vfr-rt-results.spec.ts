@@ -16,10 +16,9 @@
  *
  * DR1 (unauthenticated) is covered in the Hub A server-action-unauthenticated
  * spec. The success / output-contract path (≥2 distinct completed pass/fail
- * fixtures) requires a seeded VFR-RT question pool that does not yet exist in
- * the red-team E2E env — it is covered at the integration layer
- * (rpc-vfr-rt-results.integration.test.ts) and the E2E success-path is
- * deferred (see #825 follow-up).
+ * fixtures) is covered both at the integration layer
+ * (rpc-vfr-rt-results.integration.test.ts) and, via the seed-vfr-rt-pool helper,
+ * in the success describe block below (#873).
  */
 
 import { expect, test } from '@playwright/test'
@@ -57,6 +56,14 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC', () => {
 
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
+  })
+
+  // Single-active-session invariant (#1011): DR2 admin-INSERTs an active
+  // (ended_at NULL) victim-owned quiz_sessions row. A leftover active session
+  // for the victim collides with the global uq_one_active_session_per_student
+  // index (23505) on insert. Clear it before each test.
+  test.beforeEach(async () => {
+    await cleanupStudentActiveSessions(VICTIM_EMAIL)
   })
 
   // Admin-insert a victim-owned vfr_rt session. `completed` sets ended_at + a
