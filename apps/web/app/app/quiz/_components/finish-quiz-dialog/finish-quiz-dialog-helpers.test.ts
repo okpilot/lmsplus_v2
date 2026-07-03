@@ -140,4 +140,12 @@ describe('buildFinishDialogHandlers', () => {
     buildFinishDialogHandlers(deps).cancelDiscardConfirm()
     expect(deps.setConfirmingDiscard).toHaveBeenCalledWith(false)
   })
+
+  it('clears the discard confirmation as a side effect of every submit click', () => {
+    // handleSubmitClick always calls setConfirmingDiscard(false) before branching,
+    // so clicking submit while a discard confirm panel is open always dismisses it.
+    const deps = makeDeps({ unanswered: 0 })
+    buildFinishDialogHandlers(deps).handleSubmitClick()
+    expect(deps.setConfirmingDiscard).toHaveBeenCalledWith(false)
+  })
 })

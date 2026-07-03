@@ -174,6 +174,20 @@ describe('buildHandleSubmit', () => {
     const call = mockHandleSubmitSession.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
     expect([...call.answers.keys()]).toEqual(['q1'])
   })
+
+  it('closes the finish dialog and marks submitted when the session handler reports success', async () => {
+    // Verifies the onSuccess callback wired inside buildHandleSubmit: it must set
+    // submitted.current = true (terminal re-entry lock) AND call setShowFinishDialog(false)
+    // so the dialog closes after a successful submit.
+    const deps = makeSubmitDeps()
+    mockHandleSubmitSession.mockImplementation(async (opts: { onSuccess: () => void }) => {
+      opts.onSuccess()
+    })
+    const handleSubmit = buildHandleSubmit(deps)
+    await handleSubmit()
+    expect(deps.submitted.current).toBe(true)
+    expect(deps.setShowFinishDialog).toHaveBeenCalledWith(false)
+  })
 })
 
 // ---- buildHandleSave ---------------------------------------------------------
