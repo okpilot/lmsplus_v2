@@ -32,6 +32,14 @@ export const VFR_RT_DF_ANSWER = 'S5-ABC'
 /** Correct option id for every multiple_choice question in the pool. */
 export const VFR_RT_MC_CORRECT = 'b'
 
+// Per-type pool sizes. The exam samples these per part; total_questions is derived
+// from their sum so the 8/9/8 counts and the exam_config total can't drift apart
+// (a mismatch would make start_vfr_rt_exam_session silently under-draw).
+export const VFR_RT_SA_COUNT = 8
+export const VFR_RT_DF_COUNT = 9
+export const VFR_RT_MC_COUNT = 8
+export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
+
 export type VfrRtPool = {
   subjectId: string
   configId: string
@@ -111,7 +119,7 @@ async function ensureBank(
 }
 
 function buildSaRows(base: QuestionBase): Record<string, unknown>[] {
-  return Array.from({ length: 8 }, (_, i) => ({
+  return Array.from({ length: VFR_RT_SA_COUNT }, (_, i) => ({
     organization_id: base.orgId,
     bank_id: base.bankId,
     subject_id: base.subjectId,
@@ -130,7 +138,7 @@ function buildSaRows(base: QuestionBase): Record<string, unknown>[] {
 }
 
 function buildDfRows(base: QuestionBase): Record<string, unknown>[] {
-  return Array.from({ length: 9 }, (_, i) => ({
+  return Array.from({ length: VFR_RT_DF_COUNT }, (_, i) => ({
     organization_id: base.orgId,
     bank_id: base.bankId,
     subject_id: base.subjectId,
@@ -148,7 +156,7 @@ function buildDfRows(base: QuestionBase): Record<string, unknown>[] {
 }
 
 function buildMcRows(base: QuestionBase): Record<string, unknown>[] {
-  return Array.from({ length: 8 }, (_, i) => ({
+  return Array.from({ length: VFR_RT_MC_COUNT }, (_, i) => ({
     organization_id: base.orgId,
     bank_id: base.bankId,
     subject_id: base.subjectId,
@@ -212,7 +220,7 @@ async function insertRtExamConfig(
       organization_id: orgId,
       subject_id: subjectId,
       enabled: true,
-      total_questions: 25,
+      total_questions: VFR_RT_POOL_SIZE,
       time_limit_seconds: 1800,
       pass_mark: 75,
     })
