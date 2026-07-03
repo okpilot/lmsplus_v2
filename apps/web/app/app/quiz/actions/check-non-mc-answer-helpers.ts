@@ -145,9 +145,9 @@ export function isOrderingRpcResult(value: unknown): value is OrderingRpcResult 
     // >50 result is data no submittable answer can produce — treat it as corrupt RPC
     // data (#998 CR).
     v.correct_order.length <= MAX_ORDER_ITEMS &&
-    // Non-empty strings — four-way parity with isValidFeedbackEntry (rehydrate)
-    // and toFeedbackEntry (DB-load), which both require s.length > 0.
-    v.correct_order.every((s) => typeof s === 'string' && s.length > 0) &&
+    // Non-blank strings — four-way parity with isValidFeedbackEntry (rehydrate)
+    // and toFeedbackEntry (DB-load), which both require s.trim().length > 0.
+    v.correct_order.every((s) => typeof s === 'string' && s.trim().length > 0) &&
     // A canonical order is a permutation — duplicate ids mean a malformed RPC result.
     isUniquePermutation(v.correct_order as string[]) &&
     isNullableString(v.explanation_text) &&

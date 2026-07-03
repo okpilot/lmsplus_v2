@@ -285,6 +285,19 @@ describe('isOrderingRpcResult', () => {
     ).toBe(false)
   })
 
+  it('rejects when correct_order contains a whitespace-only entry', () => {
+    expect(
+      isOrderingRpcResult({
+        is_correct: true,
+        correct_answer: null,
+        blanks: null,
+        correct_order: ['MAYDAY', '   ', 'distress'],
+        explanation_text: null,
+        explanation_image_url: null,
+      }),
+    ).toBe(false)
+  })
+
   it('rejects when correct_order repeats an id', () => {
     // A canonical order is a permutation — a duplicate id is a malformed RPC result.
     expect(

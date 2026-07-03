@@ -69,6 +69,30 @@ describe('rowToDraftData — answers normalization', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns an empty answers object and logs when the answers column is null', () => {
+    // typeof null === 'object', so the null check is a distinct branch from the
+    // non-object check — realistic: the JSONB column can be null in the DB.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: null }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns an empty answers object and logs when the answers column is an array', () => {
+    // Array.isArray is a distinct branch: typeof [] === 'object', so it passes the
+    // non-object check; only the isArray guard catches it.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const draft = rowToDraftData(buildRow({ answers: ['opt-a'] }))
+    expect(draft.answers).toEqual({})
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[toDraftAnswerRecord] Malformed answers value on draft',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('returns an empty answers object and logs when one entry is malformed', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const draft = rowToDraftData(
