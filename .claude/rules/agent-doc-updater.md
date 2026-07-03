@@ -26,7 +26,7 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
 - Skip drift check when steering docs exist.
-- Cite a migration number, RPC guard, error string, or other implementation detail without reading the migration/source file directly. Plans, commit messages, and session context are unreliable for sequential numeric references (e.g. which `mig NNN` a function lives in) and exact implementation specifics — read the file header and body before writing the citation. (Promoted count=2: #856 doc-updater attributed `submit_quiz_answer`'s idempotency gate to mig 112 when it is mig 110; Batch-A `ee4d5544` fabricated a trigger exemption, inverted a guard order, and wrong-stringed an error from the plan summary.)
+- Cite a migration number, RPC guard, error string, file path, or other implementation detail without reading the migration/source file directly. Plans, commit messages, and session context are unreliable for sequential numeric references (e.g. which `mig NNN` a function lives in), file paths, and exact implementation specifics — read the file header and body before writing the citation. (Promoted count=3: #856 doc-updater attributed `submit_quiz_answer`'s idempotency gate to mig 112 when it is mig 110; Batch-A `ee4d5544` fabricated a trigger exemption, inverted a guard order, and wrong-stringed an error from the plan summary; #1059 cited `apps/web/lib/diagram-validation.ts` for the diagram validator that actually lives at `apps/web/app/app/quiz/actions/diagram-validation.ts`.)
 
 ## Key Documents The Agent Watches
 | Document | What triggers an update |
@@ -86,4 +86,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-06-10 (extended repeated-numeric-literal rule to the docs/plan.md integration-test count — learner count=2 on Phase A)*
+*Last updated: 2026-07-03 (added "file path" to the cite-after-reading-source enumeration — learner count=3, #1061)*
