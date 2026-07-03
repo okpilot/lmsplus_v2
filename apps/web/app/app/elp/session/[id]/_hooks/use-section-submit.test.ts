@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
 
-const { mockRouterPush, mockSubmitSectionResponse } = vi.hoisted(() => ({
+const { mockRouterPush, mockRouterRefresh, mockSubmitSectionResponse } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
+  mockRouterRefresh: vi.fn(),
   mockSubmitSectionResponse: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
 }))
 
 vi.mock('../../../actions/submit-section-response', () => ({
@@ -39,7 +40,7 @@ describe('useSectionSubmit — FormData contents', () => {
   it('builds FormData with the audio file, session id, section number, and duration', async () => {
     mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
     const file = makeAudioFile()
 
@@ -57,10 +58,10 @@ describe('useSectionSubmit — FormData contents', () => {
 })
 
 describe('useSectionSubmit — success path', () => {
-  it('navigates to the report page for this session on success', async () => {
+  it('navigates to the report page after submitting the last section', async () => {
     mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
 
     await act(async () => {
@@ -70,6 +71,22 @@ describe('useSectionSubmit — success path', () => {
     await waitFor(() =>
       expect(mockRouterPush).toHaveBeenCalledWith(`/app/elp/report/${SESSION_ID}`),
     )
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+  })
+
+  it('refreshes in place to advance when submitting a non-final section', async () => {
+    mockSubmitSectionResponse.mockResolvedValue({ success: true, responseId: 'resp-1' })
+    const { result } = renderHook(() =>
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: false }),
+    )
+
+    await act(async () => {
+      result.current.submit(makeAudioFile(), 1000)
+    })
+
+    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(result.current.error).toBeNull()
   })
 })
@@ -81,7 +98,7 @@ describe('useSectionSubmit — failure path', () => {
       error: 'This section was already submitted.',
     })
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
 
     await act(async () => {
@@ -95,7 +112,7 @@ describe('useSectionSubmit — failure path', () => {
   it('surfaces a generic error and does not navigate when the action throws', async () => {
     mockSubmitSectionResponse.mockRejectedValue(new Error('network failure'))
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
 
     await act(async () => {
@@ -113,7 +130,7 @@ describe('useSectionSubmit — failure path', () => {
       .mockResolvedValueOnce({ success: false, error: 'Failed to submit section.' })
       .mockResolvedValueOnce({ success: true, responseId: 'resp-2' })
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
 
     await act(async () => {
@@ -140,7 +157,7 @@ describe('useSectionSubmit — re-entry guard', () => {
       }),
     )
     const { result } = renderHook(() =>
-      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO }),
+      useSectionSubmit({ sessionId: SESSION_ID, sectionNo: SECTION_NO, isLast: true }),
     )
 
     await act(async () => {

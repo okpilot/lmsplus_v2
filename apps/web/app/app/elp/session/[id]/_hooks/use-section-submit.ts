@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState, useTransition } from 'react'
 import { submitSectionResponse } from '../../../actions/submit-section-response'
 
-export type UseSectionSubmitOpts = { sessionId: string; sectionNo: number }
+export type UseSectionSubmitOpts = { sessionId: string; sectionNo: number; isLast: boolean }
 
 export type UseSectionSubmitResult = {
   submit: (file: File, durationMs: number) => void
@@ -32,15 +32,17 @@ function buildSectionFormData(
 }
 
 /**
- * Owns the §1 Interview submit workflow: builds the FormData the Server Action
- * expects, guards re-entry synchronously, and navigates to the report on success.
- * `useTransition` drives the `submitting` flag for the UI, but the real re-entry
- * lock is the synchronous ref (code-style §6) — `isPending` commits asynchronously
- * and would let a second caller (Submit click + a stray keyboard re-trigger) through.
+ * Owns a section's submit workflow: builds the FormData, guards re-entry
+ * synchronously, and advances after a successful submit — to the report on the
+ * last section, else a same-page refresh (which recomputes the next section and
+ * remounts the runner). The real re-entry lock is the synchronous ref (code-style
+ * §6), not `isPending`, which commits asynchronously and would let a second caller
+ * (Submit click + a stray keyboard re-trigger) through.
  */
 export function useSectionSubmit({
   sessionId,
   sectionNo,
+  isLast,
 }: UseSectionSubmitOpts): UseSectionSubmitResult {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -58,7 +60,10 @@ export function useSectionSubmit({
       try {
         const result = await submitSectionResponse(formData)
         if (result.success) {
-          router.push(`/app/elp/report/${sessionId}`)
+          // isLast → terminal nav (submit already awaited); do NOT reset the ref.
+          // Else refresh in place — the page's `key` change remounts + resets us.
+          if (isLast) router.push(`/app/elp/report/${sessionId}`)
+          else router.refresh()
           return
         }
         setError(result.error)
