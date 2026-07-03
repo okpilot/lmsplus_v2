@@ -1,10 +1,10 @@
 /**
- * Per-section prompt registry, keyed by the oral-exam section `type`. Only the
- * §1 Interview has a pre-generated mp3 (`audioSrc` points at a file under
- * `apps/web/public/elp/prompts/` — see `apps/web/scripts/generate-elp-prompts.ts`
- * for how the audio is produced from `text`). The remaining section types show a
- * clearly-labelled practice placeholder with no audio until their real per-type
- * capture UIs land in later slices.
+ * Per-section prompt registry, keyed by the oral-exam section `type`. §1 Interview
+ * has a pre-generated mp3 (`audioSrc` — see `apps/web/scripts/generate-elp-prompts.ts`),
+ * and §2 Picture Description carries a hand-authored placeholder image (`imageSrc` →
+ * `public/elp/prompts/picture-1.svg`) to be replaced by a licensed aviation photo
+ * later. The remaining section types (comms/listening/video) remain text-only
+ * practice placeholders until their real capture UIs land in later slices.
  */
 
 export type SectionPrompt = {
@@ -12,6 +12,7 @@ export type SectionPrompt = {
   label: string
   text: string
   audioSrc?: string
+  imageSrc?: string
 }
 
 export const SECTION_PROMPTS: Record<string, SectionPrompt> = {
@@ -24,7 +25,8 @@ export const SECTION_PROMPTS: Record<string, SectionPrompt> = {
   picture: {
     id: 'picture-1',
     label: '§2 Picture Description',
-    text: '[practice placeholder] Describe an aviation scene in detail — the real picture-description task with an image arrives in a later slice.',
+    text: 'Look at the picture and describe it in as much detail as you can. Talk about the setting, the aircraft or equipment, any people and what they are doing, and anything that looks unusual or important. Speak for about ninety seconds.',
+    imageSrc: '/elp/prompts/picture-1.svg',
   },
   comms: {
     id: 'comms-1',

@@ -40,6 +40,7 @@ export function OralSectionRunner({ session, section, prompt }: Props) {
       modeLabel={modeLabel}
       sectionPosition={sectionPosition}
       audioSrc={prompt.audioSrc}
+      imageSrc={prompt.imageSrc}
       promptText={prompt.text}
       recorder={toRecorderProps(recorder)}
       submit={toSubmitProps({ recorder, submit, submitting, error: submitError })}

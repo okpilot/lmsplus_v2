@@ -1,5 +1,6 @@
 'use client'
 
+import { ZoomableImage } from '../../../../_components/zoomable-image'
 import { AudioPromptPlayer } from '../../../_components/audio-prompt-player'
 import type { AudioRecorderStatus } from '../../../_hooks/use-audio-recorder'
 import { RecorderControls } from './recorder-controls'
@@ -10,6 +11,7 @@ type Props = Readonly<{
   modeLabel: string
   sectionPosition: string | null
   audioSrc?: string
+  imageSrc?: string
   promptText: string
   recorder: Readonly<{
     status: AudioRecorderStatus
@@ -35,6 +37,7 @@ export function SectionRunnerLayout({
   modeLabel,
   sectionPosition,
   audioSrc,
+  imageSrc,
   promptText,
   recorder,
   submit,
@@ -49,6 +52,9 @@ export function SectionRunnerLayout({
 
       {audioSrc && <AudioPromptPlayer src={audioSrc} label="Interview question" />}
       <p className="text-base">{promptText}</p>
+      {imageSrc && (
+        <ZoomableImage src={imageSrc} alt={`${label} illustration`} className="max-h-80" />
+      )}
 
       <RecorderControls
         status={recorder.status}
