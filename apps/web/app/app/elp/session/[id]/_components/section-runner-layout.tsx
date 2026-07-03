@@ -51,10 +51,12 @@ export function SectionRunnerLayout({
       {sectionPosition && <p className="text-sm text-muted-foreground">{sectionPosition}</p>}
 
       {audioSrc && <AudioPromptPlayer src={audioSrc} label="Interview question" />}
-      <p className="text-base">{promptText}</p>
+      {/* Picture-description stimulus renders above its instruction so the prompt
+          text ("Look at the picture…") references an image already on screen. */}
       {imageSrc && (
         <ZoomableImage src={imageSrc} alt={`${label} illustration`} className="max-h-80" />
       )}
+      <p className="text-base">{promptText}</p>
 
       <RecorderControls
         status={recorder.status}
