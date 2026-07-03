@@ -87,10 +87,34 @@ describe('useFinishQuizDialog', () => {
 
   it('openDiscardConfirm sets confirmingDiscard true and clears confirmingSubmit', () => {
     const { result } = renderHook(() => useFinishQuizDialog(baseOpts()))
-    act(() => result.current.handleSubmitClick()) // enters confirmingSubmit
+    act(() => result.current.handleSubmitClick())
     expect(result.current.confirmingSubmit).toBe(true)
     act(() => result.current.openDiscardConfirm())
     expect(result.current.confirmingDiscard).toBe(true)
+    expect(result.current.confirmingSubmit).toBe(false)
+  })
+
+  // ---- reset-on-close / exam-expiry effect ---------------------------------
+
+  it('resets both confirm flags when the dialog closes', () => {
+    const { result, rerender } = renderHook((props) => useFinishQuizDialog(props), {
+      initialProps: baseOpts(),
+    })
+    act(() => result.current.openDiscardConfirm())
+    expect(result.current.confirmingDiscard).toBe(true)
+    rerender(baseOpts({ open: false }))
+    expect(result.current.confirmingDiscard).toBe(false)
+    expect(result.current.confirmingSubmit).toBe(false)
+  })
+
+  it('resets both confirm flags when an exam runs out of time', () => {
+    const { result, rerender } = renderHook((props) => useFinishQuizDialog(props), {
+      initialProps: baseOpts({ isExam: true }),
+    })
+    act(() => result.current.openDiscardConfirm())
+    expect(result.current.confirmingDiscard).toBe(true)
+    rerender(baseOpts({ isExam: true, timeExpired: true }))
+    expect(result.current.confirmingDiscard).toBe(false)
     expect(result.current.confirmingSubmit).toBe(false)
   })
 

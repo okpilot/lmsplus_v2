@@ -16,23 +16,6 @@ export type UseFinishQuizDialogOpts = {
   timeExpired?: boolean
 }
 
-export type FinishQuizDialogState = {
-  countdown: number
-  confirmingDiscard: boolean
-  confirmingSubmit: boolean
-  unanswered: number
-  isInternalExam: boolean
-  examLabel: string | null
-  title: string
-  canDismiss: boolean
-  canDiscard: boolean
-  handleClose: () => void
-  handleSubmitClick: () => void
-  cancelSubmitConfirm: () => void
-  openDiscardConfirm: () => void
-  cancelDiscardConfirm: () => void
-}
-
 export type FinishDialogView = {
   unanswered: number
   isInternalExam: boolean
@@ -40,6 +23,20 @@ export type FinishDialogView = {
   title: string
   canDismiss: boolean
   canDiscard: boolean
+}
+
+// The hook's return: the pure view fields (via intersection, so they can't drift
+// from deriveFinishDialogView's output) plus the stateful countdown/confirm flags
+// and the interaction handlers.
+export type FinishQuizDialogState = FinishDialogView & {
+  countdown: number
+  confirmingDiscard: boolean
+  confirmingSubmit: boolean
+  handleClose: () => void
+  handleSubmitClick: () => void
+  cancelSubmitConfirm: () => void
+  openDiscardConfirm: () => void
+  cancelDiscardConfirm: () => void
 }
 
 // Pure derivation of the dialog's display state from the current opts. No hooks.
