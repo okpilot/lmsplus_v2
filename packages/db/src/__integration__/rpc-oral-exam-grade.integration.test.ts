@@ -206,6 +206,22 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       .eq('session_id', sessionId)
     if (usageErr) throw new Error(`usage: ${usageErr.message}`)
     expect((usage ?? []).length).toBe(5)
+
+    // #1069: finalize emits exactly one 'oral_exam.graded' audit event, scoped to
+    // this session — read via the service-role client (audit_events is
+    // RLS-protected; the student cannot read it).
+    const { data: gradedEvents, error: gradedEventsErr } = await admin
+      .from('audit_events')
+      .select('actor_id, actor_role, resource_type, resource_id, metadata')
+      .eq('event_type', 'oral_exam.graded')
+      .eq('resource_id', sessionId)
+    if (gradedEventsErr) throw new Error(`gradedEvents: ${gradedEventsErr.message}`)
+    expect(gradedEvents ?? []).toHaveLength(1)
+    const gradedEvent = gradedEvents?.[0]
+    expect(gradedEvent?.actor_id).toBe(studentId)
+    expect(gradedEvent?.actor_role).toBe('student')
+    expect(gradedEvent?.resource_type).toBe('oral_exam_session')
+    expect(gradedEvent?.metadata).toMatchObject({ total_final_level: 3, planned_sections: 5 })
   })
 
   it('finalizes when the last two sections are graded concurrently', async () => {
@@ -296,6 +312,19 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       .eq('section_no', 1)
     if (scoresErr) throw new Error(`scores: ${scoresErr.message}`)
     expect((scores ?? []).length).toBe(6)
+
+    // #1069: only 1 of 5 sections is graded — the finalize branch never ran, so no
+    // 'oral_exam.graded' event exists for THIS session. Scoped by resource_id (not
+    // just event_type/actor_id): other tests in this suite finalize OTHER sessions
+    // for the same shared student and DO write 'oral_exam.graded' rows, so an
+    // unscoped query would return >=1 and fail spuriously.
+    const { data: gradedEvents, error: gradedEventsErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'oral_exam.graded')
+      .eq('resource_id', sessionId)
+    if (gradedEventsErr) throw new Error(`gradedEvents: ${gradedEventsErr.message}`)
+    expect(gradedEvents ?? []).toHaveLength(0)
   })
 
   it("rejects submitting a section to another student's session", async () => {
@@ -361,5 +390,71 @@ describe('RPC: ELP oral exam — grader forgery guard, lifecycle, idempotency', 
       .is('deleted_at', null)
     if (activeErr) throw new Error(`active: ${activeErr.message}`)
     expect((active ?? []).length).toBe(1)
+  })
+
+  it('finalizes and COALESCEs actor_role when the student is soft-deleted mid-grading', async () => {
+    const { sessionId, responseIds } = await startAndSubmitAll(student)
+    const grade = (rid: string) =>
+      admin.rpc('write_oral_section_grade', {
+        p_response_id: rid,
+        p_transcript: 'coalesce-branch',
+        p_transcript_meta: null,
+        p_descriptor_scores: sixScores(4),
+        p_usage: [],
+      })
+    // Grade the first 4 sections as the active (not-yet-deleted) student.
+    for (let i = 0; i < 4; i++) {
+      const rid = responseIds[i]
+      if (!rid) throw new Error(`missing response id ${i}`)
+      const { error } = await grade(rid)
+      if (error) throw new Error(`grade ${i}: ${error.message}`)
+    }
+    const lastResponseId = responseIds[4]
+    if (!lastResponseId) throw new Error('expected 5 response ids')
+
+    try {
+      // Soft-delete the SHARED student fixture just before the finalizing grade —
+      // the role lookup's `deleted_at IS NULL` filter (rule 10) then finds no row,
+      // so v_student_role is NULL and the grader must COALESCE to 'student' rather
+      // than fail the whole finalize on a NOT NULL violation (actor_role is NOT NULL).
+      const { error: softDeleteErr } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', studentId)
+      if (softDeleteErr) throw new Error(`softDelete: ${softDeleteErr.message}`)
+
+      const { data: finalizeData, error: finalizeErr } = await grade(lastResponseId)
+      if (finalizeErr) throw new Error(`finalize: ${finalizeErr.message}`)
+      const finalize = requireRpcResult<{ session_finalized: boolean }>(
+        finalizeData,
+        'grader finalize (soft-deleted student)',
+      )
+      expect(finalize.session_finalized).toBe(true)
+
+      const { data: gradedEvents, error: gradedEventsErr } = await admin
+        .from('audit_events')
+        .select('actor_id, actor_role')
+        .eq('event_type', 'oral_exam.graded')
+        .eq('resource_id', sessionId)
+      if (gradedEventsErr) throw new Error(`gradedEvents: ${gradedEventsErr.message}`)
+      expect(gradedEvents ?? []).toHaveLength(1)
+      expect(gradedEvents?.[0]?.actor_id).toBe(studentId)
+      expect(gradedEvents?.[0]?.actor_role).toBe('student')
+    } finally {
+      // MANDATORY restore — studentId is a SHARED fixture reused across this describe
+      // block (beforeAll-seeded, torn down only in afterAll), and startAndSubmitAll
+      // hardcodes ${studentId} in the audio path, so a throwaway student cannot
+      // substitute here. Leaving it soft-deleted would break any later test acting
+      // as this student.
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentId)
+      if (restoreErr) {
+        console.error(
+          `[coalesce-branch restore] failed to restore studentId: ${restoreErr.message}`,
+        )
+      }
+    }
   })
 })

@@ -6,6 +6,12 @@
 -- guard, the soft-delete filters, the REVOKE/GRANT model, the two ON CONFLICT
 -- clauses — are preserved verbatim. Depends on migs 150-153.
 --
+-- Also (#1069): the finalize branch now emits an 'oral_exam.graded' audit_events
+-- row, mirroring the 'oral_exam.started'/'oral_exam.discarded' events siblings
+-- already write (mig 153/151) — see the inline comment at the INSERT for the
+-- documented rule-12 guard-set deviation (session-derived actor, not re-gated
+-- on the student's soft-delete state).
+--
 -- ⚠️ SECURITY LINCHPIN — see mig 152 header for the full grant-model rationale.
 -- Still callable ONLY by the service-role Edge Function (auth.uid() IS NULL).
 
@@ -36,6 +42,7 @@ DECLARE
   v_ungraded    int;
   v_total       int;
   v_final_level smallint;
+  v_student_role text;
   v_finalized   boolean := false;
 BEGIN
   -- Defense-in-depth vs grant drift: this grader is invoked ONLY by the service-role
@@ -174,6 +181,20 @@ BEGIN
     UPDATE oral_exam_sessions
     SET status = 'graded', total_final_level = v_final_level, ended_at = COALESCE(ended_at, now())
     WHERE id = v_session_id AND deleted_at IS NULL;
+
+    -- Rule-10 role lookup for the finalize audit event (deleted_at-filtered FK read).
+    SELECT u.role INTO v_student_role FROM users u WHERE u.id = v_student_id AND u.deleted_at IS NULL;
+
+    -- Documented rule-12 deviation from siblings start/discard (mig 153/151): this grader is a
+    -- service-role finalizer (auth.uid() IS NULL, REVOKEd from authenticated) that derives
+    -- org/student from the SESSION row and must complete regardless of the student's soft-delete
+    -- state — losing a computed grade is worse than a stale actor_role. So actor_id/actor_role are
+    -- intentionally session-derived and NOT re-gated on users.deleted_at; COALESCE is a best-effort
+    -- fallback (not a proven invariant) for a soft-deleted actor whose role is no longer resolvable.
+    INSERT INTO audit_events (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
+    VALUES (v_org_id, v_student_id, COALESCE(v_student_role, 'student'), 'oral_exam.graded',
+            'oral_exam_session', v_session_id,
+            jsonb_build_object('total_final_level', v_final_level, 'planned_sections', v_planned));
 
     v_finalized := true;
   END IF;
