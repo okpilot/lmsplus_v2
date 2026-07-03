@@ -40,11 +40,19 @@ describe('ElpHome — active session', () => {
   it('renders a resume link pointing at the active session and no Start button', () => {
     render(<ElpHome activeSession={ACTIVE_SESSION} />)
 
-    expect(screen.getByRole('link', { name: /resume your session/i })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: /resume your §1 interview practice/i }),
+    ).toHaveAttribute('href', '/app/elp/session/sess-active-1')
+    expect(screen.queryByRole('button', { name: /start/i })).not.toBeInTheDocument()
+  })
+
+  it('labels the resume link as the Mock Exam when the active session is a mock exam', () => {
+    render(<ElpHome activeSession={{ ...ACTIVE_SESSION, mode: 'mock' }} />)
+
+    expect(screen.getByRole('link', { name: /resume your mock exam/i })).toHaveAttribute(
       'href',
       '/app/elp/session/sess-active-1',
     )
-    expect(screen.queryByRole('button', { name: /start/i })).not.toBeInTheDocument()
   })
 })
 
@@ -62,6 +70,16 @@ describe('ElpHome — no active session', () => {
 
     await waitFor(() => expect(mockStartOralExam).toHaveBeenCalledWith('practice'))
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-new-1'))
+  })
+
+  it('starts a mock exam and navigates to it on success', async () => {
+    mockStartOralExam.mockResolvedValue({ success: true, sessionId: 'sess-mock-1' })
+    render(<ElpHome activeSession={null} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /start mock exam/i }))
+
+    await waitFor(() => expect(mockStartOralExam).toHaveBeenCalledWith('mock'))
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-mock-1'))
   })
 
   it('shows the error and does not navigate when starting fails', async () => {
@@ -102,7 +120,7 @@ describe('ElpHome — no active session', () => {
     )
     render(<ElpHome activeSession={null} />)
 
-    const button = screen.getByRole('button', { name: /start/i })
+    const button = screen.getByRole('button', { name: /start §1 interview practice/i })
     await userEvent.click(button)
     await userEvent.click(button)
 
@@ -112,13 +130,65 @@ describe('ElpHome — no active session', () => {
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-new-2'))
   })
 
+  it('disables both start buttons while a practice start is in-flight, preventing a mock exam from launching', async () => {
+    let resolveStart!: (v: { success: true; sessionId: string }) => void
+    mockStartOralExam.mockReturnValue(
+      new Promise<{ success: true; sessionId: string }>((res) => {
+        resolveStart = res
+      }),
+    )
+    render(<ElpHome activeSession={null} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /start §1 interview practice/i }))
+
+    // Both buttons change to "Starting…" and become disabled — the mock exam
+    // button is unreachable while the shared re-entry lock is held.
+    const pendingButtons = screen.getAllByRole('button', { name: /starting/i })
+    expect(pendingButtons).toHaveLength(2)
+    for (const btn of pendingButtons) {
+      expect(btn).toBeDisabled()
+    }
+    expect(mockStartOralExam).toHaveBeenCalledTimes(1)
+    expect(mockStartOralExam).toHaveBeenCalledWith('practice')
+
+    resolveStart({ success: true, sessionId: 'sess-practice-1' })
+    await waitFor(() =>
+      expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-practice-1'),
+    )
+  })
+
+  it('disables both start buttons while a mock exam start is in-flight, preventing a practice start from launching', async () => {
+    let resolveStart!: (v: { success: true; sessionId: string }) => void
+    mockStartOralExam.mockReturnValue(
+      new Promise<{ success: true; sessionId: string }>((res) => {
+        resolveStart = res
+      }),
+    )
+    render(<ElpHome activeSession={null} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /start mock exam/i }))
+
+    // Both buttons change to "Starting…" and become disabled — the practice
+    // button is unreachable while the shared re-entry lock is held.
+    const pendingButtons = screen.getAllByRole('button', { name: /starting/i })
+    expect(pendingButtons).toHaveLength(2)
+    for (const btn of pendingButtons) {
+      expect(btn).toBeDisabled()
+    }
+    expect(mockStartOralExam).toHaveBeenCalledTimes(1)
+    expect(mockStartOralExam).toHaveBeenCalledWith('mock')
+
+    resolveStart({ success: true, sessionId: 'sess-mock-2' })
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/elp/session/sess-mock-2'))
+  })
+
   it('allows a retry after a failed start attempt', async () => {
     mockStartOralExam
       .mockResolvedValueOnce({ success: false, error: 'Failed to start oral exam.' })
       .mockResolvedValueOnce({ success: true, sessionId: 'sess-new-3' })
     render(<ElpHome activeSession={null} />)
 
-    const button = screen.getByRole('button', { name: /start/i })
+    const button = screen.getByRole('button', { name: /start §1 interview practice/i })
     await userEvent.click(button)
     await waitFor(() => expect(mockStartOralExam).toHaveBeenCalledTimes(1))
 

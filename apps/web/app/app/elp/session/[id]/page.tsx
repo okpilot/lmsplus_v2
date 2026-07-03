@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { nextUnsubmittedSection } from '@/lib/elp/section-progress'
 import { getSessionRedirectPath } from '@/lib/elp/session-redirect'
 import { getOralExamSession } from '@/lib/queries/oral-exam-session'
-import { INTERVIEW_PROMPTS } from '../../prompts'
+import { getSectionPrompt } from '../../prompts'
 import { OralSectionRunner } from './_components/oral-section-runner'
 
 export default async function OralExamSessionPage({
@@ -15,16 +16,25 @@ export default async function OralExamSessionPage({
   const redirectPath = getSessionRedirectPath(session, id)
   if (redirectPath) redirect(redirectPath)
 
-  const prompt = INTERVIEW_PROMPTS[0]
-  if (!prompt) redirect('/app/elp')
-
   // getSessionRedirectPath returns non-null exactly when `session` is null, so a
   // null redirectPath guarantees session is present at this point.
   const activeSession = session as NonNullable<typeof session>
 
+  // All planned sections submitted while still in_progress (race window; normally
+  // the last submit flips status→grading so the redirect gate above fires first).
+  const current = nextUnsubmittedSection(activeSession)
+  if (!current) redirect(`/app/elp/report/${id}`)
+
+  const prompt = getSectionPrompt(current.type)
+
   return (
     <main>
-      <OralSectionRunner session={activeSession} prompt={prompt} />
+      <OralSectionRunner
+        key={current.sectionNo}
+        session={activeSession}
+        section={current}
+        prompt={prompt}
+      />
     </main>
   )
 }
