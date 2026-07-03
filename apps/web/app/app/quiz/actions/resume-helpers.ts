@@ -3,6 +3,8 @@
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
+import { rpc } from '@/lib/supabase-rpc'
+import { closePracticeSessionForDraft } from './draft-helpers'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -11,10 +13,18 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 const RESUME_ERROR_MESSAGES: Record<string, string> = {
   another_session_active:
     'You already have an active session. Finish or discard it before resuming this one.',
+  // Reachable on resume: the Supabase auth token can outlive a soft-deleted `users` row,
+  // so a deactivated account can pass the action's auth check yet hit this RPC guard.
+  'user not found or inactive': 'Your account is no longer active.',
   invalid_question_ids:
     'This saved quiz’s questions are no longer available — it may be out of date.',
   no_questions_provided:
     'This saved quiz’s questions are no longer available — it may be out of date.',
+  // Unreachable for a draft saved after the schema cap (SaveDraftInput questionIds .max(500)),
+  // but mapped for RPC error-token completeness (agent-semantic-reviewer.md) — a legacy row
+  // could still carry >500 ids.
+  too_many_questions:
+    'This saved quiz has too many questions and can’t be resumed. Please contact support.',
 }
 
 export function mapResumeRpcError(message: string | undefined): string {
@@ -36,6 +46,29 @@ export type ResumeContext = {
 }
 
 type ContextResult = { ok: true; ctx: ResumeContext } | { ok: false; error: string }
+
+/**
+ * Validate that the original session can be recreated via start_quiz_session: practice
+ * mode only, and a quick_quiz must carry a subject. Returns a user-facing error string,
+ * or null when the session is resumable.
+ */
+function validateSessionForResume(session: {
+  mode: string
+  subject_id: string | null
+}): string | null {
+  // Only practice sessions can be recreated; refuse anything else with clean copy rather
+  // than leaking a raw `mode_not_allowed` RPC error.
+  if (session.mode !== 'quick_quiz' && session.mode !== 'smart_review') {
+    return 'This saved quiz can’t be resumed.'
+  }
+  // quick_quiz always carries a subject; smart_review may be cross-subject (NULL subject_id),
+  // which start_quiz_session accepts. Only quick_quiz is reachable today, but reject a
+  // NULL-subject quick_quiz rather than pass a bad arg to the RPC.
+  if (session.mode === 'quick_quiz' && !session.subject_id) {
+    return 'The original session for this saved quiz is missing its subject.'
+  }
+  return null
+}
 
 /**
  * Load everything resume needs: the draft's question_ids + the ORIGINAL session's
@@ -86,17 +119,8 @@ export async function loadResumeContext(
   if (!session) {
     return { ok: false, error: 'The original session for this saved quiz is unavailable.' }
   }
-  // Only practice sessions can be recreated via start_quiz_session; refuse anything
-  // else with clean copy rather than leaking a raw `mode_not_allowed` RPC error.
-  if (session.mode !== 'quick_quiz' && session.mode !== 'smart_review') {
-    return { ok: false, error: 'This saved quiz can’t be resumed.' }
-  }
-  // quick_quiz always carries a subject; smart_review may be cross-subject (NULL subject_id),
-  // which start_quiz_session accepts. Only quick_quiz is reachable today, but reject a
-  // NULL-subject quick_quiz rather than pass a bad arg to the RPC.
-  if (session.mode === 'quick_quiz' && !session.subject_id) {
-    return { ok: false, error: 'The original session for this saved quiz is missing its subject.' }
-  }
+  const invalid = validateSessionForResume(session)
+  if (invalid) return { ok: false, error: invalid }
 
   return {
     ok: true,
@@ -147,4 +171,31 @@ export async function repointDraftSession(
   if ((data?.length ?? 0) === 0) {
     console.error('[resumeQuizSession] Draft re-point matched no row for draft', draftId)
   }
+}
+
+/**
+ * Mint the fresh practice session for a resume: auto-heal the draft's original session
+ * (soft-delete it if a legacy pre-#1085 draft left it active — a true no-op for a post-fix
+ * draft, whose session is already parked), then call start_quiz_session with the draft's
+ * exact questions. Must precede any re-point: start_quiz_session blocks on ANY active
+ * session, including this draft's own, so the heal has to run first.
+ */
+export async function startResumedSession(
+  supabase: SupabaseClient,
+  ctx: ResumeContext,
+  userId: string,
+): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> {
+  await closePracticeSessionForDraft(supabase, ctx.oldSessionId, userId)
+
+  const { data: newSessionId, error: rpcErr } = await rpc<string>(supabase, 'start_quiz_session', {
+    p_mode: ctx.mode,
+    p_subject_id: ctx.subjectId,
+    p_topic_id: ctx.topicId,
+    p_question_ids: ctx.questionIds,
+  })
+  if (rpcErr || !newSessionId) {
+    console.error('[resumeQuizSession] start RPC error:', rpcErr?.message)
+    return { ok: false, error: mapResumeRpcError(rpcErr?.message) }
+  }
+  return { ok: true, sessionId: newSessionId }
 }

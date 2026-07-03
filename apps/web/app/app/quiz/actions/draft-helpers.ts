@@ -53,6 +53,10 @@ export async function closePracticeSessionForDraft(
       .eq('id', sessionId)
       .eq('student_id', userId)
       .is('ended_at', null)
+      // Skip already-parked sessions: makes this a true no-op on the resume auto-heal path
+      // for a post-fix draft (whose session is already soft-deleted) instead of refreshing
+      // deleted_at and logging a spurious "soft-deleted" line.
+      .is('deleted_at', null)
       .in('mode', ['quick_quiz', 'smart_review'])
       .select('id')
     if (error) {

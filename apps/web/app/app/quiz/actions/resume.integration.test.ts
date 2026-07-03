@@ -238,11 +238,13 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
 
     // Deactivate one of the draft's questions → start_quiz_session's active-question
     // check drops the count and raises invalid_question_ids on resume.
-    const { error: deErr } = await admin
+    const { data: deacted, error: deErr } = await admin
       .from('questions')
       .update({ status: 'draft' })
       .eq('id', start.questionIds[0])
+      .select('id')
     if (deErr) throw new Error(deErr.message)
+    expect(deacted).toHaveLength(1)
     try {
       const resume = await resumeQuizSession({ draftId })
       expect(resume.success).toBe(false)
@@ -258,8 +260,67 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
       if (acErr) throw new Error(acErr.message)
       expect(active?.length ?? 0).toBe(0)
     } finally {
-      await admin.from('questions').update({ status: 'active' }).eq('id', start.questionIds[0])
+      const { error: restoreErr } = await admin
+        .from('questions')
+        .update({ status: 'active' })
+        .eq('id', start.questionIds[0])
+      if (restoreErr) {
+        console.error('[resume.integration] question restore failed:', restoreErr.message)
+      }
     }
+  })
+
+  it('refuses to resume a draft whose session is a graded exam and mints no new session', async () => {
+    await signInAs(emailB, password)
+    // Seed a REAL active internal_exam session and cite it from a crafted draft.
+    const { data: exam, error: exErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentBId,
+        mode: 'internal_exam',
+        subject_id: refs.subjectId,
+        config: { question_ids: questionIds },
+        total_questions: questionIds.length,
+      })
+      .select('id')
+      .single()
+    if (exErr) throw new Error(`seed exam session: ${exErr.message}`)
+
+    const save = await saveDraft({
+      sessionId: exam.id,
+      questionIds,
+      answers: {},
+      currentIndex: 0,
+      feedback: {},
+    })
+    expect(save.success).toBe(true)
+    const draftId = await latestDraftId(studentBId)
+
+    const resume = await resumeQuizSession({ draftId })
+    expect(resume.success).toBe(false)
+    if (resume.success) throw new Error('expected failure')
+    expect(resume.error).toMatch(/can.t be resumed/i)
+
+    // Non-vacuous: no practice session was minted, and the exam session is untouched (still active).
+    const { data: practice, error: pErr } = await admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('student_id', studentBId)
+      .in('mode', ['quick_quiz', 'smart_review'])
+      .is('ended_at', null)
+      .is('deleted_at', null)
+    if (pErr) throw new Error(pErr.message)
+    expect(practice?.length ?? 0).toBe(0)
+
+    const { data: examAfter, error: eaErr } = await admin
+      .from('quiz_sessions')
+      .select('deleted_at, ended_at')
+      .eq('id', exam.id)
+      .single()
+    if (eaErr) throw new Error(eaErr.message)
+    expect(examAfter.deleted_at).toBeNull()
+    expect(examAfter.ended_at).toBeNull()
   })
 
   it('rejects an unauthenticated caller', async () => {

@@ -2,9 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { rpc } from '@/lib/supabase-rpc'
-import { closePracticeSessionForDraft } from './draft-helpers'
-import { loadResumeContext, mapResumeRpcError, repointDraftSession } from './resume-helpers'
+import { loadResumeContext, repointDraftSession, startResumedSession } from './resume-helpers'
 
 const ResumeInput = z.object({ draftId: z.uuid() })
 
@@ -37,29 +35,13 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     if (!loaded.ok) return { success: false, error: loaded.error }
     const { ctx } = loaded
 
-    // Auto-heal legacy drafts whose original session is still active (pre-#1085 saves
-    // never closed it). No-op for post-fix drafts (already soft-deleted). Must precede
-    // start — start_quiz_session blocks on ANY active session, incl. this draft's own.
-    await closePracticeSessionForDraft(supabase, ctx.oldSessionId, user.id)
+    // Mint the fresh session (auto-heals a legacy draft's stale session first). On failure
+    // the draft is left intact and the caller does not navigate.
+    const started = await startResumedSession(supabase, ctx, user.id)
+    if (!started.ok) return { success: false, error: started.error }
 
-    const { data: newSessionId, error: rpcErr } = await rpc<string>(
-      supabase,
-      'start_quiz_session',
-      {
-        p_mode: ctx.mode,
-        p_subject_id: ctx.subjectId,
-        p_topic_id: ctx.topicId,
-        p_question_ids: ctx.questionIds,
-      },
-    )
-    if (rpcErr || !newSessionId) {
-      console.error('[resumeQuizSession] start RPC error:', rpcErr?.message)
-      // Draft is left intact; the caller does not navigate on failure.
-      return { success: false, error: mapResumeRpcError(rpcErr?.message) }
-    }
-
-    await repointDraftSession(supabase, input.draftId, user.id, ctx, newSessionId)
-    return { success: true, sessionId: newSessionId, questionIds: ctx.questionIds }
+    await repointDraftSession(supabase, input.draftId, user.id, ctx, started.sessionId)
+    return { success: true, sessionId: started.sessionId, questionIds: ctx.questionIds }
   } catch (err) {
     console.error('[resumeQuizSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
