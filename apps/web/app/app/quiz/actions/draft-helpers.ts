@@ -27,6 +27,46 @@ function sessionConfig(i: SaveDraftParsed) {
   return { sessionId: i.sessionId, subjectName: i.subjectName, subjectCode: i.subjectCode }
 }
 
+/**
+ * Park a saved draft's underlying practice session: soft-delete the `quiz_sessions`
+ * row so it stops tripping the single-active-session guard (#1011) and the
+ * "unfinished session" banner (#1085). Best-effort — the draft is already saved, so
+ * a failure here only leaves the pre-fix state (a lingering active session), never
+ * loses the draft. Positive practice-mode allowlist: this must NEVER soft-delete a
+ * graded exam (`internal_exam` / `vfr_rt_exam` / `mock_exam`) — a student could
+ * otherwise abandon a graded exam via a crafted saveDraft call (the discard path
+ * blocks this via NON_DISCARDABLE_MODES; we use a stricter positive allowlist).
+ */
+export async function closePracticeSessionForDraft(
+  supabase: SupabaseClient,
+  sessionId: string,
+  userId: string,
+): Promise<void> {
+  // Fully best-effort: the draft is already saved, so this must NEVER surface as a
+  // save failure — swallow both query errors AND thrown exceptions (network etc.),
+  // logging for observability. Rethrowing would make the caller's outer catch report
+  // failure for a draft that was actually persisted.
+  try {
+    const { data, error } = await supabase
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .eq('student_id', userId)
+      .is('ended_at', null)
+      .in('mode', ['quick_quiz', 'smart_review'])
+      .select('id')
+    if (error) {
+      console.error('[closePracticeSession] Session close error:', error.message)
+      return
+    }
+    if ((data?.length ?? 0) > 0) {
+      console.log('[closePracticeSession] Session', sessionId, 'soft-deleted for user', userId)
+    }
+  } catch (err) {
+    console.error('[closePracticeSession] Uncaught error:', err)
+  }
+}
+
 export async function updateExistingDraft(
   supabase: SupabaseClient,
   input: SaveDraftParsed,

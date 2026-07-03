@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
+import { resumeQuizSession } from '../actions/resume'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { DraftData } from '../types'
 
@@ -15,6 +16,8 @@ export function progressColor(pct: number): string {
 export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId: string }>) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
+  const [resuming, setResuming] = useState(false)
+  const resumingRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const answeredCount = Object.keys(draft.answers).length
@@ -32,13 +35,29 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
       })} UTC`
     : ''
 
-  function handleResume() {
+  async function handleResume() {
+    // Synchronous one-shot guard (code-style.md §6): resume mints a server session,
+    // so a double-click would fire two starts and the second hits another_session_active.
+    if (resumingRef.current) return
+    resumingRef.current = true
+    setResuming(true)
+    setError(null)
+
+    // Mint a fresh session from the draft's questions; reuse its NEW id in the handoff.
+    const result = await resumeQuizSession({ draftId: draft.id })
+    if (!result.success) {
+      setError(result.error)
+      setResuming(false)
+      resumingRef.current = false // retryable failure — allow another attempt
+      return
+    }
+
     try {
       sessionStorage.setItem(
         sessionHandoffKey(userId),
         JSON.stringify({
           userId,
-          sessionId: draft.sessionId,
+          sessionId: result.sessionId,
           questionIds: draft.questionIds,
           draftAnswers: draft.answers,
           draftFeedback: draft.feedback,
@@ -51,8 +70,11 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
     } catch (err) {
       console.warn('[draft-card] sessionStorage handoff failed:', err)
       setError('Unable to resume right now. Please try again.')
+      setResuming(false)
+      resumingRef.current = false
       return
     }
+    // Terminal navigation is the last statement; ref intentionally NOT reset (success).
     router.push('/app/quiz/session')
   }
 
@@ -82,9 +104,11 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
             type="button"
             data-testid="resume-draft"
             onClick={handleResume}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            disabled={resuming}
+            aria-busy={resuming || undefined}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            Resume
+            {resuming ? 'Resuming...' : 'Resume'}
           </button>
           <button
             type="button"
