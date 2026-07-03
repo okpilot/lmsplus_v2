@@ -191,9 +191,17 @@ async function insertRows(
 ): Promise<string[]> {
   const { data, error } = await admin.from('questions').insert(rows).select('id')
   if (error) throw new Error(`seedVfrRtPool insert: ${error.message}`)
-  // §5 cast-guard: verify the shape before treating the result as a typed array.
-  if (!Array.isArray(data)) throw new Error('seedVfrRtPool insert: expected an array of rows')
-  return data.map((r) => (r as { id: string }).id)
+  // §5 cast-guard: verify every row is an object with a string id before mapping.
+  if (
+    !Array.isArray(data) ||
+    !data.every(
+      (r): r is { id: string } =>
+        typeof r === 'object' && r !== null && typeof (r as { id?: unknown }).id === 'string',
+    )
+  ) {
+    throw new Error('seedVfrRtPool insert: expected rows with string ids')
+  }
+  return data.map((r) => r.id)
 }
 
 // ─── exam_config (check-first, idempotent) ────────────────────────────────────
@@ -405,6 +413,8 @@ export function buildVfrRtAnswers(
         selected_option_id: VFR_RT_MC_CORRECT,
         response_time_ms: 1000,
       })
+    } else {
+      throw new Error(`buildVfrRtAnswers: unsupported question_type ${q.question_type}`)
     }
   }
   return answers

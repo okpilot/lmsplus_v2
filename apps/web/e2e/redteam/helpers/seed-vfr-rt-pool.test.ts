@@ -143,8 +143,9 @@ describe('buildVfrRtAnswers', () => {
     expect(mc?.selected_option_id).toBe(VFR_RT_MC_CORRECT)
   })
 
-  it('skips question types outside the RT pool', () => {
-    const answers = buildVfrRtAnswers([{ id: 'x-1', question_type: 'diagram_label' }])
-    expect(answers).toEqual([])
+  it('throws on a question_type outside the RT pool', () => {
+    expect(() => buildVfrRtAnswers([{ id: 'x-1', question_type: 'diagram_label' }])).toThrow(
+      /unsupported question_type/,
+    )
   })
 })
