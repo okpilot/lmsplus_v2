@@ -3,13 +3,13 @@
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Database, Json } from '@repo/db/types'
-import { rpc } from '@/lib/supabase-rpc'
-import { closePracticeSessionForDraft } from './draft-helpers'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 // RPC error token (from start_quiz_session, mig 20260629000600) → user message.
 // Distinct situations get distinct copy: a different active session vs a stale draft.
+// INVARIANT: keys must not be substrings of one another — mapResumeRpcError matches via
+// token.includes(key), so an overlapping key would make iteration order decide the mapping.
 const RESUME_ERROR_MESSAGES: Record<string, string> = {
   another_session_active:
     'You already have an active session. Finish or discard it before resuming this one.',
@@ -20,9 +20,8 @@ const RESUME_ERROR_MESSAGES: Record<string, string> = {
     'This saved quiz’s questions are no longer available — it may be out of date.',
   no_questions_provided:
     'This saved quiz’s questions are no longer available — it may be out of date.',
-  // Unreachable for a draft saved after the schema cap (SaveDraftInput questionIds .max(500)),
-  // but mapped for RPC error-token completeness (agent-semantic-reviewer.md) — a legacy row
-  // could still carry >500 ids.
+  // Unreachable for a draft saved after the schema cap (.max(500)), but mapped for RPC
+  // error-token completeness (agent-semantic-reviewer.md) — a legacy row could carry >500 ids.
   too_many_questions:
     'This saved quiz has too many questions and can’t be resumed. Please contact support.',
 }
@@ -171,31 +170,4 @@ export async function repointDraftSession(
   if ((data?.length ?? 0) === 0) {
     console.error('[resumeQuizSession] Draft re-point matched no row for draft', draftId)
   }
-}
-
-/**
- * Mint the fresh practice session for a resume: auto-heal the draft's original session
- * (soft-delete it if a legacy pre-#1085 draft left it active — a true no-op for a post-fix
- * draft, whose session is already parked), then call start_quiz_session with the draft's
- * exact questions. Must precede any re-point: start_quiz_session blocks on ANY active
- * session, including this draft's own, so the heal has to run first.
- */
-export async function startResumedSession(
-  supabase: SupabaseClient,
-  ctx: ResumeContext,
-  userId: string,
-): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> {
-  await closePracticeSessionForDraft(supabase, ctx.oldSessionId, userId)
-
-  const { data: newSessionId, error: rpcErr } = await rpc<string>(supabase, 'start_quiz_session', {
-    p_mode: ctx.mode,
-    p_subject_id: ctx.subjectId,
-    p_topic_id: ctx.topicId,
-    p_question_ids: ctx.questionIds,
-  })
-  if (rpcErr || !newSessionId) {
-    console.error('[resumeQuizSession] start RPC error:', rpcErr?.message)
-    return { ok: false, error: mapResumeRpcError(rpcErr?.message) }
-  }
-  return { ok: true, sessionId: newSessionId }
 }

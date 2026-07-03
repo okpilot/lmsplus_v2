@@ -2,13 +2,49 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { loadResumeContext, repointDraftSession, startResumedSession } from './resume-helpers'
+import { rpc } from '@/lib/supabase-rpc'
+import { closePracticeSessionForDraft } from './draft-helpers'
+import {
+  loadResumeContext,
+  mapResumeRpcError,
+  type ResumeContext,
+  repointDraftSession,
+} from './resume-helpers'
+
+type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 const ResumeInput = z.object({ draftId: z.uuid() })
 
 export type ResumeQuizResult =
   | { success: true; sessionId: string; questionIds: string[] }
   | { success: false; error: string }
+
+/**
+ * Mint the fresh practice session for a resume: auto-heal the draft's original session
+ * (soft-delete it if a legacy pre-#1085 draft left it active — a true no-op for a post-fix
+ * draft, whose session is already parked), then call start_quiz_session with the draft's
+ * exact questions. Must precede any re-point: start_quiz_session blocks on ANY active
+ * session, including this draft's own, so the heal has to run first.
+ */
+async function startResumedSession(
+  supabase: SupabaseClient,
+  ctx: ResumeContext,
+  userId: string,
+): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> {
+  await closePracticeSessionForDraft(supabase, ctx.oldSessionId, userId)
+
+  const { data: newSessionId, error: rpcErr } = await rpc<string>(supabase, 'start_quiz_session', {
+    p_mode: ctx.mode,
+    p_subject_id: ctx.subjectId,
+    p_topic_id: ctx.topicId,
+    p_question_ids: ctx.questionIds,
+  })
+  if (rpcErr || !newSessionId) {
+    console.error('[resumeQuizSession] start RPC error:', rpcErr?.message)
+    return { ok: false, error: mapResumeRpcError(rpcErr?.message) }
+  }
+  return { ok: true, sessionId: newSessionId }
+}
 
 /**
  * Resume a saved draft by minting a FRESH practice session from the draft's exact
