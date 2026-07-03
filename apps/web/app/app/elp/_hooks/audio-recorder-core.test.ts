@@ -55,8 +55,20 @@ describe('pickAudioMimeType', () => {
 })
 
 describe('buildAnswerFile', () => {
-  it('normalizes the built file to answer.webm / audio/webm regardless of source MIME type', () => {
+  it('preserves a recorded mp4 container as answer.m4a / audio/mp4 (Safari recordings)', () => {
     const file = buildAnswerFile([new Blob(['x'])], 'audio/mp4')
+    expect(file.name).toBe('answer.m4a')
+    expect(file.type).toBe('audio/mp4')
+  })
+
+  it('strips codec params from a webm recording to answer.webm / audio/webm', () => {
+    const file = buildAnswerFile([new Blob(['x'])], 'audio/webm;codecs=opus')
+    expect(file.name).toBe('answer.webm')
+    expect(file.type).toBe('audio/webm')
+  })
+
+  it('falls back to answer.webm / audio/webm for an unrecognized container', () => {
+    const file = buildAnswerFile([new Blob(['x'])], 'audio/3gpp')
     expect(file.name).toBe('answer.webm')
     expect(file.type).toBe('audio/webm')
   })
@@ -191,6 +203,37 @@ describe('startRecorderSession', () => {
     const file = firstCall[0] as File
     expect(file.name).toBe('answer.webm')
     expect(file.type).toBe('audio/webm')
+  })
+
+  it('sources the container from the recorder actual mimeType, not the requested pick (Safari default-mp4 path)', () => {
+    // Mirrors old Safari: pickAudioMimeType() returns undefined (no isTypeSupported),
+    // so MediaRecorder is constructed with no mimeType option and falls back to the
+    // browser default — which recorder.mimeType reports as 'audio/mp4' post-start.
+    class SafariDefaultRecorder {
+      ondataavailable: ((e: { data: Blob }) => void) | null = null
+      onstop: (() => void) | null = null
+      mimeType = 'audio/mp4'
+      static isTypeSupported = (_type: string) => false
+      start() {}
+      stop() {
+        this.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/mp4' }) })
+        this.onstop?.()
+      }
+    }
+    vi.stubGlobal('MediaRecorder', SafariDefaultRecorder)
+
+    const onStop = vi.fn()
+    const stream = { getTracks: () => [] } as unknown as MediaStream
+    const recorder = startRecorderSession(stream, onStop)
+
+    recorder.stop()
+
+    expect(onStop).toHaveBeenCalledOnce()
+    const firstCall = onStop.mock.calls[0]
+    if (!firstCall) throw new Error('onStop was not called')
+    const file = firstCall[0] as File
+    expect(file.name).toBe('answer.m4a')
+    expect(file.type).toBe('audio/mp4')
   })
 })
 

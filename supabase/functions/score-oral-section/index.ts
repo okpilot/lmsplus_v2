@@ -99,7 +99,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // 2. Speech-to-text via ElevenLabs Scribe.
-    const stt = await transcribe(audioBlob, elevenKey);
+    const stt = await transcribe(audioBlob, elevenKey, record.audio_path);
 
     // 3. Score the transcript with Claude against the cached rubric.
     const anthropic = new Anthropic({ apiKey: anthropicKey });
@@ -174,10 +174,14 @@ interface Transcription {
   language: string | null;
 }
 
-async function transcribe(audio: Blob, apiKey: string): Promise<Transcription> {
+async function transcribe(audio: Blob, apiKey: string, audioPath: string): Promise<Transcription> {
   const form = new FormData();
   form.append('model_id', 'scribe_v1');
-  form.append('file', audio, 'answer.webm');
+  // Derive the Scribe filename from the storage key's real extension (mp4/m4a
+  // for Safari, webm elsewhere) instead of hardcoding 'answer.webm' — the
+  // storage key already preserves the recorded container (see #1068).
+  const ext = audioPath.split('.').pop() || 'webm';
+  form.append('file', audio, `answer.${ext}`);
   form.append('timestamps_granularity', 'word');
 
   const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {

@@ -5,6 +5,7 @@
  */
 
 import type { Dispatch, RefObject, SetStateAction } from 'react'
+import { parseAudioMime } from './audio-mime'
 
 export type AudioRecorderStatus = 'idle' | 'recording' | 'recorded' | 'denied' | 'unsupported'
 
@@ -40,12 +41,15 @@ export function pickAudioMimeType(): string | undefined {
   return PREFERRED_MIME_TYPES.find((type) => isTypeSupported(type))
 }
 
-/** Builds the upload-ready answer File from recorded chunks. Always normalized
- * to `answer.webm` / `audio/webm` regardless of the source MIME type, matching
- * the shape the submit action's FormData `audio` field expects. */
+/** Builds the upload-ready answer File from recorded chunks. Preserves the
+ * real recorded container (e.g. Safari's `audio/mp4`) instead of forcing
+ * webm — the blob keeps the raw `recordedMimeType`, while the File's name
+ * extension and `type` use the stripped base MIME via `parseAudioMime` so
+ * the storage bucket's MIME allowlist and `contentType: file.type` match. */
 export function buildAnswerFile(chunks: BlobPart[], recordedMimeType: string): File {
+  const { baseMime, ext } = parseAudioMime(recordedMimeType)
   const blob = new Blob(chunks, { type: recordedMimeType })
-  return new File([blob], 'answer.webm', { type: 'audio/webm' })
+  return new File([blob], `answer.${ext}`, { type: baseMime })
 }
 
 /** Creates, wires, and starts a MediaRecorder against `stream`. Collects chunks
@@ -62,7 +66,12 @@ export function startRecorderSession(
     if (event.data.size > 0) chunks.push(event.data)
   }
   recorder.onstop = () => {
-    onStop(buildAnswerFile(chunks, mimeType ?? 'audio/webm'))
+    // recorder.mimeType is the ground truth for the ACTUAL container recorded —
+    // pickAudioMimeType() can return undefined on old Safari (no isTypeSupported),
+    // in which case the browser falls back to its own default (often mp4) while
+    // `mimeType` here stays undefined, so read from the recorder itself first.
+    const actual = recorder.mimeType || mimeType || 'audio/webm'
+    onStop(buildAnswerFile(chunks, actual))
   }
   recorder.start()
   return recorder
