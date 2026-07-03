@@ -307,7 +307,7 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     const result = data as CompleteResult | null
     expect(result?.session_id).toBe(sessionId)
     expect(result?.passed).toBe(false)
-    expect(result?.score_percentage).toEqual(0)
+    expect(Number(result?.score_percentage)).toEqual(0)
     expect(result?.answered_count).toBe(0)
     expect(result?.total_questions).toBe(1)
     // passed/score_percentage=0 for an empty session coincide with the fallback
@@ -321,7 +321,7 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     expect(readErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.passed).toBe(false)
-    expect(row?.score_percentage).toEqual(0)
+    expect(Number(row?.score_percentage)).toEqual(0)
   })
 
   test('positive: the owner can complete an empty session before the deadline (early submit)', async () => {

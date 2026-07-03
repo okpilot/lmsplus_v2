@@ -23,8 +23,13 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-/** Marker prefix used in `question_text` for pool-created questions. */
-export const VFR_RT_POOL_MARKER = '[E2E_VFRRT]'
+/**
+ * Marker prefix used in `question_text` for pool-created questions.
+ * Uses a hyphen, not an underscore: `_` is a single-char wildcard in SQL LIKE,
+ * so `[E2E_VFRRT]%` would over-match in cleanupVfrRtPool. `[`, `]`, and `-` are
+ * all literal in PostgreSQL LIKE, so this prefix matches exactly.
+ */
+export const VFR_RT_POOL_MARKER = '[E2E-VFRRT]'
 /** Uniform canonical answer for every short_answer question in the pool. */
 export const VFR_RT_SA_ANSWER = 'alpha'
 /** Uniform blank-0 canonical answer for every dialog_fill question in the pool. */
@@ -246,23 +251,39 @@ async function ensureRtExamConfig(
 ): Promise<string> {
   const { data: existing, error: lookupErr } = await admin
     .from('exam_configs')
-    .select('id, enabled')
+    .select('id, enabled, total_questions, time_limit_seconds, pass_mark')
     .eq('organization_id', orgId)
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
     .maybeSingle()
   if (lookupErr) throw new Error(`ensureRtExamConfig lookup: ${lookupErr.message}`)
   if (!existing) return insertRtExamConfig(admin, orgId, subjectId)
-  if (!existing.enabled) {
-    // §5 zero-row guard: verify the enable actually mutated a row (the config could
+  // Normalize a reused config to the canonical VFR-RT settings. A row left over
+  // from an earlier run (or another spec) may be disabled OR carry stale
+  // total_questions / time_limit_seconds / pass_mark that would make
+  // start_vfr_rt_exam_session under-draw or grade on a wrong pass mark. NUMERIC/
+  // int columns may arrive as strings over the wire, so coerce with Number().
+  const needsNormalize =
+    existing.enabled !== true ||
+    Number(existing.total_questions) !== VFR_RT_POOL_SIZE ||
+    Number(existing.time_limit_seconds) !== 1800 ||
+    Number(existing.pass_mark) !== 75
+  if (needsNormalize) {
+    // §5 zero-row guard: verify the update actually mutated a row (the config could
     // have been soft-deleted between the SELECT and this UPDATE).
-    const { data: enabled, error: enableErr } = await admin
+    const { data: normalized, error: normalizeErr } = await admin
       .from('exam_configs')
-      .update({ enabled: true })
+      .update({
+        enabled: true,
+        total_questions: VFR_RT_POOL_SIZE,
+        time_limit_seconds: 1800,
+        pass_mark: 75,
+      })
       .eq('id', existing.id)
       .select('id')
-    if (enableErr) throw new Error(`ensureRtExamConfig enable: ${enableErr.message}`)
-    if (!enabled?.length) throw new Error('ensureRtExamConfig enable: config vanished mid-update')
+    if (normalizeErr) throw new Error(`ensureRtExamConfig normalize: ${normalizeErr.message}`)
+    if (!normalized?.length)
+      throw new Error('ensureRtExamConfig normalize: config vanished mid-update')
   }
   return existing.id as string
 }

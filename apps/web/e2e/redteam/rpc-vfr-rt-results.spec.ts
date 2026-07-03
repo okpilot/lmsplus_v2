@@ -319,8 +319,8 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
       if (q.question_type === 'multiple_choice') {
         expect(q.key.correct_option_id).toBe(VFR_RT_MC_CORRECT)
       } else if (q.question_type === 'short_answer') {
-        expect(q.key.canonical_answer).toBeDefined()
-        expect(q.key.accepted_synonyms).toBeDefined()
+        expect(typeof q.key.canonical_answer).toBe('string')
+        expect(Array.isArray(q.key.accepted_synonyms)).toBe(true)
       } else if (q.question_type === 'dialog_fill') {
         expect(Array.isArray(q.key.blanks)).toBe(true)
       } else {
