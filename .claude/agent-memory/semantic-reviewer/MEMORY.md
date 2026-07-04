@@ -11,7 +11,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|
-| Client terminal path leaves orphaned DB session (no closing Server Action) — 4th instance IS the #1085 fix | 2026-04 (b9829c0) | 4 | 2026-07-03 (#1085 fix) | RESOLVED-WATCH → [tracker-archive](topics/tracker-archive.md) |
+| Client terminal path (submit/discard/timeout) redirects + clears localStorage but never calls a Server Action to end/soft-delete the DB session → orphaned `quiz_sessions` row with `ended_at IS NULL` blocks next `start_exam_session` | 2026-04 (b9829c0) | 3 | 2026-04-13 (PR #523) | RULE CANDIDATE — every client-side terminal path for a session with a DB row MUST call a Server Action to end/delete it. Zero-answer exam timeout was the 3rd instance |
 | Cross-surface answer-oracle (Study Mode `get_study_questions` shared MC pool) | 2026-06-26 (mig 135) | 1 | 2026-06-27 (14a8b9c5 EO6 hardening) | RESOLVED-WATCH → [tracker-archive](topics/tracker-archive.md) |
 | Stale test comment describes a removed guard/code path — passes for the wrong reason, invites wrong re-addition (5 instances) | 2026-04 (PR #523) | 5 | 2026-06-09 (202c6fa8 #326) | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Test mock string drift: renaming a Server Action's user-visible error string; test mocks the action (not the RPC) and echoes its own stale mock value → passes silently | 2026-04-26 (use-exam-start) | 2 | 2026-04 | WATCHING — on string rename, grep `.test.ts` for old string, update mock values + assertions |

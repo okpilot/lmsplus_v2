@@ -171,3 +171,7 @@
 - **`${1:-}` guard is the correct `set -u` idiom for optional first argument.** Prevents unbound-variable abort when the hook is called with no args (lefthook path). Confirmed safe under `set -u` by live invocation.
 - **Bash test scripts should use `set -u` only, NOT `set -e`.** The `|| actual=$?` exit-code capture pattern works correctly only when `set -e` is not active. If `set -e` were active, the `||` would still suppress the abort, but `set -u` only is the right posture for test scripts that intentionally invoke commands expected to fail.
 - **Test false-pass risk via wrong path: exit 127 (file-not-found) ≠ expected exit 1 or 0 → FAIL.** If `$HOOK` pointed to a nonexistent file, `bash "$HOOK"` exits 127. Because all expected values are 0 or 1, every case would report FAIL — the test cannot silently pass on a bad hook path.
+
+## Relocated tracker row: `if (orgId)` null-guard drop (2026-07-04 budget curation)
+
+| `if (orgId)` null-guard dropped when moving a describe block to a standalone file | 2026-06-23 | 1 | 2026-06-23 | RESOLVED. #951 rpc-vfr-rt-mig125-delimiter-guard.integration.test.ts: original had `if (orgId) await cleanupTestData(...)` (defensive guard when beforeAll throws before orgId is set); new file dropped the guard. All 3 sibling afterAll blocks in the source file use the guard consistently. Fixed in the CR-fix commit (#978 staged diff): guard is preserved at line 113. When a describe block is extracted, its afterAll must be compared line-by-line to the original — not just the structure of error accumulation. |
