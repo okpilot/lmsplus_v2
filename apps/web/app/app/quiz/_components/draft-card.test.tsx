@@ -3,12 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockDeleteDraft } = vi.hoisted(() => ({
+const { mockDeleteDraft, mockResumeQuizSession } = vi.hoisted(() => ({
   mockDeleteDraft: vi.fn(),
+  mockResumeQuizSession: vi.fn(),
 }))
 
 vi.mock('../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+}))
+
+vi.mock('../actions/resume', () => ({
+  resumeQuizSession: (...args: unknown[]) => mockResumeQuizSession(...args),
 }))
 
 const mockRouterPush = vi.fn()
@@ -18,9 +23,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
 }))
 
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
+// quiz-session-handoff is used unmocked: writeResumeHandoff only touches jsdom
+// sessionStorage, so the assertions below validate the real handoff serialization.
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -65,10 +69,18 @@ const DRAFT_WITH_FEEDBACK: DraftData = {
 
 // ---- Lifecycle ------------------------------------------------------------
 
+const NEW_SESSION_ID = 'new-sess-xyz'
+
 beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
   mockDeleteDraft.mockResolvedValue({ success: true })
+  // Resume mints a fresh session server-side (#1085) and returns its NEW id.
+  mockResumeQuizSession.mockResolvedValue({
+    success: true,
+    sessionId: NEW_SESSION_ID,
+    questionIds: DRAFT.questionIds,
+  })
   // Default confirm to true
   vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
@@ -148,43 +160,128 @@ describe('DraftCard — rendering', () => {
 // ---- Resume ---------------------------------------------------------------
 
 describe('DraftCard — Resume', () => {
-  it('writes session data to sessionStorage and navigates to quiz session', () => {
+  it('writes the handoff with the freshly-minted session id, then navigates', async () => {
     render(<DraftCard draft={DRAFT} userId="user-1" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+    expect(mockResumeQuizSession).toHaveBeenCalledWith({ draftId: DRAFT.id })
 
     const stored = JSON.parse(sessionStorage.getItem('quiz-session:user-1') ?? '{}')
-    expect(stored.sessionId).toBe('sess-abc')
+    // The handoff carries the NEW session id from resume, not the draft's stale one.
+    expect(stored.sessionId).toBe(NEW_SESSION_ID)
+    expect(stored.sessionId).not.toBe(DRAFT.sessionId)
     expect(stored.questionIds).toEqual(DRAFT.questionIds)
     expect(stored.draftAnswers).toEqual(DRAFT.answers)
     expect(stored.draftCurrentIndex).toBe(DRAFT.currentIndex)
     expect(stored.draftId).toBe(DRAFT.id)
   })
 
-  it('includes draftFeedback in sessionStorage handoff when draft has feedback', () => {
+  it('includes draftFeedback in the handoff when the draft has feedback', async () => {
     render(<DraftCard draft={DRAFT_WITH_FEEDBACK} userId="user-1" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
     const stored = JSON.parse(sessionStorage.getItem('quiz-session:user-1') ?? '{}')
     expect(stored.draftFeedback).toEqual(DRAFT_WITH_FEEDBACK.feedback)
   })
 
-  it('writes draftFeedback as undefined when draft has no feedback', () => {
+  it('omits draftFeedback from the handoff when the draft has none', async () => {
     render(<DraftCard draft={DRAFT} userId="user-1" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
     const stored = JSON.parse(sessionStorage.getItem('quiz-session:user-1') ?? '{}')
-    // JSON.stringify omits undefined values, so the key should be absent
+    // JSON.stringify omits undefined values, so the key should be absent.
     expect(stored.draftFeedback).toBeUndefined()
   })
 
-  it('scopes the sessionStorage key to the userId', () => {
+  it('scopes the handoff key to the userId', async () => {
     render(<DraftCard draft={DRAFT} userId="user-42" />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
-    expect(sessionStorage.getItem('quiz-session:user-42')).not.toBeNull()
+    await waitFor(() => expect(sessionStorage.getItem('quiz-session:user-42')).not.toBeNull())
     expect(sessionStorage.getItem('quiz-session:user-1')).toBeNull()
+  })
+
+  it('shows an error and does not navigate when resume fails', async () => {
+    mockResumeQuizSession.mockResolvedValue({
+      success: false,
+      error: 'You already have an active session.',
+    })
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('You already have an active session.')).toBeInTheDocument(),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('quiz-session:user-1')).toBeNull()
+  })
+
+  it('shows an error and does not navigate when the handoff write fails', async () => {
+    // Resume succeeds server-side (default mock), but persisting the handoff to
+    // sessionStorage fails (quota/unavailable) — the user must not be sent into a
+    // session with no answers to rehydrate. writeResumeHandoff catches + logs.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError')
+    })
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Unable to resume right now. Please try again.')).toBeInTheDocument(),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    // The one-shot ref was released so the user can retry.
+    expect(screen.getByTestId('resume-draft')).not.toBeDisabled()
+    setItemSpy.mockRestore()
+    warnSpy.mockRestore()
+  })
+
+  it('disables the Resume button and shows a resuming state while resume is in flight', () => {
+    mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    const button = screen.getByTestId('resume-draft')
+    fireEvent.click(button)
+
+    expect(button).toBeDisabled()
+    expect(screen.getByText('Resuming...')).toBeInTheDocument()
+    expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not start a second resume while one is already in flight', () => {
+    // Never-resolving resume keeps the first call in flight; the synchronous one-shot
+    // ref (not the async disabled state) must block the second click in the same tick.
+    mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    const button = screen.getByTestId('resume-draft')
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-enables Resume after a thrown resume rejection so the user can retry', async () => {
+    mockResumeQuizSession.mockRejectedValueOnce(new Error('network down'))
+    render(<DraftCard draft={DRAFT} userId="user-1" />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Unable to resume right now. Please try again.')).toBeInTheDocument(),
+    )
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    // The one-shot ref was released: the button is enabled and a second attempt fires.
+    const button = screen.getByTestId('resume-draft')
+    expect(button).not.toBeDisabled()
+    mockResumeQuizSession.mockResolvedValueOnce({
+      success: true,
+      sessionId: NEW_SESSION_ID,
+      questionIds: DRAFT.questionIds,
+    })
+    fireEvent.click(button)
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
   })
 })
 

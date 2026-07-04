@@ -12,6 +12,11 @@ vi.mock('../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
+const mockResumeQuizSession = vi.fn()
+vi.mock('../actions/resume', () => ({
+  resumeQuizSession: (...args: unknown[]) => mockResumeQuizSession(...args),
+}))
+
 import type { DraftData } from '../types'
 import { SavedDraftCard } from './saved-draft-card'
 
@@ -44,6 +49,11 @@ describe('SavedDraftCard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
+    mockResumeQuizSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-1-new',
+      questionIds: DRAFT.questionIds,
+    })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
@@ -83,20 +93,21 @@ describe('SavedDraftCard', () => {
     expect(screen.getAllByTestId('delete-draft')).toHaveLength(2)
   })
 
-  it('stores session data including draftId and navigates on resume', () => {
+  it('stores the handoff with the new session id and draftId, then navigates on resume', async () => {
     const spy = vi.spyOn(Object.getPrototypeOf(sessionStorage), 'setItem')
     render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
+    // Handoff carries the freshly-minted session id from resume, not the draft's stale one.
     expect(spy).toHaveBeenCalledWith(
       'quiz-session:user-1',
-      expect.stringContaining('"sessionId":"sess-1"'),
+      expect.stringContaining('"sessionId":"sess-1-new"'),
     )
     expect(spy).toHaveBeenCalledWith(
       'quiz-session:user-1',
       expect.stringContaining('"draftId":"draft-1"'),
     )
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
     spy.mockRestore()
   })
 

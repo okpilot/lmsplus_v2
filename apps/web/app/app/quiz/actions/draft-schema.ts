@@ -14,7 +14,9 @@ export const SaveDraftInput = z
   .object({
     draftId: z.uuid().optional(),
     sessionId: z.uuid(),
-    questionIds: z.array(z.uuid()).min(1),
+    // .max(500) mirrors start_quiz_session's p_question_ids cap (mig 20260629000600):
+    // a draft that could never be resumed (the RPC raises too_many_questions) must not persist.
+    questionIds: z.array(z.uuid()).min(1).max(500),
     answers: z.record(
       z.string(),
       z

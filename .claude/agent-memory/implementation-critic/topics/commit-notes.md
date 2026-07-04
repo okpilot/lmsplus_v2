@@ -4,6 +4,39 @@
 > (#953 budget curation). The live tracker, durable knowledge, and false-positives stay in
 > `MEMORY.md`; this file holds the verbose per-commit detail. History also lives in `git log`.
 
+## seed-vfr-rt-pool CR-round-4 robustness fixes — APPROVED (2026-07-03)
+
+Test-infra only (2 files). Fix A: `buildVfrRtAnswers` else-branch correctly placed after `multiple_choice`; 3 known types unaffected; throw unreachable for callers using the VFR-RT seeded pool (short_answer/dialog_fill/multiple_choice only). Test title "throws on a question_type outside the RT pool" is behavior-first. Fix B: `insertRows` type-predicate `(r): r is {id:string}` uses `{id?:unknown}` cast (not `any`) + no unchecked cast in `data.map((r) => r.id)` after predicate narrows type. 0 critical, 0 issues, 0 suggestions.
+
+## #1061+#1076 rule-promotion docs-only — APPROVED (2026-07-03)
+
+Docs/config promotion PR: code-style.md (§5 fan-out Array.isArray + §7 COALESCE vacuity), agent-doc-updater.md (file-path cite count 2→3), agent-coderabbit-local.md (pitfall #7 broadened to cloud CR, count=4), .coderabbit.yaml (2 mirror bullets). 0 critical, 0 issues, 0 suggestions.
+
+## #1061+#1076 rule-promotion fixup — APPROVED (2026-07-03)
+
+8-line docs-only fixup applying 5 post-commit findings: (1) §5 Fan-Out prose reworded for clarity ("empty array stays in the array branch" unambiguous); (2) §7 CORRECT block gained concrete seedActor({role:'admin'})+expect(..).toBe('admin') — non-vacuous example, fence balanced; (3) §8 new bullet mirrors the fan-out rule; (4) §5 count attribution reconciled (learner logged count=3 counting `mapping` as an instance, git shows only order/blankAnswers were ever defective — ≥2 threshold met, reconciliation prose added); (5) pitfall #7 count 4→5 with explanatory 4th-instance prose to match learner tracker row 59 (count=5, authoritative). 0 critical, 0 issues, 0 suggestions.
+
+Verification checklist passed:
+- All 3 new SHAs (75ea1de8, 2e8aaf7b, 0168f7dc) confirmed master-reachable via git merge-base.
+- Pre-existing ee4d5544 preserved verbatim in agent-doc-updater.md.
+- Code fences balanced in both new rules.
+- .coderabbit.yaml new bullets at 8-space indent matching siblings.
+- Counts/dates internally consistent (doc-updater 2→3, CR-local 3→4, both 2026-07-03).
+- Exactly 4 files staged; no production code, no agent-memory files.
+
+## PR-4 refactor/quiz-session-splits — APPROVED (2026-07-03)
+
+Pure-structural splits of 4 over-cap files. 0 critical, 0 issues, 0 suggestions.
+
+Positive patterns confirmed:
+- Builder-factory extraction (buildHandleSubmit/buildHandleSave/buildHandleDiscard) correctly preserves synchronous ref behavior: inFlight/submitted refs passed via deps object remain stable; handlers recreated each render exactly as before. No stale-closure regression.
+- useEffect reset (confirmingDiscard/confirmingSubmit) migrated correctly into useFinishQuizDialog hook, not dropped.
+- Lazy useState initializer `useState(() => orderFromSubmitted(...))` and `if (locked||disabled||submitting) return` drag guard both preserved verbatim in useOrderingInput.
+- useMemo(questionIds) hoisted from inside return object literal to a named const — correct hook positioning, identical behavior.
+- All new components carry Readonly<Props>; no barrel files; no any types.
+- `React.RefObject` in plain `.ts` file without import follows pre-existing pattern in session-types.ts (global React namespace confirmed via tsconfig chain — not a new deviation).
+- finish-quiz-dialog.tsx at 149/150 lines — at cap limit per plan, intentional.
+
 ## Positive patterns
 
 - **#1047 seed.ts split (670L → 6 modules, pure mechanical refactor): APPROVED 0/0/0.** All 55 changed files (50 spec importers + 6 new modules + 1 renamed test + 1 helper file) showed ONLY import repointing — no test body, assertion, or logic changes. 6 new module line counts matched plan exactly (81/198/170/144/54/25). Function bodies byte-identical to originals (upsertUser, seedConsentRecords, VictimResponseFixture type). Visibility promotions (OTHER_ORG_SLUG, getEgmontOrgId, upsertUser from private→exported in seed-core.ts) were plan-intentional (seed-users.ts cross-module import). No barrel re-export created (code-style §4 honored). seed.test.ts → seed-quiz.test.ts rename: only import path updated, vi.mock path unchanged. POSITIVE: precise plan compliance, confirmed by line-count match to the exact digit.

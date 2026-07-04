@@ -1,10 +1,39 @@
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { SessionMode } from '../../session-types'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer, DraftData } from '../../types'
 import { hasValidOptionalFields, isNonEmptyString } from './quiz-session-validators'
 
 /** User-scoped key for the tab-scoped session handoff via sessionStorage. */
 export const sessionHandoffKey = (userId: string) => `quiz-session:${userId}`
+
+/**
+ * Write the resume handoff to sessionStorage so the session page can rehydrate the
+ * draft's answers/feedback under the freshly-minted session id (#1085). Returns false
+ * (and logs) if sessionStorage is unavailable/full — the caller surfaces a retry
+ * message rather than navigating into a session with no handoff.
+ */
+export function writeResumeHandoff(userId: string, sessionId: string, draft: DraftData): boolean {
+  try {
+    sessionStorage.setItem(
+      sessionHandoffKey(userId),
+      JSON.stringify({
+        userId,
+        sessionId,
+        questionIds: draft.questionIds,
+        draftAnswers: draft.answers,
+        draftFeedback: draft.feedback,
+        draftCurrentIndex: draft.currentIndex,
+        draftId: draft.id,
+        subjectName: draft.subjectName,
+        subjectCode: draft.subjectCode,
+      }),
+    )
+    return true
+  } catch (err) {
+    console.warn('[writeResumeHandoff] sessionStorage handoff failed:', err)
+    return false
+  }
+}
 
 export type SessionData = {
   sessionId: string
