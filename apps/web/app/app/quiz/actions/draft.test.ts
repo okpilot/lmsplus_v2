@@ -1161,7 +1161,10 @@ describe('saveDraft — update path', () => {
     const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
-      capturedUpdateArg = payload
+      // Capture only the FIRST update (the quiz_drafts payload under test). saveDraft
+      // then fires the best-effort quiz_sessions close-update (#1085) through this same
+      // mock; without this guard that second call would overwrite the captured payload.
+      if (capturedUpdateArg === undefined) capturedUpdateArg = payload
       return { eq: updateEq1 }
     })
 
@@ -1195,7 +1198,10 @@ describe('saveDraft — update path', () => {
     const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
-      capturedUpdateArg = payload
+      // Capture only the FIRST update (the quiz_drafts payload under test). saveDraft
+      // then fires the best-effort quiz_sessions close-update (#1085) through this same
+      // mock; without this guard that second call would overwrite the captured payload.
+      if (capturedUpdateArg === undefined) capturedUpdateArg = payload
       return { eq: updateEq1 }
     })
 

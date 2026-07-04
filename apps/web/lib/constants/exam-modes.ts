@@ -16,3 +16,10 @@ export const EXAM_MODES = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
 
 export const isExamMode = (mode: string): mode is 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' =>
   (EXAM_MODES as readonly string[]).includes(mode)
+
+// Positive allowlist of practice (answer-revealing, ungraded) session modes. Single
+// source of truth for the "never touch a graded exam" boundary used by the save-time
+// session close (draft-helpers), the resume validator (resume-helpers), and the
+// one-time orphan cleanup script — keep those in lockstep by importing this, not
+// re-inlining the literal.
+export const PRACTICE_MODES = ['quick_quiz', 'smart_review'] as const
