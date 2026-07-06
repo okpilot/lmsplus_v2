@@ -29,7 +29,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * so `[E2E_VFRRT]%` would over-match in cleanupVfrRtPool. `[`, `]`, and `-` are
  * all literal in PostgreSQL LIKE, so this prefix matches exactly.
  */
-export const VFR_RT_POOL_MARKER = '[E2E-VFRRT]'
+const VFR_RT_POOL_MARKER = '[E2E-VFRRT]'
 /** Uniform canonical answer for every short_answer question in the pool. */
 export const VFR_RT_SA_ANSWER = 'alpha'
 /** Uniform blank-0 canonical answer for every dialog_fill question in the pool. */
@@ -40,10 +40,10 @@ export const VFR_RT_MC_CORRECT = 'b'
 // Per-type pool sizes. The exam samples these per part; total_questions is derived
 // from their sum so the 8/9/8 counts and the exam_config total can't drift apart
 // (a mismatch would make start_vfr_rt_exam_session silently under-draw).
-export const VFR_RT_SA_COUNT = 8
-export const VFR_RT_DF_COUNT = 9
-export const VFR_RT_MC_COUNT = 8
-export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
+const VFR_RT_SA_COUNT = 8
+const VFR_RT_DF_COUNT = 9
+const VFR_RT_MC_COUNT = 8
+const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
 
 export type VfrRtPool = {
   subjectId: string
