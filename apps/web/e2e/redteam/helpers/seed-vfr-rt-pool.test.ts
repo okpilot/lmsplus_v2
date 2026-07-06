@@ -319,13 +319,17 @@ describe('cleanupVfrRtPool — exam_config ownership branching', () => {
     expect(filters).toContainEqual(['id', 'cfg-reused'])
   })
 
-  it('leaves the exam_config untouched when the pool reused it via a lost race and the prior settings are unknown', async () => {
+  it('leaves the exam_config untouched and logs once when the pool reused it via a lost race and the prior settings are unknown', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     mockFrom.mockReturnValueOnce(buildChain({ data: [], error: null })) // questions only
 
     await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1', pool: { configCreated: false } })
 
     // No easa_subjects or exam_configs call — the skip branch never resolves the subject id.
     expect(mockFrom).toHaveBeenCalledTimes(1)
+    // The race branch logs exactly once, explaining the intentional no-op.
+    expect(logSpy).toHaveBeenCalledTimes(1)
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('reused via race'))
   })
 
   it('soft-deletes by org+subject only (no config id) when no pool is passed (backward compatibility)', async () => {
@@ -348,6 +352,30 @@ describe('cleanupVfrRtPool — exam_config ownership branching', () => {
     expect(updatePayloads[0]).toMatchObject({ deleted_at: expect.any(String) })
     // No ownership known → falls back to org+subject; must NOT constrain by a config id.
     expect(filters.map(([col]) => col)).not.toContain('id')
+  })
+
+  it('aggregates a restore failure into the cleanup error when the pool reused a config', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions ok
+      .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject ok
+      .mockReturnValueOnce(buildChain({ data: null, error: { message: 'restore boom' } })) // restore fails
+
+    await expect(
+      cleanupVfrRtPool({
+        admin: adminMock,
+        orgId: 'org-1',
+        pool: {
+          configCreated: false,
+          configId: 'cfg-reused',
+          configPrior: {
+            enabled: true,
+            total_questions: VFR_RT_POOL_SIZE,
+            time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
+            pass_mark: VFR_RT_PASS_MARK,
+          },
+        },
+      }),
+    ).rejects.toThrow(/exam_config restore: restore boom/)
   })
 })
 
