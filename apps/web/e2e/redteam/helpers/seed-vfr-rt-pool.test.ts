@@ -6,8 +6,10 @@ import {
   seedVfrRtPool,
   VFR_RT_DF_ANSWER,
   VFR_RT_MC_CORRECT,
+  VFR_RT_PASS_MARK,
   VFR_RT_POOL_SIZE,
   VFR_RT_SA_ANSWER,
+  VFR_RT_TIME_LIMIT_SECONDS,
 } from './seed-vfr-rt-pool'
 
 // ---------------------------------------------------------------------------
@@ -205,8 +207,8 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
           id: 'cfg-canonical',
           enabled: true,
           total_questions: VFR_RT_POOL_SIZE,
-          time_limit_seconds: 1800,
-          pass_mark: 75,
+          time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
+          pass_mark: VFR_RT_PASS_MARK,
         },
         error: null,
       }),
@@ -219,8 +221,8 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
     expect(pool.configPrior).toEqual({
       enabled: true,
       total_questions: VFR_RT_POOL_SIZE,
-      time_limit_seconds: 1800,
-      pass_mark: 75,
+      time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
+      pass_mark: VFR_RT_PASS_MARK,
     })
     // 7 from() calls total: 6 base (subjects/topics/bank/sa/df/mc) + 1 exam_configs lookup.
     // No 8th call for a normalize UPDATE — confirms needsNormalize=false skips the mutation.

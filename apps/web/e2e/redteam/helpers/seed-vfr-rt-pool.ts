@@ -44,6 +44,10 @@ export const VFR_RT_SA_COUNT = 8
 export const VFR_RT_DF_COUNT = 9
 export const VFR_RT_MC_COUNT = 8
 export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
+/** Canonical VFR-RT exam_config values — the single source of truth for the seed,
+ * the normalize-on-reuse check, and the tests (avoids drift on 1800/75 literals). */
+export const VFR_RT_TIME_LIMIT_SECONDS = 1800
+export const VFR_RT_PASS_MARK = 75
 
 type RtConfigSettings = {
   enabled: boolean
@@ -246,8 +250,8 @@ async function insertRtExamConfig(
       subject_id: subjectId,
       enabled: true,
       total_questions: VFR_RT_POOL_SIZE,
-      time_limit_seconds: 1800,
-      pass_mark: 75,
+      time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
+      pass_mark: VFR_RT_PASS_MARK,
     })
     .select('id')
     .single()
@@ -297,8 +301,8 @@ async function ensureRtExamConfig(
   const needsNormalize =
     existing.enabled !== true ||
     Number(existing.total_questions) !== VFR_RT_POOL_SIZE ||
-    Number(existing.time_limit_seconds) !== 1800 ||
-    Number(existing.pass_mark) !== 75
+    Number(existing.time_limit_seconds) !== VFR_RT_TIME_LIMIT_SECONDS ||
+    Number(existing.pass_mark) !== VFR_RT_PASS_MARK
   if (needsNormalize) {
     // §5 zero-row guard: verify the update actually mutated a row (the config could
     // have been soft-deleted between the SELECT and this UPDATE).
@@ -307,8 +311,8 @@ async function ensureRtExamConfig(
       .update({
         enabled: true,
         total_questions: VFR_RT_POOL_SIZE,
-        time_limit_seconds: 1800,
-        pass_mark: 75,
+        time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
+        pass_mark: VFR_RT_PASS_MARK,
       })
       .eq('id', existing.id)
       .select('id')
