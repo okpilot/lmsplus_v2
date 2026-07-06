@@ -38,6 +38,7 @@ function buildChain(returnValue: unknown): unknown {
 function buildChainCapture(
   returnValue: unknown,
   captureUpdate: (payload: unknown) => void,
+  captureFilter?: (column: unknown, value: unknown) => void,
 ): unknown {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
@@ -49,7 +50,8 @@ function buildChainCapture(
       if (prop === 'then') return target.then
       return (...args: unknown[]) => {
         if (prop === 'update') captureUpdate(args[0])
-        return buildChainCapture(returnValue, captureUpdate)
+        if (prop === 'eq' && captureFilter) captureFilter(args[0], args[1])
+        return buildChainCapture(returnValue, captureUpdate, captureFilter)
       }
     },
   })
@@ -256,28 +258,44 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
 })
 
 describe('cleanupVfrRtPool — exam_config ownership branching', () => {
-  it('soft-deletes the exam_config when the pool created it', async () => {
+  it('soft-deletes the exam_config when the pool created it, targeting its own config id', async () => {
     const updatePayloads: unknown[] = []
+    const filters: Array<[unknown, unknown]> = []
     mockFrom
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
       .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
       .mockReturnValueOnce(
-        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+        buildChainCapture(
+          { data: [{ id: 'cfg-owned' }], error: null },
+          (p) => updatePayloads.push(p),
+          (col, val) => filters.push([col, val]),
+        ),
       ) // exam_configs soft-delete
 
-    await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1', pool: { configCreated: true } })
+    await cleanupVfrRtPool({
+      admin: adminMock,
+      orgId: 'org-1',
+      pool: { configCreated: true, configId: 'cfg-owned' },
+    })
 
     expect(updatePayloads).toHaveLength(1)
     expect(updatePayloads[0]).toMatchObject({ deleted_at: expect.any(String) })
+    // Targets the exact owned row, not just org+subject (cross-spec pollution guard).
+    expect(filters).toContainEqual(['id', 'cfg-owned'])
   })
 
-  it('restores the prior settings instead of soft-deleting when the pool reused an existing config', async () => {
+  it('restores the prior settings instead of soft-deleting when the pool reused an existing config, targeting its config id', async () => {
     const updatePayloads: unknown[] = []
+    const filters: Array<[unknown, unknown]> = []
     mockFrom
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
       .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
       .mockReturnValueOnce(
-        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+        buildChainCapture(
+          { data: [{ id: 'cfg-reused' }], error: null },
+          (p) => updatePayloads.push(p),
+          (col, val) => filters.push([col, val]),
+        ),
       ) // exam_configs restore
 
     const prior = {
@@ -289,12 +307,14 @@ describe('cleanupVfrRtPool — exam_config ownership branching', () => {
     await cleanupVfrRtPool({
       admin: adminMock,
       orgId: 'org-1',
-      pool: { configCreated: false, configPrior: prior },
+      pool: { configCreated: false, configPrior: prior, configId: 'cfg-reused' },
     })
 
     expect(updatePayloads).toHaveLength(1)
     expect(updatePayloads[0]).toEqual(prior)
     expect(updatePayloads[0]).not.toHaveProperty('deleted_at')
+    // Restore targets the exact reused row by id, not just org+subject.
+    expect(filters).toContainEqual(['id', 'cfg-reused'])
   })
 
   it('leaves the exam_config untouched when the pool reused it via a lost race and the prior settings are unknown', async () => {
@@ -306,19 +326,26 @@ describe('cleanupVfrRtPool — exam_config ownership branching', () => {
     expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('soft-deletes unconditionally when no pool is passed (backward compatibility)', async () => {
+  it('soft-deletes by org+subject only (no config id) when no pool is passed (backward compatibility)', async () => {
     const updatePayloads: unknown[] = []
+    const filters: Array<[unknown, unknown]> = []
     mockFrom
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
       .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
       .mockReturnValueOnce(
-        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+        buildChainCapture(
+          { data: [{ id: 'cfg1' }], error: null },
+          (p) => updatePayloads.push(p),
+          (col, val) => filters.push([col, val]),
+        ),
       ) // exam_configs soft-delete
 
     await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1' })
 
     expect(updatePayloads).toHaveLength(1)
     expect(updatePayloads[0]).toMatchObject({ deleted_at: expect.any(String) })
+    // No ownership known → falls back to org+subject; must NOT constrain by a config id.
+    expect(filters.map(([col]) => col)).not.toContain('id')
   })
 })
 

@@ -356,12 +356,13 @@ export async function seedVfrRtPool(opts: {
 // soft-deleting a row this pool did not create). §5 zero-row guard + log-on-mutation.
 async function restoreExamConfig(opts: {
   admin: SupabaseClient
+  configId?: string
   orgId: string
   rtSubjectId: string
   prior: RtConfigSettings
 }): Promise<void> {
-  const { admin, orgId, rtSubjectId, prior } = opts
-  const { data, error } = await admin
+  const { admin, configId, orgId, rtSubjectId, prior } = opts
+  let query = admin
     .from('exam_configs')
     .update({
       enabled: prior.enabled,
@@ -372,7 +373,10 @@ async function restoreExamConfig(opts: {
     .eq('organization_id', orgId)
     .eq('subject_id', rtSubjectId)
     .is('deleted_at', null)
-    .select('id')
+  // E2E specs share the Supabase project — target the exact owned row when its id
+  // is known so a delayed cleanup can't touch another spec's replacement config.
+  if (configId) query = query.eq('id', configId)
+  const { data, error } = await query.select('id')
   if (error) throw new Error(`cleanupVfrRtPool exam_config restore: ${error.message}`)
   if ((data?.length ?? 0) > 0) {
     console.log(`[cleanupVfrRtPool] restored ${data?.length} pre-existing exam_config(s)`)
@@ -383,18 +387,22 @@ async function restoreExamConfig(opts: {
 // dark-state fallback. §5 zero-row guard + log-on-mutation.
 async function softDeleteExamConfig(opts: {
   admin: SupabaseClient
+  configId?: string
   orgId: string
   rtSubjectId: string
   now: string
 }): Promise<void> {
-  const { admin, orgId, rtSubjectId, now } = opts
-  const { data, error } = await admin
+  const { admin, configId, orgId, rtSubjectId, now } = opts
+  let query = admin
     .from('exam_configs')
     .update({ deleted_at: now })
     .eq('organization_id', orgId)
     .eq('subject_id', rtSubjectId)
     .is('deleted_at', null)
-    .select('id')
+  // E2E specs share the Supabase project — target the exact owned row when its id
+  // is known (created path); org+subject is the no-pool fallback only.
+  if (configId) query = query.eq('id', configId)
+  const { data, error } = await query.select('id')
   if (error) throw new Error(`cleanupVfrRtPool exam_config: ${error.message}`)
   if ((data?.length ?? 0) > 0) {
     console.log(`[cleanupVfrRtPool] soft-deleted ${data?.length} exam_config(s)`)
@@ -419,7 +427,7 @@ async function softDeleteExamConfig(opts: {
 export async function cleanupVfrRtPool(opts: {
   admin: SupabaseClient
   orgId: string
-  pool?: Pick<VfrRtPool, 'configCreated' | 'configPrior'>
+  pool?: Pick<VfrRtPool, 'configCreated' | 'configPrior' | 'configId'>
 }): Promise<void> {
   const { admin, orgId, pool } = opts
   const errors: string[] = []
@@ -446,6 +454,7 @@ export async function cleanupVfrRtPool(opts: {
   try {
     const created = pool?.configCreated
     const prior = pool?.configPrior
+    const configId = pool?.configId
     if (created === false && !prior) {
       // Reused via a lost 23505 race — another seeder owns it; leave untouched.
       console.log('[cleanupVfrRtPool] exam_config reused via race — left untouched')
@@ -454,11 +463,11 @@ export async function cleanupVfrRtPool(opts: {
       if (created === false && prior) {
         // Reused + normalized a pre-existing config — restore its prior settings
         // instead of soft-deleting a row we did not create.
-        await restoreExamConfig({ admin, orgId, rtSubjectId, prior })
+        await restoreExamConfig({ admin, configId, orgId, rtSubjectId, prior })
       } else {
         // created === true (we created it) OR undefined (unknown ownership →
         // safe dark-state fallback): soft-delete.
-        await softDeleteExamConfig({ admin, orgId, rtSubjectId, now })
+        await softDeleteExamConfig({ admin, configId, orgId, rtSubjectId, now })
       }
     }
   } catch (e) {
