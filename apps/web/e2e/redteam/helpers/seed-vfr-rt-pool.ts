@@ -352,6 +352,55 @@ export async function seedVfrRtPool(opts: {
   }
 }
 
+// Restore a REUSED exam_config's prior settings on cleanup (rather than
+// soft-deleting a row this pool did not create). §5 zero-row guard + log-on-mutation.
+async function restoreExamConfig(opts: {
+  admin: SupabaseClient
+  orgId: string
+  rtSubjectId: string
+  prior: RtConfigSettings
+}): Promise<void> {
+  const { admin, orgId, rtSubjectId, prior } = opts
+  const { data, error } = await admin
+    .from('exam_configs')
+    .update({
+      enabled: prior.enabled,
+      total_questions: prior.total_questions,
+      time_limit_seconds: prior.time_limit_seconds,
+      pass_mark: prior.pass_mark,
+    })
+    .eq('organization_id', orgId)
+    .eq('subject_id', rtSubjectId)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`cleanupVfrRtPool exam_config restore: ${error.message}`)
+  if ((data?.length ?? 0) > 0) {
+    console.log(`[cleanupVfrRtPool] restored ${data?.length} pre-existing exam_config(s)`)
+  }
+}
+
+// Soft-delete the pool's own (created) exam_config, or the unknown-ownership
+// dark-state fallback. §5 zero-row guard + log-on-mutation.
+async function softDeleteExamConfig(opts: {
+  admin: SupabaseClient
+  orgId: string
+  rtSubjectId: string
+  now: string
+}): Promise<void> {
+  const { admin, orgId, rtSubjectId, now } = opts
+  const { data, error } = await admin
+    .from('exam_configs')
+    .update({ deleted_at: now })
+    .eq('organization_id', orgId)
+    .eq('subject_id', rtSubjectId)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`cleanupVfrRtPool exam_config: ${error.message}`)
+  if ((data?.length ?? 0) > 0) {
+    console.log(`[cleanupVfrRtPool] soft-deleted ${data?.length} exam_config(s)`)
+  }
+}
+
 /**
  * Soft-delete every pool-created question (by marker) and restore-or-remove the
  * org's RT exam_config. Two independent steps, each isolated in its own
@@ -405,36 +454,11 @@ export async function cleanupVfrRtPool(opts: {
       if (created === false && prior) {
         // Reused + normalized a pre-existing config — restore its prior settings
         // instead of soft-deleting a row we did not create.
-        const { data, error } = await admin
-          .from('exam_configs')
-          .update({
-            enabled: prior.enabled,
-            total_questions: prior.total_questions,
-            time_limit_seconds: prior.time_limit_seconds,
-            pass_mark: prior.pass_mark,
-          })
-          .eq('organization_id', orgId)
-          .eq('subject_id', rtSubjectId)
-          .is('deleted_at', null)
-          .select('id')
-        if (error) throw new Error(`cleanupVfrRtPool exam_config restore: ${error.message}`)
-        if ((data?.length ?? 0) > 0) {
-          console.log(`[cleanupVfrRtPool] restored ${data?.length} pre-existing exam_config(s)`)
-        }
+        await restoreExamConfig({ admin, orgId, rtSubjectId, prior })
       } else {
         // created === true (we created it) OR undefined (unknown ownership →
         // safe dark-state fallback): soft-delete.
-        const { data, error } = await admin
-          .from('exam_configs')
-          .update({ deleted_at: now })
-          .eq('organization_id', orgId)
-          .eq('subject_id', rtSubjectId)
-          .is('deleted_at', null)
-          .select('id')
-        if (error) throw new Error(`cleanupVfrRtPool exam_config: ${error.message}`)
-        if ((data?.length ?? 0) > 0) {
-          console.log(`[cleanupVfrRtPool] soft-deleted ${data?.length} exam_config(s)`)
-        }
+        await softDeleteExamConfig({ admin, orgId, rtSubjectId, now })
       }
     }
   } catch (e) {

@@ -6,6 +6,7 @@ import {
   seedVfrRtPool,
   VFR_RT_DF_ANSWER,
   VFR_RT_MC_CORRECT,
+  VFR_RT_POOL_SIZE,
   VFR_RT_SA_ANSWER,
 } from './seed-vfr-rt-pool'
 
@@ -176,6 +177,52 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
     expect(pool.configCreated).toBe(true)
     expect(pool.configId).toBe('cfg-new')
     expect(pool.configPrior).toBeUndefined()
+  })
+
+  it('returns configCreated=false and no configPrior when the insert loses a 23505 race and reselects the winner row', async () => {
+    mockSeedPoolChainThroughQuestions()
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: null, error: null })) // exam_configs lookup: none
+      .mockReturnValueOnce(
+        buildChain({ data: null, error: { code: '23505', message: 'duplicate key' } }),
+      ) // insert: lost race
+      .mockReturnValueOnce(buildChain({ data: { id: 'cfg-raced' }, error: null })) // reselect winner
+
+    const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
+
+    expect(pool.configCreated).toBe(false)
+    expect(pool.configId).toBe('cfg-raced')
+    expect(pool.configPrior).toBeUndefined()
+  })
+
+  it('returns configCreated=false and captures prior settings without firing a normalize UPDATE when the existing config already has canonical values', async () => {
+    mockSeedPoolChainThroughQuestions()
+    mockFrom.mockReturnValueOnce(
+      buildChain({
+        data: {
+          id: 'cfg-canonical',
+          enabled: true,
+          total_questions: VFR_RT_POOL_SIZE,
+          time_limit_seconds: 1800,
+          pass_mark: 75,
+        },
+        error: null,
+      }),
+    ) // exam_configs lookup: already canonical — no normalize UPDATE follows
+
+    const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
+
+    expect(pool.configCreated).toBe(false)
+    expect(pool.configId).toBe('cfg-canonical')
+    expect(pool.configPrior).toEqual({
+      enabled: true,
+      total_questions: VFR_RT_POOL_SIZE,
+      time_limit_seconds: 1800,
+      pass_mark: 75,
+    })
+    // 7 from() calls total: 6 base (subjects/topics/bank/sa/df/mc) + 1 exam_configs lookup.
+    // No 8th call for a normalize UPDATE — confirms needsNormalize=false skips the mutation.
+    expect(mockFrom).toHaveBeenCalledTimes(7)
   })
 
   it('returns configCreated=false and captures the pre-normalize settings when the exam_configs lookup finds an existing row', async () => {

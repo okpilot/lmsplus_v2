@@ -167,7 +167,7 @@ reviews:
           student_responses / quiz_session_answers — because it is the
           sanctioned service-role integration-DB reset (soft-delete can't
           reset accumulating fixtures); this is NOT production. See
-          docs/security.md §6 (hard-delete-by-design for ephemeral data) +
+          docs/database.md §3 (Soft Delete — hard-delete-by-design exception) +
           code-style.md §7. Do not flag hard DELETE in this directory; the
           "no hard DELETE" rule still applies to the rest of packages/db/src.
         - Service role key (adminClient): ONLY in packages/db/src/admin.ts. Flag if used elsewhere.
