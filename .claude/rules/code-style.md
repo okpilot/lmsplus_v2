@@ -923,7 +923,7 @@ The `code-reviewer` agent flags these after every commit:
 - Files exceeding line limits
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
-- Functions longer than 30 lines
+- Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
 - Functions with >3 parameters (non-object)
 - Nesting deeper than 3 levels
 - `any` types
