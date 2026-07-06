@@ -89,7 +89,7 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
   })
 
   test.afterAll(async () => {
-    await cleanupVfrRtPool({ admin, orgId })
+    await cleanupVfrRtPool({ admin, orgId, pool })
   })
 
   test('writes vfr_rt_exam.started when start_vfr_rt_exam_session runs', async () => {

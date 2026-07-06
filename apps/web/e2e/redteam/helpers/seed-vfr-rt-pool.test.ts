@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildVfrRtAnswers,
   cleanupVfrRtPool,
+  seedVfrRtPool,
   VFR_RT_DF_ANSWER,
   VFR_RT_MC_CORRECT,
   VFR_RT_SA_ANSWER,
@@ -26,6 +27,29 @@ function buildChain(returnValue: unknown): unknown {
     get(target, prop) {
       if (prop === 'then') return target.then
       return (..._args: unknown[]) => buildChain(returnValue)
+    },
+  })
+}
+
+// Variant of buildChain that also captures the payload passed to `.update(...)`
+// on the returned chain, so a test can assert exactly what was written (e.g.
+// distinguishing a `deleted_at` soft-delete from a prior-settings restore).
+function buildChainCapture(
+  returnValue: unknown,
+  captureUpdate: (payload: unknown) => void,
+): unknown {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (...args: unknown[]) => {
+        if (prop === 'update') captureUpdate(args[0])
+        return buildChainCapture(returnValue, captureUpdate)
+      }
     },
   })
 }
@@ -109,6 +133,145 @@ describe('cleanupVfrRtPool — error paths', () => {
     await expect(cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1' })).rejects.toThrow(
       /questions boom.*config boom|config boom.*questions boom/,
     )
+  })
+})
+
+// seedVfrRtPool issues from() in this order:
+//   1. easa_subjects   (resolveRtSubjectId, via resolveRtRefs)
+//   2. easa_topics     (resolveRtRefs)
+//   3. question_banks  (ensureBank lookup — mocked as a reuse, no insert)
+//   4. questions       (SA insert)
+//   5. questions       (DF insert)
+//   6. questions       (MC insert)
+//   7. exam_configs    (ensureRtExamConfig lookup)
+//   8. exam_configs    (insert OR normalize UPDATE, only reached per-branch)
+function mockSeedPoolChainThroughQuestions() {
+  mockFrom
+    .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // easa_subjects
+    .mockReturnValueOnce(
+      buildChain({
+        data: [
+          { id: 'topic-p1', code: 'P1_ACRONYMS' },
+          { id: 'topic-p2', code: 'P2_DIALOG' },
+          { id: 'topic-p3', code: 'P3_MC' },
+        ],
+        error: null,
+      }),
+    ) // easa_topics
+    .mockReturnValueOnce(buildChain({ data: { id: 'bank-1' }, error: null })) // question_banks: reuse existing
+    .mockReturnValueOnce(buildChain({ data: [{ id: 'sa-1' }], error: null })) // questions: SA insert
+    .mockReturnValueOnce(buildChain({ data: [{ id: 'df-1' }], error: null })) // questions: DF insert
+    .mockReturnValueOnce(buildChain({ data: [{ id: 'mc-1' }], error: null })) // questions: MC insert
+}
+
+describe('seedVfrRtPool — exam_config ownership tracking', () => {
+  it('returns configCreated=true when the exam_configs lookup finds no existing row', async () => {
+    mockSeedPoolChainThroughQuestions()
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: null, error: null })) // exam_configs lookup: none
+      .mockReturnValueOnce(buildChain({ data: { id: 'cfg-new' }, error: null })) // exam_configs insert
+
+    const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
+
+    expect(pool.configCreated).toBe(true)
+    expect(pool.configId).toBe('cfg-new')
+    expect(pool.configPrior).toBeUndefined()
+  })
+
+  it('returns configCreated=false and captures the pre-normalize settings when the exam_configs lookup finds an existing row', async () => {
+    mockSeedPoolChainThroughQuestions()
+    mockFrom
+      .mockReturnValueOnce(
+        buildChain({
+          data: {
+            id: 'cfg-existing',
+            enabled: false,
+            total_questions: 20,
+            time_limit_seconds: 1500,
+            pass_mark: 70,
+          },
+          error: null,
+        }),
+      ) // exam_configs lookup: existing row with stale settings
+      .mockReturnValueOnce(buildChain({ data: [{ id: 'cfg-existing' }], error: null })) // normalize UPDATE
+
+    const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
+
+    expect(pool.configCreated).toBe(false)
+    expect(pool.configId).toBe('cfg-existing')
+    expect(pool.configPrior).toEqual({
+      enabled: false,
+      total_questions: 20,
+      time_limit_seconds: 1500,
+      pass_mark: 70,
+    })
+  })
+})
+
+describe('cleanupVfrRtPool — exam_config ownership branching', () => {
+  it('soft-deletes the exam_config when the pool created it', async () => {
+    const updatePayloads: unknown[] = []
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
+      .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
+      .mockReturnValueOnce(
+        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+      ) // exam_configs soft-delete
+
+    await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1', pool: { configCreated: true } })
+
+    expect(updatePayloads).toHaveLength(1)
+    expect(updatePayloads[0]).toMatchObject({ deleted_at: expect.any(String) })
+  })
+
+  it('restores the prior settings instead of soft-deleting when the pool reused an existing config', async () => {
+    const updatePayloads: unknown[] = []
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
+      .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
+      .mockReturnValueOnce(
+        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+      ) // exam_configs restore
+
+    const prior = {
+      enabled: false,
+      total_questions: 20,
+      time_limit_seconds: 1500,
+      pass_mark: 70,
+    }
+    await cleanupVfrRtPool({
+      admin: adminMock,
+      orgId: 'org-1',
+      pool: { configCreated: false, configPrior: prior },
+    })
+
+    expect(updatePayloads).toHaveLength(1)
+    expect(updatePayloads[0]).toEqual(prior)
+    expect(updatePayloads[0]).not.toHaveProperty('deleted_at')
+  })
+
+  it('leaves the exam_config untouched when the pool reused it via a lost race and the prior settings are unknown', async () => {
+    mockFrom.mockReturnValueOnce(buildChain({ data: [], error: null })) // questions only
+
+    await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1', pool: { configCreated: false } })
+
+    // No easa_subjects or exam_configs call — the skip branch never resolves the subject id.
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('soft-deletes unconditionally when no pool is passed (backward compatibility)', async () => {
+    const updatePayloads: unknown[] = []
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
+      .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // subject
+      .mockReturnValueOnce(
+        buildChainCapture({ data: [{ id: 'cfg1' }], error: null }, (p) => updatePayloads.push(p)),
+      ) // exam_configs soft-delete
+
+    await cleanupVfrRtPool({ admin: adminMock, orgId: 'org-1' })
+
+    expect(updatePayloads).toHaveLength(1)
+    expect(updatePayloads[0]).toMatchObject({ deleted_at: expect.any(String) })
   })
 })
 

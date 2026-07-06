@@ -45,9 +45,19 @@ export const VFR_RT_DF_COUNT = 9
 export const VFR_RT_MC_COUNT = 8
 export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
 
+type RtConfigSettings = {
+  enabled: boolean
+  total_questions: number
+  time_limit_seconds: number
+  pass_mark: number
+}
+type RtExamConfigResult = { id: string; created: boolean; prior?: RtConfigSettings }
+
 export type VfrRtPool = {
   subjectId: string
   configId: string
+  configCreated: boolean
+  configPrior?: RtConfigSettings
   saIds: string[]
   dfIds: string[]
   mcIds: string[]
@@ -210,7 +220,7 @@ async function reselectRtExamConfig(
   admin: SupabaseClient,
   orgId: string,
   subjectId: string,
-): Promise<string> {
+): Promise<RtExamConfigResult> {
   const { data: raced, error } = await admin
     .from('exam_configs')
     .select('id')
@@ -219,14 +229,16 @@ async function reselectRtExamConfig(
     .is('deleted_at', null)
     .single()
   if (error || !raced) throw new Error(`ensureRtExamConfig race reselect: ${error?.message}`)
-  return raced.id as string
+  // Another seeder won the insert race — we did not create this row, and its
+  // prior settings are unknown to us (we never read them), so omit `prior`.
+  return { id: raced.id as string, created: false }
 }
 
 async function insertRtExamConfig(
   admin: SupabaseClient,
   orgId: string,
   subjectId: string,
-): Promise<string> {
+): Promise<RtExamConfigResult> {
   const { data: created, error } = await admin
     .from('exam_configs')
     .insert({
@@ -244,19 +256,22 @@ async function insertRtExamConfig(
   // rejects the duplicate. Re-read the row the winner created.
   if (error?.code === '23505') return reselectRtExamConfig(admin, orgId, subjectId)
   if (error || !created) throw new Error(`ensureRtExamConfig insert: ${error?.message}`)
-  return created.id as string
+  return { id: created.id as string, created: true }
 }
 
 /**
  * Ensure an enabled exam_configs row exists for (orgId, RT subject). Idempotent:
  * reuses/enables an existing non-deleted config, else inserts one. Handles the
- * partial-unique 23505 race. Returns the exam_config id.
+ * partial-unique 23505 race. Returns the exam_config id plus whether this call
+ * created the row (vs reused a pre-existing one) and — when reused — the prior
+ * settings captured before normalization, so cleanup can restore instead of
+ * soft-deleting a config it did not create.
  */
 async function ensureRtExamConfig(
   admin: SupabaseClient,
   orgId: string,
   subjectId: string,
-): Promise<string> {
+): Promise<RtExamConfigResult> {
   const { data: existing, error: lookupErr } = await admin
     .from('exam_configs')
     .select('id, enabled, total_questions, time_limit_seconds, pass_mark')
@@ -266,6 +281,14 @@ async function ensureRtExamConfig(
     .maybeSingle()
   if (lookupErr) throw new Error(`ensureRtExamConfig lookup: ${lookupErr.message}`)
   if (!existing) return insertRtExamConfig(admin, orgId, subjectId)
+  // Capture the pre-normalize settings BEFORE mutating, so cleanup can restore
+  // them instead of soft-deleting a config this call did not create.
+  const prior: RtConfigSettings = {
+    enabled: existing.enabled === true,
+    total_questions: Number(existing.total_questions),
+    time_limit_seconds: Number(existing.time_limit_seconds),
+    pass_mark: Number(existing.pass_mark),
+  }
   // Normalize a reused config to the canonical VFR-RT settings. A row left over
   // from an earlier run (or another spec) may be disabled OR carry stale
   // total_questions / time_limit_seconds / pass_mark that would make
@@ -293,7 +316,7 @@ async function ensureRtExamConfig(
     if (!normalized?.length)
       throw new Error('ensureRtExamConfig normalize: config vanished mid-update')
   }
-  return existing.id as string
+  return { id: existing.id as string, created: false, prior }
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────
@@ -316,10 +339,12 @@ export async function seedVfrRtPool(opts: {
   const saIds = await insertRows(admin, buildSaRows({ ...base, topicId: refs.p1TopicId }))
   const dfIds = await insertRows(admin, buildDfRows({ ...base, topicId: refs.p2TopicId }))
   const mcIds = await insertRows(admin, buildMcRows({ ...base, topicId: refs.p3TopicId }))
-  const configId = await ensureRtExamConfig(admin, orgId, refs.rtSubjectId)
+  const config = await ensureRtExamConfig(admin, orgId, refs.rtSubjectId)
   return {
     subjectId: refs.rtSubjectId,
-    configId,
+    configId: config.id,
+    configCreated: config.created,
+    configPrior: config.prior,
     saIds,
     dfIds,
     mcIds,
@@ -328,17 +353,26 @@ export async function seedVfrRtPool(opts: {
 }
 
 /**
- * Soft-delete every pool-created question (by marker) and the org's RT
- * exam_config. Two independent steps, each isolated in its own try/catch so a
- * failure in one never skips the other (code-style.md §7); errors are
- * accumulated and re-thrown as a single aggregated error. Zero affected rows is
- * a valid steady state — only log when a row actually changed (§5).
+ * Soft-delete every pool-created question (by marker) and restore-or-remove the
+ * org's RT exam_config. Two independent steps, each isolated in its own
+ * try/catch so a failure in one never skips the other (code-style.md §7);
+ * errors are accumulated and re-thrown as a single aggregated error. Zero
+ * affected rows is a valid steady state — only log when a row actually
+ * changed (§5).
+ *
+ * The exam_config step branches on ownership via `opts.pool` (from
+ * seedVfrRtPool): if this pool CREATED the config, soft-delete it as before; if
+ * it REUSED a pre-existing config, restore the captured prior settings instead
+ * of soft-deleting a row it didn't create; if it reused via a lost 23505 race
+ * (prior unknown), leave it untouched. When `pool` is omitted (or a beforeAll
+ * failed before seeding), fall back to the original unconditional soft-delete.
  */
 export async function cleanupVfrRtPool(opts: {
   admin: SupabaseClient
   orgId: string
+  pool?: Pick<VfrRtPool, 'configCreated' | 'configPrior'>
 }): Promise<void> {
-  const { admin, orgId } = opts
+  const { admin, orgId, pool } = opts
   const errors: string[] = []
   const now = new Date().toISOString()
 
@@ -359,19 +393,49 @@ export async function cleanupVfrRtPool(opts: {
     errors.push(e instanceof Error ? e.message : String(e))
   }
 
-  // ── step 2: soft-delete the org's RT exam_config ───────────────────────────
+  // ── step 2: restore or remove the org's RT exam_config based on ownership ──
   try {
-    const rtSubjectId = await resolveRtSubjectId(admin)
-    const { data, error } = await admin
-      .from('exam_configs')
-      .update({ deleted_at: now })
-      .eq('organization_id', orgId)
-      .eq('subject_id', rtSubjectId)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) throw new Error(`cleanupVfrRtPool exam_config: ${error.message}`)
-    if ((data?.length ?? 0) > 0) {
-      console.log(`[cleanupVfrRtPool] soft-deleted ${data?.length} exam_config(s)`)
+    const created = pool?.configCreated
+    const prior = pool?.configPrior
+    if (created === false && !prior) {
+      // Reused via a lost 23505 race — another seeder owns it; leave untouched.
+      console.log('[cleanupVfrRtPool] exam_config reused via race — left untouched')
+    } else {
+      const rtSubjectId = await resolveRtSubjectId(admin)
+      if (created === false && prior) {
+        // Reused + normalized a pre-existing config — restore its prior settings
+        // instead of soft-deleting a row we did not create.
+        const { data, error } = await admin
+          .from('exam_configs')
+          .update({
+            enabled: prior.enabled,
+            total_questions: prior.total_questions,
+            time_limit_seconds: prior.time_limit_seconds,
+            pass_mark: prior.pass_mark,
+          })
+          .eq('organization_id', orgId)
+          .eq('subject_id', rtSubjectId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`cleanupVfrRtPool exam_config restore: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[cleanupVfrRtPool] restored ${data?.length} pre-existing exam_config(s)`)
+        }
+      } else {
+        // created === true (we created it) OR undefined (unknown ownership →
+        // safe dark-state fallback): soft-delete.
+        const { data, error } = await admin
+          .from('exam_configs')
+          .update({ deleted_at: now })
+          .eq('organization_id', orgId)
+          .eq('subject_id', rtSubjectId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`cleanupVfrRtPool exam_config: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[cleanupVfrRtPool] soft-deleted ${data?.length} exam_config(s)`)
+        }
+      }
     }
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e))
