@@ -44,4 +44,4 @@ The agent definition (`.claude/agents/code-reviewer.md`) has 8 built-in suppress
 
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-07-06 (added suppression #8 — React render/return bodies 30–35 lines, pure JSX composition; count 7→8, #1074)*
