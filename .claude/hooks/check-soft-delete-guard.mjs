@@ -1,20 +1,44 @@
 #!/usr/bin/env node
-// Mechanical guard (#925 Phase 3): forbid `.is('deleted_at', …)` on tables that
-// have no `deleted_at` column. The original RT bug — `.is('deleted_at', null)` on
-// `easa_subjects` — reached production code and escaped every other gate; this
-// guard makes that class of schema-contract bug impossible to reintroduce.
+// Mechanical guard (#925 Phase 3, schema-derived per #933): forbid `.is('<col>', …)`
+// on a `.from('<table>')` where `<col>` is NOT an actual column of `<table>`, per the
+// generated Supabase types (`packages/db/src/types.ts`, `public.Tables.<name>.Row`).
+// The original RT bug — `.is('deleted_at', null)` on `easa_subjects` — reached
+// production code and escaped every other gate; this guard makes that class of
+// schema-contract bug impossible to reintroduce, and — being schema-derived rather
+// than a hardcoded 7-table list — automatically protects any FUTURE no-`deleted_at`
+// table (or any other column, not just `deleted_at`) without a guard update.
 //
-// Chain-aware: a file may legitimately filter `deleted_at` on soft-deletable
-// tables (148 such call sites exist). A violation is only a query CHAIN that pairs
-// a forbidden table's `.from('<table>')` with a `.is('deleted_at'` in the SAME
-// chain. Adjacent chains (e.g. an `easa_topics` read next to an `exam_configs`
-// read in one Promise.all) are correctly separated.
+// Schema source of truth: `packages/db/src/types.ts` is generator-authoritative
+// (`supabase gen types`). Only `public.Tables.<table>.Row` columns count — `Views`,
+// `Functions`, and the `graphql_public` schema are ignored on purpose: a view or an
+// RPC-result shape is not a `.from()`-queryable base table with column semantics we
+// can safely assert here.
 //
-// Known limitation (acceptable for a mechanical guard): a table name held in a
-// variable — `.from(tbl)` — or a template literal is not matched (string-literal
-// only). Query chains inside template interpolation (`${sb.from(...).is(...)}`) are
-// likewise not detected (interpolated code is treated as string content). The
-// Phase-4 schema-aware successor covers the general case.
+// Unknown-table policy (avoid false positives): if a `.from('<table>')` string
+// literal is not a KNOWN base table (a view, a typo, or the generated types are
+// stale), the whole chain is SKIPPED — never flagged. Under-flagging a rare case is
+// a smaller harm than blocking a valid commit on a guard that can't see the schema.
+//
+// Chain-aware: a file may legitimately filter a real column on a soft-deletable (or
+// any) table. A violation is only a query CHAIN that pairs a KNOWN table's
+// `.from('<table>')` with an `.is('<col>'` in the SAME chain where `<col>` is absent
+// from that table's Row columns. Adjacent chains (e.g. an `easa_topics` read next to
+// an `exam_configs` read in one Promise.all) are correctly separated.
+//
+// Known limitations (acceptable for a mechanical guard):
+//   - A table name held in a variable (`.from(tbl)`) or a template literal is not
+//     matched (string-literal only) — the query-builder-parameter pattern in
+//     apps/web/app/app/admin/internal-exams/{queries,attempts-queries}.ts (a
+//     `builder: OffsetChainBuilder` param chained with `.is(...)`) is this case;
+//     the `.from()` lives in a different function, so the segment is skipped.
+//   - Query chains inside template interpolation (`${sb.from(...).is(...)}`) are
+//     likewise not detected (interpolated code is treated as string content).
+//   - A dot-qualified embedded/joined-resource filter — `.is('quiz_sessions.ended_at', …)`
+//     — is not matched by the column regex (`[A-Za-z0-9_]+`, no `.`), so it is
+//     silently skipped rather than checked against the joined table's columns.
+//   - The schema snapshot is whatever `packages/db/src/types.ts` says at guard-run
+//     time — regenerate types after a migration before relying on this guard to
+//     catch a newly-dropped column.
 //
 // Usage:
 //   node .claude/hooks/check-soft-delete-guard.mjs [file ...]   # scan given files (lefthook staged mode; non-existent paths skipped)
@@ -23,17 +47,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { argv, exit } from 'node:process'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-export const NO_SOFT_DELETE_TABLES = [
-  'easa_subjects',
-  'easa_topics',
-  'easa_subtopics',
-  'quiz_session_answers',
-  'student_responses',
-  'audit_events',
-  'quiz_drafts',
-]
+// Resolved relative to this file: .claude/hooks/ -> repo root -> packages/db/src/types.ts
+const TYPES_PATH = fileURLToPath(new URL('../../packages/db/src/types.ts', import.meta.url))
 
 // Production roots scanned in no-args (CI) mode, relative to repo root.
 // packages/ui (React components) and packages/typescript-config hold no Supabase
@@ -51,8 +68,152 @@ const EXCLUDE_FRAGMENTS = [
   '/lib/integration-support/',
 ]
 
-const FORBIDDEN_FROM = new RegExp(`\\.from\\((['"])(${NO_SOFT_DELETE_TABLES.join('|')})\\1\\)`)
-const DELETED_AT_IS = /\.is\((['"])deleted_at\1/
+const FROM_CALL = /\.from\((['"])([A-Za-z0-9_]+)\1\)/
+const IS_CALL = /\.is\((['"])([A-Za-z0-9_]+)\1/g
+
+/**
+ * Find the index of the `}` that closes the `{` at `openIndex`, via a plain
+ * brace-depth scan. Generated `types.ts` has no string/template literals containing
+ * `{`/`}` inside the `Database`/`Tables` region, so a naive char scan (no
+ * string-awareness) is sufficient and fast. Returns -1 if unbalanced.
+ */
+function findMatchingBrace(source, openIndex) {
+  let depth = 0
+  for (let i = openIndex; i < source.length; i++) {
+    const c = source[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+/** Strip a single pair of surrounding `'...'` / `"..."` quotes, if present. */
+function stripQuotes(s) {
+  const first = s[0]
+  const last = s[s.length - 1]
+  if ((first === "'" || first === '"') && first === last && s.length >= 2) {
+    return s.slice(1, -1)
+  }
+  return s
+}
+
+/**
+ * Scan `text` at brace/bracket depth 0 for entries of the shape `key: { ... }`
+ * (object-valued members only — e.g. a table entry, or its `Row`/`Insert` members).
+ * Depth also tracks `[...]` and `(...)` so array/tuple-valued sibling members
+ * (e.g. `Relationships: [...]`) don't desync the brace count.
+ *
+ * @returns {{ key: string, blockText: string }[]}
+ */
+function extractObjectEntries(text) {
+  const entries = []
+  const keyRe = /^([A-Za-z_][A-Za-z0-9_]*|'[^']*'|"[^"]*")\s*:\s*\{/
+  let depth = 0
+  let i = 0
+  while (i < text.length) {
+    const c = text[i]
+    if (c === '{' || c === '[' || c === '(') {
+      depth++
+      i++
+      continue
+    }
+    if (c === '}' || c === ']' || c === ')') {
+      depth--
+      i++
+      continue
+    }
+    if (depth === 0) {
+      const m = keyRe.exec(text.slice(i))
+      if (m) {
+        const key = stripQuotes(m[1])
+        const openBrace = i + m[0].length - 1
+        const closeBrace = findMatchingBrace(text, openBrace)
+        if (closeBrace === -1) break
+        entries.push({ key, blockText: text.slice(openBrace + 1, closeBrace) })
+        i = closeBrace + 1
+        continue
+      }
+    }
+    i++
+  }
+  return entries
+}
+
+/**
+ * Scan `text` (the inside of a `Row: { ... }` block) at depth 0 for every member
+ * key, regardless of its value's shape (`string`, `string | null`, `Json`,
+ * `unknown`, `number[]`, etc.) — unlike `extractObjectEntries`, the value need not
+ * be object-valued.
+ *
+ * @returns {string[]}
+ */
+function extractTopLevelKeys(text) {
+  const keys = []
+  const keyRe = /^([A-Za-z_][A-Za-z0-9_]*|'[^']*'|"[^"]*")\s*\??\s*:/
+  let depth = 0
+  let i = 0
+  while (i < text.length) {
+    const c = text[i]
+    if (c === '{' || c === '[' || c === '(') {
+      depth++
+      i++
+      continue
+    }
+    if (c === '}' || c === ']' || c === ')') {
+      depth--
+      i++
+      continue
+    }
+    if (depth === 0) {
+      const m = keyRe.exec(text.slice(i))
+      if (m) {
+        keys.push(stripQuotes(m[1]))
+        i += m[0].length
+        continue
+      }
+    }
+    i++
+  }
+  return keys
+}
+
+/**
+ * Parse `packages/db/src/types.ts` into `Map<tableName, Set<columnName>>` covering
+ * only `public.Tables.<table>.Row` columns (Views/Functions/graphql_public ignored).
+ *
+ * @param {string} typesSource
+ * @returns {Map<string, Set<string>>}
+ */
+export function loadSchema(typesSource) {
+  const tables = new Map()
+  // The FIRST `\n  public: {` in the file is the `Database` type's public schema
+  // (a second, unrelated `public: {` appears later in the file inside the
+  // `export const Constants = { ... }` block — that one is never reached first).
+  const publicIdx = typesSource.indexOf('\n  public: {')
+  if (publicIdx === -1) return tables
+  const publicOpenBrace = typesSource.indexOf('{', publicIdx)
+  const publicCloseBrace = findMatchingBrace(typesSource, publicOpenBrace)
+  if (publicCloseBrace === -1) return tables
+  const publicInner = typesSource.slice(publicOpenBrace + 1, publicCloseBrace)
+
+  const publicEntries = extractObjectEntries(publicInner)
+  const tablesEntry = publicEntries.find((e) => e.key === 'Tables')
+  if (!tablesEntry) return tables
+
+  const tableEntries = extractObjectEntries(tablesEntry.blockText)
+  for (const { key: tableName, blockText: tableBlock } of tableEntries) {
+    const tableMembers = extractObjectEntries(tableBlock)
+    const rowEntry = tableMembers.find((e) => e.key === 'Row')
+    if (!rowEntry) continue
+    tables.set(tableName, new Set(extractTopLevelKeys(rowEntry.blockText)))
+  }
+  return tables
+}
+
+const SCHEMA = loadSchema(readFileSync(TYPES_PATH, 'utf8'))
 
 /**
  * Strip `//` line and block comments (markers inside string/template literals are
@@ -61,8 +222,8 @@ const DELETED_AT_IS = /\.is\((['"])deleted_at\1/
  * length, so offsets map to original line numbers and the mask aligns with both.
  *
  * The mask lets the analyzer require a `.from(` / `.is(` call TOKEN to be at code
- * level while still reading the table name / `'deleted_at'` that live inside the
- * argument strings — so a whole `.from('x').is('deleted_at')` pattern embedded in
+ * level while still reading the table name / column name that live inside the
+ * argument strings — so a whole `.from('x').is('bad_col')` pattern embedded in
  * an outer string literal is correctly ignored.
  *
  * @returns {{ clean: string, inStr: Uint8Array }}
@@ -156,7 +317,7 @@ function lineForOffset(starts, offset) {
 
 /**
  * Split the (comment-stripped) source into query-chain segments. A new segment
- * begins at every `.from(` / `.rpc(` and after every `;`, so a `.is('deleted_at')`
+ * begins at every `.from(` / `.rpc(` and after every `;`, so a `.is('<col>')`
  * stays attached to the `.from()` that precedes it in the same chain, and an
  * adjacent sibling `.from()` / `.rpc()` starts a fresh segment.
  *
@@ -180,7 +341,8 @@ function segmentOffsets(clean, inStr) {
 
 /**
  * @param {string} source raw file contents
- * @returns {{ table: string, line: number }[]} one entry per offending chain
+ * @returns {{ table: string, column: string, line: number }[]} one entry per offending
+ *   `.is('<col>')` (col absent from the table); `line` is the `.from()` that establishes the table
  */
 export function analyze(source) {
   const { clean, inStr } = stripComments(source)
@@ -190,20 +352,30 @@ export function analyze(source) {
   for (let k = 0; k < bounds.length - 1; k++) {
     const base = bounds[k]
     const segment = clean.slice(base, bounds[k + 1])
-    const from = FORBIDDEN_FROM.exec(segment)
-    const is = DELETED_AT_IS.exec(segment)
-    // Both call tokens must be real code (their leading `.` not inside a string),
-    // so a `.from(...).is('deleted_at')` pattern embedded in a string is ignored.
-    if (
-      from !== null &&
-      is !== null &&
-      inStr[base + from.index] === 0 &&
-      inStr[base + is.index] === 0
-    ) {
-      violations.push({
-        table: from[2],
-        line: lineForOffset(starts, base + from.index),
-      })
+    const from = FROM_CALL.exec(segment)
+    // The `.from(` token must be real code (not inside a string) and the table
+    // must be a KNOWN base table — otherwise skip the whole segment (never flag
+    // an unmodeled view / typo / stale-schema table).
+    if (from === null) continue
+    if (inStr[base + from.index] !== 0) continue
+    const table = from[2]
+    const columns = SCHEMA.get(table)
+    if (!columns) continue // unknown table (view / typo / stale schema) — skip, never flag
+
+    IS_CALL.lastIndex = 0
+    let isMatch = IS_CALL.exec(segment)
+    while (isMatch !== null) {
+      if (inStr[base + isMatch.index] === 0) {
+        const column = isMatch[2]
+        if (!columns.has(column)) {
+          violations.push({
+            table,
+            column,
+            line: lineForOffset(starts, base + from.index),
+          })
+        }
+      }
+      isMatch = IS_CALL.exec(segment)
     }
   }
   return violations
@@ -249,21 +421,19 @@ function main() {
     const source = readFileSync(file, 'utf8')
     for (const v of analyze(source)) {
       offenders.push(
-        `${file}:${v.line}  — '${v.table}' has no deleted_at column; remove the soft-delete filter`,
+        `${file}:${v.line}  — '${v.table}' has no '${v.column}' column; remove or fix the filter`,
       )
     }
   }
   if (offenders.length > 0) {
-    console.error(
-      '✖ soft-delete column guard: forbidden .is(deleted_at) on no-soft-delete table(s):',
-    )
+    console.error('✖ soft-delete/schema column guard: .is(<col>) on unknown column(s):')
     for (const line of offenders) console.error(`  ${line}`)
     console.error(
-      `\n${NO_SOFT_DELETE_TABLES.join(', ')} have no deleted_at column. See .claude/hooks/check-soft-delete-guard.mjs.`,
+      '\nEach flagged column does not exist on the flagged table per packages/db/src/types.ts. See .claude/hooks/check-soft-delete-guard.mjs.',
     )
     exit(1)
   }
-  console.log(`✓ soft-delete column guard: ${files.length} file(s) clean`)
+  console.log(`✓ soft-delete/schema column guard: ${files.length} file(s) clean`)
 }
 
 // Run only when executed directly (not when the test imports `analyze`).

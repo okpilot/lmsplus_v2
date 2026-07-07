@@ -1,4 +1,8 @@
-// Unit test for the soft-delete column guard. Run: node --test .claude/hooks/check-soft-delete-guard.test.mjs
+// Unit test for the schema-derived soft-delete/column guard. Run:
+//   node --test .claude/hooks/check-soft-delete-guard.test.mjs
+// The guard's schema map is parsed from the REAL `packages/db/src/types.ts` at
+// import time (no schema mocking), so these tests double as a live check that the
+// generated types still shape as expected for the tables exercised below.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { analyze } from './check-soft-delete-guard.mjs'
@@ -82,6 +86,29 @@ await supabase.from('student_responses').select('id').is('deleted_at', null)`
   assert.equal(v.length, 1)
   assert.equal(v[0].table, 'student_responses')
   assert.equal(v[0].line, 2)
+})
+
+test('flags a non-deleted_at column that does not exist on a known table', () => {
+  const src = `const r = await supabase.from('users').select('id').is('nonexistent_col', null)`
+  const v = analyze(src)
+  assert.equal(v.length, 1)
+  assert.equal(v[0].table, 'users')
+  assert.equal(v[0].column, 'nonexistent_col')
+})
+
+test('passes a real (non-deleted_at) column on a known table', () => {
+  const src = `const r = await supabase.from('questions').select('id').is('id', null)`
+  assert.equal(analyze(src).length, 0)
+})
+
+test('skips a table that is not in the schema (view, e.g. active_flagged_questions)', () => {
+  const src = `const r = await supabase.from('active_flagged_questions').select('id').is('deleted_at', null)`
+  assert.equal(analyze(src).length, 0)
+})
+
+test('skips an unknown/made-up table name entirely', () => {
+  const src = `const r = await supabase.from('totally_made_up_table').select('id').is('anything', null)`
+  assert.equal(analyze(src).length, 0)
 })
 
 test('does not match a table name held in a variable (documented limitation)', () => {
