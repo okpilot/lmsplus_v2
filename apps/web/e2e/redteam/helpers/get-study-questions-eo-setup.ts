@@ -25,8 +25,8 @@ export const RPC = 'get_study_questions'
 export const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const
 
 export const EG_MC_ACTIVE_KEY = 'b'
-export const EG_MC_DELETED_KEY = 'a'
-export const EG_MC_DRAFT_KEY = 'd'
+const EG_MC_DELETED_KEY = 'a'
+const EG_MC_DRAFT_KEY = 'd'
 export const OTHER_ORG_MC_KEY = 'c'
 
 // The RPC's RETURNS TABLE shape (mig 20260626000200). correct_option_id is the

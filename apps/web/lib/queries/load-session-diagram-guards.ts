@@ -5,8 +5,8 @@
 // in this feature (check-non-mc-answer-dispatch.ts).
 import { MAX_LABELS, MAX_ZONES } from '@/app/app/quiz/actions/diagram-validation'
 
-export type DiagramZoneRow = { id: string; x: number; y: number; w: number; h: number }
-export type DiagramLabelRow = { id: string; text: string }
+type DiagramZoneRow = { id: string; x: number; y: number; w: number; h: number }
+type DiagramLabelRow = { id: string; text: string }
 export type DiagramConfigRow = {
   image_ref: string
   zones: DiagramZoneRow[]
