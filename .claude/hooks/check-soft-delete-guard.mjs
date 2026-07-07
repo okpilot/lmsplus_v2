@@ -39,9 +39,14 @@
 //   - The schema snapshot is whatever `packages/db/src/types.ts` says at guard-run
 //     time — regenerate types after a migration before relying on this guard to
 //     catch a newly-dropped column.
-//   - If `packages/db/src/types.ts` is absent (e.g. a corrupted checkout), the
-//     guard exits with a raw `ENOENT` — fail-loud, not fail-open. The file is
-//     git-tracked and always present in normal CI/dev checkouts.
+//
+// FAILS CLOSED on a schema-load failure: if `packages/db/src/types.ts` is absent
+// (raw `ENOENT`) or present but parses to ZERO tables (truncated, or its generated
+// format changed), the guard THROWS and blocks — it never silently degrades to an
+// empty schema that would skip every table and pass everything. The file is
+// git-tracked and always present in normal CI/dev checkouts. (Individual unmodeled
+// tables — views, typos — are still skipped per the unknown-table policy above; only
+// a total parse failure is fatal.)
 //
 // Usage:
 //   node .claude/hooks/check-soft-delete-guard.mjs [file ...]   # scan given files (lefthook staged mode; non-existent paths skipped)
@@ -188,9 +193,9 @@ function extractTopLevelKeys(text) {
  * only `public.Tables.<table>.Row` columns (Views/Functions/graphql_public ignored).
  *
  * @param {string} typesSource
- * @returns {Map<string, Set<string>>}
+ * @returns {Map<string, Set<string>>} possibly empty on a parse miss — `loadSchema` fails closed on empty
  */
-export function loadSchema(typesSource) {
+function parseSchema(typesSource) {
   const tables = new Map()
   // The FIRST `\n  public: {` in the file is the `Database` type's public schema
   // (a second, unrelated `public: {` appears later in the file inside the
@@ -212,6 +217,27 @@ export function loadSchema(typesSource) {
     const rowEntry = tableMembers.find((e) => e.key === 'Row')
     if (!rowEntry) continue
     tables.set(tableName, new Set(extractTopLevelKeys(rowEntry.blockText)))
+  }
+  return tables
+}
+
+/**
+ * Parse the generated types into a table→columns map, FAILING CLOSED: if the parse
+ * yields zero tables (types.ts missing/truncated, or its generated format changed),
+ * throw rather than return an empty map. An empty schema would make `analyze` treat
+ * every table as unknown → skip every `.from()` chain → silently disable the guard.
+ * A broken parser must block, not pass.
+ * @param {string} typesSource
+ * @returns {Map<string, Set<string>>} non-empty
+ */
+export function loadSchema(typesSource) {
+  const tables = parseSchema(typesSource)
+  if (tables.size === 0) {
+    throw new Error(
+      'check-soft-delete-guard: parsed 0 tables from packages/db/src/types.ts — schema parse failed ' +
+        '(file missing/truncated, or the generated `supabase gen types` format changed). Failing closed: ' +
+        'the guard refuses to run rather than silently pass every table. Regenerate types or fix the parser.',
+    )
   }
   return tables
 }

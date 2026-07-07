@@ -215,12 +215,12 @@ export type Database = {
   assert.deepEqual([...schema.get('sample_tbl')].sort(), ['id', 'name', 'score'])
 })
 
-test('loadSchema returns empty map when source has no Tables entry', () => {
-  // Pins the silent-fail-open fallback: if types.ts has no Tables section the guard
-  // returns an empty schema and all .from() chains are skipped (unknown-table policy).
+test('loadSchema throws (fails closed) when the parse yields zero tables', () => {
+  // A total parse miss (no Tables section — truncated / format-changed types.ts) must
+  // THROW, not return an empty schema: an empty schema would make analyze skip every
+  // .from() chain and silently disable the guard. Fail closed, block the commit.
   const noTables = '\n  public: {\n    Views: {\n    }\n  }'
-  const schema = loadSchema(noTables)
-  assert.equal(schema.size, 0)
+  assert.throws(() => loadSchema(noTables), /parsed 0 tables/)
 })
 
 test('loadSchema keeps the key after an array-typed column (string[] depth tracking)', () => {
