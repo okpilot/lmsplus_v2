@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { ResultSummary } from './result-summary'
 
 beforeEach(() => {
@@ -227,6 +227,17 @@ describe('ResultSummary', () => {
     it('shows the pass/fail badge for internal_exam mode', () => {
       render(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />)
       expect(screen.getByText('FAILED')).toBeInTheDocument()
+    })
+
+    it('renders "VFR RT Mock Exam Complete" for vfr_rt_exam mode even on the RT subject', () => {
+      // The exam-mode heading must win over the RT-practice noun branch — an RT-subject
+      // exam session is not a practice session (getReportContext only applies to non-exam modes).
+      render(
+        <ResultSummary
+          summary={makeSummary({ mode: 'vfr_rt_exam', subjectCode: 'RT', passed: true })}
+        />,
+      )
+      expect(screen.getByText('VFR RT Mock Exam Complete')).toBeInTheDocument()
     })
   })
 })

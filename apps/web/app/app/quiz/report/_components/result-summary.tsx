@@ -1,5 +1,5 @@
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
-import type { QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { getReportContext } from '../_utils/report-context'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'

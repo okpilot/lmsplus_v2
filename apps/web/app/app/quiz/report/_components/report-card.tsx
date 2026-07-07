@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import type { QuizReportQuestion, QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { getReportContext } from '../_utils/report-context'
 import { QuestionBreakdown } from './question-breakdown'
 import { ResultSummary } from './result-summary'

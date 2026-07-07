@@ -225,6 +225,7 @@ describe('getAdminQuizReportSummary', () => {
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result).not.toBeNull()
     expect(result!.subjectName).toBeNull()
+    expect(result!.subjectCode).toBeNull()
   })
 
   it('falls back to 0 scorePercentage when session score_percentage is null', async () => {

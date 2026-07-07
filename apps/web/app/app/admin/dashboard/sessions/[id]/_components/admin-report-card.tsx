@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { QuestionBreakdown } from '@/app/app/quiz/report/_components/question-breakdown'
 // Cross-route import: these are purely presentational components with no student-specific logic
 import { ResultSummary } from '@/app/app/quiz/report/_components/result-summary'
-import type { AdminQuizReportSummary } from '@/lib/queries/admin-quiz-report'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import type { AdminQuizReportSummary } from '@/lib/queries/quiz-report-types'
 
 type Props = Readonly<{
   summary: AdminQuizReportSummary

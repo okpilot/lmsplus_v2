@@ -1,13 +1,8 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import type { QuizReportQuestionsResult, QuizReportSummary } from './quiz-report'
-import { PAGE_SIZE } from './quiz-report'
+import { PAGE_SIZE, type QuizReportQuestionsResult } from './quiz-report'
+import type { AdminQuizReportSummary } from './quiz-report-types'
 import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
-
-export type AdminQuizReportSummary = QuizReportSummary & {
-  studentId: string
-  studentName: string | null
-}
 
 type AdminSessionRow = {
   id: string

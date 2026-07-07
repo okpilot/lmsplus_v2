@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { QuizReportQuestion, QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { ReportCard } from './report-card'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -136,6 +137,12 @@ describe('ReportCard', () => {
     render(<ReportCard {...defaultProps} />)
     const link = screen.getByText('Quiz Reports').closest('a')
     expect(link).toHaveAttribute('href', '/app/reports')
+  })
+
+  it('links the "Start Another Quiz" CTA to /app/quiz for a non-RT session', () => {
+    render(<ReportCard {...defaultProps} />)
+    const cta = screen.getByText('Start Another Quiz').closest('a')
+    expect(cta).toHaveAttribute('href', '/app/quiz')
   })
 
   it('shows a Practice CTA linking to /app/vfr-rt for an RT subject session', () => {
