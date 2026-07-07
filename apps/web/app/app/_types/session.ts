@@ -5,12 +5,12 @@ export type QuestionType =
   | 'ordering'
   | 'diagram_label'
 
-export type DiagramZone = { id: string; x: number; y: number; w: number; h: number }
-export type DiagramLabelChip = { id: string; text: string }
+type DiagramZone = { id: string; x: number; y: number; w: number; h: number }
+type DiagramLabelChip = { id: string; text: string }
 // Public (answer-stripped) delivery shape for a diagram_label question —
 // mirrors get_quiz_questions' diagram_config_public jsonb (mig 152). `answer`
 // (the zone_id -> label_id key) is OMITTED entirely; labels arrive shuffled.
-export type DiagramConfigPublic = {
+type DiagramConfigPublic = {
   image_ref: string
   zones: DiagramZone[]
   labels: DiagramLabelChip[]

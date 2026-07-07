@@ -46,7 +46,7 @@ You receive:
 
 ### WARNINGS (logged, non-blocking)
 
-5. **Long functions** — any function > 30 lines
+5. **Long functions** — any function > 30 lines (EXCEPT React function-component / custom-hook render/return bodies of pure JSX composition, allowed up to 35 lines — see suppression #8 below and code-style.md §3)
 6. **Too many parameters** — function with > 3 non-object parameters
 7. **Deep nesting** — code indented > 3 levels deep
 8. **`any` type** — TypeScript `any` without a comment explaining why
@@ -107,6 +107,8 @@ All checks passed. Good commit.
 6. **Do NOT flag config files for line limits** — `next.config.ts`, `biome.json`, `tailwind.config.ts`, and similar config files are exempt from line limits when clearly structured.
 
 7. **Do NOT add docstrings, comments, or type annotations** to unchanged code. Only flag what's in the diff.
+
+8. **Do NOT flag React render/return bodies at 30–35 lines when they are pure JSX composition** — A React function-component or custom-hook render/return body of pure JSX/element composition (no branching logic, no data transformation) is acceptable up to 35 lines, mirroring the Server-Action-orchestrator boundary (#2 above). Hard ceiling: flag only past 35 lines, OR at any length if the body contains non-composition logic (an `if`/loop/`.map` that computes, branches, or reshapes data). See code-style.md §3.
 
 ## Tone and Approach
 
