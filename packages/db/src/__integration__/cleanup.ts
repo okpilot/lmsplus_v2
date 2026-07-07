@@ -68,8 +68,8 @@ async function deleteOrLog(
  * runs' counts and queries, breaking isolation. The immutable-table rule (no UPDATE/DELETE on
  * audit_events / student_responses / quiz_session_answers) and the soft-delete-only rule govern
  * the PRODUCTION app via RLS — they are not enforced for service-role integration teardown, which
- * is the sanctioned mechanism for resetting fixtures (see docs/security.md §6 hard-delete-by-design
- * exception for ephemeral data, and code-style.md §7 "Exception — hard-delete-by-design tables").
+ * is the sanctioned mechanism for resetting fixtures (see docs/database.md §3 Soft Delete —
+ * hard-delete-by-design exception, and code-style.md §7 "Exception — hard-delete-by-design tables").
  */
 export async function cleanupTestData(opts: {
   admin: SupabaseClient

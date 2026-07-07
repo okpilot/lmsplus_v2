@@ -26,6 +26,5 @@
       "ignoreDependencies": ["react", "@types/react"]
     }
   },
-  "ignore": ["packages/typescript-config/**", ".claude/**", "apps/web/components/ui/**"],
-  "ignoreBinaries": ["only-allow"]
+  "ignore": ["packages/typescript-config/**", ".claude/**", "apps/web/components/ui/**"]
 }

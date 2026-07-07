@@ -55,7 +55,7 @@ reviews:
         - No direct Supabase queries (data comes via props or Server Components).
         - No useEffect for data fetching (Next.js anti-pattern).
         - Default to Server Components. Only add 'use client' at lowest interactive boundary.
-        - Functions max 30 lines, max 3 params (use options object otherwise).
+        - Functions max 30 lines, max 3 params (use options object otherwise). EXCEPTION: a React function-component / custom-hook render/return body of pure JSX composition (no branching logic, no data transformation) may reach 35 lines; flag only past 35, or at any length if the body contains non-composition logic (see code-style.md §3).
         - Max 3 nesting levels — use early returns.
         - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
         - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
@@ -161,6 +161,15 @@ reviews:
         - Max 200 lines.
         - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public.
         - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
+          EXCEPTION: packages/db/src/__integration__/** teardown helpers
+          (cleanupTestData/cleanupReferenceData) MAY hard-DELETE ephemeral
+          per-suite fixtures — including the immutable tables audit_events /
+          student_responses / quiz_session_answers — because it is the
+          sanctioned service-role integration-DB reset (soft-delete can't
+          reset accumulating fixtures); this is NOT production. See
+          docs/database.md §3 (Soft Delete — hard-delete-by-design exception) +
+          code-style.md §7. Do not flag hard DELETE in this directory; the
+          "no hard DELETE" rule still applies to the rest of packages/db/src.
         - Service role key (adminClient): ONLY in packages/db/src/admin.ts. Flag if used elsewhere.
         - Never return raw question options with correct answers to student-facing code.
         - Use get_quiz_questions() RPC which strips correct answers.

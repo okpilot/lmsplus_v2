@@ -217,7 +217,7 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
   })
 
   test.afterAll(async () => {
-    await cleanupVfrRtPool({ admin, orgId })
+    await cleanupVfrRtPool({ admin, orgId, pool })
   })
 
   // Two isolated steps (§7): (1) soft-delete this describe's own sessions,

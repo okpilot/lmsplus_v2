@@ -1,6 +1,6 @@
 import type { getAdminClient } from '../../helpers/supabase'
 
-export const OTHER_ORG_SLUG = 'redteam-other-org'
+const OTHER_ORG_SLUG = 'redteam-other-org'
 
 /** Resolve the egmont-aviation org id, throwing loudly if absent. */
 export async function getEgmontOrgId(admin: ReturnType<typeof getAdminClient>): Promise<string> {

@@ -2,7 +2,7 @@
 // Canonicals are removed server-side by get_quiz_questions / get_vfr_rt_exam_questions
 // (mig 105), so blanks arrive as bare `{{n}}` markers — never `{{n|canonical;syn}}`.
 
-export type DialogSegment = { type: 'text'; value: string } | { type: 'blank'; index: number }
+type DialogSegment = { type: 'text'; value: string } | { type: 'blank'; index: number }
 
 export type DialogLine = {
   speaker: 'atc' | 'pilot' | null
