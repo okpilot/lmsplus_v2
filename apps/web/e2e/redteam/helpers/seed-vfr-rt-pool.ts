@@ -431,7 +431,8 @@ async function softDeleteExamConfig(opts: {
 export async function cleanupVfrRtPool(opts: {
   admin: SupabaseClient
   orgId: string
-  pool?: Pick<VfrRtPool, 'configCreated' | 'configPrior' | 'configId'>
+  // configId optional: the lost-race call site passes only { configCreated: false }.
+  pool?: Pick<VfrRtPool, 'configCreated' | 'configPrior'> & Partial<Pick<VfrRtPool, 'configId'>>
 }): Promise<void> {
   const { admin, orgId, pool } = opts
   const errors: string[] = []
