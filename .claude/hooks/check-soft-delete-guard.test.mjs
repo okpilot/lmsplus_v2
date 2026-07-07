@@ -5,7 +5,7 @@
 // generated types still shape as expected for the tables exercised below.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { analyze } from './check-soft-delete-guard.mjs'
+import { analyze, loadSchema } from './check-soft-delete-guard.mjs'
 
 test('flags a forbidden table paired with .is(deleted_at) in one chain', () => {
   const src = `const r = await supabase.from('easa_subjects').select('id').is('deleted_at', null)`
@@ -152,4 +152,95 @@ await supabase.from('quiz_drafts').select('id').is('deleted_at', null)`
   assert.equal(v.length, 2)
   assert.equal(v[0].table, 'easa_subjects')
   assert.equal(v[1].table, 'quiz_drafts')
+})
+
+// ── Multi-.is() loop (new in #933) ──────────────────────────────────────────
+
+test('flags both absent columns when a single chain has two .is() calls both absent from the table', () => {
+  // Exercises the IS_CALL while-loop: a chain with two absent columns produces two violations.
+  const src = `const r = await supabase.from('users').select('id').is('ghost_col_a', null).is('ghost_col_b', null)`
+  const v = analyze(src)
+  assert.equal(v.length, 2)
+  assert.equal(v[0].column, 'ghost_col_a')
+  assert.equal(v[1].column, 'ghost_col_b')
+})
+
+test('flags only the absent column when a chain mixes one valid and one absent .is() call', () => {
+  // Exercises the IS_CALL while-loop: the valid deleted_at is skipped; ghost_col is flagged.
+  // users.deleted_at exists (confirmed by test at line 23); ghost_col does not.
+  const src = `const r = await supabase.from('users').select('id').is('deleted_at', null).is('ghost_col', null)`
+  const v = analyze(src)
+  assert.equal(v.length, 1)
+  assert.equal(v[0].column, 'ghost_col')
+})
+
+// ── Dot-qualified embedded column skip (documented limitation) ───────────────
+
+test('silently skips a dot-qualified embedded column reference (documented limitation)', () => {
+  // .is('quiz_sessions.ended_at') contains a dot; IS_CALL regex ([A-Za-z0-9_]+) does not match
+  // dots, so the call is never compared against the table's column set — 0 violations even
+  // though users is a known table and quiz_sessions.ended_at is not a top-level users column.
+  const src = `const r = await supabase.from('users').select('id, quiz_sessions(id)').is('quiz_sessions.ended_at', null)`
+  assert.equal(analyze(src).length, 0)
+})
+
+// ── loadSchema direct (new exported function in #933) ────────────────────────
+
+test('loadSchema correctly maps Row columns and excludes Views from the schema map', () => {
+  const minimalTypes = `
+export type Database = {
+  public: {
+    Tables: {
+      sample_tbl: {
+        Row: {
+          id: string
+          score: number
+          name: string | null
+        }
+        Insert: { id?: string }
+        Relationships: []
+      }
+    }
+    Views: {
+      sample_view: {
+        Row: { id: string }
+      }
+    }
+  }
+}`
+  const schema = loadSchema(minimalTypes)
+  assert.equal(schema.size, 1, 'only base tables are in the map, not views')
+  assert.ok(schema.has('sample_tbl'), 'table is present')
+  assert.ok(!schema.has('sample_view'), 'view is excluded')
+  assert.deepEqual([...schema.get('sample_tbl')].sort(), ['id', 'name', 'score'])
+})
+
+test('loadSchema returns empty map when source has no Tables entry', () => {
+  // Pins the silent-fail-open fallback: if types.ts has no Tables section the guard
+  // returns an empty schema and all .from() chains are skipped (unknown-table policy).
+  const noTables = '\n  public: {\n    Views: {\n    }\n  }'
+  const schema = loadSchema(noTables)
+  assert.equal(schema.size, 0)
+})
+
+test('loadSchema keeps the key after an array-typed column (string[] depth tracking)', () => {
+  // Pins extractTopLevelKeys' `[`/`]` depth handling: the `[` in `string[]` must not
+  // swallow the following column key. Real types.ts has such columns (e.g.
+  // questions.accepted_synonyms); this asserts it independently of the live snapshot.
+  const arrayTypes = `
+export type Database = {
+  public: {
+    Tables: {
+      sample_tbl: {
+        Row: {
+          tags: string[]
+          name: string
+        }
+        Relationships: []
+      }
+    }
+  }
+}`
+  const schema = loadSchema(arrayTypes)
+  assert.deepEqual([...schema.get('sample_tbl')].sort(), ['name', 'tags'])
 })

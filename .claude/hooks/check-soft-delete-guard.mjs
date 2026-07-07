@@ -365,15 +365,14 @@ export function analyze(source) {
     IS_CALL.lastIndex = 0
     let isMatch = IS_CALL.exec(segment)
     while (isMatch !== null) {
-      if (inStr[base + isMatch.index] === 0) {
-        const column = isMatch[2]
-        if (!columns.has(column)) {
-          violations.push({
-            table,
-            column,
-            line: lineForOffset(starts, base + from.index),
-          })
-        }
+      // Skip a `.is(` token that is inside a string literal, not real code.
+      if (inStr[base + isMatch.index] !== 0) {
+        isMatch = IS_CALL.exec(segment)
+        continue
+      }
+      const column = isMatch[2]
+      if (!columns.has(column)) {
+        violations.push({ table, column, line: lineForOffset(starts, base + from.index) })
       }
       isMatch = IS_CALL.exec(segment)
     }
