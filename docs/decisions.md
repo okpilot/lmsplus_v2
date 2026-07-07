@@ -863,7 +863,7 @@ Ephemeral sessions are verified at the handoff validator boundary (accepts `mode
 
 **Scope**: MC questions only; Study Mode reads questions by arbitrary p_question_ids (not immutable frozen config), so the §15 carve-out does not apply. Guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1, 7, 9, 11/12 / #883, plus the active-exam-session guard above. Red-team coverage: Vector EO (EO1–EO6; EO6 = mid-exam oracle).
 
-**Honest MC selection**: `get_random_question_ids` + `_filtered_question_pool` gained an optional `p_question_type` (mig 134, DEFAULT NULL = unrestricted for existing quiz/exam callers); Study passes `'multiple_choice'` so the fetched set is exactly MC. The pre-start *count display* (slider max), however, reuses the shared type-agnostic count path and would overstate on a mixed-type subject — DORMANT today (every picker subject is MC-only; RT delisted), graceful via the runner empty-state, full MC-aware-count tracked as **#1003**.
+**Honest MC selection**: `get_random_question_ids` + `_filtered_question_pool` + `get_filtered_question_counts` gained an optional `p_question_type` (migs 134 + 157, DEFAULT NULL = unrestricted for existing quiz/exam callers); Study Mode passes `'multiple_choice'` to all three, so both the fetched set AND the pre-start *count display* (slider max) are MC-only on mixed-type subjects — structurally guaranteeing count == quiz. Delivered by **#1008** (closed **#1003**).
 
 ---
 
