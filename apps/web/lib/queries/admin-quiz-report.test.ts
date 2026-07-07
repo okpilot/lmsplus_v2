@@ -206,11 +206,12 @@ describe('getAdminQuizReportSummary', () => {
     mockFromSequence(
       { data: sessionWithSubject },
       { count: 4, data: null },
-      { data: { name: 'Meteorology' } },
+      { data: { name: 'Meteorology', code: 'MET' } },
       { data: { full_name: 'Alice' } },
     )
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result!.subjectName).toBe('Meteorology')
+    expect(result!.subjectCode).toBe('MET')
   })
 
   it('falls back to null subjectName when subject lookup fails', async () => {

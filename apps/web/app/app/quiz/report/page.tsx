@@ -5,6 +5,7 @@ import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { ReportCard } from './_components/report-card'
 import { ReportFlagProvider } from './_components/report-flag-context'
+import { getReportContext } from './_utils/report-context'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -30,10 +31,11 @@ export default async function QuizReportPage({
   }
 
   const flaggedIds = await getFlaggedQuestionIds(questionsResult.questions.map((q) => q.questionId))
+  const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (
     <main className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Quiz Results</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{ctx.noun} Results</h1>
       <ReportFlagProvider key={`${sessionId}-${page}`} initialFlaggedIds={flaggedIds}>
         <ReportCard
           summary={summary}

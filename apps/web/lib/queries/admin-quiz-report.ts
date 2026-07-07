@@ -58,16 +58,19 @@ export async function getAdminQuizReportSummary(
   }
 
   let subjectName: string | null = null
+  let subjectCode: string | null = null
   if (session.subject_id) {
     const { data: subjectData, error: subjectError } = await adminClient
       .from('easa_subjects')
-      .select('name')
+      .select('name, code')
       .eq('id', session.subject_id)
       .maybeSingle()
     if (subjectError) {
       console.error('[getAdminQuizReportSummary] Subject lookup error:', subjectError.message)
     }
-    subjectName = (subjectData as { name: string } | null)?.name ?? null
+    const subject = subjectData as { name: string; code: string } | null
+    subjectName = subject?.name ?? null
+    subjectCode = subject?.code ?? null
   }
 
   const { data: userData, error: userError } = await adminClient
@@ -84,6 +87,7 @@ export async function getAdminQuizReportSummary(
     sessionId: session.id,
     mode: session.mode,
     subjectName,
+    subjectCode,
     totalQuestions: session.total_questions,
     // KNOWN LIMITATION (#991): the generic admin session route can reach non-MC
     // sessions, which this path does not yet support. answeredCount is the raw

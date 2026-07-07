@@ -12,6 +12,7 @@ function makeSummary(overrides: Partial<QuizReportSummary> = {}): QuizReportSumm
     sessionId: 'sess-1',
     mode: 'quick_quiz',
     subjectName: '050 — Meteorology',
+    subjectCode: null,
     totalQuestions: 10,
     answeredQuestions: 10,
     answeredItems: 10,
@@ -200,6 +201,16 @@ describe('ResultSummary', () => {
   describe('section heading', () => {
     it('renders the "Quiz Complete" heading', () => {
       render(<ResultSummary summary={makeSummary()} />)
+      expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
+    })
+
+    it('renders "Practice Complete" for an RT subject in a non-exam mode', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'quick_quiz', subjectCode: 'RT' })} />)
+      expect(screen.getByText('Practice Complete')).toBeInTheDocument()
+    })
+
+    it('renders "Quiz Complete" for a non-RT subject', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'quick_quiz', subjectCode: 'MET' })} />)
       expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
     })
 

@@ -124,6 +124,7 @@ describe('getQuizReportSummary', () => {
     expect(summary!.sessionId).toBe('sess-1')
     expect(summary!.mode).toBe('quick_quiz')
     expect(summary!.subjectName).toBeNull()
+    expect(summary!.subjectCode).toBeNull()
     expect(summary!.totalQuestions).toBe(2)
     expect(summary!.answeredItems).toBe(3)
     expect(summary!.answeredQuestions).toBe(2)
@@ -154,13 +155,14 @@ describe('getQuizReportSummary', () => {
   it('resolves subject name when subject_id is present', async () => {
     const sessionWithSubject = { ...sessionRow, subject_id: 'sub-1' }
     // session query then subject query; answer-rows go through fetchAllRows
-    mockFromSequence({ data: sessionWithSubject }, { data: { name: 'Meteorology' } })
+    mockFromSequence({ data: sessionWithSubject }, { data: { name: 'Meteorology', code: 'MET' } })
     mockFetchAllRows.mockResolvedValueOnce({
       data: [{ question_id: 'q1' }, { question_id: 'q2' }],
       error: null,
     })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary!.subjectName).toBe('Meteorology')
+    expect(summary!.subjectCode).toBe('MET')
   })
 
   it('falls back to null subjectName when subject lookup fails', async () => {
@@ -177,6 +179,7 @@ describe('getQuizReportSummary', () => {
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
     expect(summary!.subjectName).toBeNull()
+    expect(summary!.subjectCode).toBeNull()
   })
 
   it('falls back to zero scorePercentage when session score_percentage is null', async () => {
