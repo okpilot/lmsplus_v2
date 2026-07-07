@@ -19,13 +19,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
-    "@commitlint/cli": "^21.1.0",
-    "@commitlint/config-conventional": "^21.1.0",
-    "@commitlint/types": "^21.1.0",
-    "knip": "^6.23.0",
+    "@biomejs/biome": "^2.5.2",
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@commitlint/types": "^21.2.0",
+    "knip": "^6.24.0",
     "lefthook": "^2.1.9",
-    "turbo": "^2.10.0",
+    "turbo": "^2.10.3",
     "typescript": "^6.0.3"
   },
   "pnpm": {

@@ -122,6 +122,10 @@ export async function submitAnswer(input: unknown) {
 
 **At the boundary:** Server Action orchestrators (30–35 lines) are acceptable when each line is a single responsibility (validation, auth, RPC call, side effect). If adding a new step requires scrolling, extract it.
 
+**Exception — React render/return bodies (pure JSX composition).** A React function-component or custom-hook **render/return body** may reach **30–35 lines** when the body is **pure JSX/element composition** — laying out and wiring child elements/props — with **no branching logic and no data transformation**. Such a body has zero extractable logic, and splitting it only to satisfy the count produces artificial wrapper components that hurt readability. This mirrors the Server-Action-orchestrator boundary above (each line one responsibility).
+
+The exception is **hard-bounded at 35 lines**: anything past 35 is still a violation, and any non-composition logic disqualifies the whole body regardless of length. If the body needs an `if`/loop/`.map` **with logic** (a conditional branch, a computed value, a data reshape), the cap stays 30 and the logic is extracted into a helper or a child component. A bare `.map(item => <Row key={item.id} {...item} />)` rendering a list is composition (allowed); a `.map` that computes or transforms is logic (not allowed).
+
 ### Max 3 Parameters
 If a function needs more than 3 parameters, use an options object.
 
@@ -919,7 +923,7 @@ The `code-reviewer` agent flags these after every commit:
 - Files exceeding line limits
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
-- Functions longer than 30 lines
+- Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
 - Functions with >3 parameters (non-object)
 - Nesting deeper than 3 levels
 - `any` types
@@ -945,4 +949,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-07-03 (added §5 fan-out `Array.isArray` guard rule [#1061] + §7 COALESCE/fallback test-vacuity rule [#1076])*
+*Last updated: 2026-07-06 (added §3 React render-body exception — pure JSX composition up to 35 lines [#1074])*
