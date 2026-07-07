@@ -39,6 +39,9 @@
 //   - The schema snapshot is whatever `packages/db/src/types.ts` says at guard-run
 //     time — regenerate types after a migration before relying on this guard to
 //     catch a newly-dropped column.
+//   - If `packages/db/src/types.ts` is absent (e.g. a corrupted checkout), the
+//     guard exits with a raw `ENOENT` — fail-loud, not fail-open. The file is
+//     git-tracked and always present in normal CI/dev checkouts.
 //
 // Usage:
 //   node .claude/hooks/check-soft-delete-guard.mjs [file ...]   # scan given files (lefthook staged mode; non-existent paths skipped)
