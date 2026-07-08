@@ -11,6 +11,7 @@
 // (useLockedSubjectLoad), so this action — and this test — no longer cover
 // parts/topics; it only asserts the subject-id lookup.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { fetchTopicsWithSubtopics } from '@/app/app/quiz/actions/lookup'
 import { getRtSubjectData } from '@/app/app/vfr-rt/actions/get-rt-subject'
 import {
   cleanupTestData,
@@ -57,5 +58,16 @@ describe('getRtSubjectData (app-layer integration)', () => {
 
     // The subject lookup is what the deleted_at bug broke — under the bug this call threw.
     expect(result.id).toBe(rtSubjectId)
+  })
+
+  it('loads topics for the canonical RT subject', async () => {
+    await signInAs(email, password)
+
+    const result = await getRtSubjectData()
+    const topics = await fetchTopicsWithSubtopics(result.id)
+
+    // RT topics P1/P2/P3 come from migration 097, the same source as the
+    // subject row — no extra seed needed here.
+    expect(topics.length).toBeGreaterThan(0)
   })
 })

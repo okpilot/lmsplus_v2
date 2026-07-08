@@ -180,6 +180,18 @@ describe('VfrRtConfigForm — Start Practice button', () => {
     await user.click(screen.getByRole('button', { name: /start practice/i }))
     expect(mockHandleStart).toHaveBeenCalled()
   })
+
+  it('is disabled while topics or filter counts are loading', () => {
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ isPending: true, availableCount: 10 }))
+    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
+  })
+
+  it('is disabled when the session has expired', () => {
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ authError: true, availableCount: 10 }))
+    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
+  })
 })
 
 // ---- Error display --------------------------------------------------------------

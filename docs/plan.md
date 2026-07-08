@@ -1398,6 +1398,8 @@ Pivots VFR RT from the rejected bespoke mock-exam UI (parked PR #923) to a **tra
 
 **Next:** #925 testing deep-dive (P0 — app-layer DB read-path integration tier) BEFORE Phases 2/5/6 (which add migrations and share the same blind spot). Then Phase 2 (backend non-MC question types).
 
+> Superseded 2026-07-08 (redesign Slice 2): the bespoke hooks were replaced by subject-locked reuse of the shared quiz config machinery (`useQuizConfig` + `useLockedSubjectLoad`).
+
 ## VFR RT Training — Phase 3 (Study runner renders + grades non-MC) — 2026-06-24
 
 **Branch:** `feat/vfr-rt-training-phase3`. Spec: `.spec-workflow/specs/vfr-rt-training/` tasks 3.1–3.3. Tracks #697. No migration (Phase 2 shipped the backend grader).
