@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 import type { QuizReportSummary } from './quiz-report-types'
+import { resolveSubjectInfo } from './resolve-subject-info'
 
 // Fields shared by every question variant in the report. The per-type variants
 // below extend this with their type-specific shape (MC options, short-answer
@@ -150,21 +151,11 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 
   // Resolve subject name/code if available (display-only — don't abort report on failure)
-  let subjectName: string | null = null
-  let subjectCode: string | null = null
-  if (session.subject_id) {
-    const { data: subjectData, error: subjectError } = await supabase
-      .from('easa_subjects')
-      .select('name, code')
-      .eq('id', session.subject_id)
-      .maybeSingle()
-    if (subjectError) {
-      console.error('[getQuizReportSummary] Subject lookup error:', subjectError.message)
-    }
-    const subject = subjectData as { name: string; code: string } | null
-    subjectName = subject?.name ?? null
-    subjectCode = subject?.code ?? null
-  }
+  const { subjectName, subjectCode } = await resolveSubjectInfo(
+    supabase,
+    session.subject_id,
+    '[getQuizReportSummary]',
+  )
 
   return {
     sessionId: session.id,
