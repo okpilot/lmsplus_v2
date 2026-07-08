@@ -491,12 +491,12 @@ describe('useQuizConfig — questionType', () => {
     expect(result.current.questionType).toBeUndefined()
   })
 
-  it('includes the selected question type in the useQuizStart payload', () => {
+  it('carries the selected question type into quiz start', () => {
     renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
     expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: undefined }))
   })
 
-  it('passes the updated question type to useQuizStart after a type change', async () => {
+  it('keeps the question type in sync with the latest selection when starting a quiz', async () => {
     const { result } = renderHook(() =>
       useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
     )

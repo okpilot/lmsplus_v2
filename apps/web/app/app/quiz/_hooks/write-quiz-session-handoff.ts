@@ -21,7 +21,7 @@ export function writeQuizSessionHandoff(
     )
     return true
   } catch (err) {
-    console.warn('[use-quiz-start] sessionStorage handoff failed:', err)
+    console.warn('[write-quiz-session-handoff] sessionStorage handoff failed:', err)
     return false
   }
 }
