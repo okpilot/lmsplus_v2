@@ -6,18 +6,19 @@ export type QuestionType =
   | 'diagram_label'
 
 // Single-select RT question-type filter (Slice 3). All 5 types the DB question_type
-// column supports — used by the VFR RT setup's QuestionTypeFilter picker. The value
-// array + label map are UI-layer only; the Zod enums in lookup.ts/start.ts declare
-// their own literal lists independently (mirrors the CalcMode/ImageMode convention —
-// no shared runtime const feeds those schemas). Co-located with QuestionType (not
-// quiz/types.ts) since both quiz and VFR RT UI import them (code-style.md §1).
-export const QUESTION_TYPES: readonly QuestionType[] = [
+// column supports — used by the VFR RT setup's QuestionTypeFilter picker. `as const
+// satisfies` keeps this a literal tuple (required for z.enum()) while still checking
+// it against QuestionType exhaustively. The Zod enums in start.ts/filtered-count.ts
+// derive from this const directly — z.enum(QUESTION_TYPES) — so the 5 valid values
+// stay in one place. Co-located with QuestionType (not quiz/types.ts) since both
+// quiz and VFR RT UI import them (code-style.md §1).
+export const QUESTION_TYPES = [
   'multiple_choice',
   'short_answer',
   'dialog_fill',
   'ordering',
   'diagram_label',
-]
+] as const satisfies readonly QuestionType[]
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   multiple_choice: 'Multiple Choice',

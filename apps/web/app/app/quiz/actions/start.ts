@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { QUESTION_TYPES } from '@/app/app/_types/session'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
@@ -16,9 +17,7 @@ const StartQuizInput = z.object({
   imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
   // RT setup's single-select type filter (Slice 3). Omitted → undefined → null to
   // the RPC (no type restriction), matching every other quiz path (#1008).
-  questionType: z
-    .enum(['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label'])
-    .optional(),
+  questionType: z.enum(QUESTION_TYPES).optional(),
 })
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {

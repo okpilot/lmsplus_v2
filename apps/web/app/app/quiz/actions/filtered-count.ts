@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { QUESTION_TYPES } from '@/app/app/_types/session'
 import { rpc } from '@/lib/supabase-rpc'
 
 // Extracted from lookup.ts (§1 — lookup.ts was over the 100-line Server Action cap).
@@ -17,9 +18,7 @@ const FilteredCountSchema = z.object({
   // the quiz/exam count paths → null = no type restriction (#1008). The RT setup's
   // single-select type filter (Slice 3) can pass any of the 5 DB question_type
   // values — the RPC filters `q.question_type = p_question_type` generically.
-  questionType: z
-    .enum(['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label'])
-    .optional(),
+  questionType: z.enum(QUESTION_TYPES).optional(),
 })
 
 export type FilteredCountResult = {

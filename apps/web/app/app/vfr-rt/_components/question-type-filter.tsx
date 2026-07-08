@@ -7,6 +7,14 @@ type QuestionTypeFilterProps = {
   onValueChange: (type: QuestionType | undefined) => void
 }
 
+// "All types" first, then one option per QUESTION_TYPES entry — a single list so
+// the buttons below render from one map instead of a duplicated "All types" button
+// plus a separate QUESTION_TYPES.map.
+const OPTIONS: ReadonlyArray<{ value: QuestionType | undefined; label: string }> = [
+  { value: undefined, label: 'All types' },
+  ...QUESTION_TYPES.map((type) => ({ value: type, label: QUESTION_TYPE_LABELS[type] })),
+]
+
 /**
  * RT-only single-select question-type filter (Slice 3). Mirrors ModeToggle's
  * segmented-pill styling, wrapped to a flex-wrap row since the option count (6,
@@ -19,31 +27,19 @@ export function QuestionTypeFilter({ value, onValueChange }: Readonly<QuestionTy
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Question Type</span>
       <div className="flex flex-wrap gap-1.5 rounded-[10px] border border-border p-1">
-        <button
-          type="button"
-          aria-pressed={value === undefined}
-          onClick={() => onValueChange(undefined)}
-          className={`rounded-[8px] px-3 py-1.5 text-sm font-medium transition-colors ${
-            value === undefined
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          All types
-        </button>
-        {QUESTION_TYPES.map((type) => (
+        {OPTIONS.map((option) => (
           <button
-            key={type}
+            key={option.value ?? 'all'}
             type="button"
-            aria-pressed={value === type}
-            onClick={() => onValueChange(type)}
+            aria-pressed={value === option.value}
+            onClick={() => onValueChange(option.value)}
             className={`rounded-[8px] px-3 py-1.5 text-sm font-medium transition-colors ${
-              value === type
+              value === option.value
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {QUESTION_TYPE_LABELS[type]}
+            {option.label}
           </button>
         ))}
       </div>
