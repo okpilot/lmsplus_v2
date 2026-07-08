@@ -1,4 +1,3 @@
-import type { QuestionType } from '@/app/app/_types/session'
 import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validation'
 import type { ActionResult } from '@/lib/action-result'
 
@@ -213,27 +212,6 @@ export type StartExamResult =
   | { success: false; error: string }
 
 export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
-
-// Single-select RT question-type filter (Slice 3). All 5 types the DB question_type
-// column supports — used by the VFR RT setup's QuestionTypeFilter picker. The value
-// array + label map are UI-layer only; the Zod enums in lookup.ts/start.ts declare
-// their own literal lists independently (mirrors the CalcMode/ImageMode convention —
-// no shared runtime const feeds those schemas).
-export const QUESTION_TYPES: readonly QuestionType[] = [
-  'multiple_choice',
-  'short_answer',
-  'dialog_fill',
-  'ordering',
-  'diagram_label',
-]
-
-export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-  multiple_choice: 'Multiple Choice',
-  short_answer: 'Short Answer',
-  dialog_fill: 'Fill in the Blank',
-  ordering: 'Ordering',
-  diagram_label: 'Diagram',
-}
 
 export type CalcMode = 'all' | 'only' | 'exclude'
 

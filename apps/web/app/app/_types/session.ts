@@ -5,6 +5,28 @@ export type QuestionType =
   | 'ordering'
   | 'diagram_label'
 
+// Single-select RT question-type filter (Slice 3). All 5 types the DB question_type
+// column supports — used by the VFR RT setup's QuestionTypeFilter picker. The value
+// array + label map are UI-layer only; the Zod enums in lookup.ts/start.ts declare
+// their own literal lists independently (mirrors the CalcMode/ImageMode convention —
+// no shared runtime const feeds those schemas). Co-located with QuestionType (not
+// quiz/types.ts) since both quiz and VFR RT UI import them (code-style.md §1).
+export const QUESTION_TYPES: readonly QuestionType[] = [
+  'multiple_choice',
+  'short_answer',
+  'dialog_fill',
+  'ordering',
+  'diagram_label',
+]
+
+export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
+  multiple_choice: 'Multiple Choice',
+  short_answer: 'Short Answer',
+  dialog_fill: 'Fill in the Blank',
+  ordering: 'Ordering',
+  diagram_label: 'Diagram',
+}
+
 type DiagramZone = { id: string; x: number; y: number; w: number; h: number }
 type DiagramLabelChip = { id: string; text: string }
 // Public (answer-stripped) delivery shape for a diagram_label question —
