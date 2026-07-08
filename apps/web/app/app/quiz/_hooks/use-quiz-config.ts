@@ -1,5 +1,4 @@
-import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
-import type { QuizMode } from '../types'
+import type { UseQuizConfigOpts } from '../session-types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
@@ -13,13 +12,7 @@ export function useQuizConfig({
   initialSubjectId,
   initialMode,
   initialTopics,
-}: {
-  userId: string
-  subjects: SubjectOption[]
-  initialSubjectId?: string
-  initialMode?: QuizMode
-  initialTopics?: TopicWithSubtopics[]
-}) {
+}: UseQuizConfigOpts) {
   const topicTree = useTopicTree(initialTopics)
   const fc = useFilteredCount()
   const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode })
@@ -39,6 +32,7 @@ export function useQuizConfig({
     filters: st.filters,
     calcMode: st.calcMode,
     imageMode: st.imageMode,
+    questionType: st.questionType,
     topicTree,
   })
 
@@ -48,6 +42,7 @@ export function useQuizConfig({
     filters: st.filters,
     calcMode: st.calcMode,
     imageMode: st.imageMode,
+    questionType: st.questionType,
     topicTree,
     fc,
   })
@@ -62,6 +57,8 @@ export function useQuizConfig({
     setCalcMode: st.handleCalcModeChange,
     imageMode: st.imageMode,
     setImageMode: st.handleImageModeChange,
+    questionType: st.questionType,
+    setQuestionType: st.handleQuestionTypeChange,
     count: st.count,
     setCount: st.setCount,
     availableCount,

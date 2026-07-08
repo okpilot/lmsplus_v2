@@ -7,6 +7,7 @@ import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import { QuestionTypeFilter } from './question-type-filter'
 
 type VfrRtConfigFormProps = {
   userId: string
@@ -25,6 +26,8 @@ type VfrRtConfigFormProps = {
  * the RSC fetch — no client mount-time load.
  * Discovery and Practice Exam are present-but-disabled; Study is the only
  * available mode until Discovery's non-MC backend lands in a later slice.
+ * QuestionTypeFilter (Slice 3) is RT-only — RT is the only multi-type subject,
+ * so it is not part of the shared quiz config machinery's rendered UI.
  */
 export function VfrRtConfigForm({
   userId,
@@ -59,6 +62,7 @@ export function VfrRtConfigForm({
           onImageModeChange={config.setImageMode}
           unseenLabel="Unanswered"
         />
+        <QuestionTypeFilter value={config.questionType} onValueChange={config.setQuestionType} />
       </div>
 
       {hasTopics && (

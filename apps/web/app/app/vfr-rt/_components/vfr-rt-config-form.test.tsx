@@ -75,6 +75,8 @@ function buildMockConfig(overrides: Record<string, unknown> = {}) {
     setCalcMode: vi.fn(),
     imageMode: 'all',
     setImageMode: vi.fn(),
+    questionType: undefined,
+    setQuestionType: vi.fn(),
     count: 10,
     setCount: vi.fn(),
     availableCount: 10,
@@ -138,6 +140,30 @@ describe('VfrRtConfigForm — filters', () => {
   it('labels the unseen filter "Unanswered"', () => {
     renderForm()
     expect(screen.getByText('Unanswered')).toBeInTheDocument()
+  })
+})
+
+// ---- Question type filter (Slice 3) ----------------------------------------
+
+describe('VfrRtConfigForm — question type filter', () => {
+  it('renders the question type filter', () => {
+    renderForm()
+    expect(screen.getByText('Question Type')).toBeInTheDocument()
+  })
+
+  it('passes the selected question type through to the picker', () => {
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ questionType: 'ordering' }))
+    renderForm()
+    expect(screen.getByRole('button', { name: 'Ordering' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('updates the question type when a type option is clicked', async () => {
+    const mockSetQuestionType = vi.fn()
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ setQuestionType: mockSetQuestionType }))
+    const user = userEvent.setup()
+    renderForm()
+    await user.click(screen.getByRole('button', { name: 'Short Answer' }))
+    expect(mockSetQuestionType).toHaveBeenCalledWith('short_answer')
   })
 })
 
