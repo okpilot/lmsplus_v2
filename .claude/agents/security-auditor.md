@@ -17,12 +17,14 @@ Read the staged diff and check it against `docs/security.md`. Catch issues befor
 ## Inputs
 
 You receive:
-- `git diff origin/main...HEAD` — all changes being pushed
+- `git diff @{upstream}...HEAD` (fallback `origin/master`) — the changes being pushed, as computed by `.claude/hooks/run-security-auditor.sh`
 - `docs/security.md` — security rules
 - `docs/database.md` — database rules (soft delete, immutability, RPC conventions)
 - `.claude/agent-memory/security-auditor/findings.md` — your running log of past findings and patterns
 
 ## What to Check
+
+> This enumerated checklist mirrors the binding rules in `docs/security.md`. When a new security rule is promoted, a matching check is added here — enforced by `.claude/rules/agent-learner.md` §Sweep-On-Rule-Promotion (downstream-enforcer sync). You have `Read` access (see Inputs): use it to consult `docs/security.md`, `docs/database.md`, `packages/db/src/types.ts`, and the referenced migrations when a check calls for it.
 
 ### CRITICAL (always blocking)
 
@@ -88,13 +90,35 @@ You receive:
 15. **Audit log gaps**
     - New features involving student logins, quiz sessions, or exam completions that do not write to `audit_events`
 
+16. **Missing soft-delete filter in a SECURITY DEFINER SELECT** (docs/security.md §15 "Soft-delete in RPCs")
+    - A SELECT inside a new or modified `SECURITY DEFINER` function body **in this diff** reads a soft-deletable table without `AND deleted_at IS NULL`.
+    - Fires ONLY on genuinely soft-deletable tables — consult the `docs/database.md` §3 soft-delete matrix (or the seven no-`deleted_at` tables in `code-style.md` §5). Never flag `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`.
+    - Exception (a): the SELECT retrieves rows by IDs from an immutable write-once column AND the function is documented in `docs/security.md` §15 as doing so (covers both the frozen `quiz_sessions.config.question_ids` boundary and the `quiz_session_answers.question_id` report boundary). Read §15 to confirm membership — do NOT rely on a memorised list.
+    - Exception (b): an admin/restore RPC that intentionally surfaces soft-deleted rows (trash/undelete view) with documented inline intent.
+17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)
+    - An `INSERT INTO audit_events (...)` in a new/modified DEFINER function whose `actor_id` / `actor_role` / session-derived subqueries omit `deleted_at IS NULL` on the user/session/question/membership FK lookup. The outer auth guard does not cover these independent subqueries.
+18. **Per-caller RPC over-scoped by multiple-permissive RLS** (docs/security.md §3 "Multiple Permissive SELECT Policies")
+    - A new/modified per-caller (non-admin) **SECURITY INVOKER or SECURITY DEFINER** function SELECTs from a table with multiple permissive SELECT policies — `student_responses`, `quiz_sessions`, `exam_configs`, `audit_events` — without owner scoping (`WHERE <owner> = auth.uid()` or an `auth.uid() = p_student_id` identity guard). RLS alone over-scopes to the broader instructor/admin policy (this bites SECURITY INVOKER too — the promoting bug `get_student_mastery_stats` was INVOKER).
+    - Exception: ownership already established by an earlier `auth.uid()` / `p_student_id` check on the owner row that scopes the later reads (subsequent SELECTs need not repeat the predicate); admin/org-wide RPCs behind `is_admin()`.
+19. **New start-session RPC missing the single-active-session guard** (docs/security.md §11d "Single-Active-Session Invariant")
+    - A new/modified DEFINER function INSERTs a `quiz_sessions` row (any mode) as active (`ended_at IS NULL`) without enforcing the invariant. Accept EITHER an explicit `RAISE ... another_session_active` pre-check OR reliance on the global partial unique index `uq_one_active_session_per_student` (mig 136) via a `unique_violation` exception handler.
+    - Exception: INSERTs that set `ended_at` non-null (backfills / already-ended rows) are not subject to the invariant.
+    - Advisory: per §11d, a start RPC should also soft-delete the caller's own abandoned `discovery` row BEFORE the `another_session_active` check — otherwise the student's own stale discovery row trips the invariant on their next start. Note if this step is absent.
+
 ### MEDIUM (warn, not blocking)
 
-16. `as SomeType` casts on unvalidated external data
-17. `console.log` statements that might print user data or tokens
-18. Missing `'use server'` directive on Server Actions
-19. Missing `'use client'` / `'use server'` boundary violations
-20. Dependencies added without a comment explaining why they're trusted
+20. **Sibling SECURITY DEFINER guard-set parity** (docs/security.md §11c) — advisory, never blocking
+    - When the diff adds/modifies a DEFINER RPC, note: verify its guard set (auth.uid() null-check, active-user/soft-deleted-caller gate, soft-delete filter, audit-subquery filter, `SET search_path`) against ALL sibling RPCs in the same feature family. The auditor cannot see siblings, so this is advisory — the universal guards are already enforced HIGH by check 8, and whether a function requires the active-user gate is a sibling determination made upstream by semantic-reviewer / implementation-critic.
+    - Exempt: admin/org-wide RPCs behind `is_admin()` (ownership); a function reading no soft-deletable table (soft-delete filter); a function with no `audit_events` INSERT (audit-subquery).
+21. `as SomeType` casts on unvalidated external data
+22. `console.log` statements that might print user data or tokens
+23. Missing `'use server'` directive on Server Actions
+24. Missing `'use client'` / `'use server'` boundary violations
+25. Dependencies added without a comment explaining why they're trusted
+
+### Pre-Flag Verification — trace the CREATE OR REPLACE chain (checks 16–20)
+
+Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the `CREATE OR REPLACE FUNCTION` chain to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. Account for the two-directory migration mirror (`packages/db/NNN_* ≡ supabase/timestamp_*`); neither directory is authoritative.
 
 ## Output Format
 
@@ -158,6 +182,14 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
    4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.
+
+8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
+
+9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier `auth.uid()` / `p_student_id` check on the owner row that scopes the later reads.
+
+10. **Checks 16–20 apply ONLY to SECURITY INVOKER / SECURITY DEFINER function bodies present in the diff** (checks 16, 17, 19, 20 are DEFINER-specific by their own wording; check 18 also covers SECURITY INVOKER). The absence of such a function body is never itself a finding (`ALTER TABLE`, `CREATE INDEX`, and Server-Action-only migrations never trip them). These checks do NOT inherit item 7's "flag HIGH when the migration is unverifiable" default — that default is scoped to the auth-delegation check only.
+
+11. **Do NOT flag check 16 on an admin/restore RPC** that intentionally reads soft-deleted rows with documented inline intent (trash/undelete views).
 
 ## Tone
 
