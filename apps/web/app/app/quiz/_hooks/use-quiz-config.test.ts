@@ -669,3 +669,44 @@ describe('useQuizConfig — authError', () => {
     expect(result.current.authError).toBe(false)
   })
 })
+
+// ---- initialSubjectId / initialMode seeding -------------------------------
+
+describe('useQuizConfig — initialSubjectId / initialMode seeding', () => {
+  it('seeds subjectId and mode from init params when provided', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({
+        userId: 'test-user-id',
+        subjects: SUBJECTS,
+        initialSubjectId: SUBJECT_ID,
+        initialMode: 'study',
+      }),
+    )
+    expect(result.current.subjectId).toBe(SUBJECT_ID)
+    expect(result.current.mode).toBe('study')
+  })
+
+  it('defaults to an empty subject and discovery mode when init params are omitted', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    expect(result.current.subjectId).toBe('')
+    expect(result.current.mode).toBe('discovery')
+  })
+
+  it('loads topics on mount when initialSubjectId is provided', () => {
+    renderHook(() =>
+      useQuizConfig({
+        userId: 'test-user-id',
+        subjects: SUBJECTS,
+        initialSubjectId: SUBJECT_ID,
+      }),
+    )
+    expect(mockLoadTopics).toHaveBeenCalledWith(SUBJECT_ID)
+  })
+
+  it('does not load topics on mount when initialSubjectId is omitted', () => {
+    renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
+    expect(mockLoadTopics).not.toHaveBeenCalled()
+  })
+})

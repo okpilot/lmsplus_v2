@@ -61,6 +61,39 @@ describe('QuizTabs', () => {
     expect(screen.queryByTestId('saved-draft')).not.toBeInTheDocument()
   })
 
+  describe('custom labels', () => {
+    it('renders custom new/saved labels when provided', () => {
+      render(
+        <QuizTabs
+          newLabel="New Practice Session"
+          savedLabel="Saved Practice Sessions"
+          newQuizContent={<div data-testid="new-quiz">New</div>}
+          savedDraftContent={<div data-testid="saved-draft">Saved</div>}
+        />,
+      )
+      expect(screen.getByText('New Practice Session')).toBeInTheDocument()
+      expect(screen.getByText('Saved Practice Sessions')).toBeInTheDocument()
+    })
+
+    it('applies a custom aria-label on the tablist', () => {
+      render(
+        <QuizTabs
+          ariaLabel="Practice options"
+          newQuizContent={<div data-testid="new-quiz">New</div>}
+          savedDraftContent={<div data-testid="saved-draft">Saved</div>}
+        />,
+      )
+      expect(screen.getByRole('tablist')).toHaveAttribute('aria-label', 'Practice options')
+    })
+
+    it('defaults to "New Quiz"/"Saved Quizzes" and "Quiz options" when labels are omitted', () => {
+      renderTabs()
+      expect(screen.getByText('New Quiz')).toBeInTheDocument()
+      expect(screen.getByText('Saved Quizzes')).toBeInTheDocument()
+      expect(screen.getByRole('tablist')).toHaveAttribute('aria-label', 'Quiz options')
+    })
+  })
+
   describe('ARIA tablist pattern', () => {
     it('has a tablist container with accessible label', () => {
       renderTabs()

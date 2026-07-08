@@ -13,6 +13,9 @@ type TopicRowProps = {
   isExpanded?: boolean
   onToggleExpand?: () => void
   indented?: boolean
+  // When false, the label shows only `name` (e.g. VFR RT parts, whose codes are
+  // internal slugs). Defaults to true so EASA pickers keep their meaningful codes.
+  showCode?: boolean
 }
 
 export function TopicRow({
@@ -25,6 +28,7 @@ export function TopicRow({
   isExpanded,
   onToggleExpand,
   indented,
+  showCode = true,
 }: Readonly<TopicRowProps>) {
   return (
     <div className={`flex items-center gap-2 py-1.5 pr-3 ${indented ? 'pl-14' : 'pl-2'}`}>
@@ -43,7 +47,7 @@ export function TopicRow({
       )}
       <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
       <span className={`flex-1 text-sm ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
-        {code} — {name}
+        {showCode ? `${code} — ${name}` : name}
       </span>
       <span className="text-xs text-muted-foreground">
         {filteredCount !== null ? (

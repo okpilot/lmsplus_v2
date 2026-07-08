@@ -23,6 +23,7 @@ type TopicTreeProps = {
   allSelected: boolean
   filteredByTopic: Record<string, number> | null
   filteredBySubtopic: Record<string, number> | null
+  showCode?: boolean
 }
 
 type SubtopicRowsProps = {
@@ -31,6 +32,7 @@ type SubtopicRowsProps = {
   filteredBySubtopic: Record<string, number> | null
   checkedSubtopics: Set<string>
   onToggleSubtopic: (subtopicId: string, topicId: string) => void
+  showCode: boolean
 }
 function SubtopicRows({
   subtopics,
@@ -38,6 +40,7 @@ function SubtopicRows({
   filteredBySubtopic,
   checkedSubtopics,
   onToggleSubtopic,
+  showCode,
 }: Readonly<SubtopicRowsProps>) {
   return (
     <div className="border-t border-border bg-muted/40">
@@ -51,6 +54,7 @@ function SubtopicRows({
           checked={checkedSubtopics.has(sub.id)}
           onCheckedChange={() => onToggleSubtopic(sub.id, topicId)}
           indented
+          showCode={showCode}
         />
       ))}
     </div>
@@ -67,6 +71,7 @@ type TopicListProps = {
   onToggleSubtopic: (subtopicId: string, topicId: string) => void
   filteredByTopic: Record<string, number> | null
   filteredBySubtopic: Record<string, number> | null
+  showCode: boolean
 }
 function TopicList({
   topics,
@@ -78,6 +83,7 @@ function TopicList({
   onToggleSubtopic,
   filteredByTopic,
   filteredBySubtopic,
+  showCode,
 }: Readonly<TopicListProps>) {
   return (
     <div className="rounded-lg border border-border">
@@ -92,6 +98,7 @@ function TopicList({
             onCheckedChange={() => onToggleTopic(topic.id)}
             isExpanded={expanded.has(topic.id)}
             onToggleExpand={topic.subtopics.length > 0 ? () => toggleExpand(topic.id) : undefined}
+            showCode={showCode}
           />
           {expanded.has(topic.id) && (
             <SubtopicRows
@@ -100,6 +107,7 @@ function TopicList({
               filteredBySubtopic={filteredBySubtopic}
               checkedSubtopics={checkedSubtopics}
               onToggleSubtopic={onToggleSubtopic}
+              showCode={showCode}
             />
           )}
         </div>
@@ -119,6 +127,7 @@ export function TopicTree({
   allSelected,
   filteredByTopic,
   filteredBySubtopic,
+  showCode = true,
 }: Readonly<TopicTreeProps>) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -155,6 +164,7 @@ export function TopicTree({
         onToggleSubtopic={onToggleSubtopic}
         filteredByTopic={filteredByTopic}
         filteredBySubtopic={filteredBySubtopic}
+        showCode={showCode}
       />
     </div>
   )

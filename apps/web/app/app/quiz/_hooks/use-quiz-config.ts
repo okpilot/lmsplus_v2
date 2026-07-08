@@ -1,15 +1,28 @@
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
+import type { QuizMode } from '../types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
+import { useLockedSubjectLoad } from './use-locked-subject-load'
 import { useQuizConfigState } from './use-quiz-config-state'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
-export function useQuizConfig({ userId, subjects }: { userId: string; subjects: SubjectOption[] }) {
+export function useQuizConfig({
+  userId,
+  subjects,
+  initialSubjectId,
+  initialMode,
+}: {
+  userId: string
+  subjects: SubjectOption[]
+  initialSubjectId?: string
+  initialMode?: QuizMode
+}) {
   const topicTree = useTopicTree()
   const fc = useFilteredCount()
-  const st = useQuizConfigState({ fc, topicTree })
+  const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode })
+  useLockedSubjectLoad(topicTree, initialSubjectId)
 
   const availableCount = useAvailableCount({
     hasActiveFilters: st.hasActiveFilters,

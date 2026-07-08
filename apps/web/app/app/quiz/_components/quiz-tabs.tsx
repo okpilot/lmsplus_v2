@@ -6,6 +6,9 @@ type QuizTabsProps = {
   draftCount?: number | null
   newQuizContent: React.ReactNode
   savedDraftContent: React.ReactNode
+  newLabel?: string
+  savedLabel?: string
+  ariaLabel?: string
 }
 
 type TabButtonProps = {
@@ -64,6 +67,9 @@ export function QuizTabs({
   draftCount = null,
   newQuizContent,
   savedDraftContent,
+  newLabel = 'New Quiz',
+  savedLabel = 'Saved Quizzes',
+  ariaLabel = 'Quiz options',
 }: Readonly<QuizTabsProps>) {
   const [tab, setTab] = useState<TabName>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
@@ -99,7 +105,7 @@ export function QuizTabs({
       <div
         ref={tabListRef}
         role="tablist"
-        aria-label="Quiz options"
+        aria-label={ariaLabel}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         className="flex border-b border-border"
@@ -107,7 +113,7 @@ export function QuizTabs({
         <TabButton
           id="tab-new"
           isActive={tab === 'new'}
-          label="New Quiz"
+          label={newLabel}
           testId="tab-new"
           panelId={tab === 'new' ? 'tabpanel-new' : undefined}
           onClick={() => setTab('new')}
@@ -115,7 +121,7 @@ export function QuizTabs({
         <TabButton
           id="tab-saved"
           isActive={tab === 'saved'}
-          label="Saved Quizzes"
+          label={savedLabel}
           testId="tab-saved"
           panelId={tab === 'saved' ? 'tabpanel-saved' : undefined}
           onClick={() => setTab('saved')}
