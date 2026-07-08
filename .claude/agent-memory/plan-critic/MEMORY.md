@@ -8,6 +8,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
 | Session-lifecycle save/discard/resume plans adding a NEW `quiz_sessions` soft-delete (#1085) — positive-whitelist, all-3-save-callers, resume-from-session-row traps. ([details](topics/session-lifecycle-1085.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
+| Plans extracting a report/page BODY into a shared ASYNC server component then keeping `page.test.tsx` as the logic test (#1097 VFR-RT report namespace) — after page.tsx becomes `return <View/>`, RTL can't render the async child, so redirect/heading assertions must target the extracted component via `await View(props)` + a co-located `report-view.test.tsx` (§7). | 2026-07-08 | 1 | 2026-07-08 | WATCHING |
 | UI-component-reuse & question-type-CLONE plans (Study Mode flashcard reuse; Phase 6 diagram_label clone) miss the reveal-mechanic + shared touch-points. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-26 | 2 | 2026-07-02 | WATCHING (2) |
 | Drag-drop question-type CLONE plans (diagram_label cloning ordering) under-enumerate execution-only SQL + CHECK/REVOKE/distractor tests. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
 | RPC-signature-change plans (RETURNS TABLE DROP+recreate) miss types.ts drift, LATERAL row-drop on new types, multi-key fan-out key-split. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-21 | 3 | 2026-07-02 | RULE CANDIDATE (3) |
