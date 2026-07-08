@@ -2,18 +2,11 @@
 
 import { useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { TopicList } from './topic-list'
 
-type SubtopicItem = { id: string; code: string; name: string; questionCount: number }
-type TopicItem = {
-  id: string
-  code: string
-  name: string
-  questionCount: number
-  subtopics: SubtopicItem[]
-}
 type TopicTreeProps = {
-  topics: TopicItem[]
+  topics: TopicWithSubtopics[]
   checkedTopics: Set<string>
   checkedSubtopics: Set<string>
   onToggleTopic: (topicId: string) => void

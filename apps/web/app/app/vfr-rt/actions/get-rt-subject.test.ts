@@ -93,6 +93,10 @@ describe('getRtSubjectData — happy path', () => {
 
     expect(result.id).toBe(SUBJECT_ID)
     expect(result.topics).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getRtSubjectData] Topics fetch failed:',
+      'topics query failed',
+    )
     consoleSpy.mockRestore()
   })
 })

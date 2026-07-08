@@ -39,6 +39,7 @@ export function VfrRtConfigForm({
     initialMode: 'study',
     initialTopics,
   })
+  const hasTopics = config.topicTree.topics.length > 0
 
   return (
     <div className="space-y-4">
@@ -60,7 +61,7 @@ export function VfrRtConfigForm({
         />
       </div>
 
-      {config.topicTree.topics.length > 0 && (
+      {hasTopics && (
         <div className="rounded-xl border border-border bg-card p-6">
           <TopicTree
             topics={config.topicTree.topics}
@@ -78,7 +79,7 @@ export function VfrRtConfigForm({
         </div>
       )}
 
-      {config.topicTree.topics.length > 0 && (
+      {hasTopics && (
         <div className="rounded-xl border border-border bg-card p-6">
           <QuestionCount
             value={config.count}

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -22,13 +23,7 @@ import { VfrRtConfigForm } from './vfr-rt-config-form'
 
 const SUBJECT_ID = 'subj-rt'
 const SUBJECTS = [{ id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 0 }]
-const INITIAL_TOPICS: {
-  id: string
-  code: string
-  name: string
-  questionCount: number
-  subtopics: { id: string; code: string; name: string; questionCount: number }[]
-}[] = []
+const INITIAL_TOPICS: TopicWithSubtopics[] = []
 
 function renderForm(
   overrides: { subjects?: typeof SUBJECTS; initialTopics?: typeof INITIAL_TOPICS } = {},
@@ -196,7 +191,7 @@ describe('VfrRtConfigForm — Start Practice button', () => {
     expect(screen.getByRole('button', { name: /starting/i })).toBeDisabled()
   })
 
-  it('calls config.handleStart when clicked', async () => {
+  it('starts the practice session when Start Practice is clicked', async () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ availableCount: 10 }))
     const user = userEvent.setup()
     renderForm()

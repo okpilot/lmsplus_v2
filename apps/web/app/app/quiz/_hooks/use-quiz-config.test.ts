@@ -698,7 +698,7 @@ describe('useQuizConfig — initialSubjectId / initialMode seeding', () => {
 // ---- initialTopics seeding -------------------------------------------------
 
 describe('useQuizConfig — initialTopics seeding', () => {
-  it('passes initialTopics through to useTopicTree when provided', () => {
+  it('seeds the topic tree with the provided initial topics', () => {
     const initialTopics = [
       {
         id: 't1',
@@ -720,7 +720,7 @@ describe('useQuizConfig — initialTopics seeding', () => {
     expect(useTopicTree).toHaveBeenCalledWith(initialTopics)
   })
 
-  it('passes undefined to useTopicTree when initialTopics is omitted', () => {
+  it('starts the topic tree without seeded topics when none are provided', () => {
     renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
     expect(useTopicTree).toHaveBeenCalledWith(undefined)
   })

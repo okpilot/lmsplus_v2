@@ -1,18 +1,10 @@
 'use client'
 
+import type { SubtopicOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { TopicRow } from './topic-row'
 
-type SubtopicItem = { id: string; code: string; name: string; questionCount: number }
-type TopicItem = {
-  id: string
-  code: string
-  name: string
-  questionCount: number
-  subtopics: SubtopicItem[]
-}
-
 type SubtopicRowsProps = {
-  subtopics: SubtopicItem[]
+  subtopics: SubtopicOption[]
   topicId: string
   filteredBySubtopic: Record<string, number> | null
   checkedSubtopics: Set<string>
@@ -47,7 +39,7 @@ function SubtopicRows({
 }
 
 export type TopicListProps = {
-  topics: TopicItem[]
+  topics: TopicWithSubtopics[]
   checkedTopics: Set<string>
   checkedSubtopics: Set<string>
   expanded: Set<string>
