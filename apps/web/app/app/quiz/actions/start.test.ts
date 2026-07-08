@@ -259,7 +259,7 @@ describe('startQuizSession', () => {
     )
   })
 
-  it('omits questionType from the getRandomQuestionIds call when not set', async () => {
+  it('does not restrict the question type when none is selected', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
