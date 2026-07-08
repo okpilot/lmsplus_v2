@@ -1,5 +1,8 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 
+// Both createServerClient (@supabase/ssr) and createClient (@supabase/supabase-js)
+// return SupabaseClient<Database, 'public'> — structurally identical, so this alias
+// accepts BOTH the SSR client and the service-role adminClient passed by the callers.
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
