@@ -62,31 +62,30 @@ export function VfrRtConfigForm({
       </div>
 
       {hasTopics && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <TopicTree
-            topics={config.topicTree.topics}
-            checkedTopics={config.topicTree.checkedTopics}
-            checkedSubtopics={config.topicTree.checkedSubtopics}
-            onToggleTopic={config.topicTree.toggleTopic}
-            onToggleSubtopic={config.topicTree.toggleSubtopic}
-            onSelectAll={config.topicTree.selectAll}
-            totalQuestions={config.topicTree.totalQuestions}
-            allSelected={config.topicTree.allSelected}
-            filteredByTopic={config.filteredByTopic}
-            filteredBySubtopic={config.filteredBySubtopic}
-            showCode={false}
-          />
-        </div>
-      )}
-
-      {hasTopics && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <QuestionCount
-            value={config.count}
-            max={config.availableCount}
-            onValueChange={config.setCount}
-          />
-        </div>
+        <>
+          <div className="rounded-xl border border-border bg-card p-6">
+            <TopicTree
+              topics={config.topicTree.topics}
+              checkedTopics={config.topicTree.checkedTopics}
+              checkedSubtopics={config.topicTree.checkedSubtopics}
+              onToggleTopic={config.topicTree.toggleTopic}
+              onToggleSubtopic={config.topicTree.toggleSubtopic}
+              onSelectAll={config.topicTree.selectAll}
+              totalQuestions={config.topicTree.totalQuestions}
+              allSelected={config.topicTree.allSelected}
+              filteredByTopic={config.filteredByTopic}
+              filteredBySubtopic={config.filteredBySubtopic}
+              showCode={false}
+            />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6">
+            <QuestionCount
+              value={config.count}
+              max={config.availableCount}
+              onValueChange={config.setCount}
+            />
+          </div>
+        </>
       )}
 
       {config.error && (

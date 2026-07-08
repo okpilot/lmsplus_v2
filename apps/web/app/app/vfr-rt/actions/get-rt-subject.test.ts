@@ -134,7 +134,9 @@ describe('getRtSubjectData — subject lookup failure', () => {
       buildChain({ data: null, error: { message: 'relation does not exist' } }),
     )
 
-    await expect(getRtSubjectData()).rejects.toThrow()
+    // Assert the GENERIC message is thrown, not the raw DB error (code-style §5 —
+    // never surface error.message to callers).
+    await expect(getRtSubjectData()).rejects.toThrow('Failed to load VFR RT subject')
 
     expect(consoleSpy).toHaveBeenCalledWith(
       '[getRtSubjectData] Subject lookup failed:',

@@ -47,28 +47,23 @@ export function createTopicTreeActions({
     })
   }
 
-  function toggleTopic(topicId: string) {
-    const result = computeToggleTopic(topicId, topics, checkedTopics, checkedSubtopics)
+  function applySelection(result: { topics: Set<string>; subtopics: Set<string> }) {
     setCheckedTopics(result.topics)
     setCheckedSubtopics(result.subtopics)
+  }
+
+  function toggleTopic(topicId: string) {
+    applySelection(computeToggleTopic(topicId, topics, checkedTopics, checkedSubtopics))
   }
 
   function toggleSubtopic(subtopicId: string, topicId: string) {
-    const result = computeToggleSubtopic(
-      subtopicId,
-      topicId,
-      topics,
-      checkedTopics,
-      checkedSubtopics,
+    applySelection(
+      computeToggleSubtopic(subtopicId, topicId, topics, checkedTopics, checkedSubtopics),
     )
-    setCheckedTopics(result.topics)
-    setCheckedSubtopics(result.subtopics)
   }
 
   function selectAll() {
-    const result = computeSelectAll(allSelected, topics)
-    setCheckedTopics(result.topics)
-    setCheckedSubtopics(result.subtopics)
+    applySelection(computeSelectAll(allSelected, topics))
   }
 
   function reset() {
