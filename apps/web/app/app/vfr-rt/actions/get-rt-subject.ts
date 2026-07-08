@@ -1,15 +1,20 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
 export type RtSubjectData = {
   id: string
+  topics: TopicWithSubtopics[]
 }
 
 /**
- * Loads the RT subject id. Topics now load client-side via the reused quiz
- * topic-tree hook (useLockedSubjectLoad), so this no longer fetches parts.
- * Throws on subject-lookup failure (page-critical).
+ * Loads the RT subject id and its topics/subtopics server-side, so the RSC
+ * (VfrRtSetup) can seed the reused quiz topic-tree hook with initial state
+ * instead of a client mount-time fetch. Throws on subject-lookup failure
+ * (page-critical); degrades to an empty topics list on a topics-fetch
+ * failure (non-critical — the form just renders with zero topics).
  */
 export async function getRtSubjectData(): Promise<RtSubjectData> {
   const supabase = await createServerSupabaseClient()
@@ -28,5 +33,15 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     throw new Error('Failed to load VFR RT subject')
   }
 
-  return { id: subject.id }
+  let topics: TopicWithSubtopics[] = []
+  try {
+    topics = await getTopicsWithSubtopics(subject.id)
+  } catch (topicsError) {
+    console.error(
+      '[getRtSubjectData] Topics fetch failed:',
+      topicsError instanceof Error ? topicsError.message : topicsError,
+    )
+  }
+
+  return { id: subject.id, topics }
 }

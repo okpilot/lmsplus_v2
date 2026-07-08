@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockFrom } = vi.hoisted(() => ({
+const { mockFrom, mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
+  mockGetTopicsWithSubtopics: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({ from: mockFrom }),
+}))
+
+vi.mock('@/lib/queries/quiz-subject-queries', () => ({
+  getTopicsWithSubtopics: (...args: unknown[]) => mockGetTopicsWithSubtopics(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -35,10 +41,19 @@ function buildChain(returnValue: unknown) {
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 
+const TOPIC: TopicWithSubtopics = {
+  id: 't-1',
+  code: 'P1',
+  name: 'Topic 1',
+  questionCount: 5,
+  subtopics: [],
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockGetTopicsWithSubtopics.mockResolvedValue([TOPIC])
 })
 
 // ---- Happy path -----------------------------------------------------------
@@ -58,6 +73,27 @@ describe('getRtSubjectData — happy path', () => {
     await getRtSubjectData()
 
     expect(mockFrom).toHaveBeenCalledWith('easa_subjects')
+  })
+
+  it('returns the topics fetched for the subject', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+
+    const result = await getRtSubjectData()
+
+    expect(mockGetTopicsWithSubtopics).toHaveBeenCalledWith(SUBJECT_ID)
+    expect(result.topics).toEqual([TOPIC])
+  })
+
+  it('degrades to an empty topics list when the topics fetch fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetTopicsWithSubtopics.mockRejectedValue(new Error('topics query failed'))
+
+    const result = await getRtSubjectData()
+
+    expect(result.id).toBe(SUBJECT_ID)
+    expect(result.topics).toEqual([])
+    consoleSpy.mockRestore()
   })
 })
 

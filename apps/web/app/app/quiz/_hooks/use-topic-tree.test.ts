@@ -66,6 +66,39 @@ describe('useTopicTree — initial state', () => {
   })
 })
 
+// ---- initialTopics seeding ---------------------------------------------------
+
+describe('useTopicTree — initialTopics seeding', () => {
+  it('seeds topics from initialTopics when provided', () => {
+    const { result } = renderHook(() => useTopicTree([TOPIC_A, TOPIC_B]))
+    expect(result.current.topics).toEqual([TOPIC_A, TOPIC_B])
+  })
+
+  it('checks all seeded topics and subtopics by default', () => {
+    const { result } = renderHook(() => useTopicTree([TOPIC_A, TOPIC_B]))
+    expect(result.current.checkedTopics.has('t-a')).toBe(true)
+    expect(result.current.checkedTopics.has('t-b')).toBe(true)
+    expect(result.current.checkedSubtopics.has('st-a1')).toBe(true)
+    expect(result.current.checkedSubtopics.has('st-a2')).toBe(true)
+  })
+
+  it('sets allSelected and totalQuestions from the seeded topics', () => {
+    const { result } = renderHook(() => useTopicTree([TOPIC_A, TOPIC_B]))
+    expect(result.current.allSelected).toBe(true)
+    expect(result.current.totalQuestions).toBe(35)
+  })
+
+  it('does not fetch from the server when seeded via initialTopics', () => {
+    renderHook(() => useTopicTree([TOPIC_A, TOPIC_B]))
+    expect(mockFetchTopicsWithSubtopics).not.toHaveBeenCalled()
+  })
+
+  it('yields an empty topics list when initialTopics is omitted', () => {
+    const { result } = renderHook(() => useTopicTree())
+    expect(result.current.topics).toEqual([])
+  })
+})
+
 // ---- loadTopics -------------------------------------------------------------
 
 describe('useTopicTree — loadTopics', () => {

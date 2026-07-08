@@ -2,16 +2,13 @@
 // `.is('deleted_at', null)` bug would have FAILED.
 //
 // `getRtSubjectData()` reads the canonical RT subject (seeded by migration 097,
-// `code = 'RT'`). The bug filtered `easa_subjects` on a `deleted_at` column the
-// table does not have, erroring at runtime so the whole call threw. A mocked
-// unit test can't see that; this runs the real helper chain against real
-// Postgres under real RLS.
-//
-// Topics now load client-side via the reused quiz topic-tree hook
-// (useLockedSubjectLoad), so this action — and this test — no longer cover
-// parts/topics; it only asserts the subject-id lookup.
+// `code = 'RT'`) and its topics/subtopics server-side, so the RSC (VfrRtSetup)
+// can seed the reused quiz topic-tree hook with initial state instead of a
+// client mount-time fetch. The original bug filtered `easa_subjects` on a
+// `deleted_at` column the table does not have, erroring at runtime so the
+// whole call threw. A mocked unit test can't see that; this runs the real
+// helper chain against real Postgres under real RLS.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fetchTopicsWithSubtopics } from '@/app/app/quiz/actions/lookup'
 import { getRtSubjectData } from '@/app/app/vfr-rt/actions/get-rt-subject'
 import {
   cleanupTestData,
@@ -60,14 +57,13 @@ describe('getRtSubjectData (app-layer integration)', () => {
     expect(result.id).toBe(rtSubjectId)
   })
 
-  it('loads topics for the canonical RT subject', async () => {
+  it('returns topics for the canonical RT subject', async () => {
     await signInAs(email, password)
 
     const result = await getRtSubjectData()
-    const topics = await fetchTopicsWithSubtopics(result.id)
 
     // RT topics P1/P2/P3 come from migration 097, the same source as the
     // subject row — no extra seed needed here.
-    expect(topics.length).toBeGreaterThan(0)
+    expect(result.topics.length).toBeGreaterThan(0)
   })
 })

@@ -1,39 +1,43 @@
 'use client'
 
-import { useMemo } from 'react'
 import { ModeToggle } from '@/app/app/quiz/_components/mode-toggle'
 import { QuestionCount } from '@/app/app/quiz/_components/question-count'
 import { QuestionFilters } from '@/app/app/quiz/_components/question-filters'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
-import type { SubjectOption } from '@/lib/queries/quiz-query-types'
+import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 type VfrRtConfigFormProps = {
   userId: string
   subjectId: string
+  subjects: SubjectOption[]
+  initialTopics: TopicWithSubtopics[]
 }
 
 /**
  * Subject-locked, "Practice"-branded clone of QuizConfigForm's non-exam body.
  * Reuses the shared quiz config machinery (mode toggle, filters, topic tree,
- * count, start) via a synthetic single-subject SubjectOption whose `id` MUST
- * equal the real RT subject uuid — the session handoff derives subjectName/
- * subjectCode from `subjects.find(s => s.id === subjectId)` inside useQuizStart.
+ * count, start) via a server-built single-subject SubjectOption (see
+ * VfrRtSetup) whose `id` MUST equal the real RT subject uuid — the session
+ * handoff derives subjectName/subjectCode from `subjects.find(s => s.id ===
+ * subjectId)` inside useQuizStart. `initialTopics` seeds the topic tree from
+ * the RSC fetch — no client mount-time load.
  * Discovery and Practice Exam are present-but-disabled; Study is the only
  * available mode until Discovery's non-MC backend lands in a later slice.
  */
-export function VfrRtConfigForm({ userId, subjectId }: Readonly<VfrRtConfigFormProps>) {
-  const subjects = useMemo<SubjectOption[]>(
-    () => [{ id: subjectId, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 0 }],
-    [subjectId],
-  )
-
+export function VfrRtConfigForm({
+  userId,
+  subjectId,
+  subjects,
+  initialTopics,
+}: Readonly<VfrRtConfigFormProps>) {
   const config = useQuizConfig({
     userId,
     subjects,
     initialSubjectId: subjectId,
     initialMode: 'study',
+    initialTopics,
   })
 
   return (

@@ -21,6 +21,27 @@ import { VfrRtConfigForm } from './vfr-rt-config-form'
 // ---- Fixtures ---------------------------------------------------------------
 
 const SUBJECT_ID = 'subj-rt'
+const SUBJECTS = [{ id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 0 }]
+const INITIAL_TOPICS: {
+  id: string
+  code: string
+  name: string
+  questionCount: number
+  subtopics: { id: string; code: string; name: string; questionCount: number }[]
+}[] = []
+
+function renderForm(
+  overrides: { subjects?: typeof SUBJECTS; initialTopics?: typeof INITIAL_TOPICS } = {},
+) {
+  return render(
+    <VfrRtConfigForm
+      userId="user-1"
+      subjectId={SUBJECT_ID}
+      subjects={overrides.subjects ?? SUBJECTS}
+      initialTopics={overrides.initialTopics ?? INITIAL_TOPICS}
+    />,
+  )
+}
 
 function buildMockTopicTree(overrides: Record<string, unknown> = {}) {
   return {
@@ -86,30 +107,32 @@ beforeEach(() => {
 
 describe('VfrRtConfigForm — mode toggle', () => {
   it('locks the config to the RT subject in study mode', () => {
-    // The session handoff derives subjectName/subjectCode from the synthetic subject
-    // whose id must equal subjectId — assert that handoff-critical invariant.
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    // The session handoff derives subjectName/subjectCode from the server-built subject
+    // (see VfrRtSetup) whose id must equal subjectId — assert that handoff-critical invariant,
+    // and that the RSC-fetched subjects/initialTopics props pass straight through.
+    renderForm()
     expect(mockUseQuizConfig).toHaveBeenCalledWith(
       expect.objectContaining({
         initialSubjectId: SUBJECT_ID,
         initialMode: 'study',
-        subjects: [expect.objectContaining({ id: SUBJECT_ID })],
+        subjects: SUBJECTS,
+        initialTopics: INITIAL_TOPICS,
       }),
     )
   })
 
   it('renders Study as the active mode', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /study/i })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('renders Discovery disabled', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /discovery/i })).toBeDisabled()
   })
 
   it('renders Practice Exam disabled', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /practice exam/i })).toBeDisabled()
   })
 })
@@ -118,7 +141,7 @@ describe('VfrRtConfigForm — mode toggle', () => {
 
 describe('VfrRtConfigForm — filters', () => {
   it('labels the unseen filter "Unanswered"', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByText('Unanswered')).toBeInTheDocument()
   })
 })
@@ -141,13 +164,13 @@ describe('VfrRtConfigForm — topics', () => {
         availableCount: 5,
       }),
     )
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByText('Acronyms')).toBeInTheDocument()
     expect(screen.queryByText(/P1_ACRONYMS/)).not.toBeInTheDocument()
   })
 
   it('does not render the topic tree or count when no topics are loaded yet', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.queryByText(/questions available/i)).not.toBeInTheDocument()
   })
 })
@@ -157,39 +180,39 @@ describe('VfrRtConfigForm — topics', () => {
 describe('VfrRtConfigForm — Start Practice button', () => {
   it('is disabled when no questions are available', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ availableCount: 0 }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
   })
 
   it('is enabled when questions are available', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ availableCount: 10 }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /start practice/i })).not.toBeDisabled()
   })
 
   it('is disabled while a start is in progress', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ loading: true }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /starting/i })).toBeDisabled()
   })
 
   it('calls config.handleStart when clicked', async () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ availableCount: 10 }))
     const user = userEvent.setup()
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     await user.click(screen.getByRole('button', { name: /start practice/i }))
     expect(mockHandleStart).toHaveBeenCalled()
   })
 
   it('is disabled while topics or filter counts are loading', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ isPending: true, availableCount: 10 }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
   })
 
   it('is disabled when the session has expired', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ authError: true, availableCount: 10 }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
   })
 })
@@ -199,18 +222,18 @@ describe('VfrRtConfigForm — Start Practice button', () => {
 describe('VfrRtConfigForm — error display', () => {
   it('renders an error alert when session start fails', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ error: 'No questions available' }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('alert')).toHaveTextContent('No questions available')
   })
 
   it('renders an auth-error alert when the session has expired', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ authError: true }))
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.getByRole('alert')).toHaveTextContent(/session expired/i)
   })
 
   it('does not render an error alert when there is no error', () => {
-    render(<VfrRtConfigForm userId="user-1" subjectId={SUBJECT_ID} />)
+    renderForm()
     expect(screen.queryByRole('alert')).toBeNull()
   })
 })

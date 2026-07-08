@@ -693,20 +693,35 @@ describe('useQuizConfig — initialSubjectId / initialMode seeding', () => {
     expect(result.current.subjectId).toBe('')
     expect(result.current.mode).toBe('discovery')
   })
+})
 
-  it('loads topics on mount when initialSubjectId is provided', () => {
+// ---- initialTopics seeding -------------------------------------------------
+
+describe('useQuizConfig — initialTopics seeding', () => {
+  it('passes initialTopics through to useTopicTree when provided', () => {
+    const initialTopics = [
+      {
+        id: 't1',
+        code: '01',
+        name: 'T1',
+        questionCount: 5,
+        subtopics: [] as { id: string; code: string; name: string; questionCount: number }[],
+      },
+    ]
     renderHook(() =>
       useQuizConfig({
         userId: 'test-user-id',
         subjects: SUBJECTS,
         initialSubjectId: SUBJECT_ID,
+        initialMode: 'study',
+        initialTopics,
       }),
     )
-    expect(mockLoadTopics).toHaveBeenCalledWith(SUBJECT_ID)
+    expect(useTopicTree).toHaveBeenCalledWith(initialTopics)
   })
 
-  it('does not load topics on mount when initialSubjectId is omitted', () => {
+  it('passes undefined to useTopicTree when initialTopics is omitted', () => {
     renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
-    expect(mockLoadTopics).not.toHaveBeenCalled()
+    expect(useTopicTree).toHaveBeenCalledWith(undefined)
   })
 })

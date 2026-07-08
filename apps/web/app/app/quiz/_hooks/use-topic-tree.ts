@@ -1,17 +1,25 @@
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useTransition } from 'react'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
-import { fetchTopicsWithSubtopics } from '../actions/lookup'
-import {
-  calcSelectedCount,
-  computeSelectAll,
-  computeToggleSubtopic,
-  computeToggleTopic,
-} from './topic-tree-helpers'
+import { createTopicTreeActions } from './topic-tree-actions'
+import { calcSelectedCount } from './topic-tree-helpers'
+import { useTopicTreeState } from './use-topic-tree-state'
 
-export function useTopicTree() {
-  const [topics, setTopics] = useState<TopicWithSubtopics[]>([])
-  const [checkedTopics, setCheckedTopics] = useState<Set<string>>(new Set())
-  const [checkedSubtopics, setCheckedSubtopics] = useState<Set<string>>(new Set())
+/**
+ * @param initialTopics Server-fetched topics to seed the tree with (e.g. a
+ * subject-locked form like VFR RT, where the RSC fetches topics up front).
+ * All topics/subtopics start checked, mirroring what `loadTopics` sets after
+ * a client fetch. Omit for the ordinary quiz-picker path, which starts empty
+ * and populates via `loadTopics` on subject change.
+ */
+export function useTopicTree(initialTopics?: TopicWithSubtopics[]) {
+  const {
+    topics,
+    setTopics,
+    checkedTopics,
+    setCheckedTopics,
+    checkedSubtopics,
+    setCheckedSubtopics,
+  } = useTopicTreeState(initialTopics)
   const [isPending, startTransition] = useTransition()
   const generation = useRef(0)
 
@@ -23,49 +31,17 @@ export function useTopicTree() {
       (t) => checkedTopics.has(t.id) && t.subtopics.every((st) => checkedSubtopics.has(st.id)),
     )
 
-  function collectSubtopicIds(items: TopicWithSubtopics[]) {
-    return items.flatMap((t) => t.subtopics.map((st) => st.id))
-  }
-
-  function loadTopics(subjectId: string) {
-    generation.current++
-    const gen = generation.current
-    startTransition(async () => {
-      const result = await fetchTopicsWithSubtopics(subjectId)
-      if (gen !== generation.current) return
-      setTopics(result)
-      setCheckedTopics(new Set(result.map((t) => t.id)))
-      setCheckedSubtopics(new Set(collectSubtopicIds(result)))
-    })
-  }
-
-  function toggleTopic(topicId: string) {
-    const result = computeToggleTopic(topicId, topics, checkedTopics, checkedSubtopics)
-    setCheckedTopics(result.topics)
-    setCheckedSubtopics(result.subtopics)
-  }
-  function toggleSubtopic(subtopicId: string, topicId: string) {
-    const result = computeToggleSubtopic(
-      subtopicId,
-      topicId,
-      topics,
-      checkedTopics,
-      checkedSubtopics,
-    )
-    setCheckedTopics(result.topics)
-    setCheckedSubtopics(result.subtopics)
-  }
-  function selectAll() {
-    const result = computeSelectAll(allSelected, topics)
-    setCheckedTopics(result.topics)
-    setCheckedSubtopics(result.subtopics)
-  }
-  function reset() {
-    generation.current++
-    setTopics([])
-    setCheckedTopics(new Set())
-    setCheckedSubtopics(new Set())
-  }
+  const { loadTopics, toggleTopic, toggleSubtopic, selectAll, reset } = createTopicTreeActions({
+    topics,
+    checkedTopics,
+    checkedSubtopics,
+    allSelected,
+    setTopics,
+    setCheckedTopics,
+    setCheckedSubtopics,
+    generation,
+    startTransition,
+  })
 
   return {
     topics,
