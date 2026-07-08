@@ -27,6 +27,8 @@ export async function resolveSubjectInfo(
   if (error) {
     console.error(`${logPrefix} Subject lookup error:`, error.message)
   }
-  const subject = data as { name: string; code: string } | null
-  return { subjectName: subject?.name ?? null, subjectCode: subject?.code ?? null }
+  const subject = data as { name: unknown; code: unknown } | null
+  const subjectName = typeof subject?.name === 'string' ? subject.name : null
+  const subjectCode = typeof subject?.code === 'string' ? subject.code : null
+  return { subjectName, subjectCode }
 }

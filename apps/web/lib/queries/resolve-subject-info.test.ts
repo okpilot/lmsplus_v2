@@ -53,6 +53,12 @@ describe('resolveSubjectInfo', () => {
     expect(result).toEqual({ subjectName: null, subjectCode: null })
   })
 
+  it('returns nulls when the lookup row has non-string name and code', async () => {
+    const client = fakeClient({ data: { name: 123, code: null }, error: null })
+    const result = await resolveSubjectInfo(client, 'subject-1', '[test]')
+    expect(result).toEqual({ subjectName: null, subjectCode: null })
+  })
+
   it('logs and returns nulls when the lookup errors', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const client = fakeClient({ data: null, error: { message: 'boom' } })

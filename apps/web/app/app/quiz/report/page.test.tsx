@@ -22,7 +22,7 @@ describe('QuizReportPage', () => {
     vi.resetAllMocks()
   })
 
-  it('awaits searchParams and renders QuizReportView with namespace="quiz"', async () => {
+  it('delegates to the quiz report view with the resolved session and page', async () => {
     const searchParams = Promise.resolve({ session: 'abc-123', page: '2' })
     const jsx = await QuizReportPage({ searchParams })
     render(jsx)

@@ -94,6 +94,7 @@ describe('QuizReportView', () => {
       })
       render(jsx)
       expect(screen.getByRole('heading', { name: 'VFR RT Practice Results' })).toBeInTheDocument()
+      expect(mockRedirect).not.toHaveBeenCalled()
     })
 
     it('shows "Quiz Results" for a non-RT subject viewed in the quiz namespace', async () => {
@@ -105,6 +106,7 @@ describe('QuizReportView', () => {
       })
       render(jsx)
       expect(screen.getByRole('heading', { name: 'Quiz Results' })).toBeInTheDocument()
+      expect(mockRedirect).not.toHaveBeenCalled()
     })
   })
 
