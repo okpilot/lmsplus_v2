@@ -84,6 +84,16 @@ describe('getRtSubjectData — happy path', () => {
     expect(result.topics).toEqual([TOPIC])
   })
 
+  it('returns a single RT subject option carrying the total question count', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+
+    const result = await getRtSubjectData()
+
+    expect(result.subjects).toEqual([
+      { id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 5 },
+    ])
+  })
+
   it('degrades to an empty topics list when the topics fetch fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))

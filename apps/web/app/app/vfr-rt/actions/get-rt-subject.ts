@@ -1,11 +1,15 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
 export type RtSubjectData = {
   id: string
+  // Synthetic single-subject option for the reused quiz config machinery. Its `id`
+  // equals the RT subject uuid — the session handoff derives subjectName/subjectCode
+  // from it. Built here (data layer) so the RSC stays pure composition.
+  subjects: SubjectOption[]
   topics: TopicWithSubtopics[]
 }
 
@@ -43,5 +47,15 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     )
   }
 
-  return { id: subject.id, topics }
+  const subjects: SubjectOption[] = [
+    {
+      id: subject.id,
+      code: 'RT',
+      name: 'VFR RT',
+      short: 'RT',
+      questionCount: topics.reduce((sum, t) => sum + t.questionCount, 0),
+    },
+  ]
+
+  return { id: subject.id, subjects, topics }
 }
