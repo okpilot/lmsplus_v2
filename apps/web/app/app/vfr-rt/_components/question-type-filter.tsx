@@ -1,7 +1,6 @@
 'use client'
 
-import type { QuestionType } from '@/app/app/_types/session'
-import { QUESTION_TYPE_LABELS, QUESTION_TYPES } from '@/app/app/quiz/types'
+import { QUESTION_TYPE_LABELS, QUESTION_TYPES, type QuestionType } from '@/app/app/_types/session'
 
 type QuestionTypeFilterProps = {
   value: QuestionType | undefined

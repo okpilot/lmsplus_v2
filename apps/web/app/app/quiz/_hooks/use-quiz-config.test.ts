@@ -495,6 +495,19 @@ describe('useQuizConfig — questionType', () => {
     renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
     expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: undefined }))
   })
+
+  it('passes the updated question type to useQuizStart after a type change', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    ;(useQuizStart as Mock).mockClear()
+    await act(async () => {
+      result.current.setQuestionType('ordering')
+    })
+    // Every re-render calls useQuizStart with the current state — after setQuestionType
+    // the new value must be threaded through, not left as the initial undefined.
+    expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: 'ordering' }))
+  })
 })
 
 // ---- imageMode -----------------------------------------------------------

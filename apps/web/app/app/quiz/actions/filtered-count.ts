@@ -4,9 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 
-// Extracted from lookup.ts (code-style.md §1 same-commit extraction — lookup.ts was
-// already over the 100-line Server Action cap and the RT type-filter (Slice 3) added
-// lines to its questionType enum).
+// Extracted from lookup.ts (§1 — lookup.ts was over the 100-line Server Action cap).
 const FilteredCountSchema = z.object({
   subjectId: z.uuid(),
   topicIds: z.array(z.uuid()).optional(),
@@ -31,6 +29,34 @@ export type FilteredCountResult = {
   error?: 'auth'
 }
 
+type CountRpcRow = { topic_id: string; subtopic_id: string | null; n: number | string }
+type CountAggregate = {
+  count: number
+  byTopic: Record<string, number>
+  bySubtopic: Record<string, number>
+}
+
+// Per-row §5 guard: the `rpc<…>` cast is a TS assertion only, so a malformed row's
+// NaN / non-string topic_id must not poison count/byTopic/bySubtopic.
+function aggregateCountRows(rows: CountRpcRow[]): CountAggregate {
+  let count = 0
+  const byTopic: Record<string, number> = {}
+  const bySubtopic: Record<string, number> = {}
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue
+    const topicId = (r as { topic_id?: unknown }).topic_id
+    const subtopicId = (r as { subtopic_id?: unknown }).subtopic_id
+    const n = Number((r as { n?: unknown }).n)
+    if (typeof topicId !== 'string' || !Number.isFinite(n)) continue
+    count += n
+    byTopic[topicId] = (byTopic[topicId] ?? 0) + n
+    if (typeof subtopicId === 'string') {
+      bySubtopic[subtopicId] = (bySubtopic[subtopicId] ?? 0) + n
+    }
+  }
+  return { count, byTopic, bySubtopic }
+}
+
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
   const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
   const supabase = await createServerSupabaseClient()
@@ -53,9 +79,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
   // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass them through without stripping.
   // p_question_type: 'multiple_choice' on the Study/Discovery path, a specific type on the RT filter path, null (no restriction) on the quiz/exam paths (#1008).
-  const { data, error } = await rpc<
-    { topic_id: string; subtopic_id: string | null; n: number | string }[]
-  >(supabase, 'get_filtered_question_counts', {
+  const { data, error } = await rpc<CountRpcRow[]>(supabase, 'get_filtered_question_counts', {
     p_subject_id: subjectId,
     p_topic_ids: topicIds ?? null,
     p_subtopic_ids: subtopicIds ?? null,
@@ -70,24 +94,5 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   }
   if (!Array.isArray(data)) return empty
 
-  // Per-row guard required by code-style.md §5 — the `rpc<…>` cast is a TS
-  // assertion only. Skip rows whose topic_id isn't a string or whose n doesn't
-  // coerce to a finite number; otherwise NaN would poison count/byTopic and a
-  // non-string topic_id would index into the record under a coerced key.
-  let count = 0
-  const byTopic: Record<string, number> = {}
-  const bySubtopic: Record<string, number> = {}
-  for (const r of data) {
-    if (!r || typeof r !== 'object') continue
-    const topicId = (r as { topic_id?: unknown }).topic_id
-    const subtopicId = (r as { subtopic_id?: unknown }).subtopic_id
-    const n = Number((r as { n?: unknown }).n)
-    if (typeof topicId !== 'string' || !Number.isFinite(n)) continue
-    count += n
-    byTopic[topicId] = (byTopic[topicId] ?? 0) + n
-    if (typeof subtopicId === 'string') {
-      bySubtopic[subtopicId] = (bySubtopic[subtopicId] ?? 0) + n
-    }
-  }
-  return { count, byTopic, bySubtopic }
+  return aggregateCountRows(data)
 }

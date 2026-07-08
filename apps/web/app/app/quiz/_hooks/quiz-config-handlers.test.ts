@@ -335,5 +335,14 @@ describe('createConfigHandlers', () => {
       // calcMode='only' still restricts the pool — must NOT flash unfiltered count.
       expect(fc.reset).not.toHaveBeenCalled()
     })
+
+    it('does not reset when imageMode is active and type returns to undefined', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], imageMode: 'only', questionType: 'ordering' }),
+      )
+      handleQuestionTypeChange(undefined)
+      // imageMode='only' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
   })
 })
