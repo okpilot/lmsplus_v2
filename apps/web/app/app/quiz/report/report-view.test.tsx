@@ -168,12 +168,28 @@ describe('QuizReportView', () => {
       expect(mockRedirect).toHaveBeenCalledWith('/app/vfr-rt')
     })
 
+    it('redirects to the namespace home when the session id is present but not a valid UUID', async () => {
+      await expect(QuizReportView({ sessionId: 'not-a-uuid', namespace: 'quiz' })).rejects.toThrow()
+      expect(mockRedirect).toHaveBeenCalledWith('/app/quiz')
+    })
+
     it('redirects to the namespace home when the summary is null', async () => {
       mockGetQuizReportSummary.mockResolvedValue(null)
       await expect(
         QuizReportView({ sessionId: VALID_SESSION_ID, namespace: 'vfr-rt' }),
       ).rejects.toThrow()
       expect(mockRedirect).toHaveBeenCalledWith('/app/vfr-rt')
+    })
+  })
+
+  describe('questions fetch failure', () => {
+    it('redirects to the namespace home when the questions fetch fails', async () => {
+      mockGetQuizReportSummary.mockResolvedValue(makeSummary({ subjectCode: null }))
+      mockGetQuizReportQuestions.mockResolvedValue({ ok: false, questions: [], totalCount: 0 })
+      await expect(
+        QuizReportView({ sessionId: VALID_SESSION_ID, namespace: 'quiz' }),
+      ).rejects.toThrow()
+      expect(mockRedirect).toHaveBeenCalledWith('/app/quiz')
     })
   })
 })
