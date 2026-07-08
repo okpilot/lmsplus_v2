@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockQuizReportView = vi.hoisted(() => vi.fn())
-vi.mock('./report-view', () => ({
+vi.mock('@/app/app/quiz/report/report-view', () => ({
   QuizReportView: (props: unknown) => {
     mockQuizReportView(props)
     return <div data-testid="quiz-report-view" />
@@ -13,37 +13,37 @@ vi.mock('./report-view', () => ({
 
 // ---- Import under test (AFTER mocks) ----------------------------------------
 
-import QuizReportPage from './page'
+import VfrRtReportPage from './page'
 
 // ---- Tests ------------------------------------------------------------------
 
-describe('QuizReportPage', () => {
+describe('VfrRtReportPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('awaits searchParams and renders QuizReportView with namespace="quiz"', async () => {
+  it('awaits searchParams and renders QuizReportView with namespace="vfr-rt"', async () => {
     const searchParams = Promise.resolve({ session: 'abc-123', page: '2' })
-    const jsx = await QuizReportPage({ searchParams })
+    const jsx = await VfrRtReportPage({ searchParams })
     render(jsx)
 
     expect(screen.getByTestId('quiz-report-view')).toBeInTheDocument()
     expect(mockQuizReportView).toHaveBeenCalledWith({
       sessionId: 'abc-123',
       pageParam: '2',
-      namespace: 'quiz',
+      namespace: 'vfr-rt',
     })
   })
 
   it('passes undefined session/page through unchanged', async () => {
     const searchParams = Promise.resolve({})
-    const jsx = await QuizReportPage({ searchParams })
+    const jsx = await VfrRtReportPage({ searchParams })
     render(jsx)
 
     expect(mockQuizReportView).toHaveBeenCalledWith({
       sessionId: undefined,
       pageParam: undefined,
-      namespace: 'quiz',
+      namespace: 'vfr-rt',
     })
   })
 })

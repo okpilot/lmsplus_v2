@@ -151,7 +151,7 @@ describe('ReportCard', () => {
       summary: { ...mockSummary, mode: 'quick_quiz', subjectCode: 'RT' },
     }
     render(<ReportCard {...rtProps} />)
-    expect(screen.getByText('Practice Reports')).toBeDefined()
+    expect(screen.getByText('VFR RT Practice Reports')).toBeDefined()
     const cta = screen.getByText('Start Another Practice').closest('a')
     expect(cta).toHaveAttribute('href', '/app/vfr-rt')
   })

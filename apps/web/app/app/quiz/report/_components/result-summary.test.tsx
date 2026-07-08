@@ -204,9 +204,9 @@ describe('ResultSummary', () => {
       expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
     })
 
-    it('renders "Practice Complete" for an RT subject in a non-exam mode', () => {
+    it('renders "VFR RT Practice Complete" for an RT subject in a non-exam mode', () => {
       render(<ResultSummary summary={makeSummary({ mode: 'quick_quiz', subjectCode: 'RT' })} />)
-      expect(screen.getByText('Practice Complete')).toBeInTheDocument()
+      expect(screen.getByText('VFR RT Practice Complete')).toBeInTheDocument()
     })
 
     it('renders "Quiz Complete" for a non-RT subject', () => {

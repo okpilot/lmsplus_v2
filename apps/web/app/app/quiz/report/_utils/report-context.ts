@@ -8,9 +8,20 @@ export type ReportContext = { noun: string; backHref: string; backLabel: string 
 // to the default "Quiz" branch — this context is for practice sessions only.
 const RT_SUBJECT_CODE = 'RT'
 
+// True for VFR RT practice sessions specifically (not RT exam-mode sessions, which fall
+// through to the default "Quiz" context) — also used to pick the canonical report route
+// (`/app/vfr-rt/report` vs `/app/quiz/report`) so the sidebar highlights the right nav item.
+export function isVfrRtPracticeReport(mode: string, subjectCode: string | null): boolean {
+  return subjectCode === RT_SUBJECT_CODE && !isExamMode(mode)
+}
+
 export function getReportContext(mode: string, subjectCode: string | null): ReportContext {
-  if (subjectCode === RT_SUBJECT_CODE && !isExamMode(mode)) {
-    return { noun: 'Practice', backHref: '/app/vfr-rt', backLabel: 'Start Another Practice' }
+  if (isVfrRtPracticeReport(mode, subjectCode)) {
+    return {
+      noun: 'VFR RT Practice',
+      backHref: '/app/vfr-rt',
+      backLabel: 'Start Another Practice',
+    }
   }
   return { noun: 'Quiz', backHref: '/app/quiz', backLabel: 'Start Another Quiz' }
 }
