@@ -1,3 +1,4 @@
+import type { QuestionType } from '@/app/app/_types/session'
 import type {
   AnswerFeedback,
   CalcMode,
@@ -52,10 +53,23 @@ export type UseQuizStartOpts = {
   filters: QuestionFilterValue[]
   calcMode: CalcMode
   imageMode: ImageMode
+  // RT setup's single-select type filter (Slice 3). Undefined on the quiz/exam
+  // path (type-agnostic start) — mirrors calcMode/imageMode threading.
+  questionType?: QuestionType
   topicTree: {
     getSelectedTopicIds: () => string[]
     getSelectedSubtopicIds: () => string[]
   }
+}
+
+// Params for useQuizConfig — extracted so the hook's own signature stays within
+// the 80-line hook budget (code-style.md §1) once questionType threading is added.
+export type UseQuizConfigOpts = {
+  userId: string
+  subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
+  initialSubjectId?: string
+  initialMode?: QuizMode
+  initialTopics?: import('@/lib/queries/quiz-query-types').TopicWithSubtopics[]
 }
 
 export type UseStudyStartOpts = {
@@ -87,8 +101,9 @@ export type FilteredCountState = {
     calcMode?: CalcMode,
     imageMode?: ImageMode,
     // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
-    // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
-    questionType?: 'multiple_choice',
+    // fetch; the RT setup's single-select type filter (Slice 3) can pass any of
+    // the 5 types; the quiz/exam paths omit it (type-agnostic count) (#1008).
+    questionType?: QuestionType,
   ) => void
   reset: () => void
 }

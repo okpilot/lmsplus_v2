@@ -245,6 +245,44 @@ describe('startQuizSession', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
+  it('includes the selected question type in the start request payload', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      questionType: 'ordering',
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: 'ordering' }),
+    )
+  })
+
+  it('omits questionType from the getRandomQuestionIds call when not set', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: undefined }),
+    )
+  })
+
+  it('rejects an unknown questionType value', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      questionType: 'true_false',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
   it('rejects unauthenticated calls before input validation', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await startQuizSession({})

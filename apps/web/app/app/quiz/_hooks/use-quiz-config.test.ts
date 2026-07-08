@@ -404,6 +404,99 @@ describe('useQuizConfig — calcMode', () => {
   })
 })
 
+// ---- questionType (RT type filter, Slice 3) -------------------------------
+
+describe('useQuizConfig — questionType', () => {
+  it('starts with questionType = undefined', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    expect(result.current.questionType).toBeUndefined()
+  })
+
+  it('updates questionType when setQuestionType is called', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setQuestionType('ordering')
+    })
+    expect(result.current.questionType).toBe('ordering')
+  })
+
+  it('activates the filtered-count badge path when a type is selected with no switch-filter', async () => {
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 4, filteredByTopic: { t1: 4 } }),
+    )
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    // filters is still ['all'] — only questionType drives the badge path
+    await act(async () => {
+      result.current.setQuestionType('short_answer')
+    })
+    expect(result.current.filteredByTopic).toEqual({ t1: 4 })
+  })
+
+  it('refetches counts with the new questionType when a type is selected', async () => {
+    const mockTree = buildMockTopicTree({
+      topics: [
+        {
+          id: 't1',
+          code: '01',
+          name: 'T1',
+          questionCount: 5,
+          subtopics: [{ id: 's1', code: '01-01', name: 'S1', questionCount: 5 }],
+        },
+      ],
+      checkedTopics: new Set(['t1']),
+      checkedSubtopics: new Set(['s1']),
+      selectedQuestionCount: 5,
+    })
+    ;(useTopicTree as Mock).mockReturnValue(mockTree)
+
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    mockFcRefetch.mockClear()
+
+    await act(async () => {
+      result.current.setQuestionType('ordering')
+    })
+    expect(mockFcRefetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      ['t1'],
+      ['s1'],
+      ['all'],
+      'all',
+      'all',
+      'ordering',
+    )
+  })
+
+  it('resets questionType to undefined when the subject changes', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setQuestionType('ordering')
+    })
+    expect(result.current.questionType).toBe('ordering')
+    await act(async () => {
+      result.current.handleSubjectChange('')
+    })
+    expect(result.current.questionType).toBeUndefined()
+  })
+
+  it('includes the selected question type in the useQuizStart payload', () => {
+    renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
+    expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: undefined }))
+  })
+})
+
 // ---- imageMode -----------------------------------------------------------
 
 describe('useQuizConfig — imageMode', () => {

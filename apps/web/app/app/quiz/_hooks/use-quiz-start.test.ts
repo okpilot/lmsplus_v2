@@ -32,6 +32,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { QuestionType } from '@/app/app/_types/session'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import { useQuizStart } from './use-quiz-start'
 
@@ -188,6 +189,26 @@ describe('useQuizStart — handleStart happy path', () => {
 
     expect(mockStartQuizSession).toHaveBeenCalledWith(
       expect.objectContaining({ imageMode: 'only' }),
+    )
+  })
+
+  it('includes the selected question type in the start request payload', async () => {
+    const { result } = renderHook(() =>
+      useQuizStart({ ...DEFAULT_OPTS, questionType: 'ordering' as QuestionType }),
+    )
+    await act(async () => result.current.handleStart())
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: 'ordering' }),
+    )
+  })
+
+  it('omits questionType from the start request payload when not set', async () => {
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({ questionType: undefined }),
     )
   })
 

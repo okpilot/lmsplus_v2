@@ -14,6 +14,11 @@ const StartQuizInput = z.object({
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
   calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
   imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
+  // RT setup's single-select type filter (Slice 3). Omitted → undefined → null to
+  // the RPC (no type restriction), matching every other quiz path (#1008).
+  questionType: z
+    .enum(['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label'])
+    .optional(),
 })
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
@@ -41,6 +46,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
       filters: input.filters,
       calcMode: input.calcMode,
       imageMode: input.imageMode,
+      questionType: input.questionType,
     })
 
     if (questionIds.length === 0) {

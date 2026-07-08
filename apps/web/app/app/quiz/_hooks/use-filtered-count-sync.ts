@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import type { QuestionType } from '@/app/app/_types/session'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import type { useFilteredCount } from './use-filtered-count'
 import type { useTopicTree } from './use-topic-tree'
@@ -16,8 +17,9 @@ export function useFilteredCountSync(opts: {
   topicTree: ReturnType<typeof useTopicTree>
   fc: ReturnType<typeof useFilteredCount>
   // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
-  // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
-  questionType?: 'multiple_choice'
+  // fetch; the RT setup's single-select type filter (Slice 3) can pass any of
+  // the 5 types; the quiz/exam paths omit it (type-agnostic count) (#1008).
+  questionType?: QuestionType
 }) {
   const { subjectId, hasActiveFilters, filters, calcMode, imageMode, topicTree, fc, questionType } =
     opts

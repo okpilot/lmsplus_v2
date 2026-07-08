@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { QuestionType } from '@/app/app/_types/session'
 import type { FilteredCountState } from '../session-types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import type { UseTopicTreeReturn } from './topic-tree-helpers'
@@ -42,6 +43,7 @@ describe('createConfigHandlers', () => {
   let setCount: ReturnType<typeof vi.fn<(n: number) => void>>
   let setCalcMode: ReturnType<typeof vi.fn<(m: 'all' | 'only' | 'exclude') => void>>
   let setImageMode: ReturnType<typeof vi.fn<(m: 'all' | 'only' | 'exclude') => void>>
+  let setQuestionType: ReturnType<typeof vi.fn<(t: QuestionType | undefined) => void>>
   let fc: FilteredCountState
   let topicTree: UseTopicTreeReturn
 
@@ -52,11 +54,13 @@ describe('createConfigHandlers', () => {
       setCount,
       setCalcMode,
       setImageMode,
+      setQuestionType,
       fc,
       topicTree,
       filters: ['all'] as ('all' | 'unseen' | 'incorrect' | 'flagged')[],
       calcMode: 'all' as 'all' | 'only' | 'exclude',
       imageMode: 'all' as 'all' | 'only' | 'exclude',
+      questionType: undefined,
       ...overrides,
     }
   }
@@ -67,6 +71,7 @@ describe('createConfigHandlers', () => {
     setCount = vi.fn()
     setCalcMode = vi.fn()
     setImageMode = vi.fn()
+    setQuestionType = vi.fn()
     fc = makeFilteredCount()
     topicTree = makeTopicTree()
   })
@@ -100,6 +105,12 @@ describe('createConfigHandlers', () => {
       const { handleSubjectChange } = createConfigHandlers(makeDeps())
       handleSubjectChange('subj-1')
       expect(setImageMode).toHaveBeenCalledWith('all')
+    })
+
+    it('resets questionType to undefined', () => {
+      const { handleSubjectChange } = createConfigHandlers(makeDeps({ questionType: 'ordering' }))
+      handleSubjectChange('subj-1')
+      expect(setQuestionType).toHaveBeenCalledWith(undefined)
     })
 
     it('resets the filtered count state', () => {
@@ -170,6 +181,13 @@ describe('createConfigHandlers', () => {
       handleFiltersChange(['all'])
       expect(fc.reset).not.toHaveBeenCalled()
     })
+
+    it('does not reset filtered count when switch-filters clear but questionType still restricts', () => {
+      const { handleFiltersChange } = createConfigHandlers(makeDeps({ questionType: 'ordering' }))
+      // Clearing to ['all'] while questionType='ordering' must keep the badge.
+      handleFiltersChange(['all'])
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
   })
 
   describe('handleCalcModeChange', () => {
@@ -213,6 +231,15 @@ describe('createConfigHandlers', () => {
       // imageMode='exclude' still restricts the pool — must NOT flash unfiltered count.
       expect(fc.reset).not.toHaveBeenCalled()
     })
+
+    it('does not reset when questionType is active and calc returns to all', () => {
+      const { handleCalcModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'only', questionType: 'ordering' }),
+      )
+      handleCalcModeChange('all')
+      // questionType='ordering' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
   })
 
   describe('handleImageModeChange', () => {
@@ -252,6 +279,59 @@ describe('createConfigHandlers', () => {
         makeDeps({ filters: ['all'], calcMode: 'only', imageMode: 'exclude' }),
       )
       handleImageModeChange('all')
+      // calcMode='only' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when questionType is active and image mode returns to all', () => {
+      const { handleImageModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], imageMode: 'only', questionType: 'ordering' }),
+      )
+      handleImageModeChange('all')
+      // questionType='ordering' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('handleQuestionTypeChange', () => {
+    // The handler only updates state + conditionally resets; the counts effect
+    // (questionType is in its dep array) performs the refetch. Mirrors
+    // handleCalcModeChange/handleImageModeChange.
+    it('updates questionType to the new value', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(makeDeps())
+      handleQuestionTypeChange('ordering')
+      expect(setQuestionType).toHaveBeenCalledWith('ordering')
+    })
+
+    it('does not reset (or directly refetch) when a type becomes active', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(makeDeps())
+      handleQuestionTypeChange('short_answer')
+      expect(fc.reset).not.toHaveBeenCalled()
+      expect(fc.refetch).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when a switch-filter is active and type returns to undefined', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(
+        makeDeps({ filters: ['unseen'], questionType: 'ordering' }),
+      )
+      handleQuestionTypeChange(undefined)
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
+
+    it('resets counts when type returns to undefined and no other filter is active', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], questionType: 'ordering' }),
+      )
+      handleQuestionTypeChange(undefined)
+      expect(fc.reset).toHaveBeenCalled()
+      expect(fc.refetch).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when calcMode is active and type returns to undefined', () => {
+      const { handleQuestionTypeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'only', questionType: 'ordering' }),
+      )
+      handleQuestionTypeChange(undefined)
       // calcMode='only' still restricts the pool — must NOT flash unfiltered count.
       expect(fc.reset).not.toHaveBeenCalled()
     })

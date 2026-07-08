@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
-import { getFilteredCount } from '../actions/lookup'
+import type { QuestionType } from '@/app/app/_types/session'
+import { getFilteredCount } from '../actions/filtered-count'
 import type { FilteredCountState } from '../session-types'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
@@ -27,14 +28,13 @@ export function useFilteredCount(): FilteredCountState {
     filters: QuestionFilterValue[],
     calcMode: CalcMode = 'all',
     imageMode: ImageMode = 'all',
-    // Study/Discovery passes 'multiple_choice' so the count matches the MC-only
-    // fetch; the quiz/exam paths omit it (type-agnostic count) (#1008).
-    questionType?: 'multiple_choice',
+    // Study/Discovery passes 'multiple_choice'; the RT type filter (Slice 3) can
+    // pass any of the 5 types; quiz/exam omit it (type-agnostic count) (#1008).
+    questionType?: QuestionType,
   ) {
     if (!subjectId) return
     const activeFilters = filters.filter((f) => f !== 'all')
-    // calcMode / imageMode AND-restrict independently, and Study/Discovery sets
-    // questionType — only short-circuit when nothing restricts the pool (#1008).
+    // Only short-circuit when nothing restricts the pool (#1008).
     if (!questionType && !activeFilters.length && calcMode === 'all' && imageMode === 'all') return
     setFilteredCount(null)
     setFilteredByTopic(null)

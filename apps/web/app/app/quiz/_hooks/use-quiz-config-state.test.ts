@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { useFilteredCount } from './use-filtered-count'
 import { useQuizConfigState } from './use-quiz-config-state'
@@ -81,5 +81,26 @@ describe('useQuizConfigState — seeded from init params', () => {
     )
     expect(result.current.subjectId).toBe(SUBJECT_ID)
     expect(result.current.mode).toBe('study')
+  })
+})
+
+describe('useQuizConfigState — questionType (RT type filter, Slice 3)', () => {
+  it('starts with questionType undefined', () => {
+    const { result } = renderHook(() =>
+      useQuizConfigState({ fc: buildMockFc(), topicTree: buildMockTopicTree() }),
+    )
+    expect(result.current.questionType).toBeUndefined()
+  })
+
+  it('marks hasActiveFilters true once a question type is set', () => {
+    const { result } = renderHook(() =>
+      useQuizConfigState({ fc: buildMockFc(), topicTree: buildMockTopicTree() }),
+    )
+    expect(result.current.hasActiveFilters).toBe(false)
+    act(() => {
+      result.current.handleQuestionTypeChange('ordering')
+    })
+    expect(result.current.hasActiveFilters).toBe(true)
+    expect(result.current.questionType).toBe('ordering')
   })
 })

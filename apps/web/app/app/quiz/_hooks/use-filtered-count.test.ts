@@ -7,7 +7,7 @@ const { mockGetFilteredCount } = vi.hoisted(() => ({
   mockGetFilteredCount: vi.fn(),
 }))
 
-vi.mock('../actions/lookup', () => ({
+vi.mock('../actions/filtered-count', () => ({
   getFilteredCount: (...args: unknown[]) => mockGetFilteredCount(...args),
 }))
 

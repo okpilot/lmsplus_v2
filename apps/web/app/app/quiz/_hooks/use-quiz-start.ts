@@ -1,9 +1,9 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { startQuizSession } from '../actions/start'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
 import type { UseQuizStartOpts } from '../session-types'
+import { writeQuizSessionHandoff } from './write-quiz-session-handoff'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
   const {
@@ -15,6 +15,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
     filters,
     calcMode,
     imageMode,
+    questionType,
     topicTree,
   } = opts
   const router = useRouter()
@@ -44,22 +45,18 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         filters,
         calcMode,
         imageMode,
+        questionType,
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)
-        try {
-          sessionStorage.setItem(
-            sessionHandoffKey(userId),
-            JSON.stringify({
-              userId,
-              sessionId: result.sessionId,
-              questionIds: result.questionIds,
-              subjectName: selectedSubject?.name,
-              subjectCode: selectedSubject?.short,
-            }),
-          )
-        } catch (err) {
-          console.warn('[use-quiz-start] sessionStorage handoff failed:', err)
+        const wrote = writeQuizSessionHandoff(
+          userId,
+          result.sessionId,
+          result.questionIds,
+          selectedSubject?.name,
+          selectedSubject?.short,
+        )
+        if (!wrote) {
           setError('Unable to start quiz right now. Please try again.')
           setLoading(false)
           return
