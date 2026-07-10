@@ -103,6 +103,11 @@ describe('getRtSubjectData — happy path', () => {
 
     expect(result.id).toBe(SUBJECT_ID)
     expect(result.topics).toEqual([])
+    // subjects is still built from the (now empty) topics list — questionCount
+    // reduces to 0 rather than throwing or dropping the RT entry.
+    expect(result.subjects).toEqual([
+      { id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 0 },
+    ])
     expect(consoleSpy).toHaveBeenCalledWith(
       '[getRtSubjectData] Topics fetch failed:',
       'topics query failed',

@@ -41,9 +41,14 @@ export function createTopicTreeActions({
     startTransition(async () => {
       const result = await fetchTopicsWithSubtopics(subjectId)
       if (gen !== generation.current) return
-      setTopics(result)
-      setCheckedTopics(new Set(result.map((t) => t.id)))
-      setCheckedSubtopics(new Set(collectSubtopicIds(result)))
+      // Post-await updates in an async transition action are NOT auto-included in
+      // the transition (React 19) — nest startTransition so the topic-tree re-render
+      // keeps its non-blocking priority.
+      startTransition(() => {
+        setTopics(result)
+        setCheckedTopics(new Set(result.map((t) => t.id)))
+        setCheckedSubtopics(new Set(collectSubtopicIds(result)))
+      })
     })
   }
 
