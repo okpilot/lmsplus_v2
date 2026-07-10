@@ -22,7 +22,7 @@ describe('VfrRtReportPage', () => {
     vi.resetAllMocks()
   })
 
-  it('delegates to the quiz report view with the resolved session and page for vfr-rt', async () => {
+  it('renders the VFR RT report with resolved query parameters', async () => {
     const searchParams = Promise.resolve({ session: 'abc-123', page: '2' })
     const jsx = await VfrRtReportPage({ searchParams })
     render(jsx)
@@ -35,7 +35,7 @@ describe('VfrRtReportPage', () => {
     })
   })
 
-  it('passes undefined session/page through unchanged', async () => {
+  it('renders the VFR RT report without query parameters', async () => {
     const searchParams = Promise.resolve({})
     const jsx = await VfrRtReportPage({ searchParams })
     render(jsx)

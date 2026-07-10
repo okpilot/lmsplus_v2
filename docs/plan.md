@@ -999,9 +999,9 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 │   ├── session/            ← active quiz session (immediate feedback + in-session explanation)
 │   └── report/             ← per-question breakdown (mode-aware: practice/quick/review/mock_exam)
 ├── vfr-rt/                 ← VFR RT Practice entry (RT-subject practice session)
-│   └── report/             ← VFR RT practice report ("VFR RT Practice …"; redirects non-RT sessions to /quiz/report)
+│   └── report/             ← VFR RT practice report ("VFR RT Practice …"; redirects non-RT sessions to /app/quiz/report)
 ├── internal-exam/          ← student internal-exam landing (Available + My Reports tabs)
-│   └── report/             ← internal-exam report (mode-guarded; redirects non-internal_exam to /quiz/report)
+│   └── report/             ← internal-exam report (mode-guarded; redirects non-internal_exam to /app/quiz/report)
 ├── progress/               ← detailed progress per subject/topic/subtopic
 ├── reports/                ← session history with sortable columns, links to quiz reports
 ├── settings/               ← student profile & settings: display name edit, password change (#368)

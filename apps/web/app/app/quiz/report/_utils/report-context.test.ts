@@ -9,11 +9,11 @@ describe('getReportContext', () => {
     expect(ctx.backLabel).toBe('Start Another Practice')
   })
 
-  it('reads as a practice session for an RT subject in discovery mode', () => {
+  it('reads as a quiz for an RT subject in discovery mode', () => {
     const ctx = getReportContext('discovery', 'RT')
-    expect(ctx.noun).toBe('VFR RT Practice')
-    expect(ctx.backHref).toBe('/app/vfr-rt')
-    expect(ctx.backLabel).toBe('Start Another Practice')
+    expect(ctx.noun).toBe('Quiz')
+    expect(ctx.backHref).toBe('/app/quiz')
+    expect(ctx.backLabel).toBe('Start Another Quiz')
   })
 
   it('reads as a quiz for a non-RT subject', () => {
@@ -39,12 +39,16 @@ describe('getReportContext', () => {
 })
 
 describe('isVfrRtPracticeReport', () => {
-  it('is true for an RT subject in a non-exam mode', () => {
+  it('is true for an RT subject in quick_quiz mode', () => {
     expect(isVfrRtPracticeReport('quick_quiz', 'RT')).toBe(true)
   })
 
   it('is false for an RT subject in an exam mode', () => {
     expect(isVfrRtPracticeReport('vfr_rt_exam', 'RT')).toBe(false)
+  })
+
+  it('is false for an RT subject in a non-quick_quiz practice mode', () => {
+    expect(isVfrRtPracticeReport('discovery', 'RT')).toBe(false)
   })
 
   it('is false for a non-RT subject', () => {
