@@ -109,4 +109,10 @@ describe('canonicalReportBasePath', () => {
       `/app/vfr-rt/report?session=${VALID_SESSION_ID}&page=1%26session%3Devil`,
     )
   })
+
+  it('omits the page param from the redirect URL when an empty string is supplied', () => {
+    const summary = makeSummary({ subjectCode: 'RT', mode: 'quick_quiz' })
+    expect(() => canonicalReportBasePath(summary, 'quiz', '')).toThrow()
+    expect(mockRedirect).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${VALID_SESSION_ID}`)
+  })
 })
