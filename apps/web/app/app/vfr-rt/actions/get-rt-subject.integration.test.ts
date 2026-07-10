@@ -15,6 +15,7 @@ import {
   createTestOrg,
   createTestUser,
   getAdminClient,
+  seedQuestions,
   signInAs,
 } from '@/lib/integration-support/harness'
 
@@ -32,7 +33,7 @@ describe('getRtSubjectData (app-layer integration)', () => {
     orgId = await createTestOrg({ admin, name: `int-rt ${suffix}`, slug: `int-rt-${suffix}` })
     studentId = await createTestUser({ admin, orgId, email, password, role: 'student' })
 
-    // Canonical RT subject comes from migration 097 — read, don't seed.
+    // Canonical RT subject + Part 1/2/3 topics come from migration 097 — read, don't seed.
     const { data: subject, error: subjErr } = await admin
       .from('easa_subjects')
       .select('id')
@@ -40,11 +41,33 @@ describe('getRtSubjectData (app-layer integration)', () => {
       .single()
     if (subjErr || !subject) throw new Error(`RT subject lookup: ${subjErr?.message ?? 'missing'}`)
     rtSubjectId = subject.id
+
+    // getTopicsWithSubtopics filters out topics with zero ACTIVE questions
+    // (questionCount > 0), and migration 097 seeds the RT topics but NO question
+    // rows — so on a migration-only CI DB every RT topic is filtered out and the
+    // helper returns []. Seed one active question under a real RT topic so the
+    // topic survives the filter. Org-scoped rows are torn down by cleanupTestData.
+    const { data: topic, error: topicErr } = await admin
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', rtSubjectId)
+      .order('sort_order')
+      .limit(1)
+      .single()
+    if (topicErr || !topic) throw new Error(`RT topic lookup: ${topicErr?.message ?? 'missing'}`)
+    await seedQuestions({
+      admin,
+      orgId,
+      createdBy: studentId,
+      subjectId: rtSubjectId,
+      topicId: topic.id,
+      count: 1,
+    })
   })
 
   afterAll(async () => {
-    // Single org + its users — cleanupTestData handles FK-safe teardown. No
-    // easa_* reference rows were seeded.
+    // Single org + its users — cleanupTestData handles FK-safe teardown (including
+    // the org-scoped seeded question + bank). No easa_* reference rows were seeded.
     await cleanupTestData({ admin, orgId, userIds: [studentId] })
   })
 
@@ -62,8 +85,8 @@ describe('getRtSubjectData (app-layer integration)', () => {
 
     const result = await getRtSubjectData()
 
-    // RT topics P1/P2/P3 come from migration 097, the same source as the
-    // subject row — no extra seed needed here.
+    // The RT topic seeded with an active question in beforeAll survives the
+    // helper's questionCount > 0 filter, so at least one topic comes back.
     expect(result.topics.length).toBeGreaterThan(0)
   })
 })
