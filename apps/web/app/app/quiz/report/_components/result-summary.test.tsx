@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { ResultSummary } from './result-summary'
 
 beforeEach(() => {
@@ -12,6 +12,7 @@ function makeSummary(overrides: Partial<QuizReportSummary> = {}): QuizReportSumm
     sessionId: 'sess-1',
     mode: 'quick_quiz',
     subjectName: '050 — Meteorology',
+    subjectCode: null,
     totalQuestions: 10,
     answeredQuestions: 10,
     answeredItems: 10,
@@ -203,6 +204,16 @@ describe('ResultSummary', () => {
       expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
     })
 
+    it('renders "VFR RT Practice Complete" for an RT subject in a non-exam mode', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'quick_quiz', subjectCode: 'RT' })} />)
+      expect(screen.getByText('VFR RT Practice Complete')).toBeInTheDocument()
+    })
+
+    it('renders "Quiz Complete" for a non-RT subject', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'quick_quiz', subjectCode: 'MET' })} />)
+      expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
+    })
+
     it('renders "Practice Exam Complete" for mock_exam mode', () => {
       render(<ResultSummary summary={makeSummary({ mode: 'mock_exam', passed: true })} />)
       expect(screen.getByText('Practice Exam Complete')).toBeInTheDocument()
@@ -216,6 +227,17 @@ describe('ResultSummary', () => {
     it('shows the pass/fail badge for internal_exam mode', () => {
       render(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />)
       expect(screen.getByText('FAILED')).toBeInTheDocument()
+    })
+
+    it('renders "VFR RT Mock Exam Complete" for vfr_rt_exam mode even on the RT subject', () => {
+      // The exam-mode heading must win over the RT-practice noun branch — an RT-subject
+      // exam session is not a practice session (getReportContext only applies to non-exam modes).
+      render(
+        <ResultSummary
+          summary={makeSummary({ mode: 'vfr_rt_exam', subjectCode: 'RT', passed: true })}
+        />,
+      )
+      expect(screen.getByText('VFR RT Mock Exam Complete')).toBeInTheDocument()
     })
   })
 })

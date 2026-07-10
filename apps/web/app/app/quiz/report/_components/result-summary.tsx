@@ -1,5 +1,6 @@
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
-import type { QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
+import { getReportContext } from '../_utils/report-context'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
 
@@ -39,12 +40,13 @@ export function ResultSummary({ summary }: Props) {
   // summary.mode is typed `string`; isExamMode confirms it's a valid exam mode at runtime,
   // so the narrow cast for MODE_LABELS lookup is safe.
   const examLabel = isExam ? MODE_LABELS[summary.mode as QuizMode] : null
+  const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="mb-4">
         <p className="text-center font-semibold text-lg">
-          {isExam ? `${examLabel} Complete` : 'Quiz Complete'}
+          {isExam ? `${examLabel} Complete` : `${ctx.noun} Complete`}
         </p>
       </div>
 

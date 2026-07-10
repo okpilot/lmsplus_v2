@@ -1,13 +1,9 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import type { QuizReportQuestionsResult, QuizReportSummary } from './quiz-report'
-import { PAGE_SIZE } from './quiz-report'
+import { PAGE_SIZE, type QuizReportQuestionsResult } from './quiz-report'
+import type { AdminQuizReportSummary } from './quiz-report-types'
 import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
-
-export type AdminQuizReportSummary = QuizReportSummary & {
-  studentId: string
-  studentName: string | null
-}
+import { resolveSubjectInfo } from './resolve-subject-info'
 
 type AdminSessionRow = {
   id: string
@@ -57,18 +53,11 @@ export async function getAdminQuizReportSummary(
     return null
   }
 
-  let subjectName: string | null = null
-  if (session.subject_id) {
-    const { data: subjectData, error: subjectError } = await adminClient
-      .from('easa_subjects')
-      .select('name')
-      .eq('id', session.subject_id)
-      .maybeSingle()
-    if (subjectError) {
-      console.error('[getAdminQuizReportSummary] Subject lookup error:', subjectError.message)
-    }
-    subjectName = (subjectData as { name: string } | null)?.name ?? null
-  }
+  const { subjectName, subjectCode } = await resolveSubjectInfo(
+    adminClient,
+    session.subject_id,
+    '[getAdminQuizReportSummary]',
+  )
 
   const { data: userData, error: userError } = await adminClient
     .from('users')
@@ -84,6 +73,7 @@ export async function getAdminQuizReportSummary(
     sessionId: session.id,
     mode: session.mode,
     subjectName,
+    subjectCode,
     totalQuestions: session.total_questions,
     // KNOWN LIMITATION (#991): the generic admin session route can reach non-MC
     // sessions, which this path does not yet support. answeredCount is the raw

@@ -4,6 +4,17 @@
 > (#953 budget curation). The live tracker, durable knowledge, and false-positives stay in
 > `MEMORY.md`; this file holds the verbose per-commit detail. History also lives in `git log`.
 
+## #1097 CR-local fixup (report-view-logic extraction + cast-guard) — APPROVED (2026-07-08)
+
+5 CR findings applied. 7 files changed. Verified:
+- `canonicalReportBasePath`, `namespaceHome`, `UUID_RE`, `ReportNamespace` extracted byte-for-byte from `report-view.tsx` to `_utils/report-view-logic.ts`; `redirect()` still throws; `isVfrRtPracticeReport` is a pure function (no mock needed in the new test).
+- Cast guard in `resolve-subject-info.ts`: `as { name: unknown; code: unknown }` + `typeof x === 'string' ? x : null` narrowing is correct; only affects malformed DB rows.
+- `Props` still `Readonly<{...}>`; no barrel file; no `any`.
+- `report-view-logic.test.ts` asserts exact redirect URLs (e.g. `/app/vfr-rt/report?session=${UUID}&page=1`). 5 cases cover all branches.
+- `QuizReportView` body 34 lines (23–56) — within the 35-line Server Component orchestrator boundary.
+- New `_utils/` file ships co-located `.test.ts` (code-style §7 compliant).
+0 critical, 0 issues, 0 suggestions.
+
 ## seed-vfr-rt-pool CR-round-4 robustness fixes — APPROVED (2026-07-03)
 
 Test-infra only (2 files). Fix A: `buildVfrRtAnswers` else-branch correctly placed after `multiple_choice`; 3 known types unaffected; throw unreachable for callers using the VFR-RT seeded pool (short_answer/dialog_fill/multiple_choice only). Test title "throws on a question_type outside the RT pool" is behavior-first. Fix B: `insertRows` type-predicate `(r): r is {id:string}` uses `{id?:unknown}` cast (not `any`) + no unchecked cast in `data.map((r) => r.id)` after predicate narrows type. 0 critical, 0 issues, 0 suggestions.
