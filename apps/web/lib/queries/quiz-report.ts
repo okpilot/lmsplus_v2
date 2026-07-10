@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
+import type { QuizReportSummary } from './quiz-report-types'
+import { resolveSubjectInfo } from './resolve-subject-info'
 
 // Fields shared by every question variant in the report. The per-type variants
 // below extend this with their type-specific shape (MC options, short-answer
@@ -69,25 +71,6 @@ export type QuizReportQuestion =
       totalItems: number
     })
   | DiagramLabelQuestion
-
-export type QuizReportSummary = {
-  sessionId: string
-  mode: string
-  subjectName: string | null
-  totalQuestions: number
-  // Distinct questions that received at least one answer — the denominator for Skipped.
-  answeredQuestions: number
-  // Answer-row count (MC/SA = 1 per question, dialog_fill = 1 per blank) — the
-  // denominator for the item-level "Correct" stat.
-  answeredItems: number
-  // Correct items (correct answer rows), unified with the exam scorer.
-  correctCount: number
-  scorePercentage: number
-  startedAt: string
-  endedAt: string | null
-  passed: boolean | null
-  timeLimitSeconds: number | null
-}
 
 export type QuizReportQuestionsResult =
   | { ok: true; questions: QuizReportQuestion[]; totalCount: number }
@@ -167,24 +150,18 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   const answeredItems = answerRows.length
   const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 
-  // Resolve subject name if available (display-only — don't abort report on failure)
-  let subjectName: string | null = null
-  if (session.subject_id) {
-    const { data: subjectData, error: subjectError } = await supabase
-      .from('easa_subjects')
-      .select('name')
-      .eq('id', session.subject_id)
-      .maybeSingle()
-    if (subjectError) {
-      console.error('[getQuizReportSummary] Subject lookup error:', subjectError.message)
-    }
-    subjectName = (subjectData as { name: string } | null)?.name ?? null
-  }
+  // Resolve subject name/code if available (display-only — don't abort report on failure)
+  const { subjectName, subjectCode } = await resolveSubjectInfo(
+    supabase,
+    session.subject_id,
+    '[getQuizReportSummary]',
+  )
 
   return {
     sessionId: session.id,
     mode: session.mode,
     subjectName,
+    subjectCode,
     totalQuestions: session.total_questions,
     answeredQuestions,
     answeredItems,

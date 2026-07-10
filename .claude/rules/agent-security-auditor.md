@@ -40,7 +40,12 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - SECURITY DEFINER RPCs: missing `auth.uid()` check, missing `SET search_path = public`
 - Input validation: Server Actions or API routes without Zod `.parse()`
 - Security headers: CSP, HSTS, X-Frame-Options in `next.config.ts`
+- Soft-delete filter in SECURITY DEFINER SELECTs (docs/security.md §15); audit-event INSERT subquery soft-delete (§11c); per-caller RPC multiple-permissive-RLS scoping (§3); single-active-session start guard (§11d); sibling guard-set parity (§11c, advisory/MEDIUM)
+
+## Checklist ↔ security.md sync
+
+The auditor's enumerated checklist (`.claude/agents/security-auditor.md`) is a hand-maintained mirror of the binding rules in `docs/security.md`; it does not auto-track the doc. When a security rule is promoted, a matching check must be added to the auditor **in the same session** — enforced by `.claude/rules/agent-learner.md` §Sweep-On-Rule-Promotion (Downstream-enforcer sync). This note keeps the obligation discoverable from the auditor's own rules file.
 
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-07-08 (added downstream-sync note + auditor checks for docs/security.md soft-delete-in-RPC / audit-subquery / multiple-permissive / single-active / sibling-parity rules).*

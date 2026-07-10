@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { QuizReportQuestion, QuizReportSummary } from '@/lib/queries/quiz-report'
+import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { ReportCard } from './report-card'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -17,6 +18,7 @@ const mockSummary: QuizReportSummary = {
   sessionId: 'sess-1',
   mode: 'quick_quiz',
   subjectName: '050 — Meteorology',
+  subjectCode: null,
   totalQuestions: 3,
   answeredQuestions: 2,
   answeredItems: 3,
@@ -135,6 +137,23 @@ describe('ReportCard', () => {
     render(<ReportCard {...defaultProps} />)
     const link = screen.getByText('Quiz Reports').closest('a')
     expect(link).toHaveAttribute('href', '/app/reports')
+  })
+
+  it('links the "Start Another Quiz" CTA to /app/quiz for a non-RT session', () => {
+    render(<ReportCard {...defaultProps} />)
+    const cta = screen.getByText('Start Another Quiz').closest('a')
+    expect(cta).toHaveAttribute('href', '/app/quiz')
+  })
+
+  it('shows a Practice CTA linking to /app/vfr-rt for an RT subject session', () => {
+    const rtProps = {
+      ...defaultProps,
+      summary: { ...mockSummary, mode: 'quick_quiz', subjectCode: 'RT' },
+    }
+    render(<ReportCard {...rtProps} />)
+    expect(screen.getByText('VFR RT Practice Reports')).toBeDefined()
+    const cta = screen.getByText('Start Another Practice').closest('a')
+    expect(cta).toHaveAttribute('href', '/app/vfr-rt')
   })
 
   it('shows "Mixed" when subjectName is null', () => {
