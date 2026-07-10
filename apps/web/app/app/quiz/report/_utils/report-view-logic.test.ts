@@ -136,6 +136,12 @@ describe('redirectOnPageOverflow', () => {
     expect(mockRedirect).not.toHaveBeenCalled()
   })
 
+  it('does not redirect when the requested page equals the last page exactly', () => {
+    // 30 answers / 10 per page = 3 pages; page 3 === totalPages → no redirect (strict >)
+    redirectOnPageOverflow('/app/quiz/report', VALID_SESSION_ID, 3, 30, 10)
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
   it('does not redirect on page 1 when there are zero answered questions', () => {
     // Math.max(1, ceil(0/10)) = 1, so page 1 is always valid even with no rows
     redirectOnPageOverflow('/app/vfr-rt/report', VALID_SESSION_ID, 1, 0, 10)
