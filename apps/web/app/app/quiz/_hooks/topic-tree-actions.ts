@@ -35,6 +35,12 @@ export function createTopicTreeActions({
   generation,
   startTransition,
 }: TopicTreeActionDeps) {
+  function applyLoadedTopics(result: TopicWithSubtopics[]) {
+    setTopics(result)
+    setCheckedTopics(new Set(result.map((t) => t.id)))
+    setCheckedSubtopics(new Set(collectSubtopicIds(result)))
+  }
+
   function loadTopics(subjectId: string) {
     generation.current++
     const gen = generation.current
@@ -44,11 +50,7 @@ export function createTopicTreeActions({
       // Post-await updates in an async transition action are NOT auto-included in
       // the transition (React 19) — nest startTransition so the topic-tree re-render
       // keeps its non-blocking priority.
-      startTransition(() => {
-        setTopics(result)
-        setCheckedTopics(new Set(result.map((t) => t.id)))
-        setCheckedSubtopics(new Set(collectSubtopicIds(result)))
-      })
+      startTransition(() => applyLoadedTopics(result))
     })
   }
 
