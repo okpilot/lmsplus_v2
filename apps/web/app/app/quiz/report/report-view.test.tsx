@@ -35,9 +35,14 @@ vi.mock('@/lib/queries/flagged-questions', () => ({
 // parsePageParam is a pure function (no deps) — use the real implementation so the
 // page-overflow redirect test can exercise a real out-of-range page number.
 
-// Stub client components so RTL doesn't need their hook deps.
+// Stub client components so RTL doesn't need their hook deps. Capture ReportCard's props
+// so a test can assert QuizReportView forwards the correct pagination values.
+const mockReportCard = vi.hoisted(() => vi.fn())
 vi.mock('./_components/report-card', () => ({
-  ReportCard: () => <div data-testid="report-card" />,
+  ReportCard: (props: unknown) => {
+    mockReportCard(props)
+    return <div data-testid="report-card" />
+  },
 }))
 vi.mock('./_components/report-flag-context', () => ({
   ReportFlagProvider: ({ children }: Readonly<{ children: React.ReactNode }>) => <>{children}</>,
@@ -155,6 +160,24 @@ describe('QuizReportView', () => {
       ).rejects.toThrow()
       expect(mockRedirect).toHaveBeenCalledWith(
         `/app/vfr-rt/report?session=${VALID_SESSION_ID}&page=1`,
+      )
+    })
+  })
+
+  describe('report card props', () => {
+    it('forwards the resolved summary, questions, page, and live total count to the report card', async () => {
+      const summary = makeSummary({ subjectCode: null })
+      const questions = [{ questionId: 'q1' }, { questionId: 'q2' }]
+      mockGetQuizReportSummary.mockResolvedValue(summary)
+      mockGetQuizReportQuestions.mockResolvedValue({ ok: true, questions, totalCount: 12 })
+      const jsx = await QuizReportView({
+        sessionId: VALID_SESSION_ID,
+        pageParam: '2',
+        namespace: 'quiz',
+      })
+      render(jsx)
+      expect(mockReportCard).toHaveBeenCalledWith(
+        expect.objectContaining({ summary, questions, page: 2, totalCount: 12, pageSize: 10 }),
       )
     })
   })

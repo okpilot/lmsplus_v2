@@ -10,6 +10,7 @@ import {
   canonicalReportBasePath,
   namespaceHome,
   type ReportNamespace,
+  redirectOnPageOverflow,
   UUID_RE,
 } from './_utils/report-view-logic'
 
@@ -31,11 +32,7 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Props)
   const questionsResult = await getQuizReportQuestions({ sessionId, page })
   if (!questionsResult.ok) redirect(namespaceHome(namespace))
 
-  // Use live answer count (not summary.totalQuestions) — partial submissions mean answered < total
-  const totalPages = Math.max(1, Math.ceil(questionsResult.totalCount / PAGE_SIZE))
-  if (page > totalPages) {
-    redirect(`${basePath}?session=${sessionId}&page=${totalPages}`)
-  }
+  redirectOnPageOverflow(basePath, sessionId, page, questionsResult.totalCount, PAGE_SIZE)
 
   const flaggedIds = await getFlaggedQuestionIds(questionsResult.questions.map((q) => q.questionId))
   const ctx = getReportContext(summary.mode, summary.subjectCode)

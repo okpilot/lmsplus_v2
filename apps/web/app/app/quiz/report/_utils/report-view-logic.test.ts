@@ -9,7 +9,12 @@ vi.mock('next/navigation', () => ({ redirect: mockRedirect }))
 
 // ---- Import under test (AFTER mocks) ----------------------------------------
 
-import { canonicalReportBasePath, namespaceHome, UUID_RE } from './report-view-logic'
+import {
+  canonicalReportBasePath,
+  namespaceHome,
+  redirectOnPageOverflow,
+  UUID_RE,
+} from './report-view-logic'
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -114,5 +119,33 @@ describe('canonicalReportBasePath', () => {
     const summary = makeSummary({ subjectCode: 'RT', mode: 'quick_quiz' })
     expect(() => canonicalReportBasePath(summary, 'quiz', '')).toThrow()
     expect(mockRedirect).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${VALID_SESSION_ID}`)
+  })
+})
+
+// ---- redirectOnPageOverflow --------------------------------------------------
+
+describe('redirectOnPageOverflow', () => {
+  it('redirects to the last page when the requested page is past the end', () => {
+    // 25 answers / 10 per page = 3 pages; page 5 is out of range → clamp to 3
+    expect(() => redirectOnPageOverflow('/app/quiz/report', VALID_SESSION_ID, 5, 25, 10)).toThrow()
+    expect(mockRedirect).toHaveBeenCalledWith(`/app/quiz/report?session=${VALID_SESSION_ID}&page=3`)
+  })
+
+  it('does not redirect when the requested page is within range', () => {
+    redirectOnPageOverflow('/app/quiz/report', VALID_SESSION_ID, 2, 25, 10)
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
+  it('does not redirect on page 1 when there are zero answered questions', () => {
+    // Math.max(1, ceil(0/10)) = 1, so page 1 is always valid even with no rows
+    redirectOnPageOverflow('/app/vfr-rt/report', VALID_SESSION_ID, 1, 0, 10)
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
+  it('preserves the supplied base path in the redirect target', () => {
+    expect(() => redirectOnPageOverflow('/app/vfr-rt/report', VALID_SESSION_ID, 9, 5, 10)).toThrow()
+    expect(mockRedirect).toHaveBeenCalledWith(
+      `/app/vfr-rt/report?session=${VALID_SESSION_ID}&page=1`,
+    )
   })
 })

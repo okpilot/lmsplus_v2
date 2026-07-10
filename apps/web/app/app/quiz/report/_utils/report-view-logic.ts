@@ -30,3 +30,20 @@ export function canonicalReportBasePath(
   }
   return basePath
 }
+
+// Clamp an out-of-range page to the last valid page and redirect there. totalCount is the
+// LIVE answered-question count (not summary.totalQuestions) — partial submissions mean
+// answered < total. sessionId is UUID-validated upstream, so it is safe to interpolate raw.
+// Throws (redirects) when page > totalPages; otherwise returns.
+export function redirectOnPageOverflow(
+  basePath: string,
+  sessionId: string,
+  page: number,
+  totalCount: number,
+  pageSize: number,
+): void {
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  if (page > totalPages) {
+    redirect(`${basePath}?session=${sessionId}&page=${totalPages}`)
+  }
+}
