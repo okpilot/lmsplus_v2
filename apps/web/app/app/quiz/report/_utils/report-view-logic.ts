@@ -24,7 +24,9 @@ export function canonicalReportBasePath(
     : 'quiz'
   const basePath = canonical === 'vfr-rt' ? '/app/vfr-rt/report' : '/app/quiz/report'
   if (current !== canonical) {
-    redirect(`${basePath}?session=${summary.sessionId}${pageParam ? `&page=${pageParam}` : ''}`)
+    redirect(
+      `${basePath}?session=${summary.sessionId}${pageParam ? `&page=${encodeURIComponent(pageParam)}` : ''}`,
+    )
   }
   return basePath
 }

@@ -101,4 +101,12 @@ describe('canonicalReportBasePath', () => {
     expect(() => canonicalReportBasePath(summary, 'vfr-rt', '1')).toThrow()
     expect(mockRedirect).toHaveBeenCalledWith(`/app/quiz/report?session=${VALID_SESSION_ID}&page=1`)
   })
+
+  it('percent-encodes a page param containing query-delimiter characters so it cannot inject extra keys', () => {
+    const summary = makeSummary({ subjectCode: 'RT', mode: 'quick_quiz' })
+    expect(() => canonicalReportBasePath(summary, 'quiz', '1&session=evil')).toThrow()
+    expect(mockRedirect).toHaveBeenCalledWith(
+      `/app/vfr-rt/report?session=${VALID_SESSION_ID}&page=1%26session%3Devil`,
+    )
+  })
 })
