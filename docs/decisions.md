@@ -150,8 +150,7 @@ Full security reference: `docs/security.md` — binding rules, covers:
 │   └── insights.md         ← /project:insights (weekly self-review → updates memory)
 ├── skills/
 │   ├── nextjs-patterns.md
-│   ├── supabase-rls.md
-│   └── fsrs-patterns.md
+│   └── supabase-rls.md
 └── rules/
     ├── code-style.md       ← TypeScript strict, Biome, naming conventions
     └── security.md         ← no secrets in code, RLS required, input validation
@@ -166,7 +165,7 @@ CLAUDE.md                   ← root, 50-80 lines max
 > A PreCompact "handover" hook was originally planned as a third layer but removed 2026-05-30: a shell hook has no transcript access (it could only ever write a static stub), and Claude Code's native context-summary carryover already preserves state across compaction.
 
 ### Code Reviewer Strategy
-- **Now:** Custom local subagent (haiku, read-only, memory: project, runs proactively after commits)
+- **Now:** Custom local subagent (sonnet — bumped haiku→sonnet in PR #753; read-only, memory: project, runs proactively after commits)
 - **Later:** Anthropic official Code Review (parallel Opus agents, GitHub PR inline comments) — $15-25/review, Team plan required. Add when on Team plan.
 
 ### Monorepo Package Structure
@@ -177,8 +176,7 @@ lmsplusv2/
 ├── packages/
 │   ├── db/                 ← Supabase schema, migrations, RLS policies, typed client
 │   ├── ui/                 ← shadcn/ui components (shared)
-│   ├── typescript-config/  ← shared tsconfig (base, nextjs, react-library)
-│   └── eslint-config/      ← (empty placeholder — using Biome instead)
+│   └── typescript-config/  ← shared tsconfig (base, nextjs, react-library)
 ├── CLAUDE.md
 ├── .claudeignore
 ├── lefthook.yml

@@ -89,7 +89,7 @@ lmsplusv2/
 ### Version Control & Collaboration
 
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
-- **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 5 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests, CodeQL), strict mode (branch must be up-to-date), no force push, enforce admins.
+- **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
@@ -110,7 +110,7 @@ lmsplusv2/
   - `redteam.yml`: red-team security tests -- branches touching security-sensitive paths
   - `codeql.yml`: GitHub CodeQL for JS/TS -- PRs + master + weekly Monday 05:30 UTC
   - `dependabot.yml`: weekly dependency updates (Actions + npm), `tech-debt` label, conventional commit prefixes
-- **Database migrations**: Forward-only SQL files in `supabase/migrations/` (timestamped) and `packages/db/migrations/` (numbered, source of truth). Applied via Supabase CLI.
+- **Database migrations**: Forward-only SQL files in `supabase/migrations/` (timestamped) — the sole source of truth, applied via Supabase CLI. `packages/db/migrations/` (numbered) is frozen/historical as of 2026-07-11.
 - **Secret management**: `.env.local` (gitignored) for local dev, Vercel Environment Variables (encrypted) for production, GitHub Actions secrets for CI.
 
 ## Technical Requirements & Constraints
@@ -193,4 +193,4 @@ lmsplusv2/
 - **jsdom limitation**: Pre-hydration state (disabled button, skeleton) is not testable in jsdom -- `useEffect` runs synchronously in `act()`.
 - **No rate limiting at application layer**: Relies on Supabase Auth rate limits and `record_login()` RPC 60s rate limit. No Vercel/upstash rate limiting on API or auth routes yet.
 - **EASA subject seed data**: Full taxonomy tree completeness unconfirmed -- currently 9 PPL(A) subjects imported.
-- **eslint-config package**: Empty placeholder in `packages/eslint-config/` -- Biome is the sole linter. Package exists for monorepo structure compatibility.
+- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).

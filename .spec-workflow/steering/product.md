@@ -40,14 +40,21 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 10. **GDPR Compliance**: First-login consent gate with versioned TOS/privacy acceptance, immutable consent audit trail (`user_consents` table), self-service JSON data export, admin data export per student, EASA Part ORA retention exemption documented in privacy policy.
 
+11. **Mock Exam Mode**: Timed exam simulation (mode `mock_exam`) with admin-configured per-subject exam configs (`app/app/admin/exam-config/`), server-side timer/overdue enforcement, and post-exam score reports.
+
+12. **Internal Exams (code-based)**: Admins issue single-use exam codes (`app/app/admin/internal-exams/`, with email delivery via Resend); students start a proctored internal exam by entering the code (`app/app/internal-exam/`). Code lifecycle (issue/start/void) enforced via SECURITY DEFINER RPCs.
+
+13. **VFR RT Training**: Slovenia VFR radiotelephony practice (`app/app/vfr-rt/`) with five question types — MC, short_answer, dialog_fill, ordering, diagram_label — delivered on the shared quiz UI.
+
+14. **Study Mode ("Discovery")**: Answer-revealed MC practice surfaced as the Discovery segment of quiz setup (`get_study_questions` RPC, ephemeral non-scored discovery session).
+
 ### Planned (Fast-Follow)
 
-11. **Mock Exam Mode**: Timed exam simulation matching EASA exam conditions.
-12. **Lesson Builder (MVP 1)**: Composable mini-lessons, live board, instructor tools, attendance, exercises, course enrollment.
-13. **Improvement Trend Charts**: Historical progress visualisation.
-14. **AI Tutor**: "Explain this question" via Claude API.
-15. **Weak Area Recommendations**: Algorithmic identification of topics needing review.
-16. **Offline Mode**: Service worker caching for use in areas with poor connectivity.
+15. **Lesson Builder (MVP 1)**: Composable mini-lessons, live board, instructor tools, attendance, exercises, course enrollment.
+16. **Improvement Trend Charts**: Historical progress visualisation.
+17. **AI Tutor**: "Explain this question" via Claude API.
+18. **Weak Area Recommendations**: Algorithmic identification of topics needing review.
+19. **Offline Mode**: Service worker caching for use in areas with poor connectivity.
 
 ## Business Objectives
 
@@ -91,7 +98,6 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 ### Potential Enhancements
 
 - **Live Lessons (MVP 1)**: Composable mini-lessons with instructor-led live board, attendance tracking, in-lesson exercises, and course enrollment. HTML content rendered in iframes with lean JSON sidecar for app features.
-- **Mock Exam Mode**: Timed EASA exam simulation with subject-weighted question distribution, matching real exam conditions. Score reports comparable to official pass thresholds.
 - **AI Tutor**: Per-question "Explain this" button powered by Claude API. Contextual explanations that reference the specific question, options, and relevant EASA syllabus material.
 - **Analytics & Trends**: Historical progress charts per subject, comparative performance across cohorts, instructor-facing class overview dashboards.
 - **Weak Area Engine**: Algorithmic identification of topics where a student underperforms relative to their overall level. Targeted practice session generation.
