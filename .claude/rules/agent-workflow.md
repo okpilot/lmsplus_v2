@@ -353,6 +353,16 @@ One issue → one branch → full pipeline → merge → repeat. It makes a mult
 
 ---
 
+## Rule-Mirror Sync — commands/*.md restatements (MANDATORY on rule edits)
+
+When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, grep `.claude/commands/` for restatements of that rule and update every stale restatement **in the same commit**. Command files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command runs.
+
+How to apply: grep the command dir for the rule's distinctive phrases (both the OLD wording being replaced and the rule's key terms — e.g. "revision round", "consecutive clean", the gate list). A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+
+Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented.
+
+---
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**
@@ -493,4 +503,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-07-11 (mirror resync — pipeline-audit #1110: CR-local fixup-commit granularity + semantic-reviewer SUGGESTION threshold aligned to § Apply-vs-Defer / § PR Batching; MCP-fallback template path repointed)*
+*Last updated: 2026-07-11 (added § Rule-Mirror Sync — commands/*.md restatements updated in the same commit as the rule; learner count=2, pipeline-audit #1110)*
