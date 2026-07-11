@@ -33,13 +33,13 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
 2. **PRs**: `gh pr list --head "$BR" --repo okpilot/lmsplus_v2 --json number,state,url` (list any opened this run).
 
 3. **Token / cost**: if the user pasted `/usage` or `/cost`, add it to the **cumulative
-   snapshot table** (it's a rolling total, not this run's slice) and put `see cumulative note`
-   in the run row's cost cell. If nothing was pasted, write `not captured`.
+   snapshot table** (it's a rolling total, not this run's slice). The run row itself has no
+   cost column — cost lives ONLY in the cumulative table (see the log header note).
 
 4. **Append the run row** to `.claude/run-log.md` (create the file with the header below if
-   absent). One row per run:
+   absent). One row per run, matching the 7-column header exactly:
    ```
-   | <YYYY-MM-DD> | <branch> | <N commits> | <files> | +<ins>/-<del> | <PRs> | <span> | <cost cell> | <one-line summary of what shipped> |
+   | <YYYY-MM-DD> | <branch / run name> | <N> | <files> files, +<ins>/-<del> | <PRs or —> | <span> | <one-line summary of what shipped> |
    ```
 
 5. **Report** the row to the user and confirm it was written. One-line summary only — detail
