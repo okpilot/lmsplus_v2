@@ -12,7 +12,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 13 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
@@ -76,15 +76,19 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
 | Rule text updated in .claude/rules/*.md or CLAUDE.md without updating its commands/*.md restatement (stale mirror) | 2 | 2026-07-11 | PROMOTED → agent-workflow.md § Rule-Mirror Sync (2026-07-11). [full → archive] |
 | Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
-| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×2 post-promotion (batch-5/6). |
+| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×4 post-promotion (batch-5/6; CR-loop R1/R2). |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
+| CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
+| CR-local scopes review to origin-lag content (out-of-scope file on diff due to unpushed local-master commits) | 1 | 2026-07-11 | WATCHING (archive row 497) |
+| Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
+| CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 
 ## Durable knowledge (cross-agent)
 
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
 - A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
-- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 12) — always grep all instances in the file AND siblings before committing.
+- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 14) — always grep all instances in the file AND siblings before committing.
 - **Learner tracker is authoritative over rule-file parenthetical counts.** Read this tracker, not the rule file's parenthetical — the parenthetical can lag (e.g. stale at count=4 for pitfall #7, caught 2026-07-03).
 - *(Other bullets relocated to `topics/cross-agent-lessons.md` § Durable knowledge relocated 2026-06-07.)*
 
