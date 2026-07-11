@@ -43,7 +43,7 @@ function cleanup(dir) {
 
 /** Spawn the hook with the given stdin, running in cwd so the hook finds the gate file. */
 function runHook(stdin, cwd) {
-  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8', cwd })
+  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8', cwd, timeout: 5_000 })
 }
 
 // --- No gate file ---

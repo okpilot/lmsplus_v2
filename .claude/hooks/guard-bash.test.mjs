@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'guard-bash.js')
 
 function runHook(stdin) {
-  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8' })
+  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8', timeout: 5_000 })
 }
 
 test('blocks a dangerous command delivered via stdin JSON with exit 2 and a BLOCKED stderr', () => {

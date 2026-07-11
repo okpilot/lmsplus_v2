@@ -83,6 +83,12 @@ run_case "flat command field (backward-compat) fires the reminder" 0 \
   '{"command":"coderabbit review --plain --base master"}' \
   "cr-local-plan-reminder"
 
+# 3b. Trigger text OUTSIDE the command field must NOT fire the reminder — pins that
+#     matching is command-scoped (tool_input.command ?? command), not a raw-JSON
+#     substring match over the whole payload.
+run_case_no_output "trigger text in a non-command field (description) produces no output" \
+  '{"tool_input":{"command":"ls"},"description":"coderabbit review"}'
+
 # 4. Empty stdin — the raw fallback string is empty, which does not contain
 #    'coderabbit review', so the hook must exit 0 with no output.
 run_case_no_output "empty stdin produces no output" ""
