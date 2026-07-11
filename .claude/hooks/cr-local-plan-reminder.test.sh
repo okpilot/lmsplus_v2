@@ -91,6 +91,17 @@ run_case_no_output "empty stdin produces no output" ""
 #    does not contain 'coderabbit review', no reminder should fire.
 run_case_no_output "unparseable JSON produces no output" "not-json-at-all"
 
+# 6. Oversized stdin — head -c 1000000 truncates the payload before the
+#    'coderabbit review' substring (which lies past the 1MB mark), so the
+#    hook must exit 0 with no output.
+#    Regression guard: reverting to 'cat' would expose the full payload,
+#    the raw-string fallback would see 'coderabbit review', and the reminder
+#    would incorrectly fire.
+big_padding="$(printf '%1100000s' '' | tr ' ' 'x')"
+run_case_no_output \
+  "oversized stdin: 'coderabbit review' past 1MB boundary is truncated — no reminder fires" \
+  "${big_padding}coderabbit review"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
