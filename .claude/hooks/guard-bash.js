@@ -12,6 +12,12 @@
 
 let input = ''
 process.stdin.setEncoding('utf8')
+// A stream error would otherwise exit 1 (undocumented for PreToolUse hooks) with no
+// stderr signal — make the fail-open explicit and observable instead.
+process.stdin.on('error', (err) => {
+  console.error('[guard-bash] stdin error — allowing command:', err.message)
+  process.exit(0)
+})
 process.stdin.on('data', (chunk) => {
   input += chunk
 })

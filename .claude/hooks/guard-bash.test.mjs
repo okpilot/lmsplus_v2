@@ -37,3 +37,11 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.equal(r.status, 0)
   assert.match(r.stderr, /unparseable hook payload/)
 })
+
+test('blocks a dangerous command in flat JSON shape (backward-compat path)', () => {
+  // guard-bash.js falls back to toolInput?.command when tool_input is absent.
+  // This compatibility path must block just like the nested shape does.
+  const r = runHook('{"command":"DROP DATABASE x"}')
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /BLOCKED/)
+})
