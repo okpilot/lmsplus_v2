@@ -29,7 +29,7 @@ run_case() {
   local grep_pattern="${4:-}"
   local actual=0
   local output
-  output="$(printf '%s\n' "$stdin" | bash "$HOOK" 2>&1)" || actual=$?
+  output="$(printf '%s' "$stdin" | bash "$HOOK" 2>&1)" || actual=$?
   if [ "$actual" -ne "$expected_exit" ]; then
     echo "FAIL: $name (expected exit $expected_exit, got $actual)"
     FAIL=$((FAIL + 1))
@@ -52,7 +52,7 @@ run_case_no_output() {
   local stdin="$2"
   local actual=0
   local output
-  output="$(printf '%s\n' "$stdin" | bash "$HOOK" 2>&1)" || actual=$?
+  output="$(printf '%s' "$stdin" | bash "$HOOK" 2>&1)" || actual=$?
   if [ "$actual" -ne 0 ]; then
     echo "FAIL: $name (expected exit 0, got $actual)"
     FAIL=$((FAIL + 1))

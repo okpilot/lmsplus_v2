@@ -12,7 +12,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 12 | 2026-07-02 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 13 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
@@ -76,7 +76,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
 | Rule text updated in .claude/rules/*.md or CLAUDE.md without updating its commands/*.md restatement (stale mirror) | 2 | 2026-07-11 | PROMOTED → agent-workflow.md § Rule-Mirror Sync (2026-07-11). [full → archive] |
 | Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
-| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494) |
+| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×2 post-promotion (batch-5/6). |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
 
 ## Durable knowledge (cross-agent)

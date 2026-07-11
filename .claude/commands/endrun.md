@@ -30,7 +30,7 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    - Commit span = first → last commit (HH:MM). Prefer `.claude/.run-start` if it exists.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
 
-2. **PRs**: `gh pr list --head "$BR" --repo okpilot/lmsplus_v2 --json number,state,url` (list any opened this run).
+2. **PRs**: `gh pr list --head "$BR" --repo okpilot/lmsplus_v2 --json number,state,url` — list PRs currently associated with the branch (`gh pr list --head` cannot distinguish which were opened during this run).
 
 3. **Token / cost**: if the user pasted `/usage` or `/cost`, add it to the **cumulative
    snapshot table** (it's a rolling total, not this run's slice). The run row itself has no
@@ -39,7 +39,7 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
 4. **Append the run row** to `.claude/run-log.md` (create the file with the header below if
    absent). One row per run, matching the 7-column header exactly:
    ```
-   | <YYYY-MM-DD> | <branch / run name> | <N> | <files> files, +<ins>/-<del> | <PRs or —> | <span> | <one-line summary of what shipped> |
+   | <YYYY-MM-DD> | <branch / run name> | <N> | <files> files · +<ins> / −<del> | <PRs or —> | <span> | <one-line summary of what shipped> |
    ```
 
 5. **Report** the row to the user and confirm it was written. One-line summary only — detail
@@ -59,6 +59,13 @@ it lives in its own table, never attributed to a single row.
 
 | Date | Run | Commits | Diff | PR | Span | Result |
 |------|-----|:-------:|------|----|------|--------|
+
+## Cumulative cost (`/usage` snapshots)
+
+Rolling total across all recent work (not one run).
+
+| Date | Total | API time | Wall time | Lines | Top model |
+|------|-------|----------|-----------|-------|-----------|
 ```
 
 ## Notes

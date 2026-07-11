@@ -40,11 +40,11 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 10. **GDPR Compliance**: First-login consent gate with versioned TOS/privacy acceptance, immutable consent audit trail (`user_consents` table), self-service JSON data export, admin data export per student, EASA Part ORA retention exemption documented in privacy policy.
 
-11. **Mock Exam Mode**: Timed exam simulation (mode `mock_exam`) with admin-configured per-subject exam configs (`app/app/admin/exam-config/`), server-side timer/overdue enforcement, and post-exam score reports.
+11. **Mock Exam Mode**: Timed exam simulation (mode `mock_exam`) with admin-configured per-subject exam configs (`apps/web/app/app/admin/exam-config/`), server-side timer/overdue enforcement, and post-exam score reports.
 
-12. **Internal Exams (code-based)**: Admins issue single-use exam codes (`app/app/admin/internal-exams/`, with email delivery via Resend); students start a proctored internal exam by entering the code (`app/app/internal-exam/`). Code lifecycle (issue/start/void) enforced via SECURITY DEFINER RPCs.
+12. **Internal Exams (code-based)**: Admins issue single-use exam codes (`apps/web/app/app/admin/internal-exams/`, with email delivery via Resend); students start a proctored internal exam by entering the code (`apps/web/app/app/internal-exam/`). Code lifecycle (issue/start/void) enforced via SECURITY DEFINER RPCs.
 
-13. **VFR RT Training**: Slovenia VFR radiotelephony practice (`app/app/vfr-rt/`) with five question types — MC, short_answer, dialog_fill, ordering, diagram_label — delivered on the shared quiz UI.
+13. **VFR RT Training**: Slovenia VFR radiotelephony practice (`apps/web/app/app/vfr-rt/`) with five question types — MC, short_answer, dialog_fill, ordering, diagram_label — delivered on the shared quiz UI.
 
 14. **Study Mode ("Discovery")**: Answer-revealed MC practice surfaced as the Discovery segment of quiz setup (`get_study_questions` RPC, ephemeral non-scored discovery session).
 

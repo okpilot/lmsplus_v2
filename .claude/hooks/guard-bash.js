@@ -15,11 +15,20 @@ process.stdin.setEncoding('utf8')
 // A stream error would otherwise exit 1 (undocumented for PreToolUse hooks) with no
 // stderr signal — make the fail-open explicit and observable instead.
 process.stdin.on('error', (err) => {
-  console.error('[guard-bash] stdin error — allowing command:', err.message)
-  process.exit(0)
+  process.stderr.write(`[guard-bash] stdin error — allowing command: ${err.message}\n`, () =>
+    process.exit(0),
+  )
 })
 process.stdin.on('data', (chunk) => {
   input += chunk
+  // Fail-open-but-loud on absurdly large payloads — real payloads are a few KB,
+  // and unbounded buffering would let a runaway stream exhaust memory.
+  if (input.length > 1_000_000) {
+    console.error(
+      '[guard-bash] payload exceeds 1MB — allowing command (unparseable-payload policy)',
+    )
+    process.exit(0)
+  }
 })
 process.stdin.on('end', () => {
   let toolInput

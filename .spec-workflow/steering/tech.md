@@ -93,7 +93,7 @@ lmsplusv2/
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
-  - `pre-commit` (parallel): Biome check + type-check
+  - `pre-commit` (parallel): Biome check + type-check + soft-delete-column guard + test-title-leakage guard (unit tests run in CI, not pre-commit)
   - `commit-msg`: commitlint
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)

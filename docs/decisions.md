@@ -44,7 +44,7 @@
 
 ### Git Hook Pipeline (Lefthook) — updated by Decision 20
 ```
-pre-commit  → biome check --write + tsc --noEmit + vitest run
+pre-commit  → biome check --write + tsc --noEmit + soft-delete guard + test-title-leakage guard
 commit-msg  → commitlint (conventional commits)
 pre-push    → security-auditor agent + pnpm audit
 post-commit → reminder to run subagents (non-blocking)

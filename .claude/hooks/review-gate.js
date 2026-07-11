@@ -20,8 +20,9 @@ process.stdin.setEncoding('utf8')
 // A stream error would otherwise exit 1 (undocumented for PreToolUse hooks) with no
 // stderr signal — make the fail-open explicit and observable instead.
 process.stdin.on('error', (err) => {
-  console.error('[review-gate] stdin error — allowing edit:', err.message)
-  process.exit(0)
+  process.stderr.write(`[review-gate] stdin error — allowing edit: ${err.message}\n`, () =>
+    process.exit(0),
+  )
 })
 process.stdin.on('data', (chunk) => {
   input += chunk

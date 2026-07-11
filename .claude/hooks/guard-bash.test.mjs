@@ -38,6 +38,12 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.match(r.stderr, /unparseable hook payload/)
 })
 
+test('fails open but loud on a payload over 1MB (exit 0 + size warning)', () => {
+  const r = runHook('x'.repeat(1_100_000))
+  assert.equal(r.status, 0)
+  assert.match(r.stderr, /exceeds 1MB/)
+})
+
 test('blocks a dangerous command in flat JSON shape (backward-compat path)', () => {
   // guard-bash.js falls back to toolInput?.command when tool_input is absent.
   // This compatibility path must block just like the nested shape does.

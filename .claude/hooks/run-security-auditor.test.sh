@@ -139,7 +139,7 @@ run_cli_failure_case() {
   printf '#!/usr/bin/env bash\necho "simulated claude CLI failure" >&2\nexit 1\n' > "$shimdir/claude"
   chmod +x "$shimdir/claude"
   (
-    cd "$tmpdir/repo"
+    cd "$tmpdir/repo" || exit 1
     git init -q
     git config user.email test@test.local
     git config user.name test
