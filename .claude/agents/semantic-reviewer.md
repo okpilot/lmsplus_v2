@@ -72,6 +72,21 @@ You receive:
 - `any` types hiding potential runtime errors
 - Generic Supabase responses cast without checking `.error`
 
+### 8. Server Action Error-Token Map Completeness
+- When a Server Action calls a SECURITY DEFINER RPC and maps RPC errors to user messages (a `mapRpcError`/`ERROR_MESSAGES` token list), verify **every** `RAISE EXCEPTION '<code>'` in the RPC body has a matching `<code>` entry in the action's map.
+- Unmapped tokens fall through to the generic fallback — not a security leak, but a UX/triage gap (a real path reads identically to a DB timeout).
+- Trace the RPC's LATEST `CREATE OR REPLACE FUNCTION` body for the full RAISE set. (See `.claude/rules/agent-semantic-reviewer.md`; promoted count=3.)
+
+### 9. Sibling-Validator Constraint Parity
+- When any one validator in a multi-layer family (grader + save-draft schema + draft-load/replay validator, or sibling Zod schemas guarding the same data shape) tightens a constraint (text bound, array cap, dedup, `length > 0` presence check), audit ALL sibling validators in that family for the same constraint in the same review.
+- A constraint present in one layer and absent in a sibling is a parity gap, not an intentional difference — the looser layer admits data the tightened layer would reject.
+- Identify the family by the data shape each guards, not by file proximity. (Promoted count=3.)
+
+### 10. Cross-Surface Answer-Oracle (Shared Question Pool)
+- For a NEW or newly-broadened RPC returning answer keys or grading-relevant data (`correct_option_id`, `is_correct`, graded results), do NOT stop at its local guards — enumerate every OTHER RPC and session type reading the SAME question pool and verify the new RPC cannot be composed with client-visible data (e.g. exam-runner `q.id`) into a mid-exam oracle.
+- If the pool is shared with ANY exam session type, require an active-exam-session deny-by-default guard (`mode NOT IN (<practice modes>) AND ended_at IS NULL AND deleted_at IS NULL → RAISE`), mirroring `check_quiz_answer` (mig 117).
+- Structurally invisible per-commit — apply on the PR-level sweep. (Promoted count=2.)
+
 ### Path-Specific Rules (from .coderabbit.yaml)
 
 Apply these rules based on file paths in the diff:
@@ -155,9 +170,9 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 
 3. **Do NOT flag type casts that have upstream Zod validation** — Before flagging `as SomeType`, trace the input origin. If the value was parsed by Zod earlier in the same function or Server Action, the cast is justified. Only flag raw unvalidated input (`req.body`, `searchParams`, `JSON.parse()` without schema).
 
-5. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
+4. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
 
-7. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
+5. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
 
 ## After Each Review
 

@@ -66,7 +66,7 @@ This prevents false positives where the fix landed in a later migration than the
 
 See `.claude/rules/agent-critic.md` for handling rules. In brief:
 - **CRITICAL** — safety/security/blocking error. Orchestrator resolves directly, no revision round.
-- **ISSUE** — functional bug or wrong assumption. 1 revision round, then orchestrator resolves.
+- **ISSUE** — functional bug or wrong assumption. Blocks approval; handled under the Multi-Round Review Discipline (`agent-critic.md § Multi-Round Review Discipline`): coverage rounds (diverse lenses) surface findings → orchestrator fixes APPLY findings → stability rounds until N consecutive clean (N=2 normal, N=3 security-path), ceiling 4 total rounds → then escalate to the user.
 - **SUGGESTION** — non-blocking improvement. Noted in summary, does not gate approval.
 
 ## Output Format
@@ -97,7 +97,7 @@ If no issues found:
 
 ## DO NOT
 
-1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. Maximum 1 revision round — if findings persist after one revision, the orchestrator resolves directly.
+1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. Rounds follow the Multi-Round Review Discipline (`agent-critic.md § Multi-Round Review Discipline`): coverage rounds → fix APPLY findings → stability rounds to a consecutive-clean floor of 2 (3 on security paths), ceiling 4 total rounds — if the floor is unmet at the ceiling, the orchestrator ESCALATES TO THE USER with the residual findings (never resolves directly at the ceiling).
 2. **Do NOT execute code or make file changes** — you are read-only.
 3. **Do NOT check code style** — that is the code-reviewer's job. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines** — the orchestrator skips you for trivial changes.

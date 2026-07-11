@@ -151,7 +151,7 @@ When a spec exists for the current work, the orchestrator references it (not cha
 After a spec reaches "approved" status, material changes to the approach require updating the spec and noting the deviation before implementing.
 
 ### MCP fallback
-If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/` using the existing template structure in `.spec-workflow/templates/`.
+If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/`, copying the structure of an existing spec under `.spec-workflow/specs/`.
 
 ### DO
 - Create a spec for any feature spanning 3+ files or introducing a new pattern.
@@ -491,6 +491,6 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 ---
 
-*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-critic.md`*
+*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-06-20 (multi-round review discipline for plan-critic — coverage vs stability rounds, consecutive-clean floor 2/3, ceiling 4→escalate; see `agent-critic.md`)*
+*Last updated: 2026-07-11 (mirror resync — pipeline-audit #1110: CR-local fixup-commit granularity + semantic-reviewer SUGGESTION threshold aligned to § Apply-vs-Defer / § PR Batching; MCP-fallback template path repointed)*

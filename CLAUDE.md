@@ -168,8 +168,10 @@ Then run:
 If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
-If rules changed (code-style.md, security.md, biome.json), also run:
+If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+
+**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md`, or `.claude/agent-memory/**` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
 
 Pre-commit critics (plan-critic, implementation-critic) run BEFORE commit and do not replace post-commit agents. They are additive — catching issues earlier, not removing later review.
 

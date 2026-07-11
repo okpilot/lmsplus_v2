@@ -53,8 +53,8 @@ You receive:
 ### HIGH (blocking unless explicitly justified)
 
 6. **Hard DELETE on soft-deletable table**
-   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, courses, lessons
-   - Exception: ephemeral tables (`quiz_drafts`) — hard DELETE is intentional
+   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, courses, lessons, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
+   - Exception: hard-delete-by-design tables per `docs/database.md` §3 — `quiz_drafts` and `exam_config_distributions` (no `deleted_at` column), and `question_comments` (`deleted_at` exists as an unused safety net; own/admin DELETE RLS policies are the design — mig 20260320000049)
    - Fix: `UPDATE table SET deleted_at = now(), deleted_by = auth.uid() WHERE id = $1`
 
 7. **Missing `deleted_at` on new mutable table**
@@ -92,7 +92,7 @@ You receive:
 
 16. **Missing soft-delete filter in a SECURITY DEFINER SELECT** (docs/security.md §15 "Soft-delete in RPCs")
     - A SELECT inside a new or modified `SECURITY DEFINER` function body **in this diff** reads a soft-deletable table without `AND deleted_at IS NULL`.
-    - Fires ONLY on genuinely soft-deletable tables — consult the `docs/database.md` §3 soft-delete matrix (or the seven no-`deleted_at` tables in `code-style.md` §5). Never flag `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`.
+    - Fires ONLY on genuinely soft-deletable tables — consult the `docs/database.md` §3 soft-delete matrix. Never flag the ten no-`deleted_at` tables: `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`, `exam_config_distributions`, `fsrs_cards`, `user_consents` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`).
     - Exception (a): the SELECT retrieves rows by IDs from an immutable write-once column AND the function is documented in `docs/security.md` §15 as doing so (covers both the frozen `quiz_sessions.config.question_ids` boundary and the `quiz_session_answers.question_id` report boundary). Read §15 to confirm membership — do NOT rely on a memorised list.
     - Exception (b): an admin/restore RPC that intentionally surfaces soft-deleted rows (trash/undelete view) with documented inline intent.
 17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)

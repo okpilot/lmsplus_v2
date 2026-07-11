@@ -3,7 +3,7 @@
 > Model: haiku | Trigger: post-commit | Non-blocking
 
 ## Purpose
-Keeps project documentation in sync with code changes. Watches for schema changes, new RPCs, new routes, dependency updates, and architecture shifts. Updates `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, and `MEMORY.md`.
+Keeps project documentation in sync with code changes. Watches for schema changes, new RPCs, new routes, dependency updates, and architecture shifts. Updates `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, and its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`).
 
 ## Handling Results
 
@@ -21,7 +21,7 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").
 - Let the agent do partial updates — if a change affects multiple docs, all must be updated in the same cycle.
-- Let the agent edit `MEMORY.md` without reading it first (it may overwrite recent entries).
+- Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first (it may overwrite recent entries).
 - Let the agent pad docs with unnecessary detail — keep docs concise and scannable.
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
@@ -34,7 +34,6 @@ Keeps project documentation in sync with code changes. Watches for schema change
 | `docs/database.md` | New migration, new RPC, schema change |
 | `docs/decisions.md` | New architectural decision, changed approach |
 | `docs/plan.md` | Phase/sprint progress, completed items |
-| `MEMORY.md` | Significant new context for future sessions |
 | `.spec-workflow/steering/*.md` | Code change contradicts a steering doc statement |
 
 ## File Rename Protocol

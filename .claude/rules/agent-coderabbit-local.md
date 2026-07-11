@@ -37,10 +37,10 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 
 1. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces the former consecutive-clean floor).** Run a **minimum of M rounds**, then stop on the first round **at or after** the minimum that has **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts).
    - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/`, `packages/db/`, `apps/web/app/app/quiz/actions/`, `apps/web/app/auth/`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
+   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
    - An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one round** (fix the finding, then run one more round to confirm the fix surfaced nothing new). Rounds count cumulatively toward M; you simply cannot stop *on* a round that still carries an APPLY verdict, and cannot stop *before* round M.
    - Every round runs with `-c .coderabbit.yaml`. The cloud CodeRabbit review on the pushed PR stays the strict authoritative gate regardless of how many local rounds ran.
-2. **4 fix commits driven by CR local** on the current branch — a hard ceiling that caps total effort even if the floor is unmet; escalate to user judgment rather than looping further.
+2. **4 fixup commits driven by CR local** on the current branch (= 4 fix rounds, under one-fixup-commit-per-round — see DO below) — a hard ceiling that caps total effort even if the floor is unmet; escalate to user judgment rather than looping further.
 
 ## Handling Results
 
@@ -49,7 +49,7 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - **Always pass `-c .coderabbit.yaml`.** Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating `actions.ts` path_instructions was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it as belt-and-suspenders: it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if the file is absent. (Especially relevant post-Forgejo-migration, where the PR bot is gone and the CLI is the only CodeRabbit — the experiment confirms the CLI honors `.coderabbit.yaml` off-platform with no extra wiring.)
 - **Honor the minimum-rounds rule** (Stop Conditions §1): run at least M rounds (M=2 normal / 3 security-path), then stop on the first round at/after M with no apply-worthy findings. An APPLY verdict extends the loop by one round (fix + re-run); it does NOT reset to zero. Cloud CR on the pushed PR is the authoritative gate.
 - Read the source for every finding before triaging — CR's labels are LLM-generated, not authoritative.
-- Apply each APPLY-verdict finding in a focused commit (one subject per commit). Don't batch unrelated fixes.
+- Collect ALL APPLY-verdict findings of a round into ONE fixup commit per round (`agent-workflow.md § PR Batching`, user directive 2026-07-02) — never per-finding commits; each extra commit re-triggers the review cycle.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
 - Re-run the review after each fix commit — fixes can surface new findings that weren't visible before.
 - For DEFER verdicts, file a GitHub Issue with the CR comment context (severity, file, line, suggestion).
