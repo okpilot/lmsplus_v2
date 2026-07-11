@@ -51,3 +51,18 @@ test('blocks a dangerous command in flat JSON shape (backward-compat path)', () 
   assert.equal(r.status, 2)
   assert.match(r.stderr, /BLOCKED/)
 })
+
+test('fails open even when an oversized payload contains valid JSON with a blocked command (exit 0 + size warning)', () => {
+  // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler
+  // via `if (oversizedPayload) return` before it can parse the JSON and match blocked
+  // patterns. Without the flag, JSON.parse would succeed here, the DROP DATABASE pattern
+  // would match, and the hook would exit 2 — incorrectly blocking the tool call.
+  // The existing >1MB test uses non-JSON (plain 'x' bytes), which would also exit 0 via
+  // the malformed-JSON fail-open path even without the flag — so it cannot catch that
+  // regression. This test closes the gap with a valid JSON payload.
+  const pad = 'x'.repeat(2_000_000)
+  const bigBlockedPayload = `{"tool_input":{"command":"DROP DATABASE x","pad":"${pad}"}}`
+  const r = runHook(bigBlockedPayload)
+  assert.equal(r.status, 0)
+  assert.match(r.stderr, /exceeds 1MB/)
+})
