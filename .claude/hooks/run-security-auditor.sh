@@ -83,7 +83,7 @@ else
   TIMEOUT_CMD=""
 fi
 
-OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
+OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
   --allowedTools "Read" \
   --no-session-persistence 2>&1) || {
@@ -125,8 +125,9 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
       echo "[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked."
       exit 1
     fi
-    echo "[security-auditor] Fallback scan passed. Push approved."
-    exit 0
+    # FAIL CLOSED: the diagnostic scan found nothing, but the LLM audit never ran.
+    echo "[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify."
+    exit 1
   fi
   echo "[security-auditor] Agent failed (exit $EXIT_CODE). Running fallback checks..."
   # Run the same fallback grep checks as the timeout branch
@@ -152,8 +153,9 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     echo "[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked."
     exit 1
   fi
-  echo "[security-auditor] Fallback scan passed. Push approved."
-  exit 0
+  # FAIL CLOSED: the diagnostic scan found nothing, but the LLM audit never ran.
+  echo "[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify."
+  exit 1
 }
 
 rm -f "$TMPFILE"

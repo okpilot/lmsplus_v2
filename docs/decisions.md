@@ -51,6 +51,8 @@ post-commit → reminder to run subagents (non-blocking)
 ```
 Post-commit review agents (code-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
+> Updated 2026-07-11: pre-commit runs biome + type-check + soft-delete-column guard + test-title-leakage guard (unit tests deliberately NOT in pre-commit — they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
+
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
@@ -340,6 +342,8 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `run-test-writer.sh` runs `pnpm test` after agent finishes as a safety net
 - `test-writer.md` prompt updated: "Always run tests you wrote. Never leave broken tests."
 - `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
+
+> Updated 2026-07-11: run-test-writer.sh was removed — the test-writer runs as an Agent-tool subagent and verifies its own tests per .claude/rules/agent-test-writer.md; the pnpm-test safety net lives in that flow.
 
 ---
 

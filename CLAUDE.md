@@ -179,7 +179,7 @@ Never push without all agents reporting clean.
 Lefthook enforces mechanical gates (blocking):
 - **pre-commit:** biome lint/format + type-check + soft-delete column guard (`.claude/hooks/check-soft-delete-guard.mjs`, glob-gated to staged `.ts`/`.tsx`; also runs in the CI lint job) + test-title impl-leakage guard (`.claude/hooks/check-test-title-leakage.mjs`, glob-gated to staged `*.test.{ts,tsx}`; diff-scoped + grandfathered — flags only NEWLY-added `it()`/`test()` titles violating code-style.md §7; also runs in the CI lint job against the PR base) — unit tests intentionally NOT in pre-commit; lefthook.yml runs fast gates only and the full suite runs in CI
 - **commit-msg:** conventional commit format
-- **pre-push:** security-auditor agent + dependency audit
+- **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
 
 Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
 

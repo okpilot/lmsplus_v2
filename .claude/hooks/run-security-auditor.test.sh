@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Tests for the verdict parser in run-security-auditor.sh (--parse-verdict mode).
+# Tests for the verdict parser in run-security-auditor.sh (--parse-verdict mode)
+# plus the fail-closed fallback: a `claude` CLI failure must BLOCK the push (case 12),
+# never fall back to a grep-scan approval.
 # Regression coverage for issue #832: a `BLOCKED: ...` verdict with trailing prose
 # was mis-parsed as approval and let a HIGH finding reach the remote.
 # No framework — run directly: bash .claude/hooks/run-security-auditor.test.sh
@@ -122,6 +124,44 @@ run_case "APPROVED with leading whitespace approves" 0 \
 "No CRITICAL or HIGH issues found.
 
   APPROVED"
+
+# 12. Full-script run: `claude` CLI failure must FAIL CLOSED (push blocked).
+#     Builds a throwaway git repo with a non-empty diff and shims `claude` on PATH
+#     to exit 1. The hook's fallback grep scan finds nothing — the old behavior
+#     approved the push here; the fail-closed behavior must block with exit 1.
+run_cli_failure_case() {
+  local name="claude CLI failure fails closed (push blocked)"
+  local tmpdir shimdir output
+  local actual=0
+  tmpdir="$(mktemp -d)"
+  shimdir="$tmpdir/shim"
+  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
+  printf '#!/usr/bin/env bash\necho "simulated claude CLI failure" >&2\nexit 1\n' > "$shimdir/claude"
+  chmod +x "$shimdir/claude"
+  (
+    cd "$tmpdir/repo"
+    git init -q
+    git config user.email test@test.local
+    git config user.name test
+    echo "# stub auditor prompt" > .claude/agents/security-auditor.md
+    echo "base" > file.txt
+    git add -A
+    git commit -qm init
+    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
+    echo "changed" >> file.txt
+  ) >/dev/null 2>&1
+  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
+  rm -rf "$tmpdir"
+  if [ "$actual" -eq 1 ] && printf '%s' "$output" | grep -q "push blocked"; then
+    echo "PASS: $name (exit $actual)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $name (expected exit 1 + 'push blocked' message, got exit $actual)"
+    printf '%s\n' "$output" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  fi
+}
+run_cli_failure_case
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
