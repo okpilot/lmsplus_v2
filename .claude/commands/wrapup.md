@@ -71,3 +71,7 @@ Present to user:
 
 - What should the next session start with?
 - Any blockers or dependencies to resolve before then?
+
+### 7. Log the run
+
+- Invoke `/endrun` to append this session's row to `.claude/run-log.md`. Mandatory terminal step, not optional — the wrap-up is not complete until the run is logged.
