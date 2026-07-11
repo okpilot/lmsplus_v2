@@ -44,6 +44,7 @@
 | Isolation test labeled "two-sided" but only proves one side — no Org B perspective asserted, adds no signal over the existing functional test | 2026-06-20 (21d86dc5 #925) | 1 | 2026-06-20 | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Rule text cites pre-squash branch-local commit hashes that no longer exist after squash-merge — traceability trail dead-ends | 2026-06-21 (feat/925-phase4 code-style.md §7) | 1 | 2026-06-21 | WATCHING → [durable-catches](topics/durable-catches.md) |
 | RPC DROP+recreate skips sibling guard-set diff (rule 12) + types.ts/database.md sync — types.ts drift hidden from tsc via `rpc<LocalType>` callers | 2026-06-21 (mig 118, #697) | 2 | 2026-06-21 (PR-sweep types.ts gap) | WATCHING → [vfr-rt-review-notes](topics/vfr-rt-review-notes.md) |
+| Command doc adds a HARD STOP / exit path but doesn't explicitly terminate the /goal session — /goal terminal state left undefined for the exit path, potential loop in autonomous runs | 2026-07-11 (de72a4df automerge.md migration HARD STOP) | 1 | 2026-07-11 | WATCHING — when a new HARD STOP or bail-out branch is added to a /goal-driven command, explicitly declare the alternative terminal state and include `/endrun` + stop instruction in the bail-out block |
 
 ## Durable knowledge
 
@@ -56,7 +57,7 @@
 - **Correct-answer exposure:** student-facing reads must go through `get_quiz_questions()`/report builders that strip `correct` from options. Watch new Server Actions querying `questions.options` directly.
 - **Auth-then-validate order:** parse Zod input is fine to throw, but auth check (`auth.uid()`) must gate before any DB work; flag `Schema.parse(input)` placed before the auth check.
 - **`.single()` → `.maybeSingle()`** for user/profile lookups where soft-delete yields 0 rows (`.single()` throws PGRST116 as a service error).
-- **Trace `CREATE OR REPLACE FUNCTION` to the latest definition** before flagging a missing-pattern finding on a Postgres function (per agent-critic.md Pre-Flag rule).
+- **Trace `CREATE OR REPLACE FUNCTION` to the latest definition** before flagging a missing-pattern finding on a Postgres function (per agent-critic.md Pre-Flag rule). **`supabase/migrations/` is the SOLE source of truth for current SQL as of 2026-07-11** — the old `packages/db/migrations/` two-dir mirror is FROZEN/historical (missing 81 of 222 files, some post-deploy-edited with false history; see its README). Never read or cite `packages/db/migrations/` for current SQL; it is the only dir CI resets (`e2e.yml`) and `db-deploy.yml` deploys.
 
 ### Query / data correctness → [durable-catches](topics/durable-catches.md)
 

@@ -48,93 +48,34 @@
 | Cross-org non-vacuity gap: plans must assert BOTH that the victim org has the resource AND the attacker org does not. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
 | Red-team spec scaffold plans needing multiple caller roles must enumerate every required client fixture. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
 | Red-team success-path plans (test-only) have 3 recurring gaps: numeric-field type-only specs, audit-tracker fixture registration, pool-seed idempotency. ([details](topics/redteam-success-path-gaps.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
-
-## Durable plan-review checks
-
-### SQL / migrations
-- **Trace the full migration chain, not just mig 001.** `quiz_sessions.mode` CHECK widened by mig 058 (added `internal_exam`) and given the canonical name `quiz_sessions_mode_check` — use named `DROP/ADD CONSTRAINT`, not the DO-block predicate-text lookup (that pattern is only for unnamed constraints). `quiz_sessions.deleted_at` added by mig 023 (not in initial schema). Always grep all migrations for `ALTER TABLE` on the target before reasoning about its current shape.
-- **CREATE OR REPLACE FUNCTION: trace to the latest definition before flagging a missing pattern.** A later migration may already add the guard/clause. (Pre-Flag Verification — also in `semantic-reviewer.md` / `implementation-critic.md`.)
-- **Widening a UNIQUE constraint breaks existing `ON CONFLICT (col-list) DO NOTHING`.** Postgres needs an exact matching unique index. Grep `ON CONFLICT (` across all migrations and include a companion migration rewriting every living RPC's clause (missed for `batch_submit_quiz`/`submit_quiz_answer` on mig 084).
-- **`STABLE`/`IMMUTABLE` + `EXECUTE` is a hard error.** Dynamic-SQL RPCs (`RETURN QUERY EXECUTE`) must be `VOLATILE` (or omit the keyword). Model: `get_session_reports`, not `get_admin_student_stats`.
-- **New `questions` columns must satisfy existing NOT NULL columns.** `questions.options` is `JSONB NOT NULL`, no DEFAULT — new types (short_answer, dialog_fill) need nullable/DEFAULT/explicit `options:'[]'` or inserts fail silently.
-- **New exam modes with answer-bearing question types need a server-side projection RPC.** `get_quiz_questions()` only strips MC correct-option markers; any new correct-answer column (canonical_answer, blanks_config canonical, accepted_synonyms) needs a `get_*_questions` RPC that strips it — never let students SELECT it via PostgREST.
-- **`smart_review` passes `p_subject_id = NULL`.** `q.subject_id = NULL` is always NULL in Postgres → 0 rows. Subject-scoped WHERE/COUNT must be `(p_subject_id IS NULL OR q.subject_id = p_subject_id)`.
-
-### Pagination / truncation (PostgREST max_rows = 1000)
-- `.limit(N)` with N > 1000 is NOT a safeguard — max_rows=1000 overrides it. Treat as unbounded (e.g. `dashboard-stats.ts` `.limit(10000)`/`.limit(5000)`).
-- Truncation audits partitioned by directory miss colocated `queries.ts` in admin sub-routes and the cross-cutting GDPR export layer (`lib/gdpr/collect-user-data.ts`). Scope audits by file-ownership, name the colocated files.
-- `.order('id')` tiebreak fails on tables without an `id` column — `flagged_questions`/`active_flagged_questions` use composite PK `(student_id, question_id)`; use `flagged_at`. Verify each target table has the column.
-- `fetchAllRows<T>` contract: `data` is always `T[]`, never null. Error-path mocks use `{ data: [], error: {...} }`, not `{ data: null }`. Joins in the `getPage` select need an explicit cast to `PromiseLike<PageResult<T>>`.
-
-### Extraction / file-split
-- Removing one function from an over-limit utility file may leave the parent still over the 200-line cap — verify post-extraction line count or scope a second split.
-- Query-helper modules extracted from `'use server'` files must NOT carry `'use server'` (they take a `supabase` param; the directive turns exports into Server Actions and breaks runtime calls). Precedent: `collect-user-data-queries.ts`.
-- Adding a column to a `.select()` string must also update any local row-type alias used in an `as SomeRow[]` cast (TS doesn't enforce the cast against runtime; missing field is invisible until referenced).
-- Replacing one `Promise.all` arm with a helper returning an unwrapped array changes the destructuring (`{ data }` → bare binding) — state it explicitly.
-
-### Component / UI
-- Migrating a hand-rolled overlay to a controlled Dialog: removing the mount guard breaks `useState(props…)` initializers (run once at mount) → stale form on reopen. Keep the guard or add `key={entityId}` to force remount.
-- Rewriting a component to a new UI lib: the co-located `.test.tsx` mocks the OLD lib by module path — the entire mock + assertions must be rewritten; list the test file under "Files to change".
-- `nav-items.ts` icon name is a CLOSED union; `NavIcon` switch silently renders nothing for unknown names. New nav entries reuse an existing icon or add to BOTH the union AND the switch. `sidebar-nav.test.tsx` asserts exact named items — list it as an affected caller.
-
-### Red-team / E2E specs
-- A spec's *pass condition* may be a specific error code — hardening that changes the error string (e.g. `23502` → `invalid_question_ids`) breaks the assertion. Check per spec; prefer open `expect(error).not.toBeNull()`.
-- Specs fetching question IDs with only `deleted_at IS NULL` (not `status='active'`) feed invalid IDs to new active-status validation. Add `.eq('status','active')` or document seeded-active assumption.
-- NUL-byte (`\x00`) injection payloads are rejected by PostgREST (400) before the RPC runs — message won't match the RPC's `RAISE` string; needs a separate assertion branch.
-- audit-completeness: `actor_id` differs per event type — admin events (`internal_exam.code_issued/voided`) bind `v_admin_id`; student events bind `v_student_id`. Bind `expected_actor` to the right role or get 0 rows.
-- Name the specific RPC per event: `exam.started`/`exam.completed` come from `start_exam_session`+`batch_submit_quiz(mode='mock_exam')`, NOT `start_internal_exam_session`.
-
-### Validation discipline
-- Never leave "needs verification" open in a validated plan — resolve before review or the implementer guesses.
-- Dual-deletion-path tables (CASCADE + direct admin RLS DELETE, e.g. `exam_config_distributions`): soft-delete-matrix rows must document BOTH paths.
-- `userEvent.type('150')` emits 3 change events; `.at(-1)` captures only the final clamped value — that (not "Math.max so exact") is the correct rationale for `toBe(max)`.
-
-### Agent-tooling plans (native subagent memory)
-- A Phase-0 spike "confirm the agent reads/writes MEMORY.md" is a false positive if the agent body also has an explicit Read/Write of that file — strip the body instruction first to isolate native-injection engagement.
-- Reference matrices (e.g. red-team `attack-surface.md`) must not be renamed to `MEMORY.md` where the curation nudge can prune active GAP rows; keep as a topic file with a no-delete header and update operational references (insights.md) in the same commit.
-- After `memory: project` is added, remove body-level "Read your memory file at start" instructions or the agent double-loads (test-writer, code-reviewer, plan-critic, implementation-critic, security-auditor all had these).
-
 | Red-team spec for aggregation RPCs needs an instructor fixture (seedRedTeamInstructor) not present in seed.ts by default — resolved for #673. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-05-31 | 2 | 2026-05-31 | WATCHING |
 | Red-team plans must verify proposed Vector IDs against the LIVE attack-surface.md matrix + check tech.md/decisions.md spec-counts. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-05-31 | 4 | 2026-06-09 | WATCHING (4) |
-
-### Return-type contract for incremental additions to query functions
-When a plan adds a new code path to a function that returns a discriminated-union result type (e.g. `{ ok:false; error:string } | { ok:true; ... }`), verify every new `return` statement satisfies ALL fields of the matching union arm. Plans consistently specify `{ ok:false }` for new error paths but omit the mandatory `error: string` field — the TypeScript build fails. Always check the full type definition before specifying return values.
 | Vector-label collision sweeps must grep ALL red-team spec files, not just the two being renamed — the same label can be an independent usage elsewhere. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
 | Red-team spec additions covering a new RPC path consistently omit updating the attack-surface.md vector row / GAP→COVERED flip. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-01 | 4 | 2026-06-06 | WATCHING (4) |
-
-### Red-team batching plans (organization plans, not implementation)
-- See [redteam-batching-organization-lessons](topics/redteam-batching-organization-lessons.md) — verify spec-file targets against issue bodies (not PR headline), watch for shared-file conflicts across a batch, don't classify feature issues as spec-only, match attack-surface.md severity labels, and use the exact `batch_submit_quiz` `RETURNS jsonb` result shape (`data.results[N].field`, JSON key `selected_option`) in assertions.
-
 | Two-dir migration mirror drift: supabase/migrations can be newer/binding than packages/db's highest NNN mirror — identify which is authoritative before reproducing a body. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
 | Sibling-function inline-role-subquery audit: fixing one SECURITY DEFINER function's inline role lookup must enumerate ALL siblings with the same pattern. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
 | Column-GRANT plans on `users` must verify the actual writable columns from the CREATE TABLE — only full_name is authenticated-writable. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
 | FK-into-global-table audit: plans claiming "X is the only FK into table Y" must grep ALL migrations for REFERENCES Y, not just the obvious one. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
-
 | Spec-count doc updates must grep the FULL steering doc for every occurrence of the exact number string, not just one line. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
-
 | Red-team RAISE-string assertions must read the exact string in the LATEST def of EACH RPC — casing/wording is not consistent across sibling RPCs. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-07 | 1 | 2026-06-07 | WATCHING |
 | #781 cookie-rewrite approach for @supabase/ssr token-refresh is sound (verified against __loadSession internals); config.toml jwt_expiry fallback has CI-wide blast radius. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-07 | 1 | 2026-06-07 | WATCHING |
-
 | E2E un-skip plans for AlertDialogAction with isPending text-flip: dialog stays open during the transition, disabled button prevents a double-click race — plan's assumptions were correct. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
 | Red-team spec-split plans must read the test BODY before labeling it "probe-only/no cleanup" — some seed fixture rows and need cleanup routing. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
 | Spec-split plans updating attack-surface.md Spec-File column must confirm the Vector ID's description actually matches the test before overwriting a primary-spec entry. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
 | File-split plans marking a helper extraction "possibly" needed must verify definitively whether it's the ONLY path under the target line-count ceiling. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
-
-## Positive signals (what good plans got right)
-- See [tracker-archive § Relocated positive signals](topics/tracker-archive.md) — 6 more examples of plans that verified assumptions correctly (agent-health.yml false-positive fix, cast-guard sweep #677, #673/#789/#367/#792-793/#326 attack-surface reviews) added 2026-07-04.
-
 | Idempotent-resume RPC race-handlers (BEGIN...EXCEPTION WHEN unique_violation) must re-read+return the existing row, not just mirror a non-idempotent sibling's raise-only shape. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-10 | 1 | 2026-06-10 | WATCHING |
-
 | docs/plan.md distinguishes current-state count lines (bump target) from historical Phase-delivery record lines (must NOT be edited). ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-11 | 1 | 2026-06-11 | WATCHING |
-
 | Red-team probe-only→seeding spec conversions must update the file header comment (remove "no seeding" claims) + add afterAll cleanup. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-13 | 1 | 2026-06-13 | WATCHING |
 | Prop-threading plans through intermediate state-holder components must enumerate ALL 4 files: source, form/trigger, state-holder, consumer. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-18 | 1 | 2026-06-18 | WATCHING |
 | App-invoke "proxy" of a REVOKE-gated grader RPC via a client-reachable Server Action re-introduces the forgery the REVOKE prevents (ELP Slice-1) — must not be a public 'use server' export, and must re-validate the forwarded path server-side. ([details](topics/elp-oral-exam-security-lessons.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
-
 | Split-module refactor plans declaring a module "standalone" must verify every function call inside it, not just its own top-level imports. ([details](topics/misc-plan-review-lessons.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
 | Pure-structural-refactor plans (component/hook split) have 2 gaps: a React-hook-containing block moved into a plain helper function, and missing tests for new _hooks/ files. ([details](topics/structural-refactor-hook-and-test-gaps.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
 | ELP #1069 grader-audit-event plan (write_oral_section_grade) — service-role-finalizer audit-INSERT deviation now documented + both blocking edge-fn/COALESCE fixes verified. ([details](topics/elp-oral-exam-security-lessons.md)). | 2026-07-03 | 1 | 2026-07-03 | RESOLVED-WATCH |
 
+## Positive signals (what good plans got right)
+- See [tracker-archive § Relocated positive signals](topics/tracker-archive.md) — 6 more examples of plans that verified assumptions correctly (agent-health.yml false-positive fix, cast-guard sweep #677, #673/#789/#367/#792-793/#326 attack-surface reviews) added 2026-07-04.
+
 ## Topic pointers
+- [durable-review-checks](topics/durable-review-checks.md) — stable per-domain plan-review checklists: SQL/migrations, pagination/truncation, extraction/file-split, component/UI, red-team/E2E specs, validation discipline, agent-tooling, discriminated-union return contracts, red-team batching.
 - [tracker-archive](topics/tracker-archive.md) — relocated verbatim: older single-occurrence (count=1) tracker rows + older positive signals (moved 2026-06-07 to stay under the 25 KB injection cap).
 - [pr-836-report-ui](topics/pr-836-report-ui.md) — VFR-RT student-report/flagging UI facts (#697 Phase B/C, #836): report-page structure, `useFlaggedQuestions` is server-result-driven not optimistic, `active_flagged_questions` security_invoker view.
