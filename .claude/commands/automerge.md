@@ -19,7 +19,7 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 3. **Interview** — surface scope/behavioral/priority ambiguities. Auto-skip per `agent-workflow.md` only when truly unambiguous; state "No ambiguities identified" explicitly. In autonomous mode, ask the user only when an ambiguity genuinely blocks correctness.
 4. **Spec** — create one via spec-workflow MCP if the change spans 3+ files or introduces a new pattern; skip for refactors/bug-fixes/<3 files (use a validated plan instead).
 5. **Plan + validate** — impact analysis, contract check, pattern scan, doc/schema check, security surface (`agent-workflow.md § Plan Validation`).
-6. **Plan-critic** — run the plan-critic agent (skip only for single-file <10-line changes). Resolve CRITICAL directly; 1 revision round for ISSUE, then resolve directly.
+6. **Plan-critic** — run the plan-critic agent (skip only for single-file <10-line changes). Resolve CRITICAL directly; ISSUEs run under the Multi-Round Review Discipline (agent-critic.md): fix APPLY findings, then stability rounds to the consecutive-clean floor (2 normal / 3 security-path), ceiling 4 total — if the floor is unmet at the ceiling, do NOT self-resolve: stop that item and leave it for the user in the handoff report.
 7. **Approval** — the active `/goal` IS the approval. Do not block on user sign-off; record assumptions in the plan and proceed.
 8. **Execute** — delegate implementation to Sonnet subagents (parallel when independent, worktree isolation for risky parallel edits). Use the 5-section delegation template. Read every result.
 9. **Implementation-critic** — run on `git diff --staged` before **every** commit. NEVER skip (even single-file). CRITICAL → orchestrator resolves; ISSUE → ≤2 revision rounds.
