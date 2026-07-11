@@ -828,7 +828,6 @@ Files to create (✅ = already created):
 - `.claude/commands/insights.md`
 - `.claude/skills/nextjs-patterns.md`
 - `.claude/skills/supabase-rls.md`
-- `.claude/skills/fsrs-patterns.md`
 - ✅ `.claude/rules/code-style.md` — file size limits, component rules, TS rules
 - `.claude/rules/security.md` (short, points to docs/security.md)
 
