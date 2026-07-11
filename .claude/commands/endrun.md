@@ -14,7 +14,8 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
   records `not captured`. Note that `/usage` reports a **rolling cumulative total**, not
   a per-run slice — record it under the cumulative-snapshot table, not attributed to one run.
 - **Run wall-clock** is approximated from git commit timestamps and labelled as such. For an
-  exact figure, drop a marker at the start of the run: `date -u +%FT%TZ > .claude/.run-start`
+  exact figure, record the baseline at run START:
+  `{ git rev-parse HEAD; date -u +%FT%TZ; } > .claude/.run-start`
   — if that file exists, use its timestamp as the run start instead of the first commit.
 
 ## Steps
@@ -29,6 +30,12 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    ```
    - Commit span = first → last commit (HH:MM). Prefer `.claude/.run-start` if it exists.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
+   - **Per-run baseline:** when `.claude/.run-start` exists (written at run START via
+     `{ git rev-parse HEAD; date -u +%FT%TZ; } > .claude/.run-start`), compute commits/diff/span
+     from its recorded SHA (`<SHA>..HEAD`) instead of `master..HEAD`. If it's absent, fall back to
+     `master..HEAD` and add an explicit caveat in the row: "may include earlier work on a
+     long-lived branch". After the run row is written, DELETE `.claude/.run-start` so it can't
+     leak into the next run.
 
 2. **PRs**: `gh pr list --head "$BR" --repo okpilot/lmsplus_v2 --json number,state,url` — list PRs currently associated with the branch (`gh pr list --head` cannot distinguish which were opened during this run).
 

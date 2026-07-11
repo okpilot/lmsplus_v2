@@ -139,7 +139,7 @@ lmsplusv2/
 - **Input validation**: Zod `.parse()` / `.safeParse()` on every Server Action. LIKE metacharacter escaping. Free-text ILIKE fields capped at 200 chars.
 - **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy. The 6 static headers are emitted by `next.config.ts` on routed responses and re-emitted by `apps/web/proxy.ts` on Edge Middleware redirect / 4xx / 5xx responses. The CSP differs by response class: routed responses get the full policy from `next.config.ts` (`default-src 'self'`, scoped script-src, supabase.co connect-src, etc.); middleware-only responses get a reduced lock-down CSP (`default-src 'none'; frame-ancestors 'none'`) since no scripts execute on a 3xx/4xx/5xx, so the stricter policy is safe and prevents accidental subresource loading on error pages.
 - **Immutable tables**: `student_responses`, `quiz_session_answers`, `audit_events`, `user_consents` -- no UPDATE, no DELETE, ever. RLS policies block all writes; inserts only via SECURITY DEFINER RPCs.
-- **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (exception: `question_comments`, Decision 30).
+- **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (approved exceptions per the `docs/database.md` §3 matrix: `question_comments` (Decision 30), `quiz_drafts`, `exam_config_distributions`).
 - **SECURITY DEFINER RPCs**: Always include `auth.uid()` IS NULL check + `SET search_path = public`. Must manually filter `deleted_at IS NULL` on soft-deletable tables (RLS bypassed). **Narrow carve-out:** a SELECT fetching records by IDs stored in an immutable, write-once column may omit the filter — see `docs/security.md` §15 for the authoritative current list of qualifying functions (e.g. `batch_submit_quiz`, `check_quiz_answer`, the VFR-RT and report RPCs) and `docs/database.md` §3 "Scoring Soft-Deleted Questions".
 - **Audit trail**: Append-only `audit_events` table for CAA compliance. `user_consents` append-only for GDPR proof.
 - **GDPR**: Consent audit trail with versioned re-consent. Data export (self-service + admin). Erasure declined under EASA Part ORA (Article 17(3)(b) exemption).
@@ -171,7 +171,7 @@ lmsplusv2/
 
 7. **Atomic batch quiz submission** (Decision 23): `batch_submit_quiz()` processes all answers + score + session completion in one Postgres transaction. Prevents orphaned answers from partial failures.
 
-8. **question_comments hard DELETE exception** (Decision 30): Comments have low audit value. Primary path is hard DELETE, not soft-delete. Documented in database.md soft-delete matrix.
+8. **question_comments hard DELETE exception** (Decision 30): Comments have low audit value. Primary path is hard DELETE, not soft-delete. Documented in database.md soft-delete matrix, which also carries the other approved hard-DELETE exceptions: `quiz_drafts` (disposable temp storage) and `exam_config_distributions` (replaced atomically by `upsert_exam_config`).
 
 9. **GDPR erasure declined under EASA Part ORA** (Decision 33): Training records retained with full identity per Article 17(3)(b) exemption. Data export provided (self-service + admin). No deletion, no anonymisation.
 

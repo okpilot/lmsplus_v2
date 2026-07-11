@@ -245,8 +245,11 @@ reviews:
           transition), then raise 'another_session_active' when any OTHER active
           (ended_at IS NULL AND deleted_at IS NULL) session exists. The global partial unique index
           uq_one_active_session_per_student (mig 136) is the concurrent-race backstop —
-          flag a new start RPC relying on neither the explicit pre-check nor a
-          unique_violation handler on that index.
+          a NEW start-session RPC must carry BOTH the explicit pre-check AND an
+          EXCEPTION WHEN unique_violation handler mapping violations of that index to
+          'another_session_active' (the deployed pattern in the 20260629
+          *_single_active_guard migrations, e.g. start_exam_session); flag a new start
+          RPC missing either.
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside

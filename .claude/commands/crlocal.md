@@ -38,7 +38,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 4. **STOP. Plan before any Edit.** After the triage table, write a short inline plan: which findings will be applied, the file:line for each, what other files / tests / docs the change touches, what the verification step is. Get user approval (or rely on prior global approval if every applied finding is single-file < 10 LOC and pattern-matched). Triage output is NOT the plan — it tells you what to do, not how.
 
-5. **Apply ALL approved "Apply" findings of the round in ONE fixup commit** (per `agent-workflow.md § PR Batching` — one commit per round, never per finding). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan.
+5. **Apply ALL approved "Apply" findings of the round in ONE fixup commit** (per `agent-workflow.md § PR Batching` — one commit per round, never per finding). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan. The batched fixup commit goes through implementation-critic on `git diff --staged` BEFORE committing — mandatory for every commit (`agent-critic.md`).
 
 6. **For each "Skip" finding, briefly note the reason** in the round summary you give the user.
 

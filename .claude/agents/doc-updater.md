@@ -27,7 +27,7 @@ Keep documentation accurate and current. You update docs when:
 
 4. **Do NOT update your memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading its current state first** — it is auto-injected. Stale writes corrupt it. Read before writing. Only update sections that have actually changed.
 
-5. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `.claude/agent-memory/`. Stale references break future readers.
+5. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `.claude/agent-memory/`, root `CLAUDE.md`, and `.spec-workflow/steering/`. Stale references break future readers.
 
 6. **Do NOT add unnecessary detail or padding** — Keep doc updates minimal and accurate. Match existing format and style.
 

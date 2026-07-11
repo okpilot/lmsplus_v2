@@ -163,6 +163,44 @@ run_cli_failure_case() {
 }
 run_cli_failure_case
 
+# 13. Full-script run: TIMEOUT (exit 124 from the `timeout 120` wrapper) must FAIL CLOSED.
+#     Same throwaway-repo setup as case 12, but the `claude` shim exits 124 — the code the
+#     hook's `EXIT_CODE -eq 124` timeout branch detects. The fallback grep scan finds
+#     nothing, so the timeout branch must block with exit 1 + the push-blocked message.
+run_timeout_case() {
+  local name="claude CLI timeout (exit 124) fails closed (push blocked)"
+  local tmpdir shimdir output
+  local actual=0
+  tmpdir="$(mktemp -d)"
+  shimdir="$tmpdir/shim"
+  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
+  printf '#!/usr/bin/env bash\necho "simulated claude CLI timeout" >&2\nexit 124\n' > "$shimdir/claude"
+  chmod +x "$shimdir/claude"
+  (
+    cd "$tmpdir/repo" || exit 1
+    git init -q
+    git config user.email test@test.local
+    git config user.name test
+    echo "# stub auditor prompt" > .claude/agents/security-auditor.md
+    echo "base" > file.txt
+    git add -A
+    git commit -qm init
+    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
+    echo "changed" >> file.txt
+  ) >/dev/null 2>&1
+  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
+  rm -rf "$tmpdir"
+  if [ "$actual" -eq 1 ] && printf '%s' "$output" | grep -q "push blocked"; then
+    echo "PASS: $name (exit $actual)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $name (expected exit 1 + 'push blocked' message, got exit $actual)"
+    printf '%s\n' "$output" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  fi
+}
+run_timeout_case
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -11,6 +11,7 @@
  */
 
 let input = ''
+let oversizedPayload = false
 process.stdin.setEncoding('utf8')
 // A stream error would otherwise exit 1 (undocumented for PreToolUse hooks) with no
 // stderr signal — make the fail-open explicit and observable instead.
@@ -23,21 +24,27 @@ process.stdin.on('data', (chunk) => {
   input += chunk
   // Fail-open-but-loud on absurdly large payloads — real payloads are a few KB,
   // and unbounded buffering would let a runaway stream exhaust memory.
-  if (input.length > 1_000_000) {
-    console.error(
-      '[guard-bash] payload exceeds 1MB — allowing command (unparseable-payload policy)',
+  if (input.length > 1_000_000 && !oversizedPayload) {
+    // The flag keeps the 'end' handler from processing the payload while the
+    // async stderr flush completes — the fail-open exit must not be overridden.
+    oversizedPayload = true
+    process.stderr.write(
+      '[guard-bash] payload exceeds 1MB — allowing command (unparseable-payload policy)\n',
+      () => process.exit(0),
     )
-    process.exit(0)
   }
 })
 process.stdin.on('end', () => {
+  if (oversizedPayload) return
   let toolInput
   try {
     toolInput = JSON.parse(input)
   } catch {
     // Fail-open-but-loud ONLY for malformed payloads — we can't match what we can't parse.
-    console.error('[guard-bash] unparseable hook payload — allowing command')
-    process.exit(0)
+    process.stderr.write('[guard-bash] unparseable hook payload — allowing command\n', () =>
+      process.exit(0),
+    )
+    return
   }
 
   // Claude Code wraps tool params under tool_input; fall back to flat shape for compatibility
