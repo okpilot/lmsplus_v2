@@ -28,6 +28,7 @@ process.stdin.on('data', (chunk) => {
     // The flag keeps the 'end' handler from processing the payload while the
     // async stderr flush completes — the fail-open exit must not be overridden.
     oversizedPayload = true
+    process.stdin.destroy() // stop further data events immediately
     process.stderr.write(
       '[guard-bash] payload exceeds 1MB — allowing command (unparseable-payload policy)\n',
       () => process.exit(0),
@@ -48,7 +49,22 @@ process.stdin.on('end', () => {
   }
 
   // Claude Code wraps tool params under tool_input; fall back to flat shape for compatibility
-  const command = toolInput?.tool_input?.command ?? toolInput?.command ?? ''
+  const rawCommand = toolInput?.tool_input?.command ?? toolInput?.command
+  let command
+  if (rawCommand === undefined || rawCommand === null) {
+    // Benign: no command present — preserve the previous allow behavior.
+    command = ''
+  } else if (typeof rawCommand !== 'string') {
+    // RegExp.test coerces non-strings (arrays/objects/numbers), so a non-string
+    // command payload could bypass the denylist via coercion — block it.
+    process.stderr.write(
+      'BLOCKED: non-string command payload — refusing to pattern-match a coerced value\n',
+      () => process.exit(2),
+    )
+    return
+  } else {
+    command = rawCommand
+  }
 
   const BLOCKED_PATTERNS = [
     // Destructive filesystem

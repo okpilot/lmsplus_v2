@@ -52,6 +52,14 @@ test('blocks a dangerous command in flat JSON shape (backward-compat path)', () 
   assert.match(r.stderr, /BLOCKED/)
 })
 
+test('blocks a non-string command payload (array) with exit 2 and a "non-string command" stderr diagnostic', () => {
+  // RegExp.test coerces non-strings, so ["rm","-rf","/"] stringifies to "rm,-rf,/"
+  // and could dodge the denylist patterns — the hook must refuse to pattern-match it.
+  const r = runHook('{"tool_input":{"command":["rm","-rf","/"]}}')
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /non-string command/)
+})
+
 test('fails open even when an oversized payload contains valid JSON with a blocked command (exit 0 + size warning)', () => {
   // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler
   // via `if (oversizedPayload) return` before it can parse the JSON and match blocked

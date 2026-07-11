@@ -20,6 +20,7 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
+- Findings from red-team and coderabbit-sync, whenever those conditional agents ran this cycle (security-path diffs / rule changes)
 - The commit diff (`git diff HEAD~1..HEAD`)
 - Current rules: `.claude/rules/code-style.md`, `.claude/rules/security.md`
 - Current memory: `.claude/agent-memory/learner/MEMORY.md`

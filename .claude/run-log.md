@@ -18,7 +18,7 @@ in its own table below, never attributed to a single row.
 
 ## Cumulative cost (`/usage` snapshots)
 
-Rolling total across all recent work (not one run).
+Rolling total across all recent work (not one run) — latest snapshot 2026-07-04.
 
 | Date | Total | API time | Wall time | Lines | Top model |
 |------|-------|----------|-----------|-------|-----------|

@@ -11,7 +11,7 @@
 # `review-gate.js`. Match the literal `coderabbit review` substring
 # inside the JSON payload's command field.
 
-input="$(cat)"
+input="$(head -c 1000000)" # 1MB cap — parity with guard-bash/review-gate stdin bounds
 
 # Parse the .command field from the JSON tool-input payload before
 # matching, so a description or env value containing "coderabbit review"

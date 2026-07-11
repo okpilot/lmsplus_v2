@@ -140,9 +140,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 │   └── on-stop.sh           ← Stop: biome format + vitest
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
+│   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project
 │   ├── security-auditor.md ← sonnet, CREATED, scans diffs for vulns/secrets, memory: project
 │   ├── test-writer.md      ← sonnet, writes Vitest tests for new code
 │   └── doc-updater.md      ← haiku, updates docs when API changes
+│                              (curated subset — full roster adds plan-critic, implementation-critic,
+│                              learner, red-team, coderabbit-sync; see .claude/agents/)
 ├── commands/
 │   ├── review.md           ← /project:review
 │   ├── test.md             ← /project:test
