@@ -58,7 +58,7 @@
 
 **PHASE COMPLETE** — squash commit 76a9b03e (PR #830). Full delivery: questions schema (4 answer-key columns + type discriminator CHECK), answer tables (per-blank support + UNIQUE NULLS NOT DISTINCT), 6 grading/delivery RPCs, column-level privilege gate (REVOKE/GRANT), per-part ≥75% pass criterion, immutable write-once config.question_ids exception.
 
-**Migrations 094–104** (delivered in supabase/migrations/ + packages/db/migrations/ mirrors):
+**Migrations 094–104** (delivered in supabase/migrations/; the packages/db/migrations mirror was frozen 2026-07-11 — supabase/migrations is the sole source of truth):
 - Mig 094: questions table — `question_type` TEXT + CHECK, 4 answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config), type↔column CHECK (single source of truth), partial index on (question_type, subject_id) WHERE active, REVOKE/GRANT privilege gate on answer-key columns
 - Mig 094b: `get_question_authoring_fields()` RPC — admin-only read path for answer-key columns (bypasses column REVOKE)
 - Mig 095: quiz_session_answers + student_responses — selected_option_id nullable, response_text + blank_index columns, answer-shape CHECK, UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index) replacing old one-per-question constraint

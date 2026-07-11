@@ -118,7 +118,7 @@ You receive:
 
 ### Pre-Flag Verification — trace the CREATE OR REPLACE chain (checks 16–20)
 
-Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the `CREATE OR REPLACE FUNCTION` chain to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. Account for the two-directory migration mirror (`packages/db/NNN_* ≡ supabase/timestamp_*`); neither directory is authoritative.
+Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the `CREATE OR REPLACE FUNCTION` chain to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. `supabase/migrations/` is the sole source of truth for current SQL (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it; re-check any such path against `supabase/migrations/`).
 
 ## Output Format
 
@@ -132,7 +132,7 @@ MEDIUM: [count]
 
 --- FINDINGS ---
 
-[CRITICAL] packages/db/migrations/004_questions.sql — line 12
+[CRITICAL] supabase/migrations/20260311000001_initial_schema.sql — line 105
 RLS enabled but WITH CHECK clause missing on INSERT policy for 'questions' table.
 Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = auth.uid()))
 
@@ -178,7 +178,7 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
    1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
    2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
-   3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` or `packages/db/migrations/` and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
+   3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` (the sole source of truth; `packages/db/migrations/` is frozen/historical) and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
    4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.

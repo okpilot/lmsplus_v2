@@ -180,7 +180,8 @@ reviews:
         - Use get_quiz_questions() RPC which strips correct answers.
 
     # SQL migrations — RLS mandatory
-    - path: "packages/db/migrations/**/*.sql"
+    # (supabase/migrations/ is the sole source of truth; packages/db/migrations/ is frozen/historical as of 2026-07-11)
+    - path: "supabase/migrations/**/*.sql"
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
@@ -258,10 +259,6 @@ reviews:
           mig 101, 2026-06-10). Flag any migration changing a plpgsql body containing these
           constructs that lacks a functional/integration test executing the function.
           (code-style.md §5 "Validate at Execution, Not Apply".)
-
-    - path: "supabase/migrations/**/*.sql"
-      instructions: |
-        Same rules as packages/db/migrations. See above.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

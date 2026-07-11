@@ -74,9 +74,8 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 
 1. Do NOT read the function definition only from the migration file currently being reviewed.
 2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>` (including any other migrations also in the staged diff):
-   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp
-   - `packages/db/migrations/*.sql` — sort numerically by prefix
-3. Read the LAST (most recent) definition in both directories — that is the binding body.
+   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp. This is the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL).
+3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 
 This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
