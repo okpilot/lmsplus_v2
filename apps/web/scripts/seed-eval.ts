@@ -262,12 +262,13 @@ async function seed() {
   if (alwErr) throw new Error(`Air Law subject: ${alwErr.message}`)
   console.log(`  Air Law subject: ${alwSubject.id}`)
 
-  const { data: alwTopicRow } = await db
+  const { data: alwTopicRow, error: alwTopicLookupErr } = await db
     .from('easa_topics')
     .select('id')
     .eq('subject_id', alwSubject.id)
     .eq('code', '010-01')
     .maybeSingle()
+  if (alwTopicLookupErr) throw new Error(`ALW topic lookup: ${alwTopicLookupErr.message}`)
 
   let alwTopicId: string
   if (alwTopicRow) {
@@ -287,12 +288,13 @@ async function seed() {
     alwTopicId = newTopic.id
   }
 
-  const { data: alwSubtopicRow } = await db
+  const { data: alwSubtopicRow, error: alwSubtopicLookupErr } = await db
     .from('easa_subtopics')
     .select('id')
     .eq('topic_id', alwTopicId)
     .eq('code', '010-01-01')
     .maybeSingle()
+  if (alwSubtopicLookupErr) throw new Error(`ALW subtopic lookup: ${alwSubtopicLookupErr.message}`)
 
   let alwSubtopicId: string
   if (alwSubtopicRow) {

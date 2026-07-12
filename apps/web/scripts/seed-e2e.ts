@@ -412,13 +412,14 @@ async function seed() {
 
   // 7. Exam config for MET — required by exam-flow.spec.ts and exam-recovery.spec.ts.
   // 60s timer + 10 questions + 70% pass mark to match what the specs assert.
-  const { data: existingCfg } = await db
+  const { data: existingCfg, error: examConfigLookupErr } = await db
     .from('exam_configs')
     .select('id, total_questions, time_limit_seconds, pass_mark')
     .eq('organization_id', org.id)
     .eq('subject_id', subject.id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (examConfigLookupErr) throw new Error(`Exam config lookup: ${examConfigLookupErr.message}`)
 
   let examConfigId: string
   if (existingCfg) {
@@ -453,13 +454,14 @@ async function seed() {
     examConfigId = newCfg.id
   }
 
-  const { data: existingDist } = await db
+  const { data: existingDist, error: distLookupErr } = await db
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', examConfigId)
     .eq('topic_id', topicId)
     .is('subtopic_id', null)
     .maybeSingle()
+  if (distLookupErr) throw new Error(`Exam distribution lookup: ${distLookupErr.message}`)
 
   if (!existingDist) {
     const { error: distErr } = await db.from('exam_config_distributions').insert({

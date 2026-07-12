@@ -321,12 +321,13 @@ async function seed() {
     let subjectQCount = 0
 
     for (const top of subj.topics) {
-      const { data: existingTopic } = await db
+      const { data: existingTopic, error: topicLookupErr } = await db
         .from('easa_topics')
         .select('id')
         .eq('subject_id', subject.id)
         .eq('code', top.code)
         .maybeSingle()
+      if (topicLookupErr) throw new Error(`Topic ${top.code} lookup: ${topicLookupErr.message}`)
 
       let topicId: string
       if (existingTopic) {
@@ -347,12 +348,14 @@ async function seed() {
       }
 
       for (const sub of top.subtopics) {
-        const { data: existingSub } = await db
+        const { data: existingSub, error: subtopicLookupErr } = await db
           .from('easa_subtopics')
           .select('id')
           .eq('topic_id', topicId)
           .eq('code', sub.code)
           .maybeSingle()
+        if (subtopicLookupErr)
+          throw new Error(`Subtopic ${sub.code} lookup: ${subtopicLookupErr.message}`)
 
         let subtopicId: string
         if (existingSub) {

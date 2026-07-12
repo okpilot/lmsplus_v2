@@ -138,12 +138,13 @@ async function seed() {
     .single()
   if (metErr) throw new Error(`Subject: ${metErr.message}`)
 
-  const { data: topic } = await db
+  const { data: topic, error: topicLookupErr } = await db
     .from('easa_topics')
     .select('id')
     .eq('subject_id', met.id)
     .eq('code', '050-01')
     .maybeSingle()
+  if (topicLookupErr) throw new Error(`Topic lookup: ${topicLookupErr.message}`)
   let topicId: string
   if (topic) {
     topicId = topic.id
@@ -157,12 +158,13 @@ async function seed() {
     topicId = newTopic.id
   }
 
-  const { data: subtopic } = await db
+  const { data: subtopic, error: subtopicLookupErr } = await db
     .from('easa_subtopics')
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', '050-01-01')
     .maybeSingle()
+  if (subtopicLookupErr) throw new Error(`Subtopic lookup: ${subtopicLookupErr.message}`)
   let subtopicId: string
   if (subtopic) {
     subtopicId = subtopic.id
@@ -224,13 +226,14 @@ async function seed() {
   // 6. Exam config (enabled) + distribution. 30-min timer so it won't auto-submit mid-test.
   // The (organization_id, subject_id) uniqueness is a partial index (WHERE deleted_at
   // IS NULL), which ON CONFLICT can't target — so check-then-insert/update instead.
-  const { data: existingCfg } = await db
+  const { data: existingCfg, error: examConfigLookupErr } = await db
     .from('exam_configs')
     .select('id')
     .eq('organization_id', org.id)
     .eq('subject_id', met.id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (examConfigLookupErr) throw new Error(`Exam config lookup: ${examConfigLookupErr.message}`)
 
   let cfg: { id: string }
   if (existingCfg) {
@@ -262,12 +265,13 @@ async function seed() {
     cfg = newCfg
   }
 
-  const { data: existingDist } = await db
+  const { data: existingDist, error: distLookupErr } = await db
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', cfg.id)
     .eq('topic_id', topicId)
     .maybeSingle()
+  if (distLookupErr) throw new Error(`Exam distribution lookup: ${distLookupErr.message}`)
   if (!existingDist) {
     const { error: distErr } = await db.from('exam_config_distributions').insert({
       exam_config_id: cfg.id,
