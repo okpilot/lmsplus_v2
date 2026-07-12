@@ -104,12 +104,13 @@ async function seed() {
   // 4. Question bank (select existing or insert)
   // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
   // already has regardless of name, so this seed composes with sibling eval seeds (#1119).
-  const { data: existingBank } = await db
+  const { data: existingBank, error: bankLookupErr } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', org.id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
 
   let bankId: string
   if (existingBank) {

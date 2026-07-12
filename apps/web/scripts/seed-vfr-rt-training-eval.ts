@@ -319,12 +319,13 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
   // One bank per org (question_banks_organization_id_key) — reuse whatever bank the
   // org already has regardless of name, so this seed composes with sibling eval
   // seeds in either run order (#1119). NAME only applies on first-run insert.
-  const { data: existing } = await db
+  const { data: existing, error: bankLookupErr } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', orgId)
     .is('deleted_at', null)
     .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
   if (existing) return existing.id
 
   const { data, error } = await db
