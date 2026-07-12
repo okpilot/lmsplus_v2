@@ -3,6 +3,7 @@ import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import {
   calcFilteredAvailable,
   calcSelectedCount,
+  collectSubtopicIds,
   computeAvailableCount,
 } from './topic-tree-helpers'
 
@@ -28,6 +29,28 @@ function makeTopic(
 }
 
 // ---- Tests ------------------------------------------------------------------
+
+describe('collectSubtopicIds', () => {
+  it('returns an empty array when no topics are provided', () => {
+    expect(collectSubtopicIds([])).toEqual([])
+  })
+
+  it('flattens subtopic ids across all topics', () => {
+    const topics = [
+      makeTopic('t-a', 20, [
+        { id: 'st-a1', questionCount: 10 },
+        { id: 'st-a2', questionCount: 10 },
+      ]),
+      makeTopic('t-b', 15, [{ id: 'st-b1', questionCount: 15 }]),
+    ]
+    expect(collectSubtopicIds(topics)).toEqual(['st-a1', 'st-a2', 'st-b1'])
+  })
+
+  it('skips a leaf topic with no subtopics', () => {
+    const topics = [makeTopic('t-a', 15)]
+    expect(collectSubtopicIds(topics)).toEqual([])
+  })
+})
 
 describe('calcSelectedCount', () => {
   it('returns 0 when no topics are provided', () => {

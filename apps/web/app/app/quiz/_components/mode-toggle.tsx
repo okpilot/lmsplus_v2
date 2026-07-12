@@ -6,12 +6,14 @@ type ModeToggleProps = {
   value: QuizMode
   onValueChange: (mode: QuizMode) => void
   examAvailable?: boolean
+  discoveryAvailable?: boolean
 }
 
 export function ModeToggle({
   value,
   onValueChange,
   examAvailable = false,
+  discoveryAvailable = true,
 }: Readonly<ModeToggleProps>) {
   return (
     <div className="space-y-1.5">
@@ -20,11 +22,14 @@ export function ModeToggle({
         <button
           type="button"
           aria-pressed={value === 'discovery'}
-          onClick={() => onValueChange('discovery')}
+          disabled={!discoveryAvailable}
+          onClick={() => discoveryAvailable && onValueChange('discovery')}
           className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
             value === 'discovery'
               ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
+              : discoveryAvailable
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground opacity-50 cursor-not-allowed'
           }`}
         >
           Discovery

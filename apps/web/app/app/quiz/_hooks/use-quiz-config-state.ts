@@ -15,9 +15,11 @@ import type { useTopicTree } from './use-topic-tree'
 export function useQuizConfigState(deps: {
   fc: ReturnType<typeof useFilteredCount>
   topicTree: ReturnType<typeof useTopicTree>
+  initialSubjectId?: string
+  initialMode?: QuizMode
 }) {
-  const [subjectId, setSubjectId] = useState('')
-  const [mode, setMode] = useState<QuizMode>('discovery')
+  const [subjectId, setSubjectId] = useState(deps.initialSubjectId ?? '')
+  const [mode, setMode] = useState<QuizMode>(deps.initialMode ?? 'discovery')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
   const [calcMode, setCalcMode] = useState<CalcMode>('all')
   const [imageMode, setImageMode] = useState<ImageMode>('all')

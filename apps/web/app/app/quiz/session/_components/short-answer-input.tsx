@@ -30,13 +30,30 @@ export function ShortAnswerInput({
   const showResult = locked && isCorrect != null
   const display = locked ? submittedText : value
   const trimmed = value.trim()
+  const canSubmit = trimmed !== '' && !disabled && !submitting && !locked
+
+  function submit() {
+    if (canSubmit) onSubmit(trimmed)
+  }
 
   return (
     <div className="space-y-3">
       <input
         type="text"
+        // Auto-focus on mount. The control is keyed by question.id (remounts per
+        // question), so this lands focus in the field on every new question — the
+        // student can type immediately without clicking. A locked/answered question
+        // renders the input disabled, so autoFocus is a no-op there (correct).
+        // biome-ignore lint/a11y/noAutofocus: intentional — single-input drill step, keyed per question
+        autoFocus
         value={display ?? ''}
         onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            submit()
+          }
+        }}
         disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"
@@ -64,9 +81,9 @@ export function ShortAnswerInput({
       {!locked && (
         <button
           type="button"
-          disabled={!trimmed || disabled || submitting}
+          disabled={!canSubmit}
           aria-busy={submitting || undefined}
-          onClick={() => trimmed && onSubmit(trimmed)}
+          onClick={submit}
           className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           <span className="inline-flex items-center justify-center gap-2">
