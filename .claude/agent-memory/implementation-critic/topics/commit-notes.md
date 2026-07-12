@@ -4,6 +4,209 @@
 > (#953 budget curation). The live tracker, durable knowledge, and false-positives stay in
 > `MEMORY.md`; this file holds the verbose per-commit detail. History also lives in `git log`.
 
+## Tracker-row & false-positive detail relocated from MEMORY.md (2026-07-11 budget curation)
+
+Verbose bodies moved here verbatim; the MEMORY.md rows/bullets keep a terse summary + pointer.
+
+### Row: Thin-wrapper page-error tests — mock-dependency form is valid (2026-06-01 / 2026-06-25)
+
+WATCHING. PR-A4 (#699) 7 fetchUser* fns are pure `return fetchAllRows(...)` — no mapping. Mock-the-dependency proves propagation completely; non-vacuous because fetchAllRows is the ONLY path. Do NOT flag as "bypassing production logic". Count=2: PR #992 quiz-report{,-questions}.test.ts §7 page-error tests `vi.mock('@/lib/supabase-paginate')` + `mockResolvedValueOnce({data:[],error})` → assert caller surfaces error. Valid even when the caller DOES transform the result (here it counts/builds), because fetchAllRows is the only fetch path for that read. The §7 rule's "helper mocked as a dependency" form explicitly permits this.
+
+### Row: Fractional partial-credit SUM through an `int` plpgsql variable (2026-06-21)
+
+WATCHING. VFR RT Phase 2.3 mig 121 `batch_submit_quiz`: `SELECT sum(LEAST(correct_rows::numeric/total_blanks,1.0)) INTO v_correct_count` where `v_correct_count int` → implicit numeric→int ROUNDS the dialog_fill partial-credit sum BEFORE `v_score=round(v_correct_count::numeric/total*100,2)`. MC/short = lossless; dialog_fill partial (0.667) silently rounds to 1.0. Decision 47 documents partial credit → true deviation. Precedent mig 113 feeds `avg(LEAST(...))` into `numeric(5,2)`, never int. When a fractional aggregate is computed, verify the receiving var is `numeric` until after the percentage is derived.
+
+### Row: packages/db migration NNN prefix collision across parallel unmerged branches (2026-06-26)
+
+WATCHING. study-mode added `packages/db/134_*`,`135_*` (off master @ Phase4 base = 133); the unmerged feat/vfr-rt-training-phase5 (PR #998) ALSO claims `packages/db/134_*`..`140_*`. supabase timestamp files do NOT collide (20260626 vs 20260625) — only the NNN prefixes do. Not a defect in either staged diff; it's a merge-sequencing hazard. Whichever merges 2nd must renumber. Flag to orchestrator when two in-flight branches both number off the same baseline.
+
+### Row: Agent-memory stub rows require archive to already contain the full entry (2026-06-22)
+
+WATCHING. #948 learner MEMORY.md: stub rows pointed to tracker-archive.md but 9 had no corresponding full entry (6 fuzzy-matched differently-worded; 2 PROMOTED in the live table; 1 under a different suffix). All content conserved. Pre-check before flagging stub-row-with-no-archive-match: fuzzy grep the archive, check the live table, check different suffix forms.
+
+### Row: Integration test fixture type changed to satisfy a new write-time trigger (2026-06-24)
+
+WATCHING. #828 fix commit: `rpc-vfr-rt-constraint-regression.integration.test.ts` describe-block fixture retargeted from `short_answer` to `dialog_fill`. Root: mig 131 BEFORE INSERT trigger enforces `question_type='dialog_fill' ⇔ blank_index IS NOT NULL`; a `short_answer` fixture with `blank_index=-1` would now be blocked by the trigger (ERRCODE 23514) instead of the `answer_shape_check` CHECK — the test would still get a 23514 but the wrong constraint would be under test. The fix (dialog_fill + dialog_template + blanks_config; canonical_answer dropped; accepted_synonyms stays []) routes the -1 rejection to the CHECK (trigger passes, CHECK fires) as intended. POSITIVE: the fixture is fully valid per mig 094 `questions_question_type_columns_check`; all 4 tests are semantically correct. Pattern to watch: when a new trigger rejects a previously-valid constraint-regression fixture, the fixture type must be updated to the type the trigger ALLOWS, so the original CHECK remains the first-line constraint under test.
+
+### Row: Unit test updated to throw; integration test still asserts old return-[] (2026-06-26)
+
+WATCHING. Study-mode CR-fix: `study-queries.ts` changed from returning `[]` to throwing on RPC error. Unit test correctly updated (`.rejects.toThrow`). But integration test "returns an empty array when called without authentication" (line 174) still asserts `expect(result).toEqual([])` — the RPC explicitly raises "Not authenticated" (RAISE EXCEPTION, migration 20260626000200 L55-56), so the helper throws and the test fails in CI. Header comment on L10 also stale ("helper returns []"). When a query helper's error posture changes from return-empty to throw, grep the integration test for all assertions on the old return value (not just the unit test) before committing. NOTE: The round-2 fix batch (`getRandomQuestionIds` throw) confirmed the pattern works in reverse — when the helper has NO integration test tier, only the unit test needs updating, and both SA callers correctly wrapped in try/catch.
+
+### FP: #1011 merge-fix studentId-scoped clearActiveSessions (verified clean, VFR-RT Phase 5 ordering merge #998)
+
+**#1011 merge-fix `beforeEach(() => clearActiveSessions({ admin, studentIds: [studentId] }))` is correctly studentId-scoped, NOT org-wide.** After master's single-active-session invariant (mig 136, `uq_one_active_session_per_student`), integration suites that reuse ONE test student across many `start_quiz_session` calls must clear the prior test's still-active session before the next start raises `another_session_active`. When the suite ALSO spins up per-test students that intentionally HOLD an active session (soft-deleted-caller, other-student-ownership tests), the clear must be `studentIds: [studentId]` — an org-wide `orgId` clear would wipe those held sessions. Established master pattern: `rpc-check-non-mc-answer.integration.test.ts:173`. Do not suggest switching to `orgId`. Throwaway-org suites with no held per-test sessions correctly use `orgId` (start-session/submit-answer/complete-session/check-answer).
+
+### FP: `blanks.every()` vacuous-true unreachable in dialog-fill a11y path (Phase 3 round-4 commit 56678b99)
+
+**`blanks.every(b => b.isCorrect)` vacuous-true on `[]` is unreachable in the dialog-fill a11y path.** `dialog-fill-input.tsx` `allBlanksCorrect = graded && blanks.every(...)` would announce sr-only "Correct" for an empty `blanks` array. But `graded = locked && blanks != null`, and the grading path (`check-non-mc-answer-helpers.ts`) derives `blanks` from the template's blank indices — a dialog_fill question requires ≥1 `{{n}}` marker (mig 131 `blank_index ⇔ dialog_fill` trigger), so feedback always has ≥1 entry. Even the degenerate case is sr-only-text-only (no scoring/data impact). Do not flag as a missing empty-guard.
+
+### Row: Dead helper in test file → Biome noUnusedVariables/noThenProperty pre-commit fail (2026-04-11 / 2026-05-27)
+
+RULE CANDIDATE. queries.test.ts `buildChain`; PR-C `buildAnswersClient` (147 lines). Grep call sites for any large test helper before approving — delete if only self-referenced.
+
+### Row: Hard DELETE on quiz_sessions in red-team afterAll/afterEach (2026-06-05)
+
+WATCHING. #611 quiz-session-score-forgery.spec.ts afterAll used `.delete()` on quiz_sessions. Sibling specs use soft-delete. docs/database.md matrix marks quiz_sessions soft-delete only. Flag as ISSUE in future specs.
+
+### Row: Conditional redirect regression when helper return value discarded (2026-04-14)
+
+WATCHING. `handleSubmitSession` discarded `discardQuizSession` result; `router.push` fires only on success → stranded user. Check callers of helpers that made an unconditional side-effect conditional.
+
+### Durable: Security §11 (multi-permissive RLS) self-scope is load-bearing
+
+**Security §11 (multi-permissive RLS) self-scope is load-bearing.** Per-caller RPCs reading `student_responses`/`quiz_sessions`/`exam_configs`/`audit_events` must carry an explicit `<owner> = auth.uid()` predicate even with SECURITY INVOKER + RLS — RLS ORs the broader instructor/admin policy. The predicate is correct, not redundant; do not suggest removing it.
+
+### Durable: Doc-only commits — mig comment vs guard line range
+
+**Doc-only commits: mig comment vs guard line range.** `L69-75`→`L73-75` on mig 117 is a valid finding class: L69-72 was the comment block, L73-75 is the IF/RAISE/END IF. When a citation spans comment+code, the code-only sub-range is more precise. Confirmed clean on #918.
+
+### Durable: Test title impl-detail leakage (code-style §7)
+
+**Test title impl-detail leakage (code-style §7).** `it(...)` titles must not name internal helpers/types/validator branches (`forwards X to fetchAllRows`, `from FooOpts`, `typeof guard`). Public props, public SDK methods, integration-boundary RPC names ARE permitted (contracts). Audit inline comments after a title rename — they often go stale.
+
+### FP: `count(*) OVER()` window with `p_limit:1` probe
+
+**`count(*) OVER()` window with `p_limit:1` probe** still returns correct `total_count` — Postgres evaluates the window before LIMIT/OFFSET (verified mig `20260429000011` L64). Do not flag probe-limit as "may return wrong total".
+
+### Row: Zero-row no-op — UPDATE/DELETE missing `.select('id')` + `data?.length` check (2026-04-10 → 2026-06-06)
+
+PROMOTED → code-style.md §5. Recurs in prod (toggleExamConfig) AND test helpers (#622 afterEach, backdateSession, PR-A session-replay.spec.ts #256 question soft-delete + restore, PR-7 BE org-transfer). Still flag in new code. `cleanupReferenceData` split (#775 setup→cleanup.ts) confirmed clean.
+
+### Row: Error message refactor breaks paired test assertion regex (2026-05-06)
+
+WATCHING. #628 `pickSubjectWithQuestions` dropped "in org" suffix; seed.test.ts:152 regex stale. Grep test files for old message substring when context strings (orgId, table name, filter clause) change. #709 helper extraction kept message byte-identical — no recurrence.
+
+### Row: Too-lenient INSERT rejection assertion — OR-branch allows vacuous pass (2026-05-31 / 2026-06-10)
+
+RULE CANDIDATE. #314 flag-idor + server-action-unauthenticated used `expect(error !== null || (data?.length ?? 0) === 0).toBe(true)`. Count=2: feat/697 mig-094 CHECK tests used `errMsg.includes('23514')||...` boolean instead of `expect(error?.code).toBe('23514')`. PostgrestError always has `.code` (SQLSTATE) on `.from().insert()` AND `.rpc()` — assert it directly.
+
+### Row: New _hooks/ util extracted without co-located test (2026-06-01 / 2026-06-20)
+
+RULE CANDIDATE. PR-B1 (#565) quiz-recovery-handlers.ts; VFR RT Phase 1 use-vfr-rt-start.ts (90 lines) — both added to _hooks/ without a .test.ts. code-style.md §7 requires tests for new _hooks/ utilities. Flag as ISSUE on all future _hooks/ util additions lacking a test.
+
+### Row: #582 Readonly<Props> sweep — plan said "5 exist", reconciled to 3 (2026-06-01)
+
+WATCHING. 3 named `Readonly<Props>`; 1 remaining inline `Readonly<{...}>` in admin-internal-exam-report-header.tsx is a different idiom. Plan reconciled to 3 before execution — correct, no false positive. Track whether inline Readonly<{...}> should also be normalised.
+
+### Row: Security.md doc bullet claims RPC performs capability it doesn't have (2026-06-05)
+
+RESOLVED. AJ bullet (v1) claimed `upsert_exam_config` performs "audit logging" — RPC has no `INSERT INTO audit_events`. Revised bullet correct (verified vs mig 20260411000007/000008). Rule: when a doc bullet describes what an RPC "does", read the latest CREATE OR REPLACE before approving.
+
+### Row: Doc describes trigger exemption/guard ordering that doesn't match the actual migration body (2026-06-06)
+
+WATCHING. Batch A: (1) database.md described mig 089 trigger with `current_role != 'service_role'` exemption — actual body unconditional. (2) validation contract showed `too_many_questions` before `no_questions_provided` — mig 086 has the reverse. #532 mig 092 round-1 comment claimed "No admin-void path sets ended_at" — wrong; fixed round-2. When plan/migration comments claim which callers fire a trigger, grep `SET ended_at` across all RPCs before approving.
+
+### Row: Cross-org red-team Attack uses sentinel UUID because target org has no seeded questions (2026-06-06)
+
+WATCHING. #625 Attack 1: target=redteam-other-org (no seeded Qs) → falls back to sentinel '00000000-...' → proves "unknown UUID rejected", NOT "cross-org org guard fires". Fix: throw if other-org has no questions, or flip attacker/victim perspective (pattern in #623).
+
+### Row: DB CHECK constraint violation from too-long document_version in test seed (2026-06-06)
+
+WATCHING. PR-7 rpc-cross-tenant-x-1.0 (22 chars) exceeds BETWEEN 1 AND 20 on user_consents.document_version. Also dead constants (21 chars) in seed.ts. When seeding user_consents, count chars against the 20-char constraint.
+
+### Row: Doc new-section insertion duplicates existing heading/entry (2026-06-10)
+
+WATCHING. VFR RT Phase A: new plan.md section caused duplicate `## Security & Test-Hardening Sprint` heading; database.md RPC summary got a 2nd `complete_empty_exam_session` row. When inserting a section before an existing one, grep the target for the first line of the existing section to verify no duplicate.
+
+### Row: plan.md integration-test count wrong — pre-existing wrong baseline propagated to new "now N" claim (2026-06-11)
+
+FALSE POSITIVE (reconciled by orchestrator). The plan.md count literal convention is the VITEST RUNTIME total (`pnpm --filter @repo/db test:integration` summary), NOT a static `it(` grep (`test.each` undercounts). Vitest reported 136 at Phase A gate, 144 on branch — both claims correct. Do NOT re-raise count findings from static grep; verify via the run summary.
+
+### Row: Red-team results spec uses wrong vector ID sub-labels — DB2/DB3 instead of DR2/DR3 (2026-06-14)
+
+WATCHING. #825 rpc-vfr-rt-results.spec.ts header/titles use `DB2`/`DB3` — but matrix vector `DB` is the internal-exam double-redemption vector. Correct IDs are `DR2`/`DR3` (DR covers get_vfr_rt_exam_results). When writing specs covering sub-vectors of an existing matrix entry, use the matrix vector ID as prefix.
+
+### Row: Red-team non-vacuity read missing `enabled` filter that the RPC itself uses (2026-06-14)
+
+WATCHING. #825 DN2 cross-org config non-vacuity check: RPC filters `enabled = true` AND `deleted_at IS NULL`, but the test's absence proof filtered only org_id+subject_id+deleted_at (no `enabled`). A disabled config in attacker's org → `crossOrgConfig` non-null → false positive. Non-vacuity reads mirroring an RPC's filter must use ALL the same predicates.
+
+### Row: Namespace written to localStorage during quiz session but never in RT path (2026-06-20)
+
+WATCHING. VFR RT Phase 1: `use-vfr-rt-start.ts` reads/clears `RT_STORAGE_NAMESPACE`, but the runner (`useQuizPersistence`→`writeActiveSession`) always uses the default `quiz-active-session:userId` key. RT namespace only guards the pre-start confirm; once active the runner checkpoints to the quiz key → next checkpoint by an open quiz tab overwrites the RT session. Flag when a new storage namespace isn't threaded through to the persistence hook.
+
+### Row: Pre-existing file-size violations worsened by bug-fix commits (2026-06-21)
+
+WATCHING. #909: quiz-submit.ts (219→232, limit 200) and use-quiz-submit.ts (101→125, limit 80) both pre-existing over-limit; fix modestly expands both. agent-code-reviewer.md says "only flag size violations introduced or worsened by the commit" — technically worsened by + lines. SUGGESTION class for bug-fix context (splitting would be a separate refactor, tracked in #887).
+
+### Row: Header comment cross-references a block "above" that no longer exists after extraction (2026-06-23)
+
+RESOLVED. #951 new file header comment: "same reasoning as the mig 094 block above" — the mig 094 block is in the source file, not the new standalone file. SUGGESTION class: stale comment. Not present in HEAD for the standalone file — was fixed in the original #951 commit. When moving a describe block with cross-referencing comments, audit for forward/back references ("above", "below", "see block N") before committing.
+
+### Durable: types.ts nullable-SQL-column convention
+
+**types.ts nullable-SQL-column convention.** Admin/student RPC entries in `packages/db` `types.ts` may type nullable SQL columns as non-nullable (`avg_score: number`) — matches `get_admin_student_stats`. Production query files use the `authRpc`/`rpc` wrapper with their own local Row type capturing nullability. Not a deviation; SUGGESTION at most.
+
+### Durable: types.ts stale column after DROP+CREATE migration — ISSUE class
+
+**types.ts stale column after DROP+CREATE migration: ISSUE class when not in staged diff.** When a migration uses DROP FUNCTION + CREATE to change a RETURNS TABLE (removing a column), `packages/db/src/types.ts` must also drop the column from the Returns type. Auto-generated but committed — when not in the staged diff, flag as ISSUE. First seen: #471 `get_session_reports` dropped `answered_count`, types.ts:1385 not updated.
+
+### Durable: Dead mock branches in test helpers — ISSUE class, not cosmetic
+
+**Dead mock branches in test helpers — ISSUE class, not cosmetic.** When a test mocks `mockFrom` with a per-table dispatcher, any `if (table === 'X')` branch for a table the SUT no longer reads is dead code. The `throw new Error('Unexpected table: X')` guard means the dead branch was written defensively — but it masks future regressions where the SUT unexpectedly reads the dead table. Remove dead branches so the guard fires. First seen: PR-A1 dashboard.test.ts:383 `easa_topics`.
+
+### Durable: Cached role variable prevents NOT NULL abort on delayed soft-delete
+
+**Cached role variable prevents NOT NULL abort on delayed soft-delete.** When a SECURITY DEFINER RPC inserts into `audit_events` (actor_role TEXT NOT NULL), the actor's role must be fetched once into a local variable at authz time — not via repeated inline subqueries. An inline `(SELECT u.role ... WHERE u.id = v_admin_id AND u.deleted_at IS NULL)` in the INSERT VALUES returns NULL if the admin is soft-deleted between authz and the audit insert, aborting the transaction on the NOT NULL constraint. Pattern: mig 078 (batch_submit) → mig 084 (void_internal_exam_code, PR #731). security.md §10 deleted_at filter still required on the capturing SELECT.
+
+### Durable: ELP grader lock order + service-role-only guard
+
+**ELP grader (`write_oral_section_grade`) lock order is section-row → session-row; the student `submit_oral_section_response` locks only the session (FOR UPDATE) + inserts a NEW response row.** No inverse (session→existing-response) ordering exists, so no deadlock between concurrent grader/submit/two-grader calls. The grader's `IF auth.uid() IS NOT NULL THEN RAISE 'forbidden'` is pure defense-in-depth (primary control is REVOKE-from-authenticated + GRANT service_role); legitimate callers are service-role only (auth.uid() NULL), integration tests grade via `admin.rpc(...)` so the guard never fires on them. Do NOT flag it as blocking the grader path. Verified clean on the ELP Slice-0 CR-fixup (2026-07-02).
+
+### FP: Probe-gate keyed on allRows (pre-filter) is correct
+
+**Probe-gate keyed on allRows (pre-filter) is correct.** `probeOutOfRangeTotal` triggers only when `allRows.length === 0 && page > 1`. When `allRows` is non-empty but `rows` (post-filter) is empty, returns `totalCount: 0` without probing — correct. Do not flag `rows.length === 0 → totalCount: 0` as "missing probe".
+
+### FP: Red-team spec with no afterEach is hermetic (#518/#638)
+
+**Red-team spec with no `afterEach` is hermetic** when each test seeds NEW unique rows and doesn't mutate shared beforeAll state — confirmed rpc-void-internal-exam-code.spec.ts (#518/#638): DD/DE leave code rows un-voided (RPC rejects before write); DF/DG/CD/positive touch only own rows. Do not flag as hermiticity violation.
+
+### FP: try/finally hermiticity hardening for org-transfer tests (#768)
+
+**try/finally hermiticity hardening for org-transfer tests (#768)** — seed-insert + transfer UPDATE inside `try` + `let ... = null` before `try` is correct when a mid-test throw could strand shared state. Finally must use `console.error`, not `expect()`. Clean on #768.
+
+## fix/pipeline-audit-remediation Commit 2 — production migration hard-stop + /endrun wiring — APPROVED (2026-07-11)
+
+3 command .md files, ~12 lines added. All 4 spec requirements verified:
+- Hard-stop blockquote is the first element under "Merge policy" in automerge.md — no plausible skip path. Conditions list unreachable for migration PRs.
+- `packages/db/migrations/**` mirror, handoff-note language, LLM-override rejection, and `production`-environment-as-backstop language all present.
+- db-deploy.yml `environment: production` at line 40 confirmed by grep.
+- P7 pre-commit claim corrected: "the two mechanical guards — unit tests deliberately do NOT run pre-commit; first test execution is CI." Factually accurate.
+- /endrun wired in terminal position in all 3 files: automerge.md last post-merge bullet; autonomerge.md step 4 after the handoff report; wrapup.md Section 7 (last section).
+- autonomerge.md one-line WHY present under "Merge policy — 🛑 DO NOT MERGE" with the "even if this command's no-merge rule is ever loosened" future-proofing clause.
+- No contradiction with automerge.md:27 two-dir-mirror line (consistent `packages/db/migrations/**` reference).
+1 SUGGESTION: P7 parenthetical has a period mid-sentence before "commit-msg: conventional format" — a semicolon would match the original delimiter rhythm and remove the ambiguity. Non-blocking.
+0 critical, 0 issues.
+
+## fix/pipeline-audit-remediation: stdin error handlers + tests — APPROVED (2026-07-11)
+
+4 files, 116 lines added. Semantic-reviewer SUGGESTION (explicit stdin 'error' handlers) applied cleanly in both guard-bash.js and review-gate.js. Test-writer additions (guard-bash case 5 + new cr-local-plan-reminder.test.sh) all pass (5/5 each). Verified:
+- Error handlers registered BEFORE data/end handlers in both files — correct Node.js stream ordering.
+- Error handlers call `process.exit(0)` (fail-open) + `console.error` to stderr — observable.
+- Block/exit-2 path (the 'end' handler) is untouched in both files.
+- guard-bash.test.mjs case 5: flat JSON `{"command":"DROP DATABASE x"}` → exit 2, BLOCKED in stderr. Correct.
+- cr-local-plan-reminder.test.sh 5 cases: nested match fires, non-match silent, flat match fires, empty silent, garbage silent. All pass.
+- No unrelated staged hunks.
+0 critical, 0 issues, 0 suggestions.
+
+## #1097 CR-local fixup round-2 (redirectOnPageOverflow extraction + ReportCard props test) — APPROVED (2026-07-10)
+
+3 CR findings applied. 4 files changed. Verified:
+- `redirectOnPageOverflow` formula, `>` comparison, and redirect URL template are byte-identical to the removed inline block. Argument order at call site correct.
+- ReportCard props test: `page=2, totalCount=12, PAGE_SIZE=10 → totalPages=2 → 2 > 2 = false → no redirect → render path reached`. `expect.objectContaining` asserts all 5 data props.
+- 4 unit tests non-vacuous; `Math.max(1,…)` floor tested by zero-count case. `vi.hoisted(() => vi.fn())` pattern correct.
+0 critical, 0 issues, 0 suggestions.
+
+## #1097 CR-local fixup round-1 (report-view-logic extraction + cast-guard) — APPROVED (2026-07-08)
+
+5 CR findings applied. 7 files changed. Verified:
+- `canonicalReportBasePath`, `namespaceHome`, `UUID_RE`, `ReportNamespace` extracted byte-for-byte from `report-view.tsx` to `_utils/report-view-logic.ts`; `redirect()` still throws; `isVfrRtPracticeReport` is a pure function (no mock needed in the new test).
+- Cast guard in `resolve-subject-info.ts`: `as { name: unknown; code: unknown }` + `typeof x === 'string' ? x : null` narrowing is correct; only affects malformed DB rows.
+- `Props` still `Readonly<{...}>`; no barrel file; no `any`.
+- `report-view-logic.test.ts` asserts exact redirect URLs (e.g. `/app/vfr-rt/report?session=${UUID}&page=1`). 5 cases cover all branches.
+- `QuizReportView` body 34 lines (23–56) — within the 35-line Server Component orchestrator boundary.
+- New `_utils/` file ships co-located `.test.ts` (code-style §7 compliant).
+0 critical, 0 issues, 0 suggestions.
+
 ## seed-vfr-rt-pool CR-round-4 robustness fixes — APPROVED (2026-07-03)
 
 Test-infra only (2 files). Fix A: `buildVfrRtAnswers` else-branch correctly placed after `multiple_choice`; 3 known types unaffected; throw unreachable for callers using the VFR-RT seeded pool (short_answer/dialog_fill/multiple_choice only). Test title "throws on a question_type outside the RT pool" is behavior-first. Fix B: `insertRows` type-predicate `(r): r is {id:string}` uses `{id?:unknown}` cast (not `any`) + no unchecked cast in `data.map((r) => r.id)` after predicate narrows type. 0 critical, 0 issues, 0 suggestions.
@@ -222,3 +425,14 @@ Positive patterns confirmed:
 - **C4 `isSessionConfig`** rejects present-but-non-string subjectName/subjectCode; still accepts valid + absent(undefined).
 - **SUGGESTION (not a blocker, pre-existing):** empty-blanks asymmetry — C8 added `length>0` to the rehydrate validator but the load-draft `toFeedbackEntry` dialog case (load-draft-helpers.ts:63) and draft-schema feedback `blanks` (.max(50), no .min(1)) still accept `[]`. Predates this diff; CR flagged only C8. load-draft comment claiming "symmetric with" the rehydrate path is now slightly stale. Optional same-commit fix: add `.length>0` at :63 + `.min(1)` at draft-schema:87. NO new tracker row — clean approval, no recurring deviation.
 - **RESOLVED (follow-up commit, 2026-06-24):** the empty-blanks asymmetry SUGGESTION above was fully closed. draft-schema `.min(1)` landed in the prior commit; this fix added `r.blanks.length > 0 &&` at load-draft-helpers.ts:65 (4th/final validator), refreshed the comment to name all three siblings, and added behavior-first tests (load-draft-helpers.test.ts:84 empty-blanks → feedback undefined; draft.test.ts:9/28/51 for .min(1)/.max(50)/dup-index). Four-way dialog_fill `length>0` parity now holds: draft-schema(save) / quiz-session-validators isValidDialogFillFeedback(rehydrate) / check-non-mc-answer-helpers isDialogFillRpcResult(RPC) / load-draft-helpers toFeedbackEntry(DB load). APPROVED clean.
+
+## PR-level note: CR-local round-2 fixup batch (pipeline-audit #1110, 2026-07-11)
+
+APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, run-security-auditor.sh+test, endrun.md, crlocal.md, run-log.md, tracker-archive.md, doc-updater.md, agent-critic.md, agent-workflow.md, tech.md, .coderabbit.yaml, 3 agent-memory files.
+
+**All three executable changes verified clean:**
+- `guard-bash.js` catch block: `process.stderr.write(msg, cb)` + `return` correctly prevents fall-through to blocked-patterns check when parse fails. ✓
+- `run-security-auditor.sh`: `fail_closed_no_llm_output()` defined at line 24 (before both call sites at lines 134 and 160); message byte-identical to the two blocks it replaced; `exit 1` inside the function exits the script (not just the function, as required). ✓
+- `run-security-auditor.test.sh`: new timeout case (case 13) — shim exits 124, `timeout 120` propagates child's exit code (both actual-timeout and child-exit-124 yield exit code 124 from `timeout`), hook enters `EXIT_CODE -eq 124` branch, fallback grep finds nothing on clean diff, `fail_closed_no_llm_output` fires → exit 1 + "push blocked". Test suite: 14/14 pass. ✓
+
+**SUGGESTION (non-blocking):** `guard-bash.js` 1MB branch — `process.stderr.write(msg, () => process.exit(0))` defers the exit asynchronously, allowing the `end` event handler to fire and process the oversized payload before `process.exit(0)` fires. The original `console.error` + synchronous `process.exit(0)` prevented the `end` handler from running. In theory: a 1MB+ payload that is valid JSON containing a blocked command could cause `process.exit(2)` to fire from the `end` handler before the pending stderr-write callback fires `process.exit(0)` — violating the "fail open" policy for the 1MB branch. In practice: impossible (Claude Code payloads are a few KB; a 1MB+ valid JSON blocked-command payload cannot originate from Claude Code's normal hook delivery). The guard-bash test suite (9/9 passing, with the new 1MB test) confirms the intended "exit 0" behavior. A proper fix would require a `bailedOut` flag checked at the start of the `end` handler — more invasive than the stated CR finding (which targeted stderr flushing). Not flagged as ISSUE given zero practical risk and green test suite.

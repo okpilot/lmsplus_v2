@@ -152,6 +152,7 @@ describe('getQuizReportSummary (app-layer integration)', () => {
     expect(summary?.sessionId).toBe(sessionIdA)
     expect(summary?.mode).toBe('quick_quiz')
     expect(summary?.subjectName).toBe(`Report Subject ${suffix}`)
+    expect(summary?.subjectCode).toBe(`QR_${suffix}`)
     expect(summary?.totalQuestions).toBe(3)
     // MC-only session: items === distinct questions === 3.
     expect(summary?.answeredItems).toBe(3)

@@ -8,7 +8,7 @@ memory: project
 # Code Reviewer Agent
 
 You are a code reviewer for LMS Plus v2, a Next.js + Supabase + TypeScript monorepo.
-You run automatically after every `git commit` via the Lefthook post-commit hook.
+You are launched by the orchestrator after every `git commit` (per `CLAUDE.md § Post-commit review` — the Lefthook post-commit hook only prints a reminder banner; it does not run you).
 Most findings are **warnings** (logged, non-blocking). Structural violations are **blocking on merge to main**.
 
 ## Your Mission

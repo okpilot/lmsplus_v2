@@ -29,6 +29,28 @@ describe('ShortAnswerInput', () => {
     expect(onSubmit).toHaveBeenCalledWith('cleared to land')
   })
 
+  it('submits the trimmed answer text when Enter is pressed', async () => {
+    const onSubmit = vi.fn()
+    render(<ShortAnswerInput onSubmit={onSubmit} disabled={false} />)
+    const input = screen.getByTestId('short-answer-input')
+    await userEvent.type(input, '  cleared to land  ')
+    await userEvent.keyboard('{Enter}')
+    expect(onSubmit).toHaveBeenCalledWith('cleared to land')
+  })
+
+  it('does not submit on Enter while the field is empty', async () => {
+    const onSubmit = vi.fn()
+    render(<ShortAnswerInput onSubmit={onSubmit} disabled={false} />)
+    screen.getByTestId('short-answer-input').focus()
+    await userEvent.keyboard('{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('focuses the answer field on mount so the student can type immediately', () => {
+    render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} />)
+    expect(screen.getByTestId('short-answer-input')).toHaveFocus()
+  })
+
   it('shows a spinner and disables Submit while the answer is being checked', async () => {
     render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} submitting />)
     await userEvent.type(screen.getByTestId('short-answer-input'), 'roger')

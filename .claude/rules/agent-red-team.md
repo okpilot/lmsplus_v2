@@ -6,14 +6,14 @@
 Maps code changes to red-team Playwright specs. Identifies when new attack vectors appear that lack test coverage. Does NOT run specs — it reviews and recommends.
 
 ## Trigger Conditions
-Run this agent when the diff includes changes to:
-- `supabase/migrations/` — any migration file
-- `packages/db/src/` — database client, types, or schema changes
-- `apps/web/app/app/quiz/actions/` — Server Actions
-- `apps/web/app/auth/` — auth callback
+Run this agent when the diff includes changes to either: the canonical security-path set (`agent-workflow.md § Red-Team Agent Trigger`) OR `apps/web/e2e/redteam/` (spec changes trigger this agent specifically). The full path list:
+- `supabase/migrations/**` — any migration file
+- `packages/db/src/**` — database client, types, or schema changes
+- `apps/web/app/app/quiz/actions/**` — Server Actions
+- `apps/web/app/auth/**` — auth callback
 - `apps/web/proxy.ts` — middleware/proxy
 - `docs/security.md` — security rules
-- `apps/web/e2e/redteam/` — red-team specs themselves
+- `apps/web/e2e/redteam/` — red-team specs themselves (this agent's extra path, by design — not part of the canonical set)
 
 Do NOT run on every commit — only when the above paths are in the diff.
 

@@ -2,110 +2,100 @@
 
 > Cross-agent pattern synthesis + false-positive frequency tracking.
 > Governed by `.claude/rules/agent-memory.md`. **Update rows IN PLACE — never append a dated session log.** History lives in git (`git log -p -- .claude/agent-memory/learner/`).
-> Migrated 2026-05-29 from the 6606-line append-only `patterns.md` journal. The pre-migration body is recoverable via git.
+> Migrated 2026-05-29 from the 6606-line append-only `patterns.md` journal. Terminal-state (PROMOTED/RESOLVED/FALSE POSITIVE) rows live in `topics/tracker-archive.md`.
 
-## Issue Frequency Tracker (live — count≥2)
+## Issue Frequency Tracker (live — active rows only; PROMOTED rows → tracker-archive.md)
 
-Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema: `Issue Type | Count | Last Seen | Status`. Terminal-state rows archived; active rows are terse stubs. Recent curation history lives in `topics/tracker-archive.md` and git.
+Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last Seen | Status`. Count=1 rows carry their archive row number — full narrative lives in the archive row, never here.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
-| Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE — both caught pre-commit by type-check. [full → topics/tracker-archive.md] |
-| Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6 — swallowed redirect() → 500. [full → topics/tracker-archive.md] |
-| Inconsistent guard between related RPCs (sibling missing guard) | 3 | 2026-06-14 | PROMOTED → security.md rule 12 + docs/security.md §11c (#859); sweep → #883. [full → topics/tracker-archive.md] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 12 | 2026-07-02 | RULE CANDIDATE (active, count 12) — fix applied to the seen instance, not all instances in file + siblings. 12th: PR #1059 `quiz-submit-fanout.ts` blankAnswers branch reused the truthy-check bug already fixed once in order + once in mapping branches — see narrower dispatch-branch row below. [full → topics/tracker-archive.md] |
-| Fan-out/dispatch branch uses truthy/length check instead of `Array.isArray` for an array-valued field (empty array falls through to wrong default) | 2 | 2026-07-02 | PROMOTED → code-style.md §5 (PR #1061/#1076). Count reconciled: mapping branch was never defective (created correct in `2e8aaf7b`); only `order` + `blankAnswers` were real offenders — threshold still met at ≥2. Sweep-On-Promotion found ZERO remaining offenders (`fanOutAnswer` already compliant). [full → topics/tracker-archive.md] |
-| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — isPending + manual isLoading both false mid-fetch → idle button flash. [full → topics/tracker-archive.md] |
-| Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE — fallback to 0/min with no server signal. [full → topics/tracker-archive.md] |
-| Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd) — auth check ≠ ownership scoping. [full → topics/tracker-archive.md] |
-| UI event handler missing re-entry guard (double-fire) | 2 | 2026-03-16 | RULE CANDIDATE — async lock + event-propagation mechanisms. [full → topics/tracker-archive.md] |
-| UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE → code-style.md §5 — ownership-scoped DELETE/UPDATE must `.select('id')`. [full → topics/tracker-archive.md] |
-| Error path in existing function untested (count-error branch) | 7 | 2026-06-27 | RULE CANDIDATE (7) — new edge/error branches in existing tested files lack test updates in same commit. 7th: PR #1006 14a8b9c5 test-writer found 3 uncovered coercion branches (non-string field fallbacks) in new study-queries.ts. [full → topics/tracker-archive.md] |
-| Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — value co-varies with metric but diverges on edge cases. [full → topics/tracker-archive.md] |
-| Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE — session actions must precede existence/registration checks. [full → topics/tracker-archive.md] |
-| Supabase SELECT error swallowed in auth helper (distinct from mutation) | 3 | 2026-06-04 | RULE CANDIDATE → code-style.md §5 ext — auth-path + seed SELECTs must destructure `{ data, error }`. [full → topics/tracker-archive.md] |
-| Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — Zod internal messages aren't public API. [full → topics/tracker-archive.md] |
-| Missing `setSubmitting(true)` before async call in form/button handler | 2 | 2026-04-27 | RULE CANDIDATE → code-style.md (on 3rd) — set loading state before awaiting, not after. [full → topics/tracker-archive.md] |
-| Idempotent RPC returns hardcoded values instead of reading DB state | 2 | 2026-04-27 | RULE CANDIDATE — replay paths returned hardcoded pass/100% instead of querying config. [full → topics/tracker-archive.md] |
-| Code-reviewer flags file outside the commit diff scope | 2 | 2026-04-08 | RULE CANDIDATE → agent-code-reviewer.md FP — agent scans full file. [full → topics/tracker-archive.md] |
-| Pre-existing file-size violation surfaced when commit adds lines to over-limit file | 13 | 2026-07-02 | PROMOTED → code-style.md §1 (same-commit-extraction, promoted at count=8). 13th: PR #1059 (37fc1127) — load-session-questions.ts 193→204 forced same-commit extraction of load-session-diagram-guards.ts; rule applied correctly, no gap. [full → topics/tracker-archive.md] |
-| Function exceeding 30-line limit in Server Action file | 3 | 2026-04-10 | RULE CANDIDATE (3) → code-style.md §3 — extract row-transform as named `mapXxxRow()` helper. [full → topics/tracker-archive.md] |
-| New hook/utility file extracted without shipping a co-located test in the same commit | 8 | 2026-07-02 | RULE EXISTS → code-style.md §7 — authoring habit gap; mechanical gate (code-reviewer §7 BLOCKING + test-writer backfill) remains reliable. 8th (lifted from archive, was 7 @2026-03-27): load-session-diagram-guards.ts (PR #1059/37fc1127), caught + fixed same PR (e23b2518) — gate held. [full → topics/tracker-archive.md] |
-| ZodError escaping Server Action via parse() without try/catch or safeParse | 2 | 2026-03-26 | RULE CANDIDATE → code-style.md — use `Schema.safeParse()`. [full → topics/tracker-archive.md] |
-| Hardcoded constant values in tests instead of importing source constants | 3 | 2026-05-29 | RULE CANDIDATE → test-writer/MEMORY.md — import production constants; literals drift on rename. [full → topics/tracker-archive.md] |
-| CodeRabbit false-positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE → .coderabbit.yaml — CR lacks project context. [full → topics/tracker-archive.md] |
-| Manual-eval bug invisible to unit tests (dual-source UI only in full app) | 2 | 2026-04-28 | RULE CANDIDATE → code-style.md §7 — dual server+client surfaces need integration/E2E test. [full → topics/tracker-archive.md] |
-| Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | RULE CANDIDATE (deferred — same file/migration) — payloads.ts notes drift after guard change. [full → topics/tracker-archive.md] |
-| Server Action ERROR_MESSAGES not synced with new RPC `RAISE EXCEPTION` literals | 3 | 2026-06-19 | RULE CANDIDATE (3) — semantic-reviewer caught incomplete token map on VFR RT Phase B. [full → topics/tracker-archive.md] |
-| Red-team spec-count prose drift across multiple doc surfaces (tech.md ×N + decisions.md) | 7 | 2026-07-03 | RULE CANDIDATE — numeric red-team spec counts go stale on every spec-addition batch; rule already in agent-doc-updater.md (repeated-numeric-literal sub-rule); doc-updater catches and fixes each cycle. [full → topics/tracker-archive.md] |
-| Spec-doc literal counts drifting from distinct-count implementations | 2 | 2026-05-31 | RULE CANDIDATE — #673 fixtures return distinct-question count, yet spec claimed fixed literals. [full → topics/tracker-archive.md] |
-| Red-team RLS error-code assertions pinned to 42501 (instead of generic error non-null) | 2 | 2026-06-04 | RULE CANDIDATE (2) — orchestrator DEFERRED hard-rule promotion 2026-06-04. [full → topics/tracker-archive.md] |
-| CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE → agent-coderabbit-local.md pitfall #6 (two-dir mirror + invented mig ref); already documented. [full → topics/tracker-archive.md] |
-| Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE — grep migrations for unique constraints before asserting absence. [full → topics/tracker-archive.md] |
-| Migration added to packages/db/migrations but not supabase/migrations (or vice versa) | 2 | 2026-06-05 | RULE CANDIDATE — mig 084 shipped to packages/db only; already in supabase/migrations. [full → topics/tracker-archive.md] |
-| ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE — ON CONFLICT non-unique index → 42P10 at runtime. [full → topics/tracker-archive.md] |
-| plpgsql function body contains deferred-validation SQL (clean migration apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4) — mig 085 ON CONFLICT→42P10; mig 101 POSIX regex→2201B; mig 118 unqualified column in RETURNS TABLE→42702; mig 120 NULL into NOT NULL via helper→23502. All passed db reset + tsc + Opus critics; caught only by integration-test execution. [full → topics/tracker-archive.md] |
-| Semantic reviewer stale-baseline false positive (compared wrong predecessor migration/definition) | 2 | 2026-06-06 | RULE CANDIDATE — reviewer compared against wrong migration. [full → topics/tracker-archive.md] |
-| Stale local Supabase volume / in-place migration edit causing local e2e failures | 2 | 2026-06-10 | RULE CANDIDATE — `supabase db reset` fixes both; re-run `seed-e2e.ts` after. [full → topics/tracker-archive.md] |
-| Haiku code-reviewer false positives on Playwright E2E spec complexity (#611 cycle) | 2 | 2026-06-05 | RULE CANDIDATE (elevated FP rate on E2E scope). [full → topics/tracker-archive.md] |
-| Query helper promoted to throw on error, but SA caller missing catch boundary | 2 | 2026-06-01 | RULE CANDIDATE — #627: throw-posture sweep missed SA callers. [full → topics/tracker-archive.md] |
-| Red-team spec field-type assertion without nullability check across RPC modes | 2 | 2026-06-06 | RULE CANDIDATE — agent assumes RPC field type/shape without reading the migration. [full → topics/tracker-archive.md] |
-| Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 4 | 2026-06-13 | RULE CANDIDATE (4 — codified §7 "RPC Output Contract"). POSITIVE SIGNAL #869: two-fixture design applied on first pass. [full → topics/tracker-archive.md] |
-| Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap (wrongly under .test.ts exemption) | 2 | 2026-06-06 | RULE CANDIDATE — setup.ts/helpers/*.ts are utility files (200-line cap). [full → topics/tracker-archive.md] |
-| Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (3) — ID collision ×3; root: not reading WORKING-TREE master before allocating. [full → topics/tracker-archive.md] |
-| Test cleanup: throw inside finally block / multi-block afterAll without error accumulator (noUnsafeFinally) | 3 | 2026-06-14 | PROMOTED → code-style.md §7 "Multi-Step Cleanup" (#794). Sweep done: 4 e2e offenders fixed. [full → topics/tracker-archive.md] |
-| Integration-test count in plan.md goes stale on each test-adding commit | 6 | 2026-07-02 | RULE CANDIDATE (6) — update plan.md count in same commit + after merging master if master added tests; vitest runtime is authoritative. 6th: VFR RT Phase 6 fixup added 1 integration test (distinct-label reject) w/o bumping count (356→357); semantic-reviewer ISSUE, fixed same session. [full → topics/tracker-archive.md] |
-| Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (2) — QuestionFilter + ActionResult both required retroactive sweeps. On 3rd: code-style.md §4. [full → topics/tracker-archive.md] |
-| CR local suggests wrong fix rejected on a documented architectural decision | 5 | 2026-07-02 | PROMOTED → agent-coderabbit-local.md pitfall #7 (broadened to cloud CR, PR #1061/#1076). Count=5 per this tracker (rule-file parenthetical was stale at count=3 then 4; corrected to 5 in this PR). Sweep: pitfall #7 scope verified; no outstanding offenders. [full → topics/tracker-archive.md] |
-| New file placed under a gitignored root dir (e.g. `/scripts/`) | 2 | 2026-06-25 | PROMOTED → agent-workflow.md Plan Validation "Gitignore placement" step (#964) — run `git check-ignore <path>` before proposing any new file under a root-level dir; #925, #937. [full → topics/tracker-archive.md] |
-| Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE — finally-block cleanup path not covered by §5 in agent-generated code. [full → topics/tracker-archive.md] |
-| `as unknown as T` cast without runtime guard in test helper / integration test (§5) | 4 | 2026-06-22 | PROMOTED → code-style.md §5 (#925 Phase 4); sweep COMPLETE (#938 — ~52 sites in packages/db __integration__ suite fixed). [full → topics/tracker-archive.md] |
-| Vitest passes / tsc fails on test file (esbuild strips types, tsc strict-mode catches) | 3 | 2026-06-24 | RULE CANDIDATE (3) — both `pnpm test` AND `pnpm check-types` must pass; distinct gates. 3rd: VFR RT Phase 3 test-writer generated unused imports caught by tsc/biome pre-commit. [full → topics/tracker-archive.md] |
-| Doc-updater agent fabricates plausible-but-wrong claims without reading source (hallucination) | 3 | 2026-07-02 | PROMOTED → agent-doc-updater.md DO bullet ("file path" added to the cite-after-reading-source enumeration, PR #1061/#1076). 3rd instance: PR #1059 cited wrong path for diagram-validation.ts. [full → topics/tracker-archive.md] |
-| Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE — rule already in code-style.md §7; authoring-time gap. [full → topics/tracker-archive.md] |
-| DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 — escape caller-supplied params at interpolation site. [full → topics/tracker-archive.md] |
-| Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 ext — all SDK/third-party sources, not just Postgres. [full → topics/tracker-archive.md] |
-| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 5 | 2026-07-02 | RULE CANDIDATE (5) — linear-flow, no branching; proposed §3 exception pending #903. 5th: #1004 beforeAll 67L → extracted ensureEoSoftDelStudent. [full → topics/tracker-archive.md] |
-| App-layer integration test assertion vacuous/dead (RLS shadows helper filter; one-sided isolation; dead DISTINCT assertion) | 2 | 2026-06-20 | PROMOTED → code-style.md §7 "Integration-Test Negative Assertions Must Be Reachable" (#925 Phase 4). [full → topics/tracker-archive.md] |
-| `vi.spyOn` spy restore hygiene gap (spy leaks across tests on assertion failure) | 2 | 2026-06-20 | RULE CANDIDATE — mockRestore() absent or in try-success path only → leaks on failure. Fix: `restoreMocks: true` in vitest config (#929). [full → topics/tracker-archive.md] |
-| CLAUDE.md QA-pipeline section drifts when lefthook.yml changes | 2 | 2026-06-20 | RULE CANDIDATE — (1) #833/#840: claimed "+ unit tests" but lefthook omits them; (2) #925 Phase 3: pre-commit line stale after new lefthook guard added; fixed in C4. Rule: any lefthook.yml commit must audit CLAUDE.md §QA-pipeline. [full → topics/tracker-archive.md] |
-| Test-file split drops a test-branch guard or condition during the move (impl-critic catch) | 2 | 2026-06-23 | RULE CANDIDATE — (1) #698/#666: split omitted full branch-coverage migration; (2) #951: `if(orgId)` guard dropped during sibling split; both caught pre-commit. Rule: moved describe blocks must carry ALL scope guards + all branches, not just the body. [full → topics/tracker-archive.md] |
-| Conventional-commit subject/scope hook failures (uppercase subject start, compound scope/type) | 2 | 2026-06-24 | RULE CANDIDATE — (1) #828 session: compound scope `(redteam,docs)` + uppercase subject `MC-filter`; earlier in same batch `test+docs` compound types. (2) VFR RT Phase 3 fix commit: subject-line capitalized "Phase". Root: orchestrator constructs commit messages without pre-checking commitlint rules (one type, one scope, lowercase start). [full → topics/tracker-archive.md] |
-| Partial schema mirror across sibling validation layers (grader tightens, save/load schemas drift looser) | 4 | 2026-07-02 | PROMOTED → agent-semantic-reviewer.md "Sibling-validator constraint parity" DO bullet (#987). (1)-(3) prior instances in archive. (4) PR #1059: grade-path diagramIdSchema missing `.trim()` save-draft had; fix HOISTED a shared schema instead of mirroring — preferred remediation for this class. [full → topics/tracker-archive.md] |
-| docs/database.md "Last updated" footer changelog entry stale when a commit modifies database.md content | 2 | 2026-06-26 | RULE CANDIDATE — (1) #828 (6f294e34): mig 131 migration commit; (2) Study Mode 17a32b60: app-layer fix commit. doc-updater catches both; propose extending agent-doc-updater.md DO bullet to cover any commit that edits database.md, not only migration commits. [full → topics/tracker-archive.md] |
-| Answer-key RPC locally well-guarded but admits/fails-to-block mid-exam callers via cross-surface data sharing | 2 | 2026-06-26 | PROMOTED → agent-semantic-reviewer.md "Cross-surface answer-oracle" DO bullet — (1) #830 submit_quiz_answer whitelist; (2) Study Mode get_study_questions shared MC pool with exams, fixed via active-exam deny-by-default guard. [full → topics/tracker-archive.md] |
-| Rename/move leaves stale string references in source/test file inline comments | 2 | 2026-07-02 | RULE CANDIDATE — (1) VFR RT Phase 6 diagram_label: label-rename left stale refs in seed-script comments; (2) #1047 seed.ts split: filename refs in test comments. Both: semantic-reviewer SUGGESTION, applied. §9 covers docs only; propose extending grep scope to source/test inline comments. [full → topics/tracker-archive.md] |
-| COALESCE/fallback-coincidence test vacuity (test passes because fallback coincidentally matches expected, masks real logic gap) | 3 | 2026-07-03 | PROMOTED → code-style.md §7 "Guard Against COALESCE/Fallback-Coincidence Test Vacuity" + `.coderabbit.yaml` test-block mirror (PR #1076). Originated in semantic-reviewer tracker count=3 (2026-06-04 AQ / #839 / #1069); cross-registered in learner at promotion. [full → topics/tracker-archive.md] |
-
-## Count=1 WATCHING rows
-
-All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent additions by cycle (detail in archive):
-- Pre-#925 → #1011 (rows 1–473, archive): SVG-template-escape PROMOTED count=2 (#890); spy-restore + QA-pipeline-drift PROMOTED count=2 (#925 P0-3); vacuous-assertion PROMOTED §7 + cast-guard PROMOTED §5 (#925 P4); schema-mirror count→3; CR-wrong-fix count→3→4; file-size count→10 (Study Mode ×3); cross-surface MC-oracle caught at PR sweep; spec-count drift count→6 (#1011). Detail: archive rows 419–473.
-- **VFR RT Phase 5 (PR #998):** CLEAN. CR-local pitfall #6 row→3. 1 WATCHING (row 474): global invariant broke integration tests (missing clearActiveSessions).
-- **PR #998 CR-local round-2:** CLEAN. integration-count→5 (plan.md stale). 1 WATCHING (row 475): tasks.md renumber after master merge.
-- **#995/#996:** CLEAN (test-only). 1 WATCHING (row 477): `_`-in-marker LIKE-wildcard risk, accepted as-is.
-- **#1004 (c15e27a0+e8953adf, EO-SD soft-deleted caller):** All agents CLEAN (semantic-reviewer 7 GOOD/1 SUGGESTION applied). code-reviewer 2 WARNINGs: beforeAll 67L → extracted (APPLIED); seed.ts 670L pre-existing → deferred #1047. File-size row 10→11; helper-cap row 4→5. 1 new WATCHING (row 480): assertions-before-result-capture in try/finally — intermediate failure skips result assignment, muddying security assertions (semantic-reviewer count=2 EN4+EO-SD; EN4 was prior FP in learner → learner count=1).
-- **VFR RT Phase 6 diagram_label (d74f3e0e+6d56309b+6d8cec85, 2026-07-02):** file-size BLOCKING ×3 dedup'd to ONE occurrence (11→12): quiz-report.ts/report-question-builder.ts (in-plan) + rwy-2709-lh-pattern.tsx (off-plan, archive row 481). integration-count 5→6 (356→357 missed on fixup). semantic-reviewer SUGGESTION: stale seed-script comments after label rename — one-off. POSITIVE: answer-key hiding + guard-set parity + migration twins clean across Opus impl-critics/semantic/PR-sweep/red-team; distinct-label bijection CHECK was a genuine catch, live-verified.
-- **VFR RT Phase 6 CR-fixup cycle (37fc1127+e23b2518, PR #1059, 2026-07-02)** → tracker-archive.md.
-- **PR #1059 fixup-2 (2ea9bbde+4c1f52f0, 2026-07-02):** All agents CLEAN. 2 CR FPs (blankAnswers guard already in source+test; React key re-raised from prior HEAD skip). 1 WATCHING row 483: CR stale-review FP on updated PR HEAD. Watch: diagram-label-input.tsx at 150L cap.
-- **#1047 (bf85518f+896e25bd):** All agents CLEAN. Rename-stale-comment row lifted to live table count=2 (RULE CANDIDATE, archive row 485). 1 new count=1 WATCHING (archive row 484): plan-critic dep-order omission in file split (seed-responses→seed-users). seed-users.ts 198L watch (2L headroom). POSITIVE: file-size rule held — seed.ts 670L SPLIT CANDIDATE deferred as #1047, extracted this commit, code-reviewer RESOLVED its row.
-- **PR-4 refactor/quiz-session-splits (9fdc2bde+80903fd4, 2026-07-03)** → tracker-archive.md.
-- **chore/promote-learner-rules (10c15130+8189655a, PR #1061/#1076, 2026-07-03)** → tracker-archive.md.
-- **redteam/vfr-rt-success-path (f4bdeb83+74ffc590, #873+#825, 2026-07-03)** → tracker-archive.md.
+| Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
+| Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
+| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
+| Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
+| Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
+| UI event handler missing re-entry guard (double-fire) | 2 | 2026-03-16 | RULE CANDIDATE. [full → archive] |
+| UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE → code-style.md §5. [full → archive] |
+| Error path in existing function untested (count-error branch) | 7 | 2026-06-27 | RULE CANDIDATE (7). [full → archive] |
+| Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
+| Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE. [full → archive] |
+| Supabase SELECT error swallowed in auth helper (distinct from mutation) | 3 | 2026-06-04 | RULE CANDIDATE → code-style.md §5 ext. [full → archive] |
+| Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE. [full → archive] |
+| Missing `setSubmitting(true)` before async call in form/button handler | 2 | 2026-04-27 | RULE CANDIDATE → code-style.md (on 3rd). [full → archive] |
+| Idempotent RPC returns hardcoded values instead of reading DB state | 2 | 2026-04-27 | RULE CANDIDATE. [full → archive] |
+| Code-reviewer flags file outside the commit diff scope | 2 | 2026-04-08 | RULE CANDIDATE → agent-code-reviewer.md FP. [full → archive] |
+| Function exceeding 30-line limit in Server Action file | 3 | 2026-04-10 | RULE CANDIDATE (3) → code-style.md §3 extract helper. [full → archive] |
+| ZodError escaping Server Action via parse() without try/catch or safeParse | 2 | 2026-03-26 | RULE CANDIDATE → code-style.md use safeParse. [full → archive] |
+| Hardcoded constant values in tests instead of importing source constants | 3 | 2026-05-29 | RULE CANDIDATE → test-writer/MEMORY.md. [full → archive] |
+| CodeRabbit false-positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE → .coderabbit.yaml. [full → archive] |
+| Manual-eval bug invisible to unit tests (dual-source UI only in full app) | 2 | 2026-04-28 | RULE CANDIDATE → code-style.md §7. [full → archive] |
+| Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | RULE CANDIDATE (deferred — same file/migration). [full → archive] |
+| Server Action ERROR_MESSAGES not synced with new RPC `RAISE EXCEPTION` literals | 3 | 2026-06-19 | RULE CANDIDATE (3). [full → archive] |
+| Red-team spec-count prose drift across multiple doc surfaces | 7 | 2026-07-03 | RULE CANDIDATE; rule in agent-doc-updater.md; doc-updater catches each cycle. [full → archive] |
+| Spec-doc literal counts drifting from distinct-count implementations | 2 | 2026-05-31 | RULE CANDIDATE. [full → archive] |
+| Red-team RLS error-code assertions pinned to 42501 (instead of generic error non-null) | 2 | 2026-06-04 | RULE CANDIDATE (2), deferred. [full → archive] |
+| CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE → agent-coderabbit-local.md pitfall #6. [full → archive] |
+| Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE. [full → archive] |
+| Migration added to packages/db/migrations but not supabase/migrations (or vice versa) | 2 | 2026-07-11 | RESOLVED (policy: packages/db/migrations FROZEN 2026-07-11, supabase/ sole source of truth — #1111). [full → archive] |
+| ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
+| plpgsql function body contains deferred-validation SQL (clean migration apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4). [full → archive] |
+| Semantic reviewer stale-baseline false positive (compared wrong predecessor migration/definition) | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
+| Stale local Supabase volume / in-place migration edit causing local e2e failures | 2 | 2026-06-10 | RULE CANDIDATE. [full → archive] |
+| Haiku code-reviewer false positives on Playwright E2E spec complexity | 2 | 2026-06-05 | RULE CANDIDATE (elevated FP rate on E2E scope). [full → archive] |
+| Query helper promoted to throw on error, but SA caller missing catch boundary | 2 | 2026-06-01 | RULE CANDIDATE. [full → archive] |
+| Red-team spec field-type assertion without nullability check across RPC modes | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
+| Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 4 | 2026-06-13 | RULE CANDIDATE (4) — codified §7 "RPC Output Contract". [full → archive] |
+| Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
+| Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (3). [full → archive] |
+| Integration-test count in plan.md goes stale on each test-adding commit | 6 | 2026-07-02 | RULE CANDIDATE (6). [full → archive] |
+| Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (2). On 3rd: code-style.md §4. [full → archive] |
+| Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE. [full → archive] |
+| Vitest passes / tsc fails on test file (esbuild strips types, tsc strict-mode catches) | 3 | 2026-06-24 | RULE CANDIDATE (3). [full → archive] |
+| Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE. [full → archive] |
+| DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5. [full → archive] |
+| Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 ext. [full → archive] |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 5 | 2026-07-02 | RULE CANDIDATE (5); proposed §3 exception pending #903. [full → archive] |
+| `vi.spyOn` spy restore hygiene gap (spy leaks across tests on assertion failure) | 2 | 2026-06-20 | RULE CANDIDATE. [full → archive] |
+| CLAUDE.md QA-pipeline section drifts when lefthook.yml changes | 2 | 2026-06-20 | RULE CANDIDATE. [full → archive] |
+| Test-file split drops a test-branch guard or condition during the move | 2 | 2026-06-23 | RULE CANDIDATE. [full → archive] |
+| Conventional-commit subject/scope hook failures (uppercase subject start, compound scope/type) | 2 | 2026-06-24 | RULE CANDIDATE. [full → archive] |
+| docs/database.md "Last updated" footer changelog entry stale when database.md content changes | 2 | 2026-06-26 | RULE CANDIDATE. [full → archive] |
+| Rename/move leaves stale string references in source/test file inline comments | 2 | 2026-07-02 | RULE CANDIDATE. [full → archive] |
+| Missing route entry in docs/plan.md route-structure tree after new route added | 2 | 2026-07-08 | RULE CANDIDATE → agent-doc-updater.md sub-rule (when page.tsx added, flag missing plan.md route entry as DRIFT). [full → archive] |
+| Merging a branch with a new global DB invariant silently breaks existing integration tests that lack beforeEach state-clearing | 1 | 2026-06-30 | WATCHING (archive row 474) |
+| Spec tasks.md task-number sweep incomplete after merging master into feature branch | 1 | 2026-07-01 | WATCHING (archive row 475) |
+| Plan-critic catches `_`-as-LIKE-wildcard in E2E marker constants (accepted as-is) | 1 | 2026-07-02 | WATCHING (archive row 477) |
+| Assertions placed before result-capture inside try/finally block (failure skips result assignment) | 1 | 2026-07-02 | WATCHING (archive row 480) |
+| Manual-eval-driven UI redesign grows a component file over the size cap outside the original plan | 1 | 2026-07-02 | WATCHING (archive row 481) |
+| Cloud CR stale-review false positive on updated PR HEAD (re-raises already-handled findings) | 1 | 2026-07-02 | WATCHING (archive row 483) |
+| Plan-critic dependency-graph omission when splitting a file (import order not listed in plan) | 1 | 2026-07-02 | WATCHING (archive row 484) |
+| Dynamic URL query-param interpolated into redirect URL without encodeURIComponent (URL-injection; distinct from code-style.md §5 markup-escaping — different output context) | 1 | 2026-07-10 | WATCHING (archive row 489) |
+| Hook/hook-wiring changed or added without live-probe runtime verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
+| Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
+| Rule text updated in .claude/rules/*.md or CLAUDE.md without updating its commands/*.md restatement (stale mirror) | 2 | 2026-07-11 | PROMOTED → agent-workflow.md § Rule-Mirror Sync (2026-07-11). [full → archive] |
+| Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
+| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×4 post-promotion (batch-5/6; CR-loop R1/R2). |
+| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
+| CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
+| CR-local scopes review to origin-lag content (out-of-scope file on diff due to unpushed local-master commits) | 1 | 2026-07-11 | WATCHING (archive row 497) |
+| Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
+| CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 
 ## Durable knowledge (cross-agent)
 
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
-- A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct (several count=2 rows above are held below promotion for this reason — noted inline).
-- On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites (lesson from issue #573).
-- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 12) — always grep all instances of a pattern in the file AND sibling files before committing. A narrower sub-case (dispatch branches over a discriminated tag) PROMOTED to code-style.md §5 at count 2 (one instance was mis-attributed at count=3; mapping branch was always correct — reconciled per agent-memory.md) — see "Fan-out/dispatch branch" row.
-- **Learner tracker is authoritative over rule-file parenthetical counts.** When reconciling a promotion-note count, read this tracker, not the rule file's parenthetical — the parenthetical can lag behind (it was stale at count=3 then 4 for pitfall #7; caught 2026-07-03 because semantic-reviewer read the authoritative tracker while plan-critic read only the stale doc text).
+- A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
+- On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
+- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 14) — always grep all instances in the file AND siblings before committing.
+- **Learner tracker is authoritative over rule-file parenthetical counts.** Read this tracker, not the rule file's parenthetical — the parenthetical can lag (e.g. stale at count=4 for pitfall #7, caught 2026-07-03).
 - *(Other bullets relocated to `topics/cross-agent-lessons.md` § Durable knowledge relocated 2026-06-07.)*
 
 ## Topic pointers
 
 - [cross-agent-lessons](topics/cross-agent-lessons.md) — durable rule-promotion record, false-positive catalog, recurring meta-lessons.
 - [tracker-archive](topics/tracker-archive.md) — full tracker record; original journal at git `2e87c3e6`. **Before adding a NEW row, grep this file first — if it exists, increment it and lift to live table.**
-- [query-helper-throw-boundary](topics/query-helper-throw-boundary.md) — Server Actions must catch now-throwing query helpers at the client boundary; throw-posture safe for Server Components but crosses unsafe RPC boundary when SA returns output to client.
-- [paginated-fetch-page-error-testing](topics/paginated-fetch-page-error-testing.md) — two valid test forms (real helper + mocked queries, vs. helper as dependency mock) for caller-level page-error recovery; promoted to code-style.md §7 (PR #699).
-- [postgres-security-invoker-rls-pattern](topics/postgres-security-invoker-rls-pattern.md) — SECURITY INVOKER functions on RLS-protected tables return `error: null + data: []` on unauth calls (RLS gatekeeper, not GRANT denial); impl-critic false-positive suppression pattern.
+- [query-helper-throw-boundary](topics/query-helper-throw-boundary.md) — Server Actions must catch now-throwing query helpers at the client boundary.
+- [paginated-fetch-page-error-testing](topics/paginated-fetch-page-error-testing.md) — two valid test forms for caller-level page-error recovery; promoted to code-style.md §7 (PR #699).
+- [postgres-security-invoker-rls-pattern](topics/postgres-security-invoker-rls-pattern.md) — SECURITY INVOKER functions on RLS-protected tables return `error: null + data: []` on unauth calls; impl-critic FP suppression pattern.

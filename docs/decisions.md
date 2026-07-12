@@ -44,12 +44,14 @@
 
 ### Git Hook Pipeline (Lefthook) — updated by Decision 20
 ```
-pre-commit  → biome check --write + tsc --noEmit + vitest run
+pre-commit  → biome check --write + tsc --noEmit + soft-delete guard + test-title-leakage guard
 commit-msg  → commitlint (conventional commits)
 pre-push    → security-auditor agent + pnpm audit
 post-commit → reminder to run subagents (non-blocking)
 ```
-Post-commit review agents (code-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
+Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
+
+> Updated 2026-07-11: pre-commit runs biome + type-check + soft-delete-column guard + test-title-leakage guard (unit tests deliberately NOT in pre-commit — they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
@@ -138,9 +140,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 │   └── on-stop.sh           ← Stop: biome format + vitest
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
+│   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project
 │   ├── security-auditor.md ← sonnet, CREATED, scans diffs for vulns/secrets, memory: project
 │   ├── test-writer.md      ← sonnet, writes Vitest tests for new code
 │   └── doc-updater.md      ← haiku, updates docs when API changes
+│                              (curated subset — full roster adds plan-critic, implementation-critic,
+│                              learner, red-team, coderabbit-sync; see .claude/agents/)
 ├── commands/
 │   ├── review.md           ← /project:review
 │   ├── test.md             ← /project:test
@@ -148,8 +153,7 @@ Full security reference: `docs/security.md` — binding rules, covers:
 │   └── insights.md         ← /project:insights (weekly self-review → updates memory)
 ├── skills/
 │   ├── nextjs-patterns.md
-│   ├── supabase-rls.md
-│   └── fsrs-patterns.md
+│   └── supabase-rls.md
 └── rules/
     ├── code-style.md       ← TypeScript strict, Biome, naming conventions
     └── security.md         ← no secrets in code, RLS required, input validation
@@ -164,7 +168,7 @@ CLAUDE.md                   ← root, 50-80 lines max
 > A PreCompact "handover" hook was originally planned as a third layer but removed 2026-05-30: a shell hook has no transcript access (it could only ever write a static stub), and Claude Code's native context-summary carryover already preserves state across compaction.
 
 ### Code Reviewer Strategy
-- **Now:** Custom local subagent (haiku, read-only, memory: project, runs proactively after commits)
+- **Now:** Custom local subagent (sonnet — bumped haiku→sonnet in PR #753; read-only, memory: project, runs proactively after commits)
 - **Later:** Anthropic official Code Review (parallel Opus agents, GitHub PR inline comments) — $15-25/review, Team plan required. Add when on Team plan.
 
 ### Monorepo Package Structure
@@ -175,8 +179,7 @@ lmsplusv2/
 ├── packages/
 │   ├── db/                 ← Supabase schema, migrations, RLS policies, typed client
 │   ├── ui/                 ← shadcn/ui components (shared)
-│   ├── typescript-config/  ← shared tsconfig (base, nextjs, react-library)
-│   └── eslint-config/      ← (empty placeholder — using Biome instead)
+│   └── typescript-config/  ← shared tsconfig (base, nextjs, react-library)
 ├── CLAUDE.md
 ├── .claudeignore
 ├── lefthook.yml
@@ -340,6 +343,8 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `run-test-writer.sh` runs `pnpm test` after agent finishes as a safety net
 - `test-writer.md` prompt updated: "Always run tests you wrote. Never leave broken tests."
 - `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
+
+> Updated 2026-07-11: run-test-writer.sh was removed — the test-writer runs as an Agent-tool subagent and verifies its own tests per .claude/rules/agent-test-writer.md; the pnpm-test safety net lives in that flow.
 
 ---
 
@@ -942,6 +947,8 @@ Storage follows the same per-zone-row model Decision 51 already reused from `dia
 **Rationale**: Inline SVG (not a static PNG) keeps zone coordinates and diagram artwork co-versioned in code, avoids an image-upload/CDN dependency for a small fixed set of training diagrams, and lets zone overlays scale responsively with the SVG viewBox instead of pixel-anchoring to a raster image. Distractors make the exercise harder to game by elimination, mirroring real EASA-style pattern-recognition drills. Reusing the per-slot/per-zone row model (rather than inventing a third storage shape) keeps the third drag-type addition low-risk in the same SECURITY DEFINER surface that Decision 51 already validated through two Opus plan-critic rounds.
 
 **Scope**: practice modes (`smart_review`/`quick_quiz`) on `/app/vfr-rt`; third of the app's non-MC question types, second of the two Part-3 drag types. Migrations 150–156 (dual-authored `packages/db/migrations/` ≡ `supabase/migrations/`, byte-identical). No live RT diagram_label data on prod prior to this change (the page is dormant until RT content import), so the schema can still change cheaply if the user objects at the manual-eval gate.
+
+> **Annotation 2026-07-11:** the dual-authoring convention referenced above is retired — `packages/db/migrations/` was frozen 2026-07-11 and `supabase/migrations/` is the sole source of truth (the only dir CI tests and `db-deploy.yml` deploys). The historical decision text above is unchanged.
 
 ---
 

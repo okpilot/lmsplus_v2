@@ -168,8 +168,10 @@ Then run:
 If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
-If rules changed (code-style.md, security.md, biome.json), also run:
+If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+
+**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md` (EXCEPT CLAUDE.md — it is a rules file and a coderabbit-sync trigger, never exempt), or `.claude/agent-memory/**` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
 
 Pre-commit critics (plan-critic, implementation-critic) run BEFORE commit and do not replace post-commit agents. They are additive — catching issues earlier, not removing later review.
 
@@ -179,7 +181,7 @@ Never push without all agents reporting clean.
 Lefthook enforces mechanical gates (blocking):
 - **pre-commit:** biome lint/format + type-check + soft-delete column guard (`.claude/hooks/check-soft-delete-guard.mjs`, glob-gated to staged `.ts`/`.tsx`; also runs in the CI lint job) + test-title impl-leakage guard (`.claude/hooks/check-test-title-leakage.mjs`, glob-gated to staged `*.test.{ts,tsx}`; diff-scoped + grandfathered — flags only NEWLY-added `it()`/`test()` titles violating code-style.md §7; also runs in the CI lint job against the PR base) — unit tests intentionally NOT in pre-commit; lefthook.yml runs fast gates only and the full suite runs in CI
 - **commit-msg:** conventional commit format
-- **pre-push:** security-auditor agent + dependency audit
+- **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
 
 Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
 

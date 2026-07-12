@@ -1,17 +1,24 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
 export type RtSubjectData = {
   id: string
-  parts: TopicWithSubtopics[]
+  // Synthetic single-subject option for the reused quiz config machinery. Its `id`
+  // equals the RT subject uuid — the session handoff derives subjectName/subjectCode
+  // from it. Built here (data layer) so the RSC stays pure composition.
+  subjects: SubjectOption[]
+  topics: TopicWithSubtopics[]
 }
 
 /**
- * Loads the RT subject id and its three practice parts (topics) with question counts.
- * Throws on subject-lookup failure (page-critical); degrades to [] on topic failure.
+ * Loads the RT subject id and its topics/subtopics server-side, so the RSC
+ * (VfrRtSetup) can seed the reused quiz topic-tree hook with initial state
+ * instead of a client mount-time fetch. Throws on subject-lookup failure
+ * (page-critical); degrades to an empty topics list on a topics-fetch
+ * failure (non-critical — the form just renders with zero topics).
  */
 export async function getRtSubjectData(): Promise<RtSubjectData> {
   const supabase = await createServerSupabaseClient()
@@ -30,15 +37,25 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     throw new Error('Failed to load VFR RT subject')
   }
 
-  let parts: TopicWithSubtopics[] = []
+  let topics: TopicWithSubtopics[] = []
   try {
-    parts = await getTopicsWithSubtopics(subject.id)
-  } catch (err) {
+    topics = await getTopicsWithSubtopics(subject.id)
+  } catch (topicsError) {
     console.error(
-      '[getRtSubjectData] Failed to load RT topics:',
-      err instanceof Error ? err.message : err,
+      '[getRtSubjectData] Topics fetch failed:',
+      topicsError instanceof Error ? topicsError.message : topicsError,
     )
   }
 
-  return { id: subject.id, parts }
+  const subjects: SubjectOption[] = [
+    {
+      id: subject.id,
+      code: 'RT',
+      name: 'VFR RT',
+      short: 'RT',
+      questionCount: topics.reduce((sum, t) => sum + t.questionCount, 0),
+    },
+  ]
+
+  return { id: subject.id, subjects, topics }
 }

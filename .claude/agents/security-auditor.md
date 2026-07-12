@@ -53,8 +53,8 @@ You receive:
 ### HIGH (blocking unless explicitly justified)
 
 6. **Hard DELETE on soft-deletable table**
-   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, courses, lessons
-   - Exception: ephemeral tables (`quiz_drafts`) — hard DELETE is intentional
+   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, courses, lessons, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
+   - Exception: hard-delete-by-design tables per `docs/database.md` §3 — `quiz_drafts` and `exam_config_distributions` (no `deleted_at` column), and `question_comments` (`deleted_at` exists as an unused safety net; own/admin DELETE RLS policies are the design — mig 20260320000049)
    - Fix: `UPDATE table SET deleted_at = now(), deleted_by = auth.uid() WHERE id = $1`
 
 7. **Missing `deleted_at` on new mutable table**
@@ -92,7 +92,7 @@ You receive:
 
 16. **Missing soft-delete filter in a SECURITY DEFINER SELECT** (docs/security.md §15 "Soft-delete in RPCs")
     - A SELECT inside a new or modified `SECURITY DEFINER` function body **in this diff** reads a soft-deletable table without `AND deleted_at IS NULL`.
-    - Fires ONLY on genuinely soft-deletable tables — consult the `docs/database.md` §3 soft-delete matrix (or the seven no-`deleted_at` tables in `code-style.md` §5). Never flag `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`.
+    - Fires ONLY on genuinely soft-deletable tables — consult the `docs/database.md` §3 soft-delete matrix. Never flag the ten no-`deleted_at` tables: `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`, `exam_config_distributions`, `fsrs_cards`, `user_consents` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`). Likewise, hard-delete-exception tables that RETAIN a `deleted_at` column (per `docs/database.md` §3: `question_comments` — the column is an unused safety net; hard DELETE via own/admin RLS policies is the design, see check 6) do NOT require the filter — do not raise HIGH for a missing `deleted_at` filter on `question_comments`.
     - Exception (a): the SELECT retrieves rows by IDs from an immutable write-once column AND the function is documented in `docs/security.md` §15 as doing so (covers both the frozen `quiz_sessions.config.question_ids` boundary and the `quiz_session_answers.question_id` report boundary). Read §15 to confirm membership — do NOT rely on a memorised list.
     - Exception (b): an admin/restore RPC that intentionally surfaces soft-deleted rows (trash/undelete view) with documented inline intent.
 17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)
@@ -118,7 +118,7 @@ You receive:
 
 ### Pre-Flag Verification — trace the CREATE OR REPLACE chain (checks 16–20)
 
-Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the `CREATE OR REPLACE FUNCTION` chain to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. Account for the two-directory migration mirror (`packages/db/NNN_* ≡ supabase/timestamp_*`); neither directory is authoritative.
+Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the `CREATE OR REPLACE FUNCTION` chain to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. `supabase/migrations/` is the sole source of truth for current SQL (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it; re-check any such path against `supabase/migrations/`).
 
 ## Output Format
 
@@ -132,7 +132,7 @@ MEDIUM: [count]
 
 --- FINDINGS ---
 
-[CRITICAL] packages/db/migrations/004_questions.sql — line 12
+[CRITICAL] supabase/migrations/20260311000001_initial_schema.sql — line 105
 RLS enabled but WITH CHECK clause missing on INSERT policy for 'questions' table.
 Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = auth.uid()))
 
@@ -178,7 +178,7 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
    1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
    2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
-   3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` or `packages/db/migrations/` and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
+   3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` (the sole source of truth; `packages/db/migrations/` is frozen/historical) and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
    4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.

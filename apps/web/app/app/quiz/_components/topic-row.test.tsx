@@ -215,4 +215,20 @@ describe('TopicRow', () => {
     expect(screen.queryByTestId('icon-chevron-right')).not.toBeInTheDocument()
     expect(screen.queryByTestId('icon-chevron-down')).not.toBeInTheDocument()
   })
+
+  it('renders only the topic name when showCode is false', () => {
+    render(
+      <TopicRow
+        code="P1_ACRONYMS"
+        name="Acronyms"
+        count={5}
+        filteredCount={null}
+        checked={false}
+        onCheckedChange={vi.fn()}
+        showCode={false}
+      />,
+    )
+    expect(screen.getByText('Acronyms')).toBeInTheDocument()
+    expect(screen.queryByText(/P1_ACRONYMS/)).not.toBeInTheDocument()
+  })
 })

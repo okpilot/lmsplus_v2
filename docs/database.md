@@ -735,6 +735,7 @@ ORDER BY deleted_at DESC;
 | `student_responses` | No | Immutable |
 | `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries |
 | `audit_events` | No | Immutable compliance log |
+| `user_consents` | No | Append-only GDPR consent audit log (mig `20260327000057_user_consents.sql` — same pattern as `audit_events`): no `deleted_at` column, RLS blocks all UPDATE/DELETE, inserts only via `record_consent()` SECURITY DEFINER RPC |
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
@@ -2615,7 +2616,7 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 
-**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql` (≡ packages/db 108), which DROPs + recreates the three functions (signature change) (#837); `p_question_type` added in `20260626000100_get_random_question_ids_question_type.sql` (≡ packages/db 134), which DROPs + recreates `get_random_question_ids` + `_filtered_question_pool` with the trailing optional param (Study Mode); the same `p_question_type` was then added to `get_filtered_question_counts` in `20260629000800_get_filtered_question_counts_question_type.sql` (≡ packages/db 157) so the count badge is MC-aware too (#1003 / #1008).
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql`, which DROPs + recreates the three functions (signature change) (#837); `p_question_type` added in `20260626000100_get_random_question_ids_question_type.sql`, which DROPs + recreates `get_random_question_ids` + `_filtered_question_pool` with the trailing optional param (Study Mode); the same `p_question_type` was then added to `get_filtered_question_counts` in `20260629000800_get_filtered_question_counts_question_type.sql` so the count badge is MC-aware too (#1003 / #1008).
 
 **Rationale:** Replaces a client-side fetch-then-shuffle that hit the PostgREST 1000-row cap once the active pool crossed 1000 rows — questions past row 1000 were never sampled, biasing the quiz toward the first 1000 by insertion order (#679, instance of umbrella #668). Sampling now happens server-side so every active, in-scope question has equal probability.
 
@@ -2637,7 +2638,7 @@ Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool
 
 **Result-set size:** bounded by syllabus shape (one row per `(topic, subtopic)` present in the pool — low hundreds in production), so the result itself cannot hit the 1000-row cap that the legacy client-side counting was vulnerable to.
 
-**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql` (≡ packages/db 108) (#837); `p_question_type` added in `20260629000800_get_filtered_question_counts_question_type.sql` (≡ packages/db 157) so the count badge is MC-aware for Study Mode (#1003 / #1008).
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql` (#837); `p_question_type` added in `20260629000800_get_filtered_question_counts_question_type.sql` so the count badge is MC-aware for Study Mode (#1003 / #1008).
 
 **Rationale:** Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions WHERE …` read whose total truncated at the PostgREST 1000-row cap for any pool larger than 1000 rows, causing the badge count and per-(topic, subtopic) breakdown to under-report. The new RPC computes counts in SQL and reuses the same `_filtered_question_pool` definition as `get_random_question_ids`, so the badge is structurally guaranteed to equal the size of the pool the quiz samples from (count == quiz). Also fixes the prior AND-vs-OR mismatch between the badge and the quiz, and the `unseen + incorrect` mutex-then-AND-bug that produced a permanently-zero badge for any combination of those two filters (#678, instance of umbrella #668).
 

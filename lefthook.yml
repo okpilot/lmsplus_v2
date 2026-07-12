@@ -51,6 +51,6 @@ pre-push:
   parallel: true
   commands:
     security-auditor:
-      run: "if [ -f .claude/hooks/run-security-auditor.sh ]; then bash .claude/hooks/run-security-auditor.sh; fi"
+      run: "if [ -f .claude/hooks/run-security-auditor.sh ]; then bash .claude/hooks/run-security-auditor.sh; else echo 'run-security-auditor.sh missing — blocking push' >&2; exit 1; fi"
     audit:
       run: pnpm audit --audit-level=high
