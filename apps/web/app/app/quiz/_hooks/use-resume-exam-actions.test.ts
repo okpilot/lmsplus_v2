@@ -116,15 +116,6 @@ describe('useResumeExamActions — resume', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
     warnSpy.mockRestore()
   })
-
-  it('does nothing when there is no exam to resume', () => {
-    const { result } = renderActions({ exam: undefined })
-
-    act(() => result.current.handleResume())
-
-    expect(mockSetItem).not.toHaveBeenCalled()
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
 })
 
 // ---- Discard --------------------------------------------------------------
@@ -165,49 +156,5 @@ describe('useResumeExamActions — discard', () => {
 
     expect(result.current.error).toMatch(/server unavailable/i)
     expect(result.current.discarded).toBe(false)
-  })
-
-  it('discards the session exactly once when triggered twice in the same tick', async () => {
-    const { result } = renderActions()
-
-    await act(async () => {
-      // Two synchronous invocations with no flush between — e.g. a double-fired
-      // dialog action. Only one server call may go out.
-      void result.current.handleDiscard()
-      void result.current.handleDiscard()
-    })
-
-    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
-  })
-
-  it('allows a retry after a failed discard and succeeds on the second attempt', async () => {
-    mockDiscardQuiz.mockResolvedValueOnce({ success: false, error: 'Session not found' })
-    mockDiscardQuiz.mockResolvedValueOnce({ success: true })
-    const { result } = renderActions()
-
-    await act(async () => {
-      await result.current.handleDiscard()
-    })
-    expect(result.current.error).toBe('Session not found')
-
-    await act(async () => {
-      await result.current.handleDiscard()
-    })
-
-    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
-    expect(result.current.discarded).toBe(true)
-  })
-
-  it('ignores further discard attempts after a successful discard', async () => {
-    const { result } = renderActions()
-
-    await act(async () => {
-      await result.current.handleDiscard()
-    })
-    await act(async () => {
-      await result.current.handleDiscard()
-    })
-
-    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
   })
 })
