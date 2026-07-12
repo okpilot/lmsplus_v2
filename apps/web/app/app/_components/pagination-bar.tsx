@@ -33,9 +33,14 @@ export function PaginationBar({
 
   if (totalCount === 0 || totalPages <= 1) return null
 
-  const items = buildPageItems(page, totalPages)
-  const from = (page - 1) * pageSize + 1
-  const to = Math.min(page * pageSize, totalCount)
+  // Snap-to-last-page policy (#1041): an out-of-range `page` (e.g. a stale ?page=99 deep
+  // link) renders as the last page with data — range text, highlight, and prev/next all use
+  // the clamped value. Display-only: the query layer snaps its rows the same way; the URL is
+  // NOT rewritten. Identity for in-range pages.
+  const effectivePage = Math.min(Math.max(1, page), totalPages)
+  const items = buildPageItems(effectivePage, totalPages)
+  const from = (effectivePage - 1) * pageSize + 1
+  const to = Math.min(effectivePage * pageSize, totalCount)
 
   return (
     <div className="flex items-center justify-between pt-4">
@@ -47,8 +52,8 @@ export function PaginationBar({
           variant="outline"
           size="icon-sm"
           aria-label="Previous page"
-          disabled={page <= 1}
-          onClick={() => goToPage(page - 1)}
+          disabled={effectivePage <= 1}
+          onClick={() => goToPage(effectivePage - 1)}
         >
           <ChevronLeft className="size-4" />
         </Button>
@@ -60,7 +65,7 @@ export function PaginationBar({
           ) : (
             <Button
               key={item.page}
-              variant={item.page === page ? 'default' : 'outline'}
+              variant={item.page === effectivePage ? 'default' : 'outline'}
               size="sm"
               className="min-w-8"
               onClick={() => goToPage(item.page)}
@@ -73,8 +78,8 @@ export function PaginationBar({
           variant="outline"
           size="icon-sm"
           aria-label="Next page"
-          disabled={page >= totalPages}
-          onClick={() => goToPage(page + 1)}
+          disabled={effectivePage >= totalPages}
+          onClick={() => goToPage(effectivePage + 1)}
         >
           <ChevronRight className="size-4" />
         </Button>

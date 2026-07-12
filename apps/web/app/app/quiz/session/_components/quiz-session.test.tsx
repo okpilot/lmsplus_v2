@@ -284,9 +284,11 @@ vi.mock('../../_components/statistics-tab', () => ({
 
 const mockToggleFlag = vi.fn().mockResolvedValue(true)
 vi.mock('../_hooks/use-flagged-questions', () => ({
-  useFlaggedQuestions: () => ({
-    flaggedIds: new Set<string>(),
-    isFlagged: () => false,
+  // Mirrors the real signature: the hook is seeded from the server-provided
+  // initialFlaggedIds prop (QuizSession passes props.initialFlaggedIds ?? []).
+  useFlaggedQuestions: (initialFlaggedIds: readonly string[]) => ({
+    flaggedIds: new Set<string>(initialFlaggedIds),
+    isFlagged: (id: string) => initialFlaggedIds.includes(id),
     toggleFlag: mockToggleFlag,
     isToggling: () => false,
   }),

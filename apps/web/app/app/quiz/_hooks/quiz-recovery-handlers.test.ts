@@ -54,12 +54,16 @@ function makeSession(overrides: Partial<ActiveSession> = {}): ActiveSession {
 let setError: ReturnType<typeof vi.fn<(v: string | null) => void>>
 let setSession: ReturnType<typeof vi.fn<(v: ActiveSession | null) => void>>
 let setLoading: ReturnType<typeof vi.fn<(v: boolean) => void>>
+// The shared in-flight lock passed to both the save and discard builders — a fresh
+// object per test stands in for the hook's useRef(false).
+let inFlightRef: { current: boolean }
 // Router param type taken straight from the builder so the mock satisfies the full
 // AppRouterInstance shape (push/refresh are used; back/forward/replace/prefetch are stubs).
 let router: Parameters<typeof buildResumeHandler>[3]
 
 beforeEach(() => {
   vi.resetAllMocks()
+  inFlightRef = { current: false }
   Object.defineProperty(globalThis, 'sessionStorage', {
     value: {
       setItem: mockSessionStorageSetItem,
@@ -142,12 +146,12 @@ describe('buildResumeHandler', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildSaveHandler', () => {
-  it('does nothing when already loading', async () => {
+  it('does nothing while another recovery action is already in flight', async () => {
     const session = makeSession()
     const handle = buildSaveHandler(
       'user-1',
       session,
-      /* loading */ true,
+      { current: true },
       setLoading,
       setError,
       setSession,
@@ -161,7 +165,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       /* session */ null,
-      /* loading */ false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -178,7 +182,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -198,7 +202,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -218,7 +222,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -239,7 +243,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -257,7 +261,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -275,7 +279,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -293,7 +297,7 @@ describe('buildSaveHandler', () => {
     const handle = buildSaveHandler(
       'user-1',
       session,
-      false,
+      inFlightRef,
       setLoading,
       setError,
       setSession,
@@ -304,6 +308,99 @@ describe('buildSaveHandler', () => {
     // First call to setError must be null (clear)
     expect(setError).toHaveBeenNthCalledWith(1, null)
   })
+
+  it('saves the draft exactly once when triggered twice in the same tick', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+    const session = makeSession()
+
+    const handle = buildSaveHandler(
+      'user-1',
+      session,
+      inFlightRef,
+      setLoading,
+      setError,
+      setSession,
+      router,
+    )
+    // Two synchronous invocations with no flush between — only one save may go out.
+    const first = handle()
+    const second = handle()
+    await Promise.all([first, second])
+
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a failed save', async () => {
+    mockSaveDraft.mockRejectedValueOnce(new Error('network error'))
+    mockSaveDraft.mockResolvedValueOnce({ success: true })
+    const session = makeSession()
+
+    const handle = buildSaveHandler(
+      'user-1',
+      session,
+      inFlightRef,
+      setLoading,
+      setError,
+      setSession,
+      router,
+    )
+    await handle()
+    await handle()
+
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(setSession).toHaveBeenCalledWith(null)
+  })
+
+  it('ignores further save attempts after a successful save', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+    const session = makeSession()
+
+    const handle = buildSaveHandler(
+      'user-1',
+      session,
+      inFlightRef,
+      setLoading,
+      setError,
+      setSession,
+      router,
+    )
+    await handle()
+    await handle()
+
+    // The recovery banner is dismissed on success — a late duplicate must not re-fire.
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a discard fired while a save is still in flight', async () => {
+    const session = makeSession()
+    let resolveSave: (v: ActionResult) => void
+    mockSaveDraft.mockReturnValue(
+      new Promise<ActionResult>((r) => {
+        resolveSave = r
+      }),
+    )
+
+    const save = buildSaveHandler(
+      'user-1',
+      session,
+      inFlightRef,
+      setLoading,
+      setError,
+      setSession,
+      router,
+    )
+    const discard = buildDiscardHandler('user-1', session, inFlightRef, setSession)
+
+    const pending = save()
+    discard()
+
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+
+    resolveSave!({ success: true })
+    await pending
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -311,19 +408,19 @@ describe('buildSaveHandler', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildDiscardHandler', () => {
-  it('does nothing when already loading', () => {
+  it('does nothing while another recovery action is already in flight', () => {
     const session = makeSession()
-    const handle = buildDiscardHandler('user-1', session, /* loading */ true, setSession)
+    const handle = buildDiscardHandler('user-1', session, { current: true }, setSession)
     handle()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
-  it('clears the active session and nulls the UI state when not loading', () => {
+  it('clears the active session and nulls the UI state when idle', () => {
     const session = makeSession()
     mockDiscardQuiz.mockResolvedValue({ success: true })
 
-    const handle = buildDiscardHandler('user-1', session, false, setSession)
+    const handle = buildDiscardHandler('user-1', session, inFlightRef, setSession)
     handle()
 
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
@@ -334,7 +431,7 @@ describe('buildDiscardHandler', () => {
     const session = makeSession({ sessionId: 'sess-xyz', draftId: 'draft-123' })
     mockDiscardQuiz.mockResolvedValue({ success: true })
 
-    const handle = buildDiscardHandler('user-1', session, false, setSession)
+    const handle = buildDiscardHandler('user-1', session, inFlightRef, setSession)
     handle()
 
     expect(mockDiscardQuiz).toHaveBeenCalledWith({
@@ -344,12 +441,26 @@ describe('buildDiscardHandler', () => {
   })
 
   it('does not call the discard server action when there is no session', () => {
-    const handle = buildDiscardHandler('user-1', null, false, setSession)
+    const handle = buildDiscardHandler('user-1', null, inFlightRef, setSession)
     handle()
 
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
     // clearActiveSession and setSession still run
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
     expect(setSession).toHaveBeenCalledWith(null)
+  })
+
+  it('discards the session exactly once when triggered twice in the same tick', () => {
+    const session = makeSession()
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+
+    const handle = buildDiscardHandler('user-1', session, inFlightRef, setSession)
+    // Two synchronous invocations with no flush between — only one discard may go out.
+    handle()
+    handle()
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+    expect(setSession).toHaveBeenCalledTimes(1)
   })
 })

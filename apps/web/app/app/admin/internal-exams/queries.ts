@@ -56,8 +56,6 @@ export async function listInternalExamCodes(
 ): Promise<{ rows: InternalExamCodeRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
   const page = clampPage(filters.page)
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
   const client = offsetAdminClient
   const nowIso = new Date().toISOString()
   // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
@@ -80,10 +78,15 @@ export async function listInternalExamCodes(
     failMessage: 'Failed to load internal exam codes',
   }
   const totalCount = await runOffsetCount(countBuilder, ctx)
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-  if (totalCount === 0 || page > totalPages) {
+  if (totalCount === 0) {
     return { rows: [], totalCount }
   }
+  // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
+  // an empty list, matching PaginationBar's clamped display. Count-first keeps this one round trip.
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const effectivePage = Math.min(page, totalPages)
+  const from = (effectivePage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   const dataBuilder = applyCodeFilters(
     client.from('internal_exam_codes').select(`${CODE_COLS_BASE},\n       ${embed}`),

@@ -84,6 +84,7 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
       userId={userId}
       sessionId={bs.session.sessionId}
       questions={bs.questions}
+      initialFlaggedIds={bs.flaggedIds}
       initialAnswers={filteredAnswers}
       initialFeedback={filteredFeedback}
       initialIndex={clampedIndex}

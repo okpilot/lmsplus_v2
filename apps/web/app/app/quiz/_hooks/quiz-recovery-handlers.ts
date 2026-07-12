@@ -39,14 +39,18 @@ export function buildResumeHandler(
 export function buildSaveHandler(
   userId: string,
   session: ActiveSession | null,
-  loading: boolean,
+  inFlightRef: React.RefObject<boolean>,
   setLoading: SetState<boolean>,
   setError: SetState<string | null>,
   setSession: SetState<ActiveSession | null>,
   router: AppRouterInstance,
 ) {
   return async function handleSave() {
-    if (loading || !session) return
+    // Synchronous one-shot re-entry guard (code-style §6). The ref is shared with
+    // buildDiscardHandler, preserving the old shared-`loading` semantics but without
+    // the async-state race (`loading` is now UI-only).
+    if (inFlightRef.current || !session) return
+    inFlightRef.current = true // set before the first await
     setLoading(true)
     setError(null)
     try {
@@ -67,12 +71,17 @@ export function buildSaveHandler(
         // await-before-terminal-nav rule (code-style.md §6).
         clearDeploymentPin().catch(() => {})
         router.refresh()
+        // Terminal success: setSession(null) dismisses the recovery banner, so the
+        // in-flight ref intentionally stays set — a late duplicate cannot re-fire, and
+        // the `!session` guard above makes both handlers inert anyway (code-style §6).
         setSession(null)
       } else {
         setError(result.error ?? 'Failed to save. Please try again.')
+        inFlightRef.current = false // retryable failure — release the lock
       }
     } catch {
       setError('Server unavailable. Please try again later.')
+      inFlightRef.current = false // retryable failure — release the lock
     } finally {
       setLoading(false)
     }
@@ -82,11 +91,16 @@ export function buildSaveHandler(
 export function buildDiscardHandler(
   userId: string,
   session: ActiveSession | null,
-  loading: boolean,
+  inFlightRef: React.RefObject<boolean>,
   setSession: SetState<ActiveSession | null>,
 ) {
   return function handleDiscard() {
-    if (loading) return
+    // Synchronous check-and-set one-shot (code-style §6). This handler is sync
+    // fire-and-forget (discardQuiz is never awaited) and terminal — setSession(null)
+    // ends the recovery UI — so the ref is never reset. The shared ref also blocks
+    // a discard while a save is still in flight (old shared-`loading` semantics).
+    if (inFlightRef.current) return
+    inFlightRef.current = true
     clearActiveSession(userId)
     // No terminal navigation in this handler at all (the parent component navigates), so the
     // await-before-terminal-nav rule (code-style.md §6) does not apply here.

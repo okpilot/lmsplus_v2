@@ -29,6 +29,9 @@ vi.mock('./quiz-session', () => ({
       data-time-limit-seconds={
         typeof props.timeLimitSeconds === 'number' ? String(props.timeLimitSeconds) : ''
       }
+      data-flagged-ids={
+        Array.isArray(props.initialFlaggedIds) ? props.initialFlaggedIds.join(',') : ''
+      }
     />
   ),
 }))
@@ -79,6 +82,7 @@ function makeBootstrapBase(): BootstrapState {
   return {
     session: null,
     questions: null,
+    flaggedIds: [],
     error: null,
     recovery: null,
     resumeLoading: false,
@@ -327,6 +331,17 @@ describe('QuizSessionLoader — happy path', () => {
     expect(node).toHaveAttribute('data-pass-mark', '75')
     expect(node).toHaveAttribute('data-started-at', '2026-04-27T12:00:00.000Z')
     expect(node).toHaveAttribute('data-time-limit-seconds', '1800')
+  })
+
+  it('passes the bootstrap flagged ids to the active quiz', () => {
+    mockUseSessionBootstrap.mockReturnValue({
+      ...makeBootstrapBase(),
+      session: makeSession(),
+      questions: makeQuestions(),
+      flaggedIds: ['q1', 'q3'],
+    })
+    render(<QuizSessionLoader userId="user-1" />)
+    expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-flagged-ids', 'q1,q3')
   })
 
   it('renders QuizSession when answers contain stale question ids', () => {

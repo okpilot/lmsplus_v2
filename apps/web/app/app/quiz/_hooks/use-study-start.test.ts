@@ -119,6 +119,19 @@ describe('useStudyStart — handleStart guards', () => {
       resolveFirst({ success: true, questions: [makeQuestion()] })
     })
   })
+
+  it('does not start a second discovery session when clicked twice in the same tick', async () => {
+    const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
+
+    // Two synchronous invocations with no flush between them — the async `loading`
+    // state has not committed yet when the second call fires.
+    await act(async () => {
+      void result.current.handleStart()
+      void result.current.handleStart()
+    })
+
+    expect(mockStartStudy).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---- handleStart — payload building --------------------------------------

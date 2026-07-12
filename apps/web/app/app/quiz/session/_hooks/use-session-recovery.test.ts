@@ -173,6 +173,72 @@ describe('useSessionRecovery — handleSave', () => {
 
     expect(result.current.loading).toBe(false)
   })
+
+  it('saves the draft exactly once when save is triggered twice in the same tick', async () => {
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      // Two synchronous invocations with no flush between — only one save may go out.
+      void result.current.handleSave()
+      void result.current.handleSave()
+    })
+
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a failed save', async () => {
+    mockSaveDraft.mockResolvedValueOnce({ success: false, error: 'Draft limit reached' })
+    mockSaveDraft.mockResolvedValueOnce({ success: true })
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      await result.current.handleSave()
+    })
+    expect(result.current.error).toBe('Draft limit reached')
+
+    await act(async () => {
+      await result.current.handleSave()
+    })
+
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('ignores further save attempts after a successful save', async () => {
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      await result.current.handleSave()
+    })
+    await act(async () => {
+      await result.current.handleSave()
+    })
+
+    // A successful save navigates away — a late duplicate must not re-fire the action.
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a discard fired while a save is still in flight', async () => {
+    let resolveSave: (v: unknown) => void
+    mockSaveDraft.mockReturnValue(
+      new Promise((r) => {
+        resolveSave = r
+      }),
+    )
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      result.current.handleSave()
+      result.current.handleDiscard()
+    })
+
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveSave!({ success: true })
+    })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---- handleDiscard --------------------------------------------------------
@@ -234,7 +300,7 @@ describe('useSessionRecovery — handleDiscard', () => {
       result.current.handleDiscard()
     })
 
-    // loading is now true; second call returns immediately due to `if (loading) return`
+    // The first call engaged the synchronous one-shot lock; the second call is a no-op
     await act(async () => {
       result.current.handleDiscard()
     })
@@ -248,6 +314,19 @@ describe('useSessionRecovery — handleDiscard', () => {
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledTimes(1))
     expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards the session exactly once when triggered twice in the same tick', async () => {
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      // Two synchronous invocations with no flush between — only one discard may go out.
+      void result.current.handleDiscard()
+      void result.current.handleDiscard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledTimes(1))
   })
 
   it('still redirects to /app/quiz when the discard fails', async () => {

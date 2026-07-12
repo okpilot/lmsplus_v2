@@ -161,6 +161,19 @@ describe('useExamStart — handleStart guards', () => {
       resolveFirst(SUCCESS_RESULT)
     })
   })
+
+  it('does not start a second exam when clicked twice in the same tick', async () => {
+    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+
+    // Two synchronous invocations with no flush between them — the async `loading`
+    // state has not committed yet when the second call fires.
+    await act(async () => {
+      void result.current.handleStart()
+      void result.current.handleStart()
+    })
+
+    expect(mockStartExamSession).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---- handleStart — happy path -------------------------------------------
@@ -279,6 +292,21 @@ describe('useExamStart — existing session guard', () => {
 
     expect(mockStartExamSession).not.toHaveBeenCalled()
     expect(mockRouterPush).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('starts the exam on a retry after the user first cancels the confirmation', async () => {
+    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
+
+    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+    expect(mockStartExamSession).not.toHaveBeenCalled()
+
+    // The cancelled attempt must not lock the user out — confirming now starts the exam.
+    confirmSpy.mockReturnValue(true)
+    await act(async () => result.current.handleStart())
+    expect(mockStartExamSession).toHaveBeenCalledTimes(1)
     confirmSpy.mockRestore()
   })
 

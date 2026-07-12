@@ -1,7 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +11,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { discardQuiz } from '../actions/discard'
+import { useResumeExamActions } from '../_hooks/use-resume-exam-actions'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 
 type NormalProps = {
   userId: string
@@ -34,58 +31,14 @@ type DiscardOnlyProps = {
 type Props = NormalProps | DiscardOnlyProps
 
 export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Readonly<Props>) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [discarded, setDiscarded] = useState(false)
-
   const activeSessionId = discardOnly ? sessionId : exam.sessionId
+  const { loading, error, discarded, handleResume, handleDiscard } = useResumeExamActions({
+    userId,
+    exam: discardOnly ? undefined : exam,
+    activeSessionId,
+  })
 
   if (discarded) return null
-
-  function handleResume() {
-    if (discardOnly || !exam) return
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify({
-          userId,
-          sessionId: exam.sessionId,
-          mode: 'exam',
-          questionIds: exam.questionIds,
-          timeLimitSeconds: exam.timeLimitSeconds,
-          passMark: exam.passMark,
-          subjectName: exam.subjectName,
-          subjectCode: exam.subjectCode,
-          startedAt: exam.startedAt,
-        }),
-      )
-    } catch (err) {
-      console.warn('[resume-exam-banner] Handoff write failed:', err)
-      setError('Unable to resume right now. Please try again.')
-      return
-    }
-    router.push('/app/quiz/session')
-  }
-
-  async function handleDiscard() {
-    if (loading) return
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await discardQuiz({ sessionId: activeSessionId })
-      if (result.success) {
-        setDiscarded(true)
-        router.refresh()
-      } else {
-        setError(result.error ?? 'Failed to discard. Please try again.')
-      }
-    } catch {
-      setError('Server unavailable. Please try again later.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const title = discardOnly
     ? 'Practice exam stuck — discard to start a new one'

@@ -262,9 +262,34 @@ describe('PaginationBar', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/test?subjectId=abc&page=2')
   })
 
-  it('renders with out-of-range page (server redirects in practice)', () => {
+  // Out-of-range deep links (?page=99): the bar snaps to the last page with data (#1041).
+  it('shows the last page range text when the page is out of range', () => {
     render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
-    expect(screen.getByLabelText('Previous page')).toBeInTheDocument()
+    expect(screen.getByText('Showing 26–50 of 50 questions')).toBeInTheDocument()
+  })
+
+  it('highlights the last page button when the page is out of range', () => {
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+    // The current page renders as the filled (default-variant) button; others are outline.
+    expect(screen.getByRole('button', { name: '2' })).toHaveClass('bg-primary')
+    expect(screen.getByRole('button', { name: '1' })).not.toHaveClass('bg-primary')
+  })
+
+  it('disables Next and enables Previous when the page is out of range', () => {
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+    expect(screen.getByLabelText('Next page')).toBeDisabled()
+    expect(screen.getByLabelText('Previous page')).not.toBeDisabled()
+  })
+
+  it('navigates to the page before the last page when Previous is clicked on an out-of-range page', async () => {
+    const user = userEvent.setup()
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+
+    await user.click(screen.getByLabelText('Previous page'))
+
+    // 50/25 → last page is 2; Previous goes to page 1 (represented by no ?page param),
+    // not page 98.
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
   })
 
   it('renders page number buttons for each page in a small set', () => {

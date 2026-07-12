@@ -1,30 +1,23 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
+import { clearSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
+import { type ActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
 import {
-  clearSessionHandoff,
-  readSessionHandoff,
-  type SessionData,
-} from '../_utils/quiz-session-handoff'
-import {
-  type ActiveSession,
-  readActiveSession,
-  toSessionData,
-} from '../_utils/quiz-session-storage'
+  buildRecoveryResume,
+  dropCachedSession,
+  loadSessionData,
+  readBootstrapSession,
+} from './session-bootstrap-load'
 import { useSessionRecovery } from './use-session-recovery'
 
-let cachedSession: { userId: string; session: SessionData } | null = null
-/** @internal Test-only reset for module-level cache. */
-export function _resetCachedSession() {
-  cachedSession = null
-}
 export type BootstrapState = ReturnType<typeof useSessionBootstrap>
 
 export function useSessionBootstrap(userId: string) {
   const router = useRouter()
   const [session, setSession] = useState<SessionData | null>(null)
   const [questions, setQuestions] = useState<SessionQuestion[] | null>(null)
+  const [flaggedIds, setFlaggedIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [recovery, setRecovery] = useState<ActiveSession | null>(null)
   const [resumeLoading, setResumeLoading] = useState(false)
@@ -32,63 +25,41 @@ export function useSessionBootstrap(userId: string) {
   const recoveryActions = useSessionRecovery(recovery, userId)
 
   useEffect(() => {
-    if (questions && cachedSession?.userId === userId) cachedSession = null
+    if (questions) dropCachedSession(userId)
   }, [questions, userId])
 
   useEffect(() => {
-    const data =
-      readSessionHandoff(userId) ??
-      (cachedSession?.userId === userId ? cachedSession.session : null)
-
+    const data = readBootstrapSession(userId)
     if (!data) {
       const stored = readActiveSession(userId)
-      if (stored) {
-        setRecovery(stored)
-        return
-      }
-      router.replace('/app/quiz')
+      if (stored) setRecovery(stored)
+      else router.replace('/app/quiz')
       return
     }
-
-    cachedSession = { userId, session: data }
     setSession(data)
-    loadSessionQuestions(data.questionIds)
-      .then((r) => {
-        if (r.success) {
-          clearSessionHandoff(userId)
-          setQuestions(r.questions)
-        } else {
-          setError(r.error)
-        }
-      })
-      .catch(() => setError('Failed to load questions. Please try again.'))
+    // Questions + flags load in parallel; the session renders only once BOTH have
+    // settled (QuizSession mounts once — the flag seed cannot be applied late).
+    loadSessionData(data.questionIds).then((r) => {
+      if (!r.success) return setError(r.error)
+      clearSessionHandoff(userId)
+      setFlaggedIds(r.flaggedIds)
+      setQuestions(r.questions)
+    })
   }, [router, userId])
 
-  function handleRecoveryResume() {
-    if (!recovery) return
-    setResumeLoading(true)
-    setResumeError(null)
-    loadSessionQuestions(recovery.questionIds)
-      .then((r) => {
-        if (!r.success) {
-          setResumeError(r.error ?? 'Failed to load questions. Try again.')
-          setResumeLoading(false)
-          return
-        }
-        setSession(toSessionData(recovery))
-        setQuestions(r.questions)
-        setResumeLoading(false)
-        setRecovery(null)
-      })
-      .catch(() => {
-        setResumeError('Failed to load questions. Please try again.')
-        setResumeLoading(false)
-      })
-  }
+  const handleRecoveryResume = buildRecoveryResume(recovery, {
+    setSession,
+    setQuestions,
+    setFlaggedIds,
+    setRecovery,
+    setResumeLoading,
+    setResumeError,
+  })
 
   return {
     session,
     questions,
+    flaggedIds,
     error,
     recovery,
     resumeLoading,

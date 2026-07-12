@@ -140,6 +140,19 @@ describe('useQuizStart — handleStart guard', () => {
       resolveFirst(SUCCESS_RESULT)
     })
   })
+
+  it('does not start a second session when clicked twice in the same tick', async () => {
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+
+    // Two synchronous invocations with no flush between them — the async `loading`
+    // state has not committed yet when the second call fires.
+    await act(async () => {
+      void result.current.handleStart()
+      void result.current.handleStart()
+    })
+
+    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---- handleStart — happy path --------------------------------------------
@@ -311,6 +324,21 @@ describe('useQuizStart — existing session guard', () => {
 
     expect(mockStartQuizSession).not.toHaveBeenCalled()
     expect(mockRouterPush).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('starts the quiz on a retry after the user first cancels the confirmation', async () => {
+    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
+
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+    expect(mockStartQuizSession).not.toHaveBeenCalled()
+
+    // The cancelled attempt must not lock the user out — confirming now starts the quiz.
+    confirmSpy.mockReturnValue(true)
+    await act(async () => result.current.handleStart())
+    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
     confirmSpy.mockRestore()
   })
 

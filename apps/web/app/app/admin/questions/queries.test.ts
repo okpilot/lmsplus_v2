@@ -343,12 +343,16 @@ describe('getQuestionsList', () => {
     expect(chain.range).toHaveBeenCalledWith(0, PAGE_SIZE - 1)
   })
 
-  it('returns empty questions when page exceeds total pages', async () => {
-    mockSupabaseWith([], 5)
+  it('returns the last page of questions when page exceeds total pages', async () => {
+    // count=30 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+    const chain = mockSupabaseWith([makeRow()], 30)
 
     const result = await getQuestionsList({ page: 99 })
 
-    expect(result).toEqual({ ok: true, questions: [], totalCount: 5 })
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.questions).toHaveLength(1)
+    expect(result.totalCount).toBe(30)
+    expect(chain.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
   })
 
   it('returns totalCount from Supabase count', async () => {
