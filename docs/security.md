@@ -286,7 +286,10 @@ The `correct_option_id` column is **protected by two layers:**
 All question serving for active sessions must go through a Postgres function that strips the `correct` field:
 
 ```sql
--- packages/db/migrations/002_rpc_functions.sql (source of truth)
+-- Latest definition: supabase/migrations/20260702000300_get_quiz_questions_diagram_label.sql
+-- (supabase/migrations/ is the sole source of truth; packages/db/migrations/ is frozen/historical.
+--  Snippet below is abridged — the current body also returns question_type, dialog_template,
+--  blanks_safe, ordering_items_shuffled, diagram_config_public.)
 
 CREATE OR REPLACE FUNCTION get_quiz_questions(p_question_ids uuid[])
 RETURNS TABLE (

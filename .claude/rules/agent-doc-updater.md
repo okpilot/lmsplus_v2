@@ -3,7 +3,7 @@
 > Model: haiku | Trigger: post-commit | Non-blocking
 
 ## Purpose
-Keeps project documentation in sync with code changes. Watches for schema changes, new RPCs, new routes, dependency updates, and architecture shifts. Updates `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, and `MEMORY.md`.
+Keeps project documentation in sync with code changes. Watches for schema changes, new RPCs, new routes, dependency updates, and architecture shifts. Updates `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, and its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`).
 
 ## Handling Results
 
@@ -21,12 +21,13 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").
 - Let the agent do partial updates — if a change affects multiple docs, all must be updated in the same cycle.
-- Let the agent edit `MEMORY.md` without reading it first (it may overwrite recent entries).
+- Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first (it may overwrite recent entries).
 - Let the agent pad docs with unnecessary detail — keep docs concise and scannable.
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
 - Skip drift check when steering docs exist.
 - Cite a migration number, RPC guard, error string, file path, or other implementation detail without reading the migration/source file directly. Plans, commit messages, and session context are unreliable for sequential numeric references (e.g. which `mig NNN` a function lives in), file paths, and exact implementation specifics — read the file header and body before writing the citation. (Promoted count=3: #856 doc-updater attributed `submit_quiz_answer`'s idempotency gate to mig 112 when it is mig 110; Batch-A `ee4d5544` fabricated a trigger exemption, inverted a guard order, and wrong-stringed an error from the plan summary; #1059 cited `apps/web/lib/diagram-validation.ts` for the diagram validator that actually lives at `apps/web/app/app/quiz/actions/diagram-validation.ts`.)
+- Flag DRIFT (or any ISSUE) on an item the approved plan explicitly designates as a historical record, or that is already named in the session's planned-work exclusion list. Re-state it as known-open context at most — never as a new finding requiring triage. Each re-litigated finding costs a validation cycle to re-skip. (Promoted count=2, 2026-07-11 pipeline-audit cycles: batch-3 run re-flagged a planned batch-6 drift item as new; batch-4 run flagged plan.md L855/L1430 as DRIFT despite their explicit historical-record adjudication in the approved plan AND this file's own historical-exclusion rule.)
 
 ## Key Documents The Agent Watches
 | Document | What triggers an update |
@@ -34,7 +35,6 @@ Keeps project documentation in sync with code changes. Watches for schema change
 | `docs/database.md` | New migration, new RPC, schema change |
 | `docs/decisions.md` | New architectural decision, changed approach |
 | `docs/plan.md` | Phase/sprint progress, completed items |
-| `MEMORY.md` | Significant new context for future sessions |
 | `.spec-workflow/steering/*.md` | Code change contradicts a steering doc statement |
 
 ## File Rename Protocol
@@ -86,4 +86,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-07-03 (added "file path" to the cite-after-reading-source enumeration — learner count=3, #1061)*
+*Last updated: 2026-07-11 (added NEVER bullet — no DRIFT re-litigation of plan-adjudicated historical records / planned-work exclusions; learner count=2, pipeline-audit #1110)*

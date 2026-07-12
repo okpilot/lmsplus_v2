@@ -153,6 +153,11 @@ reviews:
         - Never return a raw SDK `error.message` through an exported result type — from ANY source
           (Postgres, Resend, Stripe, any third-party SDK). Log the raw error server-side (console.error)
           and return a generic domain string or a closed error-literal union (code-style.md §5).
+        - Column existence on filters: flag any `.is('<column>', ...)` filter on a table whose
+          schema (packages/db/src/types.ts, public.Tables.<table>.Row) lacks that column —
+          most commonly `.is('deleted_at', null)` on a no-deleted_at table. PostgREST throws
+          42703 at runtime while mocked tests, tsc, and Biome all pass. Mirrors the mechanical
+          pre-commit guard .claude/hooks/check-soft-delete-guard.mjs (code-style.md §5).
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
@@ -175,7 +180,8 @@ reviews:
         - Use get_quiz_questions() RPC which strips correct answers.
 
     # SQL migrations — RLS mandatory
-    - path: "packages/db/migrations/**/*.sql"
+    # (supabase/migrations/ is the sole source of truth; packages/db/migrations/ is frozen/historical as of 2026-07-11)
+    - path: "supabase/migrations/**/*.sql"
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
@@ -206,11 +212,15 @@ reviews:
           bypasses RLS, so the soft-delete filter is NOT applied automatically and must be
           replicated manually in every query. Narrow carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Current documented cases
-          (docs/security.md §15): (a) batch_submit_quiz and submit_vfr_rt_exam_answers reading
+          (docs/security.md §15): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
+          check_non_mc_answer, and submit_vfr_rt_exam_answers reading
           questions via quiz_sessions.config.question_ids (written once at session start);
           (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
           same frozen config.question_ids, with IDs derived server-side from the caller-owned
-          session row, never from client input. The write-once guarantee is enforced by
+          session row, never from client input; (c) get_report_correct_options,
+          get_admin_report_correct_options, and get_report_answer_keys reading questions via
+          quiz_session_answers.question_id — a write-once FK on the immutable, append-only
+          quiz_session_answers table. The write-once guarantee is enforced by
           trg_quiz_sessions_immutable_columns (mig 079). Any new carve-out
           instance must (a) cite the immutable write-once column, (b) include that citation in
           an inline comment at the call site, and (c) cross-reference docs/database.md §3
@@ -229,6 +239,17 @@ reviews:
           exceptions: is_admin()-gated admin/org-wide RPCs (no per-caller scoping);
           functions reading no soft-deletable table; functions with no audit_events INSERT.
           (security.md rule 12 / docs/security.md §11c; precedent #856, gaps #883.)
+        - Single-active-session invariant (docs/security.md §11d): any NEW start-session RPC
+          that INSERTs an active quiz_sessions row (ended_at IS NULL, any mode) must first
+          soft-delete the caller's own abandoned 'discovery' row (the documented §11d
+          transition), then raise 'another_session_active' when any OTHER active
+          (ended_at IS NULL AND deleted_at IS NULL) session exists. The global partial unique index
+          uq_one_active_session_per_student (mig 136) is the concurrent-race backstop —
+          a NEW start-session RPC must carry BOTH the explicit pre-check AND an
+          EXCEPTION WHEN unique_violation handler mapping violations of that index to
+          'another_session_active' (the deployed pattern in the 20260629
+          *_single_active_guard migrations, e.g. start_exam_session); flag a new start
+          RPC missing either.
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside
@@ -242,10 +263,6 @@ reviews:
           mig 101, 2026-06-10). Flag any migration changing a plpgsql body containing these
           constructs that lacks a functional/integration test executing the function.
           (code-style.md §5 "Validate at Execution, Not Apply".)
-
-    - path: "supabase/migrations/**/*.sql"
-      instructions: |
-        Same rules as packages/db/migrations. See above.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"
@@ -443,9 +460,13 @@ reviews:
       - mode: "warning"
         name: "soft-delete-only"
         instructions: |
-          Flag any hard DELETE in application code or migrations on mutable tables:
-          organizations, users, question_banks, questions, courses, lessons.
-          Must use UPDATE SET deleted_at = now() instead.
+          Flag any hard DELETE in application code or migrations on soft-delete tables:
+          organizations, users, question_banks, questions, courses, lessons, quiz_sessions,
+          flagged_questions, exam_configs, internal_exam_codes (derived from
+          packages/db/src/types.ts + docs/database.md §3 — update when a migration
+          adds/drops deleted_at). Must use UPDATE SET deleted_at = now() instead.
+          Hard-delete-by-design exceptions (docs/database.md §3): quiz_drafts,
+          exam_config_distributions, question_comments.
 
   # ── Tools ──────────────────────────────────────────────────────────────
 

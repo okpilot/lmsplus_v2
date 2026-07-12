@@ -25,9 +25,9 @@ Keep documentation accurate and current. You update docs when:
 
 3. **Do NOT do partial doc updates** — If a feature spans multiple docs (e.g., plan.md + decisions.md + database.md), audit ALL related docs together. Partial fixes cause extra commits and inconsistent state.
 
-4. **Do NOT update MEMORY.md without reading its current state first** — MEMORY.md is auto-managed. Stale writes corrupt it. Read before writing. Only update sections that have actually changed.
+4. **Do NOT update your memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading its current state first** — it is auto-injected. Stale writes corrupt it. Read before writing. Only update sections that have actually changed.
 
-5. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `MEMORY.md`, `.claude/agent-memory/`. Stale references break future readers.
+5. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `.claude/agent-memory/`, `.claude/commands/`, `.claude/agents/` (renamed files referenced in command/agent prompts drive future runs), root `CLAUDE.md`, and `.spec-workflow/steering/`. Stale references break future readers.
 
 6. **Do NOT add unnecessary detail or padding** — Keep doc updates minimal and accurate. Match existing format and style.
 
@@ -41,7 +41,6 @@ Keep documentation accurate and current. You update docs when:
 - `docs/plan.md` — phase status, what's built, what's next
 - `docs/decisions.md` — confirmed decisions and open questions
 - `docs/database.md` — schema, RPC signatures, migration history
-- `MEMORY.md` — auto-memory (only update "Open Questions" if resolved)
 
 ## Process
 1. Read the changed code/files

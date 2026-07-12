@@ -19,12 +19,12 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 3. **Interview** — surface scope/behavioral/priority ambiguities. Auto-skip per `agent-workflow.md` only when truly unambiguous; state "No ambiguities identified" explicitly. In autonomous mode, ask the user only when an ambiguity genuinely blocks correctness.
 4. **Spec** — create one via spec-workflow MCP if the change spans 3+ files or introduces a new pattern; skip for refactors/bug-fixes/<3 files (use a validated plan instead).
 5. **Plan + validate** — impact analysis, contract check, pattern scan, doc/schema check, security surface (`agent-workflow.md § Plan Validation`).
-6. **Plan-critic** — run the plan-critic agent (skip only for single-file <10-line changes). Resolve CRITICAL directly; 1 revision round for ISSUE, then resolve directly.
+6. **Plan-critic** — run the plan-critic agent (skip only for single-file <10-line changes). Resolve CRITICAL directly; ISSUEs run under the Multi-Round Review Discipline (agent-critic.md): fix APPLY findings, then stability rounds to the consecutive-clean floor (2 normal / 3 security-path), ceiling 4 total — if the floor is unmet at the ceiling, do NOT self-resolve: stop that item and leave it for the user in the handoff report.
 7. **Approval** — the active `/goal` IS the approval. Do not block on user sign-off; record assumptions in the plan and proceed.
 8. **Execute** — delegate implementation to Sonnet subagents (parallel when independent, worktree isolation for risky parallel edits). Use the 5-section delegation template. Read every result.
 9. **Implementation-critic** — run on `git diff --staged` before **every** commit. NEVER skip (even single-file). CRITICAL → orchestrator resolves; ISSUE → ≤2 revision rounds.
-10. **Commit** — you create the commit. Let all hooks fire (pre-commit: biome + check-types + unit tests; commit-msg: conventional format). NEVER `--no-verify`. NEVER amend after a hook failure — make a new commit. End messages with the `Co-Authored-By` trailer.
-11. **Post-commit agents (after EVERY commit, in parallel)** — code-reviewer, semantic-reviewer, doc-updater, test-writer. Read ALL results. Then: **red-team** if the diff touches the security paths in `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`) — plus `packages/db/migrations/**` per the two-dir migration mirror; **coderabbit-sync** if rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`).
+10. **Commit** — you create the commit. Let all hooks fire (pre-commit: biome + check-types + the two mechanical guards (soft-delete-guard, test-title-leakage) — unit tests deliberately do NOT run pre-commit; first test execution is CI; commit-msg: conventional format). NEVER `--no-verify`. NEVER amend after a hook failure — make a new commit. End messages with the `Co-Authored-By` trailer.
+11. **Post-commit agents (after EVERY commit, in parallel)** — code-reviewer, semantic-reviewer, doc-updater, test-writer. Read ALL results. Then: **red-team** if the diff touches the security paths in `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`); **coderabbit-sync** if rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`).
 12. **Validate findings before fixing** — analyze the claim, check implications, decide real/false-positive. Reviewer ISSUE ≠ automatically correct. Read the source; don't trust labels.
 13. **Fix + re-review** — fix validated issues, commit, and **re-run the relevant agents on the fix commit when production code changed**.
 14. **Learner** — run after each full post-commit cycle. Propose rule changes only at count ≥2 across distinct commits.
@@ -39,6 +39,9 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 20. **Open the PR** — descriptive title + body (summary, verification, deferred follow-ups). End the body with the Claude Code attribution line.
 
 ## Merge policy — ✅ MERGE WHEN, AND ONLY WHEN, ALL HOLD
+
+> ### ⛔ HARD STOP — migration PRs are NEVER merged autonomously
+> If the PR diff touches `supabase/migrations/**` (the sole migration source of truth — `packages/db/migrations/` is frozen/historical), do NOT merge under this command — merging to master auto-deploys the migration to the **PRODUCTION database** via `db-deploy.yml`. Prepare the PR, verify CI is green, and leave it **OPEN** with an explicit handoff note: the user manually evals and merges. **No LLM judgment call overrides this — not "trivial migration", not "idempotent", not "CI proved it".** Mechanical backstop: `db-deploy.yml` deploys through the GitHub `production` environment, which requires the user's approval before `db push` runs — but the backstop is a safety net, never a substitute for this hard stop. **After writing the handoff note, run `/endrun` and stop — the terminal state for a migration PR under this command (or any `/goal`-driven run) is the open PR + handoff, not a merge. Do not loop waiting for it to become mergeable.**
 
 After the PR is open, wait for CI and cloud CodeRabbit, then merge if **every** condition is true:
 
@@ -57,3 +60,4 @@ After the PR is open, wait for CI and cloud CodeRabbit, then merge if **every** 
 - Confirm the issue auto-closed (`Closes #N`); close it manually if needed.
 - Update the board (move to Done; the squash's `Closes #N` usually automates this).
 - Report: merged commit SHA, closed issues, and any deferred follow-up issue numbers.
+- **End the run with `/endrun`** — append the run's row to `.claude/run-log.md`. Mandatory terminal step, not optional; the run is not complete until logged.

@@ -13,10 +13,14 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   │   ├── _hooks/         # Shared protected-area hooks
 │       │   │   ├── _types/         # Shared protected-area types
 │       │   │   ├── admin/          # Admin features
+│       │   │   │   ├── dashboard/  # Admin dashboard (student overview)
+│       │   │   │   ├── exam-config/ # Per-subject mock exam configuration
+│       │   │   │   ├── internal-exams/ # Internal exam codes & attempts
 │       │   │   │   ├── questions/  # Question editor (CRUD)
 │       │   │   │   ├── students/   # Student manager (CRUD)
 │       │   │   │   └── syllabus/   # Syllabus manager (CRUD)
 │       │   │   ├── dashboard/      # Student dashboard
+│       │   │   ├── internal-exam/  # Student internal exam entry (code-based)
 │       │   │   ├── quiz/           # Quiz trainer (core feature)
 │       │   │   │   ├── _components/
 │       │   │   │   ├── _hooks/
@@ -26,14 +30,22 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   │   │   └── types.ts    # Feature-scoped types
 │       │   │   ├── progress/       # Progress tracking
 │       │   │   ├── reports/        # Historical reports
-│       │   │   └── settings/       # User settings
+│       │   │   ├── settings/       # User settings
+│       │   │   ├── vfr-rt/         # VFR RT training (practice setup/report)
+│       │   │   └── vfr-rt-exam/    # VFR RT exam Server Actions
 │       │   ├── auth/               # Auth pages (login, callback, password reset)
 │       │   ├── consent/            # GDPR consent page
 │       │   └── legal/              # Terms, privacy policy
 │       ├── lib/                    # Shared logic (not components)
+│       │   ├── audit/              # Auth audit-event recording
 │       │   ├── auth/               # Auth guards (requireAuth, requireAdmin)
 │       │   ├── consent/            # Consent helpers
+│       │   ├── constants/          # Shared constants (exam modes)
+│       │   ├── email/              # Email sending (Resend) + templates
 │       │   ├── gdpr/               # GDPR utilities
+│       │   ├── grading/            # Answer normalization for grading
+│       │   ├── integration-support/ # Integration-test harness + fixtures
+│       │   ├── next/               # Next.js helpers (redirect re-throw)
 │       │   ├── queries/            # Read-only query functions
 │       │   ├── utils/              # General utilities
 │       │   ├── supabase-rpc.ts     # RPC wrapper helpers
@@ -326,7 +338,13 @@ Owns reusable shadcn/ui components used across the app. Components here are pres
 
 | Subdirectory | Responsibility |
 |-------------|----------------|
+| `lib/audit/` | Auth audit-event recording (`record_auth_event`) |
 | `lib/auth/` | Auth guards (`requireAuth`, `requireAdmin`) |
+| `lib/constants/` | Shared constants (exam modes) |
+| `lib/email/` | Transactional email (Resend client + templates) |
+| `lib/grading/` | Answer normalization for grading |
+| `lib/integration-support/` | Integration-test harness + fixtures (#925 tier) |
+| `lib/next/` | Next.js helpers (redirect re-throw) |
 | `lib/queries/` | Read-only query functions (Server Component data fetching) |
 | `lib/consent/` | Consent checking helpers |
 | `lib/gdpr/` | GDPR utilities |

@@ -71,6 +71,10 @@ Reviewed 3 commits, found the hook-size issue once more...
 
 Both encode "this happened 4 times," but the ✅ form is one line and the ❌ form grows without bound. If a row needs supporting evidence (the commit hashes behind a count), that's what `git log` and the topic file are for — keep the row itself terse.
 
+## Memory deltas are committed, never stashed
+
+Post-commit-cycle memory/tracker updates (agent MEMORY.md rows, topic-file appends, tracker-archive entries) MUST be committed — either with the cycle's fix commit or in a dedicated `chore(memory)` commit — BEFORE any branch switch. `git stash` is not a terminal state for pipeline output: a stashed memory delta is invisible to every subsequent agent invocation, so counts stop incrementing, promotions mis-fire on stale counts, and the next cycle re-derives (and double-counts) the same findings. The 2026-07-11 pipeline audit found **8 abandoned memory stashes** corrupting learner counts this way (retroactive triage tracked in issue #1115). If a branch switch is needed mid-cycle, commit the memory delta first — a small `chore(memory)` commit is always cheaper than a lost or double-counted tracker row.
+
 ## Protected topic files (never auto-curated, never pruned)
 
 Some topic files are reference matrices that must survive verbatim:
@@ -100,7 +104,8 @@ Any future protected matrix follows the same shape: keep it as a named topic fil
 - Inline a protected matrix (e.g. `attack-surface.md`) into `MEMORY.md`.
 - Recreate a `patterns.md` — the file is `MEMORY.md` now; write instructions point there.
 - Let auto-curation drop a tracker row to save space — move durable prose to a topic file first.
+- Leave a memory/tracker delta in `git stash` across a branch switch — commit it (fix commit or `chore(memory)`) first; a stashed delta silently corrupts learner counts (8 abandoned stashes found in the 2026-07-11 audit; #1115).
 
 ---
 
-*Last updated: 2026-05-29 (created during the native-subagent-memory adoption — replaces the append-only `patterns.md` journals).*
+*Last updated: 2026-07-11 (added "Memory deltas are committed, never stashed" — pipeline-audit remediation, epic #1116 / issue #1112).*

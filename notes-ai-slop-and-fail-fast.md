@@ -1,7 +1,7 @@
 # Fail-Fast, Confident Plausibility, and the Real Shape of AI Code Slop
 
 > Working notes. Seeded from a personal "fail-fast / let it crash" idea, researched, then hardened
-> through **multiple adversarial critic rounds** (full log in Provenance, below — the single source of
+> through **multiple adversarial critic rounds** (summary in Provenance, below — the single source of
 > the round count, so this line can't go stale). The first pass was ~1/3 fabricated (invented studies,
 > laundered by confident formatting) and caught only because a critic with a *different objective*
 > checked. Then a headline risk-ranking survived all four rounds and was still **wrong on a product
@@ -86,6 +86,7 @@ therefore an *editorial / import-QA* concern — real, but **not AI slop**, beca
 So the residual AI-slop risks here are all **code-side** (AI writes the code):
 
 ### A. Deep tier — no *style/schema* gate touches these; they need an independent oracle
+
 1. **Subtle logic bugs in grading / validation code** — a wrong `is_correct`, a broken `normalize-answer`,
    an off-by-one in the fan-out grader ships a wrong *result* even when the question content is perfect.
    AI writes this code, so this is the genuine top risk. Found only by mutation testing or an adversarial
@@ -96,6 +97,7 @@ So the residual AI-slop risks here are all **code-side** (AI writes the code):
    implies* — not "kill few mutants." This is what masks #1.
 
 ### B. Security / compliance surfaces AI botches (live in *this* app, missed by the style pipeline)
+
 3. **Prompt-injection into the ELP oral-grading edge function** — the one production LLM path ingests
    untrusted student speech/text; a crafted input can hijack the grader. This is the *real* injection
    surface — not the code-review subagents (they never see student content in production).
@@ -104,6 +106,7 @@ So the residual AI-slop risks here are all **code-side** (AI writes the code):
    style gate.
 
 ### C. Structural risks of the AI-assisted *method* itself
+
 5. **The AI-reviews-AI echo chamber** — but *graded*, not absolute (see §6). Real when critics share the
    generator's model + prompt + objective; it shrinks as you diversify objective/model/tools.
 6. **Reviewer automation-complacency** — the human the whole thesis depends on *decays*: green pipelines
@@ -112,6 +115,7 @@ So the residual AI-slop risks here are all **code-side** (AI writes the code):
    justification for the stability floor. Cross-cutting: **model drift** silently re-calibrates all of the above.
 
 ### D. Real in general, low for *this* user
+
 8. **Supply chain / slopsquatting** — you rarely add deps; lockfile + a failed install surface a
    hallucinated package immediately. Watch cheaply; *not* your #1.
 
@@ -165,8 +169,9 @@ unchanged artifact are echo. And no number of same-distribution rounds substitut
 ## 7. The one concrete action
 
 1. **Mutation testing — the single highest-leverage add.** [StrykerJS](https://stryker-mutator.io/docs/stryker-js/vitest-runner/)
-   has a first-class Vitest runner; a broad run is a 30-min-to-4-hour tax its own maintainers warn against
-   per-PR. Pin the `mutate` glob to *grading + answer-validation modules only* (the fan-out grader,
+   has a first-class Vitest runner; a broad run is slow enough that the standard guidance is to run it
+   [incrementally or on a schedule](https://github.com/stryker-mutator/stryker-js/blob/master/docs/incremental.md),
+   not as a per-PR gate. Pin the `mutate` glob to *grading + answer-validation modules only* (the fan-out grader,
    `normalize-answer`, the validators), assert a mutation-score threshold on that tiny set, run it
    nightly/manually — not a commit gate. This directly attacks the real #1 (AI-written grading-code
    correctness) and the test theater that masks it. **Tracked: #1095.**
@@ -178,6 +183,7 @@ entry in this doc's own confident-plausibility ledger — filed, feasibility-che
 the premise until the human caught it.
 
 ## 8. Still open / not yet addressed here
+
 Accessibility of AI-generated UI; cost/latency of the pipeline itself; a concrete rubric for "needed vs
 redundant round" beyond the §6 heuristic; and — flagged honestly — the near-certainty that a number in
 §3 is still soft despite two fact-check passes.
@@ -185,6 +191,7 @@ redundant round" beyond the §6 heuristic; and — flagged honestly — the near
 ---
 
 ### Provenance
+
 Personal fail-fast note → web research → **round 1** (source-integrity + reasoning/bias) caught the
 fabricated stats and the rule-mapping bias → **round 2** (over-correction + feasibility) caught the
 human-oracle absolutism, the self-trust laundering, and the gamed cite-source check, and reshaped §7 →
