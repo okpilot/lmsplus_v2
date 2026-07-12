@@ -82,6 +82,9 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | CR-local scopes review to origin-lag content (out-of-scope file on diff due to unpushed local-master commits) | 1 | 2026-07-11 | WATCHING (archive row 497) |
 | Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
 | CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
+| Parallel implementer in batch dispatch diverges from extraction pattern the sibling implementers establish in the same commit | 1 | 2026-07-12 | WATCHING (archive row 500) |
+| Plan validation completed against stale master; post-approval rebase reveals a deleted file (plan item removed as deviation) | 1 | 2026-07-12 | WATCHING (archive row 501) |
+| Test assertions dropped during extraction-fixup refactor, leaving coverage gaps caught by semantic-reviewer | 1 | 2026-07-12 | WATCHING (archive row 502) |
 
 ## Durable knowledge (cross-agent)
 
