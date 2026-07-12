@@ -89,4 +89,30 @@ describe('ModeToggle', () => {
     render(<ModeToggle value="exam" onValueChange={vi.fn()} examAvailable />)
     expect(screen.getByRole('button', { name: /exam/i })).toHaveAttribute('aria-pressed', 'true')
   })
+
+  it('enables Discovery button by default', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /discovery/i })).not.toBeDisabled()
+  })
+
+  it('calls onValueChange with "discovery" by default when Discovery button is clicked', async () => {
+    const onValueChange = vi.fn()
+    const user = userEvent.setup()
+    render(<ModeToggle value="study" onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: /discovery/i }))
+    expect(onValueChange).toHaveBeenCalledWith('discovery')
+  })
+
+  it('disables Discovery button when discoveryAvailable is false', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} discoveryAvailable={false} />)
+    expect(screen.getByRole('button', { name: /discovery/i })).toBeDisabled()
+  })
+
+  it('does not call onValueChange when Discovery button is disabled', async () => {
+    const onValueChange = vi.fn()
+    const user = userEvent.setup()
+    render(<ModeToggle value="study" onValueChange={onValueChange} discoveryAvailable={false} />)
+    await user.click(screen.getByRole('button', { name: /discovery/i }))
+    expect(onValueChange).not.toHaveBeenCalled()
+  })
 })

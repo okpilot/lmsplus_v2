@@ -669,3 +669,59 @@ describe('useQuizConfig — authError', () => {
     expect(result.current.authError).toBe(false)
   })
 })
+
+// ---- initialSubjectId / initialMode seeding -------------------------------
+
+describe('useQuizConfig — initialSubjectId / initialMode seeding', () => {
+  it('seeds subjectId and mode from init params when provided', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({
+        userId: 'test-user-id',
+        subjects: SUBJECTS,
+        initialSubjectId: SUBJECT_ID,
+        initialMode: 'study',
+      }),
+    )
+    expect(result.current.subjectId).toBe(SUBJECT_ID)
+    expect(result.current.mode).toBe('study')
+  })
+
+  it('defaults to an empty subject and discovery mode when init params are omitted', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    expect(result.current.subjectId).toBe('')
+    expect(result.current.mode).toBe('discovery')
+  })
+})
+
+// ---- initialTopics seeding -------------------------------------------------
+
+describe('useQuizConfig — initialTopics seeding', () => {
+  it('seeds the topic tree with the provided initial topics', () => {
+    const initialTopics = [
+      {
+        id: 't1',
+        code: '01',
+        name: 'T1',
+        questionCount: 5,
+        subtopics: [] as { id: string; code: string; name: string; questionCount: number }[],
+      },
+    ]
+    renderHook(() =>
+      useQuizConfig({
+        userId: 'test-user-id',
+        subjects: SUBJECTS,
+        initialSubjectId: SUBJECT_ID,
+        initialMode: 'study',
+        initialTopics,
+      }),
+    )
+    expect(useTopicTree).toHaveBeenCalledWith(initialTopics)
+  })
+
+  it('starts the topic tree without seeded topics when none are provided', () => {
+    renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
+    expect(useTopicTree).toHaveBeenCalledWith(undefined)
+  })
+})

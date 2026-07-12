@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -17,7 +18,6 @@ vi.mock('@/lib/queries/quiz-subject-queries', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getRtSubjectData } from './get-rt-subject'
 
 // ---- Helpers --------------------------------------------------------------
@@ -41,47 +41,78 @@ function buildChain(returnValue: unknown) {
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 
-const PARTS: TopicWithSubtopics[] = [
-  { id: 'p1', code: 'P1', name: 'Part 1', questionCount: 10, subtopics: [] },
-  { id: 'p2', code: 'P2', name: 'Part 2', questionCount: 9, subtopics: [] },
-]
+const TOPIC: TopicWithSubtopics = {
+  id: 't-1',
+  code: 'P1',
+  name: 'Topic 1',
+  questionCount: 5,
+  subtopics: [],
+}
 
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockGetTopicsWithSubtopics.mockResolvedValue([TOPIC])
 })
 
 // ---- Happy path -----------------------------------------------------------
 
 describe('getRtSubjectData — happy path', () => {
-  it('returns the subject id and its topics when both lookups succeed', async () => {
+  it('returns the subject id when the lookup succeeds', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockResolvedValue(PARTS)
 
     const result = await getRtSubjectData()
 
     expect(result.id).toBe(SUBJECT_ID)
-    expect(result.parts).toHaveLength(2)
-    expect(result.parts[0]?.id).toBe('p1')
   })
 
   it('queries the easa_subjects table for the RT subject code', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockResolvedValue([])
 
     await getRtSubjectData()
 
     expect(mockFrom).toHaveBeenCalledWith('easa_subjects')
   })
 
-  it('loads the parts for the resolved RT subject', async () => {
+  it('returns the topics fetched for the subject', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockResolvedValue(PARTS)
 
-    await getRtSubjectData()
+    const result = await getRtSubjectData()
 
     expect(mockGetTopicsWithSubtopics).toHaveBeenCalledWith(SUBJECT_ID)
+    expect(result.topics).toEqual([TOPIC])
+  })
+
+  it('returns a single RT subject option carrying the total question count', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+
+    const result = await getRtSubjectData()
+
+    expect(result.subjects).toEqual([
+      { id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 5 },
+    ])
+  })
+
+  it('degrades to an empty topics list when the topics fetch fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetTopicsWithSubtopics.mockRejectedValue(new Error('topics query failed'))
+
+    const result = await getRtSubjectData()
+
+    expect(result.id).toBe(SUBJECT_ID)
+    expect(result.topics).toEqual([])
+    // subjects is still built from the (now empty) topics list — questionCount
+    // reduces to 0 rather than throwing or dropping the RT entry.
+    expect(result.subjects).toEqual([
+      { id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 0 },
+    ])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getRtSubjectData] Topics fetch failed:',
+      'topics query failed',
+    )
+    consoleSpy.mockRestore()
   })
 })
 
@@ -102,51 +133,19 @@ describe('getRtSubjectData — subject lookup failure', () => {
     await expect(getRtSubjectData()).rejects.toThrow(/Failed to load VFR RT subject/)
   })
 
-  it('does not attempt to load parts when the subject lookup fails', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'not found' } }))
-
-    await expect(getRtSubjectData()).rejects.toThrow()
-    expect(mockGetTopicsWithSubtopics).not.toHaveBeenCalled()
-  })
-})
-
-// ---- Topics degrade path -------------------------------------------------
-
-describe('getRtSubjectData — topics degrade path', () => {
-  it('returns the subject with empty parts when the parts fetch fails', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockRejectedValue(new Error('DB timeout'))
-
-    const result = await getRtSubjectData()
-
-    expect(result.id).toBe(SUBJECT_ID)
-    expect(result.parts).toEqual([])
-  })
-
-  it('logs an error when the parts fetch fails', async () => {
+  it('logs the raw DB error server-side before throwing the generic message', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockRejectedValue(new Error('DB timeout'))
-
-    await getRtSubjectData()
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getRtSubjectData] Failed to load RT topics:',
-      'DB timeout',
+    mockFrom.mockReturnValue(
+      buildChain({ data: null, error: { message: 'relation does not exist' } }),
     )
-    consoleSpy.mockRestore()
-  })
 
-  it('logs a non-Error thrown value as-is', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetTopicsWithSubtopics.mockRejectedValue('string rejection')
-
-    await getRtSubjectData()
+    // Assert the GENERIC message is thrown, not the raw DB error (code-style §5 —
+    // never surface error.message to callers).
+    await expect(getRtSubjectData()).rejects.toThrow('Failed to load VFR RT subject')
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[getRtSubjectData] Failed to load RT topics:',
-      'string rejection',
+      '[getRtSubjectData] Subject lookup failed:',
+      'relation does not exist',
     )
     consoleSpy.mockRestore()
   })

@@ -1,84 +1,112 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { ModeToggle } from '@/app/app/quiz/_components/mode-toggle'
 import { QuestionCount } from '@/app/app/quiz/_components/question-count'
+import { QuestionFilters } from '@/app/app/quiz/_components/question-filters'
+import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
-import { useVfrRtParts } from '../_hooks/use-vfr-rt-parts'
-import { useVfrRtStart } from '../_hooks/use-vfr-rt-start'
+import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
+import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 type VfrRtConfigFormProps = {
   userId: string
   subjectId: string
-  parts: TopicWithSubtopics[]
+  subjects: SubjectOption[]
+  initialTopics: TopicWithSubtopics[]
 }
 
-export function VfrRtConfigForm({ userId, subjectId, parts }: Readonly<VfrRtConfigFormProps>) {
-  const [count, setCount] = useState(10)
-  const partsState = useVfrRtParts(parts)
-
-  const { loading, error, handleStart } = useVfrRtStart({
+/**
+ * Subject-locked, "Practice"-branded clone of QuizConfigForm's non-exam body.
+ * Reuses the shared quiz config machinery (mode toggle, filters, topic tree,
+ * count, start) via a server-built single-subject SubjectOption (see
+ * VfrRtSetup) whose `id` MUST equal the real RT subject uuid — the session
+ * handoff derives subjectName/subjectCode from `subjects.find(s => s.id ===
+ * subjectId)` inside useQuizStart. `initialTopics` seeds the topic tree from
+ * the RSC fetch — no client mount-time load.
+ * Discovery and Practice Exam are present-but-disabled; Study is the only
+ * available mode until Discovery's non-MC backend lands in a later slice.
+ */
+export function VfrRtConfigForm({
+  userId,
+  subjectId,
+  subjects,
+  initialTopics,
+}: Readonly<VfrRtConfigFormProps>) {
+  const config = useQuizConfig({
     userId,
-    subjectId,
-    topicIds: partsState.selectedTopicIds,
-    count,
-    maxQuestions: partsState.totalQuestions,
+    subjects,
+    initialSubjectId: subjectId,
+    initialMode: 'study',
+    initialTopics,
   })
-
-  const canStart =
-    partsState.selectedTopicIds.length > 0 && partsState.totalQuestions > 0 && !loading
+  const hasTopics = config.topicTree.topics.length > 0
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-        <div>
-          <p className="text-[13px] font-medium">Subject</p>
-          <p className="mt-1 text-sm text-muted-foreground">VFR Radiotelephony (RT)</p>
-        </div>
+        <ModeToggle
+          value={config.mode}
+          onValueChange={config.setMode}
+          examAvailable={false}
+          discoveryAvailable={false}
+        />
+        <QuestionFilters
+          value={config.filters}
+          onValueChange={config.setFilters}
+          calcMode={config.calcMode}
+          onCalcModeChange={config.setCalcMode}
+          imageMode={config.imageMode}
+          onImageModeChange={config.setImageMode}
+          unseenLabel="Unanswered"
+        />
       </div>
 
-      {parts.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <TopicTree
-            topics={parts}
-            checkedTopics={partsState.checkedTopics}
-            checkedSubtopics={partsState.checkedSubtopics}
-            onToggleTopic={partsState.toggleTopic}
-            onToggleSubtopic={partsState.toggleSubtopic}
-            onSelectAll={partsState.selectAll}
-            totalQuestions={parts.reduce((s, p) => s + p.questionCount, 0)}
-            allSelected={partsState.allSelected}
-            filteredByTopic={null}
-            filteredBySubtopic={null}
-          />
-        </div>
+      {hasTopics && (
+        <>
+          <div className="rounded-xl border border-border bg-card p-6">
+            <TopicTree
+              topics={config.topicTree.topics}
+              checkedTopics={config.topicTree.checkedTopics}
+              checkedSubtopics={config.topicTree.checkedSubtopics}
+              onToggleTopic={config.topicTree.toggleTopic}
+              onToggleSubtopic={config.topicTree.toggleSubtopic}
+              onSelectAll={config.topicTree.selectAll}
+              totalQuestions={config.topicTree.totalQuestions}
+              allSelected={config.topicTree.allSelected}
+              filteredByTopic={config.filteredByTopic}
+              filteredBySubtopic={config.filteredBySubtopic}
+              showCode={false}
+            />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6">
+            <QuestionCount
+              value={config.count}
+              max={config.availableCount}
+              onValueChange={config.setCount}
+            />
+          </div>
+        </>
       )}
 
-      {partsState.selectedTopicIds.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <QuestionCount value={count} max={partsState.totalQuestions} onValueChange={setCount} />
-        </div>
-      )}
-
-      {error && (
+      {config.error && (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {config.error}
+        </p>
+      )}
+      {config.authError && (
+        <p role="alert" className="text-sm text-destructive">
+          Session expired. Please refresh the page.
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={!canStart}
-        onClick={handleStart}
-        aria-busy={loading || undefined}
-        className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-          {loading ? 'Starting...' : 'Start Practice'}
-        </span>
-      </button>
+      <StartButton
+        disabled={
+          config.availableCount === 0 || config.loading || config.isPending || config.authError
+        }
+        loading={config.loading}
+        label="Start Practice"
+        onClick={config.handleStart}
+      />
     </div>
   )
 }

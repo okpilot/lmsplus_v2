@@ -1,4 +1,5 @@
-import type { SubjectOption } from '@/lib/queries/quiz-query-types'
+import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import type { QuizMode } from '../types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
@@ -6,10 +7,22 @@ import { useQuizConfigState } from './use-quiz-config-state'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
-export function useQuizConfig({ userId, subjects }: { userId: string; subjects: SubjectOption[] }) {
-  const topicTree = useTopicTree()
+export function useQuizConfig({
+  userId,
+  subjects,
+  initialSubjectId,
+  initialMode,
+  initialTopics,
+}: {
+  userId: string
+  subjects: SubjectOption[]
+  initialSubjectId?: string
+  initialMode?: QuizMode
+  initialTopics?: TopicWithSubtopics[]
+}) {
+  const topicTree = useTopicTree(initialTopics)
   const fc = useFilteredCount()
-  const st = useQuizConfigState({ fc, topicTree })
+  const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode })
 
   const availableCount = useAvailableCount({
     hasActiveFilters: st.hasActiveFilters,

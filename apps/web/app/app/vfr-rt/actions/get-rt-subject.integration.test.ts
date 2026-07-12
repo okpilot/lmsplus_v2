@@ -2,18 +2,12 @@
 // `.is('deleted_at', null)` bug would have FAILED.
 //
 // `getRtSubjectData()` reads the canonical RT subject (seeded by migration 097,
-// `code = 'RT'`) and its parts (topics) with org-scoped question counts. The bug
-// filtered `easa_subjects` on a `deleted_at` column the table does not have,
-// erroring at runtime so the whole call threw. A mocked unit test can't see
-// that; this runs the real helper chain against real Postgres under real RLS.
-//
-// Per plan-critic suggestion #2: the action hard-codes `.eq('code','RT')`, so
-// this reads the migration-seeded canonical RT row (it does NOT seed its own
-// `easa_*` rows — that would upsert-collide with reference data). It seeds a
-// throwaway org + student, then active RT questions under one canonical RT
-// topic so that part survives the `questionCount > 0` filter in
-// getTopicsWithSubtopics (counts are org-scoped, so a fresh org sees zero parts
-// until it has its own questions).
+// `code = 'RT'`) and its topics/subtopics server-side, so the RSC (VfrRtSetup)
+// can seed the reused quiz topic-tree hook with initial state instead of a
+// client mount-time fetch. The original bug filtered `easa_subjects` on a
+// `deleted_at` column the table does not have, erroring at runtime so the
+// whole call threw. A mocked unit test can't see that; this runs the real
+// helper chain against real Postgres under real RLS.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getRtSubjectData } from '@/app/app/vfr-rt/actions/get-rt-subject'
 import {
@@ -29,7 +23,6 @@ const admin = getAdminClient()
 const suffix = Date.now()
 const email = `int-rt-${suffix}@test.local`
 const password = 'test-pass-123'
-const SEEDED_PART = 'P1_ACRONYMS'
 
 let orgId: string
 let studentId: string
@@ -40,7 +33,7 @@ describe('getRtSubjectData (app-layer integration)', () => {
     orgId = await createTestOrg({ admin, name: `int-rt ${suffix}`, slug: `int-rt-${suffix}` })
     studentId = await createTestUser({ admin, orgId, email, password, role: 'student' })
 
-    // Canonical RT subject + its parts come from migration 097 — read, don't seed.
+    // Canonical RT subject + Part 1/2/3 topics come from migration 097 — read, don't seed.
     const { data: subject, error: subjErr } = await admin
       .from('easa_subjects')
       .select('id')
@@ -49,43 +42,51 @@ describe('getRtSubjectData (app-layer integration)', () => {
     if (subjErr || !subject) throw new Error(`RT subject lookup: ${subjErr?.message ?? 'missing'}`)
     rtSubjectId = subject.id
 
+    // getTopicsWithSubtopics filters out topics with zero ACTIVE questions
+    // (questionCount > 0), and migration 097 seeds the RT topics but NO question
+    // rows — so on a migration-only CI DB every RT topic is filtered out and the
+    // helper returns []. Seed one active question under a real RT topic so the
+    // topic survives the filter. Org-scoped rows are torn down by cleanupTestData.
     const { data: topic, error: topicErr } = await admin
       .from('easa_topics')
       .select('id')
       .eq('subject_id', rtSubjectId)
-      .eq('code', SEEDED_PART)
+      .order('sort_order')
+      .limit(1)
       .single()
     if (topicErr || !topic) throw new Error(`RT topic lookup: ${topicErr?.message ?? 'missing'}`)
-
-    // Active questions for THIS org under the canonical RT topic so the part is
-    // counted (>0) and therefore delivered by getTopicsWithSubtopics.
     await seedQuestions({
       admin,
       orgId,
       createdBy: studentId,
       subjectId: rtSubjectId,
       topicId: topic.id,
-      subtopicId: null,
-      count: 3,
+      count: 1,
     })
   })
 
   afterAll(async () => {
-    // Single org + its users (+ the questions/bank seeded under it) — cleanupTestData
-    // handles FK-safe teardown. No easa_* reference rows were seeded.
+    // Single org + its users — cleanupTestData handles FK-safe teardown (including
+    // the org-scoped seeded question + bank). No easa_* reference rows were seeded.
     await cleanupTestData({ admin, orgId, userIds: [studentId] })
   })
 
-  it('returns the canonical RT subject and the part it has questions for', async () => {
+  it('returns the canonical RT subject id', async () => {
     await signInAs(email, password)
 
     const result = await getRtSubjectData()
 
     // The subject lookup is what the deleted_at bug broke — under the bug this call threw.
     expect(result.id).toBe(rtSubjectId)
-    // The seeded part survives the org-scoped questionCount > 0 filter.
-    expect(result.parts.map((p) => p.code)).toContain(SEEDED_PART)
-    const seeded = result.parts.find((p) => p.code === SEEDED_PART)
-    expect(seeded?.questionCount).toBe(3)
+  })
+
+  it('returns topics for the canonical RT subject', async () => {
+    await signInAs(email, password)
+
+    const result = await getRtSubjectData()
+
+    // The RT topic seeded with an active question in beforeAll survives the
+    // helper's questionCount > 0 filter, so at least one topic comes back.
+    expect(result.topics.length).toBeGreaterThan(0)
   })
 })

@@ -17,6 +17,10 @@ export type UseTopicTreeReturn = {
   getSelectedSubtopicIds: () => string[]
 }
 
+export function collectSubtopicIds(items: TopicWithSubtopics[]): string[] {
+  return items.flatMap((t) => t.subtopics.map((st) => st.id))
+}
+
 export function calcSelectedCount(
   topics: TopicWithSubtopics[],
   checkedTopics: Set<string>,
