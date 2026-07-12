@@ -171,6 +171,7 @@ describe('buildDiscardHandler', () => {
     await handle()
     expect(setError).toHaveBeenCalledWith('Session not found')
     expect(setDiscarded).not.toHaveBeenCalled()
+    expect(setLoading).toHaveBeenLastCalledWith(false)
 
     await handle()
 

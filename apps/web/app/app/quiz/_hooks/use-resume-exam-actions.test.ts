@@ -133,6 +133,17 @@ describe('useResumeExamActions — discard', () => {
     expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
   })
 
+  it('discards the session exactly once when triggered twice in the same tick', async () => {
+    const { result } = renderActions()
+
+    await act(async () => {
+      void result.current.handleDiscard()
+      void result.current.handleDiscard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
+  })
+
   it('shows the server error and stays retryable when the discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
     const { result } = renderActions()
