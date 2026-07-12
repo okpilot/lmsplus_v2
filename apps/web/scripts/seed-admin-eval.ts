@@ -109,7 +109,7 @@ async function seed() {
     .select('id')
     .eq('organization_id', org.id)
     .is('deleted_at', null)
-    .single()
+    .maybeSingle()
 
   let bankId: string
   if (existingBank) {
