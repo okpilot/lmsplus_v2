@@ -105,11 +105,12 @@ async function seed() {
   console.log(`  Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
 
   // 3. Bank
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119).
   const { data: existingBank } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
     .is('deleted_at', null)
     .maybeSingle()
   let bankId: string
