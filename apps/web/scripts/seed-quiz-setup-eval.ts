@@ -264,11 +264,12 @@ async function seed() {
   console.log(`  Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
 
   // 3. Question bank (find existing or insert)
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119).
   const { data: existingBank } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
     .is('deleted_at', null)
     .maybeSingle()
 
@@ -470,7 +471,12 @@ async function seed() {
       mode: 'study',
     },
     question_ids: draftQuestionIds,
-    answers: { [draftQuestionIds[0]]: 'b', [draftQuestionIds[1]]: 'a' },
+    // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
+    // strings are skipped as malformed on load and the draft shows 0/N progress (#1119).
+    answers: {
+      [draftQuestionIds[0]]: { selectedOptionId: 'b', responseTimeMs: 3000 },
+      [draftQuestionIds[1]]: { selectedOptionId: 'a', responseTimeMs: 4500 },
+    },
     current_index: 2,
   })
   if (draftErr) throw new Error(`Draft: ${draftErr.message}`)
