@@ -316,11 +316,13 @@ async function lookupId(table: string, column: string, value: string): Promise<s
 
 async function ensureBank(orgId: string, adminId: string): Promise<string> {
   const NAME = 'VFR RT QDB'
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the
+  // org already has regardless of name, so this seed composes with sibling eval
+  // seeds in either run order (#1119). NAME only applies on first-run insert.
   const { data: existing } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', orgId)
-    .eq('name', NAME)
     .is('deleted_at', null)
     .maybeSingle()
   if (existing) return existing.id
