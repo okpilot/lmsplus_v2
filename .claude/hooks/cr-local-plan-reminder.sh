@@ -5,14 +5,13 @@
 # been returned to the orchestrator, so the reminder appears as the last
 # thing the orchestrator reads from this tool result.
 #
-# Tool input is passed as a CLI argument by `.claude/settings.json`
-# (interpolated from $CLAUDE_TOOL_INPUT at hook invocation time). This
-# mirrors the proven pattern used by `guard-bash.js` for PreToolUse —
-# relying on env var inheritance into PostToolUse hooks is unverified
-# in this harness. Match the literal `coderabbit review` substring
-# inside the JSON payload's .command field.
+# Claude Code delivers the hook payload on STDIN as JSON
+# ({"tool_input":{"command":"..."}}) — there is no $CLAUDE_TOOL_INPUT
+# argv. This mirrors the stdin pattern used by `guard-bash.js` and
+# `review-gate.js`. Match the literal `coderabbit review` substring
+# inside the JSON payload's command field.
 
-input="${1:-}"
+input="$(head -c 1000000)" # 1MB cap — parity with guard-bash/review-gate stdin bounds
 
 # Parse the .command field from the JSON tool-input payload before
 # matching, so a description or env value containing "coderabbit review"
@@ -23,7 +22,8 @@ if parsed_command="$(node -e '
 const raw = process.argv[1] ?? "";
 try {
   const obj = JSON.parse(raw);
-  process.stdout.write(typeof obj.command === "string" ? obj.command : "");
+  const cmd = obj?.tool_input?.command ?? obj?.command;
+  process.stdout.write(typeof cmd === "string" ? cmd : "");
 } catch {
   process.stdout.write(raw);
 }

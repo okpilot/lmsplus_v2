@@ -103,7 +103,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (`git diff --name-only`). Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
+**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff master...HEAD --name-only` for diffs). Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -151,7 +151,7 @@ When a spec exists for the current work, the orchestrator references it (not cha
 After a spec reaches "approved" status, material changes to the approach require updating the spec and noting the deviation before implementing.
 
 ### MCP fallback
-If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/` using the existing template structure in `.spec-workflow/templates/`.
+If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/`, copying the structure of an existing spec under `.spec-workflow/specs/`.
 
 ### DO
 - Create a spec for any feature spanning 3+ files or introducing a new pattern.
@@ -353,6 +353,16 @@ One issue → one branch → full pipeline → merge → repeat. It makes a mult
 
 ---
 
+## Rule-Mirror Sync — commands/*.md and agents/*.md restatements (MANDATORY on rule edits)
+
+When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, grep `.claude/commands/` AND `.claude/agents/` for restatements of that rule and update every stale restatement **in the same commit**. Command and agent-definition files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command or subagent runs.
+
+How to apply: grep both dirs for the rule's distinctive phrases (both the OLD wording being replaced and the rule's key terms — e.g. "revision round", "consecutive clean", the gate list). A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+
+Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
+
+---
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**
@@ -491,6 +501,6 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 ---
 
-*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-critic.md`*
+*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-06-20 (multi-round review discipline for plan-critic — coverage vs stability rounds, consecutive-clean floor 2/3, ceiling 4→escalate; see `agent-critic.md`)*
+*Last updated: 2026-07-11 (added § Rule-Mirror Sync — commands/*.md AND agents/*.md restatements updated in the same commit as the rule; learner count=2 + same-day CR-local scope widening, pipeline-audit #1110)*

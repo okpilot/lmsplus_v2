@@ -89,11 +89,11 @@ lmsplusv2/
 ### Version Control & Collaboration
 
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
-- **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 5 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests, CodeQL), strict mode (branch must be up-to-date), no force push, enforce admins.
+- **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
-  - `pre-commit` (parallel): Biome check + type-check
+  - `pre-commit` (parallel): Biome check + type-check + soft-delete-column guard + test-title-leakage guard (unit tests run in CI, not pre-commit)
   - `commit-msg`: commitlint
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)
@@ -110,7 +110,7 @@ lmsplusv2/
   - `redteam.yml`: red-team security tests -- branches touching security-sensitive paths
   - `codeql.yml`: GitHub CodeQL for JS/TS -- PRs + master + weekly Monday 05:30 UTC
   - `dependabot.yml`: weekly dependency updates (Actions + npm), `tech-debt` label, conventional commit prefixes
-- **Database migrations**: Forward-only SQL files in `supabase/migrations/` (timestamped) and `packages/db/migrations/` (numbered, source of truth). Applied via Supabase CLI.
+- **Database migrations**: Forward-only SQL files in `supabase/migrations/` (timestamped) — the sole source of truth, applied via Supabase CLI. `packages/db/migrations/` (numbered) is frozen/historical as of 2026-07-11.
 - **Secret management**: `.env.local` (gitignored) for local dev, Vercel Environment Variables (encrypted) for production, GitHub Actions secrets for CI.
 
 ## Technical Requirements & Constraints
@@ -139,7 +139,7 @@ lmsplusv2/
 - **Input validation**: Zod `.parse()` / `.safeParse()` on every Server Action. LIKE metacharacter escaping. Free-text ILIKE fields capped at 200 chars.
 - **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy. The 6 static headers are emitted by `next.config.ts` on routed responses and re-emitted by `apps/web/proxy.ts` on Edge Middleware redirect / 4xx / 5xx responses. The CSP differs by response class: routed responses get the full policy from `next.config.ts` (`default-src 'self'`, scoped script-src, supabase.co connect-src, etc.); middleware-only responses get a reduced lock-down CSP (`default-src 'none'; frame-ancestors 'none'`) since no scripts execute on a 3xx/4xx/5xx, so the stricter policy is safe and prevents accidental subresource loading on error pages.
 - **Immutable tables**: `student_responses`, `quiz_session_answers`, `audit_events`, `user_consents` -- no UPDATE, no DELETE, ever. RLS policies block all writes; inserts only via SECURITY DEFINER RPCs.
-- **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (exception: `question_comments`, Decision 30).
+- **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (approved exceptions per the `docs/database.md` §3 matrix: `question_comments` (Decision 30), `quiz_drafts`, `exam_config_distributions`).
 - **SECURITY DEFINER RPCs**: Always include `auth.uid()` IS NULL check + `SET search_path = public`. Must manually filter `deleted_at IS NULL` on soft-deletable tables (RLS bypassed). **Narrow carve-out:** a SELECT fetching records by IDs stored in an immutable, write-once column may omit the filter — see `docs/security.md` §15 for the authoritative current list of qualifying functions (e.g. `batch_submit_quiz`, `check_quiz_answer`, the VFR-RT and report RPCs) and `docs/database.md` §3 "Scoring Soft-Deleted Questions".
 - **Audit trail**: Append-only `audit_events` table for CAA compliance. `user_consents` append-only for GDPR proof.
 - **GDPR**: Consent audit trail with versioned re-consent. Data export (self-service + admin). Erasure declined under EASA Part ORA (Article 17(3)(b) exemption).
@@ -171,7 +171,7 @@ lmsplusv2/
 
 7. **Atomic batch quiz submission** (Decision 23): `batch_submit_quiz()` processes all answers + score + session completion in one Postgres transaction. Prevents orphaned answers from partial failures.
 
-8. **question_comments hard DELETE exception** (Decision 30): Comments have low audit value. Primary path is hard DELETE, not soft-delete. Documented in database.md soft-delete matrix.
+8. **question_comments hard DELETE exception** (Decision 30): Comments have low audit value. Primary path is hard DELETE, not soft-delete. Documented in database.md soft-delete matrix, which also carries the other approved hard-DELETE exceptions: `quiz_drafts` (disposable temp storage) and `exam_config_distributions` (replaced atomically by `upsert_exam_config`).
 
 9. **GDPR erasure declined under EASA Part ORA** (Decision 33): Training records retained with full identity per Article 17(3)(b) exemption. Data export provided (self-service + admin). No deletion, no anonymisation.
 
@@ -193,4 +193,4 @@ lmsplusv2/
 - **jsdom limitation**: Pre-hydration state (disabled button, skeleton) is not testable in jsdom -- `useEffect` runs synchronously in `act()`.
 - **No rate limiting at application layer**: Relies on Supabase Auth rate limits and `record_login()` RPC 60s rate limit. No Vercel/upstash rate limiting on API or auth routes yet.
 - **EASA subject seed data**: Full taxonomy tree completeness unconfirmed -- currently 9 PPL(A) subjects imported.
-- **eslint-config package**: Empty placeholder in `packages/eslint-config/` -- Biome is the sole linter. Package exists for monorepo structure compatibility.
+- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).

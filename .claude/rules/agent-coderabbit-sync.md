@@ -12,7 +12,7 @@ Run this agent only when one or more of these files change:
 - `docs/security.md`
 - `biome.json`
 - `CLAUDE.md`
-- A new `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml` (a guard that pattern-matches source for a rule CodeRabbit also enforces). The guard's detection pattern must be mirrored into `.coderabbit.yaml` `path_instructions` **in the same commit that adds the guard** — not deferred to a follow-up. Promoted at count=2: `check-soft-delete-guard.mjs` (#925 Phase 3, `.coderabbit.yaml` entry slipped to Phase 4) and `check-test-title-leakage.mjs` (#946, the `maps <snake_case_token>` pattern missing from the guard's commit). Both prior instances are already reconciled — no sweep outstanding.
+- A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml` (a guard that pattern-matches source for a rule CodeRabbit also enforces) — edits to an existing guard's detection pattern also require re-mirroring. The guard's detection pattern must be mirrored into `.coderabbit.yaml` `path_instructions` **in the same commit that adds or changes the guard** — not deferred to a follow-up. Promoted at count=2: `check-soft-delete-guard.mjs` (#925 Phase 3, `.coderabbit.yaml` entry slipped to Phase 4) and `check-test-title-leakage.mjs` (#946, the `maps <snake_case_token>` pattern missing from the guard's commit). Both prior instances are already reconciled — no sweep outstanding.
 
 Do NOT run on every commit — only when the above files are in the diff.
 

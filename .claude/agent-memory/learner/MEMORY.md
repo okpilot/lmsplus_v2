@@ -6,13 +6,13 @@
 
 ## Issue Frequency Tracker (live — active rows only; PROMOTED rows → tracker-archive.md)
 
-Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last Seen | Status`.
+Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last Seen | Status`. Count=1 rows carry their archive row number — full narrative lives in the archive row, never here.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 12 | 2026-07-02 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
@@ -38,7 +38,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Red-team RLS error-code assertions pinned to 42501 (instead of generic error non-null) | 2 | 2026-06-04 | RULE CANDIDATE (2), deferred. [full → archive] |
 | CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE → agent-coderabbit-local.md pitfall #6. [full → archive] |
 | Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE. [full → archive] |
-| Migration added to packages/db/migrations but not supabase/migrations (or vice versa) | 2 | 2026-06-05 | RULE CANDIDATE. [full → archive] |
+| Migration added to packages/db/migrations but not supabase/migrations (or vice versa) | 2 | 2026-07-11 | RESOLVED (policy: packages/db/migrations FROZEN 2026-07-11, supabase/ sole source of truth — #1111). [full → archive] |
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
 | plpgsql function body contains deferred-validation SQL (clean migration apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4). [full → archive] |
 | Semantic reviewer stale-baseline false positive (compared wrong predecessor migration/definition) | 2 | 2026-06-06 | RULE CANDIDATE. [full → archive] |
@@ -64,28 +64,31 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | docs/database.md "Last updated" footer changelog entry stale when database.md content changes | 2 | 2026-06-26 | RULE CANDIDATE. [full → archive] |
 | Rename/move leaves stale string references in source/test file inline comments | 2 | 2026-07-02 | RULE CANDIDATE. [full → archive] |
 | Missing route entry in docs/plan.md route-structure tree after new route added | 2 | 2026-07-08 | RULE CANDIDATE → agent-doc-updater.md sub-rule (when page.tsx added, flag missing plan.md route entry as DRIFT). [full → archive] |
-
-## Count=1 WATCHING rows
-
-All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent additions by cycle (detail in archive):
-- Pre-#925 → #1011 (rows 1–473): SVG-template-escape PROMOTED; spy-restore + QA-pipeline-drift PROMOTED; vacuous-assertion PROMOTED §7; cast-guard PROMOTED §5; schema-mirror count→3; CR-wrong-fix count→3→4→5; file-size count→10; cross-surface MC-oracle PROMOTED; spec-count drift count→6.
-- **VFR RT Phase 5 (PR #998):** CLEAN. CR-local pitfall #6 row→3. 1 WATCHING (row 474): global invariant broke integration tests.
-- **PR #998 CR-local round-2:** CLEAN. integration-count→5. 1 WATCHING (row 475): tasks.md renumber after master merge.
-- **#995/#996:** CLEAN (test-only). 1 WATCHING (row 477): `_`-in-marker LIKE-wildcard risk, accepted as-is.
-- **#1004 (c15e27a0+e8953adf):** CLEAN. beforeAll 67L extracted; seed.ts 670L deferred #1047. File-size→11; helper-cap→5. 1 WATCHING (row 480): assertions-before-result-capture in try/finally.
-- **VFR RT Phase 6 diagram_label (d74f3e0e+…, 2026-07-02):** file-size BLOCKING (11→12). integration-count 5→6. 1 WATCHING (row 481): rwy-2709-lh-pattern.tsx off-plan file-size.
-- **VFR RT Phase 6 CR-fixup (37fc1127+e23b2518, PR #1059):** → archive.
-- **PR #1059 fixup-2 (2ea9bbde+4c1f52f0):** CLEAN. 2 CR FPs. 1 WATCHING (row 483): CR stale-review FP on updated PR HEAD.
-- **#1047 (bf85518f+896e25bd):** CLEAN. Rename-stale-comment row→count=2. 1 WATCHING (row 484): plan-critic dep-order omission in file split.
-- **PR-4, chore/promote-learner-rules, redteam/vfr-rt-success-path (2026-07-03):** → archive.
-- **feat/vfr-rt-report-context (425ab703+3b67a4fa, PR #1097, 2026-07-08):** CLEAN. 1 WARNING: QuizReportView 40L → extract canonicalReportBasePath (code-reviewer tracker 13→14). 1 DRIFT: plan.md route tree missing /app/vfr-rt/report (applied). Route-tree-drift row lifted to live table count=2. 0 new WATCHING.
+| Merging a branch with a new global DB invariant silently breaks existing integration tests that lack beforeEach state-clearing | 1 | 2026-06-30 | WATCHING (archive row 474) |
+| Spec tasks.md task-number sweep incomplete after merging master into feature branch | 1 | 2026-07-01 | WATCHING (archive row 475) |
+| Plan-critic catches `_`-as-LIKE-wildcard in E2E marker constants (accepted as-is) | 1 | 2026-07-02 | WATCHING (archive row 477) |
+| Assertions placed before result-capture inside try/finally block (failure skips result assignment) | 1 | 2026-07-02 | WATCHING (archive row 480) |
+| Manual-eval-driven UI redesign grows a component file over the size cap outside the original plan | 1 | 2026-07-02 | WATCHING (archive row 481) |
+| Cloud CR stale-review false positive on updated PR HEAD (re-raises already-handled findings) | 1 | 2026-07-02 | WATCHING (archive row 483) |
+| Plan-critic dependency-graph omission when splitting a file (import order not listed in plan) | 1 | 2026-07-02 | WATCHING (archive row 484) |
+| Dynamic URL query-param interpolated into redirect URL without encodeURIComponent (URL-injection; distinct from code-style.md §5 markup-escaping — different output context) | 1 | 2026-07-10 | WATCHING (archive row 489) |
+| Hook/hook-wiring changed or added without live-probe runtime verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
+| Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
+| Rule text updated in .claude/rules/*.md or CLAUDE.md without updating its commands/*.md restatement (stale mirror) | 2 | 2026-07-11 | PROMOTED → agent-workflow.md § Rule-Mirror Sync (2026-07-11). [full → archive] |
+| Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
+| Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×4 post-promotion (batch-5/6; CR-loop R1/R2). |
+| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
+| CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
+| CR-local scopes review to origin-lag content (out-of-scope file on diff due to unpushed local-master commits) | 1 | 2026-07-11 | WATCHING (archive row 497) |
+| Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
+| CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 
 ## Durable knowledge (cross-agent)
 
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
 - A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
-- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 12) — always grep all instances in the file AND siblings before committing.
+- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 14) — always grep all instances in the file AND siblings before committing.
 - **Learner tracker is authoritative over rule-file parenthetical counts.** Read this tracker, not the rule file's parenthetical — the parenthetical can lag (e.g. stale at count=4 for pitfall #7, caught 2026-07-03).
 - *(Other bullets relocated to `topics/cross-agent-lessons.md` § Durable knowledge relocated 2026-06-07.)*
 

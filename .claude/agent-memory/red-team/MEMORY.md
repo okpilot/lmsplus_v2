@@ -17,6 +17,7 @@ red-team maps security-sensitive diffs to red-team Playwright specs and flags co
 
 ## Durable lessons
 
+- **Migration citations in NEW matrix rows / lessons use `supabase/migrations/<timestamp>_*.sql` paths only** — `packages/db/migrations/` was FROZEN 2026-07-11 (historical, missing 81/222 files; see its README). The 8 existing matrix citations of the frozen dir are accurate historical records — leave them as written.
 - New RPCs need matching **unauthenticated** AND **cross-tenant** test cases on every addition — generic specs do not cover these by default.
 - `quiz-report.ts` filters the `correct` boolean in TypeScript (not at the DB layer) after a direct `.select('options')` on `questions` — a refactor of the mapping logic can silently re-expose answer keys. The report payload must never contain `correct` fields. **Vector O is permanently pinned by `report-question-builder.test.ts` (Vitest unit), NOT a Playwright spec — PostgREST-level specs cannot reach TypeScript projection functions. This is the permanent home: app-layer answer-key-leak vectors that rely on TypeScript projection belong in Vitest unit tests, not red-team Playwright specs.**
 - Admin SECURITY DEFINER RPCs that gate on `is_admin()` belong in their own dedicated spec file (e.g. `rpc-admin-dashboard-students.spec.ts`), not scattered across Hub A (`server-action-unauthenticated.spec.ts`) and Hub B (`rpc-cross-tenant.spec.ts`). A dedicated file covers all sub-vectors (unauthed, student, instructor, cross-org positive/negative) coherently.
