@@ -12,7 +12,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 15 | 2026-07-13 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
