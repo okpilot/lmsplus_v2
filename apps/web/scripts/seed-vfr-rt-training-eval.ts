@@ -330,7 +330,7 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
     if (existing.deleted_at !== null) {
       const { data: restored, error: bankRestoreErr } = await db
         .from('question_banks')
-        .update({ deleted_at: null })
+        .update({ deleted_at: null, deleted_by: null })
         .eq('id', existing.id)
         .select('id')
       if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)

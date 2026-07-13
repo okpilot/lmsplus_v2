@@ -167,7 +167,7 @@ async function seed() {
   if (bankRow.deleted_at !== null) {
     const { data: restored, error: bankRestoreErr } = await db
       .from('question_banks')
-      .update({ deleted_at: null })
+      .update({ deleted_at: null, deleted_by: null })
       .eq('id', bankRow.id)
       .select('id')
     if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
