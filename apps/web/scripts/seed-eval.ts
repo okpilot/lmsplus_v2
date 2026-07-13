@@ -244,14 +244,24 @@ async function seed() {
   const creatorId = admin?.id ?? student.id
 
   // 4. Get existing bank
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has; a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
   const { data: bank, error: bankErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .is('deleted_at', null)
     .limit(1)
     .single()
   if (bankErr || !bank) throw new Error('Question bank not found — run seed-e2e.ts first')
+  if (bank.deleted_at !== null) {
+    const { data: restored, error: bankRestoreErr } = await db
+      .from('question_banks')
+      .update({ deleted_at: null })
+      .eq('id', bank.id)
+      .select('id')
+    if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+    if (!restored?.length) throw new Error('Bank restore: no rows updated')
+  }
 
   // 5. Create Air Law subject + topic + subtopic
   const { data: alwSubject, error: alwErr } = await db

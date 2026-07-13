@@ -1045,15 +1045,25 @@ async function seed() {
     .single()
   if (adminErr || !admin) throw new Error(`No admin user found: ${adminErr?.message}`)
 
-  // Get or create question bank
+  // Get question bank
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has; a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
   const { data: bank, error: bankErr2 } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', admin.organization_id)
-    .is('deleted_at', null)
     .single()
   if (bankErr2) throw new Error(`Question bank lookup failed: ${bankErr2.message}`)
   if (!bank) throw new Error('No question bank found — run seed-admin-eval.ts first')
+  if (bank.deleted_at !== null) {
+    const { data: restored, error: bankRestoreErr } = await db
+      .from('question_banks')
+      .update({ deleted_at: null })
+      .eq('id', bank.id)
+      .select('id')
+    if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+    if (!restored?.length) throw new Error('Bank restore: no rows updated')
+  }
 
   let totalInserted = 0
 
