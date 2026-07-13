@@ -252,7 +252,8 @@ async function seed() {
     .eq('organization_id', org.id)
     .limit(1)
     .single()
-  if (bankErr || !bank) throw new Error('Question bank not found — run seed-e2e.ts first')
+  if (bankErr) throw new Error(`Bank lookup: ${bankErr.message}`)
+  if (!bank) throw new Error('Question bank not found — run seed-e2e.ts first')
   if (bank.deleted_at !== null) {
     const { data: restored, error: bankRestoreErr } = await db
       .from('question_banks')

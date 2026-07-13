@@ -279,6 +279,7 @@ async function seed() {
     .select('id')
     .eq('exam_config_id', cfg.id)
     .eq('topic_id', topicId)
+    .is('subtopic_id', null)
     .maybeSingle()
   if (distLookupErr) throw new Error(`Exam distribution lookup: ${distLookupErr.message}`)
   if (!existingDist) {
