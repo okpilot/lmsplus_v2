@@ -152,6 +152,9 @@ describe('buildStudyStartHandler — retryable failures', () => {
     await handleStart()
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    // No-args (blanket) form is the contract — the scoped { sessionId } form is a
+    // different endDiscovery mode reserved for callers that know the row id.
+    expect(mockEndDiscovery).toHaveBeenCalledWith()
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith(
@@ -182,6 +185,26 @@ describe('buildStudyStartHandler — retryable failures', () => {
 
       await handleStart()
       expect(mockStartStudy).toHaveBeenCalledTimes(2)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('logs the server error when the orphan cleanup reports failure', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockEndDiscovery.mockResolvedValue({ success: false as const, error: 'discovery not found' })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const handleStart = buildStudyStartHandler(makeDeps())
+      await handleStart()
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[use-study-start] orphan cleanup failed:',
+        'discovery not found',
+      )
     } finally {
       errorSpy.mockRestore()
     }

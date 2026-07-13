@@ -193,6 +193,27 @@ describe('buildQuizStartHandler — retryable failures', () => {
       errorSpy.mockRestore()
     }
   })
+
+  it('logs the server error when the orphan discard reports failure', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockDiscardQuiz.mockResolvedValue({ success: false as const, error: 'session not found' })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const handleStart = buildQuizStartHandler(makeDeps())
+      await handleStart()
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[use-quiz-start] orphan discard failed for session',
+        SESSION_ID,
+        'session not found',
+      )
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
 })
 
 // ---- Terminal success keeps the guard engaged --------------------------------
