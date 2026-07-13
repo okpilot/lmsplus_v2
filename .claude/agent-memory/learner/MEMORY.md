@@ -12,7 +12,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 15 | 2026-07-13 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
@@ -85,6 +85,8 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Parallel implementer in batch dispatch diverges from extraction pattern the sibling implementers establish in the same commit | 1 | 2026-07-12 | WATCHING (archive row 500) |
 | Plan validation completed against stale master; post-approval rebase reveals a deleted file (plan item removed as deviation) | 1 | 2026-07-12 | WATCHING (archive row 501) |
 | Test assertions dropped during extraction-fixup refactor, leaving coverage gaps caught by semantic-reviewer | 1 | 2026-07-12 | WATCHING (archive row 502) |
+| CR-local critical FP — hallucinated code (claimed duplicate declaration not present in source) | 1 | 2026-07-13 | WATCHING (archive row 503) |
+| Internal Opus critics accepted a forward-looking error-path gap; external CR independently required the fix | 1 | 2026-07-13 | WATCHING (archive row 504) |
 
 ## Durable knowledge (cross-agent)
 
