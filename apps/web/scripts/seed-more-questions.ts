@@ -1052,7 +1052,7 @@ async function seed() {
     .from('question_banks')
     .select('id, deleted_at')
     .eq('organization_id', admin.organization_id)
-    .single()
+    .maybeSingle()
   if (bankErr2) throw new Error(`Question bank lookup failed: ${bankErr2.message}`)
   if (!bank) throw new Error('No question bank found — run seed-admin-eval.ts first')
   if (bank.deleted_at !== null) {

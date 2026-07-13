@@ -474,6 +474,11 @@ async function seed() {
 
   // 8. Saved quiz draft — partially completed quiz on first subject
   const draftQuestionIds = subjectQuestionIds[firstSubjectId].slice(0, 5)
+  // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
+  // to a literal "undefined" key and silently corrupt the draft's answers map.
+  if (draftQuestionIds.length < 2) {
+    throw new Error(`Draft seed needs >= 2 questions, got ${draftQuestionIds.length}`)
+  }
   const { error: draftErr } = await db.from('quiz_drafts').insert({
     student_id: studentId,
     organization_id: org.id,

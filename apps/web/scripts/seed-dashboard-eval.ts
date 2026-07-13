@@ -160,8 +160,7 @@ async function seed() {
     .from('question_banks')
     .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .limit(1)
-    .single()
+    .maybeSingle()
   if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
   if (!bankRow) throw new Error('Question bank not found')
   if (bankRow.deleted_at !== null) {
