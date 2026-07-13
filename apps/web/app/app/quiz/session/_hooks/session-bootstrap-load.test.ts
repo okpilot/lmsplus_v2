@@ -27,6 +27,7 @@ import {
   _resetCachedSession,
   buildRecoveryResume,
   dropCachedSession,
+  FLAG_FETCH_TIMEOUT_MS,
   loadSessionData,
   readBootstrapSession,
 } from './session-bootstrap-load'
@@ -86,7 +87,7 @@ describe('loadSessionData', () => {
       mockGetFlaggedIds.mockReturnValue(new Promise(() => undefined))
 
       const resultPromise = loadSessionData(QUESTION_IDS)
-      await vi.advanceTimersByTimeAsync(3000)
+      await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
 
       expect(await resultPromise).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
     } finally {
@@ -193,7 +194,7 @@ describe('buildRecoveryResume', () => {
   it('does nothing when there is no session to resume', async () => {
     const set = buildSetters()
 
-    buildRecoveryResume(null, set)()
+    buildRecoveryResume(null, set, { current: false })()
     await flushAsync()
 
     expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
@@ -207,7 +208,7 @@ describe('buildRecoveryResume', () => {
     mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
     const set = buildSetters()
 
-    buildRecoveryResume(RECOVERY, set)()
+    buildRecoveryResume(RECOVERY, set, { current: false })()
     await flushAsync()
 
     expect(set.setResumeError).toHaveBeenCalledWith('RPC error')
@@ -223,7 +224,7 @@ describe('buildRecoveryResume', () => {
     mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })
     const set = buildSetters()
 
-    buildRecoveryResume(RECOVERY, set)()
+    buildRecoveryResume(RECOVERY, set, { current: false })()
     await flushAsync()
 
     expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
@@ -232,6 +233,49 @@ describe('buildRecoveryResume', () => {
     expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
     expect(set.setRecovery).toHaveBeenCalledWith(null)
     expect(set.setResumeError).not.toHaveBeenCalledWith(expect.any(String))
+  })
+
+  it('loads the session only once when Resume fires twice in the same tick', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    const handler = buildRecoveryResume(RECOVERY, buildSetters(), { current: false })
+
+    // e.g. a double-click before React commits the loading state.
+    handler()
+    handler()
+    await flushAsync()
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a retry after a failed resume', async () => {
+    mockLoadSessionQuestions.mockResolvedValueOnce(QUESTIONS_FAILURE)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    const set = buildSetters()
+    const handler = buildRecoveryResume(RECOVERY, set, { current: false })
+
+    handler()
+    await flushAsync()
+    handler()
+    await flushAsync()
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(2)
+    expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
+  })
+
+  it('ignores a late duplicate Resume after a successful resume', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    const handler = buildRecoveryResume(RECOVERY, buildSetters(), { current: false })
+
+    handler()
+    await flushAsync()
+    // The recovery screen unmounts on success; a stray queued trigger must not re-load.
+    handler()
+    await flushAsync()
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(1)
   })
 })
 

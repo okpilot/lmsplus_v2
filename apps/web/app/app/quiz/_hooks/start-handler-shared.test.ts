@@ -32,6 +32,8 @@ describe('confirmStartOverwrite', () => {
   it('names the unfinished session subject and the new activity in the prompt', () => {
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     expect(confirmStartOverwrite({ subjectName: 'Meteorology' }, 'an exam')).toBe(true)
+    // 'unfinished session' is intentionally generic — it covers both quiz and exam overwrites.
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('unfinished session'))
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('(Meteorology)'))
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('an exam'))
     confirmSpy.mockRestore()

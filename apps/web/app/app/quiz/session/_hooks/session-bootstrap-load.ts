@@ -33,7 +33,7 @@ export function readBootstrapSession(userId: string): SessionData | null {
 
 // Flags are cosmetic: if the flag fetch hangs, degrade to no flags after this
 // window instead of blocking the whole session bootstrap on it.
-const FLAG_FETCH_TIMEOUT_MS = 3000
+export const FLAG_FETCH_TIMEOUT_MS = 3000
 
 /**
  * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS (code-style
@@ -88,21 +88,31 @@ type RecoverySetters = {
  * Builds the recovery-prompt Resume handler. Rebuilt each render so it closes over
  * the current `recovery` state (mirrors the quiz-recovery-handlers.ts builders).
  */
-export function buildRecoveryResume(recovery: ActiveSession | null, set: RecoverySetters) {
+export function buildRecoveryResume(
+  recovery: ActiveSession | null,
+  set: RecoverySetters,
+  inFlightRef: React.RefObject<boolean>,
+) {
   return function handleRecoveryResume() {
-    if (!recovery) return
+    // Synchronous one-shot re-entry guard (code-style §6): `resumeLoading` is async
+    // React state, so two same-tick triggers could both pass a loading check.
+    if (!recovery || inFlightRef.current) return
+    inFlightRef.current = true // set before the async load kicks off (code-style §6)
     set.setResumeLoading(true)
     set.setResumeError(null)
     loadSessionData(recovery.questionIds).then((r) => {
       if (!r.success) {
         set.setResumeError(r.error ?? 'Failed to load questions. Try again.')
         set.setResumeLoading(false)
+        inFlightRef.current = false // retryable failure — release the lock
         return
       }
       set.setSession(toSessionData(recovery))
       set.setFlaggedIds(r.flaggedIds)
       set.setQuestions(r.questions)
       set.setResumeLoading(false)
+      // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
+      // intentionally stays set — a late duplicate trigger can never re-fire (§6).
       set.setRecovery(null)
     })
   }

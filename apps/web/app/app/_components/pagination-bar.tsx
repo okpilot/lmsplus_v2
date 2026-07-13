@@ -33,14 +33,12 @@ export function PaginationBar({
 
   if (totalCount === 0 || totalPages <= 1) return null
 
-  // Snap-to-last-page policy (#1041): an out-of-range `page` (e.g. a stale ?page=99 deep
-  // link) renders as the last page with data — range text, highlight, and prev/next all use
-  // the clamped value. Display-only: the query layer snaps its rows the same way; the URL is
-  // NOT rewritten. Identity for in-range pages.
-  const effectivePage = Math.min(Math.max(1, page), totalPages)
-  const items = buildPageItems(effectivePage, totalPages)
-  const from = (effectivePage - 1) * pageSize + 1
-  const to = Math.min(effectivePage * pageSize, totalCount)
+  const { effectivePage, items, from, to } = computePaginationDisplay({
+    page,
+    totalPages,
+    pageSize,
+    totalCount,
+  })
 
   return (
     <div className="flex items-center justify-between pt-4">
@@ -86,6 +84,25 @@ export function PaginationBar({
       </div>
     </div>
   )
+}
+
+// Snap-to-last-page policy (#1041): an out-of-range `page` (e.g. a stale ?page=99 deep
+// link) renders as the last page with data — range text, highlight, and prev/next all use
+// the clamped value. Display-only: the query layer snaps its rows the same way; the URL is
+// NOT rewritten. Identity for in-range pages.
+export function computePaginationDisplay(opts: {
+  page: number
+  totalPages: number
+  pageSize: number
+  totalCount: number
+}) {
+  const effectivePage = Math.min(Math.max(1, opts.page), opts.totalPages)
+  return {
+    effectivePage,
+    items: buildPageItems(effectivePage, opts.totalPages),
+    from: (effectivePage - 1) * opts.pageSize + 1,
+    to: Math.min(effectivePage * opts.pageSize, opts.totalCount),
+  }
 }
 
 type PageItem = { type: 'page'; page: number } | { type: 'ellipsis'; key: string }

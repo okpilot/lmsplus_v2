@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { clearSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
 import { type ActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
@@ -47,14 +47,12 @@ export function useSessionBootstrap(userId: string) {
     })
   }, [router, userId])
 
-  const handleRecoveryResume = buildRecoveryResume(recovery, {
-    setSession,
-    setQuestions,
-    setFlaggedIds,
-    setRecovery,
-    setResumeLoading,
-    setResumeError,
-  })
+  const resumeInFlightRef = useRef(false)
+  const handleRecoveryResume = buildRecoveryResume(
+    recovery,
+    { setSession, setQuestions, setFlaggedIds, setRecovery, setResumeLoading, setResumeError },
+    resumeInFlightRef,
+  )
 
   return {
     session,

@@ -19,7 +19,12 @@ vi.mock('lucide-react', () => ({
 
 // ---- Subject under test ----------------------------------------------------
 
-import { buildPageItems, buildPageNumbers, PaginationBar } from './pagination-bar'
+import {
+  buildPageItems,
+  buildPageNumbers,
+  computePaginationDisplay,
+  PaginationBar,
+} from './pagination-bar'
 
 // ---- Tests: buildPageNumbers -----------------------------------------------
 
@@ -133,6 +138,47 @@ describe('buildPageItems', () => {
     const items = buildPageItems(1, 5)
     expect(items.every((i) => i.type === 'page')).toBe(true)
     expect(items).toHaveLength(5)
+  })
+})
+
+// ---- Tests: computePaginationDisplay -----------------------------------------
+
+describe('computePaginationDisplay', () => {
+  it('keeps an in-range page as-is and reports its row range', () => {
+    const result = computePaginationDisplay({
+      page: 2,
+      totalPages: 3,
+      pageSize: 25,
+      totalCount: 75,
+    })
+    expect(result.effectivePage).toBe(2)
+    expect(result.from).toBe(26)
+    expect(result.to).toBe(50)
+  })
+
+  it('snaps an out-of-range page to the last page with data (#1041)', () => {
+    const result = computePaginationDisplay({
+      page: 99,
+      totalPages: 2,
+      pageSize: 25,
+      totalCount: 40,
+    })
+    expect(result.effectivePage).toBe(2)
+    // Range text reflects the clamped page, capped at totalCount on a partial last page.
+    expect(result.from).toBe(26)
+    expect(result.to).toBe(40)
+  })
+
+  it('clamps a page below 1 up to the first page', () => {
+    const result = computePaginationDisplay({
+      page: 0,
+      totalPages: 3,
+      pageSize: 25,
+      totalCount: 75,
+    })
+    expect(result.effectivePage).toBe(1)
+    expect(result.from).toBe(1)
+    expect(result.to).toBe(25)
   })
 })
 
