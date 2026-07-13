@@ -326,7 +326,7 @@ describe('useSessionRecovery — handleDiscard', () => {
     })
 
     expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
   it('still redirects to /app/quiz when the discard fails', async () => {

@@ -34,6 +34,6 @@ export function confirmStartOverwrite(
   if (!existing) return true
   const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
   return globalThis.confirm(
-    `You have an unfinished quiz${suffix}. Starting ${activityNoun} will lose it. Continue?`,
+    `You have an unfinished session${suffix}. Starting ${activityNoun} will lose it. Continue?`,
   )
 }

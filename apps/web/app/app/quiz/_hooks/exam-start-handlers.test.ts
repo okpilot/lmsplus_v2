@@ -122,6 +122,8 @@ describe('buildExamStartHandler — confirm cancel stays retryable', () => {
     confirmSpy.mockReturnValue(true)
     await handleStart()
     expect(mockStartExamSession).toHaveBeenCalledTimes(1)
+    // The overwritten session must actually be cleared for this user.
+    expect(mockClearActiveSession).toHaveBeenCalledWith('test-user-id')
     confirmSpy.mockRestore()
   })
 })

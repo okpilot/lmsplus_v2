@@ -13,13 +13,23 @@ type AppRouterInstance = ReturnType<typeof useRouter>
 
 type SetState<T> = (v: T) => void
 
+// Shared deps for the recovery-banner handler builders (§3 max-3-params — mirrors
+// ResumeExamDeps in resume-exam-handlers.ts). Each builder Picks the fields it needs.
+export type RecoveryDeps = {
+  userId: string
+  session: ActiveSession | null
+  inFlightRef: React.RefObject<boolean>
+  setLoading: SetState<boolean>
+  setError: SetState<string | null>
+  setSession: SetState<ActiveSession | null>
+  router: AppRouterInstance
+}
+
 export function buildResumeHandler(
-  userId: string,
-  session: ActiveSession | null,
-  setError: SetState<string | null>,
-  router: AppRouterInstance,
+  deps: Pick<RecoveryDeps, 'userId' | 'session' | 'setError' | 'router'>,
 ) {
   return function handleResume() {
+    const { userId, session } = deps
     if (!session) return
     try {
       sessionStorage.setItem(
@@ -28,31 +38,24 @@ export function buildResumeHandler(
       )
     } catch (err) {
       console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
-      setError('Unable to resume right now. Please try again.')
+      deps.setError('Unable to resume right now. Please try again.')
       return
     }
     clearActiveSession(userId)
-    router.push('/app/quiz/session')
+    deps.router.push('/app/quiz/session')
   }
 }
 
-export function buildSaveHandler(
-  userId: string,
-  session: ActiveSession | null,
-  inFlightRef: React.RefObject<boolean>,
-  setLoading: SetState<boolean>,
-  setError: SetState<string | null>,
-  setSession: SetState<ActiveSession | null>,
-  router: AppRouterInstance,
-) {
+export function buildSaveHandler(deps: RecoveryDeps) {
   return async function handleSave() {
     // Synchronous one-shot re-entry guard (code-style §6). The ref is shared with
     // buildDiscardHandler, preserving the old shared-`loading` semantics but without
     // the async-state race (`loading` is now UI-only).
+    const { userId, session, inFlightRef } = deps
     if (inFlightRef.current || !session) return
     inFlightRef.current = true // set before the first await
-    setLoading(true)
-    setError(null)
+    deps.setLoading(true)
+    deps.setError(null)
     try {
       const { sessionId, questionIds, answers, feedback, currentIndex } = session
       const result = await saveDraft({
@@ -70,35 +73,33 @@ export function buildSaveHandler(
         // router.refresh() is non-terminal (user stays in place) — exempt from the
         // await-before-terminal-nav rule (code-style.md §6).
         clearDeploymentPin().catch(() => {})
-        router.refresh()
+        deps.router.refresh()
         // Terminal success: setSession(null) dismisses the recovery banner, so the
         // in-flight ref intentionally stays set — a late duplicate cannot re-fire, and
         // the `!session` guard above makes both handlers inert anyway (code-style §6).
-        setSession(null)
+        deps.setSession(null)
       } else {
-        setError(result.error ?? 'Failed to save. Please try again.')
+        deps.setError(result.error ?? 'Failed to save. Please try again.')
         inFlightRef.current = false // retryable failure — release the lock
       }
     } catch {
-      setError('Server unavailable. Please try again later.')
+      deps.setError('Server unavailable. Please try again later.')
       inFlightRef.current = false // retryable failure — release the lock
     } finally {
-      setLoading(false)
+      deps.setLoading(false)
     }
   }
 }
 
 export function buildDiscardHandler(
-  userId: string,
-  session: ActiveSession | null,
-  inFlightRef: React.RefObject<boolean>,
-  setSession: SetState<ActiveSession | null>,
+  deps: Pick<RecoveryDeps, 'userId' | 'session' | 'inFlightRef' | 'setSession'>,
 ) {
   return function handleDiscard() {
     // Synchronous check-and-set one-shot (code-style §6). This handler is sync
     // fire-and-forget (discardQuiz is never awaited) and terminal — setSession(null)
     // ends the recovery UI — so the ref is never reset. The shared ref also blocks
     // a discard while a save is still in flight (old shared-`loading` semantics).
+    const { userId, session, inFlightRef } = deps
     if (inFlightRef.current) return
     inFlightRef.current = true
     clearActiveSession(userId)
@@ -107,6 +108,6 @@ export function buildDiscardHandler(
     clearDeploymentPin().catch(() => {})
     if (session)
       discardQuiz({ sessionId: session.sessionId, draftId: session.draftId }).catch(() => {})
-    setSession(null)
+    deps.setSession(null)
   }
 }

@@ -321,6 +321,8 @@ describe('useSessionBootstrap — flagged ids', () => {
     // A flag failure is cosmetic — it must never surface as a session error.
     expect(result.current.error).toBeNull()
     expect(result.current.flaggedIds).toEqual([])
+    // Prove the [] came from the exercised failure path, not the initial state (§7).
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: HANDOFF_DATA.questionIds })
   })
 
   it('still loads the session with no flags when the flag fetch reports failure', async () => {
@@ -334,6 +336,8 @@ describe('useSessionBootstrap — flagged ids', () => {
 
     expect(result.current.error).toBeNull()
     expect(result.current.flaggedIds).toEqual([])
+    // Prove the [] came from the exercised failure path, not the initial state (§7).
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: HANDOFF_DATA.questionIds })
   })
 
   it('does not show the questions until the flag fetch settles', async () => {

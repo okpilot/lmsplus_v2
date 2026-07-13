@@ -22,17 +22,22 @@ export function useQuizRecovery(userId: string) {
     setSession(active?.mode === 'exam' ? null : active)
   }, [userId])
 
-  const handleResume = buildResumeHandler(userId, session, setError, router)
-  const handleSave = buildSaveHandler(
+  const handleResume = buildResumeHandler({ userId, session, setError, router })
+  const handleSave = buildSaveHandler({
     userId,
     session,
-    actionInFlightRef,
+    inFlightRef: actionInFlightRef,
     setLoading,
     setError,
     setSession,
     router,
-  )
-  const handleDiscard = buildDiscardHandler(userId, session, actionInFlightRef, setSession)
+  })
+  const handleDiscard = buildDiscardHandler({
+    userId,
+    session,
+    inFlightRef: actionInFlightRef,
+    setSession,
+  })
 
   return { session, loading, error, handleResume, handleSave, handleDiscard }
 }

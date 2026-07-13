@@ -22,8 +22,10 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
   }
 })
 
+import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
 import {
   _resetCachedSession,
+  buildRecoveryResume,
   dropCachedSession,
   loadSessionData,
   readBootstrapSession,
@@ -159,6 +161,77 @@ describe('readBootstrapSession', () => {
 
     mockReadSessionHandoff.mockReturnValue(null)
     expect(readBootstrapSession(OTHER_USER_ID)).toBeNull()
+  })
+})
+
+// ---- buildRecoveryResume ---------------------------------------------------
+
+describe('buildRecoveryResume', () => {
+  const RECOVERY: ActiveSession = {
+    userId: USER_ID,
+    sessionId: SESSION_DATA.sessionId,
+    questionIds: QUESTION_IDS,
+    answers: {},
+    currentIndex: 0,
+    savedAt: Date.now(),
+  }
+
+  function buildSetters() {
+    return {
+      setSession: vi.fn(),
+      setQuestions: vi.fn(),
+      setFlaggedIds: vi.fn(),
+      setRecovery: vi.fn(),
+      setResumeLoading: vi.fn(),
+      setResumeError: vi.fn(),
+    }
+  }
+
+  /** Let the handler's internal load promise chain settle (real timers). */
+  const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  it('does nothing when there is no session to resume', async () => {
+    const set = buildSetters()
+
+    buildRecoveryResume(null, set)()
+    await flushAsync()
+
+    expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
+    for (const setter of Object.values(set)) {
+      expect(setter).not.toHaveBeenCalled()
+    }
+  })
+
+  it('surfaces the error and keeps the recovery prompt open when the resume load fails', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    const set = buildSetters()
+
+    buildRecoveryResume(RECOVERY, set)()
+    await flushAsync()
+
+    expect(set.setResumeError).toHaveBeenCalledWith('RPC error')
+    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
+    // The prompt stays open so the user can retry or discard — recovery is NOT cleared.
+    expect(set.setRecovery).not.toHaveBeenCalled()
+    expect(set.setSession).not.toHaveBeenCalled()
+    expect(set.setQuestions).not.toHaveBeenCalled()
+  })
+
+  it('hydrates the session, questions, and flags after a successful resume', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })
+    const set = buildSetters()
+
+    buildRecoveryResume(RECOVERY, set)()
+    await flushAsync()
+
+    expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
+    expect(set.setQuestions).toHaveBeenCalledWith([Q1, Q2])
+    expect(set.setFlaggedIds).toHaveBeenCalledWith([Q1.id])
+    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
+    expect(set.setRecovery).toHaveBeenCalledWith(null)
+    expect(set.setResumeError).not.toHaveBeenCalledWith(expect.any(String))
   })
 })
 

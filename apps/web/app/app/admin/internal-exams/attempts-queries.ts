@@ -45,7 +45,7 @@ export async function listInternalExamAttempts(
     return { rows: [], totalCount }
   }
   // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
-  // an empty list, matching PaginationBar's clamped display. Count-first keeps this one round trip.
+  // an empty list, matching PaginationBar's clamped display. Count-first fetches the count before querying the effective page.
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const effectivePage = Math.min(page, totalPages)
   const from = (effectivePage - 1) * PAGE_SIZE

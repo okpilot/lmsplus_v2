@@ -38,7 +38,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   }
 
   // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
-  // an empty list, matching PaginationBar's clamped display. Count-first keeps this one round trip.
+  // an empty list, matching PaginationBar's clamped display. Count-first fetches the count before querying the effective page.
   const effectivePage = Math.min(Math.max(1, page), totalPages)
   const from = (effectivePage - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
