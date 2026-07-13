@@ -264,6 +264,32 @@ describe('buildRecoveryResume', () => {
     expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
   })
 
+  it('recovers and allows a retry when applying the resumed session fails', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    const set = buildSetters()
+    // loadSessionData never rejects by design — exercise the handler's catch net by
+    // making a success-path setter throw on the first attempt only.
+    set.setQuestions.mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+    const handler = buildRecoveryResume(RECOVERY, set, { current: false })
+
+    handler()
+    await flushAsync()
+
+    expect(set.setResumeError).toHaveBeenCalledWith('Failed to load questions. Please try again.')
+    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
+    expect(set.setRecovery).not.toHaveBeenCalled()
+
+    // The catch released the lock, so a retry loads again and completes normally.
+    handler()
+    await flushAsync()
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(2)
+    expect(set.setRecovery).toHaveBeenCalledWith(null)
+  })
+
   it('ignores a late duplicate Resume after a successful resume', async () => {
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
     mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })

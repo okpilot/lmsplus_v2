@@ -100,20 +100,29 @@ export function buildRecoveryResume(
     inFlightRef.current = true // set before the async load kicks off (code-style §6)
     set.setResumeLoading(true)
     set.setResumeError(null)
-    loadSessionData(recovery.questionIds).then((r) => {
-      if (!r.success) {
-        set.setResumeError(r.error ?? 'Failed to load questions. Try again.')
+    loadSessionData(recovery.questionIds)
+      .then((r) => {
+        if (!r.success) {
+          set.setResumeError(r.error ?? 'Failed to load questions. Try again.')
+          set.setResumeLoading(false)
+          inFlightRef.current = false // retryable failure — release the lock
+          return
+        }
+        set.setSession(toSessionData(recovery))
+        set.setFlaggedIds(r.flaggedIds)
+        set.setQuestions(r.questions)
         set.setResumeLoading(false)
-        inFlightRef.current = false // retryable failure — release the lock
-        return
-      }
-      set.setSession(toSessionData(recovery))
-      set.setFlaggedIds(r.flaggedIds)
-      set.setQuestions(r.questions)
-      set.setResumeLoading(false)
-      // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
-      // intentionally stays set — a late duplicate trigger can never re-fire (§6).
-      set.setRecovery(null)
-    })
+        // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
+        // intentionally stays set — a late duplicate trigger can never re-fire (§6).
+        set.setRecovery(null)
+      })
+      .catch(() => {
+        // loadSessionData is documented never to reject; this is the §5 error-path
+        // net so a broken invariant (or a throwing setter) can never permanently
+        // strand the Resume lock.
+        inFlightRef.current = false
+        set.setResumeLoading(false)
+        set.setResumeError('Failed to load questions. Please try again.')
+      })
   }
 }
