@@ -40,6 +40,7 @@ describe('confirmStartOverwrite', () => {
   it('omits the subject suffix when the unfinished session has no subject name', () => {
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     confirmStartOverwrite({}, 'a new quiz')
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
     expect(confirmSpy.mock.calls[0]?.[0]).not.toMatch(/\(/)
     confirmSpy.mockRestore()
   })

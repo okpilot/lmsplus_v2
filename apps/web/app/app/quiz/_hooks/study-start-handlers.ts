@@ -1,4 +1,5 @@
 import type { useRouter } from 'next/navigation'
+import { endDiscovery } from '../actions/end-discovery'
 import { startStudy } from '../actions/study'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { UseStudyStartOpts } from '../session-types'
@@ -57,6 +58,26 @@ function writeDiscoveryHandoff(
   }
 }
 
+/**
+ * startStudy already created a server-side discovery row, but its result carries
+ * no sessionId, so scoped cleanup is impossible — blanket-clear the caller's
+ * active discovery rows instead. That is safe here: the user is starting
+ * discovery, and endDiscovery's own doc names startStudy-failure teardown as a
+ * purpose. An orphaned active session would otherwise block the retry under the
+ * single-active-session invariant (#1011). Never throws — a cleanup failure must
+ * not swallow the caller's user-facing handoff error.
+ */
+async function endOrphanDiscovery(): Promise<void> {
+  try {
+    const cleanup = await endDiscovery()
+    if (!cleanup.success) {
+      console.error('[use-study-start] orphan cleanup failed:', cleanup.error)
+    }
+  } catch (cleanupErr) {
+    console.error('[use-study-start] orphan cleanup threw:', cleanupErr)
+  }
+}
+
 export function buildStudyStartHandler(deps: StudyStartDeps) {
   return async function handleStart() {
     if (deps.inFlight.current || deps.loading || !deps.subjectId) return
@@ -73,6 +94,7 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
         return failStart(deps, 'No questions match these filters.')
       }
       if (!writeDiscoveryHandoff(deps, result.questions)) {
+        await endOrphanDiscovery()
         return failStart(deps, 'Unable to start discovery right now. Please try again.')
       }
       // Terminal success: the lock stays engaged while router.push unmounts the form.

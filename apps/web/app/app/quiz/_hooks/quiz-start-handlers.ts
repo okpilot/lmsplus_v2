@@ -1,4 +1,5 @@
 import type { useRouter } from 'next/navigation'
+import { discardQuiz } from '../actions/discard'
 import { startQuizSession } from '../actions/start'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
@@ -57,6 +58,23 @@ function writeQuizHandoff(
   }
 }
 
+/**
+ * startQuizSession already created a server-side session. When the local handoff
+ * write fails, soft-delete the orphan — an orphaned active session blocks the
+ * retry under the single-active-session invariant (#1011). Never throws — a
+ * discard failure must not swallow the caller's user-facing handoff error.
+ */
+async function discardOrphanQuiz(sessionId: string): Promise<void> {
+  try {
+    const cleanup = await discardQuiz({ sessionId })
+    if (!cleanup.success) {
+      console.error('[use-quiz-start] orphan discard failed for session', sessionId, cleanup.error)
+    }
+  } catch (cleanupErr) {
+    console.error('[use-quiz-start] orphan discard threw for session', sessionId, cleanupErr)
+  }
+}
+
 export function buildQuizStartHandler(deps: QuizStartDeps) {
   return async function handleStart() {
     if (deps.inFlight.current || deps.loading || !deps.subjectId) return
@@ -71,6 +89,7 @@ export function buildQuizStartHandler(deps: QuizStartDeps) {
       const result = await startQuizSession(buildStartQuizPayload(deps))
       if (!result.success) return failStart(deps, result.error)
       if (!writeQuizHandoff(deps, result)) {
+        await discardOrphanQuiz(result.sessionId)
         return failStart(deps, 'Unable to start quiz right now. Please try again.')
       }
       if (existing) clearActiveSession(deps.userId)

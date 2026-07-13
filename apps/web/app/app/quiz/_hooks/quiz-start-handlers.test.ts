@@ -2,14 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockStartQuizSession, mockSessionStorageSetItem } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
-  mockStartQuizSession: vi.fn(),
-  mockSessionStorageSetItem: vi.fn(),
-}))
+const { mockRouterPush, mockStartQuizSession, mockSessionStorageSetItem, mockDiscardQuiz } =
+  vi.hoisted(() => ({
+    mockRouterPush: vi.fn(),
+    mockStartQuizSession: vi.fn(),
+    mockSessionStorageSetItem: vi.fn(),
+    mockDiscardQuiz: vi.fn(),
+  }))
 
 vi.mock('../actions/start', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
+}))
+
+vi.mock('../actions/discard', () => ({
+  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
 const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
@@ -83,6 +89,7 @@ beforeEach(() => {
   })
   mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
   mockReadActiveSession.mockReturnValue(null)
+  mockDiscardQuiz.mockResolvedValue({ success: true })
 })
 
 // ---- Same-tick re-entry ----------------------------------------------------
@@ -144,7 +151,7 @@ describe('buildQuizStartHandler — retryable failures', () => {
     expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
   })
 
-  it('allows a second attempt after the session handoff write fails', async () => {
+  it('discards the orphaned session and allows a retry when the handoff write fails', async () => {
     mockSessionStorageSetItem.mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })
@@ -153,9 +160,38 @@ describe('buildQuizStartHandler — retryable failures', () => {
 
     await handleStart()
 
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith('Unable to start quiz right now. Please try again.')
+
+    await handleStart()
+    expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('still allows a retry when the orphan cleanup itself throws', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockDiscardQuiz.mockRejectedValue(new Error('discard network failure'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const deps = makeDeps()
+      const handleStart = buildQuizStartHandler(deps)
+
+      await handleStart()
+
+      expect(deps.inFlight.current).toBe(false)
+      expect(deps.setError).toHaveBeenCalledWith(
+        'Unable to start quiz right now. Please try again.',
+      )
+
+      await handleStart()
+      expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 })
 

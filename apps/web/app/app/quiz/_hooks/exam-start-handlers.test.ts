@@ -173,6 +173,9 @@ describe('buildExamStartHandler — retryable failures', () => {
     expect(deps.setError).toHaveBeenCalledWith(
       'Unable to start Practice Exam right now. Please try again.',
     )
+
+    await handleStart()
+    expect(mockStartExamSession).toHaveBeenCalledTimes(2)
   })
 
   it('still allows a retry when the orphan cleanup itself throws', async () => {
@@ -192,6 +195,9 @@ describe('buildExamStartHandler — retryable failures', () => {
       expect(deps.setError).toHaveBeenCalledWith(
         'Unable to start Practice Exam right now. Please try again.',
       )
+
+      await handleStart()
+      expect(mockStartExamSession).toHaveBeenCalledTimes(2)
     } finally {
       errorSpy.mockRestore()
     }

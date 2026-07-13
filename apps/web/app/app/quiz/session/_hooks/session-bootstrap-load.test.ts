@@ -76,6 +76,22 @@ describe('loadSessionData', () => {
     expect(result).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
   })
 
+  it('loads the session with no flags when the flag fetch never settles', async () => {
+    vi.useFakeTimers()
+    try {
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+      // A hung flag fetch (pending forever) must not block the bootstrap.
+      mockGetFlaggedIds.mockReturnValue(new Promise(() => undefined))
+
+      const resultPromise = loadSessionData(QUESTION_IDS)
+      await vi.advanceTimersByTimeAsync(3000)
+
+      expect(await resultPromise).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('loads the session with no flags when the flag fetch reports failure', async () => {
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
     mockGetFlaggedIds.mockResolvedValue({ success: false, error: 'Failed to fetch flags' })

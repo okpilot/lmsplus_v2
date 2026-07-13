@@ -31,19 +31,38 @@ export function readBootstrapSession(userId: string): SessionData | null {
   return data
 }
 
+// Flags are cosmetic: if the flag fetch hangs, degrade to no flags after this
+// window instead of blocking the whole session bootstrap on it.
+const FLAG_FETCH_TIMEOUT_MS = 3000
+
+/**
+ * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS (code-style
+ * §6 bounded-await shape: Promise.race + clearTimeout once either side settles).
+ * Degrades to [] on rejection, `{ success: false }`, or timeout — never rejects.
+ */
+function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<string[]>((resolve) => {
+    timer = setTimeout(() => resolve([]), FLAG_FETCH_TIMEOUT_MS)
+  })
+  const flags = getFlaggedIds({ questionIds })
+    .then((r) => (r.success ? r.flaggedIds : []))
+    .catch(() => [] as string[])
+  return Promise.race([flags, timeout]).finally(() => clearTimeout(timer))
+}
+
 /**
  * Loads the session's questions and the student's flagged question ids in parallel.
  *
- * Only the questions fetch decides success/error. The flag fetch is individually
- * caught: a rejection or a `{ success: false }` result degrades to an empty flag set
- * and never surfaces an error — flags are cosmetic and must not block the session.
- * A loadSessionQuestions rejection is mapped to the generic load-failure message
- * here, so this function never rejects.
+ * Only the questions fetch decides success/error (and stays unbounded — the
+ * questions are required data). The flag fetch is individually caught and
+ * time-bounded: a rejection, a `{ success: false }` result, or a hang degrades to
+ * an empty flag set and never surfaces an error — flags are cosmetic and must not
+ * block the session. A loadSessionQuestions rejection is mapped to the generic
+ * load-failure message here, so this function never rejects.
  */
 export async function loadSessionData(questionIds: string[]): Promise<SessionLoadResult> {
-  const flagsPromise = getFlaggedIds({ questionIds })
-    .then((r) => (r.success ? r.flaggedIds : []))
-    .catch(() => [] as string[])
+  const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
     const [questionsResult, flaggedIds] = await Promise.all([
       loadSessionQuestions(questionIds),

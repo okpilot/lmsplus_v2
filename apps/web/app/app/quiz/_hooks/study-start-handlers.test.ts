@@ -2,14 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockStartStudy, mockSessionStorageSetItem } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
-  mockStartStudy: vi.fn(),
-  mockSessionStorageSetItem: vi.fn(),
-}))
+const { mockRouterPush, mockStartStudy, mockSessionStorageSetItem, mockEndDiscovery } = vi.hoisted(
+  () => ({
+    mockRouterPush: vi.fn(),
+    mockStartStudy: vi.fn(),
+    mockSessionStorageSetItem: vi.fn(),
+    mockEndDiscovery: vi.fn(),
+  }),
+)
 
 vi.mock('../actions/study', () => ({
   startStudy: (...args: unknown[]) => mockStartStudy(...args),
+}))
+
+vi.mock('../actions/end-discovery', () => ({
+  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
 }))
 
 vi.mock('../session/_utils/quiz-session-handoff', () => ({
@@ -73,6 +80,7 @@ beforeEach(() => {
     writable: true,
   })
   mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()] })
+  mockEndDiscovery.mockResolvedValue({ success: true })
 })
 
 // ---- Same-tick re-entry ----------------------------------------------------
@@ -115,6 +123,9 @@ describe('buildStudyStartHandler — retryable failures', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith('No questions match these filters.')
+
+    await handleStart()
+    expect(mockStartStudy).toHaveBeenCalledTimes(2)
   })
 
   it('allows a second attempt after the start throws', async () => {
@@ -131,7 +142,7 @@ describe('buildStudyStartHandler — retryable failures', () => {
     expect(mockStartStudy).toHaveBeenCalledTimes(2)
   })
 
-  it('allows a second attempt after the discovery handoff write fails', async () => {
+  it('ends the orphaned discovery session and allows a retry when the handoff write fails', async () => {
     mockSessionStorageSetItem.mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })
@@ -140,11 +151,40 @@ describe('buildStudyStartHandler — retryable failures', () => {
 
     await handleStart()
 
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith(
       'Unable to start discovery right now. Please try again.',
     )
+
+    await handleStart()
+    expect(mockStartStudy).toHaveBeenCalledTimes(2)
+  })
+
+  it('still allows a retry when the orphan cleanup itself throws', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockEndDiscovery.mockRejectedValue(new Error('cleanup network failure'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const deps = makeDeps()
+      const handleStart = buildStudyStartHandler(deps)
+
+      await handleStart()
+
+      expect(deps.inFlight.current).toBe(false)
+      expect(deps.setError).toHaveBeenCalledWith(
+        'Unable to start discovery right now. Please try again.',
+      )
+
+      await handleStart()
+      expect(mockStartStudy).toHaveBeenCalledTimes(2)
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 })
 
