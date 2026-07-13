@@ -4,6 +4,19 @@
 > (#953 budget curation). The live tracker, durable knowledge, and false-positives stay in
 > `MEMORY.md`; this file holds the verbose per-commit detail. History also lives in `git log`.
 
+## Positive-pattern log
+
+### batch/928-1010-1041-client-hardening CR-round-1 fixup (2026-07-13)
+
+CLEAN. 8 files, 0 critical, 0 issues, 0 suggestions. Checklist all clear:
+- (a) Lock/reset semantics: cleanup helpers called before failStart; helpers internally try/catch, never propagate; failStart always reached → inFlight.current = false guaranteed. Matches exam-start-handlers.ts reference shape exactly.
+- (b) Bounded flag fetch: `flags` has `.catch(()=>[])`, `timeout` only resolves → `Promise.race` always resolves; `.finally(()=>clearTimeout(timer))` runs on both paths (no leak); `loadSessionQuestions` NOT inside fetchFlaggedIdsBounded (stays unbounded). Correct.
+- (c) No action files (study.ts, end-discovery.ts, discard.ts) in diff — imports only. Correct.
+- (d) Fake-timer test: `vi.useRealTimers()` in `finally` block — restores on all paths. Correct.
+- (e) Nothing unplanned — all 8 diff files match the 8 plan items.
+
+Pattern: `Promise.race + .catch(() => []) + .finally(() => clearTimeout)` for cosmetic fetches with a hard timeout ceiling — first correct use of this shape in the codebase. Reference for future bounded-await implementations.
+
 ## Tracker-row & false-positive detail relocated from MEMORY.md (2026-07-11 budget curation)
 
 Verbose bodies moved here verbatim; the MEMORY.md rows/bullets keep a terse summary + pointer.
