@@ -10,7 +10,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 15 | 2026-07-13 | PROMOTED → enforced: write the branch test in the SAME commit |
+| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 16 | 2026-07-13 | PROMOTED → enforced: write the branch test in the SAME commit |
 | `vi.fn` two-arg generic form (removed in Vitest 4, fails `check-types`) | 2026-03-14 | 2 | 2026-03-15 | PROMOTED → use single function-type arg form (recipes: vi.fn generic) |
 | Test name contradicts its assertion postcondition | 2026-04-05 | 3 | 2026-06-06 | PROMOTED → re-read name vs assertion, fix in same commit |
 

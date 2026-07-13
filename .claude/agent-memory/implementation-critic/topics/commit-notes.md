@@ -6,6 +6,15 @@
 
 ## Positive-pattern log
 
+### batch/928-1010-1041-client-hardening CR-round-2 fixup (2026-07-13)
+
+CLEAN. 12 files, 0 critical, 0 issues, 0 suggestions. All 7 plan items verified:
+- (a) RecoveryDeps type conversion behavior-preserving: Pick<> signatures match original positional params exactly (Resume: userId+session+setError+router; Save: all 7; Discard: userId+session+inFlightRef+setSession); `inFlightRef: actionInFlightRef` key mapping in hook correct; `deps.router.refresh()` (non-terminal) preserved; all call sites confirmed via tsc-clean + grep.
+- (b) "unfinished session" string: no test in start-handler-shared.test.ts / quiz-start-handlers.test.ts / exam-start-handlers.test.ts asserts the literal; start-handler-shared.test.ts uses `expect.stringContaining` with activity noun / subject name only. Safe.
+- (c) buildRecoveryResume success test: `toSessionData` is the REAL function (not mocked — quiz-session-storage has no vi.mock); success assertion is non-vacuous. Failure test correctly derives `setResumeError('RPC error')` from QUESTIONS_FAILURE.error via real loadSessionData chain.
+- (d) 12 files only — stat confirmed.
+- (e) Worktrees using old positional signatures are separate branches, not staged — out of scope per critic rules.
+
 ### batch/928-1010-1041-client-hardening CR-round-1 fixup (2026-07-13)
 
 CLEAN. 8 files, 0 critical, 0 issues, 0 suggestions. Checklist all clear:
