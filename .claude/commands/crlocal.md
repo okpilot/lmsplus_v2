@@ -15,6 +15,10 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
 
+   **Flags (CLI 0.7.0+).** `--plain` was REMOVED (plain text is now the default output) and `--type committed` was renamed to `--committed`. CLI 0.6.5 still accepted the old forms, so a stale invocation dies with `unknown option '--plain'` before reviewing anything. If a future release moves them again, read `coderabbit review --help` rather than guessing.
+
+   **If the CLI rejects `origin/master` as a `--base` value**, fall back to `--base-commit "$(git rev-parse origin/master)"` (the help text documents `--base <branch>` with plain-branch examples, so a slash-containing remote-tracking ref may not resolve on every version). Do NOT fall back to a bare `--base master` — that is the stale-base bug this form exists to avoid (`agent-workflow.md § Always diff against origin/master`).
+
    **Always pass `-c .coderabbit.yaml`** (belt-and-suspenders). Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating the `actions.ts` `path_instructions` was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it because it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if `.coderabbit.yaml` does not exist. You may pass additional rule-dense docs the same way (`-c .coderabbit.yaml CLAUDE.md`); mind the prompt token budget. (Note: the CLI honors `path_instructions` but does NOT run `pre_merge_checks`/`custom_checks` as named merge gates — those are hosted-PR-bot-only, confirmed by a second A/B 2026-06-18; their protections still surface via `path_instructions` + CR's default security review.)
 
    **Belt-and-suspenders reminder delivery.** Two layers:

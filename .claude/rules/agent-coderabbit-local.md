@@ -80,4 +80,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-07-23 (CLI 0.6.5 removed `--plain` and renamed `--type committed` → `--committed`; base is now `origin/master`; #1134. Prior: 2026-07-03 Common Pitfall #7 broadened to cloud CR, count=5, #1061.)*
+*Last updated: 2026-07-23 (CLI 0.7.0 removed `--plain` and renamed `--type committed` → `--committed` — 0.6.5 still accepted the old flags; verified on 0.7.0. Base is now `origin/master`; #1134. Prior: 2026-07-03 Common Pitfall #7 broadened to cloud CR, count=5, #1061.)*

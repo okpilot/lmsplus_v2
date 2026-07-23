@@ -289,8 +289,12 @@ Staleness inflates; semantic derivation under-reports. Fixing one does not fix t
 master:master` is *refused* whenever `master` is checked out in ANY worktree (this repo runs
 several, and `/automerge` leaves the main checkout on `master` after every merge), and it is
 also refused on a non-fast-forward when local `master` carries un-merged commits. Use
-`origin/master` in the revision expression instead — it is always correct and needs no
-pre-check, no guard, and no fetch.
+`origin/master` in the revision expression instead. It cannot INFLATE the diff the way a lagging
+local `master` does: with the three-dot form the merge-base is unaffected by a lagging
+remote-tracking ref, and with the two-dot form the branch commits are still exactly the set not
+reachable from the fork point. So no fast-forward pre-step is needed. (`origin/master` is itself
+a local ref that only moves on fetch — a routine `git fetch origin` keeps it current; what you must
+not do is try to move local `master`.)
 
 If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
 first (safe — updates only the remote-tracking ref), then compare `git rev-parse master
