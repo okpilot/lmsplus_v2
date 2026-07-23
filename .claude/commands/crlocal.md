@@ -28,6 +28,13 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
    On the exact failures the `rc` capture exists to catch (missing CLI, removed flag, rejected `--base`) the CLI exits in milliseconds and the log contains only the STOP banner plus `coderabbit exit code: N` — neither "Review completed" nor "findings ✔" ever appears, so a predicate without the third term spins to timeout instead of failing fast. Then read the last line to decide clean-vs-failed.
 
+   **Version-gate before running (CLI ≥ 0.7.0).** `which coderabbit` only proves the binary exists; a 0.6.x install still reaches `--committed` and dies on it mid-round. Check `coderabbit --version` FIRST:
+
+   ```bash
+   ver=$(coderabbit --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+   case "$ver" in 0.[0-6].*|'') echo "coderabbit $ver too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1;; esac
+   ```
+
    **Flags (CLI 0.7.0+).** `--plain` was REMOVED (plain text is now the default output) and `--type committed` was renamed to `--committed`. CLI 0.6.5 still accepted the old forms, so a stale invocation dies with `unknown option '--plain'` before reviewing anything. If a future release moves them again, read `coderabbit review --help` rather than guessing.
 
    **If the CLI rejects `origin/master` as a `--base` value**, fall back to `--base-commit`, but resolve the SHA into a variable FIRST and guard it — an `exit 1` INSIDE `$(...)` only exits the command-substitution subshell, so `--base-commit "$(... || exit 1)"` still runs with an EMPTY base on failure (verified). Use:
