@@ -317,12 +317,15 @@ local `master`, which is what you must never do.
 
 **Fail closed on an unresolvable base — or a failed fetch.** If `git fetch origin` itself fails,
 `origin/master` usually stays RESOLVABLE at its old value, so a resolvable-ref check alone does not
-catch it: treat a failed fetch as a hard stop in its own right. If the ref cannot be resolved or the
-diff command errors, **STOP and say so** — never treat an errored or empty result as "no paths
-matched". Every gate keyed off the changed-path set fails OPEN in that case: the mandatory
-red-team run (`/fullpush` step 7b) is skipped, and the security-path floor silently drops from
-N=3 to N=2. Resolve and validate the base first, capture the changed-file list once, and abort
-on any lookup or diff failure rather than proceeding on an empty list.
+catch it: treat a failed fetch as a hard stop in its own right. **Abort on a non-zero EXIT CODE
+from fetch, base resolution, or the diff command — NOT on an empty result.** A successful
+`git diff` that returns zero paths is a legitimate no-op (the branch changed nothing matching)
+and must proceed, matching no conditional; only a command that *errored* (non-zero exit) means
+the scope is unknown. Conflating the two is itself a bug in both directions: aborting on a valid
+empty diff blocks legitimate work, and proceeding on an errored diff fails OPEN — the mandatory
+red-team run (`/fullpush` step 7b) is skipped and the security-path floor silently drops from
+N=3 to N=2. Resolve and validate the base first, capture the changed-file list once with its
+exit code checked, and branch on the exit code — never on whether the list is empty.
 
 If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
 first and ABORT if it fails; then compare `git rev-parse master origin/master` and **hard-stop

@@ -16,7 +16,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
 
 ### Cross-file consistency (for 2+ commit branches)
-8. Run `git diff origin/master...HEAD` and review the full PR diff — not just the latest commit.
+8. Run `git fetch origin` (ABORT if it fails — a stale `origin/master` distorts PR scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` and review the full PR diff — not just the latest commit.
 9. Check: do test assertions match production code changed in different commits?
 10. Check: do doc matrices/tables match schema changes from earlier commits?
 11. Check: are fallback values and error handling consistent across all commits?

@@ -10,7 +10,7 @@ The runtime command is `/crlocal`. This file is the binding policy.
 ## Trigger Conditions
 - **Pre-push:** every multi-commit branch (2+ commits) before pushing. Required step in `/fullpush`.
 - **Mid-development:** when a single commit added 200+ LOC of new code, or when the orchestrator wants early signal before continuing.
-- **Skip if:** `which coderabbit` returns nothing — tell the user to install via `https://docs.coderabbit.ai/cli/`.
+- **Skip if:** `which coderabbit` returns nothing — tell the user to install via `https://docs.coderabbit.ai/cli/`. **Also version-gate, don't just presence-check:** the `--committed` / default-plain flags require CLI **≥ 0.7.0** (0.6.x used `--type committed` / `--plain`). Confirm `coderabbit --version` before running; on an older install either tell the user to upgrade or use the 0.6.x flag spelling — do NOT enter `/crlocal` and let it die on the flag mid-round.
 
 Do NOT run after every commit — too slow (2-5 min per round), no value on small fix commits.
 

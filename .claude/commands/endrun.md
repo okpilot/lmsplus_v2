@@ -22,7 +22,8 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
 
 1. **Gather git activity** (current branch vs `origin/master`):
    ```bash
-   git fetch origin || exit 1   # a stale origin/master inflates every number below
+   git fetch origin || { echo 'fetch failed — ABORT, do not write a run row'; exit 1; }
+   git rev-parse --verify origin/master^{commit} >/dev/null || { echo 'origin/master unresolvable — ABORT'; exit 1; }
    BR=$(git branch --show-current)
    git rev-list --count origin/master..HEAD
    git log origin/master..HEAD --format='%at' | sed -n '1p;$p'   # last, first epoch
