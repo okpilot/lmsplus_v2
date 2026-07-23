@@ -21,22 +21,12 @@ describe('normalizeAnswer', () => {
     expect(normalizeAnswer(input)).toBe(expected)
   })
 
-  it.each([
-    ['.'],
-    [','],
-    [';'],
-    [':'],
-    ['!'],
-    ['?'],
-    ['"'],
-    ["'"],
-    ['('],
-    [')'],
-    ['['],
-    [']'],
-  ])('strips the %j punctuation character', (punct) => {
-    expect(normalizeAnswer(`a${punct}b`)).toBe('ab')
-  })
+  it.each([['.'], [','], [';'], [':'], ['!'], ['?'], ['"'], ["'"], ['('], [')'], ['['], [']']])(
+    'strips the %j punctuation character',
+    (punct) => {
+      expect(normalizeAnswer(`a${punct}b`)).toBe('ab')
+    },
+  )
 
   // The SQL grader (migration 101 `normalize_answer`) relies on Postgres lower(),
   // which preserves diacritics under UTF-8 rather than folding them to ASCII.

@@ -57,19 +57,18 @@ describe('deleteItem', () => {
   })
 
   describe('delete from each allowed table', () => {
-    it.each([
-      'easa_subjects',
-      'easa_topics',
-      'easa_subtopics',
-    ] as const)('deletes from %s and revalidates on success', async (table) => {
-      mockAdminWithDeleteResult({ error: null })
+    it.each(['easa_subjects', 'easa_topics', 'easa_subtopics'] as const)(
+      'deletes from %s and revalidates on success',
+      async (table) => {
+        mockAdminWithDeleteResult({ error: null })
 
-      const result = await deleteItem({ id: VALID_UUID, table })
+        const result = await deleteItem({ id: VALID_UUID, table })
 
-      expect(result.success).toBe(true)
-      expect(mockFrom).toHaveBeenCalledWith(table)
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
-    })
+        expect(result.success).toBe(true)
+        expect(mockFrom).toHaveBeenCalledWith(table)
+        expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
+      },
+    )
   })
 
   describe('error paths', () => {
