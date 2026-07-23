@@ -103,7 +103,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff origin/master...HEAD --name-only` for diffs). Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`") — an unresolvable base must ABORT, never be read as "no paths matched". Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
+**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff origin/master...HEAD --name-only` for diffs). Fetch and verify the base first (see § "Always diff against `origin/master`, never the bare local `master`" below) — an unresolvable base must ABORT, never be read as "no paths matched". Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -258,10 +258,10 @@ This is what CodeRabbit sees — our agents must see it too.
 
 Every diff base in this repo's tooling is `origin/master`, not `master`. The local `master`
 ref only moves when something explicitly fast-forwards it, so it is routinely stale — and a
-stale base does not error, it silently **inflates** the diff. A local `master` that lags
-`origin/master` yields an older merge-base, so `master...HEAD` reports a strict **superset** of
+stale base does not error, it silently **distorts** the diff. A local `master` that lags
+`origin/master` yields an older merge-base, so `master...HEAD` usually reports a **superset** of
 the real change: already-merged files appear as if this branch wrote them. Everything derived
-from that diff inherits the inflation:
+from that diff inherits the distortion:
 
 - the **PR-level sweep** above reviews already-merged code, wasting a round and producing
   findings on code this PR never wrote;
@@ -270,9 +270,15 @@ from that diff inherits the inflation:
 - **`/endrun`** writes an inflated commit count, diff stat, and span permanently into
   `.claude/run-log.md`;
 - the **security-path stability floor** (`agent-critic.md`) is derived from the changed-path
-  set, so an inflated set can raise N=2 to N=3 — costing an extra round. Note the direction:
-  because a lagging base can only ADD paths, staleness cannot hide a security path or lower
-  the floor. (Under-deriving the floor has a different cause — see below.)
+  set, so an inflated set can raise N=2 to N=3 — costing an extra round. **Staleness is NOT safe
+  in one direction only: it can also HIDE a security path.** A stale base is a superset of the
+  COMMIT range, not of the CONTENT change — so if this branch REVERTS a change that landed
+  upstream after the stale ref, the file is identical at the stale merge-base and at HEAD and
+  drops out of the diff entirely. Verified: with `sec.txt` changed A→B upstream and the branch
+  reverting B→A, the true base lists `sec.txt` while the stale base lists nothing. The floor
+  then silently reads N=2 and `/fullpush` 7b skips the MANDATORY red-team run — the same
+  fail-open this section forbids below, reached by a different route. Never assume staleness is
+  safe in EITHER direction. (Under-deriving the floor also has a separate cause — see below.)
 
 Promoted at learner count=2 (issue #1134). Second occurrence, 2026-07-23: local `master` sat 2
 commits behind `origin/master`, so `master...HEAD` read 18 files / 1492 lines instead of the

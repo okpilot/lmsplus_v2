@@ -22,6 +22,7 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
 
 1. **Gather git activity** (current branch vs `origin/master`):
    ```bash
+   git fetch origin || exit 1   # a stale origin/master inflates every number below
    BR=$(git branch --show-current)
    git rev-list --count origin/master..HEAD
    git log origin/master..HEAD --format='%at' | sed -n '1p;$p'   # last, first epoch
@@ -32,7 +33,7 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
    - **Per-run baseline:** when `.claude/.run-start` exists (written at run START via
      `{ git rev-parse HEAD; date -u +%FT%TZ; } > .claude/.run-start`), compute commits/diff/span
-     from its recorded SHA (`<SHA>..HEAD`) instead of `origin/master..HEAD`. If it's absent, fall back to
+     from its recorded SHA (`<SHA>..HEAD`) instead of `origin/master..HEAD`. (Two-dot is safe for the shortstat here specifically because `.run-start` records `git rev-parse HEAD`, always an ancestor of HEAD, so two-dot and three-dot coincide; do NOT generalise two-dot to other diffs.) If it's absent, fall back to
      `origin/master..HEAD` and add an explicit caveat in the row: "may include earlier work on a
      long-lived branch". After the run row is written, DELETE `.claude/.run-start` so it can't
      leak into the next run.
