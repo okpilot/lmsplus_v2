@@ -9,7 +9,11 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 ## What to do
 
 1. **Run the review:**
+
+   Fetch first — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
+
    ```bash
+   git fetch origin || { echo 'fetch failed — ABORT, do not review against a stale base'; exit 1; }
    coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
    printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
    echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log
