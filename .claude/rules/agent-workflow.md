@@ -103,7 +103,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff origin/master...HEAD --name-only` for diffs). Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
+**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff origin/master...HEAD --name-only` for diffs). Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`") — an unresolvable base must ABORT, never be read as "no paths matched". Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -289,10 +289,12 @@ Staleness inflates; semantic derivation under-reports. Fixing one does not fix t
 master:master` is *refused* whenever `master` is checked out in ANY worktree (this repo runs
 several, and `/automerge` leaves the main checkout on `master` after every merge), and it is
 also refused on a non-fast-forward when local `master` carries un-merged commits. Use
-`origin/master` in the revision expression instead. Unlike local `master`, it needs no
-fast-forward: with the three-dot form the merge-base is unaffected by a lagging remote-tracking
-ref, and with the two-dot form the branch commits are still exactly the set not reachable from
-the fork point.
+`origin/master` in the revision expression instead — it carries no worktree hazard and never
+requires moving a local branch. **Both** range forms still need a freshly fetched, verified
+base: while `origin/master` sits at or ahead of the branch's fork point the two forms agree and
+neither inflates, but a ref that has fallen BEHIND the fork point inflates both (three-dot moves
+the merge-base back; two-dot starts admitting commits this branch never authored). Do not rely
+on one form being safer than the other — fetch, then verify.
 
 **`git fetch origin` first — every time, not just for third-party tools.** `origin/master` is
 itself a local ref that only advances on fetch, so it goes stale exactly like `master` does,
