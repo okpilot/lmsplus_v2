@@ -35,7 +35,9 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```bash
    BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
    coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml
-   ``` (the help text documents `--base <branch>` with plain-branch examples, so a slash-containing remote-tracking ref may not resolve on every version). Do NOT fall back to a bare `--base master` — that is the stale-base bug this form exists to avoid (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
+   ```
+
+   (The help text documents `--base <branch>` with plain-branch examples, so a slash-containing remote-tracking ref may not resolve on every version.) Do NOT fall back to a bare `--base master` — that is the stale-base bug this form exists to avoid (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
    **Always pass `-c .coderabbit.yaml`** (belt-and-suspenders). Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating the `actions.ts` `path_instructions` was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it because it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if `.coderabbit.yaml` does not exist. You may pass additional rule-dense docs the same way (`-c .coderabbit.yaml CLAUDE.md`); mind the prompt token budget. (Note: the CLI honors `path_instructions` but does NOT run `pre_merge_checks`/`custom_checks` as named merge gates — those are hosted-PR-bot-only, confirmed by a second A/B 2026-06-18; their protections still surface via `path_instructions` + CR's default security review.)
 

@@ -31,6 +31,7 @@ After answering the checklist:
 4. **Run the full test suite**: `pnpm --filter @repo/web test -- --run` — report pass/fail count. (Vitest runs unit AND integration locally — they mock the DB, so no Supabase instance is needed.)
 5. **Build the app**: `pnpm build` (`turbo run build`). Always run it — catches RSC / Server-vs-Client boundary / static-generation errors that `tsc` misses. Turbo caches unchanged packages, so incremental builds are fast. A build failure blocks the push.
 5b. **Fetch and capture the changed-path list ONCE, fail-closed.** Before the conditionals below, run:
+
     ```bash
     git fetch origin || { echo 'fetch failed — ABORT'; exit 1; }
     git rev-parse --verify origin/master^{commit} >/dev/null || { echo 'origin/master unresolvable — ABORT'; exit 1; }
