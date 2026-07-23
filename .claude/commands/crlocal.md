@@ -10,9 +10,12 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 1. **Run the review:**
    ```bash
-   coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log
+   coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log
    ```
+
+   **Capture `rc=$?` — do not let the review's exit code be swallowed.** The `;` before `printf` means the shell's final status is `printf`'s, not the review's, so a missing CLI, a removed flag, or a rejected `--base` would otherwise look like a clean pass with zero findings. **A non-zero exit code means the review DID NOT RUN — never count that round as clean.** Read the code off the last line of the log.
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
 
    **Flags (CLI 0.7.0+).** `--plain` was REMOVED (plain text is now the default output) and `--type committed` was renamed to `--committed`. CLI 0.6.5 still accepted the old forms, so a stale invocation dies with `unknown option '--plain'` before reviewing anything. If a future release moves them again, read `coderabbit review --help` rather than guessing.

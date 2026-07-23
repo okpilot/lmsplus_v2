@@ -290,11 +290,18 @@ master:master` is *refused* whenever `master` is checked out in ANY worktree (th
 several, and `/automerge` leaves the main checkout on `master` after every merge), and it is
 also refused on a non-fast-forward when local `master` carries un-merged commits. Use
 `origin/master` in the revision expression instead — it carries no worktree hazard and never
-requires moving a local branch. **Both** range forms still need a freshly fetched, verified
-base: while `origin/master` sits at or ahead of the branch's fork point the two forms agree and
-neither inflates, but a ref that has fallen BEHIND the fork point inflates both (three-dot moves
-the merge-base back; two-dot starts admitting commits this branch never authored). Do not rely
-on one form being safer than the other — fetch, then verify.
+requires moving a local branch.
+
+**Pick the right range form; they are NOT interchangeable.** Use **three-dot** `origin/master...HEAD`
+for any *diff* — it compares HEAD against the merge-base, which is the PR's own scope. Two-dot
+`git diff origin/master..HEAD` compares the two TIPS, so once master advances past the fork point it
+also reports upstream changes this branch never made. Use **two-dot** `origin/master..HEAD` only for
+*commit enumeration* (`git log`, `git rev-list --count`), where it correctly means "commits reachable
+from HEAD but not from the base". `/endrun` relies on exactly this split.
+
+**Both forms still need a freshly fetched, verified base.** A ref that has fallen BEHIND the fork
+point inflates both (three-dot moves the merge-base back; two-dot starts admitting commits this
+branch never authored). Do not rely on either form being self-protecting — fetch, then verify.
 
 **`git fetch origin` first — every time, not just for third-party tools.** `origin/master` is
 itself a local ref that only advances on fetch, so it goes stale exactly like `master` does,
@@ -302,8 +309,10 @@ just more slowly. A stale `origin/master` reintroduces the same inflation (older
 already-merged paths in the diff). Fetch is cheap and has no worktree hazard — unlike moving
 local `master`, which is what you must never do.
 
-**Fail closed on an unresolvable base.** If `origin/master` cannot be resolved or the diff
-command errors, **STOP and say so** — never treat an errored or empty result as "no paths
+**Fail closed on an unresolvable base — or a failed fetch.** If `git fetch origin` itself fails,
+`origin/master` usually stays RESOLVABLE at its old value, so a resolvable-ref check alone does not
+catch it: treat a failed fetch as a hard stop in its own right. If the ref cannot be resolved or the
+diff command errors, **STOP and say so** — never treat an errored or empty result as "no paths
 matched". Every gate keyed off the changed-path set fails OPEN in that case: the mandatory
 red-team run (`/fullpush` step 7b) is skipped, and the security-path floor silently drops from
 N=3 to N=2. Resolve and validate the base first, capture the changed-file list once, and abort
