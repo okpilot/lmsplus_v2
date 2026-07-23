@@ -289,12 +289,23 @@ Staleness inflates; semantic derivation under-reports. Fixing one does not fix t
 master:master` is *refused* whenever `master` is checked out in ANY worktree (this repo runs
 several, and `/automerge` leaves the main checkout on `master` after every merge), and it is
 also refused on a non-fast-forward when local `master` carries un-merged commits. Use
-`origin/master` in the revision expression instead. It cannot INFLATE the diff the way a lagging
-local `master` does: with the three-dot form the merge-base is unaffected by a lagging
-remote-tracking ref, and with the two-dot form the branch commits are still exactly the set not
-reachable from the fork point. So no fast-forward pre-step is needed. (`origin/master` is itself
-a local ref that only moves on fetch — a routine `git fetch origin` keeps it current; what you must
-not do is try to move local `master`.)
+`origin/master` in the revision expression instead. Unlike local `master`, it needs no
+fast-forward: with the three-dot form the merge-base is unaffected by a lagging remote-tracking
+ref, and with the two-dot form the branch commits are still exactly the set not reachable from
+the fork point.
+
+**`git fetch origin` first — every time, not just for third-party tools.** `origin/master` is
+itself a local ref that only advances on fetch, so it goes stale exactly like `master` does,
+just more slowly. A stale `origin/master` reintroduces the same inflation (older merge-base ⇒
+already-merged paths in the diff). Fetch is cheap and has no worktree hazard — unlike moving
+local `master`, which is what you must never do.
+
+**Fail closed on an unresolvable base.** If `origin/master` cannot be resolved or the diff
+command errors, **STOP and say so** — never treat an errored or empty result as "no paths
+matched". Every gate keyed off the changed-path set fails OPEN in that case: the mandatory
+red-team run (`/fullpush` step 7b) is skipped, and the security-path floor silently drops from
+N=3 to N=2. Resolve and validate the base first, capture the changed-file list once, and abort
+on any lookup or diff failure rather than proceeding on an empty list.
 
 If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
 first (safe — updates only the remote-tracking ref), then compare `git rev-parse master

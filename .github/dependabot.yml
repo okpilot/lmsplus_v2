@@ -57,11 +57,13 @@ updates:
       # update still lands in a grouped PR — never a per-package one.
       #
       # `exclude-patterns` BELOW IS THE LOAD-BEARING PIECE. Drop it and
-      # typescript silently rejoins the majors batch — with NO error, and a
-      # malformed group is reported only in the repo's Dependabot run log
-      # (/network/updates), never in CI. (Order matters only as a general
-      # rule — a dependency joins the first group it matches, in file order —
-      # but these two groups are mutually exclusive by construction, so
+      # typescript simply falls back into npm-all-major — a silent BEHAVIOUR
+      # change, not a config error: Dependabot reports nothing, CI reports
+      # nothing, and the next majors PR is unmergeable again. The only place
+      # grouping behaviour is observable is the repo's Dependabot run log
+      # (/network/updates). (Order matters only as a general rule — a
+      # dependency joins the first group it matches, in file order — but
+      # these two groups are mutually exclusive by construction, so
       # reordering them alone would not break the split.)
       npm-all-major:
         exclude-patterns:
