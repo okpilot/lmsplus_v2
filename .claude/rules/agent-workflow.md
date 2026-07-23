@@ -325,9 +325,9 @@ N=3 to N=2. Resolve and validate the base first, capture the changed-file list o
 on any lookup or diff failure rather than proceeding on an empty list.
 
 If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
-first (safe — updates only the remote-tracking ref), then compare `git rev-parse master
-origin/master` and state plainly that the base is stale if they differ. Never let the tool run
-silently against an unverified base.
+first and ABORT if it fails; then compare `git rev-parse master origin/master` and **hard-stop
+if they differ or either fails to resolve** — do not merely report the mismatch and proceed.
+Only invoke the tool once the base is proven current. Never let it run against an unverified base.
 
 ## Finding Validation (MANDATORY before fixing)
 
