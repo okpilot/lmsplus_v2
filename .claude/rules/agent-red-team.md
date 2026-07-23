@@ -30,9 +30,9 @@ Do NOT run on every commit — only when the above paths are in the diff.
   - The first two were caught by CI before merge; the third reached production because Red Team Specs was non-required.
   - Verify the column exists (`grep` the `CREATE TABLE` / latest `ALTER`/`CREATE OR REPLACE`), and trace the `CREATE OR REPLACE FUNCTION` chain to the latest definition for RPC/trigger assertions.
 - The soft-delete **column-existence guard** (`.claude/hooks/check-soft-delete-guard.mjs`, code-style.md §5) mechanically blocks `.is('<column>')` on any table when `<column>` is not a real column of that table (schema-derived from `packages/db/src/types.ts`, #933) in PRODUCTION code — but red-team spec files are NOT covered by it, so the "read the migration" rule above still applies when authoring a spec that asserts soft-delete behavior.
-- **Before allocating new vector IDs in `attack-surface.md`, grep the WORKING-TREE matrix on freshly-updated `master` for the highest existing ID and start at highest+1 — never trust a max-ID (or a "spec count") computed by Explore/plan-critic against the feature branch.**
+- **Before allocating new vector IDs in `attack-surface.md`, read the matrix from `origin/master` (`git fetch origin master` then `git show origin/master:.claude/agent-memory/red-team/topics/attack-surface.md`) for the highest existing ID and start at highest+1 — never trust a max-ID (or a "spec count") computed by Explore/plan-critic against the feature branch.**
   - Promoted at count=3 (#793 renamed BL/BM/BN→CU/CV/CW on a matrix ID collision; #802 reassigned 10 internal-exam self-labels to CX–DG; #326 allocated CX–DC against a pre-#802 branch where the matrix max still read CW, corrected to DH–DM at execution time).
-  - The matrix is a high-churn shared file: sibling PRs (#796/#802/#817) can merge between a branch's cut and the work, advancing both the max ID and the red-team spec-count literal. Cut the work branch off fresh `master` and re-read the live working-tree matrix header BEFORE allocating — a stale branch silently understates both.
+  - The matrix is a high-churn shared file: sibling PRs (#796/#802/#817) can merge between a branch's cut and the work, advancing both the max ID and the red-team spec-count literal. Cut the work branch off `origin/master` and re-read the matrix header from `origin/master` BEFORE allocating — a stale branch silently understates both. Read `origin/master`, NOT the bare local `master`: the local ref is routinely stale and must not be fast-forwarded as a workaround (see `agent-workflow.md § Always diff against origin/master, never the bare local master`, #1134).
   - When re-lettering a spec's self-labels, grep ALL cross-reference forms — `Vector X`, `(mirror of X)`, `vs X`, bare `(X)` — not just `Vector X`; a narrow grep leaves stale labels (#326 missed a `(mirror of BI)` title).
 
 ### NEVER
@@ -44,4 +44,4 @@ Do NOT run on every commit — only when the above paths are in the diff.
 
 ---
 
-*Last updated: 2026-06-09 (added vector-ID allocation rule — verify matrix max-ID against fresh master before allocating; #820/count=3)*
+*Last updated: 2026-07-23 (vector-ID allocation now reads the matrix from `origin/master`, not a fast-forwarded local `master`; #1134. Prior: 2026-06-09 vector-ID allocation rule, #820/count=3.)*

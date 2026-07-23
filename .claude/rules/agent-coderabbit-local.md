@@ -1,6 +1,6 @@
 # Agent Rules — coderabbit-local (external CLI)
 
-> External LLM reviewer (`coderabbit review --plain --base master --type committed -c .coderabbit.yaml`) | Trigger: pre-push, mid-development | Non-blocking
+> External LLM reviewer (`coderabbit review --committed --base origin/master -c .coderabbit.yaml`) | Trigger: pre-push, mid-development | Non-blocking
 
 ## Purpose
 CodeRabbit local CLI runs the same review engine that comments on PRs, against the local branch diff before push. Catches things our internal agents systematically miss — observability gaps on `.select('id')` chains, runtime guard omissions on RPC casts, cleanup ordering, helper hoisting, error-path consistency. Cheaper to run pre-push than to triage on the PR after CI.
@@ -37,7 +37,7 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 
 1. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces the former consecutive-clean floor).** Run a **minimum of M rounds**, then stop on the first round **at or after** the minimum that has **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts).
    - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
+   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff origin/master...HEAD --name-only`.
    - An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one round** (fix the finding, then run one more round to confirm the fix surfaced nothing new). Rounds count cumulatively toward M; you simply cannot stop *on* a round that still carries an APPLY verdict, and cannot stop *before* round M.
    - Every round runs with `-c .coderabbit.yaml`. The cloud CodeRabbit review on the pushed PR stays the strict authoritative gate regardless of how many local rounds ran.
 2. **4 fixup commits driven by CR local** on the current branch (= 4 fix rounds, under one-fixup-commit-per-round — see DO below) — a hard ceiling that caps total effort even if the floor is unmet; escalate to user judgment rather than looping further.
@@ -80,4 +80,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-07-03 (broadened Common Pitfall #7 to cloud CR — learner count=5, #1061)*
+*Last updated: 2026-07-23 (CLI 0.6.5 removed `--plain` and renamed `--type committed` → `--committed`; base is now `origin/master`; #1134. Prior: 2026-07-03 Common Pitfall #7 broadened to cloud CR, count=5, #1061.)*

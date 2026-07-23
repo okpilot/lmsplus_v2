@@ -53,9 +53,37 @@ updates:
           - minor
           - patch
       # Higher-risk: batch majors into their own PR for deliberate review /
-      # migration, so they don't block the minor/patch batch above. Both
-      # groups are workspace-wide (no patterns), so every update lands in a
-      # grouped PR — never a per-package one.
+      # migration, so they don't block the minor/patch batch above. Every
+      # update still lands in a grouped PR — never a per-package one.
+      #
+      # `exclude-patterns` BELOW IS THE LOAD-BEARING PIECE. Drop it and
+      # typescript silently rejoins the majors batch — with NO error, and a
+      # malformed group is reported only in the repo's Dependabot run log
+      # (/network/updates), never in CI. (Order matters only as a general
+      # rule — a dependency joins the first group it matches, in file order —
+      # but these two groups are mutually exclusive by construction, so
+      # reordering them alone would not break the split.)
       npm-all-major:
+        exclude-patterns:
+          - "typescript"
+        update-types:
+          - major
+      # typescript majors get their own PR because TS 7 is blocked UPSTREAM:
+      # Next.js cannot build under typescript@7 (it dropped lib/typescript.js
+      # and moved the compiler API to ./unstable/* entrypoints, so Next's TS
+      # probe reports "do not have the required package(s) installed" and the
+      # build worker exits 1 — reproduced on next 16.2.10 AND 16.2.11; note
+      # `tsc --noEmit` itself passes). A grouped PR merges all-or-nothing, so
+      # leaving typescript in npm-all-major would make EVERY future majors PR
+      # unmergeable until Next adopts the TS7 API surface.
+      #
+      # This is ISOLATION, NOT SUPPRESSION — deliberately not an `ignore:`
+      # entry. Dependabot still tracks typescript and still opens a PR for
+      # each new major, so we keep the signal telling us when TS7 becomes
+      # viable; it just can't hold the other majors hostage. Delete this group
+      # (and the exclude-patterns above) once Next.js supports TypeScript 7.
+      npm-typescript-major:
+        patterns:
+          - "typescript"
         update-types:
           - major

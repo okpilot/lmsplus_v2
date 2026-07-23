@@ -10,7 +10,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 1. **Run the review:**
    ```bash
-   coderabbit review --plain --base master --type committed -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; \
+   coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; \
    printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log
    ```
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
@@ -46,7 +46,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 8. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces consecutive-clean).** CodeRabbit is non-deterministic — the same diff yields different findings each run — so a *single* quiet round is weak evidence; run several rounds to sample it. But CR-local is a **pre-push preview** of the cloud CodeRabbit that reviews the actual PR on push (the authoritative gate — we never merge on `CHANGES_REQUESTED`), so a "stability proof" on the local preview is not required. Run a **minimum of M rounds**, then stop on the first round **at or after** M with **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts):
    - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Compute via `git diff master...HEAD --name-only`.
+   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Compute via `git diff origin/master...HEAD --name-only`.
 
    Every round must run with `-c .coderabbit.yaml`. An **Apply** verdict does NOT reset a counter — it **extends the loop by one round** (fix it, run one more round to confirm nothing new surfaced). You cannot stop *on* a round that still has an Apply verdict, nor *before* round M. Report the running round count to the user each round (e.g. "round 2/2 min, last round clean → stop").
 

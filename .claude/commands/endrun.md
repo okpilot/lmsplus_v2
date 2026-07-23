@@ -20,20 +20,20 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
 
 ## Steps
 
-1. **Gather git activity** (current branch vs `master`):
+1. **Gather git activity** (current branch vs `origin/master`):
    ```bash
    BR=$(git branch --show-current)
-   git rev-list --count master..HEAD
-   git log master..HEAD --format='%at' | sed -n '1p;$p'   # last, first epoch
-   git diff master...HEAD --shortstat
-   git log master..HEAD --format='%h %ai %s'
+   git rev-list --count origin/master..HEAD
+   git log origin/master..HEAD --format='%at' | sed -n '1p;$p'   # last, first epoch
+   git diff origin/master...HEAD --shortstat
+   git log origin/master..HEAD --format='%h %ai %s'
    ```
    - Commit span = first → last commit (HH:MM). Prefer `.claude/.run-start` if it exists.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
    - **Per-run baseline:** when `.claude/.run-start` exists (written at run START via
      `{ git rev-parse HEAD; date -u +%FT%TZ; } > .claude/.run-start`), compute commits/diff/span
-     from its recorded SHA (`<SHA>..HEAD`) instead of `master..HEAD`. If it's absent, fall back to
-     `master..HEAD` and add an explicit caveat in the row: "may include earlier work on a
+     from its recorded SHA (`<SHA>..HEAD`) instead of `origin/master..HEAD`. If it's absent, fall back to
+     `origin/master..HEAD` and add an explicit caveat in the row: "may include earlier work on a
      long-lived branch". After the run row is written, DELETE `.claude/.run-start` so it can't
      leak into the next run.
 
