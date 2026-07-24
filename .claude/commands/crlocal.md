@@ -10,7 +10,17 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 1. **Run the review:**
 
-   Fetch first — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
+   **Version-gate FIRST (CLI ≥ 0.7.0), before anything else.** `which coderabbit` only proves the binary exists; a 0.6.x install still reaches `--committed` and dies on it mid-round. Parse `major.minor.patch` and compare NUMERICALLY (a glob like `0.[0-6].*` is fragile — it mis-handles multi-digit minors). This must run above the `coderabbit review` block:
+
+   ```bash
+   ver=$(coderabbit --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+   IFS=. read -r vmaj vmin _ <<< "$ver"
+   if [ -z "$ver" ] || [ "$vmaj" -eq 0 -a "$vmin" -lt 7 ]; then
+     echo "coderabbit '${ver:-none}' too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1
+   fi
+   ```
+
+   Fetch next — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
    ```bash
    git fetch origin || { echo 'fetch failed — ABORT, do not review against a stale base'; exit 1; }
@@ -27,13 +37,6 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```
 
    On the exact failures the `rc` capture exists to catch (missing CLI, removed flag, rejected `--base`) the CLI exits in milliseconds and the log contains only the STOP banner plus `coderabbit exit code: N` — neither "Review completed" nor "findings ✔" ever appears, so a predicate without the third term spins to timeout instead of failing fast. Then read the last line to decide clean-vs-failed.
-
-   **Version-gate before running (CLI ≥ 0.7.0).** `which coderabbit` only proves the binary exists; a 0.6.x install still reaches `--committed` and dies on it mid-round. Check `coderabbit --version` FIRST:
-
-   ```bash
-   ver=$(coderabbit --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-   case "$ver" in 0.[0-6].*|'') echo "coderabbit $ver too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1;; esac
-   ```
 
    **Flags (CLI 0.7.0+).** `--plain` was REMOVED (plain text is now the default output) and `--type committed` was renamed to `--committed`. CLI 0.6.5 still accepted the old forms, so a stale invocation dies with `unknown option '--plain'` before reviewing anything. If a future release moves them again, read `coderabbit review --help` rather than guessing.
 
