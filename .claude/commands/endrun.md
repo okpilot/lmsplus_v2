@@ -25,10 +25,16 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    git fetch origin || { echo 'fetch failed — ABORT, do not write a run row'; exit 1; }
    git rev-parse --verify origin/master^{commit} >/dev/null || { echo 'origin/master unresolvable — ABORT'; exit 1; }
    BR=$(git branch --show-current)
-   git rev-list --count origin/master..HEAD
-   git log origin/master..HEAD --format='%at' | sed -n '1p;$p'   # last, first epoch
-   git diff origin/master...HEAD --shortstat
-   git log origin/master..HEAD --format='%h %ai %s'
+   # Fail closed on every stat command too — resolving both refs does NOT guarantee the walks
+   # succeed: the three-dot diff needs a merge base and errors ("no merge base") when the branch
+   # shares no common ancestor with origin/master; the two-dot walks can fail on object corruption.
+   git rev-list --count origin/master..HEAD || { echo 'commit count failed — ABORT, do not write a run row'; exit 1; }
+   # Capture git log BEFORE the sed pipe: `git log | sed || {…}` would guard sed (which succeeds on
+   # empty input), masking a git-log failure. Guard the capture, then pipe.
+   span=$(git log origin/master..HEAD --format='%at') || { echo 'commit span failed — ABORT, do not write a run row'; exit 1; }
+   printf '%s\n' "$span" | sed -n '1p;$p'   # last, first epoch
+   git diff origin/master...HEAD --shortstat || { echo 'diff stats failed — ABORT, do not write a run row'; exit 1; }
+   git log origin/master..HEAD --format='%h %ai %s' || { echo 'commit log failed — ABORT, do not write a run row'; exit 1; }
    ```
    - Commit span = first → last commit (HH:MM). Prefer `.claude/.run-start` if it exists.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
