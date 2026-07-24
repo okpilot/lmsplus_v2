@@ -13,12 +13,15 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    **Version-gate FIRST (CLI ≥ 0.7.0), before anything else.** `which coderabbit` only proves the binary exists; a 0.6.x install still reaches `--committed` and dies on it mid-round. Parse `major.minor.patch` and compare NUMERICALLY (a glob like `0.[0-6].*` is fragile — it mis-handles multi-digit minors). This must run above the `coderabbit review` block:
 
    ```bash
+   command -v coderabbit >/dev/null || { echo 'coderabbit CLI not installed — install via https://docs.coderabbit.ai/cli/ then re-run (do NOT pretend the review ran)'; exit 1; }
    ver=$(coderabbit --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    IFS=. read -r vmaj vmin _ <<< "$ver"
    if [ -z "$ver" ] || [ "$vmaj" -eq 0 -a "$vmin" -lt 7 ]; then
-     echo "coderabbit '${ver:-none}' too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1
+     echo "coderabbit '${ver:-unknown}' too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1
    fi
    ```
+
+   The `command -v` check comes FIRST so a missing binary reports "not installed → install" (the actionable fix), not a misleading "too old". Only once the CLI exists does the numeric `major.minor` compare gate an outdated one.
 
    Fetch next — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
@@ -44,10 +47,12 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
    ```bash
    BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
-   coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml
+   coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
    ```
 
-   Run the fallback through the SAME wrapper as the primary invocation above — redirect to a fresh `/tmp/cr-local-roundN.log`, append the STOP banner, and capture + `exit "$rc"`. A bare fallback (no redirect, no rc) lets the monitor stop on the primary's failed attempt while the fallback is still running, and drops the fallback's findings from the log.
+   The fallback uses the SAME monitored wrapper as the primary invocation above — fresh `/tmp/cr-local-roundN.log` redirect, STOP banner, and `rc` capture + `exit "$rc"`. A bare fallback (no redirect, no rc) lets the monitor stop on the primary's failed attempt while the fallback is still running, and drops the fallback's findings from the log.
 
    (The help text documents `--base <branch>` with plain-branch examples, so a slash-containing remote-tracking ref may not resolve on every version.) Do NOT fall back to a bare `--base master` — that is the stale-base bug this form exists to avoid (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
