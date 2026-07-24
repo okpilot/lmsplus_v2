@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
@@ -9,9 +9,14 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Synchronous one-shot re-entry guard SHARED by save + discard (code-style §6),
+  // mirroring the old shared-`loading` semantics without the async-state race.
+  // `loading` stays as async React state for the UI only.
+  const inFlightRef = useRef(false)
 
   async function handleSave() {
-    if (loading || !recovery) return
+    if (inFlightRef.current || !recovery) return
+    inFlightRef.current = true // set before the first await
     setLoading(true)
     setError(null)
     try {
@@ -29,21 +34,26 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
         clearActiveSession(userId)
         // Non-critical cleanup fired before the terminal nav; setLoading is a sync state
         // update, so router.replace stays the last statement (code-style.md §6).
+        // Terminal: navigating away — the in-flight ref intentionally stays set.
         clearDeploymentPin().catch(() => {})
         setLoading(false)
         router.replace('/app/quiz')
       } else {
         setError(result.error ?? 'Failed to save. Please try again.')
+        inFlightRef.current = false // retryable failure — release the lock
         setLoading(false)
       }
     } catch {
       setError('Server unavailable. Please try again later.')
+      inFlightRef.current = false // retryable failure — release the lock
       setLoading(false)
     }
   }
 
   async function handleDiscard() {
-    if (loading) return
+    // One-shot: ends in router.replace (terminal), so the ref is never reset (§6).
+    if (inFlightRef.current) return
+    inFlightRef.current = true
     setLoading(true)
     const captured = recovery
     clearActiveSession(userId)

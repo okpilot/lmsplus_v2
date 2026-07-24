@@ -198,6 +198,18 @@ describe('listInternalExamCodes (app-layer integration)', () => {
     const overlap = page2.rows.filter((r) => page1Ids.has(r.id))
     expect(overlap).toHaveLength(0)
   })
+
+  it('returns the last page of rows when the requested page is past the end', async () => {
+    await signInAs(adminEmail, password)
+
+    // 26 active codes → 2 pages; page 99 snaps to page 2 (#1041) instead of an empty list.
+    const lastPage = await listInternalExamCodes({ status: 'active', page: 2 })
+    const snapped = await listInternalExamCodes({ status: 'active', page: 99 })
+
+    expect(snapped.totalCount).toBe(ACTIVE_CODE_COUNT)
+    expect(snapped.rows).toHaveLength(ACTIVE_CODE_COUNT - 25)
+    expect(snapped.rows.map((r) => r.id)).toEqual(lastPage.rows.map((r) => r.id))
+  })
 })
 
 describe('listInternalExamCodes — cross-org isolation', () => {

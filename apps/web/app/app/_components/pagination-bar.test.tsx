@@ -19,7 +19,12 @@ vi.mock('lucide-react', () => ({
 
 // ---- Subject under test ----------------------------------------------------
 
-import { buildPageItems, buildPageNumbers, PaginationBar } from './pagination-bar'
+import {
+  buildPageItems,
+  buildPageNumbers,
+  computePaginationDisplay,
+  PaginationBar,
+} from './pagination-bar'
 
 // ---- Tests: buildPageNumbers -----------------------------------------------
 
@@ -133,6 +138,47 @@ describe('buildPageItems', () => {
     const items = buildPageItems(1, 5)
     expect(items.every((i) => i.type === 'page')).toBe(true)
     expect(items).toHaveLength(5)
+  })
+})
+
+// ---- Tests: computePaginationDisplay -----------------------------------------
+
+describe('computePaginationDisplay', () => {
+  it('keeps an in-range page as-is and reports its row range', () => {
+    const result = computePaginationDisplay({
+      page: 2,
+      totalPages: 3,
+      pageSize: 25,
+      totalCount: 75,
+    })
+    expect(result.effectivePage).toBe(2)
+    expect(result.from).toBe(26)
+    expect(result.to).toBe(50)
+  })
+
+  it('snaps an out-of-range page to the last page with data (#1041)', () => {
+    const result = computePaginationDisplay({
+      page: 99,
+      totalPages: 2,
+      pageSize: 25,
+      totalCount: 40,
+    })
+    expect(result.effectivePage).toBe(2)
+    // Range text reflects the clamped page, capped at totalCount on a partial last page.
+    expect(result.from).toBe(26)
+    expect(result.to).toBe(40)
+  })
+
+  it('clamps a page below 1 up to the first page', () => {
+    const result = computePaginationDisplay({
+      page: 0,
+      totalPages: 3,
+      pageSize: 25,
+      totalCount: 75,
+    })
+    expect(result.effectivePage).toBe(1)
+    expect(result.from).toBe(1)
+    expect(result.to).toBe(25)
   })
 })
 
@@ -262,9 +308,34 @@ describe('PaginationBar', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/test?subjectId=abc&page=2')
   })
 
-  it('renders with out-of-range page (server redirects in practice)', () => {
+  // Out-of-range deep links (?page=99): the bar snaps to the last page with data (#1041).
+  it('shows the last page range text when the page is out of range', () => {
     render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
-    expect(screen.getByLabelText('Previous page')).toBeInTheDocument()
+    expect(screen.getByText('Showing 26–50 of 50 questions')).toBeInTheDocument()
+  })
+
+  it('highlights the last page button when the page is out of range', () => {
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+    // The current page renders as the filled (default-variant) button; others are outline.
+    expect(screen.getByRole('button', { name: '2' })).toHaveClass('bg-primary')
+    expect(screen.getByRole('button', { name: '1' })).not.toHaveClass('bg-primary')
+  })
+
+  it('disables Next and enables Previous when the page is out of range', () => {
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+    expect(screen.getByLabelText('Next page')).toBeDisabled()
+    expect(screen.getByLabelText('Previous page')).not.toBeDisabled()
+  })
+
+  it('navigates to the page before the last page when Previous is clicked on an out-of-range page', async () => {
+    const user = userEvent.setup()
+    render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
+
+    await user.click(screen.getByLabelText('Previous page'))
+
+    // 50/25 → last page is 2; Previous goes to page 1 (represented by no ?page param),
+    // not page 98.
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
   })
 
   it('renders page number buttons for each page in a small set', () => {

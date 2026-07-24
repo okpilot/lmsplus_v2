@@ -1,11 +1,8 @@
 'use client'
 
-import type { SessionQuestion } from '@/app/app/_types/session'
-import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
-import type { SessionMode } from '../../session-types'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
@@ -18,28 +15,13 @@ import { QuizSessionFooter } from './quiz-session-footer'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
-type QuizSessionProps = {
-  userId: string
-  sessionId: string
-  questions: SessionQuestion[]
-  initialAnswers?: Record<string, DraftAnswer>
-  initialFeedback?: Map<string, AnswerFeedback>
-  initialIndex?: number
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-  mode?: SessionMode
-  examMode?: DbQuizMode
-  timeLimitSeconds?: number
-  passMark?: number
-  startedAt?: string
-}
-
-export function QuizSession(props: QuizSessionProps) {
+export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
-  const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(s.questionIds)
+  const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
+    props.initialFlaggedIds ?? [],
+  )
   const effectiveTab = s.isExam ? 'question' : activeTab
   const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
     feedback: s.feedback,

@@ -284,9 +284,11 @@ vi.mock('../../_components/statistics-tab', () => ({
 
 const mockToggleFlag = vi.fn().mockResolvedValue(true)
 vi.mock('../_hooks/use-flagged-questions', () => ({
-  useFlaggedQuestions: () => ({
-    flaggedIds: new Set<string>(),
-    isFlagged: () => false,
+  // Mirrors the real signature: the hook is seeded from the server-provided
+  // initialFlaggedIds prop (QuizSession passes props.initialFlaggedIds ?? []).
+  useFlaggedQuestions: (initialFlaggedIds: readonly string[]) => ({
+    flaggedIds: new Set<string>(initialFlaggedIds),
+    isFlagged: (id: string) => initialFlaggedIds.includes(id),
     toggleFlag: mockToggleFlag,
     isToggling: () => false,
   }),
@@ -929,5 +931,40 @@ describe('QuizSession', () => {
     // Exit navigates away — the only way to leave discovery
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
+  })
+
+  // ---- Server-seeded flag state (reload / resume scenario) -----------------
+  // Covers code-style §7 reload rule: a session loaded after a page reload or
+  // recovery-resume receives its flags from the server via initialFlaggedIds —
+  // they must be reflected in the UI from the very first render, not after an effect.
+
+  it('shows the current question as already flagged when the server marks it as previously flagged', () => {
+    render(
+      <QuizSession
+        sessionId="sess-1"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        initialFlaggedIds={['q1']}
+      />,
+    )
+    // q1 is the first question. The bootstrap seeded it as flagged, so the
+    // flag button must open in "Unflag" / aria-pressed=true state — not default.
+    const flagBtn = screen.getAllByTestId('flag-button')[0]!
+    expect(flagBtn).toHaveTextContent('Unflag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows the current question as not flagged when it is absent from the server-provided flag list', () => {
+    render(
+      <QuizSession
+        sessionId="sess-1"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        initialFlaggedIds={['q2']} // q2 is flagged; q1 (the current question) is not
+      />,
+    )
+    const flagBtn = screen.getAllByTestId('flag-button')[0]!
+    expect(flagBtn).toHaveTextContent('Flag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
   })
 })

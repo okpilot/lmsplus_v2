@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ActiveSession } from '../session/_utils/quiz-session-storage'
 import { readActiveSession } from '../session/_utils/quiz-session-storage'
 import { buildDiscardHandler, buildResumeHandler, buildSaveHandler } from './quiz-recovery-handlers'
@@ -11,6 +11,10 @@ export function useQuizRecovery(userId: string) {
   const [session, setSession] = useState<ActiveSession | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Synchronous one-shot re-entry guard SHARED by save + discard (code-style §6),
+  // mirroring the shared `loading` semantics: while either action is in flight the
+  // other is a no-op. `loading` stays as async React state for the UI only.
+  const actionInFlightRef = useRef(false)
 
   useEffect(() => {
     const active = readActiveSession(userId)
@@ -18,17 +22,22 @@ export function useQuizRecovery(userId: string) {
     setSession(active?.mode === 'exam' ? null : active)
   }, [userId])
 
-  const handleResume = buildResumeHandler(userId, session, setError, router)
-  const handleSave = buildSaveHandler(
+  const handleResume = buildResumeHandler({ userId, session, setError, router })
+  const handleSave = buildSaveHandler({
     userId,
     session,
-    loading,
+    inFlightRef: actionInFlightRef,
     setLoading,
     setError,
     setSession,
     router,
-  )
-  const handleDiscard = buildDiscardHandler(userId, session, loading, setSession)
+  })
+  const handleDiscard = buildDiscardHandler({
+    userId,
+    session,
+    inFlightRef: actionInFlightRef,
+    setSession,
+  })
 
   return { session, loading, error, handleResume, handleSave, handleDiscard }
 }

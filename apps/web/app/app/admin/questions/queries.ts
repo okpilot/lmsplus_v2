@@ -33,11 +33,14 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   const total = count ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  if (total === 0 || page > totalPages) {
+  if (total === 0) {
     return { ok: true as const, questions: [], totalCount: total }
   }
 
-  const from = (page - 1) * PAGE_SIZE
+  // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
+  // an empty list, matching PaginationBar's clamped display. Count-first fetches the count before querying the effective page.
+  const effectivePage = Math.min(Math.max(1, page), totalPages)
+  const from = (effectivePage - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
   let dataQ = supabase
