@@ -70,7 +70,7 @@ run_case_no_output() {
 # 1. The main happy path: nested tool_input.command contains 'coderabbit review'
 #    → the reminder banner must fire.
 run_case "tool_input.command with 'coderabbit review' fires the reminder" 0 \
-  '{"tool_input":{"command":"coderabbit review --plain --base master -c .coderabbit.yaml"}}' \
+  '{"tool_input":{"command":"coderabbit review --committed --base origin/master -c .coderabbit.yaml"}}' \
   "cr-local-plan-reminder"
 
 # 2. tool_input.command does NOT contain 'coderabbit review' — hook exits cleanly, no output.
@@ -80,7 +80,7 @@ run_case_no_output "tool_input.command with unrelated command produces no output
 # 3. Flat JSON shape backward-compat: the hook falls back to obj?.command when
 #    tool_input is absent. The reminder must still fire on this older payload shape.
 run_case "flat command field (backward-compat) fires the reminder" 0 \
-  '{"command":"coderabbit review --plain --base master"}' \
+  '{"command":"coderabbit review --committed --base origin/master"}' \
   "cr-local-plan-reminder"
 
 # 3b. Trigger text OUTSIDE the command field must NOT fire the reminder — pins that

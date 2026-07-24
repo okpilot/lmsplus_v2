@@ -291,16 +291,27 @@ async function seed() {
   console.log(`  User: ${userId}`)
 
   // 4. Question bank
-  const { data: bank } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119);
+  // a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
+  const { data: bank, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
-    .is('deleted_at', null)
-    .single()
+    .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
 
   let bankId: string
   if (bank) {
+    if (bank.deleted_at !== null) {
+      const { data: restored, error: bankRestoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', bank.id)
+        .select('id')
+      if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
     bankId = bank.id
   } else {
     const { data: newBank, error: newBankErr } = await db
@@ -410,13 +421,14 @@ async function seed() {
 
   // 7. Exam config for MET — required by exam-flow.spec.ts and exam-recovery.spec.ts.
   // 60s timer + 10 questions + 70% pass mark to match what the specs assert.
-  const { data: existingCfg } = await db
+  const { data: existingCfg, error: examConfigLookupErr } = await db
     .from('exam_configs')
     .select('id, total_questions, time_limit_seconds, pass_mark')
     .eq('organization_id', org.id)
     .eq('subject_id', subject.id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (examConfigLookupErr) throw new Error(`Exam config lookup: ${examConfigLookupErr.message}`)
 
   let examConfigId: string
   if (existingCfg) {
@@ -451,13 +463,14 @@ async function seed() {
     examConfigId = newCfg.id
   }
 
-  const { data: existingDist } = await db
+  const { data: existingDist, error: distLookupErr } = await db
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', examConfigId)
     .eq('topic_id', topicId)
     .is('subtopic_id', null)
     .maybeSingle()
+  if (distLookupErr) throw new Error(`Exam distribution lookup: ${distLookupErr.message}`)
 
   if (!existingDist) {
     const { error: distErr } = await db.from('exam_config_distributions').insert({

@@ -154,14 +154,24 @@ async function seed() {
     .eq('email', 'admin@lmsplus.local')
     .single()
   if (!admin) throw new Error('Admin not found')
-  const { data: bankRow } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has; a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
+  const { data: bankRow, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .is('deleted_at', null)
-    .limit(1)
-    .single()
+    .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
   if (!bankRow) throw new Error('Question bank not found')
+  if (bankRow.deleted_at !== null) {
+    const { data: restored, error: bankRestoreErr } = await db
+      .from('question_banks')
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', bankRow.id)
+      .select('id')
+    if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+    if (!restored?.length) throw new Error('Bank restore: no rows updated')
+  }
 
   // 5. Create students
   const studentIds: string[] = []

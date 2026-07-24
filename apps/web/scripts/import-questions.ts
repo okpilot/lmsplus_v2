@@ -145,16 +145,28 @@ async function bootstrapUser(db: ReturnType<typeof createClient>, orgId: string)
 }
 
 async function bootstrapBank(db: ReturnType<typeof createClient>, orgId: string, userId: string) {
-  // Check if bank already exists
-  const { data: existing } = await db
+  // One bank per org (question_banks_organization_id_key, covering soft-deleted rows).
+  // Look up without name/deleted_at filters so a mismatch fails with a clear diagnostic
+  // instead of a 23505 insert collision. This prod importer never auto-restores a
+  // soft-deleted bank — the operator decides.
+  const { data: existing, error: lookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, name, deleted_at')
     .eq('organization_id', orgId)
-    .eq('name', BANK_NAME)
-    .is('deleted_at', null)
-    .single()
+    .maybeSingle()
+  if (lookupErr) throw new Error(`Bank lookup failed: ${lookupErr.message}`)
 
   if (existing) {
+    if (existing.deleted_at !== null) {
+      throw new Error(
+        `Org bank "${existing.name}" (${existing.id}) is soft-deleted — restore it manually before importing.`,
+      )
+    }
+    if (existing.name !== BANK_NAME) {
+      throw new Error(
+        `Org already has bank "${existing.name}" (${existing.id}); expected "${BANK_NAME}" — one bank per org.`,
+      )
+    }
     console.log(`  Bank: ${BANK_NAME} (${existing.id})`)
     return existing.id as string
   }

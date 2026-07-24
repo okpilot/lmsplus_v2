@@ -102,16 +102,27 @@ async function seed() {
   console.log(`  Student: ${studentId} (${STUDENT_EMAIL} / ${STUDENT_PASSWORD})`)
 
   // 4. Question bank (select existing or insert)
-  const { data: existingBank } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119);
+  // a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
+  const { data: existingBank, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
-    .is('deleted_at', null)
-    .single()
+    .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
 
   let bankId: string
   if (existingBank) {
+    if (existingBank.deleted_at !== null) {
+      const { data: restored, error: bankRestoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existingBank.id)
+        .select('id')
+      if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
     bankId = existingBank.id
   } else {
     const { data: newBank, error: bankErr } = await db
