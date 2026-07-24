@@ -151,7 +151,7 @@ describe('VfrRtConfigForm — question type filter', () => {
     expect(screen.getByText('Question Type')).toBeInTheDocument()
   })
 
-  it('passes the selected question type through to the picker', () => {
+  it('shows the selected question type', () => {
     mockUseQuizConfig.mockReturnValue(buildMockConfig({ questionType: 'ordering' }))
     renderForm()
     expect(screen.getByRole('button', { name: 'Ordering' })).toHaveAttribute('aria-pressed', 'true')

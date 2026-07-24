@@ -424,14 +424,14 @@ describe('useQuizConfig — questionType', () => {
     expect(result.current.questionType).toBe('ordering')
   })
 
-  it('activates the filtered-count badge path when a type is selected with no switch-filter', async () => {
+  it('exposes per-topic counts when a question type is selected', async () => {
     ;(useFilteredCount as Mock).mockReturnValue(
       buildMockFilteredCount({ filteredCount: 4, filteredByTopic: { t1: 4 } }),
     )
     const { result } = renderHook(() =>
       useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
     )
-    // filters is still ['all'] — only questionType drives the badge path
+    // filters is still ['all'] — only questionType is active
     await act(async () => {
       result.current.setQuestionType('short_answer')
     })
@@ -491,7 +491,7 @@ describe('useQuizConfig — questionType', () => {
     expect(result.current.questionType).toBeUndefined()
   })
 
-  it('carries the selected question type into quiz start', () => {
+  it('passes no question-type restriction to quiz start by default', () => {
     renderHook(() => useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }))
     expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: undefined }))
   })
@@ -504,8 +504,6 @@ describe('useQuizConfig — questionType', () => {
     await act(async () => {
       result.current.setQuestionType('ordering')
     })
-    // Every re-render calls useQuizStart with the current state — after setQuestionType
-    // the new value must be threaded through, not left as the initial undefined.
     expect(useQuizStart).toHaveBeenCalledWith(expect.objectContaining({ questionType: 'ordering' }))
   })
 })
