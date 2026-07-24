@@ -87,7 +87,13 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 8. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces consecutive-clean).** CodeRabbit is non-deterministic — the same diff yields different findings each run — so a *single* quiet round is weak evidence; run several rounds to sample it. But CR-local is a **pre-push preview** of the cloud CodeRabbit that reviews the actual PR on push (the authoritative gate — we never merge on `CHANGES_REQUESTED`), so a "stability proof" on the local preview is not required. Run a **minimum of M rounds**, then stop on the first round **at or after** M with **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts):
    - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Compute via `git diff origin/master...HEAD --name-only`. Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`") — an unresolvable base must ABORT, never be read as "no paths matched".
+   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Resolve and guard the base BEFORE the path diff — an unresolvable base or a failed diff must ABORT, never be read as "no paths matched" (which would silently downgrade a security-path change to the weaker M=2):
+
+     ```bash
+     BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
+     paths=$(git diff "$BASE...HEAD" --name-only) || { echo 'security-path diff failed — ABORT'; exit 1; }
+     ```
+     (`git fetch origin` from the run block above only proves the fetch succeeded, not that `origin/master` resolves — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`".)
 
    Every round must run with `-c .coderabbit.yaml`. An **Apply** verdict does NOT reset a counter — it **extends the loop by one round** (fix it, run one more round to confirm nothing new surfaced). You cannot stop *on* a round that still has an Apply verdict, nor *before* round M. Report the running round count to the user each round (e.g. "round 2/2 min, last round clean → stop").
 

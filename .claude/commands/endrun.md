@@ -32,7 +32,7 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    # Capture git log BEFORE the sed pipe: `git log | sed || {…}` would guard sed (which succeeds on
    # empty input), masking a git-log failure. Guard the capture, then pipe.
    span=$(git log origin/master..HEAD --format='%at') || { echo 'commit span failed — ABORT, do not write a run row'; exit 1; }
-   printf '%s\n' "$span" | sed -n '1p;$p'   # last, first epoch
+   printf '%s\n' "$span" | sort -n | sed -n '1p;$p'   # earliest, latest epoch — sort first: git log emit order isn't guaranteed %at order under merges/clock skew
    git diff origin/master...HEAD --shortstat || { echo 'diff stats failed — ABORT, do not write a run row'; exit 1; }
    git log origin/master..HEAD --format='%h %ai %s' || { echo 'commit log failed — ABORT, do not write a run row'; exit 1; }
    ```
@@ -40,10 +40,18 @@ feature slice, an `/automerge` batch. Appends one row to `.claude/run-log.md`.
    - Note if the branch predates this run (older commits) so the span isn't over-claimed.
    - **Per-run baseline:** when `.claude/.run-start` exists (written at run START via
      `{ git rev-parse HEAD; date -u +%FT%TZ; } > .claude/.run-start`), compute commits/diff/span
-     from its recorded SHA (`<SHA>..HEAD`) instead of `origin/master..HEAD`. (Two-dot is safe for the shortstat here specifically because `.run-start` records `git rev-parse HEAD`, always an ancestor of HEAD, so two-dot and three-dot coincide; do NOT generalise two-dot to other diffs.) If it's absent, fall back to
-     `origin/master..HEAD` and add an explicit caveat in the row: "may include earlier work on a
-     long-lived branch". After the run row is written, DELETE `.claude/.run-start` so it can't
-     leak into the next run.
+     from its recorded SHA (`<SHA>..HEAD`) instead of `origin/master..HEAD` — but FIRST verify the
+     SHA is still an ancestor of HEAD; a mid-run rebase/reset can orphan it, after which two-dot
+     `SHA..HEAD` and three-dot `SHA...HEAD` diverge and the shortstat pulls in unrelated commits:
+     ```bash
+     SHA=$(sed -n '1p' .claude/.run-start)
+     git merge-base --is-ancestor "$SHA" HEAD || { echo 'run-start SHA is no longer an ancestor (rebase/reset?) — fall back to origin/master..HEAD with the caveat below'; SHA=; }
+     ```
+     Only when the SHA IS a verified ancestor is the two-dot shortstat safe (two-dot and three-dot
+     coincide); do NOT generalise two-dot to other diffs. If `.run-start` is absent OR the ancestor
+     check fails, fall back to `origin/master..HEAD` and add an explicit caveat in the row: "may
+     include earlier work on a long-lived branch". After the run row is written, DELETE
+     `.claude/.run-start` so it can't leak into the next run.
 
 2. **PRs**: `gh pr list --head "$BR" --repo okpilot/lmsplus_v2 --json number,state,url` — list PRs currently associated with the branch (`gh pr list --head` cannot distinguish which were opened during this run).
 
