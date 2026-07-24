@@ -1,0 +1,341 @@
+{
+  "part": 1,
+  "title": "Aviation Acronyms",
+  "topic_code": "P1_ACRONYMS",
+  "subject_code": "RT",
+  "question_type": "short_answer",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 1 — closed 40-acronym pool)",
+  "per_exam": 8,
+  "grading_notes": "Graded against canonical_answer + accepted_synonyms. The grader normalizes case, punctuation and whitespace, so no case/spacing variants are listed. Option B misspelling policy: explicit synonyms for the few genuinely error-prone words (aerodrome, meteorological, aeronautical, maneuvering, coordinated); everything else stays strict and the canonical is revealed in feedback. GA is General Aviation only; NOTAM keys the current ICAO 'Notice to Air Missions' and accepts the legacy 'Notice to Airmen'.",
+  "questions": [
+    {
+      "num": "VRT-P1-ACR-01",
+      "acronym": "A/C",
+      "prompt": "What does the acronym \"A/C\" stand for?",
+      "canonical": "Aircraft",
+      "synonyms": [],
+      "explanation": "**A/C — Aircraft** is the standard written shorthand for any flying machine, used in flight plans, NOTAMs, and aerodrome documentation (e.g. 'light A/C only'). It is a *written* abbreviation — on the radio you say 'aircraft' or use the type/callsign, never spell out the letters."
+    },
+    {
+      "num": "VRT-P1-ACR-02",
+      "acronym": "A/D",
+      "prompt": "What does the acronym \"A/D\" stand for?",
+      "canonical": "Aerodrome",
+      "synonyms": ["Aerodrom", "Aerodome"],
+      "explanation": "**A/D — Aerodrome** is any defined area of land or water used for the arrival, departure, and surface movement of aircraft. It is broader than 'airport': every airport is an aerodrome, but an aerodrome need not have an airport's customs/commercial facilities. It appears in written notices such as 'A/D closed'."
+    },
+    {
+      "num": "VRT-P1-ACR-03",
+      "acronym": "AGL",
+      "prompt": "What does the acronym \"AGL\" stand for?",
+      "canonical": "Above Ground Level",
+      "synonyms": [],
+      "explanation": "**AGL — Above Ground Level** is a height measured from the terrain directly below the aircraft, as opposed to **AMSL** (Above Mean Sea Level), measured from sea level. Circuit and obstacle heights are usually quoted AGL, while altimeter altitudes are AMSL — confusing the two is a common terrain-clearance error."
+    },
+    {
+      "num": "VRT-P1-ACR-04",
+      "acronym": "AIP",
+      "prompt": "What does the acronym \"AIP\" stand for?",
+      "canonical": "Aeronautical Information Publication",
+      "synonyms": ["Aeronatical Information Publication"],
+      "explanation": "**AIP — Aeronautical Information Publication** is the official State document holding durable aeronautical information essential for flight: aerodrome data, airspace, procedures, and services. It is the *permanent* reference, whereas short-notice or temporary changes come by **NOTAM**. Every ICAO State publishes an AIP for its territory."
+    },
+    {
+      "num": "VRT-P1-ACR-05",
+      "acronym": "ALT",
+      "prompt": "What does the acronym \"ALT\" stand for?",
+      "canonical": "Altitude",
+      "synonyms": [],
+      "explanation": "**ALT — Altitude** is the vertical distance of an aircraft above **mean sea level** (QNH set), distinct from *height* (above a local datum) and *flight level* (above the 1013 hPa standard datum). It is the figure you read back after an ATC level instruction below the transition altitude."
+    },
+    {
+      "num": "VRT-P1-ACR-06",
+      "acronym": "ATC",
+      "prompt": "What does the acronym \"ATC\" stand for?",
+      "canonical": "Air Traffic Control",
+      "synonyms": [],
+      "explanation": "**ATC — Air Traffic Control** is the ground-based service that issues clearances and instructions to prevent collisions and keep traffic flowing safely and in order. It is one branch of the wider **ATS**. On the radio you address the specific unit — Tower, Approach, or Control — not 'ATC'."
+    },
+    {
+      "num": "VRT-P1-ACR-07",
+      "acronym": "ATIS",
+      "prompt": "What does the acronym \"ATIS\" stand for?",
+      "canonical": "Automatic Terminal Information Service",
+      "synonyms": [],
+      "explanation": "**ATIS — Automatic Terminal Information Service** is a continuous recorded broadcast of essential aerodrome information (runway in use, weather, QNH, notices) at busier aerodromes. Each update is labelled with a spelling-alphabet letter (Information Alpha, Bravo…), and you report the letter you have on first contact to confirm you are current."
+    },
+    {
+      "num": "VRT-P1-ACR-08",
+      "acronym": "ATS",
+      "prompt": "What does the acronym \"ATS\" stand for?",
+      "canonical": "Air Traffic Service",
+      "synonyms": ["Air Traffic Services"],
+      "explanation": "**ATS — Air Traffic Service** is the umbrella term for all traffic services: air traffic control (**ATC**), flight information service (**FIS**), and alerting service. So ATC is a *subset* of ATS, not a synonym. Airspace classes are defined partly by which ATS is provided."
+    },
+    {
+      "num": "VRT-P1-ACR-09",
+      "acronym": "CAVOK",
+      "prompt": "What does the acronym \"CAVOK\" stand for?",
+      "canonical": "Ceiling and Visibility OK",
+      "synonyms": [
+        "Cloud and Visibility OK",
+        "Ceiling and Visibility Okay",
+        "Cloud and Visibility Okay"
+      ],
+      "explanation": "**CAVOK — Ceiling and Visibility OK** is a single reported term meaning three conditions are all met: **visibility ≥ 10 km**, **no cloud below 1500 m (5000 ft)** (or the highest minimum sector altitude) and no CB/TCU, and **no significant weather**. Hearing CAVOK in a METAR or ATIS is shorthand for 'conditions comfortably within VFR limits'."
+    },
+    {
+      "num": "VRT-P1-ACR-10",
+      "acronym": "CTA",
+      "prompt": "What does the acronym \"CTA\" stand for?",
+      "canonical": "Control Area",
+      "synonyms": [],
+      "explanation": "**CTA — Control Area** is controlled airspace extending upward from a specified limit *above* the surface (it does not touch the ground). Contrast the **CTR** (Control Zone), which reaches the surface. A **TMA** is a particular kind of CTA near busy aerodromes."
+    },
+    {
+      "num": "VRT-P1-ACR-11",
+      "acronym": "CTR",
+      "prompt": "What does the acronym \"CTR\" stand for?",
+      "canonical": "Control Zone",
+      "synonyms": [],
+      "explanation": "**CTR — Control Zone** is controlled airspace extending from the **surface** up to a specified upper limit, established around an aerodrome to protect arriving and departing traffic. Because it reaches the ground, VFR entry needs a clearance. Contrast the **CTA**, which begins above the surface."
+    },
+    {
+      "num": "VRT-P1-ACR-12",
+      "acronym": "ELT",
+      "prompt": "What does the acronym \"ELT\" stand for?",
+      "canonical": "Emergency Locator Transmitter",
+      "synonyms": [],
+      "explanation": "**ELT — Emergency Locator Transmitter** is a self-contained beacon that automatically transmits a distress signal after a crash (406 MHz to the Cospas-Sarsat satellite system, plus 121.5 MHz for homing) to help SAR locate the aircraft. It can also be triggered manually and is required survival equipment in most operations."
+    },
+    {
+      "num": "VRT-P1-ACR-13",
+      "acronym": "ETA",
+      "prompt": "What does the acronym \"ETA\" stand for?",
+      "canonical": "Estimated Time of Arrival",
+      "synonyms": [],
+      "explanation": "**ETA — Estimated Time of Arrival** is the predicted time of arriving over a point or at destination, always in **UTC**. It pairs with **ETD** (Estimated Time of Departure). Passing a revised ETA to ATS is required when the estimate changes significantly."
+    },
+    {
+      "num": "VRT-P1-ACR-14",
+      "acronym": "ETD",
+      "prompt": "What does the acronym \"ETD\" stand for?",
+      "canonical": "Estimated Time of Departure",
+      "synonyms": [],
+      "explanation": "**ETD — Estimated Time of Departure** is the planned off-blocks / take-off time filed in the flight plan, in **UTC**. With the **ETA** it frames the sortie's timing and drives the alerting service — an aircraft significantly overdue against its estimate triggers overdue action."
+    },
+    {
+      "num": "VRT-P1-ACR-15",
+      "acronym": "FIR",
+      "prompt": "What does the acronym \"FIR\" stand for?",
+      "canonical": "Flight Information Region",
+      "synonyms": [],
+      "explanation": "**FIR — Flight Information Region** is the largest division of airspace: a defined region within which a **flight information service** (**FIS**) and an alerting service are provided. Each State's airspace is divided into one or more FIRs, defining an ATS provider's geographic responsibility."
+    },
+    {
+      "num": "VRT-P1-ACR-16",
+      "acronym": "FIS",
+      "prompt": "What does the acronym \"FIS\" stand for?",
+      "canonical": "Flight Information Service",
+      "synonyms": [],
+      "explanation": "**FIS — Flight Information Service** provides information useful for the safe, efficient conduct of flight — weather, serviceability of aids, traffic information — but **not** separation (that is ATC). It is one of the services grouped under **ATS** and is available to VFR traffic outside controlled airspace."
+    },
+    {
+      "num": "VRT-P1-ACR-17",
+      "acronym": "GA",
+      "prompt": "What does the acronym \"GA\" stand for?",
+      "canonical": "General Aviation",
+      "synonyms": [],
+      "explanation": "**GA — General Aviation** covers all civil aviation other than scheduled airline and major commercial operations — private, training, sport, and aerial-work flying; your VFR flight is a GA operation. (Note: 'going around' is a separate concept, phrased 'going around' on the radio, not abbreviated GA.)"
+    },
+    {
+      "num": "VRT-P1-ACR-18",
+      "acronym": "GPS",
+      "prompt": "What does the acronym \"GPS\" stand for?",
+      "canonical": "Global Positioning System",
+      "synonyms": [],
+      "explanation": "**GPS — Global Positioning System** is the US satellite-navigation constellation providing position and time worldwide — the most common area-navigation source in GA. It is one implementation of the generic **GNSS**. For VFR it supplements, but does not replace, map-reading and dead reckoning."
+    },
+    {
+      "num": "VRT-P1-ACR-19",
+      "acronym": "IAS",
+      "prompt": "What does the acronym \"IAS\" stand for?",
+      "canonical": "Indicated Airspeed",
+      "synonyms": ["Indicated Air Speed"],
+      "explanation": "**IAS — Indicated Airspeed** is the speed read directly off the airspeed indicator, produced by **dynamic (pitot-minus-static) pressure**. It is uncorrected for instrument/position error or air density — which separates it from **CAS** (calibrated) and **TAS** (true airspeed). Aircraft limitation speeds are quoted as IAS, so it is the number you fly to."
+    },
+    {
+      "num": "VRT-P1-ACR-20",
+      "acronym": "ICAO",
+      "prompt": "What does the acronym \"ICAO\" stand for?",
+      "canonical": "International Civil Aviation Organization",
+      "synonyms": ["International Civil Aviation Organisation"],
+      "explanation": "**ICAO — International Civil Aviation Organization** is the UN agency that sets worldwide Standards and Recommended Practices for civil aviation, published as Annexes to the Chicago Convention. Standard RT phraseology, the spelling alphabet, and airspace classes all derive from ICAO — the reason RT is broadly the same country to country."
+    },
+    {
+      "num": "VRT-P1-ACR-21",
+      "acronym": "METAR",
+      "prompt": "What does the acronym \"METAR\" stand for?",
+      "canonical": "Meteorological Aerodrome Report",
+      "synonyms": ["Aviation Routine Weather Report", "Meteorlogical Aerodrome Report"],
+      "explanation": "**METAR — Meteorological Aerodrome Report** is a routine coded observation of the *actual* weather at an aerodrome, typically issued every half-hour or hour. It reports what the weather **is now**, whereas the **TAF** forecasts what it **will be**. A METAR feeds directly into your go/no-go and QNH decisions."
+    },
+    {
+      "num": "VRT-P1-ACR-22",
+      "acronym": "MSL",
+      "prompt": "What does the acronym \"MSL\" stand for?",
+      "canonical": "Mean Sea Level",
+      "synonyms": [],
+      "explanation": "**MSL — Mean Sea Level** is the averaged sea-surface datum from which altitudes and elevations are measured; with QNH set, the altimeter reads height above MSL. The fuller form 'AMSL' (Above MSL) is seen on charts. It is the reference that makes altitudes comparable between aircraft."
+    },
+    {
+      "num": "VRT-P1-ACR-23",
+      "acronym": "NOTAM",
+      "prompt": "What does the acronym \"NOTAM\" stand for?",
+      "canonical": "Notice to Air Missions",
+      "synonyms": ["Notice to Airmen"],
+      "explanation": "**NOTAM — Notice to Air Missions** (formerly *Notice to Airmen*, renamed by ICAO in 2021) is a time-critical notice of any hazard or change crews must know before flight — runway closures, unserviceable navaids, temporary airspace, obstacles. It carries information too short-notice for the permanent **AIP**, so reviewing relevant NOTAMs is a required part of pre-flight preparation."
+    },
+    {
+      "num": "VRT-P1-ACR-24",
+      "acronym": "PIC",
+      "prompt": "What does the acronym \"PIC\" stand for?",
+      "canonical": "Pilot in Command",
+      "synonyms": [],
+      "explanation": "**PIC — Pilot in Command** is the pilot with final authority and responsibility for the safe operation of the flight. The PIC's authority overrides other considerations in an emergency, and the PIC is the person who declares MAYDAY or PAN. Command time is logged as PIC."
+    },
+    {
+      "num": "VRT-P1-ACR-25",
+      "acronym": "RMZ",
+      "prompt": "What does the acronym \"RMZ\" stand for?",
+      "canonical": "Radio Mandatory Zone",
+      "synonyms": [],
+      "explanation": "**RMZ — Radio Mandatory Zone** is airspace (often otherwise uncontrolled) where carriage and use of radio is compulsory: you must establish two-way contact and keep a listening watch on the notified frequency. It is the radio analogue of the **TMZ** (transponder mandatory) — a way to add a service without upgrading the airspace class."
+    },
+    {
+      "num": "VRT-P1-ACR-26",
+      "acronym": "RVR",
+      "prompt": "What does the acronym \"RVR\" stand for?",
+      "canonical": "Runway Visual Range",
+      "synonyms": [],
+      "explanation": "**RVR — Runway Visual Range** is the distance over which a pilot on the centreline can see the runway markings or lights, measured instrumentally near the runway. It is more precise and runway-specific than the general **visibility** in a METAR, and is decisive for low-visibility minima. It is reported in metres."
+    },
+    {
+      "num": "VRT-P1-ACR-27",
+      "acronym": "RWY",
+      "prompt": "What does the acronym \"RWY\" stand for?",
+      "canonical": "Runway",
+      "synonyms": [],
+      "explanation": "**RWY — Runway** is the defined rectangular surface for landing and take-off, identified by its magnetic heading rounded to the nearest ten degrees (RWY 27 ≈ 270°). Reading back the runway in use is a required RT element. 'RWY' is the written abbreviation; you speak 'runway'."
+    },
+    {
+      "num": "VRT-P1-ACR-28",
+      "acronym": "SIGMET",
+      "prompt": "What does the acronym \"SIGMET\" stand for?",
+      "canonical": "Significant Meteorological Information",
+      "synonyms": ["Significant Meteorlogical Information"],
+      "explanation": "**SIGMET — Significant Meteorological Information** is a warning of en-route weather hazardous to aircraft — thunderstorms, severe turbulence or icing, volcanic ash. It is issued for a whole **FIR**, unlike the aerodrome-specific **METAR/TAF**. A SIGMET is a flag to reconsider the route."
+    },
+    {
+      "num": "VRT-P1-ACR-29",
+      "acronym": "SUA",
+      "prompt": "What does the acronym \"SUA\" stand for?",
+      "canonical": "Special Use Airspace",
+      "synonyms": [],
+      "explanation": "**SUA — Special Use Airspace** is airspace set aside for activities that must be confined or excluded for safety — danger, restricted, and prohibited areas, and military zones. Its status may be active only at published times (check **NOTAM**). Planning a VFR route means checking any SUA along it."
+    },
+    {
+      "num": "VRT-P1-ACR-30",
+      "acronym": "TAF",
+      "prompt": "What does the acronym \"TAF\" stand for?",
+      "canonical": "Terminal Aerodrome Forecast",
+      "synonyms": ["Terminal Aerodrom Forecast"],
+      "explanation": "**TAF — Terminal Aerodrome Forecast** is a coded *forecast* of expected weather at an aerodrome over a validity period (commonly 9–30 hours). It is the forecast counterpart to the *observation* in a **METAR**, and you use it for destination and alternate planning."
+    },
+    {
+      "num": "VRT-P1-ACR-31",
+      "acronym": "TMA",
+      "prompt": "What does the acronym \"TMA\" stand for?",
+      "canonical": "Terminal Maneuvering Area",
+      "synonyms": [
+        "Terminal Manoeuvring Area",
+        "Terminal Control Area",
+        "Terminal Manoeuvering Area",
+        "Terminal Manuevering Area"
+      ],
+      "explanation": "**TMA — Terminal Maneuvering Area** (also called Terminal Control Area) is controlled airspace at the junction of airways near one or more busy aerodromes, handling climbing and descending traffic. It is a type of **CTA** and normally sits above a **CTR**. Transiting a TMA as VFR needs a clearance."
+    },
+    {
+      "num": "VRT-P1-ACR-32",
+      "acronym": "TMZ",
+      "prompt": "What does the acronym \"TMZ\" stand for?",
+      "canonical": "Transponder Mandatory Zone",
+      "synonyms": [],
+      "explanation": "**TMZ — Transponder Mandatory Zone** is airspace where operating a transponder with altitude reporting (Mode C/S) is compulsory, so other traffic and ground systems can see you electronically. It is the transponder analogue of the **RMZ** (radio mandatory); set the notified or assigned squawk before entering."
+    },
+    {
+      "num": "VRT-P1-ACR-33",
+      "acronym": "TWR",
+      "prompt": "What does the acronym \"TWR\" stand for?",
+      "canonical": "Tower",
+      "synonyms": [],
+      "explanation": "**TWR — Tower** (aerodrome control) is the ATC unit responsible for the runways and their immediate vicinity, issuing take-off, landing, and taxi-to/from-runway clearances. It is the controlling authority inside the **CTR**. On the radio you call it 'Tower'."
+    },
+    {
+      "num": "VRT-P1-ACR-34",
+      "acronym": "TWY",
+      "prompt": "What does the acronym \"TWY\" stand for?",
+      "canonical": "Taxiway",
+      "synonyms": [],
+      "explanation": "**TWY — Taxiway** is the defined path linking runways with aprons and hangars, identified by letters (Taxiway Alpha, Bravo…). Taxi instructions and holding points reference taxiway designators. 'TWY' is the written form; you speak 'taxiway'."
+    },
+    {
+      "num": "VRT-P1-ACR-35",
+      "acronym": "UTC",
+      "prompt": "What does the acronym \"UTC\" stand for?",
+      "canonical": "Coordinated Universal Time",
+      "synonyms": ["Co-ordinated Universal Time"],
+      "explanation": "**UTC — Coordinated Universal Time** is the single worldwide time reference used for all aviation timing — flight plans, ETAs, ATIS, and RT — to avoid time-zone confusion. It is effectively the same as **Zulu** (Z) time. Every time you pass or read back is understood to be UTC unless stated otherwise."
+    },
+    {
+      "num": "VRT-P1-ACR-36",
+      "acronym": "VFR",
+      "prompt": "What does the acronym \"VFR\" stand for?",
+      "canonical": "Visual Flight Rules",
+      "synonyms": [],
+      "explanation": "**VFR — Visual Flight Rules** govern flight by outside visual reference, permitted only when you can remain clear of cloud and in at least the minimum **VMC**. They contrast with **IFR** (Instrument Flight Rules). The RT exam is built around VFR operations."
+    },
+    {
+      "num": "VRT-P1-ACR-37",
+      "acronym": "VHF",
+      "prompt": "What does the acronym \"VHF\" stand for?",
+      "canonical": "Very High Frequency",
+      "synonyms": [],
+      "explanation": "**VHF — Very High Frequency** is the 30–300 MHz radio band; aviation voice uses 118–137 MHz within it. VHF is essentially line-of-sight, so range grows with altitude and is limited by terrain. Your communication radio is a VHF set."
+    },
+    {
+      "num": "VRT-P1-ACR-38",
+      "acronym": "VMC",
+      "prompt": "What does the acronym \"VMC\" stand for?",
+      "canonical": "Visual Meteorological Conditions",
+      "synonyms": ["Visual Meteorlogical Conditions"],
+      "explanation": "**VMC — Visual Meteorological Conditions** are weather conditions (visibility, distance from cloud, ceiling) at or above the specified minima that permit flight under **VFR**. When conditions fall below those minima it becomes **IMC** (Instrument Meteorological Conditions). Staying in VMC is the fundamental requirement of VFR flight."
+    },
+    {
+      "num": "VRT-P1-ACR-39",
+      "acronym": "WX",
+      "prompt": "What does the acronym \"WX\" stand for?",
+      "canonical": "Weather",
+      "synonyms": [],
+      "explanation": "**WX — Weather** is standard written shorthand for meteorological conditions, seen in notices and messages (e.g. 'WX deteriorating'). It is a documentation abbreviation, not spoken on the radio, where you say 'weather'. Related products include the **METAR**, **TAF**, and **SIGMET**."
+    },
+    {
+      "num": "VRT-P1-ACR-40",
+      "acronym": "XPDR",
+      "prompt": "What does the acronym \"XPDR\" stand for?",
+      "canonical": "Transponder",
+      "synonyms": [],
+      "explanation": "**XPDR — Transponder** is the airborne radio that replies to secondary-radar interrogations with a four-digit code (**squawk**) and, with Mode C/S, pressure altitude — making the aircraft visible and identifiable on controllers' screens. ATC assigns codes ('squawk 7000') and may require its use in a **TMZ**; 7700 / 7600 / 7500 are the emergency / comms-failure / unlawful-interference codes."
+    }
+  ]
+}

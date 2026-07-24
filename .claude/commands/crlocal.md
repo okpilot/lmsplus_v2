@@ -9,11 +9,52 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 ## What to do
 
 1. **Run the review:**
+
+   **Version-gate FIRST (CLI ≥ 0.7.0), before anything else.** `which coderabbit` only proves the binary exists; a 0.6.x install still reaches `--committed` and dies on it mid-round. Parse `major.minor.patch` and compare NUMERICALLY (a glob like `0.[0-6].*` is fragile — it mis-handles multi-digit minors). This must run above the `coderabbit review` block:
+
    ```bash
-   coderabbit review --plain --base master --type committed -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log
+   command -v coderabbit >/dev/null || { echo 'coderabbit CLI not installed — install via https://docs.coderabbit.ai/cli/ then re-run (do NOT pretend the review ran)'; exit 1; }
+   ver=$(coderabbit --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+   IFS=. read -r vmaj vmin _ <<< "$ver"
+   if [ -z "$ver" ] || [ "$vmaj" -eq 0 -a "$vmin" -lt 7 ]; then
+     echo "coderabbit '${ver:-unknown}' too old — need >= 0.7.0 (or use the 0.6.x flags: --type committed --plain)"; exit 1
+   fi
    ```
-   The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
+
+   The `command -v` check comes FIRST so a missing binary reports "not installed → install" (the actionable fix), not a misleading "too old". Only once the CLI exists does the numeric `major.minor` compare gate an outdated one.
+
+   Fetch next — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
+
+   ```bash
+   git fetch origin || { echo 'fetch failed — ABORT, do not review against a stale base'; exit 1; }
+   coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
+   ```
+
+   **Capture `rc=$?` — do not let the review's exit code be swallowed.** The `;` before `printf` means the shell's final status is `printf`'s, not the review's, so a missing CLI, a removed flag, or a rejected `--base` would otherwise look like a clean pass with zero findings. **A non-zero exit code means the review DID NOT RUN — never count that round as clean.** Read the code off the last line of the log.
+   The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern — and include the exit-code line in the predicate, or a fast failure never terminates the wait:
+
+   ```bash
+   until grep -qiE "Review completed|findings ✔|coderabbit exit code" /tmp/cr-local-roundN.log; do sleep 5; done
+   ```
+
+   On the exact failures the `rc` capture exists to catch (missing CLI, removed flag, rejected `--base`) the CLI exits in milliseconds and the log contains only the STOP banner plus `coderabbit exit code: N` — neither "Review completed" nor "findings ✔" ever appears, so a predicate without the third term spins to timeout instead of failing fast. Then read the last line to decide clean-vs-failed.
+
+   **Flags (CLI 0.7.0+).** `--plain` was REMOVED (plain text is now the default output) and `--type committed` was renamed to `--committed`. CLI 0.6.5 still accepted the old forms, so a stale invocation dies with `unknown option '--plain'` before reviewing anything. If a future release moves them again, read `coderabbit review --help` rather than guessing.
+
+   **If the CLI rejects `origin/master` as a `--base` value**, fall back to `--base-commit`, but resolve the SHA into a variable FIRST and guard it — an `exit 1` INSIDE `$(...)` only exits the command-substitution subshell, so `--base-commit "$(... || exit 1)"` still runs with an EMPTY base on failure (verified). Use:
+
+   ```bash
+   BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
+   coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
+   ```
+
+   The fallback uses the SAME monitored wrapper as the primary invocation above — fresh `/tmp/cr-local-roundN.log` redirect, STOP banner, and `rc` capture + `exit "$rc"`. A bare fallback (no redirect, no rc) lets the monitor stop on the primary's failed attempt while the fallback is still running, and drops the fallback's findings from the log.
+
+   (The help text documents `--base <branch>` with plain-branch examples, so a slash-containing remote-tracking ref may not resolve on every version.) Do NOT fall back to a bare `--base master` — that is the stale-base bug this form exists to avoid (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
    **Always pass `-c .coderabbit.yaml`** (belt-and-suspenders). Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating the `actions.ts` `path_instructions` was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it because it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if `.coderabbit.yaml` does not exist. You may pass additional rule-dense docs the same way (`-c .coderabbit.yaml CLAUDE.md`); mind the prompt token budget. (Note: the CLI honors `path_instructions` but does NOT run `pre_merge_checks`/`custom_checks` as named merge gates — those are hosted-PR-bot-only, confirmed by a second A/B 2026-06-18; their protections still surface via `path_instructions` + CR's default security review.)
 
@@ -46,7 +87,13 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 8. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23, replaces consecutive-clean).** CodeRabbit is non-deterministic — the same diff yields different findings each run — so a *single* quiet round is weak evidence; run several rounds to sample it. But CR-local is a **pre-push preview** of the cloud CodeRabbit that reviews the actual PR on push (the authoritative gate — we never merge on `CHANGES_REQUESTED`), so a "stability proof" on the local preview is not required. Run a **minimum of M rounds**, then stop on the first round **at or after** M with **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts):
    - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Compute via `git diff master...HEAD --name-only`.
+   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Resolve and guard the base BEFORE the path diff — an unresolvable base or a failed diff must ABORT, never be read as "no paths matched" (which would silently downgrade a security-path change to the weaker M=2):
+
+     ```bash
+     BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
+     paths=$(git diff "$BASE...HEAD" --name-only) || { echo 'security-path diff failed — ABORT'; exit 1; }
+     ```
+     (`git fetch origin` from the run block above only proves the fetch succeeded, not that `origin/master` resolves — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`".)
 
    Every round must run with `-c .coderabbit.yaml`. An **Apply** verdict does NOT reset a counter — it **extends the loop by one round** (fix it, run one more round to confirm nothing new surfaced). You cannot stop *on* a round that still has an Apply verdict, nor *before* round M. Report the running round count to the user each round (e.g. "round 2/2 min, last round clean → stop").
 
