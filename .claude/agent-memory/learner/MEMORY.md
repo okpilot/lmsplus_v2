@@ -79,9 +79,13 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Doc-updater FP on planned-batch-N work (misreads own exclusion list) | 2 | 2026-07-11 | PROMOTED → agent-doc-updater.md NEVER (2026-07-11; archive row 494). Clean ×4 post-promotion (batch-5/6; CR-loop R1/R2). |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
 | CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| CR-local scopes review to origin-lag content (out-of-scope file on diff due to unpushed local-master commits) | 1 | 2026-07-11 | WATCHING (archive row 497) |
+| Stale local master corrupts ALL master...HEAD analyses (security-path floor, PR sweep, CR-local scope) | 2 | 2026-07-23 | PROMOTED → agent-workflow.md § Always diff against `origin/master` (#1134). Fix is mechanical: use `origin/master` in the revision expr, NOT a fast-forward pre-step. [full → archive] |
 | Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
 | CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
+| Security-path trigger floor derived from semantic intent instead of mechanical diff-file glob | 1 | 2026-07-23 | WATCHING (archive row 500) |
+| Dependency advisory evaluated against branch HEAD instead of merge base (fix looks redundant at HEAD) | 1 | 2026-07-23 | WATCHING (archive row 501) |
+| impl-critic false assurance on dep-bump infrastructure side effects (claims "no lockfile regen required") | 1 | 2026-07-23 | WATCHING (archive row 502) |
+| Orchestrator asserts CVE applicability without verifying structural preconditions vs repo config | 1 | 2026-07-23 | WATCHING (archive row 503) |
 
 ## Durable knowledge (cross-agent)
 

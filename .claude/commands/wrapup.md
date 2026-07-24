@@ -39,7 +39,7 @@ Run through each item. Report pass/fail with brief notes.
 - **Non-blocking findings surfaced** — list ALL SUGGESTION/WARNING/non-blocking findings from every agent and reviewer (post-commit agents, CodeRabbit, critics). For each one, the user must see it and decide: FIX NOW (<10 lines), DEFER (create GitHub issue), or SKIP (with reason). "Noted" is not a valid disposition — every finding gets a ticket or an explicit skip.
 - **Post-commit pipeline completeness** — did every commit get all 4 agents? Did we run the learner after?
 - **Fix-commit re-review** — when production code was fixed from agent findings, did we re-run agents on the fix commit?
-- **Pre-push PR sweep** — for branches with 2+ commits, did we run `git diff master...HEAD` semantic review before pushing?
+- **Pre-push PR sweep** — for branches with 2+ commits, did we `git fetch origin` (and abort on failure) then run `git diff origin/master...HEAD` semantic review before pushing? A stale base silently distorts the sweep scope.
 - **Pre-commit critics** — did plan-critic and implementation-critic run before each commit? Any skipped without justification? (Plan-critic can skip for single-file <10 lines; implementation-critic never skips)
 - **Critic revision caps** — any plan-critic gate that hit the 4-round ceiling without meeting the consecutive-clean floor (2/3)? Any implementation-critic findings that took more than 2 rounds?
 - **Agent scope violations** — did any agent act outside its scope? (test-writer editing prod code, doc-updater making arch decisions)

@@ -237,7 +237,7 @@
   - _Requirements: NFR-Security_
 
 - [ ] **E.3 Pre-push PR sweep**
-  - Run semantic-reviewer on `git diff master...HEAD` per `agent-workflow.md § Pre-Push PR Sweep` once the branch is multi-commit.
+  - Run `git fetch origin` (abort on failure), then semantic-reviewer on `git diff origin/master...HEAD` per `agent-workflow.md § Pre-Push PR Sweep` once the branch is multi-commit.
   - Run `/crlocal` (CodeRabbit local CLI) per the `/fullpush` skill.
   - _Requirements: workflow_
 

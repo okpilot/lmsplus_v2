@@ -203,13 +203,12 @@ describe('UpsertQuestionSchema', () => {
 })
 
 describe('DeleteSyllabusItemSchema', () => {
-  it.each([
-    'easa_subjects',
-    'easa_topics',
-    'easa_subtopics',
-  ] as const)('accepts table %s', (table) => {
-    expect(DeleteSyllabusItemSchema.safeParse({ id: VALID_UUID, table }).success).toBe(true)
-  })
+  it.each(['easa_subjects', 'easa_topics', 'easa_subtopics'] as const)(
+    'accepts table %s',
+    (table) => {
+      expect(DeleteSyllabusItemSchema.safeParse({ id: VALID_UUID, table }).success).toBe(true)
+    },
+  )
 
   it.each([
     ['non-UUID id', { id: INVALID_UUID, table: 'easa_subjects' }],
