@@ -12,7 +12,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. [full → archive] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 14 | 2026-07-11 | RULE CANDIDATE (active). [full → archive] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 16 | 2026-07-13 | RULE CANDIDATE (active). [full → archive] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. [full → archive] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). [full → archive] |
@@ -92,7 +92,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
 - A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
-- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 14) — always grep all instances in the file AND siblings before committing.
+- The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 16) — always grep all instances in the file AND siblings before committing. Sub-mechanism added at count 16: explicitly scoping out a sibling for ONE deliberate divergence does NOT exempt it from the rest of the sweep's defect classes — scope-out decisions must be per-defect, not per-file.
 - **Learner tracker is authoritative over rule-file parenthetical counts.** Read this tracker, not the rule file's parenthetical — the parenthetical can lag (e.g. stale at count=4 for pitfall #7, caught 2026-07-03).
 - *(Other bullets relocated to `topics/cross-agent-lessons.md` § Durable knowledge relocated 2026-06-07.)*
 

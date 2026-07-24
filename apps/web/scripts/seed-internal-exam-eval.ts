@@ -105,15 +105,26 @@ async function seed() {
   console.log(`  Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
 
   // 3. Bank
-  const { data: existingBank } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119);
+  // a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
+  const { data: existingBank, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
-    .is('deleted_at', null)
     .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
   let bankId: string
   if (existingBank) {
+    if (existingBank.deleted_at !== null) {
+      const { data: restored, error: bankRestoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existingBank.id)
+        .select('id')
+      if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
     bankId = existingBank.id
   } else {
     const { data: newBank, error: bankErr } = await db
@@ -136,12 +147,13 @@ async function seed() {
     .single()
   if (metErr) throw new Error(`Subject: ${metErr.message}`)
 
-  const { data: topic } = await db
+  const { data: topic, error: topicLookupErr } = await db
     .from('easa_topics')
     .select('id')
     .eq('subject_id', met.id)
     .eq('code', '050-01')
     .maybeSingle()
+  if (topicLookupErr) throw new Error(`Topic lookup: ${topicLookupErr.message}`)
   let topicId: string
   if (topic) {
     topicId = topic.id
@@ -155,12 +167,13 @@ async function seed() {
     topicId = newTopic.id
   }
 
-  const { data: subtopic } = await db
+  const { data: subtopic, error: subtopicLookupErr } = await db
     .from('easa_subtopics')
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', '050-01-01')
     .maybeSingle()
+  if (subtopicLookupErr) throw new Error(`Subtopic lookup: ${subtopicLookupErr.message}`)
   let subtopicId: string
   if (subtopic) {
     subtopicId = subtopic.id
@@ -222,13 +235,14 @@ async function seed() {
   // 6. Exam config (enabled) + distribution. 30-min timer so it won't auto-submit mid-test.
   // The (organization_id, subject_id) uniqueness is a partial index (WHERE deleted_at
   // IS NULL), which ON CONFLICT can't target — so check-then-insert/update instead.
-  const { data: existingCfg } = await db
+  const { data: existingCfg, error: examConfigLookupErr } = await db
     .from('exam_configs')
     .select('id')
     .eq('organization_id', org.id)
     .eq('subject_id', met.id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (examConfigLookupErr) throw new Error(`Exam config lookup: ${examConfigLookupErr.message}`)
 
   let cfg: { id: string }
   if (existingCfg) {
@@ -260,12 +274,14 @@ async function seed() {
     cfg = newCfg
   }
 
-  const { data: existingDist } = await db
+  const { data: existingDist, error: distLookupErr } = await db
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', cfg.id)
     .eq('topic_id', topicId)
+    .is('subtopic_id', null)
     .maybeSingle()
+  if (distLookupErr) throw new Error(`Exam distribution lookup: ${distLookupErr.message}`)
   if (!existingDist) {
     const { error: distErr } = await db.from('exam_config_distributions').insert({
       exam_config_id: cfg.id,

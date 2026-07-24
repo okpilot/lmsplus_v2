@@ -264,16 +264,27 @@ async function seed() {
   console.log(`  Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
 
   // 3. Question bank (find existing or insert)
-  const { data: existingBank } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has regardless of name, so this seed composes with sibling eval seeds (#1119);
+  // a soft-deleted bank is restored (the UNIQUE constraint covers deleted rows too).
+  const { data: existingBank, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', org.id)
-    .eq('name', 'EASA PPL(A) QDB')
-    .is('deleted_at', null)
     .maybeSingle()
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
 
   let bankId: string
   if (existingBank) {
+    if (existingBank.deleted_at !== null) {
+      const { data: restored, error: bankRestoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existingBank.id)
+        .select('id')
+      if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
     bankId = existingBank.id
   } else {
     const { data: newBank, error: bankErr } = await db
@@ -319,12 +330,13 @@ async function seed() {
     let subjectQCount = 0
 
     for (const top of subj.topics) {
-      const { data: existingTopic } = await db
+      const { data: existingTopic, error: topicLookupErr } = await db
         .from('easa_topics')
         .select('id')
         .eq('subject_id', subject.id)
         .eq('code', top.code)
         .maybeSingle()
+      if (topicLookupErr) throw new Error(`Topic ${top.code} lookup: ${topicLookupErr.message}`)
 
       let topicId: string
       if (existingTopic) {
@@ -345,12 +357,14 @@ async function seed() {
       }
 
       for (const sub of top.subtopics) {
-        const { data: existingSub } = await db
+        const { data: existingSub, error: subtopicLookupErr } = await db
           .from('easa_subtopics')
           .select('id')
           .eq('topic_id', topicId)
           .eq('code', sub.code)
           .maybeSingle()
+        if (subtopicLookupErr)
+          throw new Error(`Subtopic ${sub.code} lookup: ${subtopicLookupErr.message}`)
 
         let subtopicId: string
         if (existingSub) {
@@ -460,6 +474,11 @@ async function seed() {
 
   // 8. Saved quiz draft — partially completed quiz on first subject
   const draftQuestionIds = subjectQuestionIds[firstSubjectId].slice(0, 5)
+  // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
+  // to a literal "undefined" key and silently corrupt the draft's answers map.
+  if (draftQuestionIds.length < 2) {
+    throw new Error(`Draft seed needs >= 2 questions, got ${draftQuestionIds.length}`)
+  }
   const { error: draftErr } = await db.from('quiz_drafts').insert({
     student_id: studentId,
     organization_id: org.id,
@@ -470,7 +489,12 @@ async function seed() {
       mode: 'study',
     },
     question_ids: draftQuestionIds,
-    answers: { [draftQuestionIds[0]]: 'b', [draftQuestionIds[1]]: 'a' },
+    // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
+    // strings are skipped as malformed on load and the draft shows 0/N progress (#1119).
+    answers: {
+      [draftQuestionIds[0]]: { selectedOptionId: 'b', responseTimeMs: 3000 },
+      [draftQuestionIds[1]]: { selectedOptionId: 'a', responseTimeMs: 4500 },
+    },
     current_index: 2,
   })
   if (draftErr) throw new Error(`Draft: ${draftErr.message}`)

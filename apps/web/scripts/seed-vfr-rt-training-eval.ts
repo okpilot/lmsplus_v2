@@ -316,14 +316,28 @@ async function lookupId(table: string, column: string, value: string): Promise<s
 
 async function ensureBank(orgId: string, adminId: string): Promise<string> {
   const NAME = 'VFR RT QDB'
-  const { data: existing } = await db
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the
+  // org already has regardless of name, so this seed composes with sibling eval
+  // seeds in either run order (#1119); a soft-deleted bank is restored (the UNIQUE
+  // constraint covers deleted rows too). NAME only applies on first-run insert.
+  const { data: existing, error: bankLookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, deleted_at')
     .eq('organization_id', orgId)
-    .eq('name', NAME)
-    .is('deleted_at', null)
     .maybeSingle()
-  if (existing) return existing.id
+  if (bankLookupErr) throw new Error(`Bank lookup: ${bankLookupErr.message}`)
+  if (existing) {
+    if (existing.deleted_at !== null) {
+      const { data: restored, error: bankRestoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existing.id)
+        .select('id')
+      if (bankRestoreErr) throw new Error(`Bank restore: ${bankRestoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
+    return existing.id
+  }
 
   const { data, error } = await db
     .from('question_banks')
