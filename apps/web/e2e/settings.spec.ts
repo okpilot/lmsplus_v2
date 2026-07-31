@@ -163,6 +163,14 @@ test.describe('Settings — Change Password', () => {
     // Step 2: reset password to the known test value. Depends on step 1 — only
     // run if the lookup succeeded (errors.length === 0; userId is also undefined
     // on a step-1 failure, so this is defensive consistency with the §7 pattern).
+    //
+    // ORDERING ASSUMPTION: this reset revokes every session for TEST_EMAIL,
+    // including the one saved to e2e/.auth/user.json. It is safe only because
+    // this file sorts LAST among the user.json consumers in the `e2e` project
+    // (exam-flow, exam-recovery, progress, quiz-flow, quiz-session-recovery,
+    // settings) and no later project reads user.json. A new e2e spec sorting
+    // after this one that uses user.json would start on a revoked session.
+    // Same hazard class as #1143; tracked for a durable fix in #1146.
     if (errors.length === 0 && userId) {
       try {
         const { error: updateError } = await admin.auth.admin.updateUserById(userId, {

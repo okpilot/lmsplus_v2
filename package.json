@@ -37,7 +37,8 @@
       "sharp": ">=0.35.0 <0.36",
       "postcss": ">=8.5.10 <9",
       "esbuild": ">=0.28.1 <0.29",
-      "hono": ">=4.12.25 <5"
+      "hono": ">=4.12.25 <5",
+      "brace-expansion": ">=5.0.8 <6"
     }
   },
   "packageManager": "pnpm@9.15.0",
