@@ -107,6 +107,9 @@ export async function ensureTestUser() {
     // Ensure password matches TEST_PASSWORD (may have been changed or set differently)
     // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
     // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
+    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
+    // this account. Never call this once that account's storageState (e2e/.auth/user.json)
+    // has been written — see #1146.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
       password: TEST_PASSWORD,
     })
@@ -179,6 +182,9 @@ export async function ensureLoginTestUser() {
     userId = existingAuth.id
     // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
     // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
+    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
+    // this account. Never call this once that account's storageState has been written —
+    // see #1146.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
       password: LOGIN_TEST_PASSWORD,
     })
@@ -250,6 +256,9 @@ export async function ensureInternalExamStudentUser() {
     userId = existingAuth.id
     // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
     // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
+    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
+    // this account. Never call this once that account's storageState
+    // (e2e/.auth/internal-exam-student.json) has been written — see #1146.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
       password: INTERNAL_EXAM_STUDENT_PASSWORD,
     })

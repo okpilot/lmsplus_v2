@@ -26,6 +26,15 @@ export default defineConfig({
     {
       name: 'internal-exam-student-setup',
       testMatch: 'internal-exam-student-auth.setup.ts',
+      // Ordered after admin-setup on purpose. This setup needs the admin user to
+      // exist (it calls signInAsAdmin), but it must NOT provision one itself: an
+      // ensure*User() password reset revokes every existing session for that
+      // account, so provisioning the admin here would kill the session that
+      // admin-setup has already saved to e2e/.auth/admin.json.
+      // Without this edge both setups sit in the same dependency phase with no
+      // defined order between them, so whether the suite passed came down to
+      // incidental scheduling — see PR #1143, where it did not. See also #1146.
+      dependencies: ['admin-setup'],
     },
     {
       name: 'e2e',
@@ -48,7 +57,13 @@ export default defineConfig({
       // student-side context spawned inside the internal-exam-* specs. Using a
       // dedicated user (not user.json) avoids session-rotation invalidation
       // caused by the prior `e2e` project's specs running against user.json.
-      dependencies: ['admin-setup', 'internal-exam-student-setup'],
+      // `setup` is listed so admin-students.spec.ts's non-admin access tests can
+      // log in as the shared student without provisioning it themselves — calling
+      // an ensure*User() helper here would reset that account's password and
+      // revoke the session `setup` already saved to e2e/.auth/user.json.
+      // (settings.spec.ts changes that password mid-run and restores it in its
+      // own afterAll, so `setup` is the initial writer, not the only one.)
+      dependencies: ['setup', 'admin-setup', 'internal-exam-student-setup'],
     },
     {
       name: 'redteam',

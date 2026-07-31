@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { getAdminOrganizationId } from './helpers/admin-supabase'
-import { getAdminClient } from './helpers/supabase'
+import { getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 // Use admin auth state from admin-auth.setup.ts
 test.use({ storageState: 'e2e/.auth/admin.json' })
@@ -443,13 +443,15 @@ test.describe('Admin Student Management — Filters', () => {
 // ── Section 9: Non-admin access ───────────────────────────────────────────────
 //
 // The proxy (middleware) returns 403 for authenticated non-admin users and
-// redirects to '/' for unauthenticated users. We test both:
+// redirects to '/' for unauthenticated users. Both are covered here:
 //
-//  a) Unauthenticated — tested here by clearing cookies (no student auth state
-//     available in the admin-e2e project, which only depends on admin-setup).
+//  a) Unauthenticated → redirect to '/' — tested by clearing this context's
+//     cookies, since this project's storage state is the admin's.
 //
-//  b) Authenticated student → 403 — covered by the redteam specs which have
-//     their own setup and directly call the proxy with a student session.
+//  b) Authenticated student → 403 — tested below in a fresh browser context that
+//     performs its own student login. The internal-exam student fixture is
+//     deliberately not reused; it belongs to the internal-exam specs.
+//     e2e/redteam/header-validation.spec.ts covers the proxy-header dimension.
 
 test.describe('Admin Student Management — Access Control', () => {
   test('unauthenticated request to /app/admin/students redirects to login', async ({ page }) => {
@@ -465,9 +467,13 @@ test.describe('Admin Student Management — Access Control', () => {
   test('authenticated student receives 403 when accessing /app/admin/students', async ({
     browser,
   }) => {
-    // Sign in as a student in a fresh browser context (no inherited storage state)
-    const { ensureTestUser, TEST_EMAIL, TEST_PASSWORD } = await import('./helpers/supabase')
-    await ensureTestUser()
+    // Sign in as a student in a fresh browser context (no inherited storage state).
+    // The student is provisioned by the `setup` project (a declared dependency of
+    // admin-e2e) — deliberately NOT by an ensure*User() call here, which would reset
+    // that account's password and revoke the session saved to e2e/.auth/user.json.
+    // Under a full `pnpm e2e` run the password in force here is the one
+    // settings.spec.ts's afterAll restored, not the one `setup` wrote — look there
+    // first if this ever fails on wrong credentials.
 
     const studentContext = await browser.newContext({ storageState: undefined })
     const page = await studentContext.newPage()
