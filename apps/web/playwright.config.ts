@@ -26,6 +26,15 @@ export default defineConfig({
     {
       name: 'internal-exam-student-setup',
       testMatch: 'internal-exam-student-auth.setup.ts',
+      // Ordered after admin-setup on purpose. This setup needs the admin user to
+      // exist (it calls signInAsAdmin), but it must NOT provision one itself: an
+      // ensure*User() password reset revokes every existing session for that
+      // account, so provisioning the admin here would kill the session that
+      // admin-setup has already saved to e2e/.auth/admin.json.
+      // Without this edge both setups sit in the same dependency phase with no
+      // defined order between them, so whether the suite passed came down to
+      // incidental scheduling — see PR #1143, where it did not. See also #1146.
+      dependencies: ['admin-setup'],
     },
     {
       name: 'e2e',

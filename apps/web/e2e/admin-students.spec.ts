@@ -443,13 +443,15 @@ test.describe('Admin Student Management — Filters', () => {
 // ── Section 9: Non-admin access ───────────────────────────────────────────────
 //
 // The proxy (middleware) returns 403 for authenticated non-admin users and
-// redirects to '/' for unauthenticated users. We test both:
+// redirects to '/' for unauthenticated users. Both are covered here:
 //
-//  a) Unauthenticated — tested here by clearing cookies (no student auth state
-//     available in the admin-e2e project, which only depends on admin-setup).
+//  a) Unauthenticated → redirect to '/' — tested by clearing this context's
+//     cookies, since this project's storage state is the admin's.
 //
-//  b) Authenticated student → 403 — covered by the redteam specs which have
-//     their own setup and directly call the proxy with a student session.
+//  b) Authenticated student → 403 — tested below in a fresh browser context that
+//     performs its own student login. The internal-exam student fixture is
+//     deliberately not reused; it belongs to the internal-exam specs.
+//     e2e/redteam/header-validation.spec.ts covers the proxy-header dimension.
 
 test.describe('Admin Student Management — Access Control', () => {
   test('unauthenticated request to /app/admin/students redirects to login', async ({ page }) => {
