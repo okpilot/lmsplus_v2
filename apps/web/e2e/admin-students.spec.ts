@@ -471,6 +471,9 @@ test.describe('Admin Student Management — Access Control', () => {
     // The student is provisioned by the `setup` project (a declared dependency of
     // admin-e2e) — deliberately NOT by an ensure*User() call here, which would reset
     // that account's password and revoke the session saved to e2e/.auth/user.json.
+    // Under a full `pnpm e2e` run the password in force here is the one
+    // settings.spec.ts's afterAll restored, not the one `setup` wrote — look there
+    // first if this ever fails on wrong credentials.
 
     const studentContext = await browser.newContext({ storageState: undefined })
     const page = await studentContext.newPage()
