@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { getAdminOrganizationId } from './helpers/admin-supabase'
-import { getAdminClient } from './helpers/supabase'
+import { getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 // Use admin auth state from admin-auth.setup.ts
 test.use({ storageState: 'e2e/.auth/admin.json' })
@@ -467,9 +467,10 @@ test.describe('Admin Student Management — Access Control', () => {
   test('authenticated student receives 403 when accessing /app/admin/students', async ({
     browser,
   }) => {
-    // Sign in as a student in a fresh browser context (no inherited storage state)
-    const { ensureTestUser, TEST_EMAIL, TEST_PASSWORD } = await import('./helpers/supabase')
-    await ensureTestUser()
+    // Sign in as a student in a fresh browser context (no inherited storage state).
+    // The student is provisioned by the `setup` project (a declared dependency of
+    // admin-e2e) — deliberately NOT by an ensure*User() call here, which would reset
+    // that account's password and revoke the session saved to e2e/.auth/user.json.
 
     const studentContext = await browser.newContext({ storageState: undefined })
     const page = await studentContext.newPage()

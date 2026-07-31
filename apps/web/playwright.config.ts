@@ -57,7 +57,13 @@ export default defineConfig({
       // student-side context spawned inside the internal-exam-* specs. Using a
       // dedicated user (not user.json) avoids session-rotation invalidation
       // caused by the prior `e2e` project's specs running against user.json.
-      dependencies: ['admin-setup', 'internal-exam-student-setup'],
+      // `setup` is listed so admin-students.spec.ts's non-admin access tests can
+      // log in as the shared student without provisioning it themselves — calling
+      // an ensure*User() helper here would reset that account's password and
+      // revoke the session `setup` already saved to e2e/.auth/user.json.
+      // (settings.spec.ts changes that password mid-run and restores it in its
+      // own afterAll, so `setup` is the initial writer, not the only one.)
+      dependencies: ['setup', 'admin-setup', 'internal-exam-student-setup'],
     },
     {
       name: 'redteam',
