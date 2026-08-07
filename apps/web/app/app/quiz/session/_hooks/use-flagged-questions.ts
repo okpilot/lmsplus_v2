@@ -1,43 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
-import { getFlaggedIds, toggleFlag } from '../../actions/flag'
+import { useCallback, useRef, useState } from 'react'
+import { toggleFlag } from '../../actions/flag'
 
-export function useFlaggedQuestions(questionIds: string[]) {
-  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set())
+/**
+ * Flag state for the mounted session, seeded from the server via `initialFlaggedIds`
+ * (fetched by the session bootstrap alongside the questions — session-bootstrap-load.ts,
+ * mirroring the report-flag-context.tsx precedent). There is no re-fetch path by
+ * design: the question set is fixed for a mounted session (the loader remounts
+ * QuizSession per session), so the seed can never go stale.
+ */
+export function useFlaggedQuestions(initialFlaggedIds: readonly string[]) {
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set(initialFlaggedIds))
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
-  const [, startTransition] = useTransition()
-  const prevIdsRef = useRef<string[]>([])
   // Ref for synchronous guard — avoids stale-closure window in concurrent toggle calls
   const pendingRef = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (prevIdsRef.current === questionIds) return
-    prevIdsRef.current = questionIds
-    if (questionIds.length === 0) {
-      setFlaggedIds(new Set())
-      return
-    }
-
-    // Ignore a late-resolving fetch once questionIds has changed, so a stale result
-    // can't overwrite the flag state for the current question set.
-    let cancelled = false
-    startTransition(async () => {
-      try {
-        const result = await getFlaggedIds({ questionIds })
-        if (!cancelled) setFlaggedIds(result.success ? new Set(result.flaggedIds) : new Set())
-      } catch (err) {
-        // A transient failure on mount must not surface as an unhandled rejection.
-        // Leave the current set untouched — clearing here would erase a flag the user
-        // just toggled optimistically while this initial fetch was still in flight.
-        console.error('[useFlaggedQuestions] initial fetch failed:', err)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [questionIds])
 
   const toggle = useCallback(async (questionId: string) => {
     if (pendingRef.current.has(questionId)) return false

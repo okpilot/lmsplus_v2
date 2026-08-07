@@ -31,6 +31,11 @@ export type QuizStateOpts = {
   startedAt?: string
 }
 
+export type QuizSessionProps = QuizStateOpts & {
+  /** Server-fetched flag seed for useFlaggedQuestions (#1010). */
+  initialFlaggedIds?: readonly string[]
+}
+
 export type AnswerPipelineOpts = QuizStateOpts & {
   getQuestionId: () => string
   getAnswerStartTime: () => number
