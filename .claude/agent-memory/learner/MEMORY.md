@@ -99,6 +99,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Fake-timer test that times out leaks fake-timer mode into later tests in the file (`finally` doesn't run on timeout) | 1 | 2026-08-07 | WATCHING (archive row 513) |
 | Semantic-reviewer asserts a code path is unreachable without grepping for the triggering caller (reachability FP) | 1 | 2026-08-07 | WATCHING (archive row 514) |
 | Dep-bump type error cascades into N unrelated CI suite failures (suites abort at shared build step, never test their own subject) | 1 | 2026-08-07 | WATCHING (archive row 515) |
+| Verification gate's severity threshold makes it blind to sub-threshold advisories, so a removal justified by "gate is clean" is under-verified | 1 | 2026-08-08 | WATCHING (archive row 516) — esbuild pin removal justified by an `--audit-level=high` experiment that cannot see the LOW-rated advisory it needed to rule out. |
 | Behavior-first test-title rename overclaims a stronger property (privacy/security) than the assertion body proves | 1 | 2026-08-08 | WATCHING (archive row 517) — distinct from vacuous-assertion rows (assertion here is sound; the TITLE overshoots). Inverse of the §7 impl-leakage hook, which the mechanical guard doesn't catch. |
 | Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) — inverse of "Test-file split drops a guard" (that under-copies; this over-copies). Caught pre-commit by impl-critic round 1. |
 

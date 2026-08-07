@@ -949,4 +949,33 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-07-06 (added §3 React render-body exception — pure JSX composition up to 35 lines [#1074])*
+## 10. Comment Accuracy for DB/RPC Claims (write-side)
+
+This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `agent-critic.md`, `agent-semantic-reviewer.md`, `plan-critic.md`, and `agent-red-team.md` — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
+
+Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the `CREATE OR REPLACE FUNCTION` chain. Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
+
+```ts
+// ❌ WRONG — asserts the id is always this request's own row, without tracing the
+// unique_violation replay branch that can return a concurrent winner's row id instead
+/** Returns the id of THIS request's row. */
+export async function startStudySession(...) { ... }
+
+// ✅ CORRECT — traced the latest migration body, names the replay case explicitly
+/**
+ * Returns the started session's id. On a concurrent identical-payload race, mig 137's
+ * unique_violation branch returns the WINNING request's row id, not necessarily this
+ * request's own — callers that use the id as a scoped-mutation/teardown target must
+ * account for that.
+ */
+export async function startStudySession(...) { ... }
+```
+
+Promoted at count=3 (implementation-critic's own tracker reached this independently, corroborated the same cycle by a distinct semantic-reviewer finding of the same root cause):
+- `study-start-handlers.ts` JSDoc claimed an orphaned discovery row blocks the retry. All five start RPCs (migs 137/141/138/139/140) unconditionally soft-delete the caller's active discovery rows *before* their single-active guard — the claim was inverted.
+- `study.ts` claimed the returned id is "THIS request's row". Falsified by mig 137's `unique_violation` replay branch, which returns a concurrent winner's row id on a payload match — and that id is then used as a soft-delete target (issue #1152).
+- mig 137's own comment (L116-119) names the hazard but guards the wrong case: it protects the different-payload path while calling the identical-payload path "safely share". Sharing is safe for reads, not for a delete keyed on the id.
+
+---
+
+*Last updated: 2026-08-08 (added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*
