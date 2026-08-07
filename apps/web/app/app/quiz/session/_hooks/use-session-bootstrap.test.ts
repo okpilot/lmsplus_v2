@@ -254,6 +254,24 @@ describe('useSessionBootstrap — handoff success path', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
+  it('surfaces a load error when applying the loaded session throws', async () => {
+    // loadSessionData never rejects, so the only way into the .catch net is a throw
+    // inside the .then callback. Without the net the user is stranded on the skeleton
+    // forever with error still null — no spinner resolution, no message.
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    mockClearSessionHandoff.mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() =>
+      expect(result.current.error).toBe('Failed to load questions. Please try again.'),
+    )
+  })
+
   it('sets error when loadSessionQuestions returns failure', async () => {
     mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
@@ -482,21 +500,6 @@ describe('useSessionBootstrap — handleRecoveryResume', () => {
     await waitFor(() => expect(result.current.resumeError).not.toBeNull())
 
     expect(result.current.resumeError).toBe('RPC error')
-  })
-
-  it('sets a fallback resumeError when failure has no error string', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue({ success: false as const })
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeError).not.toBeNull())
-
-    expect(result.current.resumeError).toBe('Failed to load questions. Try again.')
   })
 
   it('sets a generic resumeError when loadSessionQuestions throws', async () => {

@@ -39,12 +39,17 @@ export function useSessionBootstrap(userId: string) {
     setSession(data)
     // Questions + flags load in parallel; the session renders only once BOTH have
     // settled (QuizSession mounts once — the flag seed cannot be applied late).
-    loadSessionData(data.questionIds).then((r) => {
-      if (!r.success) return setError(r.error)
-      clearSessionHandoff(userId)
-      setFlaggedIds(r.flaggedIds)
-      setQuestions(r.questions)
-    })
+    loadSessionData(data.questionIds)
+      .then((r) => {
+        if (!r.success) return setError(r.error)
+        clearSessionHandoff(userId)
+        setFlaggedIds(r.flaggedIds)
+        setQuestions(r.questions)
+      })
+      // loadSessionData is documented never to reject, so this mirrors the error-path
+      // net buildRecoveryResume already attaches to the SAME promise — without it a
+      // throwing setter strands the loader on the skeleton with error still null.
+      .catch(() => setError('Failed to load questions. Please try again.'))
   }, [router, userId])
 
   const resumeInFlightRef = useRef(false)

@@ -31,9 +31,8 @@ export type QuizStateOpts = {
   startedAt?: string
 }
 
-// Props for the session runner (quiz-session.tsx). Composed from QuizStateOpts —
-// which already declares the 14 session fields useQuizState(props) consumes — so the
-// field list cannot diverge between the props and the state opts.
+// Props for the session runner (quiz-session.tsx). Composed FROM QuizStateOpts rather
+// than re-declaring its fields, so the two can never drift apart.
 export type QuizSessionProps = QuizStateOpts & {
   /** Server-fetched flag seed for useFlaggedQuestions (#1010). */
   initialFlaggedIds?: readonly string[]

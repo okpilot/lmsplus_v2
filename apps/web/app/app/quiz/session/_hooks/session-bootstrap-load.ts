@@ -107,7 +107,7 @@ export function buildRecoveryResume(
     loadSessionData(recovery.questionIds)
       .then((r) => {
         if (!r.success) {
-          set.setResumeError(r.error ?? 'Failed to load questions. Try again.')
+          set.setResumeError(r.error)
           set.setResumeLoading(false)
           inFlightRef.current = false // retryable failure — release the lock
           return

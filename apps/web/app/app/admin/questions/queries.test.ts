@@ -303,7 +303,7 @@ describe('getQuestionsList', () => {
     })
   })
 
-  it('breaks created_at ties by ordering on id descending, applied after created_at', async () => {
+  it('sorts questions deterministically when creation timestamps match', async () => {
     const chain = mockSupabaseWith([makeRow()], 1)
 
     await getQuestionsList({})

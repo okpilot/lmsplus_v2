@@ -184,7 +184,10 @@ describe('buildStudyStartHandler — retryable failures', () => {
     await handleStart()
 
     expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: 'session-created-by-this-tab' })
+    // Guards the two distinct regressions: reverting to the blanket `endDiscovery()`
+    // produces a zero-argument call, and a stray second teardown breaks the count.
     expect(mockEndDiscovery).not.toHaveBeenCalledWith()
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
   })
 
   it('does not call endDiscovery when the start result carries no session id', async () => {

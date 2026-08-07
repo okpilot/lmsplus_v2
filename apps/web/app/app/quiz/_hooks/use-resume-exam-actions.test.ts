@@ -155,6 +155,30 @@ describe('useResumeExamActions — discard', () => {
     expect(result.current.error).toBe('Session not found')
     expect(result.current.discarded).toBe(false)
     expect(result.current.loading).toBe(false)
+
+    // "Retryable" is the claim in the title, so prove it: the failed attempt must have
+    // released the one-shot guard. Without this, a regression that leaves the ref
+    // locked still passes every assertion above while the user is locked out.
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    await act(async () => {
+      await result.current.handleDiscard()
+    })
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
+    expect(result.current.discarded).toBe(true)
+  })
+
+  it('discards a stuck session that carries no resumable exam data', async () => {
+    // The discardOnly banner (page.tsx renders <ResumeExamBanner discardOnly />) passes
+    // exam: undefined, so this is a live production path — the stuck-session case where
+    // there is nothing to resume, only to discard.
+    const { result } = renderActions({ exam: undefined })
+
+    await act(async () => {
+      await result.current.handleDiscard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: EXAM.sessionId })
+    expect(result.current.discarded).toBe(true)
   })
 
   it('shows a generic error when the discard throws', async () => {
