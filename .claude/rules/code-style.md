@@ -953,7 +953,7 @@ This prevents documentation from drifting and confusing future readers.
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `agent-critic.md`, `agent-semantic-reviewer.md`, `plan-critic.md`, and `agent-red-team.md` — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
 
-Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the `CREATE OR REPLACE FUNCTION` chain. Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
+Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the `CREATE OR REPLACE FUNCTION` chain, plus the functions it calls and any RLS policy, trigger, CHECK constraint or GRANT that determines the behaviour being asserted, whenever the claim rests on those. A guard can live outside the function body, so tracing only the function chain can certify a comment that a policy or trigger contradicts. Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
 
 ```ts
 // ❌ WRONG — asserts the id is always this request's own row, without tracing the
