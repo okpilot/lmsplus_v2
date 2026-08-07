@@ -134,6 +134,9 @@ describe('startStudy — empty question pool', () => {
     if (!result.success) return
     expect(result.questions).toEqual([])
     expect(mockGetStudyQuestions).not.toHaveBeenCalled()
+    // No row is created for an empty pool, so there must be no id to scope cleanup to —
+    // reporting one here would point a teardown at a session this request never started.
+    expect(result.sessionId).toBeUndefined()
   })
 
   it('does not create a discovery session when the question pool is empty', async () => {
@@ -260,6 +263,17 @@ describe('startStudy — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toEqual([q])
+  })
+
+  it('reports the started session so its cleanup can be scoped to this request', async () => {
+    // The field is optional on the result type, so dropping it still compiles and every
+    // other test still passes — the caller would silently stop tearing down its orphan.
+    // This assertion is what makes that regression visible.
+    mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.sessionId).toBe(CREATED_SESSION_ID)
   })
 
   it('passes the resolved question ids to the study question fetcher', async () => {

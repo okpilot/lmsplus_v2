@@ -303,6 +303,21 @@ describe('getQuestionsList', () => {
     })
   })
 
+  it('sorts questions deterministically when creation timestamps match', async () => {
+    const chain = mockSupabaseWith([makeRow()], 1)
+
+    await getQuestionsList({})
+
+    // .order() call sequence is PostgREST's sort priority — id must be the
+    // secondary sort, not the primary one, or equal-timestamp rows would sort
+    // by id first and created_at would stop being the intended primary order.
+    const orderCalls = (chain.order as ReturnType<typeof vi.fn>).mock.calls
+    expect(orderCalls).toEqual([
+      ['created_at', { ascending: false }],
+      ['id', { ascending: false }],
+    ])
+  })
+
   it('computes pagination totals from a separate count query', async () => {
     const chain = mockSupabaseWith([], 0)
 
@@ -343,12 +358,16 @@ describe('getQuestionsList', () => {
     expect(chain.range).toHaveBeenCalledWith(0, PAGE_SIZE - 1)
   })
 
-  it('returns empty questions when page exceeds total pages', async () => {
-    mockSupabaseWith([], 5)
+  it('returns the last page of questions when page exceeds total pages', async () => {
+    // count=30 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+    const chain = mockSupabaseWith([makeRow()], 30)
 
     const result = await getQuestionsList({ page: 99 })
 
-    expect(result).toEqual({ ok: true, questions: [], totalCount: 5 })
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.questions).toHaveLength(1)
+    expect(result.totalCount).toBe(30)
+    expect(chain.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
   })
 
   it('returns totalCount from Supabase count', async () => {

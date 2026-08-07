@@ -1,80 +1,29 @@
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { startQuizSession } from '../actions/start'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
-import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
+import { useRef, useState } from 'react'
 import type { UseQuizStartOpts } from '../session-types'
+import { buildQuizStartHandler } from './quiz-start-handlers'
 
+/**
+ * Drives "Start quiz": confirm-overwrite of an unfinished session, the
+ * startQuizSession action, the sessionStorage handoff, and navigation to the
+ * session runner. The handler body lives in quiz-start-handlers.ts.
+ */
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const {
-    userId,
-    subjectId,
-    subjects,
-    count,
-    maxQuestions,
-    filters,
-    calcMode,
-    imageMode,
-    topicTree,
-  } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Synchronous one-shot re-entry guard (code-style §6): `loading` is async state,
+  // so a same-tick double invocation (double-click, Enter + click) passes it twice.
+  const inFlight = useRef(false)
 
-  async function handleStart() {
-    if (loading) return
-    if (!subjectId) return
-    const existing = readActiveSession(userId)
-    if (existing) {
-      const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
-      const msg = `You have an unfinished quiz${suffix}. Starting a new quiz will lose it. Continue?`
-      if (!globalThis.confirm(msg)) return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const topicIds = topicTree.getSelectedTopicIds()
-      const subtopicIds = topicTree.getSelectedSubtopicIds()
-      const effectiveCount = Math.min(count, maxQuestions || 1)
-      const result = await startQuizSession({
-        subjectId,
-        topicIds: topicIds.length > 0 ? topicIds : undefined,
-        subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
-        count: effectiveCount,
-        filters,
-        calcMode,
-        imageMode,
-      })
-      if (result.success) {
-        const selectedSubject = subjects.find((s) => s.id === subjectId)
-        try {
-          sessionStorage.setItem(
-            sessionHandoffKey(userId),
-            JSON.stringify({
-              userId,
-              sessionId: result.sessionId,
-              questionIds: result.questionIds,
-              subjectName: selectedSubject?.name,
-              subjectCode: selectedSubject?.short,
-            }),
-          )
-        } catch (err) {
-          console.warn('[use-quiz-start] sessionStorage handoff failed:', err)
-          setError('Unable to start quiz right now. Please try again.')
-          setLoading(false)
-          return
-        }
-        if (existing) clearActiveSession(userId)
-        router.push('/app/quiz/session')
-        return
-      }
-      setError(result.error)
-      setLoading(false)
-    } catch {
-      setError('Something went wrong. Please try again.')
-      setLoading(false)
-    }
-  }
+  const handleStart = buildQuizStartHandler({
+    ...opts,
+    router,
+    loading,
+    setLoading,
+    setError,
+    inFlight,
+  })
 
   return { loading, error, handleStart }
 }

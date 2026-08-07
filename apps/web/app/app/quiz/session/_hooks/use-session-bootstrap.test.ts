@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   mockLoadSessionQuestions,
+  mockGetFlaggedIds,
   mockReadSessionHandoff,
   mockReadActiveSession,
   mockClearActiveSession,
@@ -27,6 +28,7 @@ const {
   const router = { replace: vi.fn() }
   return {
     mockLoadSessionQuestions: vi.fn(),
+    mockGetFlaggedIds: vi.fn(),
     mockReadSessionHandoff: vi.fn(),
     mockReadActiveSession: vi.fn(),
     mockClearActiveSession: vi.fn(),
@@ -38,6 +40,10 @@ const {
 
 vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: (...args: unknown[]) => mockLoadSessionQuestions(...args),
+}))
+
+vi.mock('../../actions/flag', () => ({
+  getFlaggedIds: (...args: unknown[]) => mockGetFlaggedIds(...args),
 }))
 
 vi.mock('../_utils/quiz-session-storage', async (importOriginal) => {
@@ -77,7 +83,8 @@ vi.mock('next/navigation', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import { isValidSessionData } from '../_utils/quiz-session-handoff'
-import { _resetCachedSession, useSessionBootstrap } from './use-session-bootstrap'
+import { _resetCachedSession } from './session-bootstrap-load'
+import { useSessionBootstrap } from './use-session-bootstrap'
 
 // ---- Fixtures -------------------------------------------------------------
 
@@ -108,6 +115,8 @@ beforeEach(() => {
   mockReadSessionHandoff.mockReturnValue(null)
   mockReadActiveSession.mockReturnValue(null)
   mockToSessionData.mockReturnValue(SESSION_DATA)
+  // Default: no flags for this student — the common case for every existing test.
+  mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 })
 
 // ---- No session data ----------------------------------------------------
@@ -245,6 +254,24 @@ describe('useSessionBootstrap — handoff success path', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
+  it('surfaces a load error when applying the loaded session throws', async () => {
+    // loadSessionData never rejects, so the only way into the .catch net is a throw
+    // inside the .then callback. Without the net the user is stranded on the skeleton
+    // forever with error still null — no spinner resolution, no message.
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+    mockClearSessionHandoff.mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() =>
+      expect(result.current.error).toBe('Failed to load questions. Please try again.'),
+    )
+  })
+
   it('sets error when loadSessionQuestions returns failure', async () => {
     mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
@@ -276,6 +303,102 @@ describe('useSessionBootstrap — handoff success path', () => {
     await waitFor(() => expect(result.current.questions).not.toBeNull())
 
     expect(result.current.error).toBeNull()
+  })
+})
+
+// ---- Flagged ids (parallel with the questions load) -----------------------
+
+describe('useSessionBootstrap — flagged ids', () => {
+  it('exposes an empty flag list before any load completes', () => {
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+    expect(result.current.flaggedIds).toEqual([])
+  })
+
+  it('exposes the flagged ids once the handoff questions load', async () => {
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    expect(result.current.flaggedIds).toEqual([Q1.id])
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: HANDOFF_DATA.questionIds })
+  })
+
+  it('still loads the session with no flags when the flag fetch rejects', async () => {
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockRejectedValue(new Error('network down'))
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    // A flag failure is cosmetic — it must never surface as a session error.
+    expect(result.current.error).toBeNull()
+    expect(result.current.flaggedIds).toEqual([])
+    // Prove the [] came from the exercised failure path, not the initial state (§7).
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: HANDOFF_DATA.questionIds })
+  })
+
+  it('still loads the session with no flags when the flag fetch reports failure', async () => {
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: false, error: 'Failed to fetch flags' })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.flaggedIds).toEqual([])
+    // Prove the [] came from the exercised failure path, not the initial state (§7).
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: HANDOFF_DATA.questionIds })
+  })
+
+  it('does not show the questions until the flag fetch settles', async () => {
+    // QuizSession mounts once, when questions turn non-null — the flag seed cannot
+    // be applied late, so questions-ready must gate on BOTH fetches settling.
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    let resolveFlags!: (v: { success: boolean; flaggedIds: string[] }) => void
+    mockGetFlaggedIds.mockReturnValue(
+      new Promise((res) => {
+        resolveFlags = res
+      }),
+    )
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    // Flush the resolved questions fetch — the flag fetch is still pending.
+    await act(async () => {})
+    expect(result.current.questions).toBeNull()
+
+    await act(async () => {
+      resolveFlags({ success: true, flaggedIds: [Q2.id] })
+    })
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+    expect(result.current.flaggedIds).toEqual([Q2.id])
+  })
+
+  it('exposes the flagged ids after a successful recovery resume', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q2.id] })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await act(async () => {
+      result.current.handleRecoveryResume()
+    })
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    expect(result.current.flaggedIds).toEqual([Q2.id])
+    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: ACTIVE_SESSION.questionIds })
   })
 })
 
@@ -377,21 +500,6 @@ describe('useSessionBootstrap — handleRecoveryResume', () => {
     await waitFor(() => expect(result.current.resumeError).not.toBeNull())
 
     expect(result.current.resumeError).toBe('RPC error')
-  })
-
-  it('sets a fallback resumeError when failure has no error string', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue({ success: false as const })
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeError).not.toBeNull())
-
-    expect(result.current.resumeError).toBe('Failed to load questions. Try again.')
   })
 
   it('sets a generic resumeError when loadSessionQuestions throws', async () => {

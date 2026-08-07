@@ -341,16 +341,17 @@ describe('listInternalExamCodes', () => {
       expect(chain.range).not.toHaveBeenCalled()
     })
 
-    it('returns an empty page without querying rows when the page is past the end', async () => {
+    it('returns the last page of rows when the requested page is past the end', async () => {
       mockAdmin()
-      const chain = buildChain([makeRow(1)], null, 10)
+      // count=40 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+      const chain = buildChain([makeRow(1)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamCodes({ page: 5 })
+      const result = await listInternalExamCodes({ page: 99 })
 
-      expect(result.rows).toHaveLength(0)
-      expect(result.totalCount).toBe(10)
-      expect(chain.range).not.toHaveBeenCalled()
+      expect(result.rows).toHaveLength(1)
+      expect(result.totalCount).toBe(40)
+      expect(chain.range).toHaveBeenCalledWith(25, 49)
     })
   })
 
@@ -576,17 +577,17 @@ describe('listInternalExamAttempts', () => {
       expect(chain.range).not.toHaveBeenCalled()
     })
 
-    it('returns an empty page without querying rows when the page is past the end', async () => {
+    it('returns the last page of rows when the requested page is past the end', async () => {
       mockAdmin()
-      // count=10 → totalPages=Math.max(1, Math.ceil(10/25))=1; page=2 > 1 triggers early return.
-      const chain = buildChain([makeRow(1)], null, 10)
+      // count=40 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+      const chain = buildChain([makeRow(1)], null, 40)
       mockAdminFrom.mockReturnValue(chain)
 
-      const result = await listInternalExamAttempts({ page: 2 })
+      const result = await listInternalExamAttempts({ page: 99 })
 
-      expect(result.rows).toHaveLength(0)
-      expect(result.totalCount).toBe(10)
-      expect(chain.range).not.toHaveBeenCalled()
+      expect(result.rows).toHaveLength(1)
+      expect(result.totalCount).toBe(40)
+      expect(chain.range).toHaveBeenCalledWith(25, 49)
     })
 
     it('returns an empty rows array when the rows query yields null data', async () => {
