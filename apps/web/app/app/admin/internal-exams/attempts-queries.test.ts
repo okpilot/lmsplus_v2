@@ -169,7 +169,10 @@ describe('listInternalExamAttempts', () => {
 
       await listInternalExamAttempts({ studentId: 'stu-2' })
 
-      expect(chain.eq).toHaveBeenCalledWith('student_id', 'stu-2')
+      const eqCalls = chain.eq?.mock.calls ?? []
+      expect(
+        eqCalls.filter(([column, value]) => column === 'student_id' && value === 'stu-2'),
+      ).toHaveLength(2)
     })
 
     it('scopes the query to a single subject when subjectId is set', async () => {
@@ -179,7 +182,10 @@ describe('listInternalExamAttempts', () => {
 
       await listInternalExamAttempts({ subjectId: 'sub-1' })
 
-      expect(chain.eq).toHaveBeenCalledWith('subject_id', 'sub-1')
+      const eqCalls = chain.eq?.mock.calls ?? []
+      expect(
+        eqCalls.filter(([column, value]) => column === 'subject_id' && value === 'sub-1'),
+      ).toHaveLength(2)
     })
   })
 

@@ -97,6 +97,8 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Behavior fix ships with a regression test that can't detect the fix's own reversion (test passes identically on old and new code) | 1 | 2026-08-07 | WATCHING (archive row 511) — 3 sub-instances this cycle (2 impl-critic, 1 test-writer), but ALL trace to one commit (14d68479) — not yet a cross-commit occurrence. See archive for why NOT promoted. |
 | Code comment/JSDoc asserts DB/RPC guard behavior not verified against latest migration body (learner synthesis; mirrors impl-critic's own count=3 tracker) | 3 | 2026-08-07 | RULE CANDIDATE (archive row 512) — corroborated same cycle by a distinct semantic-reviewer finding (replay-id used as teardown target). Propose code-style.md new subsection. |
 | Fake-timer test that times out leaks fake-timer mode into later tests in the file (`finally` doesn't run on timeout) | 1 | 2026-08-07 | WATCHING (archive row 513) |
+| Behavior-first test-title rename overclaims a stronger property (privacy/security) than the assertion body proves | 1 | 2026-08-08 | WATCHING (archive row 517) — distinct from vacuous-assertion rows (assertion here is sound; the TITLE overshoots). Inverse of the §7 impl-leakage hook, which the mechanical guard doesn't catch. |
+| Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) — inverse of "Test-file split drops a guard" (that under-copies; this over-copies). Caught pre-commit by impl-critic round 1. |
 
 ## Durable knowledge (cross-agent)
 
