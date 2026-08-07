@@ -82,6 +82,11 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Stale local master corrupts ALL master...HEAD analyses (security-path floor, PR sweep, CR-local scope) | 2 | 2026-07-23 | PROMOTED → agent-workflow.md § Always diff against `origin/master` (#1134). Fix is mechanical: use `origin/master` in the revision expr, NOT a fast-forward pre-step. [full → archive] |
 | Reviewer-proposed fix introduces a new async-safety bug caught by impl-critic (reviewer fixes need same scrutiny) | 1 | 2026-07-11 | WATCHING (archive row 498) |
 | CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
+| Parallel implementer in batch dispatch diverges from extraction pattern the sibling implementers establish in the same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
+| Plan validation completed against stale master; post-approval rebase reveals a deleted file (plan item removed as deviation) | 1 | 2026-07-12 | WATCHING (archive row 505) |
+| Test assertions dropped during extraction-fixup refactor, leaving coverage gaps caught by semantic-reviewer | 1 | 2026-07-12 | WATCHING (archive row 506) |
+| CR (local OR cloud) fabricates a critical/major finding describing a code construct not present in source (hallucinated duplicate declaration, phantom import) | 2 | 2026-08-07 | RULE CANDIDATE → propose agent-coderabbit-local.md Common Pitfalls #8 (verify claimed construct against source/tsc; broadens to cloud CR, mirroring pitfall #7). [full → archive row 585] |
+| Internal Opus critics accepted a forward-looking error-path gap; external CR independently required the fix | 1 | 2026-07-13 | WATCHING (archive row 508) |
 | Security-path trigger floor derived from semantic intent instead of mechanical diff-file glob | 1 | 2026-07-23 | WATCHING (archive row 500) |
 | Dependency advisory evaluated against branch HEAD instead of merge base (fix looks redundant at HEAD) | 1 | 2026-07-23 | WATCHING (archive row 501) |
 | impl-critic false assurance on dep-bump infrastructure side effects (claims "no lockfile regen required") | 1 | 2026-07-23 | WATCHING (archive row 502) |
@@ -89,6 +94,9 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Reassuring idempotency/safety comment masking a real side effect, propagated verbatim across sibling helpers | 1 | 2026-07-31 | WATCHING (archive row 504) |
 | Playwright setup project execution ordering assumed rather than declared (`dependencies:` undeclared → scheduling race) | 1 | 2026-07-31 | WATCHING (archive row 505) |
 | Cycle output (commit message / drive-by comment fix) introduces documentation inaccuracy caught by semantic-reviewer | 1 | 2026-07-31 | WATCHING (archive row 506) |
+| Behavior fix ships with a regression test that can't detect the fix's own reversion (test passes identically on old and new code) | 1 | 2026-08-07 | WATCHING (archive row 511) — 3 sub-instances this cycle (2 impl-critic, 1 test-writer), but ALL trace to one commit (14d68479) — not yet a cross-commit occurrence. See archive for why NOT promoted. |
+| Code comment/JSDoc asserts DB/RPC guard behavior not verified against latest migration body (learner synthesis; mirrors impl-critic's own count=3 tracker) | 3 | 2026-08-07 | RULE CANDIDATE (archive row 512) — corroborated same cycle by a distinct semantic-reviewer finding (replay-id used as teardown target). Propose code-style.md new subsection. |
+| Fake-timer test that times out leaks fake-timer mode into later tests in the file (`finally` doesn't run on timeout) | 1 | 2026-08-07 | WATCHING (archive row 513) |
 
 ## Durable knowledge (cross-agent)
 
