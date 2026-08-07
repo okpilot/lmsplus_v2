@@ -76,6 +76,7 @@ beforeEach(() => {
     forward: vi.fn(),
     replace: vi.fn(),
     prefetch: vi.fn(),
+    bfcacheId: 'test-bfcache-id',
   }
 })
 
