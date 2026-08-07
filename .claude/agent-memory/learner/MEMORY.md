@@ -103,6 +103,8 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Behavior-first test-title rename overclaims a stronger property (privacy/security) than the assertion body proves | 1 | 2026-08-08 | WATCHING (archive row 517) — distinct from vacuous-assertion rows (assertion here is sound; the TITLE overshoots). Inverse of the §7 impl-leakage hook, which the mechanical guard doesn't catch. |
 | Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) — inverse of "Test-file split drops a guard" (that under-copies; this over-copies). Caught pre-commit by impl-critic round 1. |
 
+| A promoted rule's inline count-label parenthetical desyncs from its own same-commit enumerated precedent list | 1 | 2026-08-08 | WATCHING (archive row 519) — caught pre-commit by impl-critic; distinct from Rule-Mirror Sync (cross-file) and the durable "tracker is authoritative over parentheticals" reader caution (passive, multi-cycle drift) below — this is a same-edit, same-file internal desync caught before it could ever go stale. |
+
 ## Durable knowledge (cross-agent)
 
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
@@ -110,6 +112,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
 - The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 16) — always grep all instances in the file AND siblings before committing. Sub-mechanism added at count 16: explicitly scoping out a sibling for ONE deliberate divergence does NOT exempt it from the rest of the sweep's defect classes — scope-out decisions must be per-defect, not per-file.
 - **Learner tracker is authoritative over rule-file parenthetical counts.** Read this tracker, not the rule file's parenthetical — the parenthetical can lag (e.g. stale at count=4 for pitfall #7, caught 2026-07-03).
+- **Convergent-agent "not mechanically enforceable" verdicts are a rule-classification signal, not a defect.** When two independently-run agents in the same cycle (e.g. test-writer + coderabbit-sync on `code-style.md` §10, 2026-08-08) each conclude a newly promoted rule is judgement-based prose — no hook can pattern-match it, no `.coderabbit.yaml` mirror is possible — treat that convergence as useful input on where the rule should live (text-only, enforced by review discipline) rather than as a coderabbit-sync mirror-sync gap.
 - *(Other bullets relocated to `topics/cross-agent-lessons.md` § Durable knowledge relocated 2026-06-07.)*
 
 ## Topic pointers
