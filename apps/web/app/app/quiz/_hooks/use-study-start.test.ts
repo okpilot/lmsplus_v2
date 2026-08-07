@@ -187,7 +187,7 @@ describe('useStudyStart — handleStart payload', () => {
 // ---- handleStart — happy path (navigate) ---------------------------------
 
 describe('useStudyStart — handleStart navigates to the session runner', () => {
-  it('writes the pre-marked discovery handoff to sessionStorage on success', async () => {
+  it('carries the pre-marked discovery questions into the runner', async () => {
     mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion('q-1')] })
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())

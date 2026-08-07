@@ -28,6 +28,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { ActiveSession } from '../session/_utils/quiz-session-storage'
 import { buildDiscardHandler, buildResumeHandler, buildSaveHandler } from './quiz-recovery-handlers'
 
@@ -57,9 +58,6 @@ let setLoading: ReturnType<typeof vi.fn<(v: boolean) => void>>
 // The shared in-flight lock passed to both the save and discard builders — a fresh
 // object per test stands in for the hook's useRef(false).
 let inFlightRef: { current: boolean }
-// Router deps type taken straight from the builder so the mock satisfies the full
-// AppRouterInstance shape (push/refresh are used; back/forward/replace/prefetch are stubs;
-// bfcacheId is a required non-callable field from Next 16.3 onward).
 let router: Parameters<typeof buildResumeHandler>[0]['router']
 
 beforeEach(() => {
@@ -76,15 +74,7 @@ beforeEach(() => {
   setError = vi.fn()
   setSession = vi.fn()
   setLoading = vi.fn()
-  router = {
-    push: vi.fn(),
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    replace: vi.fn(),
-    prefetch: vi.fn(),
-    bfcacheId: 'test-bfcache-id',
-  }
+  router = createMockRouter()
   mockClearDeploymentPin.mockResolvedValue(undefined)
 })
 
@@ -133,12 +123,11 @@ describe('buildResumeHandler', () => {
     expect(setError).not.toHaveBeenCalled()
   })
 
-  it('writes the handoff payload under the user-scoped key', () => {
+  it('keeps a recovered session private to the user who owns it', () => {
     const session = makeSession({ userId: 'user-42' })
 
     buildResumeHandler({ userId: 'user-42', session, setError, router })()
 
-    // Key must be scoped to the user
     expect(mockSessionStorageSetItem.mock.calls[0]?.[0]).toBe('quiz-session:user-42')
   })
 })

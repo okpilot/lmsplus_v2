@@ -26,6 +26,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import type { StudyQuestion } from '@/lib/queries/study-queries'
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import { buildStudyStartHandler, type StudyStartDeps } from './study-start-handlers'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -62,7 +63,7 @@ function makeDeps(overrides: Partial<StudyStartDeps> = {}): StudyStartDeps {
       getSelectedTopicIds: () => [],
       getSelectedSubtopicIds: () => [],
     },
-    router: { push: mockRouterPush } as unknown as StudyStartDeps['router'],
+    router: createMockRouter({ push: mockRouterPush }),
     loading: false,
     setLoading: vi.fn(),
     setError: vi.fn(),
@@ -284,7 +285,7 @@ describe('buildStudyStartHandler — terminal success', () => {
     expect(mockRouterPush).toHaveBeenCalledTimes(1)
   })
 
-  it("writes the discovery handoff under the current user key with this session's questions before navigating", async () => {
+  it("prepares the discovery session for the current user with this session's questions", async () => {
     const deps = makeDeps()
     const handleStart = buildStudyStartHandler(deps)
 

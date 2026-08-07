@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -73,7 +74,7 @@ function makeDefaultOpts(overrides?: Partial<Parameters<typeof useQuizSubmit>[0]
     feedbackRef: makeFeedbackRef(),
     currentIndexRef: { current: 0 },
     pendingQuestionIdRef: makePendingRef(),
-    router: { push: mockRouterPush } as unknown as Parameters<typeof useQuizSubmit>[0]['router'],
+    router: createMockRouter({ push: mockRouterPush }),
     ...overrides,
   }
 }
