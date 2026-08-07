@@ -28,7 +28,13 @@ describe('createMockRouter', () => {
 
     expect(vi.isMockFunction(router.replace)).toBe(true)
     expect(router.replace).not.toBe(customPush)
-    expect(typeof router.bfcacheId).toBe('string')
+    expect(router.bfcacheId).toBe('mock-bfcache-id')
+  })
+
+  it('uses the caller-supplied bfcache id when one is given', () => {
+    const router = createMockRouter({ bfcacheId: 'custom-bfcache-id' })
+
+    expect(router.bfcacheId).toBe('custom-bfcache-id')
   })
 
   it('tracks calls independently across separate instances', () => {
@@ -37,8 +43,23 @@ describe('createMockRouter', () => {
 
     routerA.push('/a')
 
+    routerA.replace('/b')
+    routerA.refresh()
+    routerA.back()
+    routerA.forward()
+    routerA.prefetch('/c')
+
     expect(routerA.push).toHaveBeenCalledTimes(1)
     expect(routerA.push).toHaveBeenCalledWith('/a')
+    expect(routerA.replace).toHaveBeenCalledWith('/b')
+    expect(routerA.prefetch).toHaveBeenCalledWith('/c')
+
+    // A shared/module-scoped factory would leak every one of these into routerB.
     expect(routerB.push).not.toHaveBeenCalled()
+    expect(routerB.replace).not.toHaveBeenCalled()
+    expect(routerB.refresh).not.toHaveBeenCalled()
+    expect(routerB.back).not.toHaveBeenCalled()
+    expect(routerB.forward).not.toHaveBeenCalled()
+    expect(routerB.prefetch).not.toHaveBeenCalled()
   })
 })
