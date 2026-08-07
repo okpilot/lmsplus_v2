@@ -123,7 +123,7 @@ describe('buildResumeHandler', () => {
     expect(setError).not.toHaveBeenCalled()
   })
 
-  it('keeps a recovered session private to the user who owns it', () => {
+  it('scopes the recovered session to the current user', () => {
     const session = makeSession({ userId: 'user-42' })
 
     buildResumeHandler({ userId: 'user-42', session, setError, router })()

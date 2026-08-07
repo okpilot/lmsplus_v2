@@ -30,4 +30,14 @@ describe('createMockRouter', () => {
     expect(router.replace).not.toBe(customPush)
     expect(typeof router.bfcacheId).toBe('string')
   })
+
+  it('tracks calls independently across separate instances', () => {
+    const routerA = createMockRouter()
+    const routerB = createMockRouter()
+
+    routerA.push('/a')
+
+    expect(routerA.push).toHaveBeenCalledTimes(1)
+    expect(routerB.push).not.toHaveBeenCalled()
+  })
 })
