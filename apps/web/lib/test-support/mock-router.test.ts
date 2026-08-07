@@ -38,6 +38,7 @@ describe('createMockRouter', () => {
     routerA.push('/a')
 
     expect(routerA.push).toHaveBeenCalledTimes(1)
+    expect(routerA.push).toHaveBeenCalledWith('/a')
     expect(routerB.push).not.toHaveBeenCalled()
   })
 })
