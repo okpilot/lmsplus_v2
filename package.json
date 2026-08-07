@@ -19,13 +19,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.4",
+    "@biomejs/biome": "^2.5.6",
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "@commitlint/types": "^21.2.0",
-    "knip": "^6.27.0",
+    "knip": "^6.29.0",
     "lefthook": "^2.1.10",
-    "turbo": "^2.10.5",
+    "turbo": "^2.10.7",
     "typescript": "^6.0.3"
   },
   "pnpm": {
@@ -37,7 +37,8 @@
       "sharp": ">=0.35.0 <0.36",
       "postcss": ">=8.5.10 <9",
       "esbuild": ">=0.28.1 <0.29",
-      "hono": ">=4.12.25 <5"
+      "hono": ">=4.12.25 <5",
+      "brace-expansion": ">=5.0.8 <6"
     }
   },
   "packageManager": "pnpm@9.15.0",

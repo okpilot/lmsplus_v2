@@ -66,6 +66,7 @@
 - **`@repo/ui` is listed as a dep in `apps/web/package.json` with no `@repo/ui` import** — `packages/ui/src/index.ts` exports `{}` (Phase 5 placeholder). Ignoring it in knip is intentional (forward-declared workspace dep).
 - **Broad grep for component names returns false-positive matches** when siblings use same-named primitives from `@base-ui/react` directly (`SelectSeparator` uses `SelectPrimitive.Separator`). Verify import path, not just symbol name.
 - **Tailwind v4 `@plugin` directive placement** — after all `@import`, before `@custom-variant`/`@theme`. Verified #325.
+- **Playwright project ordering = dependency-depth PHASES, not config order.** Verified in the bundled runner source (`node_modules/.pnpm/playwright@1.61.1/.../lib/runner/index.js`, task `"create phases"`): every project whose `deps` are all already `processed` joins the SAME phase; phases run sequentially, projects within a phase interleave with NO defined order (even at `workers: 1`). So adding one `dependencies:` edge re-partitions EVERY project's phase — check the resulting partition, not just the edge. Precedent (#1143 race fix): adding `internal-exam-student-setup → admin-setup` moved `admin-e2e` from phase 2 to phase 3, silently making it run strictly after `e2e` — a beneficial side effect the plan never predicted. Each project appears in exactly one phase, so a diamond (`admin-e2e` depending on both `admin-setup` and something that also depends on it) never double-runs the shared dep.
 
 ## False positives (do not re-raise)
 

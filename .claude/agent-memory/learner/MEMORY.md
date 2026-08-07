@@ -91,6 +91,9 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Dependency advisory evaluated against branch HEAD instead of merge base (fix looks redundant at HEAD) | 1 | 2026-07-23 | WATCHING (archive row 501) |
 | impl-critic false assurance on dep-bump infrastructure side effects (claims "no lockfile regen required") | 1 | 2026-07-23 | WATCHING (archive row 502) |
 | Orchestrator asserts CVE applicability without verifying structural preconditions vs repo config | 1 | 2026-07-23 | WATCHING (archive row 503) |
+| Reassuring idempotency/safety comment masking a real side effect, propagated verbatim across sibling helpers | 1 | 2026-07-31 | WATCHING (archive row 504) |
+| Playwright setup project execution ordering assumed rather than declared (`dependencies:` undeclared → scheduling race) | 1 | 2026-07-31 | WATCHING (archive row 505) |
+| Cycle output (commit message / drive-by comment fix) introduces documentation inaccuracy caught by semantic-reviewer | 1 | 2026-07-31 | WATCHING (archive row 506) |
 
 ## Durable knowledge (cross-agent)
 
