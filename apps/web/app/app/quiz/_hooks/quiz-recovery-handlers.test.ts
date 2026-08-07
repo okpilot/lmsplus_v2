@@ -58,7 +58,8 @@ let setLoading: ReturnType<typeof vi.fn<(v: boolean) => void>>
 // object per test stands in for the hook's useRef(false).
 let inFlightRef: { current: boolean }
 // Router deps type taken straight from the builder so the mock satisfies the full
-// AppRouterInstance shape (push/refresh are used; back/forward/replace/prefetch are stubs).
+// AppRouterInstance shape (push/refresh are used; back/forward/replace/prefetch are stubs;
+// bfcacheId is a required non-callable field from Next 16.3 onward).
 let router: Parameters<typeof buildResumeHandler>[0]['router']
 
 beforeEach(() => {
@@ -82,6 +83,7 @@ beforeEach(() => {
     forward: vi.fn(),
     replace: vi.fn(),
     prefetch: vi.fn(),
+    bfcacheId: 'test-bfcache-id',
   }
   mockClearDeploymentPin.mockResolvedValue(undefined)
 })
