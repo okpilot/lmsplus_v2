@@ -220,4 +220,20 @@ describe('buildExamStartHandler — terminal success', () => {
     expect(mockStartExamSession).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledTimes(1)
   })
+
+  it("writes the handoff under the current user key with this session's questions before navigating", async () => {
+    const deps = makeDeps()
+    const handleStart = buildExamStartHandler(deps)
+
+    await handleStart()
+
+    expect(mockSessionStorageSetItem).toHaveBeenCalledTimes(1)
+    const [key, rawPayload] = mockSessionStorageSetItem.mock.calls[0] ?? []
+    expect(key).toBe('quiz-session:test-user-id')
+    expect(JSON.parse(rawPayload)).toMatchObject({
+      userId: 'test-user-id',
+      sessionId: SESSION_ID,
+      questionIds: ['q-1', 'q-2'],
+    })
+  })
 })

@@ -308,7 +308,7 @@ describe('PaginationBar', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/test?subjectId=abc&page=2')
   })
 
-  // Out-of-range deep links (?page=99): the bar snaps to the last page with data (#1041).
+  // Out-of-range deep links, e.g. ?page=99 (#1041).
   it('shows the last page range text when the page is out of range', () => {
     render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
     expect(screen.getByText('Showing 26–50 of 50 questions')).toBeInTheDocument()
@@ -316,7 +316,10 @@ describe('PaginationBar', () => {
 
   it('highlights the last page button when the page is out of range', () => {
     render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
-    // The current page renders as the filled (default-variant) button; others are outline.
+    // aria-current is the semantic marker a screen reader announces; the filled variant
+    // is the visual one. Assert both so neither can regress without failing here.
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: '1' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('button', { name: '2' })).toHaveClass('bg-primary')
     expect(screen.getByRole('button', { name: '1' })).not.toHaveClass('bg-primary')
   })

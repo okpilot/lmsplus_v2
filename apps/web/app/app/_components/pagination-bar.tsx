@@ -64,6 +64,9 @@ export function PaginationBar({
             <Button
               key={item.page}
               variant={item.page === effectivePage ? 'default' : 'outline'}
+              // The filled variant marks the current page visually; aria-current carries
+              // the same state to assistive tech, which cannot see the styling.
+              aria-current={item.page === effectivePage ? 'page' : undefined}
               size="sm"
               className="min-w-8"
               onClick={() => goToPage(item.page)}

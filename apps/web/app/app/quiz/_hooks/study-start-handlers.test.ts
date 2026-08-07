@@ -229,6 +229,13 @@ describe('buildStudyStartHandler — retryable failures', () => {
       await handleStart()
 
       expect(deps.inFlight.current).toBe(false)
+      // Pin the log's arguments, not just that it fired: the session id is what lets an
+      // operator correlate the failure with a row, and nothing else asserts this line.
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[use-study-start] orphan cleanup threw for session',
+        'session-from-this-request',
+        expect.any(Error),
+      )
       expect(deps.setError).toHaveBeenCalledWith(
         'Unable to start discovery right now. Please try again.',
       )
@@ -275,5 +282,21 @@ describe('buildStudyStartHandler — terminal success', () => {
     await handleStart()
     expect(mockStartStudy).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledTimes(1)
+  })
+
+  it("writes the discovery handoff under the current user key with this session's questions before navigating", async () => {
+    const deps = makeDeps()
+    const handleStart = buildStudyStartHandler(deps)
+
+    await handleStart()
+
+    expect(mockSessionStorageSetItem).toHaveBeenCalledTimes(1)
+    const [key, rawPayload] = mockSessionStorageSetItem.mock.calls[0] ?? []
+    expect(key).toBe('quiz-session:test-user-id')
+    expect(JSON.parse(rawPayload)).toMatchObject({
+      userId: 'test-user-id',
+      questionIds: ['q-1'],
+      mode: 'discovery',
+    })
   })
 })
