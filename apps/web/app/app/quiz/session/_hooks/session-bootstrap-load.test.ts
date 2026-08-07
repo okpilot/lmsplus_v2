@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockLoadSessionQuestions, mockGetFlaggedIds, mockReadSessionHandoff } = vi.hoisted(() => ({
   mockLoadSessionQuestions: vi.fn(),
@@ -50,6 +50,14 @@ beforeEach(() => {
 // ---- loadSessionData -------------------------------------------------------
 
 describe('loadSessionData', () => {
+  // A per-test `finally` does NOT run when a test times out (its promise stays pending),
+  // so a fake-timer test that regresses into a hang would leak fake timers into every
+  // later test in the file. This afterEach still runs on timeout and contains the blast
+  // radius to the one failing test. No-op when real timers are already active.
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('returns the questions and the flagged ids when both fetches succeed', async () => {
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
     mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })
@@ -132,6 +140,21 @@ describe('loadSessionData', () => {
     const result = await loadSessionData(QUESTION_IDS)
 
     expect(result).toEqual({ success: false, error: 'RPC error' })
+  })
+
+  it('surfaces the questions error without waiting out a hung flag fetch', async () => {
+    vi.useFakeTimers()
+    try {
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
+      mockGetFlaggedIds.mockReturnValue(new Promise(() => undefined))
+
+      // Deliberately no advanceTimersByTimeAsync: the questions failure must resolve on
+      // its own. Awaiting both fetches together would pend here until the flag fetch's
+      // FLAG_FETCH_TIMEOUT_MS elapsed, so this test fails by timing out on a regression.
+      expect(await loadSessionData(QUESTION_IDS)).toEqual({ success: false, error: 'RPC error' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

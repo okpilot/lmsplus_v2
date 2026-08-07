@@ -59,17 +59,28 @@ function writeDiscoveryHandoff(
 }
 
 /**
- * startStudy already created a server-side discovery row, but its result carries
- * no sessionId, so scoped cleanup is impossible — blanket-clear the caller's
- * active discovery rows instead. That is safe here: the user is starting
- * discovery, and endDiscovery's own doc names startStudy-failure teardown as a
- * purpose. An orphaned active session would otherwise block the retry under the
- * single-active-session invariant (#1011). Never throws — a cleanup failure must
- * not swallow the caller's user-facing handoff error.
+ * startStudy already created a server-side discovery row and returned its id in
+ * `result.sessionId` — scope teardown to that one row instead of blanket-clearing
+ * every active discovery row for the caller. A blanket clear from this tab could
+ * tombstone a NEWER discovery row a second tab created for the same user in the
+ * meantime (cross-tab TOCTOU race against the single-active-session invariant,
+ * #1011) — the same reasoning `startStudy`'s own server-side teardown already
+ * follows. This teardown is best-effort hygiene, NOT a prerequisite for the retry:
+ * every start RPC (migs 137/141/138/139/140) unconditionally soft-deletes the
+ * caller's active discovery rows before evaluating its single-active guard, so an
+ * orphaned row blocks nothing — clearing it just keeps a stale row from surfacing a
+ * bogus resume prompt. Never throws — a cleanup failure must not swallow the
+ * caller's user-facing handoff error. If sessionId is missing (should not happen
+ * once questions were returned — see study.ts), skip cleanup rather than fall back
+ * to a blanket clear that could hit a different tab's session.
  */
-async function endOrphanDiscovery(): Promise<void> {
+async function endOrphanDiscovery(sessionId: string | undefined): Promise<void> {
+  if (!sessionId) {
+    console.error('[use-study-start] orphan cleanup skipped: no sessionId in startStudy result')
+    return
+  }
   try {
-    const cleanup = await endDiscovery()
+    const cleanup = await endDiscovery({ sessionId })
     if (!cleanup.success) {
       console.error('[use-study-start] orphan cleanup failed:', cleanup.error)
     }
@@ -94,7 +105,7 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
         return failStart(deps, 'No questions match these filters.')
       }
       if (!writeDiscoveryHandoff(deps, result.questions)) {
-        await endOrphanDiscovery()
+        await endOrphanDiscovery(result.sessionId)
         return failStart(deps, 'Unable to start discovery right now. Please try again.')
       }
       // Terminal success: the lock stays engaged while router.push unmounts the form.

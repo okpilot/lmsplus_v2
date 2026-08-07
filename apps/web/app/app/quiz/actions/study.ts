@@ -17,7 +17,7 @@ const StartStudySchema = z.object({
 })
 
 export type StartStudyResult =
-  | { success: true; questions: StudyQuestion[] }
+  | { success: true; questions: StudyQuestion[]; sessionId?: string }
   | { success: false; error: string }
 
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
@@ -42,7 +42,8 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     })
 
     // An empty study set is a valid state, not an error — skip both the session
-    // creation and the fetch (no row is created for an empty discovery set).
+    // creation and the fetch (no row is created for an empty discovery set, so
+    // sessionId is omitted — there is nothing for the client to scope cleanup to).
     if (ids.length === 0) return { success: true, questions: [] }
 
     // Create the real ephemeral discovery session row (enforces the single-active
@@ -58,7 +59,10 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // catch below tears down createdSessionId — otherwise the just-created discovery row
     // stays active and blocks the next start until it is auto-cleared.
     if (questions.length === 0) throw new Error('No study questions returned for selected ids')
-    return { success: true, questions }
+    // createdSessionId is guaranteed non-null here (createDiscoverySession returns a
+    // null error only alongside a non-null id) — surface it so the client can scope
+    // its own orphan-cleanup teardown to THIS request's row instead of blanket-clearing.
+    return { success: true, questions, sessionId: createdSessionId ?? undefined }
   } catch (err) {
     console.error('[startStudy] error:', err)
     // If the row was created but the key fetch failed, best-effort tear it down,

@@ -58,7 +58,9 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
     `,
     )
     .is('deleted_at', null)
+    // id tiebreaker keeps pages stable — created_at is not unique.
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(from, to)
   if (filters.subjectId) dataQ = dataQ.eq('subject_id', filters.subjectId)
   if (filters.topicId) dataQ = dataQ.eq('topic_id', filters.topicId)

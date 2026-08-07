@@ -60,15 +60,19 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  * an empty flag set and never surfaces an error — flags are cosmetic and must not
  * block the session. A loadSessionQuestions rejection is mapped to the generic
  * load-failure message here, so this function never rejects.
+ *
+ * The flag fetch is kicked off BEFORE the questions await, so the success path
+ * still overlaps both requests. The questions result is awaited first so a failure
+ * returns immediately: loadSessionQuestions RESOLVES `{ success: false }` rather
+ * than rejecting, so awaiting both together (Promise.all) would not short-circuit
+ * and would stall a known error behind the flag fetch's full timeout.
  */
 export async function loadSessionData(questionIds: string[]): Promise<SessionLoadResult> {
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
-    const [questionsResult, flaggedIds] = await Promise.all([
-      loadSessionQuestions(questionIds),
-      flagsPromise,
-    ])
+    const questionsResult = await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
+    const flaggedIds = await flagsPromise
     return { success: true, questions: questionsResult.questions, flaggedIds }
   } catch {
     return { success: false, error: 'Failed to load questions. Please try again.' }

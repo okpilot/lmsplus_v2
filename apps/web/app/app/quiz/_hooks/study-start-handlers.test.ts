@@ -79,7 +79,11 @@ beforeEach(() => {
     value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
     writable: true,
   })
-  mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()] })
+  mockStartStudy.mockResolvedValue({
+    success: true,
+    questions: [makeQuestion()],
+    sessionId: 'session-from-this-request',
+  })
   mockEndDiscovery.mockResolvedValue({ success: true })
 })
 
@@ -152,9 +156,9 @@ describe('buildStudyStartHandler — retryable failures', () => {
     await handleStart()
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
-    // No-args (blanket) form is the contract — the scoped { sessionId } form is a
-    // different endDiscovery mode reserved for callers that know the row id.
-    expect(mockEndDiscovery).toHaveBeenCalledWith()
+    // The scoped { sessionId } form is the contract — cleanup must target only the
+    // row THIS request created, never every active discovery row for the caller.
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: 'session-from-this-request' })
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith(
@@ -163,6 +167,49 @@ describe('buildStudyStartHandler — retryable failures', () => {
 
     await handleStart()
     expect(mockStartStudy).toHaveBeenCalledTimes(2)
+  })
+
+  it('scopes cleanup to the session id returned by this request, not a stale one', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockStartStudy.mockResolvedValue({
+      success: true,
+      questions: [makeQuestion()],
+      sessionId: 'session-created-by-this-tab',
+    })
+    const deps = makeDeps()
+    const handleStart = buildStudyStartHandler(deps)
+
+    await handleStart()
+
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: 'session-created-by-this-tab' })
+    expect(mockEndDiscovery).not.toHaveBeenCalledWith()
+  })
+
+  it('does not call endDiscovery when the start result carries no session id', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()] })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const deps = makeDeps()
+      const handleStart = buildStudyStartHandler(deps)
+
+      await handleStart()
+
+      expect(mockEndDiscovery).not.toHaveBeenCalled()
+      // The branch is unreachable in production today, so this log is the only signal
+      // an operator would ever get that the invariant broke — assert it, don't just mute it.
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('orphan cleanup skipped'))
+      expect(deps.setError).toHaveBeenCalledWith(
+        'Unable to start discovery right now. Please try again.',
+      )
+    } finally {
+      errorSpy.mockRestore()
+    }
   })
 
   it('still allows a retry when the orphan cleanup itself throws', async () => {
