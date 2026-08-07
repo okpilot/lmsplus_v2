@@ -84,7 +84,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('buildResumeHandler', () => {
-  it('writes the complete exam handoff under the user-scoped key and navigates to the session page', () => {
+  it('preserves the exam details and opens the session page', () => {
     const handle = buildResumeHandler(makeDeps({ userId: 'user-42' }))
     handle()
 
@@ -112,7 +112,7 @@ describe('buildResumeHandler', () => {
     expect(router.push).not.toHaveBeenCalled()
   })
 
-  it('sets an error and does not navigate when the handoff write fails', () => {
+  it('shows an error and stays on the current page when resume preparation fails', () => {
     mockSessionStorageSetItem.mockImplementationOnce(() => {
       throw new DOMException('QuotaExceededError')
     })
@@ -193,7 +193,7 @@ describe('buildDiscardHandler', () => {
     expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
   })
 
-  it('shows a generic message when the discard result has no error string', async () => {
+  it('shows the fallback message when discard fails without details', async () => {
     // success: false with no error field — the ?? fallback must kick in
     mockDiscardQuiz.mockResolvedValue({ success: false, error: undefined as unknown as string })
     const handle = buildDiscardHandler(makeDeps())

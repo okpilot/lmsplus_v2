@@ -31,8 +31,6 @@ export type QuizStateOpts = {
   startedAt?: string
 }
 
-// Props for the session runner (quiz-session.tsx). Composed FROM QuizStateOpts rather
-// than re-declaring its fields, so the two can never drift apart.
 export type QuizSessionProps = QuizStateOpts & {
   /** Server-fetched flag seed for useFlaggedQuestions (#1010). */
   initialFlaggedIds?: readonly string[]
