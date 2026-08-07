@@ -252,7 +252,8 @@ describe('buildStudyStartHandler — retryable failures', () => {
       await handleStart()
 
       expect(errorSpy).toHaveBeenCalledWith(
-        '[use-study-start] orphan cleanup failed:',
+        '[use-study-start] orphan cleanup failed for session',
+        'session-from-this-request',
         'discovery not found',
       )
     } finally {

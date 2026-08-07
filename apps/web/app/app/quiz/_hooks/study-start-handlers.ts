@@ -87,10 +87,10 @@ async function endOrphanDiscovery(sessionId: string | undefined): Promise<void> 
   try {
     const cleanup = await endDiscovery({ sessionId })
     if (!cleanup.success) {
-      console.error('[use-study-start] orphan cleanup failed:', cleanup.error)
+      console.error('[use-study-start] orphan cleanup failed for session', sessionId, cleanup.error)
     }
   } catch (cleanupErr) {
-    console.error('[use-study-start] orphan cleanup threw:', cleanupErr)
+    console.error('[use-study-start] orphan cleanup threw for session', sessionId, cleanupErr)
   }
 }
 
