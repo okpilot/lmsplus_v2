@@ -303,6 +303,21 @@ describe('getQuestionsList', () => {
     })
   })
 
+  it('breaks created_at ties by ordering on id descending, applied after created_at', async () => {
+    const chain = mockSupabaseWith([makeRow()], 1)
+
+    await getQuestionsList({})
+
+    // .order() call sequence is PostgREST's sort priority — id must be the
+    // secondary sort, not the primary one, or equal-timestamp rows would sort
+    // by id first and created_at would stop being the intended primary order.
+    const orderCalls = (chain.order as ReturnType<typeof vi.fn>).mock.calls
+    expect(orderCalls).toEqual([
+      ['created_at', { ascending: false }],
+      ['id', { ascending: false }],
+    ])
+  })
+
   it('computes pagination totals from a separate count query', async () => {
     const chain = mockSupabaseWith([], 0)
 
