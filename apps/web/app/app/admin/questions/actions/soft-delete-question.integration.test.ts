@@ -137,19 +137,31 @@ describe('softDeleteQuestion (app-layer integration)', () => {
     // easa_subjects(id) with no ON DELETE, deleting the subject while a
     // question survives raises 23503 and masks the original failure. So verify
     // the children are actually gone before touching the parent.
+    // The survivor query is gated on there being orgs to query, but the
+    // reference cleanup is NOT: if setup failed after seedReferenceData and
+    // before either org existed, there are no questions to strand and the
+    // reference rows still need removing — skipping it there would leak them.
     const orgIds = [orgAId, orgBId].filter((id): id is string => id !== undefined)
-    if (errors.length === 0 && refs && orgIds.length > 0) {
-      const { data: survivors, error: survivorErr } = await admin
-        .from('questions')
-        .select('id')
-        .in('organization_id', orgIds)
-      if (survivorErr) {
-        errors.push(`questions survivor check: ${survivorErr.message}`)
-      } else if ((survivors?.length ?? 0) > 0) {
-        errors.push(
-          `cleanupTestData left ${survivors?.length} question(s) behind — skipping cleanupReferenceData to avoid a 23503 that would mask this`,
-        )
-      } else {
+    if (errors.length === 0 && refs) {
+      let childrenCleared = true
+
+      if (orgIds.length > 0) {
+        const { data: survivors, error: survivorErr } = await admin
+          .from('questions')
+          .select('id')
+          .in('organization_id', orgIds)
+        if (survivorErr) {
+          errors.push(`questions survivor check: ${survivorErr.message}`)
+          childrenCleared = false
+        } else if ((survivors?.length ?? 0) > 0) {
+          errors.push(
+            `cleanupTestData left ${survivors?.length} question(s) behind — skipping cleanupReferenceData to avoid a 23503 that would mask this`,
+          )
+          childrenCleared = false
+        }
+      }
+
+      if (childrenCleared) {
         try {
           await cleanupReferenceData({ admin, refs: [refs] })
         } catch (e) {
