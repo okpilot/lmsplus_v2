@@ -20,11 +20,26 @@ import { requireAdmin } from '@/lib/auth/require-admin'
  * same UPDATE succeeds with both policies still in place once any permissive
  * SELECT policy covers the post-update row.
  *
- * Because the service-role client bypasses RLS, tenant isolation that RLS used
- * to provide is re-applied here in app code via the `organization_id` filter —
- * the same pattern as `toggle-student-status-mutations.ts`, the other admin
- * soft-delete. Dropping that filter would let an admin of one org soft-delete
- * another org's question by id.
+ * Because the service-role client bypasses RLS, both guarantees RLS was
+ * providing are re-applied below in app code, keeping this behaviour-preserving
+ * rather than widening:
+ *   - `.eq('organization_id', …)` restores tenant isolation — the same pattern
+ *     as `toggle-student-status-mutations.ts`, the other admin soft-delete.
+ *     Dropping it would let an admin of one org soft-delete another org's
+ *     question by id.
+ *   - `.is('deleted_at', null)` restores `tenant_isolation`'s row-visibility
+ *     qualifier — without it a re-delete would re-stamp deleted_at/deleted_by
+ *     and overwrite the record of who first deleted the question.
+ *
+ * An RLS-preserving alternative exists and was considered: an admin-scoped
+ * `FOR SELECT` policy on `questions` would make the post-update row visible and
+ * let the write stay on the caller's client. It was rejected as higher-risk —
+ * widening SELECT on `questions` risks exposing soft-deleted questions to every
+ * org member unless every read filters explicitly. Note mig
+ * `20260323000050_fix_flagged_unflag_rls.sql` hit this same trap on
+ * `flagged_questions` in March and solved it the other way (dropped
+ * `deleted_at IS NULL` from the policy); that table is per-student, so the
+ * blast radius there was bounded in a way it is not here.
  */
 export async function softDeleteQuestion(input: unknown): Promise<ActionResult> {
   const parsed = SoftDeleteQuestionSchema.safeParse(input)
@@ -41,12 +56,6 @@ export async function softDeleteQuestion(input: unknown): Promise<ActionResult> 
       deleted_by: userId,
     })
     .eq('id', parsed.data.id)
-    // Both filters replace guarantees the RLS client used to provide, so this
-    // stays behaviour-preserving rather than widening: `organization_id`
-    // restores tenant isolation, and `deleted_at IS NULL` restores
-    // `tenant_isolation`'s row-visibility qualifier — without it a re-delete
-    // would silently re-stamp deleted_at/deleted_by and overwrite the record of
-    // who first deleted the question.
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .select('id')

@@ -18,10 +18,17 @@ export async function requireAdmin(): Promise<AdminAuth> {
     redirect('/auth/login')
   }
 
+  // `.is('deleted_at', null)` is defence in depth, not decoration: the RLS
+  // policy `users_select` already scopes this read to a live row, but callers
+  // like softDeleteQuestion now write through the service-role client, so RLS
+  // is no longer a second check on their path. Without this filter, "a
+  // soft-deleted admin cannot mutate data" would rest on a single policy in a
+  // different query.
   const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('role, organization_id')
     .eq('id', user.id)
+    .is('deleted_at', null)
     .maybeSingle<{ role: string; organization_id: string }>()
 
   if (profileError) {

@@ -173,6 +173,9 @@ describe('softDeleteQuestion (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected re-delete to fail')
+    // Pin the message so a zero-row match stays distinguishable from an
+    // unexpected DB error path reaching the same `success: false`.
+    expect(result.error).toBe('Question not found or not accessible')
 
     const after = await readQuestion(questionA1)
     expect(after.deleted_at).toBe(before.deleted_at)

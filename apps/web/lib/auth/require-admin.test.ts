@@ -40,9 +40,12 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi
-            .fn()
-            .mockResolvedValue({ data: { role: 'admin', organization_id: 'org-1' }, error: null }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { role: 'admin', organization_id: 'org-1' },
+              error: null,
+            }),
+          }),
         }),
       }),
     })
@@ -82,7 +85,9 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+          }),
         }),
       }),
     })
@@ -99,7 +104,9 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
         }),
       }),
     })
@@ -116,9 +123,11 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi
-            .fn()
-            .mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi
+              .fn()
+              .mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+          }),
         }),
       }),
     })
