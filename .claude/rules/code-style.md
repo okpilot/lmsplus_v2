@@ -421,6 +421,16 @@ const sortOrder = (maxRow?.sort_order ?? -1) + 1
 
 An `INSERT ... ON CONFLICT (col, ...) [WHERE pred] DO ...` needs a **UNIQUE** index or constraint matching exactly that column set (and partial predicate). A plain `CREATE INDEX` (non-unique) does **not** qualify — Postgres raises `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`.
 
+**Which constraint class arbitrates which form** (this subsection is the single source of truth for it — §10 points here rather than restating it):
+
+| Form | Valid arbiter | Notes |
+|---|---|---|
+| `ON CONFLICT DO NOTHING` (no `conflict_target`) | any usable constraint or unique index, **including exclusion constraints** | Omitting the target means "absorb a conflict on anything usable". Only `NOT DEFERRABLE` constraints and unique indexes are usable as arbiters. |
+| `ON CONFLICT (col, …) DO NOTHING` / `DO UPDATE` (column inference) | a matching **NOT DEFERRABLE UNIQUE** constraint or index | An exclusion constraint **cannot** arbitrate a `DO UPDATE`; `42P10` otherwise. |
+| `EXCEPTION WHEN unique_violation` (`23505`) | a **UNIQUE** constraint or index specifically | An exclusion constraint raises `exclusion_violation` (`23P01`), a different code — so a `unique_violation` handler never fires for it. |
+
+A replay/idempotency branch is only *reachable* when its arbiter above actually exists, so any comment asserting replay behaviour depends on that constraint as much as on the function body.
+
 Critically, when the `INSERT ... ON CONFLICT` lives inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**. So `supabase db reset` applies the migration 100% clean, and `pg_get_functiondef(...) ILIKE '%on conflict%'` confirms the clause is present, yet the function throws `42P10` the first time it actually runs. Clean apply + structural grep is therefore **insufficient** for any migration that changes a plpgsql body containing `ON CONFLICT`, `EXECUTE format(...)`, regex literals (POSIX `[][...]` bracket-class shorthand is invalid in Postgres ARE — applies clean, throws `2201B` on first call; caught in mig 101, 2026-06-10), or other deferred-validation SQL — you must **execute the function** (a functional SQL test or the relevant red-team / integration spec) before trusting it.
 
 Two more execution-only failure modes in the same deferred-validation class — each passed `db reset` + `tsc` + Biome + both Opus impl-critics + semantic-reviewer, and was caught ONLY by an integration test that executed the function (VFR RT Phase 2, #697; the #925 integration tier):
@@ -428,7 +438,7 @@ Two more execution-only failure modes in the same deferred-validation class — 
 - **(c) Unqualified column name shadowed by a same-named `RETURNS TABLE` OUT parameter → `42702 column reference "<col>" is ambiguous`** (at execution, not at `CREATE`). A `WHERE id = ...` inside a function whose `RETURNS TABLE (id ...)` declares `id` is ambiguous between the OUT variable and the table column. **Always alias the source table in helper reads:** `FROM users u WHERE u.id = auth.uid()` — never `WHERE id = auth.uid()`. (mig 118 `get_quiz_questions`; the sibling `get_vfr_rt_exam_questions` already aliased, which is why it never hit this.)
 - **(d) NULL propagating through a helper call into a NOT NULL column → `23502`.** `v := helper_fn(nullable_input)` where `helper_fn` may return NULL (e.g. `normalize_answer(NULL)`) and `v` — or a boolean derived from it like `(v <> '' AND …)`, which is NULL when `v` is NULL — lands in a NOT NULL column (`is_correct`). **Coalesce at the call site:** `coalesce(helper_fn(input), '<default>')`. Check sibling callers in the same migration family — if they already coalesce, the new one must too. (mig 120 batch_submit helper; the sibling grader mig 119 already coalesced.)
 
-Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists (`indisunique = true`, same columns + predicate). If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085). **Precedent:** mig 085 originally shipped `ON CONFLICT (...) WHERE accepted = true` against the non-unique `idx_user_consents_lookup`; it applied clean but threw `42P10` on first call (caught by semantic-reviewer, #386).
+Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`, same columns + predicate) — `pg_index.indimmediate` is what encodes non-deferrability, and a `DEFERRABLE` unique constraint passes an `indisunique`-only check while still being unusable as an arbiter. If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085). **Precedent:** mig 085 originally shipped `ON CONFLICT (...) WHERE accepted = true` against the non-unique `idx_user_consents_lookup`; it applied clean but threw `42P10` on first call (caught by semantic-reviewer, #386).
 
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
 The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
@@ -949,4 +959,33 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-07-06 (added §3 React render-body exception — pure JSX composition up to 35 lines [#1074])*
+## 10. Comment Accuracy for DB/RPC Claims (write-side)
+
+This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
+
+Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the redefinition chain **for the matching signature** — not only `CREATE OR REPLACE FUNCTION`, but also `DROP FUNCTION` followed by a fresh `CREATE FUNCTION`, which is how a signature change is made and which a `CREATE OR REPLACE`-only grep silently misses (19 migrations in this repo use `DROP FUNCTION`, and `get_report_correct_options` once existed in two overloads, `(uuid[])` and `(uuid, uuid[])`, both removed by `20260316225054_drop_insecure_report_overloads.sql` while the live signature is `(uuid)` — so matching the name alone can land you on a body that is not merely older but no longer exists). Trace that chain plus the functions it calls and any RLS policy, trigger, CHECK constraint, UNIQUE or exclusion constraint (and its backing index, including partial ones), or GRANT that determines the behaviour being asserted, whenever the claim rests on those. A guard can live outside the function body, so tracing only the function chain can certify a comment that a policy or trigger contradicts. The UNIQUE/exclusion case is not hypothetical: a replay branch is only *reachable* if its backing constraint exists — see §5 "`ON CONFLICT` Requires a UNIQUE Inference Target" for which constraint class arbitrates which form. The claim about replay behaviour rests on that constraint as much as on the function body — trace `ALTER TABLE` / `CREATE [UNIQUE] INDEX` forward to HEAD, mirroring the review-side enumeration in `.claude/rules/agent-semantic-reviewer.md` (the rules file — not the agent definition at `.claude/agents/semantic-reviewer.md`, which carries only the narrower `CREATE OR REPLACE` chain). Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
+
+```ts
+// ❌ WRONG — asserts the id is always this request's own row, without tracing the
+// unique_violation replay branch that can return a concurrent winner's row id instead
+/** Returns the id of THIS request's row. */
+export async function startStudySession(...) { ... }
+
+// ✅ CORRECT — traced the latest migration body, names the replay case explicitly
+/**
+ * Returns the started session's id. On a concurrent identical-payload race, mig 137's
+ * unique_violation branch returns the WINNING request's row id, not necessarily this
+ * request's own — callers that use the id as a scoped-mutation/teardown target must
+ * account for that.
+ */
+export async function startStudySession(...) { ... }
+```
+
+Promoted at count=3 (implementation-critic's own tracker reached this independently, corroborated the same cycle by a distinct semantic-reviewer finding of the same root cause):
+- `study-start-handlers.ts` JSDoc claimed an orphaned discovery row blocks the retry. Migs 137/141/138/139 soft-delete the caller's active discovery rows *before* their single-active guard, so the row is already gone when the guard runs. Mig 140 (`start_vfr_rt_exam_session`) reaches neither on a resume: its idempotent-resume `RETURN` precedes both the cleanup and the guard, so that path skips them entirely — the row survives, but nothing checks it. Either way an orphaned discovery row never blocks the retry, so the claim was inverted. (Note the two mechanisms differ — "unconditionally cleared before the guard" is true of four of the five, not all five.)
+- `study.ts` claimed the returned id is "THIS request's row". Falsified by mig 137's `unique_violation` replay branch, which returns a concurrent winner's row id on a payload match — and that id is then used as a soft-delete target (issue #1152).
+- mig 137's own comment (L115-119) names the hazard but guards the wrong case: it protects the different-payload path while calling the identical-payload path "safely share". Sharing is safe for reads, not for a delete keyed on the id.
+
+---
+
+*Last updated: 2026-08-08 (added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*

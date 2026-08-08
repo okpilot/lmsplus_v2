@@ -6,6 +6,12 @@
 
 ## Positive-pattern log
 
+### batch3-governance CR-round-1 fixup — rules-text accuracy (2026-08-08)
+
+CLEAN. 2 files, 0 critical, 0 issues, 1 suggestion (non-blocking). Both CR-local APPLY edits verified:
+- code-style.md §10: UNIQUE/exclusion trace-list addition — `agent-semantic-reviewer.md` citation confirmed accurate (line 26: "ALTER TABLE / CREATE [UNIQUE] INDEX / CHECK chain"); mig 137 `unique_violation` claim confirmed (file `20260629000200_start_discovery_session.sql` header says "Migration 137:", EXCEPTION WHEN unique_violation at L135; triggered by uq_one_active_session_per_student from mig 136). Sentence "a matching unique constraint exists" is precise for the `unique_violation` case; slightly narrow for the `ON CONFLICT` case (exclusion constraints also qualify there) — but trace list says "UNIQUE or exclusion" so the precision gap is cosmetic.
+- CLAUDE.md pnpm lockfile claim: `pnpm audit` reads `pnpm-lock.yaml` is standard documented pnpm behavior; `--lockfile-only` is a real pnpm flag; the new sentence is orthogonal to (not contradicting) the existing "never infer from resolved version" and "--audit-level=high" points.
+
 ### batch/928-1010-1041-client-hardening CR-round-2 fixup (2026-07-13)
 
 CLEAN. 12 files, 0 critical, 0 issues, 0 suggestions. All 7 plan items verified:
