@@ -122,19 +122,30 @@ describe('softDeleteQuestion (app-layer integration)', () => {
     // Reference rows are global (not org-scoped), so cleanupTestData never
     // removes them — without this the topic/subject accumulate one row per run.
     //
-    // The errors.length gate is deliberately weak: cleanupTestData is
+    // `errors.length === 0` alone is NOT a sufficient gate: cleanupTestData is
     // best-effort (deleteOrLog logs per-table failures rather than throwing —
     // packages/db/src/__integration__/cleanup.ts), so a failed `questions`
-    // delete does NOT populate `errors`, and this gate would still open. It
-    // only catches the quiz_sessions lookup, which does throw. Kept because
-    // questions.subject_id REFERENCES easa_subjects(id) with no ON DELETE, so
-    // a surviving question turns the subject delete into a 23503 that masks the
-    // real failure — the gate narrows that window without closing it.
+    // delete leaves `errors` empty. Since questions.subject_id REFERENCES
+    // easa_subjects(id) with no ON DELETE, deleting the subject while a
+    // question survives raises 23503 and masks the original failure. So verify
+    // the children are actually gone before touching the parent.
     if (errors.length === 0) {
-      try {
-        await cleanupReferenceData({ admin, refs: [refs] })
-      } catch (e) {
-        errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+      const { data: survivors, error: survivorErr } = await admin
+        .from('questions')
+        .select('id')
+        .in('organization_id', [orgAId, orgBId])
+      if (survivorErr) {
+        errors.push(`questions survivor check: ${survivorErr.message}`)
+      } else if ((survivors?.length ?? 0) > 0) {
+        errors.push(
+          `cleanupTestData left ${survivors?.length} question(s) behind — skipping cleanupReferenceData to avoid a 23503 that would mask this`,
+        )
+      } else {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs] })
+        } catch (e) {
+          errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+        }
       }
     }
 

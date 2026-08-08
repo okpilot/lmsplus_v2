@@ -121,13 +121,12 @@ describe('toggleStudentStatus (app-layer integration)', () => {
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
-  it('marks the student deleted and bans them when their org admin deactivates them', async () => {
-    // Regression guard for the #815 bug class on `users`: before the service-role
-    // fix in toggle-student-status-mutations.ts, the UPDATE that sets deleted_at
-    // would be rejected by the tenant_isolation policy (the post-update row with
-    // deleted_at set is invisible to the caller, so Postgres rejects the write).
-    // The unit test mocks adminClient and would pass regardless — only this tier
-    // can catch the regression.
+  it('deactivates a student so they can no longer sign in', async () => {
+    // Regression guard for the #815 bug class on `users`: if
+    // applyStatusChange regressed to the RLS client, this write would be
+    // rejected by the privilege revoke / row scope / trigger described in the
+    // file header. The unit test mocks adminClient and would pass regardless —
+    // only this tier can catch it.
     const before = await readUser(studentId)
     expect(before.deleted_at).toBeNull()
 
@@ -144,7 +143,7 @@ describe('toggleStudentStatus (app-layer integration)', () => {
     expect(await readAuthBan(studentId)).not.toBeNull()
   })
 
-  it('clears deleted_at and unbans the student when the same admin reactivates them', async () => {
+  it('reactivates the student and restores their access when the same admin requests it', async () => {
     // Depends on the previous test DELIBERATELY: the deactivate→reactivate
     // round-trip is the behaviour under test, and toggleStudentStatus derives
     // its direction from current state. Vitest runs a file's tests in order;
