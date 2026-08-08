@@ -187,6 +187,21 @@ describe('listInternalExamAttempts', () => {
         eqCalls.filter(([column, value]) => column === 'subject_id' && value === 'sub-1'),
       ).toHaveLength(2)
     })
+
+    it("restricts results to the caller's own organization", async () => {
+      mockAdmin()
+      const chain = buildChain([makeRow()], null, 1)
+      mockAdminFrom.mockReturnValue(chain)
+
+      await listInternalExamAttempts({})
+
+      // Both the count and the rows builder must carry it: if the org filter is
+      // dropped from either, an admin sees another organization's data.
+      const eqCalls = chain.eq?.mock.calls ?? []
+      expect(
+        eqCalls.filter(([column, value]) => column === 'organization_id' && value === ORG_ID),
+      ).toHaveLength(2)
+    })
   })
 
   describe('pagination', () => {
