@@ -81,7 +81,7 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
    - 2026-07-13 — CR-**local** CLI on `bcaf1c0e`: hallucinated a duplicate declaration.
    - 2026-08-07 — **cloud** CR on PR #1124: claimed `let resolveFlags` was declared twice in one scope in `use-session-bootstrap.test.ts`. Only 3 references exist in the file, all inside one `it()` block, one declaration. It was labelled 🔴 Critical — the PR's ONLY Critical — while `tsc` and the full suite were green on that exact head, which a real block-scoped redeclaration cannot be.
 
-   Sharp lesson from PR #1124: severity had **zero** correlation with correctness — the single Critical was fabricated while both Majors and the one Minor were real and worth applying. This extends #1–7's "read source, don't trust labels" guidance with a distinct and cheaper disproof: the described construct may be entirely absent.
+   Sharp lesson from PR #1124: severity was **not predictive** of correctness — the single Critical was fabricated while both Majors and the one Minor were real and worth applying. This extends #1–7's "read source, don't trust labels" guidance with a distinct and cheaper disproof: the described construct may be entirely absent.
 
 ---
 
