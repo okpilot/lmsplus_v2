@@ -104,6 +104,7 @@ Full detail in `topics/tracker-archive.md`. Schema: `Issue Type | Count | Last S
 | Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) — inverse of "Test-file split drops a guard" (that under-copies; this over-copies). Caught pre-commit by impl-critic round 1. |
 
 | A promoted rule's inline count-label parenthetical desyncs from its own same-commit enumerated precedent list | 1 | 2026-08-08 | WATCHING (archive row 519) — caught pre-commit by impl-critic; distinct from Rule-Mirror Sync (cross-file) and the durable "tracker is authoritative over parentheticals" reader caution (passive, multi-cycle drift) below — this is a same-edit, same-file internal desync caught before it could ever go stale. |
+| Self-referential commit SHAs in branch memory/run-log files re-orphaned on each forced rebase (repair commit required per rebase cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
 
 ## Durable knowledge (cross-agent)
 
