@@ -972,7 +972,7 @@ export async function startStudySession(...) { ... }
 ```
 
 Promoted at count=3 (implementation-critic's own tracker reached this independently, corroborated the same cycle by a distinct semantic-reviewer finding of the same root cause):
-- `study-start-handlers.ts` JSDoc claimed an orphaned discovery row blocks the retry. All five start RPCs (migs 137/141/138/139/140) unconditionally soft-delete the caller's active discovery rows *before* their single-active guard — the claim was inverted.
+- `study-start-handlers.ts` JSDoc claimed an orphaned discovery row blocks the retry. Migs 137/141/138/139 soft-delete the caller's active discovery rows *before* their single-active guard, so the row is already gone when the guard runs. Mig 140 (`start_vfr_rt_exam_session`) reaches neither on a resume: its idempotent-resume `RETURN` precedes both the cleanup and the guard, so that path skips them entirely — the row survives, but nothing checks it. Either way an orphaned discovery row never blocks the retry, so the claim was inverted. (Note the two mechanisms differ — "unconditionally cleared before the guard" is true of four of the five, not all five.)
 - `study.ts` claimed the returned id is "THIS request's row". Falsified by mig 137's `unique_violation` replay branch, which returns a concurrent winner's row id on a payload match — and that id is then used as a soft-delete target (issue #1152).
 - mig 137's own comment (L116-119) names the hazard but guards the wrong case: it protects the different-payload path while calling the identical-payload path "safely share". Sharing is safe for reads, not for a delete keyed on the id.
 
