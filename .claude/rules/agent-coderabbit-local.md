@@ -85,4 +85,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-08-08 (added Common Pitfall #8 — CR can fabricate a syntax/type-error finding describing a nonexistent construct; disprove with a green `tsc`/test suite before acting; count=2, #1124. Prior: 2026-07-23 CLI 0.7.0 flag rename.)*
+*Last updated: 2026-08-08 (added Common Pitfall #8 — CR can fabricate a syntax/type-error finding describing a nonexistent construct; disprove with a green `tsc` under a configuration that INCLUDES the file, using relevant tests only as supporting evidence; count=2, #1124. Prior: 2026-07-23 CLI 0.7.0 flag rename.)*
