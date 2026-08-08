@@ -258,7 +258,7 @@ describe('useQuizStart — handleStart happy path', () => {
     expect(mockStartQuizSession).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }))
   })
 
-  it('writes session data to sessionStorage after a successful start', async () => {
+  it('carries the started session into the runner', async () => {
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 

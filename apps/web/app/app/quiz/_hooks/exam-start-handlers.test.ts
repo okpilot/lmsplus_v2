@@ -33,6 +33,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import { buildExamStartHandler, type ExamStartDeps } from './exam-start-handlers'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -74,7 +75,7 @@ function makeDeps(overrides: Partial<ExamStartDeps> = {}): ExamStartDeps {
         passMark: 75,
       },
     ],
-    router: { push: mockRouterPush } as unknown as ExamStartDeps['router'],
+    router: createMockRouter({ push: mockRouterPush }),
     loading: false,
     setLoading: vi.fn(),
     setError: vi.fn(),

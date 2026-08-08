@@ -186,7 +186,7 @@ describe('useExamStart — handleStart happy path', () => {
     expect(mockStartExamSession).toHaveBeenCalledWith({ subjectId: SUBJECT_ID })
   })
 
-  it('writes session data to sessionStorage after a successful start', async () => {
+  it('carries the started exam into the runner', async () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 

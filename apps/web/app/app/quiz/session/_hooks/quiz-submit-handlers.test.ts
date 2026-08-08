@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -48,7 +49,7 @@ function makeBaseDeps(overrides: Partial<Parameters<typeof buildSharedFor>[0]> =
   return {
     userId: USER_ID,
     sessionId: SESSION_ID,
-    router: { push: vi.fn() } as unknown as Parameters<typeof buildSharedFor>[0]['router'],
+    router: createMockRouter(),
     draftId: undefined,
     setPendingAction: vi.fn(),
     setError: vi.fn(),

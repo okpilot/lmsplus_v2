@@ -33,6 +33,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import { buildQuizStartHandler, type QuizStartDeps } from './quiz-start-handlers'
 
@@ -70,7 +71,7 @@ function makeDeps(overrides: Partial<QuizStartDeps> = {}): QuizStartDeps {
       getSelectedTopicIds: () => [],
       getSelectedSubtopicIds: () => [],
     },
-    router: { push: mockRouterPush } as unknown as QuizStartDeps['router'],
+    router: createMockRouter({ push: mockRouterPush }),
     loading: false,
     setLoading: vi.fn(),
     setError: vi.fn(),

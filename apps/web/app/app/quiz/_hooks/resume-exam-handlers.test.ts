@@ -11,6 +11,7 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
+import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import {
   buildDiscardHandler,
@@ -69,15 +70,7 @@ beforeEach(() => {
   setLoading = vi.fn()
   setError = vi.fn()
   setDiscarded = vi.fn()
-  router = {
-    push: vi.fn(),
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    replace: vi.fn(),
-    prefetch: vi.fn(),
-    bfcacheId: 'test-bfcache-id',
-  }
+  router = createMockRouter()
 })
 
 // ---------------------------------------------------------------------------

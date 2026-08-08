@@ -79,7 +79,7 @@ afterEach(() => {
 // ---- Resume ---------------------------------------------------------------
 
 describe('useResumeExamActions — resume', () => {
-  it('writes the complete exam handoff to sessionStorage and navigates to the session page', () => {
+  it('preserves the exam details and opens the session page', () => {
     const { result } = renderActions()
 
     act(() => result.current.handleResume())
@@ -103,7 +103,7 @@ describe('useResumeExamActions — resume', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
   })
 
-  it('shows an error and does not navigate when the handoff write fails', () => {
+  it('shows an error and stays on the current page when resume preparation fails', () => {
     mockSetItem.mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })
