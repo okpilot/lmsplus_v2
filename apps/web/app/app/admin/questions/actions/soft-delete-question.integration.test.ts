@@ -23,11 +23,15 @@ const admin = getAdminClient()
 const suffix = Date.now()
 const password = 'test-pass-123'
 
+// Fixture ids are optional on purpose: beforeAll can fail partway (after one
+// org exists but before the other), and afterAll still runs. Guarding each
+// teardown on its own id keeps a partial setup from either throwing on an
+// undefined id or silently skipping the cleanup that DID need to happen.
 let refs: ReferenceIds | undefined
-let orgAId: string
-let orgBId: string
-let adminAId: string
-let adminBId: string
+let orgAId: string | undefined
+let orgBId: string | undefined
+let adminAId: string | undefined
+let adminBId: string | undefined
 /** Deleted by its own org's admin — the #815 regression case. */
 let questionA1: string
 /** Target of the cross-org attempt; must survive untouched. */
@@ -109,12 +113,16 @@ describe('softDeleteQuestion (app-layer integration)', () => {
     // Both orgs are independent teardowns — isolate each so a failure in the
     // first cannot leak the second's rows (code-style.md §7).
     try {
-      await cleanupTestData({ admin, orgId: orgAId, userIds: [adminAId] })
+      if (orgAId) {
+        await cleanupTestData({ admin, orgId: orgAId, userIds: adminAId ? [adminAId] : [] })
+      }
     } catch (e) {
       errors.push(`cleanupTestData(A): ${e instanceof Error ? e.message : String(e)}`)
     }
     try {
-      await cleanupTestData({ admin, orgId: orgBId, userIds: [adminBId] })
+      if (orgBId) {
+        await cleanupTestData({ admin, orgId: orgBId, userIds: adminBId ? [adminBId] : [] })
+      }
     } catch (e) {
       errors.push(`cleanupTestData(B): ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -129,11 +137,12 @@ describe('softDeleteQuestion (app-layer integration)', () => {
     // easa_subjects(id) with no ON DELETE, deleting the subject while a
     // question survives raises 23503 and masks the original failure. So verify
     // the children are actually gone before touching the parent.
-    if (errors.length === 0) {
+    const orgIds = [orgAId, orgBId].filter((id): id is string => id !== undefined)
+    if (errors.length === 0 && refs && orgIds.length > 0) {
       const { data: survivors, error: survivorErr } = await admin
         .from('questions')
         .select('id')
-        .in('organization_id', [orgAId, orgBId])
+        .in('organization_id', orgIds)
       if (survivorErr) {
         errors.push(`questions survivor check: ${survivorErr.message}`)
       } else if ((survivors?.length ?? 0) > 0) {

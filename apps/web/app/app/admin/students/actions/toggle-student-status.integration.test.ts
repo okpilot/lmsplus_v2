@@ -19,11 +19,8 @@
 //
 // Same CLASS of trap as #815, and the same reason it needs this tier: the
 // co-located unit test mocks adminClient and would pass even if
-// applyStatusChange regressed to the RLS client.
-//
-// Only this tier can catch a regression where someone reverts applyStatusChange()
-// to use the RLS client: the unit test would still pass while every real
-// deactivation silently fails in production.
+// applyStatusChange regressed to the RLS client, while every real deactivation
+// silently failed in production.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupTestData,
@@ -38,10 +35,13 @@ const admin = getAdminClient()
 const suffix = Date.now()
 const password = 'test-pass-123'
 
-let orgAId: string
-let orgBId: string
-let adminAId: string
-let adminBId: string
+// Optional on purpose: beforeAll can fail partway, and afterAll still runs —
+// guarding each teardown on its own id keeps a partial setup from throwing on
+// an undefined id or skipping cleanup that DID need to happen.
+let orgAId: string | undefined
+let orgBId: string | undefined
+let adminAId: string | undefined
+let adminBId: string | undefined
 /** The student whose lifecycle the tests exercise. */
 let studentId: string
 
@@ -108,12 +108,20 @@ describe('toggleStudentStatus (app-layer integration)', () => {
     const errors: string[] = []
 
     try {
-      await cleanupTestData({ admin, orgId: orgAId, userIds: [adminAId, studentId] })
+      if (orgAId) {
+        await cleanupTestData({
+          admin,
+          orgId: orgAId,
+          userIds: [adminAId, studentId].filter((id): id is string => id !== undefined),
+        })
+      }
     } catch (e) {
       errors.push(`cleanupTestData(A): ${e instanceof Error ? e.message : String(e)}`)
     }
     try {
-      await cleanupTestData({ admin, orgId: orgBId, userIds: [adminBId] })
+      if (orgBId) {
+        await cleanupTestData({ admin, orgId: orgBId, userIds: adminBId ? [adminBId] : [] })
+      }
     } catch (e) {
       errors.push(`cleanupTestData(B): ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -141,6 +149,9 @@ describe('toggleStudentStatus (app-layer integration)', () => {
     // only deleted_at would let a regression that drops the ban pass while the
     // student keeps a working session.
     expect(await readAuthBan(studentId)).not.toBeNull()
+    // …and prove the ban has the effect the title claims, rather than trusting
+    // banned_until to mean gotrue will reject the credentials.
+    await expect(signInAs(studentEmail, password)).rejects.toThrow()
   })
 
   it('reactivates the student and restores their access when the same admin requests it', async () => {
@@ -160,6 +171,9 @@ describe('toggleStudentStatus (app-layer integration)', () => {
     const after = await readUser(studentId)
     expect(after.deleted_at).toBeNull()
     expect(await readAuthBan(studentId)).toBeNull()
+    // The round-trip is only complete if the student can actually authenticate
+    // again — clearing banned_until is the mechanism, not the outcome.
+    await expect(signInAs(studentEmail, password)).resolves.toBeUndefined()
   })
 
   it('leaves the student untouched when an admin from another organisation tries to deactivate them', async () => {
