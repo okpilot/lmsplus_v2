@@ -1,12 +1,25 @@
 // App-layer integration tier (#925) — toggleStudentStatus against real Postgres.
 //
 // toggle-student-status-mutations.ts writes through the service-role adminClient
-// to set / clear deleted_at on the `users` table. The `users` table has the same
-// single-SELECT-policy structure as `questions` (tenant_isolation FOR ALL, whose
-// USING qualifier requires deleted_at IS NULL) — the post-update row is invisible
-// to the caller and Postgres rejects the write with "new row violates row-level
-// security policy". This is the same trap that kept #815 undetected for two months
-// because the co-located unit test mocks the admin client and cannot see real RLS.
+// to set / clear deleted_at on the `users` table. That client is load-bearing:
+// an RLS (authenticated) client cannot express this write at all — though for
+// different reasons than the `questions` case in #815, which fails on
+// post-update row visibility. On `users` it is blocked three layers earlier:
+//   1. mig 20260606000006 REVOKEs blanket UPDATE on public.users from
+//      `authenticated` and re-GRANTs only UPDATE (full_name) — a deleted_at
+//      write is rejected at the privilege layer, before RLS is evaluated.
+//   2. `users_update_own` (mig 20260326000056) is USING (id = auth.uid() AND
+//      deleted_at IS NULL), so an admin targeting a STUDENT's row matches zero
+//      rows — a silent no-op rather than an error.
+//   3. `trg_protect_users_sensitive_columns` (mig 20260316000041) raises for any
+//      non-service-role change to deleted_at.
+// Note there is no `tenant_isolation` policy on `users`; the one in the initial
+// schema was dropped (migs 20260311000004, 20260312000012) for infinite
+// recursion. The live policies are `users_select` and `users_update_own`.
+//
+// Same CLASS of trap as #815, and the same reason it needs this tier: the
+// co-located unit test mocks adminClient and would pass even if
+// applyStatusChange regressed to the RLS client.
 //
 // Only this tier can catch a regression where someone reverts applyStatusChange()
 // to use the RLS client: the unit test would still pass while every real
@@ -49,6 +62,18 @@ async function readUser(id: string) {
     .single<{ id: string; deleted_at: string | null }>()
   if (error) throw new Error(`readUser(${id}): ${error.message}`)
   return data
+}
+
+/**
+ * Auth-side ban state. `deactivateStudent` is a two-step flip — auth ban, then
+ * the profile soft-delete — so the profile row alone does not prove the student
+ * was actually locked out. Returns `banned_until` (null when not banned).
+ */
+async function readAuthBan(id: string): Promise<string | null> {
+  const { data, error } = await admin.auth.admin.getUserById(id)
+  if (error) throw new Error(`readAuthBan(${id}): ${error.message}`)
+  const bannedUntil = (data.user as { banned_until?: string | null } | null)?.banned_until
+  return bannedUntil ?? null
 }
 
 describe('toggleStudentStatus (app-layer integration)', () => {
@@ -113,12 +138,20 @@ describe('toggleStudentStatus (app-layer integration)', () => {
 
     const after = await readUser(studentId)
     expect(after.deleted_at).not.toBeNull()
+    // The ban is the half that actually stops the student signing in; asserting
+    // only deleted_at would let a regression that drops the ban pass while the
+    // student keeps a working session.
+    expect(await readAuthBan(studentId)).not.toBeNull()
   })
 
   it('clears deleted_at and unbans the student when the same admin reactivates them', async () => {
-    // studentId was deactivated in the previous test; verify the round-trip works.
+    // Depends on the previous test DELIBERATELY: the deactivate→reactivate
+    // round-trip is the behaviour under test, and toggleStudentStatus derives
+    // its direction from current state. Vitest runs a file's tests in order;
+    // the preconditions below fail loudly if that ever changes.
     const before = await readUser(studentId)
     expect(before.deleted_at).not.toBeNull()
+    expect(await readAuthBan(studentId)).not.toBeNull()
 
     await signInAs(adminAEmail, password)
     const result = await toggleStudentStatus({ id: studentId })
@@ -127,6 +160,7 @@ describe('toggleStudentStatus (app-layer integration)', () => {
 
     const after = await readUser(studentId)
     expect(after.deleted_at).toBeNull()
+    expect(await readAuthBan(studentId)).toBeNull()
   })
 
   it('leaves the student untouched when an admin from another organisation tries to deactivate them', async () => {
@@ -145,5 +179,6 @@ describe('toggleStudentStatus (app-layer integration)', () => {
 
     const after = await readUser(studentId)
     expect(after.deleted_at).toBeNull()
+    expect(await readAuthBan(studentId)).toBeNull()
   })
 })

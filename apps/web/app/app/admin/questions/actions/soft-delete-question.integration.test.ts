@@ -91,8 +91,16 @@ describe('softDeleteQuestion (app-layer integration)', () => {
       subtopicId: ref.subtopicId,
       count: 2,
     })
-    questionA1 = seeded.questionIds[0] as string
-    questionA2 = seeded.questionIds[1] as string
+    // Guard the indexes rather than casting blind (code-style.md §5 — the
+    // cast-guard rule is not relaxed in test files): if seedQuestions ever
+    // returns fewer ids, fail here instead of surfacing an opaque PostgREST
+    // error from readQuestion(undefined) several assertions later.
+    const [first, second] = seeded.questionIds
+    if (!first || !second) {
+      throw new Error(`seedQuestions: expected 2 ids, got ${seeded.questionIds.length}`)
+    }
+    questionA1 = first
+    questionA2 = second
   })
 
   afterAll(async () => {
@@ -113,9 +121,15 @@ describe('softDeleteQuestion (app-layer integration)', () => {
 
     // Reference rows are global (not org-scoped), so cleanupTestData never
     // removes them — without this the topic/subject accumulate one row per run.
-    // Gated on the org teardowns succeeding: questions.subject_id is a plain FK
-    // REFERENCES easa_subjects(id) with no ON DELETE, so deleting the subject
-    // while its questions survive would throw 23503 and mask the real failure.
+    //
+    // The errors.length gate is deliberately weak: cleanupTestData is
+    // best-effort (deleteOrLog logs per-table failures rather than throwing —
+    // packages/db/src/__integration__/cleanup.ts), so a failed `questions`
+    // delete does NOT populate `errors`, and this gate would still open. It
+    // only catches the quiz_sessions lookup, which does throw. Kept because
+    // questions.subject_id REFERENCES easa_subjects(id) with no ON DELETE, so
+    // a surviving question turns the subject delete into a 23503 that masks the
+    // real failure — the gate narrows that window without closing it.
     if (errors.length === 0) {
       try {
         await cleanupReferenceData({ admin, refs: [refs] })
@@ -165,6 +179,12 @@ describe('softDeleteQuestion (app-layer integration)', () => {
   it('keeps the original deleter when the same question is deleted twice', async () => {
     // questionA1 was deleted by admin A in the first test; a second attempt must
     // not re-stamp deleted_at/deleted_by and overwrite that record.
+    //
+    // The dependency on the first test is DELIBERATE — re-deleting a row this
+    // suite actually deleted is the scenario under test. Vitest runs a file's
+    // tests in declaration order, and the `not.toBeNull()` precondition below
+    // makes a reordering fail loudly instead of passing vacuously. Do not
+    // "fix" this by seeding an independently pre-deleted row.
     const before = await readQuestion(questionA1)
     expect(before.deleted_at).not.toBeNull()
 
