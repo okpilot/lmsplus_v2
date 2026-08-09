@@ -263,9 +263,7 @@ describe('getSyllabusTree', () => {
   })
 
   it('does not read the syllabus tree when the caller fails the admin check', async () => {
-    // Layer 2 of the two-guard admin model — see the sibling test in
-    // questions/queries.test.ts. Asserts the read never issues when requireAdmin()
-    // rejects, so the gate cannot regress into a no-op.
+    // Asserts the read never ISSUES, not merely that it returns nothing.
     mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
 
     await expect(getSyllabusTree()).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')

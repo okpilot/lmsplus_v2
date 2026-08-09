@@ -6,14 +6,9 @@ export const PAGE_SIZE = 25
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
   // Layer 2 of the two-guard admin model (docs/security.md "Admin Route Protection").
-  // NOT closing a live hole: a soft-deleted admin was already blocked at Layer 1,
-  // because the proxy reads `users` with the anon key and the only SELECT policy is
-  // `users_select … USING (id = auth.uid() AND deleted_at IS NULL)` (latest definition
-  // mig 20260312000012:14-16, on a FORCE ROW LEVEL SECURITY table). This is
-  // defense-in-depth against that policy changing, and parity with the sibling admin
-  // query helpers (students, dashboard, dashboard/students/[id], exam-config, the four
-  // internal-exams helpers, and lib/queries/admin-quiz-report.ts) — this file and
-  // syllabus/queries.ts were the only two that did not gate their read.
+  // Defense in depth, not a hole being closed — RLS `users_select` already excludes
+  // soft-deleted rows from the proxy's Layer-1 lookup. Do not drop it as redundant:
+  // that redundancy is the point, and every other admin query helper has it.
   await requireAdmin()
   const supabase = await createServerSupabaseClient()
 

@@ -7,9 +7,8 @@ type TopicRow = { id: string; subject_id: string; code: string; name: string; so
 type SubtopicRow = { id: string; topic_id: string; code: string; name: string; sort_order: number }
 
 export async function getSyllabusTree(): Promise<SyllabusTree> {
-  // Layer 2 of the two-guard admin model — see the note in questions/queries.ts for
-  // why this is defense-in-depth rather than a hole being closed (RLS `users_select`
-  // already excludes soft-deleted rows from the proxy's Layer-1 lookup).
+  // Layer 2 of the two-guard admin model — defense in depth over the proxy's Layer-1
+  // check, matching every other admin query helper (docs/security.md).
   await requireAdmin()
   const supabase = await createServerSupabaseClient()
 

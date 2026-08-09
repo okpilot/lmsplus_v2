@@ -508,10 +508,8 @@ describe('getQuestionsList', () => {
   })
 
   it('does not read the question bank when the caller fails the admin check', async () => {
-    // Layer 2 of the two-guard admin model. Asserts the read never issues at all
-    // when requireAdmin() rejects, so the gate cannot regress into a no-op. (RLS
-    // `users_select` already excludes soft-deleted rows, so this is defense in depth
-    // and parity with the four sibling admin query helpers — not a hole being closed.)
+    // Asserts the read never ISSUES, not merely that it returns nothing — otherwise
+    // the gate could regress into a no-op and still look green behind RLS.
     mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
 
     await expect(getQuestionsList({})).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
