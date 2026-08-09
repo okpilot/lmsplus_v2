@@ -104,14 +104,20 @@ export async function proxy(request: NextRequest): Promise<Response> {
       return unavailable
     }
 
+    // Bounce to the student dashboard rather than emitting a bare 403 body: the
+    // 403 rendered a plain, unstyled "Forbidden" with no layout and no way back
+    // (#1167). The gate itself is unchanged — a non-admin still never reaches an
+    // /app/admin route — only what they see when blocked.
+    //
+    // Target is `/app/dashboard`, NOT `/app`: there is no `app/app/page.tsx` and
+    // no custom `not-found.tsx`, so `/app` is a built-in 404 — bouncing there
+    // would just trade a bare 403 for a bare 404. `/app/dashboard` is the same
+    // destination the authenticated-root redirect below uses.
+    //
+    // No redirect loop: /app/dashboard is not an admin route, and the consent
+    // gate above has already run for this request.
     if (profile?.role !== 'admin') {
-      const forbidden = new NextResponse('Forbidden', { status: 403 })
-      for (const cookie of response.cookies.getAll()) {
-        forbidden.cookies.set(cookie)
-      }
-      forwardAntiCacheHeaders(response, forbidden)
-      applySecurityHeaders(forbidden)
-      return forbidden
+      return redirectWithCookies(new URL('/app/dashboard', request.url))
     }
   }
 

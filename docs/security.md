@@ -83,7 +83,7 @@ export const config = {
 Admin routes (`/app/admin/*`) require two independent guards — both must pass.
 
 **Layer 1 — Proxy guard (`apps/web/proxy.ts`):**
-Checks `users.role = 'admin'` for any request matching `/app/admin/*`. Returns 403 if the authenticated user is not an admin. This blocks the request before it reaches any Server Component or Server Action.
+Checks `users.role = 'admin'` for any request matching `/app/admin/*`. Redirects a non-admin to `/app/dashboard` (#1167 — it previously returned a bare, unstyled 403 body). This blocks the request before it reaches any Server Component or Server Action; only the blocked user's experience changed, not the authorization decision.
 
 **Layer 2 — Server Action guard (`apps/web/lib/auth/require-admin.ts`):**
 `requireAdmin()` verifies both auth (non-null session) and admin role. Called at the top of every admin Server Action before any data access. If either check fails, it throws — the action never proceeds.
@@ -450,7 +450,7 @@ export default {
 }
 ```
 
-**Edge Middleware responses (3xx redirects, 4xx Forbidden, 5xx errors).** Next.js `headers()` only applies to routed responses; middleware-emitted responses bypass it. `apps/web/proxy.ts` re-emits the 6 static headers on every middleware response and applies a **reduced CSP** of `default-src 'none'; frame-ancestors 'none'` (not the full routed-response CSP). The reduction is intentional: no scripts execute on a 3xx/4xx/5xx, so locking `default-src` to `'none'` is at least as strict as the routed policy and prevents accidental subresource loading on error pages. `frame-ancestors 'none'` matches the routed CSP so legacy browsers ignoring `default-src` still see the framing deny intent. The red-team spec `apps/web/e2e/redteam/header-validation.spec.ts` asserts both response classes; do not assume routed-response CSP rules apply to middleware responses when reviewing security changes.
+**Edge Middleware responses (3xx redirects, 5xx errors).** Next.js `headers()` only applies to routed responses; middleware-emitted responses bypass it. `apps/web/proxy.ts` re-emits the 6 static headers on every middleware response and applies a **reduced CSP** of `default-src 'none'; frame-ancestors 'none'` (not the full routed-response CSP). The reduction is intentional: no scripts execute on a 3xx/4xx/5xx, so locking `default-src` to `'none'` is at least as strict as the routed policy and prevents accidental subresource loading on error pages. `frame-ancestors 'none'` matches the routed CSP so legacy browsers ignoring `default-src` still see the framing deny intent. The red-team spec `apps/web/e2e/redteam/header-validation.spec.ts` asserts both response classes; do not assume routed-response CSP rules apply to middleware responses when reviewing security changes.
 
 ---
 

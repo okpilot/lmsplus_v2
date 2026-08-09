@@ -10,18 +10,23 @@
  * carries them on representative pre-auth, post-redirect, and unauth-redirect
  * paths. Closes part of issue #108.
  *
- * Extended (issue #637): adds the 403 middleware response class. The proxy
- * emits a 403 (not a 3xx) when an authenticated non-admin student hits
- * /app/admin/*. next.config.ts `headers()` does NOT apply to non-routed
- * middleware responses — proxy.ts must call applySecurityHeaders() on the
- * NextResponse it returns. This test verifies that branch is exercised.
+ * Extended (issue #637): adds the admin-block middleware response class. The
+ * proxy blocks an authenticated non-admin student who hits /app/admin/*.
+ * next.config.ts `headers()` does NOT apply to non-routed middleware
+ * responses — proxy.ts must apply the security headers to the NextResponse it
+ * returns. This test verifies that branch is exercised.
  *
- * proxy.ts line 93-99 (403 branch):
+ * Updated (#1167): the branch used to emit a bare `403 Forbidden` body; it now
+ * bounces to /app/dashboard (NOT /app — there is no app/app/page.tsx, so /app
+ * is a built-in 404). The authorization decision is unchanged — a non-admin still never
+ * reaches the route — so this spec still guards the same vector, now asserting
+ * the redirect exit instead of the 403 exit. Both exits are synthetic
+ * (hand-built NextResponse), so both must carry the headers.
+ *
+ * proxy.ts admin-block branch:
  *   if (profile?.role !== 'admin') {
- *     const forbidden = new NextResponse('Forbidden', { status: 403 })
- *     ...
- *     applySecurityHeaders(forbidden)   ← the branch under test
- *     return forbidden
+ *     return redirectWithCookies(new URL('/app/dashboard', request.url))
+ *     //     ↑ applies security headers + anti-cache + cookies
  *   }
  *
  * 503 path (Supabase profile-lookup failure): skipped — no test-only seam
@@ -57,7 +62,7 @@ const HSTS_MIN_MAX_AGE = 15_768_000 // 6 months
 function assertSecurityHeaders(
   headers: Record<string, string>,
   path: string,
-  cspClass: 'routed' | 'redirect' | 'middleware-error',
+  cspClass: 'routed' | 'redirect',
 ): void {
   for (const { key, expected } of EXACT_HEADERS) {
     expect(headers[key], `missing or wrong ${key} on ${path}`).toBe(expected)
@@ -109,28 +114,31 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   }
 
   // ---------------------------------------------------------------------------
-  // 403 branch: authenticated non-admin student accessing /app/admin/*
+  // Admin-block branch: authenticated non-admin student accessing /app/admin/*
   //
-  // proxy.ts lines 74-100:
   //   isAdminRoute = pathname === '/app/admin' || pathname.startsWith('/app/admin/')
   //   if (isAdminRoute && user) {
   //     ... look up profile.role ...
   //     if (profile?.role !== 'admin') {
-  //       const forbidden = new NextResponse('Forbidden', { status: 403 })
-  //       applySecurityHeaders(forbidden)   ← branch under test
-  //       return forbidden
+  //       return redirectWithCookies(new URL('/app/dashboard', request.url))  ← under test
   //     }
   //   }
   //
-  // Non-vacuous: assert status === 403 first (proves the 403 branch fired, not
-  // a redirect or a different path). A 302 redirect here would mean the user
-  // was not authenticated (wrong branch); a 200 would mean admin was granted.
+  // Non-vacuous: the status alone is not enough now that the exit is a 3xx —
+  // THREE different proxy branches can emit a 307 for this request, so the
+  // Location is what proves which one fired:
+  //   307 → /app/dashboard   the admin-block branch (what we are testing)
+  //   307 → /                unauthenticated (`/app/*` && !user) — wrong branch
+  //   307 → /consent         consent gate — wrong branch
+  //   200                    student was granted admin access (privilege escalation)
+  // Asserting the exact Location therefore discriminates strictly more than the
+  // old `toBe(403)` did.
   // ---------------------------------------------------------------------------
-  test('authenticated non-admin student hitting /app/admin/* receives 403 with all required security headers', async ({
+  test('authenticated non-admin student hitting /app/admin/* is bounced to the dashboard with all required security headers', async ({
     browser,
   }) => {
     // Seed the ATTACKER student (role='student') so the proxy's admin-role check
-    // returns role !== 'admin' and emits a 403. seedRedTeamUsers is idempotent.
+    // returns role !== 'admin' and blocks them. seedRedTeamUsers is idempotent.
     await seedRedTeamUsers()
 
     // Create a fresh browser context (no saved auth state — redteam project has
@@ -171,18 +179,24 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
         maxRedirects: 0,
       })
 
-      // Non-vacuity: status MUST be 403 — proves we entered the 403 branch.
-      // 302 → user not seen as authenticated (wrong path).
+      // Non-vacuity, part 1: a 3xx proves we did not fall through to the route.
       // 200 → student was incorrectly granted admin access (privilege escalation).
       expect(
         response.status(),
-        'expected 403 Forbidden from proxy admin-role check; got a different status — verify ATTACKER_EMAIL has role=student',
-      ).toBe(403)
+        'expected a redirect from the proxy admin-role check; a 200 means the student reached an admin route — verify ATTACKER_EMAIL has role=student',
+      ).toBe(307)
 
-      // All 7 security headers must be present on the 403 response.
-      // proxy.ts applySecurityHeaders() is called on the NextResponse object
-      // before it is returned (line 98), so the headers must arrive here.
-      assertSecurityHeaders(response.headers(), '/app/admin/students', 'middleware-error')
+      // Non-vacuity, part 2: the Location proves WHICH branch redirected. Without
+      // this, an unauthenticated (→ /) or unconsented (→ /consent) request would
+      // satisfy the status check while never exercising the admin-role branch.
+      expect(
+        new URL(response.headers().location ?? '', 'http://localhost:3000').pathname,
+        'expected the admin-block bounce to /app/dashboard; a different target means a different proxy branch fired',
+      ).toBe('/app/dashboard')
+
+      // All 7 security headers must be present on the redirect response.
+      // redirectWithCookies() applies them before returning, so they must arrive here.
+      assertSecurityHeaders(response.headers(), '/app/admin/students', 'redirect')
     } finally {
       await context.close()
     }

@@ -28,7 +28,7 @@ export default function AdminErrorPage({
           >
             Try again
           </button>
-          <Link href="/app" className="rounded-md border px-4 py-2 hover:bg-muted">
+          <Link href="/app/dashboard" className="rounded-md border px-4 py-2 hover:bg-muted">
             Back to dashboard
           </Link>
         </div>

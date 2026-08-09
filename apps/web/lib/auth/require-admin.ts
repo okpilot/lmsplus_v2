@@ -37,7 +37,11 @@ export async function requireAdmin(): Promise<AdminAuth> {
   }
 
   if (profile?.role !== 'admin') {
-    redirect('/app')
+    // `/app/dashboard`, not `/app`: there is no `app/app/page.tsx` and no custom
+    // `not-found.tsx`, so `/app` renders the built-in 404 (#1167). Kept in step
+    // with the proxy's admin-block bounce so both layers land the user in the
+    // same place.
+    redirect('/app/dashboard')
   }
 
   return { supabase, userId: user.id, organizationId: profile.organization_id }

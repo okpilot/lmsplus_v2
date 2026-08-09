@@ -215,15 +215,16 @@ describe('proxy', () => {
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
-  it('returns 403 for a non-admin user accessing /app/admin routes', async () => {
+  it('sends a non-admin to the student dashboard instead of an admin route', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
-    expect(response.status).toBe(403)
-    const setCookie403 = response.headers.get('set-cookie') ?? ''
-    expect(setCookie403).toContain('sb-token=refreshed')
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
+    const setCookieRedirect = response.headers.get('set-cookie') ?? ''
+    expect(setCookieRedirect).toContain('sb-token=refreshed')
   })
 
   it('returns 503 when the admin role lookup fails', async () => {
@@ -272,14 +273,14 @@ describe('proxy', () => {
     }
   })
 
-  it('preserves anti-cache headers on the forbidden response', async () => {
+  it('preserves anti-cache headers when bouncing a non-admin off an admin route', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
       const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(307)
       expect(response.headers.get('cache-control')).toBe('private, no-store')
     } finally {
       MOCK_SESSION_RESPONSE.headers.delete('cache-control')
