@@ -217,10 +217,12 @@ CREATE POLICY "students_read_answers" ON quiz_session_answers
   FOR SELECT
   USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
 
--- Restrictive policies to block writes
-CREATE POLICY "no_insert_answers" ON quiz_session_answers
-  FOR INSERT WITH CHECK (false);
+-- INSERT is denied by having NO INSERT policy at all — that is the whole mechanism.
+-- (There is no `no_insert_answers` policy in the schema, and there does not need to be.)
 
+-- These two exist and are PERMISSIVE with a false qualifier, NOT restrictive. They match
+-- zero rows, so the outcome is the same as having no policy — they are belt-and-braces,
+-- not a guard. A permissive policy can only ADD access; only `AS RESTRICTIVE` removes it.
 CREATE POLICY "no_update_answers" ON quiz_session_answers
   FOR UPDATE USING (false);
 
@@ -233,8 +235,11 @@ CREATE POLICY "students_insert_answers" ON quiz_session_answers
   WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
   -- ^ Removed in migration 006: students must not insert directly
 
--- ❌ WRONG — permissive policy without FOR clause applies to ALL operations (SELECT, INSERT, UPDATE, DELETE)
--- This overrides the restrictive no_update/no_delete because PostgreSQL OR's permissive policies
+-- ❌ WRONG — a permissive policy with no FOR clause is FOR ALL (SELECT, INSERT, UPDATE, DELETE).
+-- It does not "override" no_update/no_delete — those were never protective. It simply ADDS a
+-- permitting path, and PostgreSQL ORs permissive policies, so the write is allowed.
+-- This is the same mechanism that let an unqualified tenant_isolation defeat the is_admin()
+-- write gate on `questions` (migration 20260809000100).
 CREATE POLICY "students_own_answers" ON quiz_session_answers
   USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
   -- ^ This applies to ALL operations, making INSERT/UPDATE/DELETE possible!

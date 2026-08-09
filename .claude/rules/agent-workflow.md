@@ -561,9 +561,12 @@ load-bearing rule from an arbitrary one. Give the cause.
 > `fix-local-grants` workaround re-grants blanket DML at every reset), so a grant appearing
 > locally is NOT evidence it exists in production."
 
-Promoted at learner count=2 (2026-08-09). The first form was actually issued, and a critic
-reasoned past it by inventing a theory that drift is *subtractive* — therefore local presence must
-be genuine evidence. Backwards, and it produced a CRITICAL finding argued from the weakest
+Learner-proposed remedy, 2026-08-09 — NOT a count=2 promotion. The tracker records the two
+instances behind it (local-grant evidence; a review-only agent writing to memory) as separate
+count-1 WATCHING rows, and the learner proposed this wording as the fix for both. Stated here as
+guidance rather than a promoted rule; it graduates if either row recurs. The first form was
+actually issued, and a critic reasoned past it by inventing a theory that drift is *subtractive* —
+therefore local presence must be genuine evidence. Backwards, and it produced a CRITICAL finding argued from the weakest
 available source. The same gap explains a review-only agent writing to its memory file: the
 CONSTRAINTS said what was forbidden without saying why the habit fires.
 

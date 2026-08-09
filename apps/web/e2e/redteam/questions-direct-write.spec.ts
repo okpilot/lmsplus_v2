@@ -357,9 +357,15 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     // case above, `questions` has no CI-green positive control proving the DELETE
     // grant, so pinning one shape would risk failing for the wrong reason. The
     // service-role before/after read below is the real proof and holds either way.
-    expect(deleteError === null ? (deleted ?? []).length === 0 : deleteError.code === '42501').toBe(
-      true,
-    )
+    // Branch rather than collapse into one boolean: a combined expression fails as
+    // "expected false to be true", which hides WHICH shape went wrong — rows actually
+    // deleted, or an unexpected error code. On a red-team failure that distinction is
+    // the first thing you need.
+    if (deleteError === null) {
+      expect(deleted ?? []).toHaveLength(0)
+    } else {
+      expect(deleteError.code).toBe('42501')
+    }
 
     // Primary proof: the row survives, and survives un-soft-deleted.
     const { data: after, error: afterError } = await adminClient
