@@ -21,10 +21,20 @@ Sync the project board, docs, and leave things clean for next session.
 - Any tech debt noted? → create issues with `tech-debt` label.
 - Any feature ideas discussed? → create draft issues or full issues as appropriate.
 
-### 3. Docs sync
+### 3. Docs sync — VERIFY, don't discover
 
-- Is `docs/plan.md` status section current? Update if needed.
-- Any decisions made this session? → check `docs/decisions.md`.
+Docs, rules and mirrors are a **pre-push** gate (`/fullpush` step 7b), so by the time you reach
+wrap-up they should already be committed and pushed. This step confirms that, it does not do the
+work for the first time.
+
+- Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
+- Did every rule change land with its full mirror set (`docs/security.md`,
+  `.claude/rules/security.md`, `.coderabbit.yaml`, `.claude/agents/*.md`)?
+
+**If you find something missing here, that is a process failure, not a to-do.** Say so explicitly,
+fix it, and note it — because it means the change shipped in a PR whose docs did not match its
+code, and the reviewers on that PR were reading the stale text. Do not quietly patch it and move
+on; the point of finding it here is that it should have been impossible.
 
 ### 4. Sanity checks
 

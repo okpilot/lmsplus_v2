@@ -15,6 +15,30 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 6. **If production code changed after initial review**, did you re-run semantic-reviewer on the fix commit?
 7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
 
+### Docs, rules and mirrors — land them BEFORE the push, not in wrap-up
+7b. **Every doc, rule and mirror update this change requires must already be committed on this
+    branch.** This is a pre-push gate, not a wrap-up item. If a rule changed, its mirrors changed
+    with it; if schema or an RPC changed, the docs that describe it changed too.
+
+    Check, and fix now if any is missing:
+    - `docs/` — anything the change makes inaccurate (database.md matrices, security.md rules,
+      decisions.md entry for a real decision, plan.md phase/count literals).
+    - `.claude/rules/*.md` — the rule text itself.
+    - **The mirror set for that rule.** A rule lives in more than one place, and the copies do not
+      auto-track: `docs/security.md`, `.claude/rules/security.md`, `.coderabbit.yaml`, AND
+      `.claude/agents/*.md` (per `agent-workflow.md § Rule-Mirror Sync` and
+      `agent-learner.md § Downstream-enforcer sync`). Grep the rule's distinctive phrase across all
+      four and update every hit. **`.claude/agents/security-auditor.md` is the one people forget,
+      and it is the blocking pre-push gate** — a stale checklist there emits false CRITICALs.
+    - Repeated numeric literals (red-team spec count in `tech.md` ×3 + `decisions.md`; integration
+      test count in `plan.md`).
+
+    Why here and not in wrap-up: docs pushed after the fact are a second PR, a second review cycle,
+    and a window where the repo documents behaviour it no longer has. The reviewers also read these
+    files — on PR #1174 the two most valuable findings of the run were a self-contradicting
+    security-auditor checklist and a false `WITH CHECK` claim in `docs/security.md`. Landing docs
+    late means paying for those findings twice.
+
 ### Cross-file consistency (for 2+ commit branches)
 8. Run `git fetch origin` (ABORT if it fails — a stale `origin/master` distorts PR scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` and review the full PR diff — not just the latest commit.
 9. Check: do test assertions match production code changed in different commits?

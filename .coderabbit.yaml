@@ -20,6 +20,19 @@ reviews:
     - "!**/.next/**"
     - "!**/coverage/**"
     - "!**/pnpm-lock.yaml"
+    # Agent scratch space — tracker rows, counts and topic notes that agents
+    # rewrite every cycle. Reviewing it burns a cloud review on markdownlint nits
+    # (blank-line-after-heading, list spacing) in files no human reads as prose,
+    # and it churns on almost every PR. Excluded deliberately.
+    #
+    # NOT excluded, on purpose: docs/**, .claude/rules/** and .claude/agents/**.
+    # Those are prose too, but they are the BINDING rule surfaces — a wrong
+    # sentence there propagates into future work. On PR #1174 the two most
+    # valuable findings of the whole run came from exactly these files: a
+    # security-auditor checklist that contradicted itself (it blocks pushes, so
+    # it would have emitted false CRITICALs) and a docs/security.md claim about
+    # WITH CHECK that was flatly wrong. Widen this exclusion and you lose those.
+    - "!.claude/agent-memory/**"
 
   auto_review:
     enabled: true
