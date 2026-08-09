@@ -442,14 +442,14 @@ test.describe('Admin Student Management — Filters', () => {
 
 // ── Section 9: Non-admin access ───────────────────────────────────────────────
 //
-// The proxy (middleware) returns 403 for authenticated non-admin users and
-// redirects to '/' for unauthenticated users. Both are covered here:
+// The proxy (middleware) bounces authenticated non-admin users to the student
+// dashboard and redirects unauthenticated users to '/'. Both are covered here:
 //
 //  a) Unauthenticated → redirect to '/' — tested by clearing this context's
 //     cookies, since this project's storage state is the admin's.
 //
-//  b) Authenticated student → 403 — tested below in a fresh browser context that
-//     performs its own student login. The internal-exam student fixture is
+//  b) Authenticated student → bounced to /app/dashboard — tested below in a fresh
+//     browser context that performs its own student login. The internal-exam student fixture is
 //     deliberately not reused; it belongs to the internal-exam specs.
 //     e2e/redteam/header-validation.spec.ts covers the proxy-header dimension.
 
@@ -464,7 +464,7 @@ test.describe('Admin Student Management — Access Control', () => {
     await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 
-  test('authenticated student receives 403 when accessing /app/admin/students', async ({
+  test('authenticated student is bounced to the dashboard from /app/admin/students', async ({
     browser,
   }) => {
     // Sign in as a student in a fresh browser context (no inherited storage state).
@@ -486,9 +486,18 @@ test.describe('Admin Student Management — Access Control', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
 
-    // Now attempt to access an admin route
-    const response = await page.goto('/app/admin/students')
-    expect(response?.status()).toBe(403)
+    // Now attempt to access an admin route. page.goto follows the redirect, so
+    // assert where the student LANDS rather than a raw status — same pattern as
+    // the unauthenticated test above.
+    //
+    // This asserts the end-to-end property (a student never sees an admin page and
+    // is not stranded on a 404), NOT which layer enforced it: since #1167 the proxy
+    // and requireAdmin() both bounce to /app/dashboard, so the landing page cannot
+    // distinguish them. header-validation.spec.ts pins the middleware layer via the
+    // reduced-CSP assertion.
+    await page.goto('/app/admin/students')
+    await expect(page).toHaveURL('/app/dashboard', { timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
     await studentContext.close()
   })

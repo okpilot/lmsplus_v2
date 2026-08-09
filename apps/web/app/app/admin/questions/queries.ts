@@ -1,9 +1,15 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
 export const PAGE_SIZE = 25
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
+  // Layer 2 of the two-guard admin model (docs/security.md "Admin Route Protection").
+  // Defense in depth, not a hole being closed — RLS `users_select` already excludes
+  // soft-deleted rows from the proxy's Layer-1 lookup. Do not drop it as redundant:
+  // that redundancy is the point, and every other admin query helper has it.
+  await requireAdmin()
   const supabase = await createServerSupabaseClient()
 
   const page = filters.page ?? 1

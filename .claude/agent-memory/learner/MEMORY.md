@@ -92,7 +92,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Semantic-reviewer asserts a code path is unreachable without grepping for the triggering caller (reachability FP) | 1 | 2026-08-07 | WATCHING (archive row 514) |
 | Dep-bump type error cascades into N unrelated CI suite failures (suites abort at shared build step, never test their own subject) | 1 | 2026-08-07 | WATCHING (archive row 515) |
 | Verification gate's severity threshold makes it blind to sub-threshold advisories, so a removal justified by "gate is clean" is under-verified | 1 | 2026-08-08 | WATCHING (archive row 516) |
-| Behavior-first test-title rename overclaims a stronger property (privacy/security) than the assertion body proves | 2 | 2026-08-09 | RULE CANDIDATE. |
+| Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → propose code-style.md §7 (archive row 517). |
 | Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
 | A promoted rule's inline count-label parenthetical desyncs from its own same-commit enumerated precedent list | 1 | 2026-08-08 | WATCHING (archive row 519) |
 | Self-referential commit SHAs in branch memory/run-log files re-orphaned on each forced rebase (repair commit required per rebase cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
@@ -106,6 +106,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | `afterEach`/`afterAll` teardown runs with undefined fixture ids when `beforeEach` fails partway through setup | 1 | 2026-08-09 | WATCHING (archive row 528) |
 | Stray nested `.git` in workspace sub-directory (`apps/web/.git`) causes Turbopack to misidentify workspace root — breaks local dev/build, CI unaffected | 1 | 2026-08-09 | WATCHING (archive row 529) |
 | `fix-local-grants.sql` workaround re-grants blanket DML contradicting what later migrations explicitly revoke; live local DB grants diverge from migration history | 1 | 2026-08-09 | WATCHING (archive row 530) |
+| Status/error-posture change leaves a sibling spec asserting the OLD value | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation (archive row 531). |
+| Orchestrator acts on a semantic-reviewer ISSUE without Finding Validation; premise falsified by impl-critic | 1 | 2026-08-09 | WATCHING (archive row 532) |
+| Shared `buildChain` mock Proxy absorbs any chain call — new guard ships with zero test coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
+| Inline comment enumerating sibling files/helpers by name/count goes stale as siblings are added | 1 | 2026-08-09 | WATCHING (archive row 534) |
+| Internal post-commit gates miss an already-promoted §7 rule violation on a NEW site; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
 
 ## Durable knowledge (cross-agent)
 
@@ -115,6 +120,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 - Biggest recurring defect class: **partial fix to a sibling-file group** (tracker count 17) — grep all instances in the same file AND siblings before committing. Scope-out decisions are per-defect, not per-file.
 - **Tracker is authoritative over rule-file parenthetical counts** — parentheticals lag; read the tracker.
 - Convergent "not mechanically enforceable" verdicts from two agents = classification signal (text-only rule), not a coderabbit-sync gap.
+- code-style.md §10 now also covers **RLS POLICY** migrations, not only `CREATE OR REPLACE FUNCTION` (verified in implementation-critic/MEMORY.md 3→4, #1167; not re-counted here).
 - *(Other bullets → `topics/cross-agent-lessons.md`)*
 
 ## Topic pointers

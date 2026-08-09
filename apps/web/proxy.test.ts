@@ -51,7 +51,14 @@ function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') 
   return request
 }
 
-function buildChain(returnValue: unknown) {
+/**
+ * The Proxy absorbs EVERY chain method and returns the same canned result, so by
+ * default no test can observe which filters a query actually applied — a guard could
+ * be deleted and every assertion would still pass. Pass a `calls` array to record
+ * `[method, args]` in call order when a test needs to prove a specific filter is on
+ * the query (see the deleted_at assertion in the admin-block test).
+ */
+function buildChain(returnValue: unknown, calls?: Array<[string, unknown[]]>) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -60,7 +67,10 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
+      return (...args: unknown[]) => {
+        calls?.push([String(prop), args])
+        return buildChain(returnValue, calls)
+      }
     },
   })
 }
@@ -215,15 +225,45 @@ describe('proxy', () => {
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
-  it('returns 403 for a non-admin user accessing /app/admin routes', async () => {
+  it('sends a non-admin to the student dashboard instead of an admin route', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
-    expect(response.status).toBe(403)
-    const setCookie403 = response.headers.get('set-cookie') ?? ''
-    expect(setCookie403).toContain('sb-token=refreshed')
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
+    const setCookieRedirect = response.headers.get('set-cookie') ?? ''
+    expect(setCookieRedirect).toContain('sb-token=refreshed')
+  })
+
+  it('excludes soft-deleted users when resolving the admin role', async () => {
+    // Without this the deleted_at filter is unobservable: buildChain's Proxy absorbs
+    // every chain method, so the filter could be deleted and all other proxy tests
+    // would still pass. RLS (`users_select`) already excludes soft-deleted rows, so
+    // this pins the explicit defense-in-depth filter, not the enforcement itself.
+    const calls: Array<[string, unknown[]]> = []
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }, calls))
+
+    await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+    expect(calls).toContainEqual(['is', ['deleted_at', null]])
+  })
+
+  it('sends a user without an active profile to the student dashboard instead of an admin route', async () => {
+    // maybeSingle() resolves { data: null, error: null } when no row matches —
+    // distinct from the role-lookup failure below, which sets `error`. The
+    // optional-chain `profile?.role !== 'admin'` treats a missing row the same
+    // as a non-admin role, so this must still bounce to the dashboard, not fall
+    // through to the admin route or crash on `profile.role`.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'ghost-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
+
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
   })
 
   it('returns 503 when the admin role lookup fails', async () => {
@@ -272,14 +312,14 @@ describe('proxy', () => {
     }
   })
 
-  it('preserves anti-cache headers on the forbidden response', async () => {
+  it('preserves anti-cache headers when bouncing a non-admin off an admin route', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
       const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(307)
       expect(response.headers.get('cache-control')).toBe('private, no-store')
     } finally {
       MOCK_SESSION_RESPONSE.headers.delete('cache-control')

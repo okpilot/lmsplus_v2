@@ -10,6 +10,12 @@ vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: mockCreateServerSupabaseClient,
 }))
 
+const mockRequireAdmin = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/auth/require-admin', () => ({
+  requireAdmin: mockRequireAdmin,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { getSyllabusTree } from './queries'
@@ -254,5 +260,13 @@ describe('getSyllabusTree', () => {
     expect(tree[1]!.questionCount).toBe(900)
     expect(tree[1]!.topics[0]!.questionCount).toBe(900)
     expect(tree[1]!.topics[0]!.subtopics[0]!.questionCount).toBe(900)
+  })
+
+  it('does not read the syllabus tree when the caller fails the admin check', async () => {
+    // Asserts the read never ISSUES, not merely that it returns nothing.
+    mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
+
+    await expect(getSyllabusTree()).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
+    expect(mockCreateServerSupabaseClient).not.toHaveBeenCalled()
   })
 })

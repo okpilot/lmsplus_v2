@@ -81,7 +81,7 @@ describe('requireAdmin', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
   })
 
-  it('redirects to /app when user is not admin', async () => {
+  it('redirects to /app/dashboard when user is not admin', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'user-2' } },
       error: null,
@@ -96,11 +96,11 @@ describe('requireAdmin', () => {
       }),
     })
 
-    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app')
-    expect(mockRedirect).toHaveBeenCalledWith('/app')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
+    expect(mockRedirect).toHaveBeenCalledWith('/app/dashboard')
   })
 
-  it('redirects to /app when profile is null (soft-deleted user)', async () => {
+  it('redirects an authenticated user without an active profile to /app/dashboard', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'user-deleted' } },
       error: null,
@@ -115,8 +115,8 @@ describe('requireAdmin', () => {
       }),
     })
 
-    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app')
-    expect(mockRedirect).toHaveBeenCalledWith('/app')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
+    expect(mockRedirect).toHaveBeenCalledWith('/app/dashboard')
   })
 
   it('throws a service error when the profile query fails', async () => {

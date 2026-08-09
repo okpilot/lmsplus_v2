@@ -86,7 +86,7 @@ async function seed() {
   if (adminErr) throw new Error(`Admin user row: ${adminErr.message}`)
   console.log(`  Admin: ${adminId} (${ADMIN_EMAIL} / ${ADMIN_PASSWORD})`)
 
-  // 3. Student user (for 403 test)
+  // 3. Student user (for the admin-block test)
   const studentId = await createAuthUser(STUDENT_EMAIL, STUDENT_PASSWORD)
   const { error: studentErr } = await db.from('users').upsert(
     {
