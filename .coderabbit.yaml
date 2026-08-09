@@ -185,7 +185,9 @@ reviews:
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
-        - RLS policies need BOTH USING (read) AND WITH CHECK (write) clauses. CARVE-OUT:
+        - RLS needs read AND write coverage, but the clause is PER COMMAND: SELECT and
+          DELETE take USING only; INSERT takes WITH CHECK only; UPDATE takes both. Do not
+          flag a policy for lacking a clause its command cannot carry. CARVE-OUT:
           on a table that also has role-gated write policies (is_admin() etc.), the
           tenant_isolation policy MUST be declared FOR SELECT — an unqualified CREATE POLICY
           is FOR ALL, and Postgres ORs permissive policies together, so it supplies a second,
