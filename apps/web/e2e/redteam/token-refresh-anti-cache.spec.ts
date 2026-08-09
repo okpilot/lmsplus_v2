@@ -223,6 +223,17 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
         new URL(blockedRes.headers().location ?? '', BASE_URL).pathname,
         'admin-block exit should target /app/dashboard',
       ).toBe('/app/dashboard')
+      // Pin the MIDDLEWARE layer explicitly. Since #1167 both the proxy's admin block
+      // and requireAdmin() (Layer 2) redirect to /app/dashboard, so status+Location no
+      // longer identify which produced this response. The reduced CSP does: a routed
+      // Layer-2 redirect carries the full next.config.ts policy, not `default-src 'none'`.
+      // Without this the exit's layer attribution rests only on expires/pragma being
+      // absent from routed responses — a framework-version-dependent property this
+      // spec's own notes above flag as such.
+      expect(
+        blockedRes.headers()['content-security-policy'],
+        'admin-block exit must carry the reduced middleware CSP',
+      ).toBe("default-src 'none'; frame-ancestors 'none'")
       assertAntiCacheHeaders(blockedRes.headers(), 'admin-block exit (/app/admin/students)')
 
       // ---- Soft routed exit: authenticated + consented /app/dashboard → 200 ----

@@ -67,7 +67,7 @@ describe('AdminErrorPage', () => {
     expect(reset).toHaveBeenCalledTimes(1)
   })
 
-  it('renders a "Back to dashboard" link pointing to /app', () => {
+  it('renders a "Back to dashboard" link pointing to /app/dashboard', () => {
     render(<AdminErrorPage error={testError} reset={vi.fn()} />)
     const link = screen.getByRole('link', { name: /back to dashboard/i })
     expect(link).toHaveAttribute('href', '/app/dashboard')

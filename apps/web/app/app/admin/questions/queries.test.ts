@@ -9,6 +9,12 @@ vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: mockCreateServerSupabaseClient,
 }))
 
+const mockRequireAdmin = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/auth/require-admin', () => ({
+  requireAdmin: mockRequireAdmin,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { getQuestionsList, PAGE_SIZE } from './queries'
@@ -458,5 +464,16 @@ describe('getQuestionsList', () => {
     expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
     expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] count error:', 'connection refused')
     consoleSpy.mockRestore()
+  })
+
+  it('does not read the question bank when the caller fails the admin check', async () => {
+    // Layer 2 of the two-guard admin model. The proxy's Layer-1 role lookup is not
+    // the only thing standing between a soft-deleted admin and the question bank —
+    // this asserts the read never issues at all when requireAdmin() rejects, so the
+    // guard cannot regress into a no-op that leans on RLS alone.
+    mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
+
+    await expect(getQuestionsList({})).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
+    expect(mockCreateServerSupabaseClient).not.toHaveBeenCalled()
   })
 })

@@ -91,6 +91,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
       .from('users')
       .select('role')
       .eq('id', user.id)
+      // Explicit parity with requireAdmin()'s deleted_at-filtered read. RLS already
+      // enforces this — `users_select` is `USING (id = auth.uid() AND deleted_at IS
+      // NULL)` (mig 20260312000012:14-16) and this client uses the anon key — so a
+      // soft-deleted admin was never passing Layer 1. Stated in the query so the
+      // guarantee does not rest silently on one policy in another file.
+      .is('deleted_at', null)
       .maybeSingle<{ role: string }>()
 
     if (profileError) {

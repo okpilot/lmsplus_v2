@@ -1,9 +1,19 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
 export const PAGE_SIZE = 25
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
+  // Layer 2 of the two-guard admin model (docs/security.md "Admin Route Protection").
+  // NOT closing a live hole: a soft-deleted admin was already blocked at Layer 1,
+  // because the proxy reads `users` with the anon key and the only SELECT policy is
+  // `users_select … USING (id = auth.uid() AND deleted_at IS NULL)` (latest definition
+  // mig 20260312000012:14-16, on a FORCE ROW LEVEL SECURITY table). This is
+  // defense-in-depth against that policy changing, and parity with the four sibling
+  // admin query helpers (students, dashboard, internal-exams, exam-config) — this file
+  // and syllabus/queries.ts were the only two that did not gate their read.
+  await requireAdmin()
   const supabase = await createServerSupabaseClient()
 
   const page = filters.page ?? 1

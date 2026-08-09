@@ -92,7 +92,7 @@ function assertSecurityHeaders(
     expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
     expect(csp).toContain("worker-src 'self' blob:")
   } else {
-    // Minimal hardened CSP set by proxy.ts (redirects + 4xx/5xx).
+    // Minimal hardened CSP set by proxy.ts (redirects + 5xx; no 4xx branch since #1167).
     // No scripts execute on a 3xx/4xx/5xx, so default-src 'none' is correct.
     // Exact equality — catches regressions that add 'unsafe-inline' or similar.
     expect(csp, `CSP on ${path} must be exactly the reduced proxy.ts value`).toBe(
@@ -105,7 +105,7 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   for (const { name, path, responseClass } of PATHS) {
     test(`${name} response carries all required security headers`, async ({ request }) => {
       // maxRedirects: 0 — assert headers on the FIRST response, including 3xx
-      // redirects from middleware (e.g. unauth /app/* → /auth/login).
+      // redirects from middleware (e.g. unauth /app/* → /).
       const response = await request.fetch(path, { maxRedirects: 0 })
       expect(response.status(), `unexpected response for ${path}`).toBeLessThan(500)
 
@@ -125,14 +125,19 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   //   }
   //
   // Non-vacuous: the status alone is not enough now that the exit is a 3xx —
-  // THREE different proxy branches can emit a 307 for this request, so the
+  // FOUR different proxy branches can emit a 307 for this request, so the
   // Location is what proves which one fired:
-  //   307 → /app/dashboard   the admin-block branch (what we are testing)
-  //   307 → /                unauthenticated (`/app/*` && !user) — wrong branch
-  //   307 → /consent         consent gate — wrong branch
-  //   200                    student was granted admin access (privilege escalation)
-  // Asserting the exact Location therefore discriminates strictly more than the
-  // old `toBe(403)` did.
+  //   307 → /app/dashboard        the admin-block branch (what we are testing)
+  //   307 → /                     unauthenticated (`/app/*` && !user) — wrong branch
+  //   307 → /consent              consent gate — wrong branch
+  //   307 → /auth/reset-password  recovery-pending gate — wrong branch
+  //   200                         student got admin access (privilege escalation)
+  //
+  // Honest limitation: this is NOT strictly stronger than the old `toBe(403)`.
+  // A 403 was uniquely producible by proxy.ts, whereas `307 → /app/dashboard` is
+  // also what requireAdmin() (Layer 2) emits. What still pins the MIDDLEWARE layer
+  // is the exact reduced-CSP equality in assertSecurityHeaders below — a routed
+  // Layer-2 redirect carries the full next.config.ts CSP, not `default-src 'none'`.
   // ---------------------------------------------------------------------------
   test('authenticated non-admin student hitting /app/admin/* is bounced to the dashboard with all required security headers', async ({
     browser,

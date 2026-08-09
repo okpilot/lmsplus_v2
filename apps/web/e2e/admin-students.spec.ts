@@ -488,8 +488,13 @@ test.describe('Admin Student Management — Access Control', () => {
 
     // Now attempt to access an admin route. page.goto follows the redirect, so
     // assert where the student LANDS rather than a raw status — same pattern as
-    // the unauthenticated test above. Landing on the dashboard (not a 404, and
-    // not the admin page) is what proves the proxy bounced them (#1167).
+    // the unauthenticated test above.
+    //
+    // This asserts the end-to-end property (a student never sees an admin page and
+    // is not stranded on a 404), NOT which layer enforced it: since #1167 the proxy
+    // and requireAdmin() both bounce to /app/dashboard, so the landing page cannot
+    // distinguish them. header-validation.spec.ts pins the middleware layer via the
+    // reduced-CSP assertion.
     await page.goto('/app/admin/students')
     await expect(page).toHaveURL('/app/dashboard', { timeout: 10_000 })
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()

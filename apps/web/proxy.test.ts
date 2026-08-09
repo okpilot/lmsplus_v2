@@ -227,6 +227,21 @@ describe('proxy', () => {
     expect(setCookieRedirect).toContain('sb-token=refreshed')
   })
 
+  it('sends a user with no profile row to the student dashboard instead of an admin route', async () => {
+    // maybeSingle() resolves { data: null, error: null } when no row matches —
+    // distinct from the role-lookup failure below, which sets `error`. The
+    // optional-chain `profile?.role !== 'admin'` treats a missing row the same
+    // as a non-admin role, so this must still bounce to the dashboard, not fall
+    // through to the admin route or crash on `profile.role`.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'ghost-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
+
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
+  })
+
   it('returns 503 when the admin role lookup fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
