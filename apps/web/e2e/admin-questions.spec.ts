@@ -1,5 +1,57 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 import { E2E_ADMIN_Q_MARKER, restoreSeededQuestionsState } from './helpers/supabase'
+
+/**
+ * Question text carrying the E2E marker prefix, so the `afterEach` helper can
+ * soft-delete the row and it never leaks into downstream specs (#587).
+ */
+function markedQuestionText(): string {
+  return `${E2E_ADMIN_Q_MARKER} ${Date.now()}: What is the tropopause?`
+}
+
+/**
+ * Drive the New Question dialog to completion. Shared by the create test (which
+ * asserts the creation itself) and the delete test (which needs a row it owns,
+ * rather than soft-deleting a seeded question the rest of the admin-e2e project
+ * still depends on).
+ */
+async function createQuestionViaDialog(page: Page, questionText: string): Promise<void> {
+  await page.getByRole('button', { name: 'New Question' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+
+  // Select subject in the cascader
+  const dialog = page.getByRole('dialog')
+  const dialogTriggers = dialog.locator('[data-slot="select-trigger"]')
+  await dialogTriggers.first().click()
+  await page.locator('[data-slot="select-item"]').filter({ hasText: 'Meteorology' }).click()
+
+  // Wait for topic select to become enabled
+  await expect(dialogTriggers.nth(1)).not.toBeDisabled({ timeout: 5_000 })
+
+  // Select topic
+  await dialogTriggers.nth(1).click()
+  await page.locator('[data-slot="select-item"]').filter({ hasText: 'The atmosphere' }).click()
+
+  // Fill question text
+  await page.getByPlaceholder('Enter the question...').fill(questionText)
+
+  // Fill options
+  await page.getByPlaceholder('Option A').fill('The boundary between troposphere and stratosphere')
+  await page.getByPlaceholder('Option B').fill('The top of the mesosphere')
+  await page.getByPlaceholder('Option C').fill('The base of the ionosphere')
+  await page.getByPlaceholder('Option D').fill('The ozone layer boundary')
+
+  // Mark option A as correct
+  await page.getByLabel('Mark option A as correct').click()
+
+  // Fill explanation
+  await page
+    .getByPlaceholder('Explain the correct answer...')
+    .fill('The tropopause is the boundary between the troposphere and stratosphere.')
+
+  // Submit
+  await page.getByRole('button', { name: 'Create Question' }).click()
+}
 
 // Use admin auth state from admin-auth.setup.ts
 test.use({ storageState: 'e2e/.auth/admin.json' })
@@ -61,48 +113,9 @@ test.describe('Admin Question Editor', () => {
   // ── Section 3: Create question ──────────────────────────────────────
 
   test('creates a new question via the dialog', async ({ page }) => {
-    // Marker prefix lets the afterEach helper soft-delete this row so it
-    // doesn't leak into downstream specs.
-    const uniqueText = `${E2E_ADMIN_Q_MARKER} ${Date.now()}: What is the tropopause?`
+    const uniqueText = markedQuestionText()
 
-    // Open create dialog
-    await page.getByRole('button', { name: 'New Question' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-
-    // Select subject in the cascader
-    const dialog = page.getByRole('dialog')
-    const dialogTriggers = dialog.locator('[data-slot="select-trigger"]')
-    await dialogTriggers.first().click()
-    await page.locator('[data-slot="select-item"]').filter({ hasText: 'Meteorology' }).click()
-
-    // Wait for topic select to become enabled
-    await expect(dialogTriggers.nth(1)).not.toBeDisabled({ timeout: 5_000 })
-
-    // Select topic
-    await dialogTriggers.nth(1).click()
-    await page.locator('[data-slot="select-item"]').filter({ hasText: 'The atmosphere' }).click()
-
-    // Fill question text
-    await page.getByPlaceholder('Enter the question...').fill(uniqueText)
-
-    // Fill options
-    await page
-      .getByPlaceholder('Option A')
-      .fill('The boundary between troposphere and stratosphere')
-    await page.getByPlaceholder('Option B').fill('The top of the mesosphere')
-    await page.getByPlaceholder('Option C').fill('The base of the ionosphere')
-    await page.getByPlaceholder('Option D').fill('The ozone layer boundary')
-
-    // Mark option A as correct
-    await page.getByLabel('Mark option A as correct').click()
-
-    // Fill explanation
-    await page
-      .getByPlaceholder('Explain the correct answer...')
-      .fill('The tropopause is the boundary between the troposphere and stratosphere.')
-
-    // Submit
-    await page.getByRole('button', { name: 'Create Question' }).click()
+    await createQuestionViaDialog(page, uniqueText)
 
     // Wait for success toast and table refresh
     await expect(page.getByText('Question created')).toBeVisible({ timeout: 10_000 })
@@ -147,22 +160,54 @@ test.describe('Admin Question Editor', () => {
 
   // ── Section 6: Delete question ──────────────────────────────────────
 
-  // TODO: flaky — AlertDialog interaction timing issue with Base UI in Playwright
-  test.skip('soft-deletes a question with confirmation', async ({ page }) => {
-    // Click delete button on first row (title="Delete question")
-    const deleteBtn = page.locator('button[title="Delete question"]').first()
-    await deleteBtn.waitFor({ state: 'visible' })
-    await deleteBtn.click()
+  // Re-enabled in #367. Two changes made it stable:
+  //   1. It deletes a question it CREATED (marker-prefixed), not the first
+  //      seeded row. Soft-deleting a seeded question permanently shrinks the
+  //      org's pool — `restoreSeededQuestionsState` has no un-delete step — and
+  //      admin-questions runs before internal-exam-*, which then fail with
+  //      `insufficient_questions_for_exam` (the #587 failure mode).
+  //   2. Role-based, dialog-scoped locators replace the old
+  //      `button:has-text("Delete"):not([title])` CSS selector, which also
+  //      matched the row trigger and raced the Base UI open animation — the
+  //      original source of the flake this test was skipped for.
+  test('soft-deletes a question with confirmation', async ({ page }) => {
+    const uniqueText = markedQuestionText()
 
-    // Confirmation dialog should appear
-    const confirmText = page.getByText('Delete question?')
-    await expect(confirmText).toBeVisible({ timeout: 5_000 })
+    // Own the row under test.
+    await createQuestionViaDialog(page, uniqueText)
+    await expect(page.getByText('Question created')).toBeVisible({ timeout: 10_000 })
 
-    // Confirm delete — click the destructive action button
-    await page.locator('button:has-text("Delete"):not([title])').click()
+    // Isolate it: the table is paginated, so search rather than assume page 1.
+    await page.getByPlaceholder('Search question text...').fill(uniqueText)
+    await page.getByPlaceholder('Search question text...').press('Enter')
 
-    // Toast should confirm deletion
-    await expect(page.locator('text=/Deleted/').first()).toBeVisible({ timeout: 10_000 })
+    const row = page.locator('tbody tr').filter({ hasText: uniqueText })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+
+    await row.getByRole('button', { name: 'Delete question' }).click()
+
+    // Confirmation dialog — scope the action to the dialog so the row's own
+    // trigger can never be the click target. Base UI renders AlertDialog with
+    // role="alertdialog" (not "dialog"), and Playwright's role engine matches on
+    // strict equality, so `getByRole('dialog')` here would never resolve — same
+    // form as quiz-session-recovery.spec.ts / exam-recovery.spec.ts.
+    const confirmDialog = page.getByRole('alertdialog')
+    await expect(confirmDialog).toBeVisible({ timeout: 5_000 })
+    await expect(confirmDialog.getByText('Delete question?')).toBeVisible()
+    await confirmDialog.getByRole('button', { name: 'Delete', exact: true }).click()
+
+    // Success toast names the deleted question.
+    await expect(page.getByText(/^Deleted /)).toBeVisible({ timeout: 10_000 })
+
+    // The row is gone after a reload — proves the delete persisted, not just
+    // that a toast fired. This is the assertion that fails when the RLS
+    // regression behind #815 comes back.
+    await page.reload()
+    await page.getByPlaceholder('Search question text...').fill(uniqueText)
+    await page.getByPlaceholder('Search question text...').press('Enter')
+    await expect(page.locator('tbody tr').filter({ hasText: uniqueText })).toHaveCount(0, {
+      timeout: 10_000,
+    })
   })
 
   // ── Section 7: Empty state ──────────────────────────────────────────

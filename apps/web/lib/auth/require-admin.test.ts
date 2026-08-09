@@ -37,13 +37,15 @@ describe('requireAdmin', () => {
       data: { user: { id: 'user-1' } },
       error: null,
     })
+    const isMock = vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { role: 'admin', organization_id: 'org-1' },
+        error: null,
+      }),
+    })
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          maybeSingle: vi
-            .fn()
-            .mockResolvedValue({ data: { role: 'admin', organization_id: 'org-1' }, error: null }),
-        }),
+        eq: vi.fn().mockReturnValue({ is: isMock }),
       }),
     })
 
@@ -52,6 +54,11 @@ describe('requireAdmin', () => {
     expect(result.organizationId).toBe('org-1')
     expect(result.supabase).toBeDefined()
     expect(mockRedirect).not.toHaveBeenCalled()
+    // Asserted explicitly, not just accommodated by the chain mock: this filter
+    // is the second check that a soft-deleted admin cannot mutate data now that
+    // service-role callers bypass RLS entirely. Without this, dropping it would
+    // surface only as an opaque "maybeSingle is not a function".
+    expect(isMock).toHaveBeenCalledWith('deleted_at', null)
   })
 
   it('redirects to /auth/login when not authenticated', async () => {
@@ -82,7 +89,9 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+          }),
         }),
       }),
     })
@@ -99,7 +108,9 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
         }),
       }),
     })
@@ -116,9 +127,11 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          maybeSingle: vi
-            .fn()
-            .mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi
+              .fn()
+              .mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+          }),
         }),
       }),
     })

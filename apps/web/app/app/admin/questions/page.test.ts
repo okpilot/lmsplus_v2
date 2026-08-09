@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// `page.tsx` pulls in DeleteQuestionButton → the softDeleteQuestion action →
+// `@repo/db/admin`, whose module-level guard throws under jsdom because `window`
+// is defined. Next never bundles a `'use server'` module into the client, so this
+// only bites in the test environment; stub it the same way the other jsdom suites
+// that transitively reach the admin client do. parseFilters touches none of it.
+vi.mock('@repo/db/admin', () => ({ adminClient: { from: vi.fn() } }))
+
 import { parseFilters } from './page'
 
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000'

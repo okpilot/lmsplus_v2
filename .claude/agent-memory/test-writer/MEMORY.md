@@ -49,6 +49,7 @@
 - **App-layer integration test setup:** per-file suffix + admin client, `beforeAll` seeds, `signInAs` at TOP of each test, error-accumulator `afterAll`, fresh `seedOpenSession` per session-ending action. Detail: [durable-knowledge § app-layer-integration](topics/durable-knowledge.md#app-layer-integration).
 - **Test file splits:** moved `describe` block must carry ALL sentinel vars + cleanup guards + every branch — re-diff setup/`beforeAll`/`afterAll` against source before committing. Count=2: #698/#666, #951.
 - **`lib/queries/*.ts` JSONB branches:** co-located unit test with `makeChain(returnValue)` Proxy — integration tests always see well-formed data, so defensive guards are never exercised. Confirmed: `oral-exam-session.test.ts` (2026-07-02).
+- **Soft-delete of single-SELECT-policy tables must have an integration test:** when a Server Action soft-deletes a table that has only ONE permissive SELECT policy and that policy's USING clause requires `deleted_at IS NULL`, the RLS client cannot express the write — the post-update row is immediately invisible and Postgres rejects the statement. The unit test mocks the admin client and passes regardless. Only the app-layer integration tier catches a regression back to the RLS client. Tables with this property (commit d9abcf41): `questions` (fix: soft-delete-question.ts) and `users` (fix: toggle-student-status-mutations.ts). Integration tests: `soft-delete-question.integration.test.ts` and `toggle-student-status.integration.test.ts`.
 
 ## Topics
 
