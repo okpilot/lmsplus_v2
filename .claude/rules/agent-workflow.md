@@ -426,8 +426,50 @@ When a run spans multiple issues (`/automerge`, `/autonomerge`, any batch), the 
 ### Batch the fixups too
 Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one commit per finding. Each fixup commit re-triggers the review cycle, so per-finding commits multiply the cost the batching is meant to avoid.
 
+
 ### Anti-pattern (what this rule exists to stop)
 One issue → one branch → full pipeline → merge → repeat. It makes a multi-issue run crawl. If you catch yourself opening a PR that closes a single issue during a batch run, stop and ask what else belongs on that branch. (User directive 2026-07-02, mid-`/automerge` batch: "why the fuck one test in the whole PR? combine combine combine.")
+
+---
+
+## Push Batching — a push is NOT free (MANDATORY)
+
+> **Every push costs a full CI run (~30 min wall clock: E2E, Red Team, Integration, Migration Test,
+> Lighthouse, CodeQL, SonarCloud) PLUS one cloud CodeRabbit review** against quota and rate limits.
+> The cost is in the PIPELINE, not the diff. A one-line doc fix and a 900-line migration cost the
+> same to push.
+
+`PR Batching` above governs how many ISSUES go in a PR. This governs how many times you PUSH that
+PR. They are different mistakes and this one is easier to make, because each individual push feels
+justified.
+
+### The rule
+
+- **Batch every pending change into ONE push.** Before pushing, ask: *is anything else nearly
+  ready?* If yes, finish it first. A second push five minutes later doubles the CI bill and burns a
+  second cloud review on a diff the first review had already mostly seen.
+- **After pushing a fix for cloud-CR findings, STOP committing to that branch** until the new review
+  returns. Anything you commit meanwhile either rides an extra cycle or sits unpushed anyway.
+- **Never push a docs-only, config-only or process-only follow-up onto an open PR** unless it is
+  required for THAT PR to become mergeable. Park it: commit it on a separate branch and push when
+  something else needs CI anyway.
+- **"It's just a doc fix" is the trap.** Diff size is not the cost. If the change does not move this
+  PR toward merge, it does not justify a pipeline run.
+### Anti-pattern (what this rule exists to stop)
+Push the CR fix → notice a doc nit → commit it → push again → full CI + a second cloud review, for
+a change that could not have affected mergeability. Observed 2026-08-09 on PR #1174, one push after
+the previous one, user directive: *"we are wasting now 30 minutes of time with the full CI rerun…
+this is nonsense."* The correct move was to hold the process commit on its own branch and let the
+already-running pipeline finish.
+
+### Interaction with the docs-before-push rule
+
+`/fullpush` step 7b requires docs, rules and mirrors to be committed BEFORE the push. That is the
+same coin: get them in the FIRST push so there is no second one. "Docs land pre-push" and "don't
+push twice" fail together — a doc update discovered after the push is exactly what tempts the
+second pipeline run.
+
+
 
 ---
 
