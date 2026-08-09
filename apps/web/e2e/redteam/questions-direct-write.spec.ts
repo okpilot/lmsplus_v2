@@ -129,6 +129,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
   let studentStatusTargetId = ''
   let studentDeleteTargetId = ''
   let instructorUpdateTargetId = ''
+  let instructorDeleteTargetId = ''
 
   /**
    * Build a schema-compliant multiple_choice row. The column set satisfies every
@@ -219,6 +220,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     studentStatusTargetId = await seedFixtureQuestion('student-status-target')
     studentDeleteTargetId = await seedFixtureQuestion('student-delete-target')
     instructorUpdateTargetId = await seedFixtureQuestion('instructor-update-target')
+    instructorDeleteTargetId = await seedFixtureQuestion('instructor-delete-target')
   })
 
   test.afterAll(async () => {
@@ -231,8 +233,14 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
       .is('deleted_at', null)
       .select('id')
     if (error) {
+      // Fail loudly rather than logging and passing (code-style.md §7
+      // hermeticity). A silent cleanup failure leaves this spec's marker-tagged
+      // rows ACTIVE in the shared org question pool, where they leak into every
+      // downstream spec as a deterministic flake that looks like flakiness.
       console.error(`[questions-direct-write cleanup] soft-delete error: ${error.message}`)
-    } else if ((data?.length ?? 0) > 0) {
+      throw new Error('[questions-direct-write cleanup] failed to soft-delete marker-tagged rows')
+    }
+    if ((data?.length ?? 0) > 0) {
       console.log(`[questions-direct-write cleanup] soft-deleted ${data?.length} question(s)`)
     }
   })
@@ -440,6 +448,73 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
       .single()
     expect(afterError).toBeNull()
     expect(after?.correct_option_id).toBe(originalKey)
+  })
+
+  test('an instructor cannot delete a question in their own organisation', async () => {
+    // RLS is evaluated PER COMMAND, so the instructor UPDATE denial above says
+    // nothing about DELETE: they are separate policy sets, and DELETE is denied by
+    // the absence of any permissive policy rather than by a failed is_admin() gate.
+    // The target is the spec's OWN row (see the hermeticity note in the header): on
+    // a database missing the migration this probe is a real hard DELETE.
+    const { data: before, error: beforeError } = await adminClient
+      .from('questions')
+      .select('id')
+      .eq('id', instructorDeleteTargetId)
+      .is('deleted_at', null)
+      .maybeSingle()
+    expect(beforeError).toBeNull()
+    expect(before).not.toBeNull()
+
+    const { data: deleted, error: deleteError } = await instructorClient
+      .from('questions')
+      .delete()
+      .eq('id', instructorDeleteTargetId)
+      .select('id')
+    // Same dual-shape acceptance as the student DELETE probe: with the table-level
+    // DELETE privilege present an RLS USING mismatch is a SILENT 0-row no-op, and
+    // were that privilege ever revoked the same call would be refused with 42501.
+    // Branching keeps a failure legible — rows actually deleted, or an unexpected
+    // error code — instead of collapsing to "expected false to be true".
+    if (deleteError === null) {
+      expect(deleted ?? []).toHaveLength(0)
+    } else {
+      expect(deleteError.code).toBe('42501')
+    }
+
+    // Primary proof: the row survives, and survives un-soft-deleted.
+    const { data: after, error: afterError } = await adminClient
+      .from('questions')
+      .select('id, deleted_at')
+      .eq('id', instructorDeleteTargetId)
+      .maybeSingle()
+    expect(afterError).toBeNull()
+    expect(after?.id).toBe(instructorDeleteTargetId)
+    expect(after?.deleted_at).toBeNull()
+  })
+
+  test('an instructor cannot author a new question', async () => {
+    // Per-command evaluation again: no instructor-specific policy exists, but a
+    // denied UPDATE does not itself demonstrate that INSERT is gated too.
+    const forged = buildMcQuestion('instructor-insert-attempt', 'a')
+
+    const { data: inserted, error: insertError } = await instructorClient
+      .from('questions')
+      .insert(forged)
+      .select('id')
+    // An INSERT is denied by WITH CHECK, which PostgREST surfaces as 42501 —
+    // unlike the UPDATE/DELETE USING mismatches above, which are silent no-ops.
+    expect(insertError).not.toBeNull()
+    expect(insertError?.code).toBe('42501')
+    expect(inserted ?? []).toHaveLength(0)
+
+    // 42501 alone is ambiguous (it also covers a missing column grant), so prove
+    // the outcome that actually matters: no row was created.
+    const { data: after, error: afterError } = await adminClient
+      .from('questions')
+      .select('id')
+      .eq('question_number', forged.question_number)
+    expect(afterError).toBeNull()
+    expect(after ?? []).toHaveLength(0)
   })
 
   test('a student can still read a question in their own organisation', async () => {
