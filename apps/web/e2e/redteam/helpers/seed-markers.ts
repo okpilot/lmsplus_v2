@@ -23,3 +23,8 @@ export const E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-study-st
 // returns the MC answer key for Study Mode, so this vector pins the org /
 // soft-delete / status / question_type guard boundaries around that exposure.
 export const E2E_REDTEAM_EO_MARKER = '[E2E_REDTEAM_EO]'
+// questions direct-write spec (Vector EX): marks the throwaway MC questions it
+// inserts so cleanup/maintenance can target them by question_number/question_text.
+// Every write target the spec attacks is one of its OWN marked rows — a shared
+// seeded question must never be the target of a DELETE probe.
+export const E2E_REDTEAM_QW_MARKER = '[E2E_REDTEAM_QW]'

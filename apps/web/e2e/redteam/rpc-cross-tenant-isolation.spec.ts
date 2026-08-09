@@ -411,8 +411,8 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     //   questions.update({ has_calculations, updated_at })
     //           .in('id', ids).is('deleted_at', null).select('id')
     // admin_update_questions RLS (mig 20260324000054) gates UPDATE on
-    // is_admin() AND organization_id = caller_org; the base tenant_isolation
-    // policy is also org-scoped. A cross-org admin matches 0 rows → the action
+    // is_admin() AND organization_id = caller_org — the sole permissive UPDATE
+    // policy on questions. A cross-org admin matches 0 rows → the action
     // returns { success: false, error: 'No questions were updated' }.
     // Server Actions aren't callable from a PostgREST-layer red-team spec, so
     // reproducing the exact chain via the cross-org admin client exercises the

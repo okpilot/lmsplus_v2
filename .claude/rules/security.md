@@ -8,7 +8,7 @@
 ## Critical rules (memorise these)
 
 1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never SELECT * questions for students. The MC key is column-REVOKE-gated (mig 111, #823): stored in `questions.correct_option_id` (NULL for non-MC), kept out of the `options` JSONB by `trg_sanitize_question_options`; students read it post-session only via the report RPCs (mig 114/113, `ended_at`-gated), admins via `get_question_authoring_fields()`.
-2. **RLS** — every table needs BOTH `USING` (read) and `WITH CHECK` (write) policies.
+2. **RLS** — every table needs BOTH `USING` (read) and `WITH CHECK` (write) policies. **Carve-out:** on a table that also has role-gated write policies (`is_admin()` etc.), the `tenant_isolation` policy MUST be declared `FOR SELECT` — an unqualified policy is `FOR ALL`, and Postgres ORs permissive policies together, so it supplies a second, weaker write path and the role gate never binds. A `FOR SELECT` policy takes `USING` only and correctly has no `WITH CHECK`. Current case: `questions` (`20260809000100_questions_tenant_isolation_select_only.sql` — writes gated solely by `admin_insert_questions`/`admin_update_questions`; DELETE has no permissive policy, so hard DELETE is blocked at the RLS layer per rule 6). See `docs/security.md` §3.
 3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never in client components.
 4. **Zod validation** — every Server Action and API route must parse input with Zod before using it.
 5. **Audit log** — `audit_events` is append-only. No UPDATE or DELETE policies. Ever.

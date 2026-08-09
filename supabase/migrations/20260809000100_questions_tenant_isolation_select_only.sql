@@ -1,0 +1,130 @@
+-- Migration 157: scope questions.tenant_isolation to SELECT so the is_admin()
+-- write policies actually bind.
+--
+-- DEFECT. tenant_isolation was created in mig 001
+-- (20260311000001_initial_schema.sql:329-337) with no FOR clause, which in
+-- Postgres means FOR ALL — it governs SELECT, INSERT, UPDATE and DELETE. It has
+-- never been dropped since (the only DROP POLICY ... ON public.questions
+-- statements are 20260324000054:6-7, which drop and recreate the two admin
+-- policies).
+--
+-- Postgres ORs permissive policies together, so a write on questions succeeds if
+-- EITHER admin_insert_questions / admin_update_questions (which require
+-- is_admin()) OR tenant_isolation (which requires only same-org and
+-- deleted_at IS NULL) is satisfied. Every authenticated in-org user satisfies the
+-- latter, so the is_admin() gate never binds and question authoring is not in
+-- fact restricted to admins. Note 20260324000054's own header reasons about
+-- permissive-OR semantics for CROSS-ORG scoping; the same mechanism also
+-- dissolves the role gate, which that migration did not account for.
+--
+-- The exposure is a write primitive, not a read one: questions.correct_option_id
+-- is SELECT-revoked from authenticated (20260619000100:151) but its UPDATE
+-- privilege was never revoked, and batch_submit_quiz grades against the stored
+-- key. security.md rules 1 and 2, docs/security.md §4.
+--
+-- That authenticated actually HOLDS INSERT/UPDATE/DELETE here is established
+-- from the repo, not assumed and not from a local probe (local grants are known
+-- to have drifted ADDITIVELY via a fix-local-grants workaround, so a local read
+-- proves nothing):
+--   (a) the only FOUR privilege statements ever issued against questions are
+--       20260610000100:130-131 (blanket REVOKE SELECT, immediately followed by a
+--       re-GRANT of an explicit column list), 20260611000300:19 (GRANT SELECT of
+--       one further column) and 20260619000100:151 (REVOKE SELECT of one column)
+--       — every one of them concerns SELECT. INSERT/UPDATE/DELETE are never
+--       revoked, so whatever the bootstrap grant confers on them survives;
+--   (b) quiz_drafts carries ZERO grant statements in any migration, yet
+--       apps/web/app/app/quiz/actions/draft-delete.ts:29-33 performs a real
+--       .delete() through the user-scoped client as a shipped feature — so the
+--       bootstrap grant demonstrably includes DELETE;
+--   (c) apps/web/e2e/redteam/quiz-session-score-forgery.spec.ts:147-158 is a
+--       CI-green positive control asserting an authenticated student's direct
+--       PostgREST .update() on quiz_sessions succeeds — so it includes UPDATE.
+-- DELETE matters as much as the answer-key write: a FOR ALL policy plus the
+-- DELETE privilege means an in-org user can hard-DELETE question rows, which is
+-- both data loss and a direct violation of security.md rule 6. FK children
+-- (student_responses.question_id) protect ANSWERED questions via 23503;
+-- unanswered ones have no such protection.
+--
+-- FIX. Re-emit tenant_isolation as FOR SELECT with a byte-identical USING
+-- predicate. WITH CHECK is dropped because a FOR SELECT policy cannot carry one
+-- (SELECT produces no new row) — and nothing depended on it: the only writers
+-- that relied on tenant_isolation were the ones this migration is closing.
+--
+-- Resulting policy set on questions:
+--   SELECT — tenant_isolation (predicate unchanged; no read regression)
+--   INSERT — admin_insert_questions  (is_admin() AND caller-org)
+--   UPDATE — admin_update_questions  (is_admin() AND caller-org)
+--   DELETE — no permissive policy, so hard DELETE is blocked at the RLS layer.
+--            That is intended and matches security.md rule 6 (never hard DELETE;
+--            always UPDATE SET deleted_at). No production path hard-deletes a
+--            question.
+--
+-- Verified NOT to break admin authoring. There are FOUR user-scoped write paths
+-- (one INSERT, three UPDATEs) plus one service-role UPDATE, all admin actions:
+--   insert-question.ts:32          INSERT  (user-scoped, requireAdmin)
+--   upsert-question.ts:48          UPDATE  (user-scoped, requireAdmin)
+--   bulk-update-status.ts:17       UPDATE  (user-scoped, requireAdmin)
+--   bulk-update-calculations.ts:17 UPDATE  (user-scoped, requireAdmin)
+--   soft-delete-question.ts:53     UPDATE  (service-role, #1166 — bypasses RLS)
+-- Note upsert-question.ts:32-37 is a `.select('version')` optimistic-concurrency
+-- READ, not a write; that file contains no INSERT at all — it delegates to
+-- insertQuestion() at :21. The gate predicates
+-- match exactly: requireAdmin() (apps/web/lib/auth/require-admin.ts:29-44) reads
+-- the caller's users row with .is('deleted_at', null) and redirects unless
+-- role === 'admin'; is_admin() (latest body 20260429000001:7-20) is
+-- role = 'admin' AND deleted_at IS NULL. Instructors lose question-write access,
+-- which is the intended tightening — all authoring UI is admin-gated, so no
+-- instructor path exists today.
+--
+-- READS: the SELECT predicate is deliberately byte-identical, and that is
+-- LOAD-BEARING — not merely tidy. Two different groups of readers exist:
+--   * SECURITY DEFINER, RLS-exempt (owned by postgres, which has BYPASSRLS;
+--     FORCE RLS removes only the owner's implicit exemption, it does not
+--     override BYPASSRLS) — e.g. get_quiz_questions, get_study_questions,
+--     get_report_answer_keys, get_vfr_rt_exam_questions, batch_submit_quiz,
+--     check_quiz_answer, submit_quiz_answer, get_question_authoring_fields and
+--     the start_* family. Not an exhaustive list; ~20 DEFINER functions read
+--     questions.
+--   * SECURITY INVOKER, which DO depend on this policy for their org and
+--     deleted_at scoping — SIX RPCs: _filtered_question_pool and
+--     get_random_question_ids (20260626000100:45,127),
+--     get_filtered_question_counts (20260629000800:44, reading the pool via
+--     _filtered_question_pool at :49), get_question_counts,
+--     get_student_mastery_stats and get_student_last_practiced — PLUS the
+--     enforce_answer_blank_index_shape trigger function (20260702000200:29),
+--     which reads questions as the invoking student.
+--     docs/database.md:2626 states this dependency outright: "The underlying
+--     questions table has a single permissive SELECT policy (tenant_isolation),
+--     so RLS alone gives correct org + deleted_at IS NULL scoping."
+-- Consequently the USING predicate is reproduced verbatim and the policy is
+-- left with NO `TO` clause (i.e. PUBLIC, as the original was — 20260311000001:329
+-- has none). Adding a role list or dropping the deleted_at conjunct here would
+-- silently change what those six INVOKER functions return. Keeping PUBLIC also
+-- keeps `anon` on the same default-deny path the unauthenticated red-team specs
+-- rely on (server-action-unauthenticated.spec.ts:306,336).
+--
+-- NOT changed by this migration: soft-delete-question.ts must KEEP the
+-- service-role client. Its blocker is the RETURNING row of
+-- `.update(...).select('id')` having to satisfy a SELECT policy — and
+-- tenant_isolation, still the table's only SELECT policy, still requires
+-- deleted_at IS NULL, so the just-soft-deleted row is still invisible to the
+-- caller. That is unchanged here (see the action's own JSDoc, which records
+-- that the admin write grant was never the problem). Do not "simplify" that
+-- action back to the RLS client — that reintroduces #815.
+--
+-- Sibling tables organizations (20260311000001:283), question_banks (:318),
+-- courses (:340) and lessons (:351) carry the identical unqualified
+-- tenant_isolation. They are deliberately OUT OF SCOPE for this migration and
+-- tracked separately; see the PR body (security.md rule 12 sibling parity).
+
+DROP POLICY tenant_isolation ON public.questions;
+
+-- USING is reproduced with mig 001's EXACT layout (subquery on one line) so the
+-- byte-identity claim above is literally true and `diff`-checkable, not merely
+-- semantic.
+CREATE POLICY tenant_isolation ON public.questions
+  FOR SELECT
+  USING (
+    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
+    AND deleted_at IS NULL
+  );

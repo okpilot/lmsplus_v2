@@ -100,7 +100,7 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 
 - `USING` — filters rows on SELECT, UPDATE, DELETE
 - `WITH CHECK` — validates rows on INSERT, UPDATE
-- Missing `WITH CHECK` means a student can INSERT data into another org's tables
+- Missing `WITH CHECK` means a student can INSERT data into another org's tables — **except** on a `FOR SELECT` policy, which cannot carry a `WITH CHECK` at all (SELECT produces no new row). A deliberately SELECT-only tenant policy correctly has `USING` and no `WITH CHECK`; see the carve-out below.
 
 ### Required Policy Pattern
 
@@ -110,6 +110,9 @@ ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
 -- Tenant isolation policy (apply to EVERY table)
+-- ⚠️ Only valid in this unqualified (FOR ALL) form on a table with NO role-gated
+--    write policies. If the table has is_admin()-gated INSERT/UPDATE policies,
+--    this policy MUST be FOR SELECT — see the carve-out below.
 CREATE POLICY "tenant_isolation" ON table_name
   USING (
     organization_id = (
@@ -122,6 +125,32 @@ CREATE POLICY "tenant_isolation" ON table_name
     )
   );
 ```
+
+**Carve-out — tables that also have role-gated write policies.** A `CREATE POLICY` with no
+`FOR` clause is `FOR ALL`: it governs SELECT, INSERT, UPDATE and DELETE. Postgres ORs
+permissive policies together, so on a table that *also* carries `is_admin()`-gated write
+policies, the unqualified tenant policy supplies a second, weaker write path and the role
+gate never binds — any in-org authenticated user satisfies same-org + `deleted_at IS NULL`.
+On such a table `tenant_isolation` must be declared **`FOR SELECT`**, which leaves the
+role-gated policies as the only write path. A `FOR SELECT` policy takes `USING` only, so
+the "both USING and WITH CHECK" rule above does not apply to it.
+
+`public.questions` is the current case. Its `tenant_isolation` policy was re-emitted as
+`FOR SELECT` with a byte-identical `USING` predicate in
+`supabase/migrations/20260809000100_questions_tenant_isolation_select_only.sql` (it had
+carried mig 001's unqualified form since `20260311000001_initial_schema.sql`). Resulting
+policy set:
+
+| Command | Policy |
+|---------|--------|
+| SELECT | `tenant_isolation` — predicate unchanged, so no read regression |
+| INSERT | `admin_insert_questions` — `is_admin()` AND caller-org (`20260324000054`) |
+| UPDATE | `admin_update_questions` — `is_admin()` AND caller-org (`20260324000054`) |
+| DELETE | none — hard DELETE is blocked at the RLS layer, matching rule 6 |
+
+Sibling tables (`organizations`, `question_banks`, `courses`, `lessons`) still carry the
+unqualified form; they have no role-gated write policies, so the carve-out does not apply
+to them.
 
 ### Role-Scoped Policies (where needed)
 
@@ -148,14 +177,13 @@ CREATE POLICY "instructors_read_students" ON student_responses
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
   );
 
--- Immutable responses: scoped to SELECT + INSERT only, then blocked for UPDATE/DELETE
+-- Immutable responses: scoped to SELECT only, then blocked for UPDATE/DELETE.
+-- There is no INSERT policy — the original students_insert_responses was dropped in
+-- 20260311000006_restrict_immutable_inserts.sql, so direct INSERT is default-denied
+-- and rows are written only by SECURITY DEFINER RPCs (which bypass RLS).
 CREATE POLICY "students_read_responses" ON student_responses
   FOR SELECT
   USING (student_id = auth.uid());
-
-CREATE POLICY "students_insert_responses" ON student_responses
-  FOR INSERT
-  WITH CHECK (student_id = auth.uid());
 
 CREATE POLICY "responses_no_update" ON student_responses
   FOR UPDATE USING (false);
@@ -166,9 +194,9 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 ### Immutable Tables: Policy Scope Pattern
 
-Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Write access varies by table:
-- `student_responses` — INSERT allowed via RLS (`student_id = auth.uid()`)
-- `quiz_session_answers` and `audit_events` — INSERT only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which bypass RLS. Direct INSERT blocked by restrictive RLS policies.
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC, which bypasses RLS. How the denial is expressed differs:
+- `student_responses` — no INSERT policy at all, so INSERT is default-denied. (`students_insert_responses` existed briefly and was dropped in `20260311000006_restrict_immutable_inserts.sql`.)
+- `quiz_session_answers` and `audit_events` — INSERT only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`). Direct INSERT blocked by restrictive RLS policies.
 
 ```sql
 -- ✅ CORRECT — SELECT only; INSERT blocked

@@ -11,7 +11,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
  *
  * Runs the UPDATE through the **service-role** client, not the caller's RLS
  * client, because the RLS path cannot express this write at all: `questions`
- * has a single SELECT-capable policy (`tenant_isolation`, FOR ALL) whose
+ * has a single SELECT-capable policy (`tenant_isolation`, FOR SELECT) whose
  * qualifier requires `deleted_at IS NULL`, so the row stops being visible to
  * the caller the instant the soft-delete lands and Postgres rejects the
  * statement with `new row violates row-level security policy`. Verified

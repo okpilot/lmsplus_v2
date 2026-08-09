@@ -664,12 +664,26 @@ WHERE id = $1
   AND organization_id = (SELECT organization_id FROM users WHERE id = auth.uid());
 ```
 
+**Who may run that statement on `questions`:** admins only. Since
+`20260809000100_questions_tenant_isolation_select_only.sql`, `tenant_isolation` on
+`questions` is `FOR SELECT`, so the sole UPDATE policy is `admin_update_questions`
+(`is_admin()` AND caller-org, `20260324000054`). The org-scoped `WHERE` above is necessary
+but no longer sufficient — for a non-admin the statement matches zero rows and silently
+succeeds as a no-op. The shipped path,
+`apps/web/app/app/admin/questions/actions/soft-delete-question.ts`, runs behind
+`requireAdmin()` and uses the **service-role** client (which bypasses RLS) for an unrelated
+reason: `tenant_isolation`'s `USING` requires `deleted_at IS NULL`, so the just-soft-deleted
+row would not satisfy the SELECT policy that the statement's `RETURNING` needs. It re-applies
+the org scope and a `deleted_at IS NULL` filter in application code (#815, #1166).
+
 ### Filtering Soft-Deleted Records
 
 All RLS `USING` policies on soft-deletable tables include the active filter:
 
 ```sql
-CREATE POLICY "tenant_isolation" ON questions
+-- Representative example (question_banks, 20260311000001_initial_schema.sql:318-327).
+-- courses (:340) and lessons (:351) carry the identical policy.
+CREATE POLICY "tenant_isolation" ON question_banks
   USING (
     organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
     AND deleted_at IS NULL          -- ← soft delete filter
@@ -682,6 +696,15 @@ CREATE POLICY "tenant_isolation" ON questions
 
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
+
+**`questions` is the exception to the policy *shape*, not to the filter.** Its
+`tenant_isolation` policy was narrowed to `FOR SELECT` in
+`20260809000100_questions_tenant_isolation_select_only.sql` so that the `is_admin()` write
+policies (`admin_insert_questions` / `admin_update_questions`, `20260324000054`) are the
+only write path — a `FOR ALL` tenant policy ORs with them and dissolves the role gate. A
+`FOR SELECT` policy takes no `WITH CHECK`, so `questions` has the `USING` half above and
+nothing else; the `deleted_at IS NULL` filter and the org predicate are byte-identical to
+the block above, so soft-delete filtering on reads is unchanged. See `docs/security.md` §3.
 
 **Exception:** `flagged_questions` table filters `deleted_at IS NULL` in application code (flag.ts), not in RLS, to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 

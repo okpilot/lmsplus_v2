@@ -185,7 +185,13 @@ reviews:
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
-        - RLS policies need BOTH USING (read) AND WITH CHECK (write) clauses.
+        - RLS policies need BOTH USING (read) AND WITH CHECK (write) clauses. CARVE-OUT:
+          on a table that also has role-gated write policies (is_admin() etc.), the
+          tenant_isolation policy MUST be declared FOR SELECT — an unqualified CREATE POLICY
+          is FOR ALL, and Postgres ORs permissive policies together, so it supplies a second,
+          weaker write path and the role gate never binds. A FOR SELECT policy takes USING
+          only; do NOT flag it for a missing WITH CHECK. Current case: public.questions
+          (20260809000100_questions_tenant_isolation_select_only.sql). (docs/security.md §3.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no UPDATE or DELETE policies.
         - audit_events is append-only. No UPDATE/DELETE policies. Ever.
