@@ -100,7 +100,7 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 
 - `USING` — filters rows on SELECT, UPDATE, DELETE
 - `WITH CHECK` — validates rows on INSERT, UPDATE
-- Missing `WITH CHECK` means a student can INSERT data into another org's tables — **except** on a `FOR SELECT` policy, which cannot carry a `WITH CHECK` at all (SELECT produces no new row). A deliberately SELECT-only tenant policy correctly has `USING` and no `WITH CHECK`; see the carve-out below.
+- `WITH CHECK` is required only when the write predicate must DIFFER from `USING`. On a `FOR ALL` or `FOR UPDATE` policy, omitting it is safe: PostgreSQL reuses `USING` as the write check (verified — `pg_policies.with_check` reads NULL, yet a row violating `USING` is still rejected). `FOR SELECT` and `FOR DELETE` cannot carry a `WITH CHECK` at all (neither produces a new row), so its absence there is correct, not a gap. What actually lets a student write another org's rows is a policy whose `USING`/`WITH CHECK` predicate is too broad — not a missing clause.
 
 ### Required Policy Pattern
 

@@ -614,4 +614,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*
+*Last updated: 2026-08-09 (added § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms. Prior: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*

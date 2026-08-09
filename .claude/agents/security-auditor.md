@@ -44,7 +44,10 @@ You receive:
 
 4. **RLS disabled on a new table**
    - Any `CREATE TABLE` migration without a matching `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
-   - Any `CREATE TABLE` migration without RLS policies that include both `USING` and `WITH CHECK`
+   - Any `CREATE TABLE` migration without RLS policies covering read AND write. Clause is PER
+     COMMAND: `SELECT`/`DELETE` take `USING` only; `INSERT` takes `WITH CHECK` only; `FOR ALL`
+     and `FOR UPDATE` take both, and omitting `WITH CHECK` there is SAFE (PostgreSQL reuses
+     `USING`). Do not emit a finding for a clause the command cannot carry
    - Carve-out (`docs/security.md` §3 "Carve-out — tables that also have role-gated write policies"): on a table that ALSO carries `is_admin()`-gated write policies, the `tenant_isolation` policy must be `FOR SELECT` — an unqualified policy is `FOR ALL` and, since permissive policies are OR-ed, supplies a second weaker write path that defeats the role gate. A `FOR SELECT` policy takes `USING` only, so its missing `WITH CHECK` is correct — do not flag it. Current case: `questions` (mig `20260809000100`; writes gated by `admin_insert_questions`/`admin_update_questions`). Conversely, DO flag an unqualified (`FOR ALL`) tenant policy on a table that has role-gated write policies.
 
 5. **Cross-tenant data access**
