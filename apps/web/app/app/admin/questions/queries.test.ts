@@ -466,11 +466,52 @@ describe('getQuestionsList', () => {
     consoleSpy.mockRestore()
   })
 
+  it('surfaces a failure when the page fetch fails after the count succeeds', async () => {
+    // code-style §7 "Paginated Fetch Needs a Caller-Level Page-Error Test": the
+    // count-error path is covered above, but a page/range error AFTER a successful
+    // non-zero count is the one that regresses silently — it would otherwise return
+    // a truncated list that looks complete. Two distinct chains, so the count query
+    // can succeed while the ranged data query fails.
+    const countChain: Record<string, unknown> = {}
+    for (const m of ['select', 'is', 'order', 'range', 'eq', 'ilike']) {
+      countChain[m] = vi.fn().mockReturnValue(countChain)
+    }
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    countChain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+      const v = { data: null, count: 42, error: null }
+      resolve(v)
+      return Promise.resolve(v)
+    })
+
+    const pageChain: Record<string, unknown> = {}
+    for (const m of ['select', 'is', 'order', 'range', 'eq', 'ilike']) {
+      pageChain[m] = vi.fn().mockReturnValue(pageChain)
+    }
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    pageChain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+      const v = { data: null, count: null, error: { message: 'page fetch failed' } }
+      resolve(v)
+      return Promise.resolve(v)
+    })
+
+    mockFrom.mockReturnValueOnce(countChain).mockReturnValueOnce(pageChain)
+    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getQuestionsList({})
+
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
+    // Pins the PAGE path specifically — the count path logs a different prefix, so a
+    // regression that only kept the count guard would fail this assertion.
+    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'page fetch failed')
+    consoleSpy.mockRestore()
+  })
+
   it('does not read the question bank when the caller fails the admin check', async () => {
-    // Layer 2 of the two-guard admin model. The proxy's Layer-1 role lookup is not
-    // the only thing standing between a soft-deleted admin and the question bank —
-    // this asserts the read never issues at all when requireAdmin() rejects, so the
-    // guard cannot regress into a no-op that leans on RLS alone.
+    // Layer 2 of the two-guard admin model. Asserts the read never issues at all
+    // when requireAdmin() rejects, so the gate cannot regress into a no-op. (RLS
+    // `users_select` already excludes soft-deleted rows, so this is defense in depth
+    // and parity with the four sibling admin query helpers — not a hole being closed.)
     mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
 
     await expect(getQuestionsList({})).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')

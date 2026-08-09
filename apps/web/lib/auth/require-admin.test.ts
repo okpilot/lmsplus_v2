@@ -100,7 +100,7 @@ describe('requireAdmin', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/app/dashboard')
   })
 
-  it('redirects to /app/dashboard when profile is null (soft-deleted user)', async () => {
+  it('redirects an authenticated user without an active profile to /app/dashboard', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'user-deleted' } },
       error: null,

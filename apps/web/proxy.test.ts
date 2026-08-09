@@ -51,7 +51,14 @@ function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') 
   return request
 }
 
-function buildChain(returnValue: unknown) {
+/**
+ * The Proxy absorbs EVERY chain method and returns the same canned result, so by
+ * default no test can observe which filters a query actually applied — a guard could
+ * be deleted and every assertion would still pass. Pass a `calls` array to record
+ * `[method, args]` in call order when a test needs to prove a specific filter is on
+ * the query (see the deleted_at assertion in the admin-block test).
+ */
+function buildChain(returnValue: unknown, calls?: Array<[string, unknown[]]>) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -60,7 +67,10 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
+      return (...args: unknown[]) => {
+        calls?.push([String(prop), args])
+        return buildChain(returnValue, calls)
+      }
     },
   })
 }
@@ -227,7 +237,21 @@ describe('proxy', () => {
     expect(setCookieRedirect).toContain('sb-token=refreshed')
   })
 
-  it('sends a user with no profile row to the student dashboard instead of an admin route', async () => {
+  it('excludes soft-deleted users when resolving the admin role', async () => {
+    // Without this the deleted_at filter is unobservable: buildChain's Proxy absorbs
+    // every chain method, so the filter could be deleted and all other proxy tests
+    // would still pass. RLS (`users_select`) already excludes soft-deleted rows, so
+    // this pins the explicit defense-in-depth filter, not the enforcement itself.
+    const calls: Array<[string, unknown[]]> = []
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }, calls))
+
+    await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+    expect(calls).toContainEqual(['is', ['deleted_at', null]])
+  })
+
+  it('sends a user without an active profile to the student dashboard instead of an admin route', async () => {
     // maybeSingle() resolves { data: null, error: null } when no row matches —
     // distinct from the role-lookup failure below, which sets `error`. The
     // optional-chain `profile?.role !== 'admin'` treats a missing row the same

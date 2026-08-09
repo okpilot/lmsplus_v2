@@ -10,9 +10,10 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   // because the proxy reads `users` with the anon key and the only SELECT policy is
   // `users_select … USING (id = auth.uid() AND deleted_at IS NULL)` (latest definition
   // mig 20260312000012:14-16, on a FORCE ROW LEVEL SECURITY table). This is
-  // defense-in-depth against that policy changing, and parity with the four sibling
-  // admin query helpers (students, dashboard, internal-exams, exam-config) — this file
-  // and syllabus/queries.ts were the only two that did not gate their read.
+  // defense-in-depth against that policy changing, and parity with the sibling admin
+  // query helpers (students, dashboard, dashboard/students/[id], exam-config, the four
+  // internal-exams helpers, and lib/queries/admin-quiz-report.ts) — this file and
+  // syllabus/queries.ts were the only two that did not gate their read.
   await requireAdmin()
   const supabase = await createServerSupabaseClient()
 
