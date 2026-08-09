@@ -271,8 +271,8 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 ## SECURITY DECISIONS (confirmed 2026-03-11)
 
 - **Correct answer exposure risk** — `options[].correct` in JSONB must be stripped server-side via `get_quiz_questions()` RPC. Never `SELECT *` questions for student-facing endpoints.
-- **RLS WITH CHECK** — all existing plan sketches only showed `USING`. Every table needs both USING + WITH CHECK.
-- **Audit log** — `audit_events` table is append-only (no UPDATE/DELETE policies). Required for CAA compliance.
+- **RLS WITH CHECK** — all existing plan sketches only showed `USING`. Every table needs both USING + WITH CHECK. *(Superseded 2026-08-09: coverage is PER COMMAND — `SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only, `FOR ALL`/`FOR UPDATE` take both. See `docs/security.md` §3.)*
+- **Audit log** — `audit_events` table is append-only (no UPDATE/DELETE policies). Required for CAA compliance. *(Clarified 2026-08-09: it does carry `audit_no_update`/`audit_no_delete` `USING (false)` policies; the denial rests on the absence of a permitting policy, not on those. See `docs/security.md` §3.)*
 - **Security review agent** — `security-auditor.md` created. Runs on `git push` via Lefthook pre-push hook. Blocking on CRITICAL and HIGH findings.
 - **Service role key** — must live in `packages/db/src/admin.ts` with a runtime browser guard. Never `NEXT_PUBLIC_` prefix.
 

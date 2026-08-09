@@ -617,7 +617,9 @@ CONSTRAINTS said what was forbidden without saying why the habit fires.
 > "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>` AND `DROP FUNCTION … CREATE FUNCTION <fn>`,
 > sorted by migration timestamp prefix — a later migration may redefine via DROP+CREATE, which a
 > `CREATE OR REPLACE`-only grep silently misses. Same for `ALTER TABLE … DROP CONSTRAINT` +
-> `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY`."
+> `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY` — plus `ALTER POLICY <name> ON
+> <table>`, which replaces `TO` / `USING` / `WITH CHECK` in place without recreating the policy,
+> so a DROP/CREATE-only grep reports a stale predicate as current."
 
 Promoted at learner count=2 (2026-08-09). In one cycle an Explore agent reported a superseded
 migration as latest, a subagent flagged a table whose policy had been dropped twice, a spec cited a

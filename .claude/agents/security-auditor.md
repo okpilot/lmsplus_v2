@@ -44,10 +44,14 @@ You receive:
 
 4. **RLS disabled on a new table**
    - Any `CREATE TABLE` migration without a matching `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
-   - Any `CREATE TABLE` migration without RLS policies covering read AND write. Clause is PER
-     COMMAND: `SELECT`/`DELETE` take `USING` only; `INSERT` takes `WITH CHECK` only; `FOR ALL`
-     and `FOR UPDATE` take both, and omitting `WITH CHECK` there is SAFE (PostgreSQL reuses
-     `USING`). Do not emit a finding for a clause the command cannot carry
+   - Any `CREATE TABLE` migration without an RLS policy for each command the table is INTENDED
+     to permit. Judge against intended access, not against a fixed read-AND-write checklist: a
+     command with no permitting policy is denied by default, so an immutable or read-only table
+     carrying only a `FOR SELECT` policy is correct by design — do not flag its absent write
+     policies. Flag a missing policy only where the design calls for that command to work.
+     Clause is PER COMMAND: `SELECT`/`DELETE` take `USING` only; `INSERT` takes `WITH CHECK`
+     only; `FOR ALL` and `FOR UPDATE` take both, and omitting `WITH CHECK` there is SAFE
+     (PostgreSQL reuses `USING`). Do not emit a finding for a clause the command cannot carry
    - Carve-out (`docs/security.md` §3 "Carve-out — tables that also have role-gated write policies"): on a table that ALSO carries `is_admin()`-gated write policies, the `tenant_isolation` policy must be `FOR SELECT` — an unqualified policy is `FOR ALL` and, since permissive policies are OR-ed, supplies a second weaker write path that defeats the role gate. A `FOR SELECT` policy takes `USING` only, so its missing `WITH CHECK` is correct — do not flag it. Current case: `questions` (mig `20260809000100`; writes gated by `admin_insert_questions`/`admin_update_questions`). Conversely, DO flag an unqualified (`FOR ALL`) tenant policy on a table that has role-gated write policies.
 
 5. **Cross-tenant data access**
@@ -171,7 +175,7 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 2. **Do NOT flag soft-delete enforcement on immutable tables** — `audit_events`, `student_responses`, and `quiz_session_answers` are append-only by design. They must NEVER have UPDATE or DELETE. Do not suggest adding `deleted_at` to these tables — they are immutable, not soft-deletable.
 
-3. **Do NOT confuse RLS policy types** — INSERT uses only WITH CHECK (no old row). SELECT/DELETE use only USING. UPDATE requires BOTH. Do not flag missing WITH CHECK on a SELECT-only policy.
+3. **Do NOT confuse RLS policy types** — INSERT uses only WITH CHECK (no old row). SELECT/DELETE use only USING. UPDATE and `FOR ALL` accept both, but omitting WITH CHECK there is SAFE — PostgreSQL reuses USING as the write check. Do not flag a missing clause on any of these.
 
 4. **Do NOT flag cookie forwarding on redirects as CRITICAL if all branches are consistent** — Only flag CRITICAL if ONE branch forgets cookies while others include them. Consistent forwarding = GOOD.
 

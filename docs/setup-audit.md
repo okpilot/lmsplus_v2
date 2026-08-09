@@ -62,7 +62,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `.claude/commands/test.md` — run all tests + diagnose failures
 - `.claude/commands/insights.md` — weekly self-review
 - `.claude/skills/nextjs-patterns.md` — Server Components, Server Actions patterns
-- `.claude/skills/supabase-rls.md` — RLS USING + WITH CHECK patterns
+- `.claude/skills/supabase-rls.md` — RLS per-permitted-command policy patterns
 - `.claude/rules/code-style.md` — file limits, function limits, naming, org
 - `.claude/rules/security.md` — quick reference pointing to docs/security.md
 - `.claude/agent-memory/*` — 9 agent memory dirs (native `memory: project`, MEMORY.md index per agent, populated; security-auditor deferred)

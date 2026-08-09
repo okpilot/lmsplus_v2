@@ -37,7 +37,7 @@ After any commit that modifies:
 - Secret patterns (eyJ, sk_live_, service_role, etc.)
 - Answer exposure (SELECT * on questions, bypassing get_quiz_questions RPC)
 - Soft delete enforcement
-- RLS requirements (USING + WITH CHECK)
+- RLS requirements (a policy per permitted command; clause is per-command)
 - Immutable table protections (audit_events, student_responses, quiz_session_answers)
 - Service role key isolation (admin.ts only)
 

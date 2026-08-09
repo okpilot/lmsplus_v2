@@ -198,7 +198,10 @@ reviews:
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
-        - RLS needs read AND write coverage, but the clause is PER COMMAND: SELECT and
+        - RLS needs a policy for each command the table is INTENDED to permit — a command
+          with no permitting policy is denied by default, so an immutable/read-only table
+          carrying only a FOR SELECT policy is correct; do not flag its absent write
+          policies. The clause is PER COMMAND: SELECT and
           DELETE take USING only; INSERT takes WITH CHECK only; UPDATE takes both. Do not
           flag a policy for lacking a clause its command cannot carry. CARVE-OUT:
           on a table that also has role-gated write policies (is_admin() etc.), the
@@ -208,8 +211,12 @@ reviews:
           only; do NOT flag it for a missing WITH CHECK. Current case: public.questions
           (20260809000100_questions_tenant_isolation_select_only.sql). (docs/security.md §3.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
-        - Immutable tables (student_responses, quiz_session_answers, audit_events): no UPDATE or DELETE policies.
-        - audit_events is append-only. No UPDATE/DELETE policies. Ever.
+        - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
+          UPDATE or DELETE policy. (Each does carry permissive USING (false) policies; those match
+          zero rows and are not what denies the write — the absence of a permitting policy is.)
+        - audit_events is append-only. No PERMITTING UPDATE/DELETE policy. Ever. (It does carry
+          audit_no_update / audit_no_delete USING (false); those match zero rows and are not the
+          denial mechanism — the absence of a permitting policy is.)
         - SECURITY DEFINER functions: auth.uid() check + SET search_path = public.
         - Max 300 lines per migration file. EXCEPTION: a migration whose entire content is a
           single CREATE OR REPLACE FUNCTION (or another single, atomic, unsplittable DDL object)

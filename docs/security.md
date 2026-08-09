@@ -96,11 +96,13 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 
 ## 3. Row Level Security (RLS)
 
-**Rule: Every table must have RLS enabled with both USING and WITH CHECK policies.**
+**Rule: Every table must have RLS enabled, with a policy covering every command that is intended to be permitted — using the clause that command actually accepts.**
 
 - `USING` — filters rows on SELECT, UPDATE, DELETE
 - `WITH CHECK` — validates rows on INSERT, UPDATE
-- `WITH CHECK` is required only when the write predicate must DIFFER from `USING`. On a `FOR ALL` or `FOR UPDATE` policy, omitting it is safe: PostgreSQL reuses `USING` as the write check (verified — `pg_policies.with_check` reads NULL, yet a row violating `USING` is still rejected). `FOR SELECT` and `FOR DELETE` cannot carry a `WITH CHECK` at all (neither produces a new row), so its absence there is correct, not a gap. What actually lets a student write another org's rows is a policy whose `USING`/`WITH CHECK` predicate is too broad — not a missing clause.
+- The clause is PER COMMAND, and demanding both on every policy is wrong: `FOR SELECT` and `FOR DELETE` take `USING` only (neither produces a new row, so neither can carry a `WITH CHECK` at all); `FOR INSERT` takes `WITH CHECK` only (it cannot carry a `USING`, so the permitted rows must be spelled out in an explicit `WITH CHECK` predicate); `FOR ALL` and `FOR UPDATE` take both. A missing clause the command cannot carry is correct, not a gap.
+- `WITH CHECK` is required only when the write predicate must DIFFER from `USING`, and only on the two commands that accept both. On a `FOR ALL` or `FOR UPDATE` policy, omitting it is safe: PostgreSQL reuses `USING` as the write check (verified — `pg_policies.with_check` reads NULL, yet a row violating `USING` is still rejected). This inheritance does NOT extend to `FOR INSERT`, which has no `USING` to inherit from. What actually lets a student write another org's rows is a policy whose `USING`/`WITH CHECK` predicate is too broad — not a missing clause.
+- A command with no permitting policy is denied by default. Omitting write policies on a read-only or immutable table is the intended design, not an omission — see "Critical rule: on immutable tables, block all direct writes" below.
 
 ### Required Policy Pattern
 
@@ -110,9 +112,14 @@ ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
 -- Tenant isolation policy (apply to EVERY table)
--- ⚠️ Only valid in this unqualified (FOR ALL) form on a table with NO role-gated
---    write policies. If the table has is_admin()-gated INSERT/UPDATE policies,
---    this policy MUST be FOR SELECT — see the carve-out below.
+-- ⚠️ The unqualified form below is FOR ALL — it permits same-tenant INSERT, UPDATE
+--    and DELETE. Use it ONLY when same-tenant users are actually meant to write.
+--    Otherwise declare it FOR SELECT and leave writes with no permitting policy:
+--      • table has is_admin()-gated write policies → MUST be FOR SELECT, or the
+--        OR-ed FOR ALL supplies a second, weaker write path (see carve-out below)
+--      • table is immutable / written only through SECURITY DEFINER RPCs → FOR SELECT
+--    When declaring it FOR SELECT, DROP the WITH CHECK clause below — FOR SELECT
+--    cannot carry one, and leaving it in place is a syntax error.
 CREATE POLICY "tenant_isolation" ON table_name
   USING (
     organization_id = (
@@ -133,7 +140,7 @@ policies, the unqualified tenant policy supplies a second, weaker write path and
 gate never binds — any in-org authenticated user satisfies same-org + `deleted_at IS NULL`.
 On such a table `tenant_isolation` must be declared **`FOR SELECT`**, which leaves the
 role-gated policies as the only write path. A `FOR SELECT` policy takes `USING` only, so
-the "both USING and WITH CHECK" rule above does not apply to it.
+its absent `WITH CHECK` is correct under the per-command rule above, not a gap.
 
 `public.questions` is the current case. Its `tenant_isolation` policy was re-emitted as
 `FOR SELECT` with a byte-identical `USING` predicate in
@@ -245,11 +252,10 @@ CREATE POLICY "students_own_answers" ON quiz_session_answers
   -- ^ This applies to ALL operations, making INSERT/UPDATE/DELETE possible!
 ```
 
-**Critical rule:** On immutable tables, block all direct writes:
-- `FOR SELECT` — allow reads only
-- `FOR INSERT WITH CHECK (false)` — block all inserts
-- `FOR UPDATE USING (false)` — block all updates
-- `FOR DELETE USING (false)` — block all deletes
+**Critical rule:** On immutable tables, block all direct writes. A write command is denied when NO permissive policy permits it — so the reliable form is a `FOR SELECT` read policy and no write policy at all:
+- `FOR SELECT` — allow reads only; grant no permitting INSERT/UPDATE/DELETE policy
+
+A permissive `WITH CHECK (false)` / `USING (false)` policy does **not** block anything — it matches zero rows, so the outcome is identical to having no policy at all. It is belt-and-braces, not a guard, and would not stop a permitting policy added beside it: an unqualified (`FOR ALL`) `tenant_isolation` on the same table permits the write regardless. To deny a command *on top of* an existing permitting policy you need a RESTRICTIVE policy — `AS RESTRICTIVE ... WITH CHECK (false)` for INSERT, `AS RESTRICTIVE ... USING (false)` for UPDATE/DELETE (the per-command clause rule above binds RESTRICTIVE policies exactly as it binds permissive ones) — which is AND-ed rather than OR-ed.
 
 Write operations go only through SECURITY DEFINER RPCs that enforce business logic.
 
@@ -845,7 +851,7 @@ Monthly: run `pnpm audit --fix` and review outdated packages with `pnpm outdated
 All database design rules (soft delete, immutability, idempotency, RPC conventions, full schema SQL) live in `docs/database.md`. Key security-relevant rules from that document:
 
 - No hard `DELETE` anywhere in application code — always `UPDATE SET deleted_at = now()`
-- Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have RLS policies blocking UPDATE and DELETE
+- Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have no permitting UPDATE or DELETE policy, so both commands are denied by default (see §3)
 - `SECURITY DEFINER` RPCs must always include a manual `auth.uid()` check + `SET search_path = public`
 - **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs stored in an immutable, write-once column may omit the filter, because the accessible ID set is bounded by the immutable prior write rather than by the deleted-at predicate. Current examples: (a) `batch_submit_quiz` in both its initial-submit and idempotent-replay paths reads `questions` — initial via `quiz_sessions.config.question_ids`, replay via `quiz_session_answers.question_id` (both immutable write-once boundaries); `submit_vfr_rt_exam_answers`, `check_quiz_answer` reading `questions` via `quiz_sessions.config.question_ids` (written once at session start; `check_quiz_answer` verifies `p_question_id = ANY(config.question_ids)` before the read, so a question soft-deleted mid-session is still answerable for immediate feedback — mig 117 / #823; `submit_quiz_answer` verifies the same `p_question_id = ANY(config.question_ids)` membership before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer` for consistency, mig 123 / #855; `check_non_mc_answer` (the short_answer + dialog_fill + ordering + diagram_label immediate-feedback grader) reads `questions` via the same frozen `config.question_ids` after a membership check, so a question soft-deleted mid-session stays gradeable — mig 119 / #697, widened for `ordering` mig 146 and `diagram_label` mig 153; batch_submit_quiz replay removes the deleted_at filter on the JOIN for consistency — mig 20260619000250 / PR #856); (b) `get_vfr_rt_exam_questions`, `get_vfr_rt_exam_results` reading `questions` via the same frozen `config.question_ids` — both derive the question IDs server-side from the caller-owned session row, never from client input (`get_vfr_rt_exam_questions` since migration `20260611000100` / mig 105, which dropped its caller-supplied `p_question_ids uuid[]` signature for `(p_session_id uuid)`; `get_vfr_rt_exam_results` since its creation in mig 103); (c) `get_report_correct_options`, `get_admin_report_correct_options`, `get_report_answer_keys` reading `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table (no UPDATE/DELETE policies; resubmits are `ON CONFLICT DO NOTHING`), so a completed-session report still reveals the key for a question soft-deleted after it was answered (`get_report_correct_options`/`get_admin_report_correct_options`: MC key, mig 114 / #823; `get_report_answer_keys`: the non-MC sibling delivering short_answer `canonical_answer` + dialog_fill per-blank `blanks_config` canonicals + ordering per-slot `ordering_items` canonical text [mig 149] + diagram_label per-zone canonical label text via a 2-hop resolve on `diagram_config` [mig 156], mig 133 / #697). Historical scoring and review then need access to records that may have been soft-deleted after the session was sampled. Any new instance of this exception must (a) cite the immutable, write-once column it relies on, (b) include an inline comment at the call site, and (c) cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions". The `config.question_ids` write-once guarantee is enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079) — see `docs/database.md` §1 column-level immutability table.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
@@ -863,4 +869,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-07-02 (§15 example (a)/(c) corrected — the `ordering` [mig 146/149] and new `diagram_label` [mig 153/156] widenings of `check_non_mc_answer` / `get_report_answer_keys` had never been reflected here since VFR RT Phase 5; both closed in the same pass as the Phase 6 diagram_label doc sync) | Earlier: 2026-06-29 (§11d added — single-active-session invariant, #1011: global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row; structural complement to the §4 item 6 answer-oracle guard) | Earlier: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
+*Last updated: 2026-08-09 (§3 rewritten to per-command policy coverage — the rule is now "a policy for each command the table is INTENDED to permit", `FOR INSERT` takes `WITH CHECK` only and inherits nothing, and the immutable-table "Critical rule" no longer claims a PERMISSIVE `WITH CHECK (false)` blocks a write beside a permitting policy; `FOR SELECT` tenant-isolation carve-out added for `questions`, mig `20260809000100`) | Earlier: 2026-07-02 (§15 example (a)/(c) corrected — the `ordering` [mig 146/149] and new `diagram_label` [mig 153/156] widenings of `check_non_mc_answer` / `get_report_answer_keys` had never been reflected here since VFR RT Phase 5; both closed in the same pass as the Phase 6 diagram_label doc sync) | Earlier: 2026-06-29 (§11d added — single-active-session invariant, #1011: global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row; structural complement to the §4 item 6 answer-oracle guard) | Earlier: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*

@@ -874,7 +874,7 @@ audit_events         IMMUTABLE — append-only compliance log
 
 **Rules:**
 - No hard DELETE anywhere — always `UPDATE SET deleted_at = now()`
-- RLS on every table: USING + WITH CHECK + `AND deleted_at IS NULL` on soft-delete tables
+- RLS on every table: a policy per PERMITTED command, using the clause that command accepts (see `docs/security.md` §3), + `AND deleted_at IS NULL` on soft-delete tables
 - All multi-table operations go through RPCs (atomic transactions)
 - All INSERTs use `ON CONFLICT DO NOTHING` / upsert (idempotent)
 
@@ -900,7 +900,7 @@ See `docs/database.md` for full SQL.
 - `packages/db/src/admin.ts` — service role client with browser guard
 - `get_quiz_questions()` Postgres RPC function created
 - `audit_events` table with append-only policies
-- Verify all tables have RLS USING + WITH CHECK (run checklist from docs/security.md §3)
+- Verify RLS policy coverage on all tables (run checklist from docs/security.md §3)
 
 ---
 

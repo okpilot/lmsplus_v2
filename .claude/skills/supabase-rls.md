@@ -1,15 +1,25 @@
 # Supabase RLS Patterns — LMS Plus v2
 
-## Every table needs BOTH policies
-```sql
--- ✅ CORRECT: both USING (read) and WITH CHECK (write)
-CREATE POLICY "students can read own data"
-  ON student_responses FOR SELECT
-  USING (student_id = auth.uid() AND deleted_at IS NULL);
+## Every table needs a policy per PERMITTED command
 
-CREATE POLICY "students can insert own data"
-  ON student_responses FOR INSERT
-  WITH CHECK (student_id = auth.uid());
+The clause is per command: `SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only,
+`FOR ALL`/`FOR UPDATE` take both. A command with no permitting policy is denied by default — so on
+an immutable table, a read-only policy set is correct by design, not a gap.
+
+```sql
+-- ✅ CORRECT: student_responses is IMMUTABLE — read policy only.
+-- Rows are written solely by SECURITY DEFINER RPCs, which bypass RLS.
+-- No deleted_at filter: immutable tables carry no deleted_at column.
+CREATE POLICY "students_read_responses"
+  ON student_responses FOR SELECT
+  USING (student_id = auth.uid());
+
+-- ❌ WRONG: never grant students a direct INSERT here. Exactly this policy
+-- shipped in mig 20260311000005 and was dropped for security in
+-- 20260311000006_restrict_immutable_inserts.sql.
+-- CREATE POLICY "students_insert_responses"
+--   ON student_responses FOR INSERT
+--   WITH CHECK (student_id = auth.uid());
 ```
 
 ## Soft delete filter in every policy
