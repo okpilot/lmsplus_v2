@@ -79,6 +79,23 @@ const MC_OPTIONS = [
 ]
 
 /**
+ * The cleanup prefix pattern for `question_number`, with every SQL LIKE
+ * metacharacter escaped.
+ *
+ * In LIKE, `_` is a SINGLE-CHARACTER WILDCARD and `\` is the default escape, so
+ * the raw `[E2E_REDTEAM_QW]%` would also match e.g. `[E2EXREDTEAMXQW] ...` —
+ * verified against Postgres, the unescaped pattern matches such a decoy and the
+ * escaped one does not. No live collision exists today, but the cleanup issues a
+ * blind bulk UPDATE, so the match must be literal. Derived from MARKER rather
+ * than hand-written so it cannot drift from seed-markers.ts.
+ *
+ * Escaping survives PostgREST: `.like()` puts the pattern in the query string
+ * (URL-encoded), and the backslashes arrive intact and bind as LIKE escapes —
+ * confirmed end-to-end against the local REST endpoint.
+ */
+const MARKER_LIKE_PREFIX = `${MARKER.replace(/[\\%_]/g, '\\$&')}%`
+
+/**
  * Narrow an untyped `options` JSONB value to the list of option ids it declares.
  * Runtime guard rather than a cast (code-style.md §5): `options` is Json, and a
  * shape regression would otherwise surface as an opaque TypeError instead of a
@@ -109,14 +126,24 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
 
   // Every attacked row is the spec's own (see the hermeticity note in the header).
   let studentUpdateTargetId = ''
+  let studentStatusTargetId = ''
   let studentDeleteTargetId = ''
   let instructorUpdateTargetId = ''
 
   /**
    * Build a schema-compliant multiple_choice row. The column set satisfies every
-   * NOT NULL plus questions_question_type_columns_check (mig 20260610000100):
-   * an MC row must have canonical_answer NULL, accepted_synonyms '{}',
-   * dialog_template NULL and an empty blanks_config.
+   * NOT NULL plus questions_question_type_columns_check. That constraint has been
+   * DROPped and re-ADDed twice since it was introduced in mig 20260610000100 —
+   * by mig 20260630000100 (ordering) and, latest, by mig
+   * 20260702000100:229-237 (diagram_label), which is the definition in force.
+   * Its multiple_choice branch requires ALL of:
+   *   canonical_answer IS NULL, accepted_synonyms = '{}'::TEXT[],
+   *   dialog_template IS NULL, jsonb_array_length(blanks_config) = 0,
+   *   ordering_items = '[]'::jsonb, diagram_config IS NULL.
+   * The first four are set explicitly below. The last two are omitted because the
+   * column defaults already satisfy them: ordering_items is
+   * `JSONB NOT NULL DEFAULT '[]'::jsonb` (mig 20260630000100:21) and
+   * diagram_config is `JSONB NULL DEFAULT NULL` (mig 20260702000100:39).
    */
   function buildMcQuestion(label: string, correctOptionId: string) {
     return {
@@ -189,6 +216,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     bankId = fkRow.bank_id
 
     studentUpdateTargetId = await seedFixtureQuestion('student-update-target')
+    studentStatusTargetId = await seedFixtureQuestion('student-status-target')
     studentDeleteTargetId = await seedFixtureQuestion('student-delete-target')
     instructorUpdateTargetId = await seedFixtureQuestion('instructor-update-target')
   })
@@ -199,7 +227,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     const { data, error } = await adminClient
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
-      .like('question_number', `${MARKER}%`)
+      .like('question_number', MARKER_LIKE_PREFIX)
       .is('deleted_at', null)
       .select('id')
     if (error) {
@@ -253,6 +281,55 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
       .single()
     expect(afterError).toBeNull()
     expect(after?.correct_option_id).toBe(originalKey)
+  })
+
+  test('a student cannot take a question out of circulation', async () => {
+    // Rewriting the answer key requires the attacker to be mid-assessment and to
+    // care which option grades as correct. Flipping a question to 'draft' only
+    // requires wanting it gone, so it is the MORE reachable arm of the same hole:
+    // question-pool denial of service rather than a targeted key forge. Both went
+    // through tenant_isolation's WITH CHECK for the same reason before mig
+    // 20260809000100 — the post-update row is still same-org with deleted_at IS
+    // NULL, so the predicate re-passes and the is_admin() gate never bound.
+    const { data: before, error: beforeError } = await adminClient
+      .from('questions')
+      .select('status')
+      .eq('id', studentStatusTargetId)
+      .single()
+    expect(beforeError).toBeNull()
+    expect(before).not.toBeNull()
+    // Runtime guard (code-style.md §5): status is NOT NULL, so a non-string here
+    // means a shape regression. Without this the "unchanged" assertion below could
+    // degrade to toBe(undefined) and pass vacuously.
+    expect(typeof before?.status).toBe('string')
+    const originalStatus = before?.status
+    if (typeof originalStatus !== 'string') {
+      throw new Error('Vector EX: fixture has no status to protect')
+    }
+    // The fixture is seeded 'active'. Pinning that makes the forged value below a
+    // real state change rather than a no-op write of the value already stored.
+    expect(originalStatus).toBe('active')
+
+    // 'draft' is the only other value questions_status_check admits, and it takes
+    // the row out of the served pool — so a successful write would be accepted by
+    // the CHECK and would really remove the question, not fail for the wrong reason.
+    const { data: updated, error: updateError } = await studentClient
+      .from('questions')
+      .update({ status: 'draft' })
+      .eq('id', studentStatusTargetId)
+      .is('deleted_at', null)
+      .select('id')
+    expect(updateError).toBeNull()
+    expect(updated ?? []).toHaveLength(0)
+
+    // Primary proof: the question is still in circulation.
+    const { data: after, error: afterError } = await adminClient
+      .from('questions')
+      .select('status')
+      .eq('id', studentStatusTargetId)
+      .single()
+    expect(afterError).toBeNull()
+    expect(after?.status).toBe(originalStatus)
   })
 
   test('a student cannot delete a question in their own organisation', async () => {
@@ -361,8 +438,8 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
 
   test('a student can still read a question in their own organisation', async () => {
     // Non-vacuity control (code-style.md §7): proves the student client is
-    // genuinely authenticated and `questions` is reachable, so the three denials
-    // above are the write policies binding — not a broken fixture.
+    // genuinely authenticated and `questions` is reachable, so the four student
+    // denials above are the write policies binding — not a broken fixture.
     const { data, error } = await studentClient
       .from('questions')
       .select('id, question_number')

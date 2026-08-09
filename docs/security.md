@@ -148,9 +148,12 @@ policy set:
 | UPDATE | `admin_update_questions` — `is_admin()` AND caller-org (`20260324000054`) |
 | DELETE | none — hard DELETE is blocked at the RLS layer, matching rule 6 |
 
-Sibling tables (`organizations`, `question_banks`, `courses`, `lessons`) still carry the
-unqualified form; they have no role-gated write policies, so the carve-out does not apply
-to them.
+Sibling tables (`organizations`, `question_banks`, `courses`, `lessons`) still carry
+`tenant_isolation` in the same unqualified (`FOR ALL`) form — the shape is what is shared, not
+the predicate. This *carve-out* does not apply to them — they have no role-gated write
+policy for an unqualified tenant policy to override — but that is **not** a clean bill of
+health, and they should not be treated as reviewed-and-fine. They are a separate open item,
+out of scope here, tracked privately in `GHSA-hjp9-x868-7wgw`.
 
 ### Role-Scoped Policies (where needed)
 
@@ -177,14 +180,21 @@ CREATE POLICY "instructors_read_students" ON student_responses
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
   );
 
--- Immutable responses: scoped to SELECT only, then blocked for UPDATE/DELETE.
--- There is no INSERT policy — the original students_insert_responses was dropped in
--- 20260311000006_restrict_immutable_inserts.sql, so direct INSERT is default-denied
--- and rows are written only by SECURITY DEFINER RPCs (which bypass RLS).
+-- Immutable responses: SELECT only. There is no INSERT policy — the original
+-- students_insert_responses was dropped in 20260311000006_restrict_immutable_inserts.sql,
+-- so direct INSERT is default-denied and rows are written only by SECURITY DEFINER RPCs
+-- (which bypass RLS).
 CREATE POLICY "students_read_responses" ON student_responses
   FOR SELECT
   USING (student_id = auth.uid());
 
+-- ⚠️ These two are PERMISSIVE policies with a false qualifier. They do NOT "block"
+-- anything: a permissive policy can only ADD access, never remove it, and permissive
+-- policies are OR-ed. What actually denies UPDATE/DELETE here is that no PERMITTING
+-- policy exists — these match zero rows, so the outcome is identical to having no policy
+-- at all. They are redundant belt-and-braces, and they would NOT save you if a permitting
+-- UPDATE policy were ever added alongside them. To genuinely override a permitting policy
+-- you need `AS RESTRICTIVE` (which these are not). Same permissive-OR mechanism as migration 20260809000100.
 CREATE POLICY "responses_no_update" ON student_responses
   FOR UPDATE USING (false);
 
@@ -196,7 +206,10 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC, which bypasses RLS. How the denial is expressed differs:
 - `student_responses` — no INSERT policy at all, so INSERT is default-denied. (`students_insert_responses` existed briefly and was dropped in `20260311000006_restrict_immutable_inserts.sql`.)
-- `quiz_session_answers` and `audit_events` — INSERT only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`). Direct INSERT blocked by restrictive RLS policies.
+- `quiz_session_answers` — no INSERT policy at all, so direct INSERT is default-denied. Rows are written only by SECURITY DEFINER RPCs (e.g. `submit_quiz_answer()`), which bypass RLS.
+- `audit_events` — has `audit_no_direct_insert` (`FOR INSERT WITH CHECK (false)`, `20260314000034`). It denies because it is the ONLY INSERT policy, not because it overrides anything: it is PERMISSIVE, and a permissive policy can only add access. Rows are written only by SECURITY DEFINER RPCs.
+
+⚠️ **There are currently no `AS RESTRICTIVE` policies anywhere in this schema** (verified: 0 of 62). Every denial above rests on the *absence* of a permitting permissive policy. Do not describe a `USING (false)` / `WITH CHECK (false)` permissive policy as "blocking" or "overriding" — it does neither, and it would not stop a permitting policy added beside it. Only `AS RESTRICTIVE` AND-combines.
 
 ```sql
 -- ✅ CORRECT — SELECT only; INSERT blocked

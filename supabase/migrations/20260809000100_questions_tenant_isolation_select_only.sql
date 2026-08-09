@@ -113,9 +113,13 @@
 -- action back to the RLS client — that reintroduces #815.
 --
 -- Sibling tables organizations (20260311000001:283), question_banks (:318),
--- courses (:340) and lessons (:351) carry the identical unqualified
--- tenant_isolation. They are deliberately OUT OF SCOPE for this migration and
--- tracked separately; see the PR body (security.md rule 12 sibling parity).
+-- courses (:340) and lessons (:351) carry tenant_isolation in the same
+-- unqualified (FOR ALL) form. The FOR ALL shape is what they share, not the
+-- predicate: question_banks/courses/lessons use
+-- `organization_id = <caller org> AND deleted_at IS NULL`, whereas organizations
+-- keys on `id = <caller org>` with no deleted_at conjunct. They are deliberately OUT OF SCOPE for this migration —
+-- each needs its own change and its own verification — and are tracked privately
+-- in GHSA-hjp9-x868-7wgw (security.md rule 12, sibling parity).
 
 DROP POLICY tenant_isolation ON public.questions;
 

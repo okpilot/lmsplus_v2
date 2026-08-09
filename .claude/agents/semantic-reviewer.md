@@ -97,7 +97,7 @@ Apply these rules based on file paths in the diff:
 
 **`packages/db/src/**/*.ts`**: Security critical. Check for answer exposure, hard deletes, service role key leaks.
 
-**`**/migrations/**/*.sql`**: RLS mandatory. USING + WITH CHECK on all policies. Immutable tables (student_responses, quiz_session_answers, audit_events) must have no UPDATE/DELETE.
+**`**/migrations/**/*.sql`**: RLS mandatory. USING + WITH CHECK on all policies — except a `tenant_isolation` policy on a table that ALSO has `is_admin()`-gated write policies: it must be `FOR SELECT` (an unqualified policy is `FOR ALL`, and OR-ed permissive policies would give a second weaker write path that defeats the role gate), and a `FOR SELECT` policy correctly carries `USING` only (`docs/security.md` §3 carve-out; current case `questions`). Immutable tables (student_responses, quiz_session_answers, audit_events) must have no UPDATE/DELETE.
 
 **`apps/web/next.config.ts`**: Security headers must not be removed or weakened.
 

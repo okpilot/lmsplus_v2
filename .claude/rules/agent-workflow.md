@@ -551,6 +551,36 @@ CONSTRAINTS: [what NOT to do, file boundaries, limits, security rules]
 CONTEXT: [file paths, type signatures, patterns to follow, related tests]
 ```
 
+### State the MECHANISM behind a constraint, not just the prohibition
+
+A bare prohibition invites the agent to reason around it, because it has no way to tell a
+load-bearing rule from an arbitrary one. Give the cause.
+
+> ❌ "Do not use the local DB to check grants."
+> ✅ "Do not use the local DB to check grants — local grants drift **ADDITIVELY** (a
+> `fix-local-grants` workaround re-grants blanket DML at every reset), so a grant appearing
+> locally is NOT evidence it exists in production."
+
+Promoted at learner count=2 (2026-08-09). The first form was actually issued, and a critic
+reasoned past it by inventing a theory that drift is *subtractive* — therefore local presence must
+be genuine evidence. Backwards, and it produced a CRITICAL finding argued from the weakest
+available source. The same gap explains a review-only agent writing to its memory file: the
+CONSTRAINTS said what was forbidden without saying why the habit fires.
+
+### For any task that locates a DB object's current definition, name BOTH supersession forms
+
+> "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>` AND `DROP FUNCTION … CREATE FUNCTION <fn>`,
+> sorted by migration timestamp prefix — a later migration may redefine via DROP+CREATE, which a
+> `CREATE OR REPLACE`-only grep silently misses. Same for `ALTER TABLE … DROP CONSTRAINT` +
+> `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY`."
+
+Promoted at learner count=2 (2026-08-09). In one cycle an Explore agent reported a superseded
+migration as latest, a subagent flagged a table whose policy had been dropped twice, a spec cited a
+constraint re-emitted twice since, and the orchestrator made the same error twice in its own
+migration header. Note this is also how the bug that cycle FIXED was introduced: a human added
+role-gated policies without accounting for the pre-existing `FOR ALL` policy. The codebase's
+append-only, mutation-by-supersession shape produces this error in whoever reads it.
+
 ### Litmus test
 Before dispatching any subagent, ask: **"Could this agent execute end-to-end without a follow-up question?"** If no, add the missing context to the prompt.
 

@@ -72,7 +72,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Hook/hook-wiring changed or added without live-probe runtime verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
 | Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
 | Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
-| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 1 | 2026-07-11 | WATCHING (archive row 495) |
+| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 2 | 2026-08-09 | RULE CANDIDATE (2) → propose agent-workflow.md § Delegation Protocol (archive row 495). |
 | CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
 | Reviewer-proposed fix introduces a new defect caught by a subsequent reviewer (reviewer fixes need the same scrutiny as original code) | 2 | 2026-08-09 | RULE CANDIDATE. |
 | CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
@@ -111,6 +111,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Shared `buildChain` mock Proxy absorbs any chain call — new guard ships with zero test coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
 | Inline comment enumerating sibling files/helpers by name/count goes stale as siblings are added | 1 | 2026-08-09 | WATCHING (archive row 534) |
 | Internal post-commit gates miss an already-promoted §7 rule violation on a NEW site; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
+| Local DB queried as positive evidence when local grant-drift is additive (fix-local-grants.sql re-grants broadly; local presence ≠ migration truth) | 1 | 2026-08-09 | WATCHING (archive row 536) |
+| Internal subagent confabulates repo-artifact identifier (wrong issue association, wrong matrix row range) | 1 | 2026-08-09 | WATCHING (archive row 537) |
+| Agent appends session-log entry to memory file when task scope is REVIEW ONLY (task constraint overridden by memory-writing habit) | 1 | 2026-08-09 | WATCHING (archive row 538) |
 
 ## Durable knowledge (cross-agent)
 
