@@ -10,7 +10,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. |
-| Partial fix applied to sibling file group (cross-cutting concern) | 17 | 2026-08-09 | RULE CANDIDATE (active). |
+| Partial fix applied to sibling file group (cross-cutting concern) | 18 | 2026-08-10 | RULE CANDIDATE (active). |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |
@@ -98,7 +98,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Self-referential commit SHAs in branch memory/run-log files re-orphaned on each forced rebase (repair commit required per rebase cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
 | CR fabricates repo-history claims (asserts commit SHA / PR / issue does not exist when it does) — distinct from pitfall #8 code-construct class | 1 | 2026-08-08 | WATCHING (archive row 521) |
 | Multi-row tracker state transition leaves one sibling archive row's leading STATUS token at RULE CANDIDATE while body says PROMOTED | 1 | 2026-08-08 | WATCHING (archive row 522) |
-| Orchestrator asserts unverified codebase metric or RPC-enumeration claim in rules prose (caught pre-commit) | 1 | 2026-08-08 | WATCHING (archive row 523) |
+| Orchestrator asserts unverified schema/codebase identifier (column name, metric, RPC count) in rules or doc prose without verifying against current code | 2 | 2026-08-10 | RULE CANDIDATE (2) → extend agent-doc-updater.md "cite migration/source" NEVER bullet to cover column names cited in rule/skill file examples. |
 | Playwright `getByRole('dialog')` used on an AlertDialog that renders `role="alertdialog"` — strict role match → locator never resolves → deterministic CI failure | 1 | 2026-08-09 | WATCHING (archive row 524) |
 | Integration test uses a real reference-entity code in an `onConflict` upsert, silently overwriting shared seed row's other fields; missing `cleanupReferenceData` despite 20/21 siblings calling it | 1 | 2026-08-09 | WATCHING (archive row 525) |
 | `check-test-title-leakage.mjs` does not detect bare snake_case column-name leakage in test titles (hook keys on forwards/from/maps/matches — not bare column names) | 1 | 2026-08-09 | WATCHING (archive row 526) |
@@ -109,11 +109,14 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Status/error-posture change leaves a sibling spec asserting the OLD value | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation (archive row 531). |
 | Orchestrator acts on a semantic-reviewer ISSUE without Finding Validation; premise falsified by impl-critic | 1 | 2026-08-09 | WATCHING (archive row 532) |
 | Shared `buildChain` mock Proxy absorbs any chain call — new guard ships with zero test coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
-| Inline comment enumerating sibling files/helpers by name/count goes stale as siblings are added | 1 | 2026-08-09 | WATCHING (archive row 534) |
+| Enumeration of sibling files/helpers by name or path (inline comments, rule tables, or doc lists) goes stale as the set grows | 2 | 2026-08-10 | RULE CANDIDATE (2) — fix applied in eb091c91 (CLASS row + "grep is first pass" in agent-workflow.md); no additional rule needed beyond what landed. |
 | Internal post-commit gates miss an already-promoted §7 rule violation on a NEW site; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
 | Local DB queried as positive evidence when local grant-drift is additive (fix-local-grants.sql re-grants broadly; local presence ≠ migration truth) | 1 | 2026-08-09 | WATCHING (archive row 536) |
 | Internal subagent confabulates repo-artifact identifier (wrong issue association, wrong matrix row range) | 1 | 2026-08-09 | WATCHING (archive row 537) |
 | Agent appends session-log entry to memory file when task scope is REVIEW ONLY (task constraint overridden by memory-writing habit) | 1 | 2026-08-09 | WATCHING (archive row 538) |
+| Suppression added to advisory reviewer surfaces but missing from the blocking pre-push gate (stakes-inverted application) | 1 | 2026-08-10 | WATCHING — e6101985/eb091c91 (PR #1174): WITH CHECK suppression ("absent clause ≠ finding; too-broad predicate = finding") landed on 4 advisory surfaces, omitted from 3 security-auditor surfaces incl. the blocking pre-push gate. On 2nd: propose rule that blocking gate must carry any suppression FIRST and most completely. |
+| §10 comment-accuracy tracing stopped at function body without following GRANT/REVOKE chain (reachability claim proved wrong by a revoked grant) | 1 | 2026-08-10 | WATCHING — eb091c91: `students_update_sessions` WITH CHECK described as "prevents a live breakage"; mig 20260605000001 revoked `ended_at` from `authenticated` UPDATE grant, so the write fails 42501 before RLS is reached. §10 already requires GRANT/REVOKE tracing — enforcement gap, not rule gap. On 2nd: add an explicit GRANT/REVOKE example to §10. |
+| Rule or skill file asserts "effectively absolute" (or equivalent absolute claim) while the section it cites documents the exception class | 1 | 2026-08-10 | WATCHING — eb091c91: supabase-rls.md claimed soft-delete filter is "effectively absolute" inside SECURITY DEFINER while citing docs/security.md §15 — the section enumerating ~10 shipped RPCs that legitimately omit it. On 2nd: propose doc-author check: before writing an absolute, search the cited source for the word "exception". |
 
 ## Durable knowledge (cross-agent)
 
