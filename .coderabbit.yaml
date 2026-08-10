@@ -207,7 +207,9 @@ reviews:
           omitting WITH CHECK is SAFE — PostgreSQL reuses USING, so the write check then
           equals USING — do not flag that either. WITH CHECK is genuinely required only
           when the write predicate must DIFFER from the read one; flag a too-broad
-          predicate, never a merely absent clause. CARVE-OUT:
+          predicate, never a merely absent clause. The recognizer: a reused USING
+          constrains only the columns it NAMES, so a too-broad predicate leaves every
+          other column writable — that is the finding. CARVE-OUT:
           on a table that also has role-gated write policies (is_admin() etc.), the
           tenant_isolation policy MUST be declared FOR SELECT — an unqualified CREATE POLICY
           is FOR ALL, and Postgres ORs permissive policies together, so it supplies a second,

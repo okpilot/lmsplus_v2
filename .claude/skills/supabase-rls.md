@@ -5,7 +5,9 @@
 The clause is per command: `SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only,
 `FOR ALL`/`FOR UPDATE` take both — and omitting `WITH CHECK` on those two is SAFE, since PostgreSQL
 reuses `USING`, so the write check then equals `USING`. Spell out a `WITH CHECK` only when the write
-predicate must DIFFER from the read one. A command with no permitting policy is denied by default — so on
+predicate must DIFFER from the read one. Absent clause: never a finding. Too-broad predicate: always
+one — a reused `USING` constrains only the columns it names, leaving every other column writable.
+A command with no permitting policy is denied by default — so on
 an immutable table, a read-only policy set is correct by design, not a gap.
 
 **Carve-out — role-gated tables.** On a table that also carries `is_admin()`-gated write policies,
@@ -34,11 +36,21 @@ CREATE POLICY "students_read_responses"
 --   WITH CHECK (student_id = auth.uid());
 ```
 
-## Soft delete filter in every policy
+## Soft delete filter — the default, not an absolute
 ```sql
--- Every SELECT policy on soft-delete tables must include:
+-- A SELECT policy on a soft-delete table normally includes:
 AND deleted_at IS NULL
 ```
+Deliberate exceptions exist, so verify the table before adding it. `quiz_sessions`'
+`students_select_sessions` (mig `20260313000023`) omits the filter on purpose — students must
+still read soft-deleted sessions for report access — and `flagged_questions` filters in app code
+instead (`docs/database.md` §3). Adding the filter to either would break a shipped flow.
+
+Inside a SECURITY DEFINER function the filter is both the default AND the only enforcement left —
+those RPCs run as `postgres`, which holds `BYPASSRLS`, so RLS is never evaluated. `docs/security.md`
+§15 carries ONE narrow exception (reads bounded by an immutable, write-once ID column, e.g. the
+frozen `quiz_sessions.config.question_ids`) and requires any new instance to cite that column at the
+call site. Roughly ten shipped RPCs sit under that exception — do not read them as violations.
 
 ## RPC pattern (SECURITY DEFINER)
 ```sql

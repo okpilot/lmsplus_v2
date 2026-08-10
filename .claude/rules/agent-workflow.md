@@ -473,11 +473,11 @@ second pipeline run.
 
 ---
 
-## Rule-Mirror Sync — restatements in commands/, agents/ and skills/ (MANDATORY on rule edits)
+## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
 
 When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
 
-**The mirror set is exactly these six** — enumerate it, do not recall it from memory:
+**The mirror set is these seven** — enumerate it, do not recall it from memory. Six are fixed paths (four directory globs plus two single files — `docs/security.md` and `.coderabbit.yaml`, which are easy to drop if you glob only the directories); the seventh is the open-ended one, and it is the one that keeps being missed:
 
 | Mirror | Why it holds inline text |
 |---|---|
@@ -487,8 +487,11 @@ When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update eve
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
 | `.claude/commands/*.md` | slash commands restate gate lists |
 | `.claude/skills/*.md` | skills are loaded as write-time guidance |
+| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the six paths above |
 
-How to apply: **grep is a FIRST PASS, not the sweep.** Grep all six for the rule's distinctive phrases — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+How to apply: **grep is a FIRST PASS, not the sweep.** Grep the six fixed paths for the rule's distinctive phrases — then find the seventh by READING, not grepping, since it has no path to glob — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+
+**The enumeration itself is the recurring defect.** On PR #1174 this list was wrong three rounds running: it omitted `.claude/commands/` (round 3 — its own directory), then `.claude/skills/*.md` (round 4), then `docs/database.md` (round 5, found by implementation-critic, and the reason the seventh row exists). Each time the fix corrected the instance and left the count. Treat "the list is complete" as the claim most likely to be false, and when a sweep finds a surface the table does not name, widen the TABLE in the same commit — not just the file.
 
 Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
 
