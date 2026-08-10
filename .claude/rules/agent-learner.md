@@ -41,7 +41,8 @@ When a pattern is promoted to a hard rule (the count≥2 threshold above trigger
 ### Downstream-enforcer sync (in addition to the code sweep)
 The code sweep above fixes existing *call sites*. It does NOT keep the **static rule mirrors** current. When a promotion writes to `docs/security.md` or `.claude/rules/security.md`, the orchestrator must also audit the enforcers that carry a hand-maintained mirror of those rules and add a matching entry **in the same session**:
 - **`.claude/agents/security-auditor.md`** — the pre-push gate's enumerated checklist. It does not auto-track `docs/security.md`; a promoted rule with no matching check is enforced everywhere *except* the final pre-push defense. (Observed drift: `docs/security.md` soft-delete-in-RPC / audit-subquery / multiple-permissive / sibling-guard-parity / single-active rules had no auditor checks until they were back-filled.)
-- **`.coderabbit.yaml`** — already owned by coderabbit-sync (triggers on `security.md`/`code-style.md` changes); named here only so the full mirror set is visible in one place.
+- **`.coderabbit.yaml`** — already owned by coderabbit-sync (triggers on `security.md`/`code-style.md` changes); named here because it cannot follow a pointer and so must carry inline text.
+- **The rest of the mirror set** — `.claude/commands/*.md` and `.claude/skills/*.md` also carry restatements. `agent-workflow.md § Rule-Mirror Sync` owns the canonical six-mirror table; enumerate it there rather than trusting this list, which named only two of the six until PR #1174.
 
 This is the enforcer analogue of the call-site sweep: both close the "rule promoted, downstream lagging" gap. A promotion is not complete until every static mirror carries the rule.
 

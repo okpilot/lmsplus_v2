@@ -473,11 +473,22 @@ second pipeline run.
 
 ---
 
-## Rule-Mirror Sync — commands/*.md and agents/*.md restatements (MANDATORY on rule edits)
+## Rule-Mirror Sync — restatements in commands/, agents/ and skills/ (MANDATORY on rule edits)
 
-When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, grep `.claude/commands/` AND `.claude/agents/` for restatements of that rule and update every stale restatement **in the same commit**. Command and agent-definition files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command or subagent runs.
+When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
 
-How to apply: grep both dirs for the rule's distinctive phrases (both the OLD wording being replaced and the rule's key terms — e.g. "revision round", "consecutive clean", the gate list). A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+**The mirror set is exactly these six** — enumerate it, do not recall it from memory:
+
+| Mirror | Why it holds inline text |
+|---|---|
+| `docs/security.md` | the binding reference |
+| `.claude/rules/*.md` | `security.md` is the auto-injected quick summary |
+| `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
+| `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
+| `.claude/commands/*.md` | slash commands restate gate lists |
+| `.claude/skills/*.md` | skills are loaded as write-time guidance |
+
+How to apply: **grep is a FIRST PASS, not the sweep.** Grep all six for the rule's distinctive phrases — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
 
 Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
 

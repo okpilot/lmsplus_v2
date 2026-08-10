@@ -24,14 +24,18 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
     - `docs/` — anything the change makes inaccurate (database.md matrices, security.md rules,
       decisions.md entry for a real decision, plan.md phase/count literals).
     - `.claude/rules/*.md` — the rule text itself.
-    - **The mirror set for that rule.** A rule lives in more than one place, and the copies do not
-      auto-track: `docs/security.md`, `.claude/rules/security.md`, `.coderabbit.yaml`,
-      `.claude/agents/*.md`, AND `.claude/commands/*.md` (per `agent-workflow.md § Rule-Mirror Sync`
-      and `agent-learner.md § Downstream-enforcer sync`). Grep the rule's distinctive phrase across
-      all five and update every hit. **`.claude/agents/security-auditor.md` is the one people forget,
-      and it is the blocking pre-push gate** — a stale checklist there emits false CRITICALs.
+    - **The mirror set for that rule — all SIX.** A rule lives in more than one place and the copies
+      do not auto-track: `docs/security.md`, `.claude/rules/*.md`, `.coderabbit.yaml`,
+      `.claude/agents/*.md`, `.claude/commands/*.md`, AND `.claude/skills/*.md` (per
+      `agent-workflow.md § Rule-Mirror Sync`, which owns the canonical table, and
+      `agent-learner.md § Downstream-enforcer sync`). **`.claude/agents/security-auditor.md` is the
+      one people forget, and it is the blocking pre-push gate** — a stale checklist there emits
+      false CRITICALs. **Grep is a first pass, not the sweep**: a phrase-grep cannot find a
+      paraphrase, so when a change retires a *claim*, read the affected section and its mirrors
+      end-to-end once.
       **This file is itself a `.claude/commands/*.md` mirror** — its own list omitted
-      `.claude/commands/` until PR #1174, which is exactly the drift the rule exists to catch.
+      `.claude/commands/` and then `.claude/skills/*.md` across PR #1174's rounds 3 and 4, which is
+      exactly the drift the rule exists to catch.
     - Repeated numeric literals (red-team spec count in `tech.md` ×3 + `decisions.md`; integration
       test count in `plan.md`).
 

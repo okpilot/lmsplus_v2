@@ -28,9 +28,9 @@ wrap-up they should already be committed and pushed. This step confirms that, it
 work for the first time.
 
 - Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
-- Did every rule change land with its full mirror set (`docs/security.md`,
-  `.claude/rules/security.md`, `.coderabbit.yaml`, `.claude/agents/*.md`,
-  `.claude/commands/*.md`)?
+- Did every rule change land with its full mirror set — all six (`docs/security.md`,
+  `.claude/rules/*.md`, `.coderabbit.yaml`, `.claude/agents/*.md`, `.claude/commands/*.md`,
+  `.claude/skills/*.md`)? See `agent-workflow.md § Rule-Mirror Sync` for the canonical table.
 
 **If you find something missing here, that is a process failure, not a to-do.** Say so explicitly,
 fix it, and note it — because it means the change shipped in a PR whose docs did not match its
