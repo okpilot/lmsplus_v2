@@ -13,8 +13,13 @@ binds. Current case: `questions` (mig `20260809000100`). See `docs/security.md` 
 
 ```sql
 -- ✅ CORRECT: student_responses is IMMUTABLE — read policy only.
--- Rows are written solely by SECURITY DEFINER RPCs, which bypass RLS.
+-- Rows are written solely by SECURITY DEFINER RPCs owned by postgres. Note the
+-- mechanism: SECURITY DEFINER alone does NOT bypass RLS, and under FORCE ROW
+-- LEVEL SECURITY not even the table owner is exempt — these RPCs bypass it
+-- because postgres holds BYPASSRLS.
 -- No deleted_at filter: immutable tables carry no deleted_at column.
+-- No organization_id predicate: this mirrors the shipped policy, and
+-- student_id = auth.uid() already scopes to a single user.
 CREATE POLICY "students_read_responses"
   ON student_responses FOR SELECT
   USING (student_id = auth.uid());
