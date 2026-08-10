@@ -242,9 +242,11 @@ reviews:
           broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
           Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
         - SECURITY DEFINER soft-delete SELECT filter: every SELECT inside a SECURITY DEFINER
-          function must filter AND deleted_at IS NULL on soft-deletable tables. SECURITY DEFINER
-          bypasses RLS, so the soft-delete filter is NOT applied automatically and must be
-          replicated manually in every query. Narrow carve-out: SELECTs fetching records by IDs
+          function must filter AND deleted_at IS NULL on soft-deletable tables. These functions
+          are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
+          soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
+          does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
+          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Narrow carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Current documented cases
           (docs/security.md §15): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
           check_non_mc_answer, and submit_vfr_rt_exam_answers reading
