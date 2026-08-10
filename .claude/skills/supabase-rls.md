@@ -6,6 +6,11 @@ The clause is per command: `SELECT`/`DELETE` take `USING` only, `INSERT` takes `
 `FOR ALL`/`FOR UPDATE` take both. A command with no permitting policy is denied by default — so on
 an immutable table, a read-only policy set is correct by design, not a gap.
 
+**Carve-out — role-gated tables.** On a table that also carries `is_admin()`-gated write policies,
+`tenant_isolation` MUST be declared `FOR SELECT`. An unqualified `CREATE POLICY` is `FOR ALL`, and
+Postgres ORs permissive policies, so it supplies a second, weaker write path and the role gate never
+binds. Current case: `questions` (mig `20260809000100`). See `docs/security.md` §3.
+
 ```sql
 -- ✅ CORRECT: student_responses is IMMUTABLE — read policy only.
 -- Rows are written solely by SECURITY DEFINER RPCs, which bypass RLS.

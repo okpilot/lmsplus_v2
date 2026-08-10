@@ -29,7 +29,8 @@ work for the first time.
 
 - Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
 - Did every rule change land with its full mirror set (`docs/security.md`,
-  `.claude/rules/security.md`, `.coderabbit.yaml`, `.claude/agents/*.md`)?
+  `.claude/rules/security.md`, `.coderabbit.yaml`, `.claude/agents/*.md`,
+  `.claude/commands/*.md`)?
 
 **If you find something missing here, that is a process failure, not a to-do.** Say so explicitly,
 fix it, and note it — because it means the change shipped in a PR whose docs did not match its
