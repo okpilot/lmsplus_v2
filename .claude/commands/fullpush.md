@@ -67,7 +67,10 @@ After answering the checklist:
     git rev-parse --verify origin/master^{commit} >/dev/null || { echo 'origin/master unresolvable — ABORT'; exit 1; }
     # FAIL CLOSED on an unclean worktree FIRST: $CHANGED is a committed-only diff, so a staged,
     # unstaged or untracked mirror edit is invisible to it and silently bypasses the 7b docs gate.
-    if [[ -n "$(git status --porcelain)" ]]; then
+    # Capture separately: a command substitution that FAILS yields an empty string, and `set -e`
+    # does not fire inside `[[ ... ]]` — so an errored `git status` would read as "clean" and pass.
+    STATUS=$(git status --porcelain) || { echo 'git status failed — ABORT'; exit 1; }
+    if [[ -n "$STATUS" ]]; then
       echo 'Uncommitted changes — commit docs, rules and mirrors before pushing. ABORT'; exit 1
     fi
     CHANGED=$(git diff --name-only origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }

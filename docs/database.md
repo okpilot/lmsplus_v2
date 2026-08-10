@@ -2996,8 +2996,8 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 ## 7. What the Security Auditor Checks (DB-specific)
 
 The `security-auditor` agent flags:
-- Any new `CREATE TABLE` without `ENABLE ROW LEVEL SECURITY` in the same migration
-- Any RLS policy with `USING` but no `WITH CHECK`
+- Any new `CREATE TABLE` without `ENABLE ROW LEVEL SECURITY` — or with `ENABLE` but no `FORCE ROW LEVEL SECURITY` — in the same migration
+- Any command the table is INTENDED to permit with no policy covering it, or a policy whose predicate is too broad. NOT a missing clause the command cannot carry (`FOR SELECT`/`FOR DELETE` take `USING` only, `FOR INSERT` takes `WITH CHECK` only), and NOT a missing `WITH CHECK` on `FOR ALL`/`FOR UPDATE` — PostgreSQL reuses `USING` as the write check there, so the write check then equals `USING`. See `docs/security.md` §3.
 - Any `DELETE FROM` statement in application code (must be `UPDATE ... SET deleted_at`)
 - Any `SECURITY DEFINER` function without a manual auth check inside
 - Any `SECURITY DEFINER` function without `SET search_path = public`

@@ -3,7 +3,9 @@
 ## Every table needs a policy per PERMITTED command
 
 The clause is per command: `SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only,
-`FOR ALL`/`FOR UPDATE` take both. A command with no permitting policy is denied by default — so on
+`FOR ALL`/`FOR UPDATE` take both — and omitting `WITH CHECK` on those two is SAFE, since PostgreSQL
+reuses `USING`, so the write check then equals `USING`. Spell out a `WITH CHECK` only when the write
+predicate must DIFFER from the read one. A command with no permitting policy is denied by default — so on
 an immutable table, a read-only policy set is correct by design, not a gap.
 
 **Carve-out — role-gated tables.** On a table that also carries `is_admin()`-gated write policies,

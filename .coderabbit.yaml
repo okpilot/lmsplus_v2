@@ -201,9 +201,13 @@ reviews:
         - RLS needs a policy for each command the table is INTENDED to permit — a command
           with no permitting policy is denied by default, so an immutable/read-only table
           carrying only a FOR SELECT policy is correct; do not flag its absent write
-          policies. The clause is PER COMMAND: SELECT and
-          DELETE take USING only; INSERT takes WITH CHECK only; UPDATE takes both. Do not
-          flag a policy for lacking a clause its command cannot carry. CARVE-OUT:
+          policies. The clause is PER COMMAND: SELECT and DELETE take USING only;
+          INSERT takes WITH CHECK only; UPDATE and FOR ALL accept both. Do not flag a
+          policy for lacking a clause its command cannot carry. On UPDATE and FOR ALL,
+          omitting WITH CHECK is SAFE — PostgreSQL reuses USING, so the write check then
+          equals USING — do not flag that either. WITH CHECK is genuinely required only
+          when the write predicate must DIFFER from the read one; flag a too-broad
+          predicate, never a merely absent clause. CARVE-OUT:
           on a table that also has role-gated write policies (is_admin() etc.), the
           tenant_isolation policy MUST be declared FOR SELECT — an unqualified CREATE POLICY
           is FOR ALL, and Postgres ORs permissive policies together, so it supplies a second,
