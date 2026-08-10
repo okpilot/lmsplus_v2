@@ -34,7 +34,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Secret exposure: API keys, tokens, passwords in code or config
 - Service role key: must only exist in `packages/db/src/admin.ts`, never `NEXT_PUBLIC_`
 - Answer exposure: `SELECT *` from questions, missing `get_quiz_questions()` RPC usage
-- RLS: a command the table is intended to permit with no policy covering it, a policy whose predicate is too broad, disabled RLS on new tables (never a clause the command cannot carry — see `docs/security.md` §3)
+- RLS: a command the table is intended to permit with no policy covering it, a policy whose predicate is too broad, disabled RLS on new tables, `ENABLE ROW LEVEL SECURITY` without `FORCE ROW LEVEL SECURITY` (without FORCE, RLS does not bind the table owner) — never a clause the command cannot carry (see `docs/security.md` §3)
 - Hard DELETEs: any `DELETE FROM` without `WHERE deleted_at`
 - Immutable table violations: UPDATE/DELETE on `audit_events`, `student_responses`, `quiz_session_answers`
 - SECURITY DEFINER RPCs: missing `auth.uid()` check, missing `SET search_path = public`

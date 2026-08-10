@@ -65,6 +65,11 @@ After answering the checklist:
     ```bash
     git fetch origin || { echo 'fetch failed — ABORT'; exit 1; }
     git rev-parse --verify origin/master^{commit} >/dev/null || { echo 'origin/master unresolvable — ABORT'; exit 1; }
+    # FAIL CLOSED on an unclean worktree FIRST: $CHANGED is a committed-only diff, so a staged,
+    # unstaged or untracked mirror edit is invisible to it and silently bypasses the 7b docs gate.
+    if [[ -n "$(git status --porcelain)" ]]; then
+      echo 'Uncommitted changes — commit docs, rules and mirrors before pushing. ABORT'; exit 1
+    fi
     CHANGED=$(git diff --name-only origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }
     ```
     Steps 6, 7 and 7b then match against `$CHANGED` — do NOT re-run the diff per step. A guarded diff that EXITS non-zero aborts (above); a diff that succeeds with zero paths is a legitimate no-op that PROCEEDS and matches no conditional — branch on the exit code, never on emptiness (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"). 7b (Red Team) is MANDATORY: on a stale, unresolvable, or errored base an unguarded conditional silently evaluates false and the required gate is skipped (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").

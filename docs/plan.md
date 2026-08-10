@@ -851,7 +851,7 @@ Branching: `main` (protected) + feature branches `feat/xxx`
 ## Phase 2 — Supabase setup (BLOCKED until user provides keys)
 
 ### 2A. Database schema
-Create migration files in `packages/db/migrations/`:
+Create migration files in `supabase/migrations/` (⚠️ `packages/db/migrations/` is FROZEN as of 2026-07-11 and is historical data only — a migration written there is never applied):
 
 **Full schema + SQL in `docs/database.md`.** Summary:
 

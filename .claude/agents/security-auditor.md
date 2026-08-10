@@ -44,6 +44,9 @@ You receive:
 
 4. **RLS disabled on a new table**
    - Any `CREATE TABLE` migration without a matching `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
+   - Any `CREATE TABLE` migration with `ENABLE ROW LEVEL SECURITY` but no `FORCE ROW LEVEL SECURITY`
+     — without FORCE, RLS does not apply to the table's OWNER, so a SECURITY DEFINER function owned
+     by that role silently bypasses every policy. `.coderabbit.yaml` already requires both
    - Any `CREATE TABLE` migration without an RLS policy for each command the table is INTENDED
      to permit. Judge against intended access, not against a fixed read-AND-write checklist: a
      command with no permitting policy is denied by default, so an immutable or read-only table

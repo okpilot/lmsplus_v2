@@ -23,9 +23,14 @@ Sync the project board, docs, and leave things clean for next session.
 
 ### 3. Docs sync — VERIFY, don't discover
 
-Docs, rules and mirrors are a **pre-push** gate (`/fullpush` step 7b), so by the time you reach
-wrap-up they should already be committed and pushed. This step confirms that, it does not do the
-work for the first time.
+Docs, rules and mirrors are a **pre-push** gate (`/fullpush` **self-audit item 7b** — not action
+step 7b, which is the Red Team run), so by the time you reach wrap-up they should already be
+**committed**. This step confirms that, it does not do the work for the first time.
+
+Committed-but-unpushed is a **valid** end state — pushing needs explicit user approval, and
+`agent-workflow.md § Push Batching` says a change that does not move an open PR toward merge should
+wait for a push that something else needs anyway. Report unpushed commits as status, never as a
+process failure. The failure mode this step exists to catch is docs that were never *written*.
 
 - Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
 - Did every rule change land with its full mirror set — all six (`docs/security.md`,

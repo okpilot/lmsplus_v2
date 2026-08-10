@@ -117,7 +117,7 @@ Full reference: `docs/database.md`. Key decisions:
 
 ### Security (confirmed 2026-03-11)
 Full security reference: `docs/security.md` — binding rules, covers:
-- RLS WITH CHECK requirement (not just USING)
+- RLS policy coverage per permitted command (superseded 2026-08-09: the clause is PER COMMAND, not a blanket USING + WITH CHECK — see `docs/security.md` §3)
 - Correct answer stripping via `get_quiz_questions()` server-side RPC
 - Service role key server-only rule
 - Security headers (CSP, HSTS, X-Frame-Options, etc.)
