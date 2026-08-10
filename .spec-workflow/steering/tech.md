@@ -83,7 +83,7 @@ lmsplusv2/
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories). A second **app-layer DB integration tier** (`apps/web/vitest.integration.config.ts`, `*.integration.test.ts`) runs the real `apps/web` query code against a real local Postgres under RLS — closing the mocked-client schema blind spot (#925).
   - **E2E**: Playwright (17 specs covering login, quiz flow, admin tools, internal exams, settings, consent).
-  - **Red-team**: 52 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling (error-path information disclosure).
+  - **Red-team**: 53 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling (error-path information disclosure).
 - **Type checking**: `tsc --noEmit` per package via `pnpm check-types`. Strict mode with `noUncheckedIndexedAccess`.
 
 ### Version Control & Collaboration
@@ -133,18 +133,18 @@ lmsplusv2/
 ### Security & Compliance
 
 - **Authentication**: Email + password via Supabase Auth. JWT sessions (1hr expiry, 7-day sliding refresh with rotation). Pre-created users only (no self-registration).
-- **Authorization**: RLS on every table with both `USING` and `WITH CHECK` policies. Admin routes require proxy guard + `requireAdmin()` Server Action guard.
+- **Authorization**: RLS on every table, with a policy for each command the table is INTENDED to permit — the clause is per command (`SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only, `FOR ALL`/`FOR UPDATE` take both, and a merely absent `WITH CHECK` on those two is safe since PostgreSQL reuses `USING`). See `docs/security.md` §3. Admin routes require proxy guard + `requireAdmin()` Server Action guard.
 - **Correct answer protection**: `get_quiz_questions()` RPC strips `correct` field from options JSONB. `get_report_correct_options()` RPC for post-session feedback (completed sessions only).
 - **Service role key**: Server-only in `packages/db/src/admin.ts` with runtime browser guard. Never `NEXT_PUBLIC_`.
 - **Input validation**: Zod `.parse()` / `.safeParse()` on every Server Action. LIKE metacharacter escaping. Free-text ILIKE fields capped at 200 chars.
 - **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy. The 6 static headers are emitted by `next.config.ts` on routed responses and re-emitted by `apps/web/proxy.ts` on Edge Middleware redirect / 5xx responses. The CSP differs by response class: routed responses get the full policy from `next.config.ts` (`default-src 'self'`, scoped script-src, supabase.co connect-src, etc.); middleware-only responses get a reduced lock-down CSP (`default-src 'none'; frame-ancestors 'none'`) since no scripts execute on a 3xx/4xx/5xx, so the stricter policy is safe and prevents accidental subresource loading on error pages.
-- **Immutable tables**: `student_responses`, `quiz_session_answers`, `audit_events`, `user_consents` -- no UPDATE, no DELETE, ever. RLS policies block all writes; inserts only via SECURITY DEFINER RPCs.
+- **Immutable tables**: `student_responses`, `quiz_session_answers`, `audit_events`, `user_consents` -- no UPDATE, no DELETE, ever. There is no permitting UPDATE or DELETE policy, so both are denied by default (the `USING (false)` policies match zero rows and are not the denial mechanism); inserts only via SECURITY DEFINER RPCs owned by `postgres`, which holds `BYPASSRLS`.
 - **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (approved exceptions per the `docs/database.md` §3 matrix: `question_comments` (Decision 30), `quiz_drafts`, `exam_config_distributions`).
-- **SECURITY DEFINER RPCs**: Always include `auth.uid()` IS NULL check + `SET search_path = public`. Must manually filter `deleted_at IS NULL` on soft-deletable tables (RLS bypassed). **Narrow carve-out:** a SELECT fetching records by IDs stored in an immutable, write-once column may omit the filter — see `docs/security.md` §15 for the authoritative current list of qualifying functions (e.g. `batch_submit_quiz`, `check_quiz_answer`, the VFR-RT and report RPCs) and `docs/database.md` §3 "Scoring Soft-Deleted Questions".
+- **SECURITY DEFINER RPCs**: Always include `auth.uid()` IS NULL check + `SET search_path = public`. Must manually filter `deleted_at IS NULL` on soft-deletable tables (owned by `postgres`, which holds `BYPASSRLS`, so RLS is not evaluated). **Narrow carve-out:** a SELECT fetching records by IDs stored in an immutable, write-once column may omit the filter — see `docs/security.md` §15 for the authoritative current list of qualifying functions (e.g. `batch_submit_quiz`, `check_quiz_answer`, the VFR-RT and report RPCs) and `docs/database.md` §3 "Scoring Soft-Deleted Questions".
 - **Audit trail**: Append-only `audit_events` table for CAA compliance. `user_consents` append-only for GDPR proof.
 - **GDPR**: Consent audit trail with versioned re-consent. Data export (self-service + admin). Erasure declined under EASA Part ORA (Article 17(3)(b) exemption).
 - **Threat model**: exam answer exposure, cross-tenant data access, PII leaks, audit record tampering, service role key exposure, session replay.
-- **Red-team testing**: 52 adversarial Playwright specs covering RLS bypass, RPC boundary breach, session forgery, race conditions, audit tampering, draft injection, SQL fuzzing of RPC text params, XSS in cross-user rendering, response-header validation, audit-event completeness, error-path information disclosure (OWASP A10).
+- **Red-team testing**: 53 adversarial Playwright specs covering RLS bypass, RPC boundary breach, session forgery, race conditions, audit tampering, draft injection, SQL fuzzing of RPC text params, XSS in cross-user rendering, response-header validation, audit-event completeness, error-path information disclosure (OWASP A10).
 
 ### Scalability & Reliability
 
@@ -181,7 +181,7 @@ lmsplusv2/
 
 12. **GDPR consent gate with version-based re-consent** (Decision 32): Append-only `user_consents` table. Cookie-based middleware check (no DB hit per request). Version bump in `lib/consent/versions.ts` triggers re-consent.
 
-13. **Red-team adversarial security testing** (Decision 27): 52 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling.
+13. **Red-team adversarial security testing** (Decision 27): 53 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling.
 
 14. **Server-side pagination with server-side sort/filter** (Decision 34): All paginated lists use Supabase `.range()` with `{ count: 'exact' }`, URL-driven `?page=N&sort=field&dir=asc|desc`, and the shared `PaginationBar` component. Sorting and filtering MUST be server-side when combined with pagination — client-side sort on a paginated subset returns incorrect results. Page sizes: 10 for student-facing pages, 25 for admin pages. Out-of-range pages redirect to the last valid page. First established in admin questions (PR #463), now standardized app-wide.
 

@@ -426,16 +426,72 @@ When a run spans multiple issues (`/automerge`, `/autonomerge`, any batch), the 
 ### Batch the fixups too
 Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one commit per finding. Each fixup commit re-triggers the review cycle, so per-finding commits multiply the cost the batching is meant to avoid.
 
+
 ### Anti-pattern (what this rule exists to stop)
 One issue → one branch → full pipeline → merge → repeat. It makes a multi-issue run crawl. If you catch yourself opening a PR that closes a single issue during a batch run, stop and ask what else belongs on that branch. (User directive 2026-07-02, mid-`/automerge` batch: "why the fuck one test in the whole PR? combine combine combine.")
 
 ---
 
-## Rule-Mirror Sync — commands/*.md and agents/*.md restatements (MANDATORY on rule edits)
+## Push Batching — a push is NOT free (MANDATORY)
 
-When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, grep `.claude/commands/` AND `.claude/agents/` for restatements of that rule and update every stale restatement **in the same commit**. Command and agent-definition files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command or subagent runs.
+> **Every push costs a full CI run (~30 min wall clock: E2E, Red Team, Integration, Migration Test,
+> Lighthouse, CodeQL, SonarCloud) PLUS one cloud CodeRabbit review** against quota and rate limits.
+> The cost is in the PIPELINE, not the diff. A one-line doc fix and a 900-line migration cost the
+> same to push.
 
-How to apply: grep both dirs for the rule's distinctive phrases (both the OLD wording being replaced and the rule's key terms — e.g. "revision round", "consecutive clean", the gate list). A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+`PR Batching` above governs how many ISSUES go in a PR. This governs how many times you PUSH that
+PR. They are different mistakes and this one is easier to make, because each individual push feels
+justified.
+
+### The rule
+
+- **Batch every pending change into ONE push.** Before pushing, ask: *is anything else nearly
+  ready?* If yes, finish it first. A second push five minutes later doubles the CI bill and burns a
+  second cloud review on a diff the first review had already mostly seen.
+- **After pushing a fix for cloud-CR findings, STOP committing to that branch** until the new review
+  returns. Anything you commit meanwhile either rides an extra cycle or sits unpushed anyway.
+- **Never push a docs-only, config-only or process-only follow-up onto an open PR** unless it is
+  required for THAT PR to become mergeable. Park it: commit it on a separate branch and push when
+  something else needs CI anyway.
+- **"It's just a doc fix" is the trap.** Diff size is not the cost. If the change does not move this
+  PR toward merge, it does not justify a pipeline run.
+### Anti-pattern (what this rule exists to stop)
+Push the CR fix → notice a doc nit → commit it → push again → full CI + a second cloud review, for
+a change that could not have affected mergeability. Observed 2026-08-09 on PR #1174, one push after
+the previous one, user directive: *"we are wasting now 30 minutes of time with the full CI rerun…
+this is nonsense."* The correct move was to hold the process commit on its own branch and let the
+already-running pipeline finish.
+
+### Interaction with the docs-before-push rule
+
+`/fullpush` step 7b requires docs, rules and mirrors to be committed BEFORE the push. That is the
+same coin: get them in the FIRST push so there is no second one. "Docs land pre-push" and "don't
+push twice" fail together — a doc update discovered after the push is exactly what tempts the
+second pipeline run.
+
+
+
+---
+
+## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
+
+When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
+
+**The mirror set is these seven** — enumerate it, do not recall it from memory. Six are fixed paths (four directory globs plus two single files — `docs/security.md` and `.coderabbit.yaml`, which are easy to drop if you glob only the directories); the seventh is the open-ended one, and it is the one that keeps being missed:
+
+| Mirror | Why it holds inline text |
+|---|---|
+| `docs/security.md` | the binding reference |
+| `.claude/rules/*.md` | `security.md` is the auto-injected quick summary |
+| `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
+| `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
+| `.claude/commands/*.md` | slash commands restate gate lists |
+| `.claude/skills/*.md` | skills are loaded as write-time guidance |
+| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the six paths above |
+
+How to apply: **grep is a FIRST PASS, not the sweep.** Grep the six fixed paths for the rule's distinctive phrases — then find the seventh by READING, not grepping, since it has no path to glob — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+
+**The enumeration itself is the recurring defect.** On PR #1174 this list was wrong three rounds running: it omitted `.claude/commands/` (round 3 — its own directory), then `.claude/skills/*.md` (round 4), then `docs/database.md` (round 5, found by implementation-critic, and the reason the seventh row exists). Each time the fix corrected the instance and left the count. Treat "the list is complete" as the claim most likely to be false, and when a sweep finds a surface the table does not name, widen the TABLE in the same commit — not just the file.
 
 Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
 
@@ -551,6 +607,41 @@ CONSTRAINTS: [what NOT to do, file boundaries, limits, security rules]
 CONTEXT: [file paths, type signatures, patterns to follow, related tests]
 ```
 
+### State the MECHANISM behind a constraint, not just the prohibition
+
+A bare prohibition invites the agent to reason around it, because it has no way to tell a
+load-bearing rule from an arbitrary one. Give the cause.
+
+> ❌ "Do not use the local DB to check grants."
+> ✅ "Do not use the local DB to check grants — local grants drift **ADDITIVELY** (a
+> `fix-local-grants` workaround re-grants blanket DML at every reset), so a grant appearing
+> locally is NOT evidence it exists in production."
+
+Learner-proposed remedy, 2026-08-09 — NOT a count=2 promotion. The tracker records the two
+instances behind it (local-grant evidence; a review-only agent writing to memory) as separate
+count-1 WATCHING rows, and the learner proposed this wording as the fix for both. Stated here as
+guidance rather than a promoted rule; it graduates if either row recurs. The first form was
+actually issued, and a critic reasoned past it by inventing a theory that drift is *subtractive* —
+therefore local presence must be genuine evidence. Backwards, and it produced a CRITICAL finding argued from the weakest
+available source. The same gap explains a review-only agent writing to its memory file: the
+CONSTRAINTS said what was forbidden without saying why the habit fires.
+
+### For any task that locates a DB object's current definition, name BOTH supersession forms
+
+> "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>` AND `DROP FUNCTION … CREATE FUNCTION <fn>`,
+> sorted by migration timestamp prefix — a later migration may redefine via DROP+CREATE, which a
+> `CREATE OR REPLACE`-only grep silently misses. Same for `ALTER TABLE … DROP CONSTRAINT` +
+> `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY` — plus `ALTER POLICY <name> ON
+> <table>`, which replaces `TO` / `USING` / `WITH CHECK` in place without recreating the policy,
+> so a DROP/CREATE-only grep reports a stale predicate as current."
+
+Promoted at learner count=2 (2026-08-09). In one cycle an Explore agent reported a superseded
+migration as latest, a subagent flagged a table whose policy had been dropped twice, a spec cited a
+constraint re-emitted twice since, and the orchestrator made the same error twice in its own
+migration header. Note this is also how the bug that cycle FIXED was introduced: a human added
+role-gated policies without accounting for the pre-existing `FOR ALL` policy. The codebase's
+append-only, mutation-by-supersession shape produces this error in whoever reads it.
+
 ### Litmus test
 Before dispatching any subagent, ask: **"Could this agent execute end-to-end without a follow-up question?"** If no, add the missing context to the prompt.
 
@@ -581,4 +672,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*
+*Last updated: 2026-08-09 (added § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms. Prior: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*

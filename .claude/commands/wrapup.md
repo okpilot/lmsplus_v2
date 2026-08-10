@@ -21,10 +21,27 @@ Sync the project board, docs, and leave things clean for next session.
 - Any tech debt noted? → create issues with `tech-debt` label.
 - Any feature ideas discussed? → create draft issues or full issues as appropriate.
 
-### 3. Docs sync
+### 3. Docs sync — VERIFY, don't discover
 
-- Is `docs/plan.md` status section current? Update if needed.
-- Any decisions made this session? → check `docs/decisions.md`.
+Docs, rules and mirrors are a **pre-push** gate (`/fullpush` **self-audit item 7b** — not action
+step 7b, which is the Red Team run), so by the time you reach wrap-up they should already be
+**committed**. This step confirms that, it does not do the work for the first time.
+
+Committed-but-unpushed is a **valid** end state — pushing needs explicit user approval, and
+`agent-workflow.md § Push Batching` says a change that does not move an open PR toward merge should
+wait for a push that something else needs anyway. Report unpushed commits as status, never as a
+process failure. The failure mode this step exists to catch is docs that were never *written*.
+
+- Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
+- Did every rule change land with its full mirror set — all seven (`docs/security.md`,
+  `.claude/rules/*.md`, `.coderabbit.yaml`, `.claude/agents/*.md`, `.claude/commands/*.md`,
+  `.claude/skills/*.md`, plus any other binding doc that re-states the mechanics — notably
+  `docs/database.md`)? See `agent-workflow.md § Rule-Mirror Sync` for the canonical table.
+
+**If you find something missing here, that is a process failure, not a to-do.** Say so explicitly,
+fix it, and note it — because it means the change shipped in a PR whose docs did not match its
+code, and the reviewers on that PR were reading the stale text. Do not quietly patch it and move
+on; the point of finding it here is that it should have been impossible.
 
 ### 4. Sanity checks
 
