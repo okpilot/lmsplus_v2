@@ -59,6 +59,11 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
     countMap.set(row.subject_id, (countMap.get(row.subject_id) ?? 0) + Number(row.n))
   }
 
+  // The `code !== 'RT'` filter below is picker-only BY DESIGN (R1.3), and R1.4 requires it
+  // stay a SINGLE centralized filter — it has no siblings and must not grow any. RT is
+  // deliberately still listed by dashboard.ts and progress.ts; that asymmetry reads like a
+  // parity gap and is not one. Rationale + accepted KPI consequences: vfr-rt-training
+  // design.md open question 6, CLOSED 2026-08-11.
   return subjects
     .map((s) => ({
       id: s.id,
@@ -68,7 +73,7 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
       questionCount: countMap.get(s.id) ?? 0,
     }))
     .filter((s) => s.questionCount > 0) // hide zero-count subjects
-    .filter((s) => s.code !== 'RT') // RT has its own /app/vfr-rt page (R1.3)
+    .filter((s) => s.code !== 'RT') // picker-only — see the note above; do not add siblings
 })
 
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
