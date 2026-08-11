@@ -187,6 +187,33 @@ describe('assertDialogFillItem', () => {
     expect(() => assertDialogFillItem(item, AT)).toThrow(/non-empty array/)
   })
 
+  it('refuses a blanks field that is not an array', () => {
+    const item = makeItem({ blanks: 'should be an array' as unknown as AuthoredBlank[] })
+    expect(() => assertDialogFillItem(item, AT)).toThrow(/non-empty array/)
+  })
+
+  it('rejects an explanation that is present but blank', () => {
+    const item = makeItem({ explanation: '   ' })
+    expect(() => assertDialogFillItem(item, AT)).toThrow(/must be a non-empty string/)
+  })
+
+  it('refuses a blank whose synonyms field is not an array', () => {
+    const item = makeItem({
+      blanks: [
+        { ...blank(0, 'recall', 'request'), synonyms: 'not an array' as unknown as string[] },
+        blank(1, 'recall', 'departure'),
+      ],
+    })
+    expect(() => assertDialogFillItem(item, AT)).toThrow(/must be an array/)
+  })
+
+  it('refuses a blank that carries an empty synonym', () => {
+    const item = makeItem({
+      blanks: [blank(0, 'recall', 'request', ['']), blank(1, 'recall', 'departure')],
+    })
+    expect(() => assertDialogFillItem(item, AT)).toThrow(/must be a non-empty string/)
+  })
+
   it('names the offending question in the message', () => {
     const item = makeItem({ template: 'S-AB, {{0}} {{1}} information' })
     expect(() => assertDialogFillItem(item, AT)).toThrow(AT)

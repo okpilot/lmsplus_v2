@@ -415,8 +415,11 @@ async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promi
     // were imported, the old rows carry the OLD values and match nothing here, while
     // insertIfMissing (bank + number only) then skips every num — so the edit silently does not
     // take effect, which is exactly what --replace exists to prevent.
-    console.log(
-      `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId})`,
+    // console.WARN, not log: this is the same silent-no-op class the matched/removed check below
+    // throws on, so it must not read as an ordinary progress line. Not fatal — a first import of
+    // a new file legitimately matches nothing.
+    console.warn(
+      `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId}) — if this is not a first import, the file's topic_code or question_type changed and the edit will NOT take effect`,
     )
     return
   }

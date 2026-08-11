@@ -28,7 +28,13 @@ export type AuthoredBlank = {
   shape: 'recall' | 'derivable'
   canonical: string
   synonyms: string[]
-  rule: string
+  /**
+   * Prose recording WHY this blank has its shape. Authoring metadata only: nothing reads it,
+   * and `toStoredBlanks` strips it before the row is written. Optional because
+   * `assertAuthoredBlank` does not validate it — declaring it required would let the assertion
+   * narrow it to `string` on content that omits it, handing a future reader a silent `undefined`.
+   */
+  rule?: string
 }
 
 export type StoredBlank = { index: number; canonical: string; synonyms: string[] }
@@ -283,8 +289,13 @@ function assertLineRunsAnchored(
     const next = markers[i + 1]
     const gap = body.slice(marker.end, next?.start ?? body.length)
     const adjacent = next !== undefined && !WORD_CHAR_RE.test(gap)
-    const continues = adjacent && next !== undefined && shapes.get(next.index) === 'recall'
+    // `adjacent` already implies `next !== undefined`, so no further guard is needed here.
+    const continues = adjacent && shapes.get(next?.index ?? -1) === 'recall'
     run = shapes.get(marker.index) === 'recall' ? run + 1 : 0
+    // Test the gap directly rather than reusing `adjacent`: the two agree whenever a next marker
+    // exists, but `adjacent` is false at the LAST marker on the line, where the gap is still the
+    // thing that matters — it is what decides whether a terminal run has an anchor before EOL.
+    // Reusing `adjacent` here would silently pass every unanchored run that ends a line.
     if (run >= 2 && !continues && !WORD_CHAR_RE.test(gap)) {
       throw new Error(
         `${at}: authoring R4 — the run of ${run} consecutive recall blanks ending at {{${marker.index}}} has no anchor; leave the LAST word of the recalled phrase visible right after the run, on the same line.`,
