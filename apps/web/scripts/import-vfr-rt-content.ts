@@ -354,6 +354,10 @@ async function main(): Promise<void> {
     const file = raw as unknown as ContentFile
     requireText(file.subject_code, `${rel}: 'subject_code'`)
     requireText(file.topic_code, `${rel}: 'topic_code'`)
+    // Not read by buildRow — it is interpolated into the per-file completion summary, so it is
+    // the one content field outside the buildRow parity contract described below. Unvalidated,
+    // a missing or object-valued title prints `undefined` / `[object Object]` in the summary.
+    requireText(file.title, `${rel}: 'title'`)
     // buildRow throws on an unsupported type, but only once it reaches that item mid-loop.
     if (!SUPPORTED_TYPES.includes(file.question_type)) {
       throw new Error(
@@ -433,14 +437,16 @@ async function main(): Promise<void> {
     }
   }
 
-  const orgId = await resolveOrgId()
-  const adminId = await resolveAdminId(orgId)
-
   // Resolve EVERY file's subject + topic before inserting anything. Resolving inside the import
   // loop would surface a bad topic_code in file 2 only after file 1's rows were committed —
   // the same half-import the content validation above exists to prevent. Both lookups throw.
-  // These are SELECTs, so they stay ahead of ensureBank below, which in local mode may restore
-  // or create a question_banks row: an import that is going to abort should write nothing at all.
+  //
+  // These are SELECTs against the global easa_* tables and take no orgId/adminId, so they sit
+  // ahead of EVERY write in this function: resolveOrgId upserts `organizations` in local mode,
+  // resolveAdminId creates two auth users and upserts two `users` rows, and ensureBank may
+  // create a `question_banks` row. Ordering them after this loop is what makes "an import that
+  // is going to abort writes nothing at all" true — the earlier form of this comment claimed
+  // that while sitting below the two resolvers, so five rows were already written on an abort.
   const resolved: { rel: string; file: ContentFile; subjectId: string; topicId: string }[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
@@ -452,6 +458,8 @@ async function main(): Promise<void> {
     })
   }
 
+  const orgId = await resolveOrgId()
+  const adminId = await resolveAdminId(orgId)
   const bank = await ensureBank(orgId, adminId)
 
   const base = {
