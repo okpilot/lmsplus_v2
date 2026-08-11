@@ -116,10 +116,14 @@ describe('fetchActiveQuestionCounts', () => {
   })
 
   it('returns an empty list when every row has an unexpected shape', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: [null], error: null })
 
     await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
+    // Losing every row is a contract change, not noise — the message must say so.
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] dropped 1 of 1 malformed row(s) — every row failed, likely an RPC contract change',
+    )
   })
 
   it('keeps the valid rows when only some rows have an unexpected shape', async () => {

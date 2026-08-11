@@ -12,8 +12,8 @@ export type QuestionCountRow = {
 /**
  * Per-row guard required by code-style.md §5 — the `rpc<QuestionCountRow[]>` cast is a TypeScript
  * assertion only, not a runtime guarantee. The caller drops malformed rows and keeps the rest,
- * matching the sibling per-row guards in `lookup.ts`, `study-queries.ts` and
- * `quiz-session-queries.ts`.
+ * matching the sibling per-row guards in `study-queries.ts`, `quiz-session-queries.ts` and
+ * `app/app/quiz/actions/lookup.ts` (path qualified — that one is not in this directory).
  */
 function isQuestionCountRow(value: unknown): value is QuestionCountRow {
   if (typeof value !== 'object' || value === null) return false
@@ -65,8 +65,10 @@ export async function fetchActiveQuestionCounts(
   }
   const rows = data.filter(isQuestionCountRow)
   if (rows.length !== data.length) {
+    // Total vs partial drift are different facts: every row failing is a contract change.
+    const suffix = rows.length === 0 ? ' — every row failed, likely an RPC contract change' : ''
     console.error(
-      `[fetchActiveQuestionCounts] dropped ${data.length - rows.length} of ${data.length} malformed row(s)`,
+      `[fetchActiveQuestionCounts] dropped ${data.length - rows.length} of ${data.length} malformed row(s)${suffix}`,
     )
   }
   return rows
