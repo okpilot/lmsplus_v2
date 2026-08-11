@@ -508,7 +508,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch all 4 post-commit agents in parallel immediately after every commit.
+- Launch all 4 post-commit agents in parallel immediately after every commit — except under the two narrow exemptions in `CLAUDE.md § Post-commit review` (docs-only; review-follow-up). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -520,7 +520,8 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 ### NEVER
 - Skip implementation-critic, even for small changes.
 - Allow more than 2 revision rounds between critic and implementer.
-- Skip post-commit agents. Ever. Not even for "trivial" commits.
+- Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only exemptions are the two in `CLAUDE.md § Post-commit review`, and both are defined by what was *already reviewed*, not by how small the diff is.
+- Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect; log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
@@ -672,4 +673,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-09 (added § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms. Prior: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*
+*Last updated: 2026-08-11 (DO/NEVER now defer to CLAUDE.md's two post-commit exemptions and forbid chasing a reviewer to convergence on a review-follow-up commit; PR #1185. Prior: 2026-08-09 § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms.)*

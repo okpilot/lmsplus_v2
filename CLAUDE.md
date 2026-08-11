@@ -175,6 +175,20 @@ If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAU
 
 **Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md` (EXCEPT CLAUDE.md — it is a rules file and a coderabbit-sync trigger, never exempt), or `.claude/agent-memory/**` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
 
+**Review-follow-up exemption (narrow):** a commit that applies ONLY findings raised by the post-commit cycle of its own parent commit runs a reduced cycle — **semantic-reviewer only** (which `agent-workflow.md` already requires whenever production code changes), not the other three. ALL of these must hold:
+- every hunk traces to a specific finding from the parent commit's own cycle;
+- it touches only files the parent commit touched, and adds no new file;
+- ≤ 20 changed lines outside test files;
+- it touches no security path, no rules file, no migration, no CI/hook/config.
+
+If any condition fails, run the full cycle. Rationale: code-reviewer, doc-updater and test-writer assessed this exact file set one commit ago, and an in-place refinement of it cannot change their answers — re-running them bills four agents to re-confirm a conclusion they reached minutes earlier. The **learner** (step 5) is skipped on a review-follow-up too: its input is the cycle's findings, and it will see them on the branch's next full cycle.
+
+**This is NOT a "small commit" exemption.** A commit that introduces any new scope gets the full cycle even if it is one line. The opposite failure is on record: `.claude/run-log.md` (2026-08-11) documents a run where post-commit agents ran on 2 of 8 commits because CR fixups were rationalised as "already externally reviewed". External review is not the criterion; *already reviewed by these four agents, on these files, one commit ago* is.
+
+**Stop rule — the reviewer does not converge.** On a review-follow-up commit, act only on CRITICAL or ISSUE findings that identify a **runtime** defect. Log everything else and stop: SUGGESTION-level findings, and wording/comment-accuracy findings on prose the follow-up itself just rewrote, are **not** actioned in the same chain. An LLM reviewer returns non-empty on almost any prose, so "apply suggestion → re-review → new suggestion" terminates by rule, not by agreement. Park the remainder — fold it into the next substantive commit on the branch, or drop it.
+
+Precedent (2026-08-11, PR #1185): commit A added a runtime guard; its cycle produced 2 SUGGESTIONs; commit B applied them; the PR-level sweep then found a real ISSUE in older code; commit C fixed it; C's review returned 1 ISSUE + 3 SUGGESTIONs — every one a wording refinement to the comment C had just rewritten. Four agents ran on a 5-line log-message change. The user stopped it ("post commit again? what are we fixing so long?") and was right to.
+
 Pre-commit critics (plan-critic, implementation-critic) run BEFORE commit and do not replace post-commit agents. They are additive — catching issues earlier, not removing later review.
 
 Never push without all agents reporting clean.

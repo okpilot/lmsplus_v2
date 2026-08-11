@@ -54,7 +54,7 @@ Run through each item. Report pass/fail with brief notes.
 **Agent pipeline:**
 - **Agent findings resolved** — every ISSUE/CRITICAL from post-commit agents got fixed? No orphans?
 - **Non-blocking findings surfaced** — list ALL SUGGESTION/WARNING/non-blocking findings from every agent and reviewer (post-commit agents, CodeRabbit, critics). For each one, the user must see it and decide: FIX NOW (<10 lines), DEFER (create GitHub issue), or SKIP (with reason). "Noted" is not a valid disposition — every finding gets a ticket or an explicit skip.
-- **Post-commit pipeline completeness** — did every commit get all 4 agents? Did we run the learner after?
+- **Post-commit pipeline completeness** — did every commit get all 4 agents, or an explicitly-named exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater only; review-follow-up → semantic-reviewer only, learner skipped)? Did we run the learner after each full cycle?
 - **Fix-commit re-review** — when production code was fixed from agent findings, did we re-run agents on the fix commit?
 - **Pre-push PR sweep** — for branches with 2+ commits, did we `git fetch origin` (and abort on failure) then run `git diff origin/master...HEAD` semantic review before pushing? A stale base silently distorts the sweep scope.
 - **Pre-commit critics** — did plan-critic and implementation-critic run before each commit? Any skipped without justification? (Plan-critic can skip for single-file <10 lines; implementation-critic never skips)

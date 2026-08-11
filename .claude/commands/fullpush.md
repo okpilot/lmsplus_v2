@@ -11,7 +11,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 
 ### Completeness
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
-5. **Did all post-commit agents run** on the latest commit? (code-reviewer, semantic-reviewer, doc-updater, test-writer, learner — and when applicable: red-team if diff touches security files, coderabbit-sync if rules changed)
+5. **Did all post-commit agents run** on the latest commit? (code-reviewer, semantic-reviewer, doc-updater, test-writer, learner — and when applicable: red-team if diff touches security files, coderabbit-sync if rules changed). A commit covered by one of the two exemptions in `CLAUDE.md § Post-commit review` (docs-only → doc-updater only; review-follow-up → semantic-reviewer only) satisfies this — **name the exemption and the condition that qualified it**, rather than answering a bare "yes". A commit that merely felt small does not qualify.
 6. **If production code changed after initial review**, did you re-run semantic-reviewer on the fix commit?
 7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
 
