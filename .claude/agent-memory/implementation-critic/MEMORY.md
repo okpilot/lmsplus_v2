@@ -10,6 +10,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
 | Zero-row no-op: UPDATE/DELETE missing `.select('id')` + `data?.length` check | 2026-04-10 | 6 | 2026-06-06 | PROMOTED → code-style.md §5. Recurs in prod AND test helpers — still flag in new code. † |
+| Zero-row no-op, DISTINCT mechanism: `.select('id')` IS present but the count is only logged when `> 0`, so a blocked write AFTER a positive pre-match is silent. code-style §5's "log only when > 0" shape assumes zero rows is VALID; where a prior SELECT proved N match, compare against N and THROW. | 2026-08-11 | 1 | 2026-08-11 | WATCHING (VFR RT importer `--replace`; a silent no-op printed `0 inserted / N skipped`, indistinguishable from a normal idempotent re-run) |
 | Dead helper in test file → Biome `noUnusedVariables`/`noThenProperty` pre-commit fail | 2026-04-11 | 2 | 2026-05-27 | RULE CANDIDATE. Grep call sites for any large test helper before approving — delete if only self-referenced. † |
 | Error message refactor breaks paired test assertion regex | 2026-05-06 | 1 | 2026-05-06 | WATCHING. Grep tests for the old message substring when context strings change (#628; #709 no recurrence). † |
 | TRANSPORT_LAYER/payload-group loop applied to fewer RPCs than plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. #108 `void_internal_exam_code` got DB_LAYER only. When a plan documents a payload group across N RPCs, count loops in each describe block. |

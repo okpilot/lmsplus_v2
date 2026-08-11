@@ -10,17 +10,31 @@
  * Remote (--force-remote): looks up the target org + an existing admin (created_by)
  * and the bank; never creates auth users. Refuses non-local URLs without the flag.
  *
+ * --replace (LOCAL ONLY): soft-delete the file's existing questions before inserting, so an
+ * edited content file actually takes effect. Refused outright with --force-remote, and refused
+ * unless the target URL's HOST is this machine (isLocalSupabaseUrl — a stricter check than the
+ * prefix match above, which reads `http://localhost.example.com` as local).
+ *
  * Usage:
  *   cd apps/web
  *   npx tsx scripts/import-vfr-rt-content.ts                       # imports Part 1 locally
  *   npx tsx scripts/import-vfr-rt-content.ts content/foo.json bar.json
  *   npx tsx scripts/import-vfr-rt-content.ts --force-remote        # prod (needs existing org+admin)
+ *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/foo.json --replace   # local re-import
  */
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
+import { isLocalSupabaseUrl, requireRecord, requireText } from './content-assertions'
+import {
+  assertDialogFillAuthoring,
+  assertDialogFillItem,
+  composeDialogTemplate,
+  type DialogFillItem,
+  toStoredBlanks,
+} from './dialog-fill-content'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -39,6 +53,21 @@ if (!isLocal && !FORCE_REMOTE) {
   console.error(
     `Refusing to import against non-local Supabase URL: ${SUPABASE_URL}\nPass --force-remote to override.`,
   )
+  process.exit(1)
+}
+
+// --replace soft-deletes existing rows, so it is gated harder than the import itself and its
+// gates run HERE, at module load: the process exits before createClient below and therefore
+// before resolveOrgId / resolveAdminId / ensureBank perform any write.
+const REPLACE = process.argv.includes('--replace')
+// Independent of --force-remote by design: that flag bypasses the refusal above only, and must
+// never unlock a destructive re-import. Rejected before the URL is even considered.
+if (REPLACE && FORCE_REMOTE) {
+  console.error('--replace is local-only and cannot be combined with --force-remote.')
+  process.exit(1)
+}
+if (REPLACE && !isLocalSupabaseUrl(SUPABASE_URL)) {
+  console.error(`Refusing --replace against a non-local Supabase URL: ${SUPABASE_URL}`)
   process.exit(1)
 }
 
@@ -77,8 +106,11 @@ type ContentFile = {
   title: string
   subject_code: string
   topic_code: string
-  question_type: 'short_answer' | 'multiple_choice'
-  questions: (ShortAnswerItem | McItem)[]
+  question_type: 'short_answer' | 'multiple_choice' | 'dialog_fill'
+  // OPTIONAL — Part 1 has no `status` key at all, and Part 1 is the default target (see main()),
+  // i.e. the path that reached production. Every read of it must typeof-guard first.
+  status?: string
+  questions: (ShortAnswerItem | McItem | DialogFillItem)[]
 }
 
 // ---- bootstrap helpers -------------------------------------------------------
@@ -233,25 +265,52 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
 // questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
 const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
 
-// The types buildRow has a branch for. Widen both together when adding dialog_fill / ordering /
-// diagram_label — the DB accepts all five (questions_question_type_check).
-const SUPPORTED_TYPES = ['short_answer', 'multiple_choice']
+// The types buildRow has a branch for. Widen both together when adding ordering / diagram_label —
+// the DB accepts all five (questions_question_type_check).
+const SUPPORTED_TYPES = ['short_answer', 'multiple_choice', 'dialog_fill']
 
-/** Assert a content field is a present, non-blank string. `label` names the field for the error. */
-function requireText(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${label} must be a non-empty string (got ${JSON.stringify(value)})`)
+function validateShortAnswerItem(sa: ShortAnswerItem, at: string): void {
+  requireText(sa.canonical, `${at} (${sa.num}): 'canonical'`)
+  // Not written directly, but interpolated into the fallback explanation, where a
+  // non-string would render as "[object Object]: <canonical>".
+  if (sa.acronym !== undefined) {
+    requireText(sa.acronym, `${at} (${sa.num}): 'acronym'`)
+  }
+  if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
+    throw new Error(`${at} (${sa.num}): 'synonyms' must be an array when present`)
+  }
+  // accepted_synonyms is TEXT[], which happily stores a NULL or blank element — it would
+  // just never match anything the grader normalizes, so it fails silently at answer time.
+  for (const [j, synonym] of (sa.synonyms ?? []).entries()) {
+    requireText(synonym, `${at} (${sa.num}): synonyms[${j}]`)
   }
 }
 
-/**
- * Assert a parsed-JSON node is a plain object before any field is read off it. Without this,
- * `questions: [null]` (or a non-object root) crashes with a bare TypeError from the first
- * property access, instead of naming the file and index like every other content error here.
- */
-function requireRecord(value: unknown, label: string): asserts value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object (got ${JSON.stringify(value)})`)
+function validateMcItem(mc: McItem, at: string): void {
+  if (!Array.isArray(mc.options) || mc.options.length === 0) {
+    throw new Error(`${at} (${mc.num}): 'options' must be a non-empty array`)
+  }
+  // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
+  // names an option that actually exists, and trg_sanitize_question_options rewrites each
+  // element to {id,text}, silently emitting nulls for a malformed one. Both would import
+  // clean and render un-answerable, so check the mapping here.
+  if (!MC_OPTION_IDS.includes(mc.correct)) {
+    throw new Error(
+      `${at} (${mc.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
+    )
+  }
+  const optionIds = new Set<string>()
+  for (const [j, opt] of mc.options.entries()) {
+    requireText(opt?.id, `${at} (${mc.num}): options[${j}].id`)
+    requireText(opt?.text, `${at} (${mc.num}): options[${j}].text`)
+    // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
+    if (optionIds.has(opt.id)) {
+      throw new Error(`${at} (${mc.num}): duplicate option id '${opt.id}'`)
+    }
+    optionIds.add(opt.id)
+  }
+  if (!mc.options.some((o) => o.id === mc.correct)) {
+    throw new Error(`${at} (${mc.num}): 'correct' is '${mc.correct}' but no option carries that id`)
   }
 }
 
@@ -261,10 +320,14 @@ type QuestionRow = Record<string, unknown> & { question_number: string }
 
 function buildRow(
   file: ContentFile,
-  q: ShortAnswerItem | McItem,
+  q: ShortAnswerItem | McItem | DialogFillItem,
   base: Record<string, unknown>,
   topicId: string,
 ): QuestionRow {
+  // `common` already satisfies every questions_question_type_columns_check discriminator: five
+  // are set explicitly below, and diagram_config by OMISSION — the column defaults to NULL
+  // (ADD COLUMN diagram_config JSONB NULL DEFAULT NULL). Whoever widens this to diagram_label
+  // must set it here rather than assume the default still applies.
   const common = {
     ...base,
     topic_id: topicId,
@@ -299,7 +362,93 @@ function buildRow(
       explanation_text: mc.explanation ?? (base.explanation_text as string),
     }
   }
+  if (file.question_type === 'dialog_fill') {
+    // Narrow instead of casting: this branch reads a nested structure, and the assertion is the
+    // same one Stage B ran, so a shape drift here is a bug in the loop, not a silent bad row.
+    const label = `question '${q.num}'`
+    assertDialogFillItem(q, label)
+    const blanks = toStoredBlanks(q.blanks)
+    return {
+      ...common,
+      dialog_template: composeDialogTemplate(q.template, blanks, label),
+      blanks_config: blanks,
+      // `common` spreads `base`, so it already carries an `explanation_text` — the GENERIC
+      // fallback. Every branch must re-resolve the authored value or the teaching note is
+      // silently replaced by that boilerplate: the column is NOT NULL and `base` satisfies it,
+      // so nothing fails and it surfaces only at eval.
+      explanation_text: q.explanation ?? (base.explanation_text as string),
+    }
+  }
   throw new Error(`Unsupported question_type '${file.question_type}' (add a branch in buildRow)`)
+}
+
+/**
+ * Soft-delete the rows this file is about to re-insert (--replace only, local only). The
+ * importer is otherwise insert-only, so an edited question has no effect on re-run.
+ *
+ * Scoped to bank + topic + question_type + the file's own `num` set. There is exactly one bank
+ * per organization, so locally that bank also holds Part 1 and everything the eval seeds
+ * insert; num-only scoping is safe today only because VRT-P2-DLG-* happens to be distinctive.
+ * Never a hard DELETE — and idx_questions_bank_number is UNIQUE (bank_id, question_number)
+ * WHERE deleted_at IS NULL, so the soft delete correctly frees the slot for re-insert.
+ */
+type ReplaceScope = {
+  rel: string
+  bankId: string
+  topicId: string
+  questionType: string
+  nums: string[]
+}
+
+async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promise<void> {
+  const { data: matched, error: matchErr } = await db
+    .from('questions')
+    .select('question_number')
+    .eq('bank_id', scope.bankId)
+    .eq('topic_id', scope.topicId)
+    .eq('question_type', scope.questionType)
+    .in('question_number', scope.nums)
+    .is('deleted_at', null)
+  if (matchErr) throw new Error(`--replace lookup (${scope.rel}): ${matchErr.message}`)
+  if (!matched || matched.length === 0) {
+    // Name the discriminators: if the file's topic_code or question_type changed since the rows
+    // were imported, the old rows carry the OLD values and match nothing here, while
+    // insertIfMissing (bank + number only) then skips every num — so the edit silently does not
+    // take effect, which is exactly what --replace exists to prevent.
+    console.log(
+      `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId})`,
+    )
+    return
+  }
+  // Disclosure, not detection: a hostname check cannot see through an SSH tunnel, so print the
+  // target and exactly what is about to be soft-deleted before mutating.
+  console.log(
+    `  ${scope.rel}: --replace soft-deleting ${matched.length} row(s) on ${SUPABASE_URL} — ${matched.map((r) => r.question_number).join(', ')}`,
+  )
+  // ensureBank's restore path clears deleted_at and deleted_by together, so stamp both here.
+  const { data: removed, error } = await db
+    .from('questions')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
+    .eq('bank_id', scope.bankId)
+    .eq('topic_id', scope.topicId)
+    .eq('question_type', scope.questionType)
+    .in('question_number', scope.nums)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`--replace soft-delete (${scope.rel}): ${error.message}`)
+  // code-style §5's "log only when > 0" shape is for cleanup where zero rows is VALID. Here the
+  // SELECT above already proved N rows match, so anything less than N means the write was blocked
+  // (RLS/grant — see #815) or the rows moved. Throw rather than warn: the insert loop that follows
+  // would find the rows still live, skip all of them, and print `0 inserted / N skipped`, which is
+  // indistinguishable from a successful idempotent re-run. A silent no-op is the one outcome
+  // --replace must never produce.
+  const removedCount = removed?.length ?? 0
+  if (removedCount !== matched.length) {
+    throw new Error(
+      `--replace soft-delete (${scope.rel}): matched ${matched.length} row(s) but updated ${removedCount} — the write was blocked or the rows moved; aborting before re-insert.`,
+    )
+  }
+  console.log(`  ${scope.rel}: --replace soft-deleted ${removedCount} row(s)`)
 }
 
 async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
@@ -331,9 +480,12 @@ async function main(): Promise<void> {
   // Keep this in step with buildRow — a field buildRow writes but this loop does not check is
   // a field that fails mid-run. The full set buildRow reads from content today: file-level
   // `subject_code`/`topic_code`/`question_type`; per-item `num`, `prompt`, `explanation`;
-  // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`.
-  // Everything else it writes is a literal or comes from `base`. When you add a buildRow
-  // branch (dialog_fill / ordering / diagram_label), extend this loop in the same commit.
+  // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`;
+  // dialog_fill `template`, `blanks` (validated by assertDialogFillItem, which mirrors the DB
+  // CHECKs, plus assertDialogFillAuthoring for the house blank-shape rules). Everything else it
+  // writes is a literal or comes from `base`. When you add a buildRow branch (ordering /
+  // diagram_label), extend the per-type dispatch below in the same commit — its `default` arm
+  // is what turns "no validator yet" into a named abort instead of a misleading MC error.
   //
   // `num` gets the strictest treatment because it is the idempotency key: non-empty string and
   // unique across ALL loaded files (they share one bank). A missing/non-string `num` would
@@ -364,6 +516,15 @@ async function main(): Promise<void> {
         `${rel}: unsupported question_type ${JSON.stringify(file.question_type)} — this importer handles ${SUPPORTED_TYPES.join('/')}; add a buildRow branch first`,
       )
     }
+    // Importing makes rows immediately exam-eligible on the target DB, so a file that declares
+    // itself a pilot batch is the one thing --force-remote must not carry to prod. `status` is
+    // OPTIONAL and absent from Part 1 — the default target — so typeof-guard before .startsWith,
+    // or the prod import path throws a bare TypeError.
+    if (FORCE_REMOTE && typeof file.status === 'string' && file.status.startsWith('PILOT')) {
+      throw new Error(
+        `${rel}: refusing --force-remote — the file declares status ${JSON.stringify(file.status)}`,
+      )
+    }
     if (!Array.isArray(file.questions) || file.questions.length === 0) {
       throw new Error(`${rel}: 'questions' must be a non-empty array`)
     }
@@ -388,51 +549,29 @@ async function main(): Promise<void> {
       if (q.explanation !== undefined) {
         requireText(q.explanation, `${at} (${q.num}): 'explanation'`)
       }
-      if (file.question_type === 'short_answer') {
-        const sa = q as ShortAnswerItem
-        requireText(sa.canonical, `${at} (${q.num}): 'canonical'`)
-        // Not written directly, but interpolated into the fallback explanation, where a
-        // non-string would render as "[object Object]: <canonical>".
-        if (sa.acronym !== undefined) {
-          requireText(sa.acronym, `${at} (${q.num}): 'acronym'`)
+      // Exhaustive by type, with a throwing default. The previous shape was
+      // `if (short_answer) {…} else {…}` where the else was NOT guarded on multiple_choice, so
+      // a third type fell into the MC validator and failed with a nonsense
+      // "'options' must be a non-empty array". The default arm is redundant with the
+      // SUPPORTED_TYPES gate above BY DESIGN — it is the structural guard whose absence was
+      // the bug, and it holds even if the two lists drift apart.
+      switch (file.question_type) {
+        case 'short_answer':
+          validateShortAnswerItem(q as ShortAnswerItem, at)
+          break
+        case 'multiple_choice':
+          validateMcItem(q as McItem, at)
+          break
+        case 'dialog_fill': {
+          const label = `${at} (${q.num})`
+          assertDialogFillItem(q, label)
+          assertDialogFillAuthoring(q, label)
+          break
         }
-        if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
-          throw new Error(`${at} (${q.num}): 'synonyms' must be an array when present`)
-        }
-        // accepted_synonyms is TEXT[], which happily stores a NULL or blank element — it would
-        // just never match anything the grader normalizes, so it fails silently at answer time.
-        for (const [j, synonym] of (sa.synonyms ?? []).entries()) {
-          requireText(synonym, `${at} (${q.num}): synonyms[${j}]`)
-        }
-      } else {
-        const mc = q as McItem
-        if (!Array.isArray(mc.options) || mc.options.length === 0) {
-          throw new Error(`${at} (${q.num}): 'options' must be a non-empty array`)
-        }
-        // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
-        // names an option that actually exists, and trg_sanitize_question_options rewrites each
-        // element to {id,text}, silently emitting nulls for a malformed one. Both would import
-        // clean and render un-answerable, so check the mapping here.
-        if (!MC_OPTION_IDS.includes(mc.correct)) {
+        default:
           throw new Error(
-            `${at} (${q.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
+            `${at}: no per-item validator for question_type ${JSON.stringify(file.question_type)} — add one alongside the buildRow branch`,
           )
-        }
-        const optionIds = new Set<string>()
-        for (const [j, opt] of mc.options.entries()) {
-          requireText(opt?.id, `${at} (${q.num}): options[${j}].id`)
-          requireText(opt?.text, `${at} (${q.num}): options[${j}].text`)
-          // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
-          if (optionIds.has(opt.id)) {
-            throw new Error(`${at} (${q.num}): duplicate option id '${opt.id}'`)
-          }
-          optionIds.add(opt.id)
-        }
-        if (!mc.options.some((o) => o.id === mc.correct)) {
-          throw new Error(
-            `${at} (${q.num}): 'correct' is '${mc.correct}' but no option carries that id`,
-          )
-        }
       }
     }
   }
@@ -471,6 +610,21 @@ async function main(): Promise<void> {
     created_by: adminId,
   }
 
+  if (REPLACE) {
+    for (const { rel, file, topicId } of resolved) {
+      await softDeleteForReplace(
+        {
+          rel,
+          bankId: bank.id,
+          topicId,
+          questionType: file.question_type,
+          nums: file.questions.map((q) => q.num),
+        },
+        adminId,
+      )
+    }
+  }
+
   let totalInserted = 0
   let totalSkipped = 0
 
@@ -491,7 +645,9 @@ async function main(): Promise<void> {
   }
 
   console.log('\nVFR RT content import complete.')
-  console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
+  console.log(
+    `  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}${REPLACE ? '  [--replace]' : ''}`,
+  )
   console.log(`  Org:      ${ORG_NAME} (${orgId})`)
   console.log(`  Bank:     ${bank.name} (${bank.id})`)
   console.log(`  Inserted: ${totalInserted}   Skipped (already present): ${totalSkipped}`)

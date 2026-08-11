@@ -8,6 +8,8 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
+| Importer new-type `buildRow` branch specified as "set ONLY the type-specific columns" drops `explanation_text` — `common` spreads `base` so it carries the GENERIC value, and both existing branches re-resolve the authored one; NOT NULL is satisfied so nothing fails and the authored text vanishes silently. | 2026-08-11 | 1 | 2026-08-11 | WATCHING (VFR RT Part 2 dialog_fill; caught by BOTH plan-critic lenses independently) |
+| Guard plan keyed on an OPTIONAL content field is sized "~4 lines" and omits the `typeof === 'string'` check, crashing the one file that lacks the field — here Part 1, the DEFAULT import target and the path that reached prod. | 2026-08-11 | 1 | 2026-08-11 | WATCHING (the "~4 lines" sizing is what invites the unguarded form) |
 | CR-fixup plans sweep siblings by the finding's IDENTIFIER (RPC name), not by CODE STRUCTURE (`rpc<T[]>` + array-only guard). ([details](topics/cr-fixup-sweep-axis-1185.md#1)). | 2026-08-11 | 1 | 2026-08-11 | RESOLVED-WATCH (rev 2 rewrote the sweep by code structure) |
 | New try/catch uses `(err as Error).message`; repo is 100:1 `instanceof Error`, incl. the sibling importer. ([details](topics/cr-fixup-sweep-axis-1185.md#2)). | 2026-08-11 | 1 | 2026-08-11 | RESOLVED-WATCH (rev 2 switched to `instanceof Error`) |
 | Plan enumerates prior art, then picks the OPPOSITE disposition (reject-all vs sibling skip-the-row) — diff DISPOSITION, not just shape. ([details](topics/cr-fixup-sweep-axis-1185.md#5)). | 2026-08-11 | 1 | 2026-08-11 | WATCHING |
