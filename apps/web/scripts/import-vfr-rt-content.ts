@@ -244,6 +244,17 @@ function requireText(value: unknown, label: string): asserts value is string {
   }
 }
 
+/**
+ * Assert a parsed-JSON node is a plain object before any field is read off it. Without this,
+ * `questions: [null]` (or a non-object root) crashes with a bare TypeError from the first
+ * property access, instead of naming the file and index like every other content error here.
+ */
+function requireRecord(value: unknown, label: string): asserts value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object (got ${JSON.stringify(value)})`)
+  }
+}
+
 // ---- row building ------------------------------------------------------------
 
 type QuestionRow = Record<string, unknown> & { question_number: string }
@@ -324,7 +335,9 @@ async function main(): Promise<void> {
   // (UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL)
   // exempts — so the row would silently re-insert a duplicate on every re-run.
   const parsed = targets.map((rel) => {
-    const file = JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf8')) as ContentFile
+    const raw: unknown = JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf8'))
+    requireRecord(raw, `${rel}: root`)
+    const file = raw as unknown as ContentFile
     requireText(file.subject_code, `${rel}: 'subject_code'`)
     requireText(file.topic_code, `${rel}: 'topic_code'`)
     // buildRow throws on an unsupported type, but only once it reaches that item mid-loop.
@@ -343,6 +356,7 @@ async function main(): Promise<void> {
   for (const { rel, file } of parsed) {
     for (const [i, q] of file.questions.entries()) {
       const at = `${rel}[${i}]`
+      requireRecord(q, at)
       requireText(q.num, `${at}: 'num'`)
       const prior = seenNums.get(q.num)
       if (prior)
