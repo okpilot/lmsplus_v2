@@ -233,6 +233,10 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
 // questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
 const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
 
+// The types buildRow has a branch for. Widen both together when adding dialog_fill / ordering /
+// diagram_label — the DB accepts all five (questions_question_type_check).
+const SUPPORTED_TYPES = ['short_answer', 'multiple_choice']
+
 /** Assert a content field is a present, non-blank string. `label` names the field for the error. */
 function requireText(value: unknown, label: string): asserts value is string {
   if (typeof value !== 'string' || value.trim() === '') {
@@ -321,6 +325,14 @@ async function main(): Promise<void> {
   // exempts — so the row would silently re-insert a duplicate on every re-run.
   const parsed = targets.map((rel) => {
     const file = JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf8')) as ContentFile
+    requireText(file.subject_code, `${rel}: 'subject_code'`)
+    requireText(file.topic_code, `${rel}: 'topic_code'`)
+    // buildRow throws on an unsupported type, but only once it reaches that item mid-loop.
+    if (!SUPPORTED_TYPES.includes(file.question_type)) {
+      throw new Error(
+        `${rel}: unsupported question_type ${JSON.stringify(file.question_type)} — this importer handles ${SUPPORTED_TYPES.join('/')}; add a buildRow branch first`,
+      )
+    }
     if (!Array.isArray(file.questions) || file.questions.length === 0) {
       throw new Error(`${rel}: 'questions' must be a non-empty array`)
     }
@@ -344,6 +356,11 @@ async function main(): Promise<void> {
         if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
           throw new Error(`${at} (${q.num}): 'synonyms' must be an array when present`)
         }
+        // accepted_synonyms is TEXT[], which happily stores a NULL or blank element — it would
+        // just never match anything the grader normalizes, so it fails silently at answer time.
+        for (const [j, synonym] of (sa.synonyms ?? []).entries()) {
+          requireText(synonym, `${at} (${q.num}): synonyms[${j}]`)
+        }
       } else {
         const mc = q as McItem
         if (!Array.isArray(mc.options) || mc.options.length === 0) {
@@ -358,9 +375,15 @@ async function main(): Promise<void> {
             `${at} (${q.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
           )
         }
+        const optionIds = new Set<string>()
         for (const [j, opt] of mc.options.entries()) {
           requireText(opt?.id, `${at} (${q.num}): options[${j}].id`)
           requireText(opt?.text, `${at} (${q.num}): options[${j}].text`)
+          // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
+          if (optionIds.has(opt.id)) {
+            throw new Error(`${at} (${q.num}): duplicate option id '${opt.id}'`)
+          }
+          optionIds.add(opt.id)
         }
         if (!mc.options.some((o) => o.id === mc.correct)) {
           throw new Error(
@@ -384,13 +407,24 @@ async function main(): Promise<void> {
     created_by: adminId,
   }
 
+  // Resolve EVERY file's subject + topic before inserting anything. Resolving inside the import
+  // loop would surface a bad topic_code in file 2 only after file 1's rows were committed —
+  // the same half-import the content validation above exists to prevent. Both lookups throw.
+  const resolved: { rel: string; file: ContentFile; subjectId: string; topicId: string }[] = []
+  for (const { rel, file } of parsed) {
+    const subjectId = await lookupSubjectByCode(file.subject_code)
+    resolved.push({
+      rel,
+      file,
+      subjectId,
+      topicId: await lookupTopicByCode(subjectId, file.topic_code),
+    })
+  }
+
   let totalInserted = 0
   let totalSkipped = 0
 
-  for (const { rel, file } of parsed) {
-    const subjectId = await lookupSubjectByCode(file.subject_code)
-    const topicId = await lookupTopicByCode(subjectId, file.topic_code)
-
+  for (const { rel, file, subjectId, topicId } of resolved) {
     let inserted = 0
     for (const q of file.questions) {
       const added = await insertIfMissing(
