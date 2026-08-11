@@ -326,8 +326,14 @@ async function main(): Promise<void> {
   // Parse + validate every field this importer writes, across ALL files, BEFORE touching the
   // DB. Inserts are row-at-a-time and individually committed (no transaction), so a malformed
   // item found at INSERT time leaves earlier rows already written; validating up front turns
-  // that half-import into a clean abort. Keep this in step with buildRow — a field buildRow
-  // writes but this loop does not check is a field that fails mid-run.
+  // that half-import into a clean abort.
+  //
+  // Keep this in step with buildRow — a field buildRow writes but this loop does not check is
+  // a field that fails mid-run. The full set buildRow reads from content today: file-level
+  // `subject_code`/`topic_code`/`question_type`; per-item `num`, `prompt`, `explanation`;
+  // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`.
+  // Everything else it writes is a literal or comes from `base`. When you add a buildRow
+  // branch (dialog_fill / ordering / diagram_label), extend this loop in the same commit.
   //
   // `num` gets the strictest treatment because it is the idempotency key: non-empty string and
   // unique across ALL loaded files (they share one bank). A missing/non-string `num` would
@@ -364,9 +370,20 @@ async function main(): Promise<void> {
       seenNums.set(q.num, rel)
 
       requireText(q.prompt, `${at} (${q.num}): 'prompt'`)
+      // Optional on both branches. `buildRow` resolves it with `??`, which only catches
+      // null/undefined — so `explanation: ""` would write an empty explanation_text rather
+      // than falling back to the generic one. Present means non-blank.
+      if (q.explanation !== undefined) {
+        requireText(q.explanation, `${at} (${q.num}): 'explanation'`)
+      }
       if (file.question_type === 'short_answer') {
         const sa = q as ShortAnswerItem
         requireText(sa.canonical, `${at} (${q.num}): 'canonical'`)
+        // Not written directly, but interpolated into the fallback explanation, where a
+        // non-string would render as "[object Object]: <canonical>".
+        if (sa.acronym !== undefined) {
+          requireText(sa.acronym, `${at} (${q.num}): 'acronym'`)
+        }
         if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
           throw new Error(`${at} (${q.num}): 'synonyms' must be an array when present`)
         }
