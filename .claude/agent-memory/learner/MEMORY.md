@@ -16,7 +16,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |
 | UI event handler missing re-entry guard (double-fire) | 2 | 2026-03-16 | RULE CANDIDATE. |
 | UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE → code-style.md §5. |
-| Error path in existing function untested (count-error branch) | 7 | 2026-06-27 | RULE CANDIDATE (7). |
+| Error path in existing function untested (count-error branch) | 8 | 2026-08-11 | RULE CANDIDATE (8). |
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE. |
 | Supabase SELECT error swallowed in auth helper (distinct from mutation) | 3 | 2026-06-04 | RULE CANDIDATE → code-style.md §5 ext. |
@@ -121,7 +121,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR/reviewer suggestion adopted verbatim without checking established codebase idiom (style drift, non-defective) | 1 | 2026-08-11 | WATCHING (archive row 543) |
 | Sibling-scope sweep keyed on RPC/function-name rather than code structure — misses same-structure call sites with a different RPC | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing — tsc --noEmit with positional file paths bypasses tsconfig entirely | 1 | 2026-08-11 | WATCHING (archive row 546) |
+| Proposed verification command silently verifies nothing — tsc --noEmit with positional file paths bypasses tsconfig entirely; `&& echo` chain reports success over TS5112 no-op (tool exits 0, chain fires) | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation |
+| Plan prose states unverified content-item count that diverges from actual codebase (e.g. "5 questions" when 4 affected) | 1 | 2026-08-11 | WATCHING (archive row 547) |
 
 ## Durable knowledge (cross-agent)
 
