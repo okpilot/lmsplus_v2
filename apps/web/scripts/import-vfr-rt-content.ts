@@ -396,20 +396,12 @@ async function main(): Promise<void> {
 
   const orgId = await resolveOrgId()
   const adminId = await resolveAdminId(orgId)
-  const bank = await ensureBank(orgId, adminId)
-
-  const base = {
-    organization_id: orgId,
-    bank_id: bank.id,
-    explanation_text: 'See standard ICAO/EASA VFR radiotelephony phraseology.',
-    difficulty: 'medium' as const,
-    status: 'active' as const,
-    created_by: adminId,
-  }
 
   // Resolve EVERY file's subject + topic before inserting anything. Resolving inside the import
   // loop would surface a bad topic_code in file 2 only after file 1's rows were committed —
   // the same half-import the content validation above exists to prevent. Both lookups throw.
+  // These are SELECTs, so they stay ahead of ensureBank below, which in local mode may restore
+  // or create a question_banks row: an import that is going to abort should write nothing at all.
   const resolved: { rel: string; file: ContentFile; subjectId: string; topicId: string }[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
@@ -419,6 +411,17 @@ async function main(): Promise<void> {
       subjectId,
       topicId: await lookupTopicByCode(subjectId, file.topic_code),
     })
+  }
+
+  const bank = await ensureBank(orgId, adminId)
+
+  const base = {
+    organization_id: orgId,
+    bank_id: bank.id,
+    explanation_text: 'See standard ICAO/EASA VFR radiotelephony phraseology.',
+    difficulty: 'medium' as const,
+    status: 'active' as const,
+    created_by: adminId,
   }
 
   let totalInserted = 0
