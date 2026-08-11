@@ -10,7 +10,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. |
-| Partial fix applied to sibling file group (cross-cutting concern) | 19 | 2026-08-11 | RULE CANDIDATE (active). |
+| Partial fix applied to sibling file group — **CATCH-ALL: the count is 5 unrelated mechanisms, not one** | 19 | 2026-08-11 | PROMOTED → CLAUDE.md:117 — **enforcement gap, not a missing rule**. No mechanical guard: deliberate, 2026-08-11 audit. Do not increment further — split A–E first. See [sibling-group audit](topics/tracker-archive.md#sibling-group-audit-2026-08-11). |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |

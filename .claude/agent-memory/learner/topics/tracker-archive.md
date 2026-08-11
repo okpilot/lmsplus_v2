@@ -670,3 +670,53 @@ VFR RT content import script (`apps/web/scripts/import-vfr-rt-content.ts`) had n
 | §10 GRANT/REVOKE chain tracing stopped at function body (reachability claim proved wrong by a revoked grant) | 1 | 2026-08-10 | WATCHING (row 541). eb091c91 (PR #1174, 2026-08-10): `students_update_sessions` RLS policy was commented as "prevents a live breakage"; mig `20260605000001` revoked `ended_at` from the `authenticated` role's UPDATE grant, so any `UPDATE SET ended_at = ...` from `authenticated` fails `42501` before RLS is even reached. §10 already requires tracing the GRANT/REVOKE chain alongside the policy chain — the violation was the comment author stopping at the function/policy body without following the grant-level analysis to completion. An enforcement gap (§10 is clear; the trace was incomplete), not a rule gap. On 2nd occurrence (a §10 comment on a write-side guard is disproved by tracing a GRANT/REVOKE that makes the guard unreachable): add an explicit GRANT/REVOKE trace example to §10 to make the obligation concrete: "Before writing `prevents a live breakage` or equivalent on a write-guard, verify that the relevant GRANT to the acting role has not been subsequently revoked by a later migration — a revoked grant makes the guard unreachable and its protection claim false." |
 
 | Rule/skill asserts "effectively absolute" while cited section documents the exception class | 1 | 2026-08-10 | WATCHING (row 542). eb091c91 (PR #1174, 2026-08-10): `supabase-rls.md` claimed the soft-delete filter is "effectively absolute" inside SECURITY DEFINER functions, while the sentence cited `docs/security.md §15` — the section whose entire purpose is to enumerate ~10 shipped RPCs that legitimately omit it. The cited source directly documents the exception class the claim erases. On 2nd occurrence (a different rule or skill file asserts something is "effectively absolute" or "always required" while the source it cites contains a documented exception class): propose a doc-author check — "Before writing an absolute (`always`, `never`, `effectively absolute`), search the cited source for the words `exception`, `exempt`, `unless`, `narrow case` — if the source documents exceptions, the absolute claim is false on its face." |
+
+## Sibling-group audit 2026-08-11
+
+Row "Partial fix applied to sibling file group" reached count 19 while still labelled RULE
+CANDIDATE, despite the rule having been promoted to `CLAUDE.md:117` (Critical rules). Audited
+the instances to decide whether a mechanical guard was warranted. **It is not.** Recording the
+decision so it is not re-derived.
+
+**The row is a catch-all** — the 19 share a narrative ("fixed one place, an identical-shaped
+other place existed") but not a mechanism:
+
+| Cat | Mechanism | N | Mechanically detectable |
+|---|---|---|---|
+| A | Same-file duplicated token/literal still present after the edit | 4 | Yes — diff-scoped, file-local |
+| B | Same-file branch/helper-family parity (an absent `if` block, not a token) | 3 | No |
+| C | Cross-file sibling family (seeds, query files, hooks, `ensure*User`, admin/student paths) | 9 | No — sibling set is semantic |
+| D | Markdown/agent-def surface-set sweep | 2 | Partially, low value |
+| E | Test-block / spec parity | 2 | No |
+
+58–68% is irreducibly semantic. No sub-case reaches 25%.
+
+**Why no guard.** This repo's bar for a `.claude/hooks/*.mjs` check is a single authoritative
+comparand plus near-zero FP or explicit diff-scoping + grandfathering:
+`check-soft-delete-guard.mjs` compares against columns parsed from the generated
+`packages/db/src/types.ts`; `check-test-title-leakage.mjs` compares against the written
+code-style.md §7 list and is diff-scoped + grandfathered. Categories B, C and E have no such
+comparand — the sibling set is defined by meaning and differs per instance, as does the shared
+element (a filter clause, a header, a stdin cap, a lookup key). Only category A clears the bar
+(a diff-scoped "removed token still occurs elsewhere in this file" warning), and at ~21% yield
+it was judged not worth a hook on its own. A `{ error }`-destructure guard was considered and
+rejected: it covers 1–2 of 20, and `apps/web/scripts` + `apps/web/e2e` carry ~58 pre-existing
+undestructured sites needing grandfathering — dirs the soft-delete guard already excludes.
+
+**The concept is fragmented.** At least 5 other rows describe sub-cases under different names,
+including semantic-reviewer's "Validator-family parity gap" at count 7 (= category C renamed)
+and the `commands/*.md` mirror row at count 2. True frequency exceeds 19 and is spread across
+two agents' trackers, so the single number 19 understates the class while overstating its
+coherence.
+
+**Next learner run:** split the row into A–E and merge C with the semantic-reviewer row instead
+of incrementing. Bookkeeping rot to repair while doing so — instances 6–10 and 17–18 have no
+archive narrative (recoverable only from `git log` on MEMORY.md), and #16 is double-booked
+(`c38cfeae` recorded 14→16 while the CR-rounds narrative claims 14→15).
+
+Session instances: `1abdb50d` `ensureBank` missing the `FORCE_REMOTE` branch its same-file
+siblings had = category B (a file-local check would NOT have caught it; Opus impl-critic did).
+`26539dec` `insertIfMissing` missing `{ error }` = the file-local destructure sub-case, never
+counted separately. `7bbcadd3` missing the `tasks.md` restatement of a decision recorded in
+`design.md` + source = category D, found by impl-critic inside the commit written to stop that
+very re-litigation.
