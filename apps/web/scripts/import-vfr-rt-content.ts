@@ -153,22 +153,52 @@ async function resolveAdminId(orgId: string): Promise<string> {
   return adminId
 }
 
-async function ensureBank(orgId: string, adminId: string): Promise<string> {
-  const { data: existing } = await db
+async function ensureBank(orgId: string, adminId: string): Promise<{ id: string; name: string }> {
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has REGARDLESS OF NAME. Filtering on name here would miss an existing bank
+  // named differently (prod's org holds "EASA PPL(A) QDB") and fall through to an INSERT
+  // that hits the UNIQUE(organization_id) constraint with a 23505. A soft-deleted bank is
+  // restored, since that UNIQUE covers deleted rows too. BANK_NAME applies on first insert
+  // only. Local bootstraps (restore/create) as seed-vfr-rt-training-eval.ts:317 does;
+  // --force-remote is lookup-or-throw, like the two resolvers above.
+  const { data: existing, error: lookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, name, deleted_at')
     .eq('organization_id', orgId)
-    .eq('name', BANK_NAME)
-    .is('deleted_at', null)
     .maybeSingle()
-  if (existing) return existing.id
+  if (lookupErr) throw new Error(`Bank lookup: ${lookupErr.message}`)
+  if (existing) {
+    if (existing.deleted_at !== null) {
+      // Remote is lookup-only, matching resolveOrgId/resolveAdminId above: a soft-deleted
+      // prod bank can only be the result of a deliberate manual act, so the operator
+      // decides whether to revive it (same stance as import-questions.ts:147).
+      if (FORCE_REMOTE) {
+        throw new Error(
+          `Org bank "${existing.name}" (${existing.id}) is soft-deleted — restore it manually before importing.`,
+        )
+      }
+      const { data: restored, error: restoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existing.id)
+        .select('id')
+      if (restoreErr) throw new Error(`Bank restore: ${restoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
+    return { id: existing.id, name: existing.name }
+  }
+  if (FORCE_REMOTE) {
+    throw new Error(
+      `No question bank for org ${orgId} on remote — create it deliberately before importing.`,
+    )
+  }
   const { data, error } = await db
     .from('question_banks')
     .insert({ organization_id: orgId, name: BANK_NAME, created_by: adminId })
-    .select('id')
+    .select('id, name')
     .single()
   if (error || !data) throw new Error(`Bank: ${error?.message}`)
-  return data.id
+  return { id: data.id, name: data.name }
 }
 
 async function lookupByCode(table: string, code: string): Promise<string> {
@@ -225,13 +255,14 @@ function buildRow(
 }
 
 async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
-  const { data: existing } = await db
+  const { data: existing, error: existingErr } = await db
     .from('questions')
     .select('id')
     .eq('bank_id', bankId)
     .eq('question_number', row.question_number)
     .is('deleted_at', null)
     .limit(1)
+  if (existingErr) throw new Error(`Question ${row.question_number} lookup: ${existingErr.message}`)
   if (existing && existing.length > 0) return false
   const { error } = await db.from('questions').insert(row)
   if (error) throw new Error(`Question ${row.question_number}: ${error.message}`)
@@ -246,11 +277,11 @@ async function main(): Promise<void> {
 
   const orgId = await resolveOrgId()
   const adminId = await resolveAdminId(orgId)
-  const bankId = await ensureBank(orgId, adminId)
+  const bank = await ensureBank(orgId, adminId)
 
   const base = {
     organization_id: orgId,
-    bank_id: bankId,
+    bank_id: bank.id,
     explanation_text: 'See standard ICAO/EASA VFR radiotelephony phraseology.',
     difficulty: 'medium' as const,
     status: 'active' as const,
@@ -269,7 +300,7 @@ async function main(): Promise<void> {
     let inserted = 0
     for (const q of file.questions) {
       const added = await insertIfMissing(
-        bankId,
+        bank.id,
         buildRow(file, q, { ...base, subject_id: subjectId }, topicId),
       )
       if (added) inserted++
@@ -284,7 +315,7 @@ async function main(): Promise<void> {
   console.log('\nVFR RT content import complete.')
   console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
   console.log(`  Org:      ${ORG_NAME} (${orgId})`)
-  console.log(`  Bank:     ${BANK_NAME} (${bankId})`)
+  console.log(`  Bank:     ${bank.name} (${bank.id})`)
   console.log(`  Inserted: ${totalInserted}   Skipped (already present): ${totalSkipped}`)
   if (!FORCE_REMOTE) {
     console.log(
