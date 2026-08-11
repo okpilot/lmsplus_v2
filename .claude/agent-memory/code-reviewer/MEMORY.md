@@ -35,7 +35,7 @@
 - **`null as unknown as T` in integration tests** is a permitted null-injection pattern (not a §5 violation — that rule targets `req.body`, `formData`, `JSON.parse()` in prod code).
 - **`unknown`-typed wire-shape + `typeof` runtime guards** (study-queries.ts, 14a8b9c5): the correct §5 cast-guard pattern for nullable `RETURNS TABLE` fields. Acknowledge, don't re-litigate.
 - **code-reviewer scope is style/structure only.** Logic, security, RLS belong to semantic-reviewer.
-- **Bash hook files in `.claude/hooks/`** are infrastructure — file-size limits do not apply.
+- **Hook files in `.claude/hooks/`** and **operational scripts in `apps/web/scripts/`** are infrastructure — file-size limits and style rules (function length, nesting, missing tests) do not apply. Neither ships in the application bundle; `apps/web/scripts` is named in `apps/web/tsconfig.json`'s `exclude` array, and the `.mjs` hooks sit outside any TS project. Matches suppression #8 in `agent-code-reviewer.md`.
 - **Agent prompt / parser contract drift** is a WARNING — verify the agent prompt emits the token format the hook's verdict parser expects.
 - **`Readonly<Props>` rule** (code-style.md §5+§8, WARNING). `Readonly<Readonly<...>>` double-wrap is harmless — WARNING not BLOCKING. Shadcn wrapper annotation expansion worsens line counts by 2-4L per component; note as pre-existing, split work is separate.
 

@@ -201,9 +201,30 @@ async function ensureBank(orgId: string, adminId: string): Promise<{ id: string;
   return { id: data.id, name: data.name }
 }
 
-async function lookupByCode(table: string, code: string): Promise<string> {
-  const { data, error } = await db.from(table).select('id').eq('code', code).single()
-  if (error || !data) throw new Error(`${table} code='${code}': ${error?.message ?? 'not found'}`)
+async function lookupSubjectByCode(code: string): Promise<string> {
+  // easa_subjects.code is globally UNIQUE (mig 20260311000001), so a bare code is exact.
+  const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
+  if (error || !data)
+    throw new Error(`easa_subjects code='${code}': ${error?.message ?? 'not found'}`)
+  return data.id
+}
+
+async function lookupTopicByCode(subjectId: string, code: string): Promise<string> {
+  // easa_topics is UNIQUE (subject_id, code) — NOT unique on code alone — so the lookup
+  // must be subject-scoped or it can resolve another subject's identically-coded topic.
+  // Same shape as import-questions.ts:234. A wrong topic_id inserts cleanly (subject_id and
+  // topic_id are independent FKs with no cross-consistency CHECK) and the row is then
+  // invisible to every sampler, since all of them pin subject AND topic.
+  const { data, error } = await db
+    .from('easa_topics')
+    .select('id')
+    .eq('subject_id', subjectId)
+    .eq('code', code)
+    .single()
+  if (error || !data)
+    throw new Error(
+      `easa_topics code='${code}' under subject ${subjectId}: ${error?.message ?? 'not found'}`,
+    )
   return data.id
 }
 
@@ -275,6 +296,35 @@ async function main(): Promise<void> {
   const files = process.argv.slice(2).filter((a) => !a.startsWith('--'))
   const targets = files.length > 0 ? files : ['scripts/content/vfr-rt-part1-acronyms.json']
 
+  // Parse + validate EVERY file before touching the DB, so a malformed item aborts the run
+  // instead of half-importing. `num` is the idempotency key: it must be a non-empty string
+  // and unique across ALL loaded files. A missing/non-string `num` would otherwise reach the
+  // INSERT as question_number NULL, which idx_questions_bank_number
+  // (UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL)
+  // exempts — so the row would silently re-insert a duplicate on every re-run.
+  const parsed = targets.map((rel) => {
+    const file = JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf8')) as ContentFile
+    if (!Array.isArray(file.questions) || file.questions.length === 0) {
+      throw new Error(`${rel}: 'questions' must be a non-empty array`)
+    }
+    return { rel, file }
+  })
+
+  const seenNums = new Map<string, string>()
+  for (const { rel, file } of parsed) {
+    for (const [i, q] of file.questions.entries()) {
+      if (typeof q.num !== 'string' || q.num.trim() === '') {
+        throw new Error(
+          `${rel}[${i}]: 'num' must be a non-empty string (got ${JSON.stringify(q.num)})`,
+        )
+      }
+      const prior = seenNums.get(q.num)
+      if (prior)
+        throw new Error(`Duplicate num '${q.num}' in ${rel} — already declared in ${prior}`)
+      seenNums.set(q.num, rel)
+    }
+  }
+
   const orgId = await resolveOrgId()
   const adminId = await resolveAdminId(orgId)
   const bank = await ensureBank(orgId, adminId)
@@ -291,11 +341,9 @@ async function main(): Promise<void> {
   let totalInserted = 0
   let totalSkipped = 0
 
-  for (const rel of targets) {
-    const path = resolve(process.cwd(), rel)
-    const file = JSON.parse(readFileSync(path, 'utf8')) as ContentFile
-    const subjectId = await lookupByCode('easa_subjects', file.subject_code)
-    const topicId = await lookupByCode('easa_topics', file.topic_code)
+  for (const { rel, file } of parsed) {
+    const subjectId = await lookupSubjectByCode(file.subject_code)
+    const topicId = await lookupTopicByCode(subjectId, file.topic_code)
 
     let inserted = 0
     for (const q of file.questions) {
