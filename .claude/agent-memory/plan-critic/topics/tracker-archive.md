@@ -24,3 +24,28 @@
 | Migration/fix plans that change which columns are writable on a table (e.g. GRANT-layer column restriction) must update docs/database.md's column-immutability table AND any red-team spec JSDoc headers that document the "mutable columns remain" invariant. #611 plan missed both: database.md line 44 lists `correct_count, score_percentage, passed` as mutable for authenticated; quiz-session-config-injection.spec.ts lines 16-17 say same. After REVOKE + column GRANT, only `deleted_at` is authenticated-writable. Both files must be in "Files to change". | 2026-06-05 | 1 | 2026-06-05 | WATCHING |
 | RLS policy fix plans that add ec.deleted_at IS NULL to a child table's policy (exam_config_distributions) miss the docs/database.md soft-delete matrix row for that child table. The matrix row must note that parent's deleted_at now also propagates via RLS. plan must list docs/database.md in "Files affected" whenever a policy adds a parent soft-delete filter. | 2026-06-01 | 1 | 2026-06-01 | WATCHING |
 | audit-metadata key-rename plans: `wc -l` returns (N-1) for an N-line file if no trailing newline on last line, or N if final newline present. 078 `wc -l = 299` but file contains 300 lines (GRANT on L300 with trailing newline). Plans must say "300-line file ≤ 300-line limit," not "299 lines ≤ limit" — the distinction matters only at the boundary but is confusing. Positive signal: plan correctly traced full migration chain, verified byte-identity mirror, verified zero TS readers of old keys, and confirmed disambiguating `reason` key already in `complete_empty_exam_session` metadata — doc-only #571 is sound. | 2026-06-01 | 1 | 2026-06-01 | WATCHING |
+
+## Relocated tracker rows (cold count=1, last seen <= 2026-06-13)
+
+Moved out of `MEMORY.md` on 2026-08-11 to stay under the 25 KB injection budget.
+Rows are preserved VERBATIM — none deleted. Re-promote a row back into the tracker
+if its pattern recurs.
+
+| Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
+|---|---|---|---|---|
+| get_student_streak returns one {0,0} row for anon/cross-org — generic error/length assertions fail. ([details](topics/misc-plan-review-lessons.md)). | 2026-05-31 | 1 | 2026-05-31 | WATCHING |
+| Vector-label collision sweeps must grep ALL red-team spec files, not just the two being renamed. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
+| Sibling-function inline-role-subquery audit must enumerate ALL siblings with the pattern. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
+| Column-GRANT plans on `users` must verify writable columns from CREATE TABLE — only full_name is authenticated-writable. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
+| FK-into-global-table audit: "X is the only FK into Y" must grep ALL migrations for REFERENCES Y. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
+| Spec-count doc updates must grep the FULL steering doc for every occurrence of the number. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-06 | 1 | 2026-06-06 | WATCHING |
+| Red-team RAISE-string assertions must read the exact string in the LATEST def of EACH RPC. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-07 | 1 | 2026-06-07 | WATCHING |
+| #781 cookie-rewrite for @supabase/ssr refresh is sound; config.toml jwt_expiry fallback has CI-wide blast radius. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-07 | 1 | 2026-06-07 | WATCHING |
+| E2E un-skip for AlertDialogAction with isPending text-flip — plan's assumptions were correct. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
+| Red-team spec-split plans must read the test BODY before labeling it "probe-only/no cleanup". ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
+| Spec-split plans updating the Spec-File column must confirm the Vector ID's description matches the test. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
+| File-split plans marking an extraction "possibly" needed must verify it is the ONLY path under the line ceiling. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-09 | 1 | 2026-06-09 | WATCHING |
+| Idempotent-resume RPC race-handlers must re-read+return the existing row, not mirror a raise-only sibling. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-10 | 1 | 2026-06-10 | WATCHING |
+| docs/plan.md separates current-state counts from historical Phase-delivery records (never edit the latter). ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-11 | 1 | 2026-06-11 | WATCHING |
+| Red-team probe-only→seeding conversions must update the file header comment + add afterAll cleanup. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-13 | 1 | 2026-06-13 | WATCHING |
+

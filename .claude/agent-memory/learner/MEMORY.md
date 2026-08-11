@@ -74,7 +74,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Semantic-reviewer FP: recalled-but-unverified runtime behavior (tests disprove) | 1 | 2026-07-11 | WATCHING (archive row 493) |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep (latest definition missed) | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
 | CR-local re-raises adjudicated skip verdicts in later rounds of the same session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| Reviewer-proposed fix introduces a new defect (reviewer fixes need same scrutiny as original code) | 2 | 2026-08-09 | RULE CANDIDATE. |
+| Reviewer-proposed fix introduces a new defect (reviewer fixes need same scrutiny as original code) | 3 | 2026-08-11 | RULE CANDIDATE (3) → agent-coderabbit-local.md pitfall list or agent-workflow.md § Finding Validation. |
 | CR-local catches shell/hook robustness gaps TypeScript-focused agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 | Parallel implementer diverges from sibling-established extraction pattern in same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
 | Plan validated against stale master; post-rebase reveals deleted file (plan item removed) | 1 | 2026-07-12 | WATCHING (archive row 505) |
@@ -118,6 +118,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | §10 GRANT/REVOKE chain tracing stopped at function body (reachability claim proved wrong) | 1 | 2026-08-10 | WATCHING (archive row 541) |
 | Rule/skill asserts "effectively absolute" while cited section documents the exception class | 1 | 2026-08-10 | WATCHING (archive row 542) |
 | Prod-capable script copies behavioral semantics from local-only seed, inheriting local-context assumptions | 1 | 2026-08-11 | WATCHING (archive row 539) |
+| CR/reviewer suggestion adopted verbatim without checking established codebase idiom (style drift, non-defective) | 1 | 2026-08-11 | WATCHING (archive row 543) |
+| Sibling-scope sweep keyed on RPC/function-name rather than code structure — misses same-structure call sites with a different RPC | 1 | 2026-08-11 | WATCHING (archive row 544) |
+| Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
+| Proposed verification command silently verifies nothing — tsc --noEmit with positional file paths bypasses tsconfig entirely | 1 | 2026-08-11 | WATCHING (archive row 546) |
 
 ## Durable knowledge (cross-agent)
 
