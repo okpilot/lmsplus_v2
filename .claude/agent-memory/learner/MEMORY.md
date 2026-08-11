@@ -10,7 +10,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. |
-| Partial fix applied to sibling file group (cross-cutting concern) | 18 | 2026-08-10 | RULE CANDIDATE (active). |
+| Partial fix applied to sibling file group — **CATCH-ALL: the count is 5 unrelated mechanisms, not one** | 19 | 2026-08-11 | PROMOTED → CLAUDE.md:117 — **enforcement gap, not a missing rule**. No mechanical guard: deliberate, 2026-08-11 audit. Do not increment further — split A–E first. See [sibling-group audit](topics/tracker-archive.md#sibling-group-audit-2026-08-11). |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |
@@ -61,69 +61,74 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | docs/database.md "Last updated" footer changelog entry stale when database.md content changes | 2 | 2026-06-26 | RULE CANDIDATE. |
 | Rename/move leaves stale string references in source/test file inline comments | 2 | 2026-07-02 | RULE CANDIDATE. |
 | Missing route entry in docs/plan.md route-structure tree after new route added | 2 | 2026-07-08 | RULE CANDIDATE → agent-doc-updater.md. |
-| Merging a branch with a new global DB invariant silently breaks existing integration tests that lack beforeEach state-clearing | 1 | 2026-06-30 | WATCHING (archive row 474) |
+| New global DB invariant breaks integration tests missing beforeEach state-clearing (on merge) | 1 | 2026-06-30 | WATCHING (archive row 474) |
 | Spec tasks.md task-number sweep incomplete after merging master into feature branch | 1 | 2026-07-01 | WATCHING (archive row 475) |
 | Plan-critic catches `_`-as-LIKE-wildcard in E2E marker constants (accepted as-is) | 1 | 2026-07-02 | WATCHING (archive row 477) |
-| Assertions placed before result-capture inside try/finally block (failure skips result assignment) | 1 | 2026-07-02 | WATCHING (archive row 480) |
-| Manual-eval-driven UI redesign grows a component file over the size cap outside the original plan | 1 | 2026-07-02 | WATCHING (archive row 481) |
-| Cloud CR stale-review false positive on updated PR HEAD (re-raises already-handled findings) | 1 | 2026-07-02 | WATCHING (archive row 483) |
-| Plan-critic dependency-graph omission when splitting a file (import order not listed in plan) | 1 | 2026-07-02 | WATCHING (archive row 484) |
-| Dynamic URL query-param interpolated into redirect URL without encodeURIComponent (URL-injection) | 1 | 2026-07-10 | WATCHING (archive row 489) |
-| Hook/hook-wiring changed or added without live-probe runtime verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
+| Assertions before result-capture in try/finally (failure skips assignment) | 1 | 2026-07-02 | WATCHING (archive row 480) |
+| Manual-eval UI redesign grows component over size cap outside plan | 1 | 2026-07-02 | WATCHING (archive row 481) |
+| Cloud CR stale-review FP on updated PR HEAD (re-raises already-handled findings) | 1 | 2026-07-02 | WATCHING (archive row 483) |
+| Plan-critic omits import dependency order when splitting a file | 1 | 2026-07-02 | WATCHING (archive row 484) |
+| Dynamic URL param in redirect without encodeURIComponent (URL-injection) | 1 | 2026-07-10 | WATCHING (archive row 489) |
+| Hook wiring added without live-probe verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
 | Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
-| Semantic-reviewer FP from recalled-not-verified runtime behavior when tests exist to run | 1 | 2026-07-11 | WATCHING (archive row 493) |
-| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep when finding latest function definition | 2 | 2026-08-09 | RULE CANDIDATE (2) → propose agent-workflow.md § Delegation Protocol (archive row 495). |
-| CR-local re-raises already-adjudicated skip verdicts in later rounds of the same local loop session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| Reviewer-proposed fix introduces a new defect caught by a subsequent reviewer (reviewer fixes need the same scrutiny as original code) | 2 | 2026-08-09 | RULE CANDIDATE. |
-| CR-local systematically catches shell/hook robustness gaps that TypeScript-focused internal agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
-| Parallel implementer in batch dispatch diverges from extraction pattern the sibling implementers establish in the same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
-| Plan validation completed against stale master; post-approval rebase reveals a deleted file (plan item removed as deviation) | 1 | 2026-07-12 | WATCHING (archive row 505) |
-| Test assertions dropped during extraction-fixup refactor, leaving coverage gaps caught by semantic-reviewer | 1 | 2026-07-12 | WATCHING (archive row 506) |
-| Internal Opus critics accepted a forward-looking error-path gap; external CR independently required the fix | 1 | 2026-07-13 | WATCHING (archive row 508) |
-| Security-path trigger floor derived from semantic intent instead of mechanical diff-file glob | 1 | 2026-07-23 | WATCHING (archive row 500) |
-| Dependency advisory evaluated against branch HEAD instead of merge base (fix looks redundant at HEAD) | 1 | 2026-07-23 | WATCHING (archive row 501) |
-| impl-critic false assurance on dep-bump infrastructure side effects (claims "no lockfile regen required") | 1 | 2026-07-23 | WATCHING (archive row 502) |
-| Orchestrator asserts CVE applicability without verifying structural preconditions vs repo config | 1 | 2026-07-23 | WATCHING (archive row 503) |
-| Reassuring idempotency/safety comment masking a real side effect, propagated verbatim across sibling helpers | 1 | 2026-07-31 | WATCHING (archive row 504) |
-| Playwright setup project execution ordering assumed rather than declared (`dependencies:` undeclared → scheduling race) | 1 | 2026-07-31 | WATCHING (archive row 505) |
-| Cycle output (commit message / drive-by comment fix) introduces documentation inaccuracy caught by semantic-reviewer | 1 | 2026-07-31 | WATCHING (archive row 506) |
-| Behavior fix ships with a regression test that can't detect the fix's own reversion (test passes identically on old and new code) | 1 | 2026-08-07 | WATCHING (archive row 511) |
-| Fake-timer test that times out leaks fake-timer mode into later tests in the file (`finally` doesn't run on timeout) | 1 | 2026-08-07 | WATCHING (archive row 513) |
-| Semantic-reviewer asserts a code path is unreachable without grepping for the triggering caller (reachability FP) | 1 | 2026-08-07 | WATCHING (archive row 514) |
-| Dep-bump type error cascades into N unrelated CI suite failures (suites abort at shared build step, never test their own subject) | 1 | 2026-08-07 | WATCHING (archive row 515) |
-| Verification gate's severity threshold makes it blind to sub-threshold advisories, so a removal justified by "gate is clean" is under-verified | 1 | 2026-08-08 | WATCHING (archive row 516) |
-| Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → propose code-style.md §7 (archive row 517). |
-| Test-file split duplicates unused shared-scaffolding fixture into the destination file (Biome `noUnusedVariables` ERROR, no `--unsafe` fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
-| A promoted rule's inline count-label parenthetical desyncs from its own same-commit enumerated precedent list | 1 | 2026-08-08 | WATCHING (archive row 519) |
-| Self-referential commit SHAs in branch memory/run-log files re-orphaned on each forced rebase (repair commit required per rebase cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
-| CR fabricates repo-history claims (asserts commit SHA / PR / issue does not exist when it does) — distinct from pitfall #8 code-construct class | 1 | 2026-08-08 | WATCHING (archive row 521) |
-| Multi-row tracker state transition leaves one sibling archive row's leading STATUS token at RULE CANDIDATE while body says PROMOTED | 1 | 2026-08-08 | WATCHING (archive row 522) |
-| Orchestrator asserts unverified schema/codebase identifier (column name, metric, RPC count) in rules or doc prose without verifying against current code | 2 | 2026-08-10 | RULE CANDIDATE (2) → extend agent-doc-updater.md "cite migration/source" NEVER bullet to cover column names cited in rule/skill file examples. |
-| Playwright `getByRole('dialog')` used on an AlertDialog that renders `role="alertdialog"` — strict role match → locator never resolves → deterministic CI failure | 1 | 2026-08-09 | WATCHING (archive row 524) |
-| Integration test uses a real reference-entity code in an `onConflict` upsert, silently overwriting shared seed row's other fields; missing `cleanupReferenceData` despite 20/21 siblings calling it | 1 | 2026-08-09 | WATCHING (archive row 525) |
-| `check-test-title-leakage.mjs` does not detect bare snake_case column-name leakage in test titles (hook keys on forwards/from/maps/matches — not bare column names) | 1 | 2026-08-09 | WATCHING (archive row 526) |
-| `as T` cast on dynamic array access in a test file without a runtime guard — code-style.md §5 cast-guard explicitly not relaxed in tests | 1 | 2026-08-09 | WATCHING (archive row 527) |
-| `afterEach`/`afterAll` teardown runs with undefined fixture ids when `beforeEach` fails partway through setup | 1 | 2026-08-09 | WATCHING (archive row 528) |
-| Stray nested `.git` in workspace sub-directory (`apps/web/.git`) causes Turbopack to misidentify workspace root — breaks local dev/build, CI unaffected | 1 | 2026-08-09 | WATCHING (archive row 529) |
-| `fix-local-grants.sql` workaround re-grants blanket DML contradicting what later migrations explicitly revoke; live local DB grants diverge from migration history | 1 | 2026-08-09 | WATCHING (archive row 530) |
+| Semantic-reviewer FP: recalled-but-unverified runtime behavior (tests disprove) | 1 | 2026-07-11 | WATCHING (archive row 493) |
+| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep (latest definition missed) | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
+| CR-local re-raises adjudicated skip verdicts in later rounds of the same session | 1 | 2026-07-11 | WATCHING (archive row 496) |
+| Reviewer-proposed fix introduces a new defect (reviewer fixes need same scrutiny as original code) | 3 | 2026-08-11 | RULE CANDIDATE (3) → agent-coderabbit-local.md pitfall list or agent-workflow.md § Finding Validation. |
+| CR-local catches shell/hook robustness gaps TypeScript-focused agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
+| Parallel implementer diverges from sibling-established extraction pattern in same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
+| Plan validated against stale master; post-rebase reveals deleted file (plan item removed) | 1 | 2026-07-12 | WATCHING (archive row 505) |
+| Test assertions dropped during extraction refactor (coverage gap caught by semantic-reviewer) | 1 | 2026-07-12 | WATCHING (archive row 506) |
+| Internal Opus critics accepted error-path gap; external CR required the fix | 1 | 2026-07-13 | WATCHING (archive row 508) |
+| Security-path trigger floor derived from intent not mechanical glob | 1 | 2026-07-23 | WATCHING (archive row 500) |
+| Dep advisory evaluated at branch HEAD not merge base (fix looks redundant) | 1 | 2026-07-23 | WATCHING (archive row 501) |
+| impl-critic false assurance on dep-bump side effects ("no lockfile regen required") | 1 | 2026-07-23 | WATCHING (archive row 502) |
+| Orchestrator asserts CVE applicability without verifying preconditions vs repo config | 1 | 2026-07-23 | WATCHING (archive row 503) |
+| Idempotency/safety comment masks a real side effect, propagated to sibling helpers | 1 | 2026-07-31 | WATCHING (archive row 504) |
+| Playwright setup project ordering assumed not declared (undeclared dependencies → race) | 1 | 2026-07-31 | WATCHING (archive row 505) |
+| Cycle commit message or drive-by comment introduces inaccuracy (caught by semantic-reviewer) | 1 | 2026-07-31 | WATCHING (archive row 506) |
+| Regression test can't detect fix's own reversion (passes on old and new code) | 1 | 2026-08-07 | WATCHING (archive row 511) |
+| Fake-timer test timeout leaks timer mode into later tests (finally skipped) | 1 | 2026-08-07 | WATCHING (archive row 513) |
+| Semantic-reviewer asserts unreachable code path without grepping for callers (FP) | 1 | 2026-08-07 | WATCHING (archive row 514) |
+| Dep-bump type error cascades into N CI suite failures (shared build step aborts) | 1 | 2026-08-07 | WATCHING (archive row 515) |
+| Severity-gated verification misses sub-threshold advisories (gate-clean ≠ safe to remove) | 1 | 2026-08-08 | WATCHING (archive row 516) |
+| Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 (archive row 517). |
+| Test-file split duplicates unused fixture (Biome noUnusedVariables ERROR, no --unsafe fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
+| Rule promotion commit desyncs own count-label parenthetical from its evidence list | 1 | 2026-08-08 | WATCHING (archive row 519) |
+| Branch memory/run-log SHAs orphaned on each forced rebase (repair commit per cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
+| CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") — distinct from pitfall #8 | 1 | 2026-08-08 | WATCHING (archive row 521) |
+| Multi-row tracker transition leaves sibling archive row STATUS token mismatched | 1 | 2026-08-08 | WATCHING (archive row 522) |
+| Orchestrator embeds unverified schema identifier (column/RPC count) in rule/doc prose | 2 | 2026-08-10 | RULE CANDIDATE (2) → agent-doc-updater.md cite-before-writing NEVER bullet (column names). |
+| Playwright getByRole('dialog') on AlertDialog (renders alertdialog) → zero matches | 1 | 2026-08-09 | WATCHING (archive row 524) |
+| Integration test uses real prod code in onConflict upsert, corrupts shared seed; missing cleanupReferenceData | 1 | 2026-08-09 | WATCHING (archive row 525) |
+| check-test-title-leakage.mjs misses bare snake_case column names in test titles | 1 | 2026-08-09 | WATCHING (archive row 526) |
+| as T cast on dynamic array access in test without runtime guard (§5 not relaxed in tests) | 1 | 2026-08-09 | WATCHING (archive row 527) |
+| afterEach teardown uses undefined fixture ids when beforeEach fails partway | 1 | 2026-08-09 | WATCHING (archive row 528) |
+| Stray apps/web/.git causes Turbopack to misidentify workspace root (local dev broken, CI clean) | 1 | 2026-08-09 | WATCHING (archive row 529) |
+| fix-local-grants.sql re-grants blanket DML contradicting migrations; local grants diverge | 1 | 2026-08-09 | WATCHING (archive row 530) |
 | Status/error-posture change leaves a sibling spec asserting the OLD value | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation (archive row 531). |
-| Orchestrator acts on a semantic-reviewer ISSUE without Finding Validation; premise falsified by impl-critic | 1 | 2026-08-09 | WATCHING (archive row 532) |
-| Shared `buildChain` mock Proxy absorbs any chain call — new guard ships with zero test coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
-| Enumeration of sibling files/helpers by name or path (inline comments, rule tables, or doc lists) goes stale as the set grows | 2 | 2026-08-10 | RULE CANDIDATE (2) — fix applied in eb091c91 (CLASS row + "grep is first pass" in agent-workflow.md); no additional rule needed beyond what landed. |
-| Internal post-commit gates miss an already-promoted §7 rule violation on a NEW site; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
-| Local DB queried as positive evidence when local grant-drift is additive (fix-local-grants.sql re-grants broadly; local presence ≠ migration truth) | 1 | 2026-08-09 | WATCHING (archive row 536) |
-| Internal subagent confabulates repo-artifact identifier (wrong issue association, wrong matrix row range) | 1 | 2026-08-09 | WATCHING (archive row 537) |
-| Agent appends session-log entry to memory file when task scope is REVIEW ONLY (task constraint overridden by memory-writing habit) | 1 | 2026-08-09 | WATCHING (archive row 538) |
-| Suppression added to advisory reviewer surfaces but missing from the blocking pre-push gate (stakes-inverted application) | 1 | 2026-08-10 | WATCHING — e6101985/eb091c91 (PR #1174): WITH CHECK suppression ("absent clause ≠ finding; too-broad predicate = finding") landed on 4 advisory surfaces, omitted from 3 security-auditor surfaces incl. the blocking pre-push gate. On 2nd: propose rule that blocking gate must carry any suppression FIRST and most completely. |
-| §10 comment-accuracy tracing stopped at function body without following GRANT/REVOKE chain (reachability claim proved wrong by a revoked grant) | 1 | 2026-08-10 | WATCHING — eb091c91: `students_update_sessions` WITH CHECK described as "prevents a live breakage"; mig 20260605000001 revoked `ended_at` from `authenticated` UPDATE grant, so the write fails 42501 before RLS is reached. §10 already requires GRANT/REVOKE tracing — enforcement gap, not rule gap. On 2nd: add an explicit GRANT/REVOKE example to §10. |
-| Rule or skill file asserts "effectively absolute" (or equivalent absolute claim) while the section it cites documents the exception class | 1 | 2026-08-10 | WATCHING — eb091c91: supabase-rls.md claimed soft-delete filter is "effectively absolute" inside SECURITY DEFINER while citing docs/security.md §15 — the section enumerating ~10 shipped RPCs that legitimately omit it. On 2nd: propose doc-author check: before writing an absolute, search the cited source for the word "exception". |
+| Orchestrator acts on ISSUE without Finding Validation; impl-critic falsifies premise | 1 | 2026-08-09 | WATCHING (archive row 532) |
+| buildChain mock Proxy absorbs any chain call — new guard ships with zero coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
+| Inline enumeration of sibling files/helpers goes stale as the set grows | 2 | 2026-08-10 | RULE CANDIDATE (2) — fixed eb091c91; no further rule needed. |
+| Post-commit gates miss new site violating a promoted §7 rule; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
+| Local DB queried for grant evidence when drift is additive (local presence ≠ migration truth) | 1 | 2026-08-09 | WATCHING (archive row 536) |
+| Internal subagent fabricates repo-artifact identifier (wrong issue# or matrix row range) | 1 | 2026-08-09 | WATCHING (archive row 537) |
+| Agent appends session-log to memory in REVIEW ONLY scope (habit overrides task constraint) | 1 | 2026-08-09 | WATCHING (archive row 538) |
+| Suppression on advisory surfaces missing from blocking pre-push gate (stakes-inverted) | 1 | 2026-08-10 | WATCHING (archive row 540) |
+| §10 GRANT/REVOKE chain tracing stopped at function body (reachability claim proved wrong) | 1 | 2026-08-10 | WATCHING (archive row 541) |
+| Rule/skill asserts "effectively absolute" while cited section documents the exception class | 1 | 2026-08-10 | WATCHING (archive row 542) |
+| Prod-capable script copies behavioral semantics from local-only seed, inheriting local-context assumptions | 1 | 2026-08-11 | WATCHING (archive row 539) |
+| CR/reviewer suggestion adopted verbatim without checking established codebase idiom (style drift, non-defective) | 1 | 2026-08-11 | WATCHING (archive row 543) |
+| Sibling-scope sweep keyed on RPC/function-name rather than code structure — misses same-structure call sites with a different RPC | 1 | 2026-08-11 | WATCHING (archive row 544) |
+| Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
+| Proposed verification command silently verifies nothing — tsc --noEmit with positional file paths bypasses tsconfig entirely | 1 | 2026-08-11 | WATCHING (archive row 546) |
 
 ## Durable knowledge (cross-agent)
 
 - This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
 - A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
-- Biggest recurring defect class: **partial fix to a sibling-file group** (tracker count 17) — grep all instances in the same file AND siblings before committing. Scope-out decisions are per-defect, not per-file.
+- Biggest recurring defect class: **partial fix to a sibling-file group** (tracker count 19) — grep all instances in the same file AND siblings before committing. Scope-out decisions are per-defect, not per-file.
 - **Tracker is authoritative over rule-file parenthetical counts** — parentheticals lag; read the tracker.
 - Convergent "not mechanically enforceable" verdicts from two agents = classification signal (text-only rule), not a coderabbit-sync gap.
 - code-style.md §10 now also covers **RLS POLICY** migrations, not only `CREATE OR REPLACE FUNCTION` (verified in implementation-critic/MEMORY.md 3→4, #1167; not re-counted here).

@@ -37,7 +37,7 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
   - _Requirements: R1.1_
 - [x] **1.2 Exclude RT from the quiz subject picker (central)**
   - File: `getSubjectsWithCounts` (the quiz-picker source) — exclude `easa_subjects.code='RT'`; co-located test asserts exclusion.
-  - Note: gates ONLY the picker. Dashboard (`subject-grid.tsx`) + Progress (`subject-breakdown.tsx`) use separate sources — confirm at plan-validation whether RT should appear there.
+  - Note: gates ONLY the picker. Dashboard (`subject-grid.tsx`) + Progress (`subject-breakdown.tsx`) use separate sources, and RT deliberately STAYS VISIBLE there — design.md open item 6, CLOSED 2026-08-11. Do not re-open at plan-validation.
   - _Requirements: R1.3, R1.4_
 - [x] **1.3 `/app/vfr-rt` setup page reusing quiz Study config**
   - File: `apps/web/app/app/vfr-rt/page.tsx` (+ thin client wrapper). Compose `QuizConfigForm`/parts with subject locked = RT, units = the 3 parts (topics), reuse `QuestionCount`, hide subject dropdown. page.tsx ≤ 80 lines, composition only.

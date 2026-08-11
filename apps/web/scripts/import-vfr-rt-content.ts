@@ -153,28 +153,106 @@ async function resolveAdminId(orgId: string): Promise<string> {
   return adminId
 }
 
-async function ensureBank(orgId: string, adminId: string): Promise<string> {
-  const { data: existing } = await db
+async function ensureBank(orgId: string, adminId: string): Promise<{ id: string; name: string }> {
+  // One bank per org (question_banks_organization_id_key) — reuse whatever bank the org
+  // already has REGARDLESS OF NAME. Filtering on name here would miss an existing bank
+  // named differently (prod's org holds "EASA PPL(A) QDB") and fall through to an INSERT
+  // that hits the UNIQUE(organization_id) constraint with a 23505. A soft-deleted bank is
+  // restored, since that UNIQUE covers deleted rows too. BANK_NAME applies on first insert
+  // only. Local bootstraps (restore/create) as seed-vfr-rt-training-eval.ts:317 does;
+  // --force-remote is lookup-or-throw, like the two resolvers above.
+  const { data: existing, error: lookupErr } = await db
     .from('question_banks')
-    .select('id')
+    .select('id, name, deleted_at')
     .eq('organization_id', orgId)
-    .eq('name', BANK_NAME)
-    .is('deleted_at', null)
     .maybeSingle()
-  if (existing) return existing.id
+  if (lookupErr) throw new Error(`Bank lookup: ${lookupErr.message}`)
+  if (existing) {
+    if (existing.deleted_at !== null) {
+      // Remote is lookup-only, matching resolveOrgId/resolveAdminId above: a soft-deleted
+      // prod bank can only be the result of a deliberate manual act, so the operator
+      // decides whether to revive it (same stance as import-questions.ts:147).
+      if (FORCE_REMOTE) {
+        throw new Error(
+          `Org bank "${existing.name}" (${existing.id}) is soft-deleted — restore it manually before importing.`,
+        )
+      }
+      const { data: restored, error: restoreErr } = await db
+        .from('question_banks')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', existing.id)
+        .select('id')
+      if (restoreErr) throw new Error(`Bank restore: ${restoreErr.message}`)
+      if (!restored?.length) throw new Error('Bank restore: no rows updated')
+    }
+    return { id: existing.id, name: existing.name }
+  }
+  if (FORCE_REMOTE) {
+    throw new Error(
+      `No question bank for org ${orgId} on remote — create it deliberately before importing.`,
+    )
+  }
   const { data, error } = await db
     .from('question_banks')
     .insert({ organization_id: orgId, name: BANK_NAME, created_by: adminId })
-    .select('id')
+    .select('id, name')
     .single()
   if (error || !data) throw new Error(`Bank: ${error?.message}`)
+  return { id: data.id, name: data.name }
+}
+
+async function lookupSubjectByCode(code: string): Promise<string> {
+  // easa_subjects.code is globally UNIQUE (mig 20260311000001), so a bare code is exact.
+  const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
+  if (error || !data)
+    throw new Error(`easa_subjects code='${code}': ${error?.message ?? 'not found'}`)
   return data.id
 }
 
-async function lookupByCode(table: string, code: string): Promise<string> {
-  const { data, error } = await db.from(table).select('id').eq('code', code).single()
-  if (error || !data) throw new Error(`${table} code='${code}': ${error?.message ?? 'not found'}`)
+async function lookupTopicByCode(subjectId: string, code: string): Promise<string> {
+  // easa_topics is UNIQUE (subject_id, code) — NOT unique on code alone — so the lookup
+  // must be subject-scoped or it can resolve another subject's identically-coded topic.
+  // Same shape as import-questions.ts:234. A wrong topic_id inserts cleanly (subject_id and
+  // topic_id are independent FKs with no cross-consistency CHECK) and the row is then
+  // invisible to every sampler, since all of them pin subject AND topic.
+  const { data, error } = await db
+    .from('easa_topics')
+    .select('id')
+    .eq('subject_id', subjectId)
+    .eq('code', code)
+    .single()
+  if (error || !data)
+    throw new Error(
+      `easa_topics code='${code}' under subject ${subjectId}: ${error?.message ?? 'not found'}`,
+    )
   return data.id
+}
+
+// ---- content validation --------------------------------------------------------
+
+// questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
+const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
+
+// The types buildRow has a branch for. Widen both together when adding dialog_fill / ordering /
+// diagram_label — the DB accepts all five (questions_question_type_check).
+const SUPPORTED_TYPES = ['short_answer', 'multiple_choice']
+
+/** Assert a content field is a present, non-blank string. `label` names the field for the error. */
+function requireText(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} must be a non-empty string (got ${JSON.stringify(value)})`)
+  }
+}
+
+/**
+ * Assert a parsed-JSON node is a plain object before any field is read off it. Without this,
+ * `questions: [null]` (or a non-object root) crashes with a bare TypeError from the first
+ * property access, instead of naming the file and index like every other content error here.
+ */
+function requireRecord(value: unknown, label: string): asserts value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object (got ${JSON.stringify(value)})`)
+  }
 }
 
 // ---- row building ------------------------------------------------------------
@@ -225,13 +303,14 @@ function buildRow(
 }
 
 async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
-  const { data: existing } = await db
+  const { data: existing, error: existingErr } = await db
     .from('questions')
     .select('id')
     .eq('bank_id', bankId)
     .eq('question_number', row.question_number)
     .is('deleted_at', null)
     .limit(1)
+  if (existingErr) throw new Error(`Question ${row.question_number} lookup: ${existingErr.message}`)
   if (existing && existing.length > 0) return false
   const { error } = await db.from('questions').insert(row)
   if (error) throw new Error(`Question ${row.question_number}: ${error.message}`)
@@ -244,13 +323,148 @@ async function main(): Promise<void> {
   const files = process.argv.slice(2).filter((a) => !a.startsWith('--'))
   const targets = files.length > 0 ? files : ['scripts/content/vfr-rt-part1-acronyms.json']
 
+  // Parse + validate every field this importer writes, across ALL files, BEFORE touching the
+  // DB. Inserts are row-at-a-time and individually committed (no transaction), so a malformed
+  // item found at INSERT time leaves earlier rows already written; validating up front turns
+  // that half-import into a clean abort.
+  //
+  // Keep this in step with buildRow — a field buildRow writes but this loop does not check is
+  // a field that fails mid-run. The full set buildRow reads from content today: file-level
+  // `subject_code`/`topic_code`/`question_type`; per-item `num`, `prompt`, `explanation`;
+  // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`.
+  // Everything else it writes is a literal or comes from `base`. When you add a buildRow
+  // branch (dialog_fill / ordering / diagram_label), extend this loop in the same commit.
+  //
+  // `num` gets the strictest treatment because it is the idempotency key: non-empty string and
+  // unique across ALL loaded files (they share one bank). A missing/non-string `num` would
+  // otherwise reach the INSERT as question_number NULL, which idx_questions_bank_number
+  // (UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL)
+  // exempts — so the row would silently re-insert a duplicate on every re-run.
+  const parsed = targets.map((rel) => {
+    // readFileSync already names the path in its ENOENT message; JSON.parse's SyntaxError does
+    // not, and with several target files the operator cannot tell which one failed.
+    const text = readFileSync(resolve(process.cwd(), rel), 'utf8')
+    let raw: unknown
+    try {
+      raw = JSON.parse(text)
+    } catch (err) {
+      throw new Error(`${rel}: invalid JSON — ${err instanceof Error ? err.message : String(err)}`)
+    }
+    requireRecord(raw, `${rel}: root`)
+    const file = raw as unknown as ContentFile
+    requireText(file.subject_code, `${rel}: 'subject_code'`)
+    requireText(file.topic_code, `${rel}: 'topic_code'`)
+    // Not read by buildRow — it is interpolated into the per-file completion summary, so it is
+    // the one content field outside the buildRow parity contract described below. Unvalidated,
+    // a missing or object-valued title prints `undefined` / `[object Object]` in the summary.
+    requireText(file.title, `${rel}: 'title'`)
+    // buildRow throws on an unsupported type, but only once it reaches that item mid-loop.
+    if (!SUPPORTED_TYPES.includes(file.question_type)) {
+      throw new Error(
+        `${rel}: unsupported question_type ${JSON.stringify(file.question_type)} — this importer handles ${SUPPORTED_TYPES.join('/')}; add a buildRow branch first`,
+      )
+    }
+    if (!Array.isArray(file.questions) || file.questions.length === 0) {
+      throw new Error(`${rel}: 'questions' must be a non-empty array`)
+    }
+    return { rel, file }
+  })
+
+  const seenNums = new Map<string, string>()
+  for (const { rel, file } of parsed) {
+    for (const [i, q] of file.questions.entries()) {
+      const at = `${rel}[${i}]`
+      requireRecord(q, at)
+      requireText(q.num, `${at}: 'num'`)
+      const prior = seenNums.get(q.num)
+      if (prior)
+        throw new Error(`Duplicate num '${q.num}' in ${rel} — already declared in ${prior}`)
+      seenNums.set(q.num, rel)
+
+      requireText(q.prompt, `${at} (${q.num}): 'prompt'`)
+      // Optional on both branches. `buildRow` resolves it with `??`, which only catches
+      // null/undefined — so `explanation: ""` would write an empty explanation_text rather
+      // than falling back to the generic one. Present means non-blank.
+      if (q.explanation !== undefined) {
+        requireText(q.explanation, `${at} (${q.num}): 'explanation'`)
+      }
+      if (file.question_type === 'short_answer') {
+        const sa = q as ShortAnswerItem
+        requireText(sa.canonical, `${at} (${q.num}): 'canonical'`)
+        // Not written directly, but interpolated into the fallback explanation, where a
+        // non-string would render as "[object Object]: <canonical>".
+        if (sa.acronym !== undefined) {
+          requireText(sa.acronym, `${at} (${q.num}): 'acronym'`)
+        }
+        if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
+          throw new Error(`${at} (${q.num}): 'synonyms' must be an array when present`)
+        }
+        // accepted_synonyms is TEXT[], which happily stores a NULL or blank element — it would
+        // just never match anything the grader normalizes, so it fails silently at answer time.
+        for (const [j, synonym] of (sa.synonyms ?? []).entries()) {
+          requireText(synonym, `${at} (${q.num}): synonyms[${j}]`)
+        }
+      } else {
+        const mc = q as McItem
+        if (!Array.isArray(mc.options) || mc.options.length === 0) {
+          throw new Error(`${at} (${q.num}): 'options' must be a non-empty array`)
+        }
+        // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
+        // names an option that actually exists, and trg_sanitize_question_options rewrites each
+        // element to {id,text}, silently emitting nulls for a malformed one. Both would import
+        // clean and render un-answerable, so check the mapping here.
+        if (!MC_OPTION_IDS.includes(mc.correct)) {
+          throw new Error(
+            `${at} (${q.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
+          )
+        }
+        const optionIds = new Set<string>()
+        for (const [j, opt] of mc.options.entries()) {
+          requireText(opt?.id, `${at} (${q.num}): options[${j}].id`)
+          requireText(opt?.text, `${at} (${q.num}): options[${j}].text`)
+          // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
+          if (optionIds.has(opt.id)) {
+            throw new Error(`${at} (${q.num}): duplicate option id '${opt.id}'`)
+          }
+          optionIds.add(opt.id)
+        }
+        if (!mc.options.some((o) => o.id === mc.correct)) {
+          throw new Error(
+            `${at} (${q.num}): 'correct' is '${mc.correct}' but no option carries that id`,
+          )
+        }
+      }
+    }
+  }
+
+  // Resolve EVERY file's subject + topic before inserting anything. Resolving inside the import
+  // loop would surface a bad topic_code in file 2 only after file 1's rows were committed —
+  // the same half-import the content validation above exists to prevent. Both lookups throw.
+  //
+  // These are SELECTs against the global easa_* tables and take no orgId/adminId, so they sit
+  // ahead of EVERY write in this function: resolveOrgId upserts `organizations` in local mode,
+  // resolveAdminId creates two auth users and upserts two `users` rows, and ensureBank may
+  // create a `question_banks` row. Ordering them after this loop is what makes "an import that
+  // is going to abort writes nothing at all" true — the earlier form of this comment claimed
+  // that while sitting below the two resolvers, so five rows were already written on an abort.
+  const resolved: { rel: string; file: ContentFile; subjectId: string; topicId: string }[] = []
+  for (const { rel, file } of parsed) {
+    const subjectId = await lookupSubjectByCode(file.subject_code)
+    resolved.push({
+      rel,
+      file,
+      subjectId,
+      topicId: await lookupTopicByCode(subjectId, file.topic_code),
+    })
+  }
+
   const orgId = await resolveOrgId()
   const adminId = await resolveAdminId(orgId)
-  const bankId = await ensureBank(orgId, adminId)
+  const bank = await ensureBank(orgId, adminId)
 
   const base = {
     organization_id: orgId,
-    bank_id: bankId,
+    bank_id: bank.id,
     explanation_text: 'See standard ICAO/EASA VFR radiotelephony phraseology.',
     difficulty: 'medium' as const,
     status: 'active' as const,
@@ -260,16 +474,11 @@ async function main(): Promise<void> {
   let totalInserted = 0
   let totalSkipped = 0
 
-  for (const rel of targets) {
-    const path = resolve(process.cwd(), rel)
-    const file = JSON.parse(readFileSync(path, 'utf8')) as ContentFile
-    const subjectId = await lookupByCode('easa_subjects', file.subject_code)
-    const topicId = await lookupByCode('easa_topics', file.topic_code)
-
+  for (const { rel, file, subjectId, topicId } of resolved) {
     let inserted = 0
     for (const q of file.questions) {
       const added = await insertIfMissing(
-        bankId,
+        bank.id,
         buildRow(file, q, { ...base, subject_id: subjectId }, topicId),
       )
       if (added) inserted++
@@ -284,7 +493,7 @@ async function main(): Promise<void> {
   console.log('\nVFR RT content import complete.')
   console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
   console.log(`  Org:      ${ORG_NAME} (${orgId})`)
-  console.log(`  Bank:     ${BANK_NAME} (${bankId})`)
+  console.log(`  Bank:     ${bank.name} (${bank.id})`)
   console.log(`  Inserted: ${totalInserted}   Skipped (already present): ${totalSkipped}`)
   if (!FORCE_REMOTE) {
     console.log(

@@ -1,37 +1,16 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
-import { rpc } from '@/lib/supabase-rpc'
 import type {
   SubjectOption,
   SubtopicOption,
   TopicOption,
   TopicWithSubtopics,
 } from './quiz-query-types'
+import { fetchActiveQuestionCounts } from './quiz-question-counts'
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; code: string; name: string; sort_order: number; topic_id: string }
-type QuestionCountRow = {
-  subject_id: string
-  topic_id: string
-  subtopic_id: string | null
-  // bigint COUNT(*) — PostgREST may serialize it as a string; coerce with Number() at every read site.
-  n: number | string
-}
-
-async function fetchActiveQuestionCounts(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-): Promise<QuestionCountRow[]> {
-  const { data, error } = await rpc<QuestionCountRow[]>(supabase, 'get_question_counts', {
-    p_status: 'active',
-  })
-  if (error) {
-    console.error('[fetchActiveQuestionCounts] get_question_counts error:', error.message)
-    return []
-  }
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  return Array.isArray(data) ? data : []
-}
 
 // Wrapped in React `cache()` for per-request memoization: SubjectsSection
 // (New Quiz form) calls this on /quiz render; cache() ensures a single DB round-trip
@@ -59,6 +38,11 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
     countMap.set(row.subject_id, (countMap.get(row.subject_id) ?? 0) + Number(row.n))
   }
 
+  // The `code !== 'RT'` filter below is picker-only BY DESIGN (R1.3), and R1.4 requires it
+  // stay a SINGLE centralized filter — it has no siblings and must not grow any. RT is
+  // deliberately still listed by dashboard.ts and progress.ts; that asymmetry reads like a
+  // parity gap and is not one. Rationale + accepted KPI consequences: vfr-rt-training
+  // design.md open question 6, CLOSED 2026-08-11.
   return subjects
     .map((s) => ({
       id: s.id,
@@ -68,7 +52,7 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
       questionCount: countMap.get(s.id) ?? 0,
     }))
     .filter((s) => s.questionCount > 0) // hide zero-count subjects
-    .filter((s) => s.code !== 'RT') // RT has its own /app/vfr-rt page (R1.3)
+    .filter((s) => s.code !== 'RT') // picker-only — see the note above; do not add siblings
 })
 
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {

@@ -41,3 +41,50 @@
 | Cross-surface answer-oracle (Study Mode `get_study_questions` shared MC pool) | 2026-06-26 (mig 135) | 1 | 2026-06-27 (14a8b9c5 EO6 hardening) | RESOLVED-WATCH → tracker-archive.md. Key rule: new key-returning RPC on shared question pool needs deny-by-default active-exam-session guard, not just org+active-user guards. |
 | Two-fixture non-vacuity (idempotency / fallback-coincidence) | 2026-06-04 (921d0c0c AQ) | 2 | 2026-07-03 (f4bdeb83 VFR-RT all-pass+part2-fail) | PROMOTED → code-style.md §7 "Guard Against COALESCE/Fallback-Coincidence Test Vacuity"; tracker-archive.md. Correct applications: #869, #839 expired-replay, f4bdeb83 VFR-RT (8 SA + 9 DF + 8 MC all-pass vs part2-fail). |
 | dialog_fill practice grader partial-answer false-correct | 2026-06-21 (mig 119) | 1 | 2026-06-21 | RESOLVED → tracker-archive.md. Fix: mig 119 `v_is_correct := v_all_correct AND DISTINCT blank_index count = jsonb_array_length(v_blanks)`. Rule stands for future per-blank graders. |
+
+## VFR RT Part 1 content import — 2026-08-11 (`1abdb50d`..`7bbcadd3`)
+
+Two WATCHING rows from this branch, held here in full; MEMORY.md carries terse index rows.
+
+### New content class filtered on ONE surface, not its aggregate siblings
+
+Introducing a new subject/question_type into a live org shifts derived KPIs, because org-wide
+aggregates carry no subject/type filter while the one place that DOES exclude the new class is
+a single call site. VFR RT: `getSubjectsWithCounts` (`apps/web/lib/queries/quiz-subject-queries.ts`)
+excludes `code !== 'RT'`, but `get_admin_dashboard_kpis` CROSS JOINs every student × every
+subject group — an RT row at 0% flips weakest-subject to RT and collapses
+`HAVING BOOL_AND(mastery >= 90)` (examReady) to 0. `get_admin_dashboard_students` uses one
+org-wide active-question denominator, and `dashboard.ts` / `progress.ts` never filter RT.
+
+Check: when an import or migration adds a new subject or question_type to a live org, enumerate
+EVERY aggregate that counts `questions` org-wide — not just the samplers — and ask whether the
+one place excluding the new class has siblings that don't. Samplers were safe here: all pin
+`subject_id` (+ `topic_id`); `bank_id` is filtered by NOTHING anywhere in the schema.
+
+Outcome this cycle: the USER adjudicated the KPI shift as CORRECT, not a regression — VFR RT is
+a required part of the Slovenia PPL(A) path. Recorded in `vfr-rt-training/design.md` open item 6.
+The pattern stays WATCHING because the *detection* generalises even though this instance was
+intended. Do NOT re-raise the RT case itself as a finding.
+
+*Cite the SYMBOL, not a line number: this row originally cited `quiz-subject-queries.ts:71` and
+the filter moved twice inside one branch — to :76 when a comment block was inserted above it,
+then to :55 when `fetchActiveQuestionCounts` was extracted out. Caught by the PR-level sweep.*
+
+### NULL natural key escapes a PARTIAL unique index
+
+A prod-mutating import script cast its content JSON with `as ContentFile` and no shape
+validation. A missing natural-key field yields `question_number: undefined`, which
+`JSON.stringify` drops from the PostgREST body, so the column takes its default NULL.
+`idx_questions_bank_number` is PARTIAL —
+`UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL` —
+so a NULL key is exempt: the check-then-insert idempotency SELECT matches 0 rows and EVERY
+re-run inserts a fresh duplicate set, each reported as "inserted". The index cannot backstop it,
+because the key itself is what went NULL.
+
+Check: when an idempotency key is a NULLABLE column backed by a PARTIAL unique index, verify the
+key is validated non-null BEFORE the check-then-insert.
+
+Related, same file: the DB CHECK constrains `correct_option_id` to 'a'..'d' but nothing enforces
+that it names an option that EXISTS in `options`, and `trg_sanitize_question_options` rewrites
+each element to `{id,text}`, silently emitting nulls for a malformed one. Both import clean and
+render un-answerable. Fixed by pre-flight validation covering every field `buildRow` writes.

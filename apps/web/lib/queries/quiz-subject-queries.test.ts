@@ -383,6 +383,7 @@ describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
   })
 
   it('returns empty array when the counts RPC returns a non-array payload', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFromSequence({
       data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
     })
@@ -392,6 +393,10 @@ describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
     const result = await getSubjectsWithCounts()
     // countMap stays empty → all subjects get questionCount 0 → filtered out
     expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] payload is not an array:',
+      'object',
+    )
   })
 })
 
