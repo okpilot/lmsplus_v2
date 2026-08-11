@@ -228,6 +228,18 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
   return data.id
 }
 
+// ---- content validation --------------------------------------------------------
+
+// questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
+const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
+
+/** Assert a content field is a present, non-blank string. `label` names the field for the error. */
+function requireText(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} must be a non-empty string (got ${JSON.stringify(value)})`)
+  }
+}
+
 // ---- row building ------------------------------------------------------------
 
 type QuestionRow = Record<string, unknown> & { question_number: string }
@@ -296,10 +308,15 @@ async function main(): Promise<void> {
   const files = process.argv.slice(2).filter((a) => !a.startsWith('--'))
   const targets = files.length > 0 ? files : ['scripts/content/vfr-rt-part1-acronyms.json']
 
-  // Parse + validate EVERY file before touching the DB, so a malformed item aborts the run
-  // instead of half-importing. `num` is the idempotency key: it must be a non-empty string
-  // and unique across ALL loaded files. A missing/non-string `num` would otherwise reach the
-  // INSERT as question_number NULL, which idx_questions_bank_number
+  // Parse + validate every field this importer writes, across ALL files, BEFORE touching the
+  // DB. Inserts are row-at-a-time and individually committed (no transaction), so a malformed
+  // item found at INSERT time leaves earlier rows already written; validating up front turns
+  // that half-import into a clean abort. Keep this in step with buildRow — a field buildRow
+  // writes but this loop does not check is a field that fails mid-run.
+  //
+  // `num` gets the strictest treatment because it is the idempotency key: non-empty string and
+  // unique across ALL loaded files (they share one bank). A missing/non-string `num` would
+  // otherwise reach the INSERT as question_number NULL, which idx_questions_bank_number
   // (UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL)
   // exempts — so the row would silently re-insert a duplicate on every re-run.
   const parsed = targets.map((rel) => {
@@ -313,15 +330,44 @@ async function main(): Promise<void> {
   const seenNums = new Map<string, string>()
   for (const { rel, file } of parsed) {
     for (const [i, q] of file.questions.entries()) {
-      if (typeof q.num !== 'string' || q.num.trim() === '') {
-        throw new Error(
-          `${rel}[${i}]: 'num' must be a non-empty string (got ${JSON.stringify(q.num)})`,
-        )
-      }
+      const at = `${rel}[${i}]`
+      requireText(q.num, `${at}: 'num'`)
       const prior = seenNums.get(q.num)
       if (prior)
         throw new Error(`Duplicate num '${q.num}' in ${rel} — already declared in ${prior}`)
       seenNums.set(q.num, rel)
+
+      requireText(q.prompt, `${at} (${q.num}): 'prompt'`)
+      if (file.question_type === 'short_answer') {
+        const sa = q as ShortAnswerItem
+        requireText(sa.canonical, `${at} (${q.num}): 'canonical'`)
+        if (sa.synonyms !== undefined && !Array.isArray(sa.synonyms)) {
+          throw new Error(`${at} (${q.num}): 'synonyms' must be an array when present`)
+        }
+      } else {
+        const mc = q as McItem
+        if (!Array.isArray(mc.options) || mc.options.length === 0) {
+          throw new Error(`${at} (${q.num}): 'options' must be a non-empty array`)
+        }
+        // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
+        // names an option that actually exists, and trg_sanitize_question_options rewrites each
+        // element to {id,text}, silently emitting nulls for a malformed one. Both would import
+        // clean and render un-answerable, so check the mapping here.
+        if (!MC_OPTION_IDS.includes(mc.correct)) {
+          throw new Error(
+            `${at} (${q.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
+          )
+        }
+        for (const [j, opt] of mc.options.entries()) {
+          requireText(opt?.id, `${at} (${q.num}): options[${j}].id`)
+          requireText(opt?.text, `${at} (${q.num}): options[${j}].text`)
+        }
+        if (!mc.options.some((o) => o.id === mc.correct)) {
+          throw new Error(
+            `${at} (${q.num}): 'correct' is '${mc.correct}' but no option carries that id`,
+          )
+        }
+      }
     }
   }
 

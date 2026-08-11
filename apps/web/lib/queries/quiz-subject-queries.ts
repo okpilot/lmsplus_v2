@@ -1,37 +1,16 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
-import { rpc } from '@/lib/supabase-rpc'
 import type {
   SubjectOption,
   SubtopicOption,
   TopicOption,
   TopicWithSubtopics,
 } from './quiz-query-types'
+import { fetchActiveQuestionCounts } from './quiz-question-counts'
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; code: string; name: string; sort_order: number; topic_id: string }
-type QuestionCountRow = {
-  subject_id: string
-  topic_id: string
-  subtopic_id: string | null
-  // bigint COUNT(*) — PostgREST may serialize it as a string; coerce with Number() at every read site.
-  n: number | string
-}
-
-async function fetchActiveQuestionCounts(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-): Promise<QuestionCountRow[]> {
-  const { data, error } = await rpc<QuestionCountRow[]>(supabase, 'get_question_counts', {
-    p_status: 'active',
-  })
-  if (error) {
-    console.error('[fetchActiveQuestionCounts] get_question_counts error:', error.message)
-    return []
-  }
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  return Array.isArray(data) ? data : []
-}
 
 // Wrapped in React `cache()` for per-request memoization: SubjectsSection
 // (New Quiz form) calls this on /quiz render; cache() ensures a single DB round-trip
