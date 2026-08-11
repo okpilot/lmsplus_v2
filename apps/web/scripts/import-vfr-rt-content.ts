@@ -341,7 +341,15 @@ async function main(): Promise<void> {
   // (UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL)
   // exempts — so the row would silently re-insert a duplicate on every re-run.
   const parsed = targets.map((rel) => {
-    const raw: unknown = JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf8'))
+    // readFileSync already names the path in its ENOENT message; JSON.parse's SyntaxError does
+    // not, and with several target files the operator cannot tell which one failed.
+    const text = readFileSync(resolve(process.cwd(), rel), 'utf8')
+    let raw: unknown
+    try {
+      raw = JSON.parse(text)
+    } catch (err) {
+      throw new Error(`${rel}: invalid JSON — ${err instanceof Error ? err.message : String(err)}`)
+    }
     requireRecord(raw, `${rel}: root`)
     const file = raw as unknown as ContentFile
     requireText(file.subject_code, `${rel}: 'subject_code'`)

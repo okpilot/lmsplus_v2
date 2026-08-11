@@ -420,7 +420,12 @@ async function main() {
 
   // Load and validate JSON
   const raw = readFileSync(file, 'utf-8')
-  const parsed = JSON.parse(raw)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    throw new Error(`${file}: invalid JSON — ${err instanceof Error ? err.message : String(err)}`)
+  }
   const result = ImportFileSchema.safeParse(parsed)
 
   if (!result.success) {
