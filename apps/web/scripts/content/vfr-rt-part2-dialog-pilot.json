@@ -546,6 +546,153 @@
         }
       ],
       "explanation": "**Three requests, three different intentions, and the controller plans the circuit around which one you use.** *Touch-and-go* means you land and take off again without stopping; *stop-and-go* means you land, come to a full stop, then depart; **full stop** means the training detail is over. Say which you want while still downwind so the sequence can be arranged. The callsign is in front because you are reporting your position and making a request — nothing is being read back."
+    },
+    {
+      "num": "VRT-P2-DLG-25",
+      "prompt": "Departure from Ljubljana.",
+      "template": "[atc] S-AA, RWY 12, cleared for take-off, wind 140 degrees 8 knots, after departure turn right to S3, climb to 2500 feet, squawk 3363\n[pilot] RWY 12, cleared for take-off, after departure turn right to S3, climb to 2500 feet, squawk 3663, S-AA\n[atc] S-AA, negative, squawk 3363\n[pilot] {{0}}, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "squawk 3363",
+          "synonyms": ["squawk three three six three", "3363", "three three six three"],
+          "rule": "The corrected code, derivable from the controller’s correction one line above."
+        }
+      ],
+      "explanation": "**The pilot mis-read the code and the controller said *negative*.** A wrong readback is not a small thing — the whole point of reading back is to let the controller hear his own instruction come back. He corrects it with *negative* followed by the correct code, and the pilot repeats **only the item that was wrong**, not the whole clearance again. Note also what never came back at all: the **wind**. It was passed with the take-off clearance as information for flying the departure, and information is not read back."
+    },
+    {
+      "num": "VRT-P2-DLG-26",
+      "prompt": "Requesting taxi at Ljubljana.",
+      "template": "[pilot] position G9, request taxi for a VFR flight, via S3, S5-DAA\n[atc] S-AA, stand-by, traffic entering GA apron\n[pilot] {{0}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "S-AA",
+          "synonyms": ["SAA", "Sierra Alpha Alpha", "Sierra Alfa Alfa"],
+          "rule": "Bare callsign — the whole acknowledgement of a stand-by."
+        }
+      ],
+      "explanation": "**A *stand-by* is acknowledged with the callsign alone.** The controller is not giving you an instruction to read back or a task to comply with; he is telling you to wait while he deals with something else. Answering with your callsign confirms you heard and that the frequency is now free for him. *Wilco* would be wrong — there is nothing to comply with — and *roger* adds nothing the callsign has not already said. Say nothing at all and he cannot know you are still listening."
+    },
+    {
+      "num": "VRT-P2-DLG-27",
+      "prompt": "Requesting taxi at Maribor for a flight to Gyor.",
+      "template": "[pilot] Maribor Approach S5-DMG, request taxi for VFR route to Gyor\n[atc] S-MG, QNH 1030, line up runway 14, squawk 7003, report ready for departure\n[pilot] QNH 1030, {{0}}, squawk 7003, ready for departure, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "lining up runway 14",
+          "synonyms": ["lining up runway one four", "lining up RWY 14"],
+          "rule": "The instruction transformed into the pilot’s own action, as the exam’s example does with [descending to 2500 feet]."
+        }
+      ],
+      "explanation": "**Four items in, four items back — and the instruction changes tense on the way.** The controller instructs *line up*; the pilot reports what he is doing about it, *lining up*, exactly as *descend to 2500 feet* comes back as *descending to 2500 feet*. The altimeter setting, the runway, the squawk and the report all belong on the readback. The callsign closes it, because this is a readback."
+    },
+    {
+      "num": "VRT-P2-DLG-28",
+      "prompt": "Crossing Papa air base en route to Gyor.",
+      "template": "[pilot] Papa Approach S5-DMG, good afternoon\n[atc] S-MG good afternoon, identified, turn 045, maintain 3000 feet\n[pilot] {{0}}, maintaining 3000 feet, S-MG\n[atc] S-MG crossing of airfield approved, maintain 3000 feet\n[pilot] {{1}}, maintaining 3000 feet, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "turning 045",
+          "synonyms": ["turning zero four five", "turning heading 045"],
+          "rule": "Imperative to participle: turn -> turning."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "crossing approved",
+          "synonyms": ["crossing of airfield approved", "crossing the airfield approved"],
+          "rule": "The approval echoed back in the pilot’s own words."
+        }
+      ],
+      "explanation": "**Both replies do the same thing: they turn the controller’s instruction into what the aircraft is doing.** *Turn 045* comes back as *turning 045*; an approval comes back as *crossing approved*. The level is repeated each time because it was re-stated each time — read back what you were actually given, not what you remember from earlier. *Identified* needs no reply: it is the controller telling you he has you on radar, not an instruction."
+    },
+    {
+      "num": "VRT-P2-DLG-29",
+      "prompt": "Arriving at Lido.",
+      "template": "[pilot] Lido S5-DAA, overhead PZE1, 1000 feet AGL\n[atc] S-AA, Lido, good day, runway in use 05, report right downwind, traffic is Cessna, turning base\n[pilot] runway 05, will report right downwind, {{0}}, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "looking out",
+          "synonyms": ["looking out for traffic"],
+          "rule": "Standard phrase; appears nowhere on screen, so it is recalled."
+        }
+      ],
+      "explanation": "**Traffic you have not seen yet is answered with *looking out*.** The controller has told you about a Cessna turning base — he is not asking you to do anything, he is telling you where to look. *Looking out* says you are searching but do not have it. Once you see it, and only then, the answer becomes *traffic in sight*. Claiming sight of an aircraft you have not found is how two aeroplanes end up in the same piece of sky."
+    },
+    {
+      "num": "VRT-P2-DLG-30",
+      "prompt": "Landing at Lido.",
+      "template": "[atc] S-AA, RWY 05, wind 110 degrees 5 knots, land at own discretion, vacate convenient left\n[pilot] RWY 05, {{0}}, wilco, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "landing at own discretion",
+          "synonyms": ["landing at my own discretion", "land at own discretion"],
+          "rule": "The clearance-equivalent transformed to the pilot’s action."
+        }
+      ],
+      "explanation": "**At own discretion is not a landing clearance — it is the absence of one.** The controller is telling you no clearance will be issued and the decision to land is yours. It still comes back, because it governs whether you may put the aircraft on the runway. The *vacate convenient left* is a request to comply with, which is what the *wilco* answers. The wind, once again, stays where it was."
+    },
+    {
+      "num": "VRT-P2-DLG-31",
+      "prompt": "Approaching the Hungarian border en route to Gyor.",
+      "template": "[pilot] Maribor Approach S-MG, 3 minutes before DIMLO\n[atc] S-MG contact Budapest Info 125,50\n[pilot] {{0}}, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "125,50",
+          "synonyms": [
+            "125.50",
+            "one two five decimal five zero",
+            "one two five comma five zero",
+            "12550"
+          ],
+          "rule": "The frequency alone — the station name is not read back."
+        }
+      ],
+      "explanation": "**A frequency change is read back as the number and nothing else.** Not *contact*, not the name of the station — the digits, then your callsign. It is the shortest readback in the book and it exists so the controller hears that you have the right frequency before you disappear off his. Get it wrong and the next station never hears from you."
+    },
+    {
+      "num": "VRT-P2-DLG-32",
+      "prompt": "Departed Maribor, en route to Gyor.",
+      "template": "[atc] S-MG cleared to destination, after departure turn left to ME2, climb to 3500 feet\n[pilot] cleared to destination, after departure left to ME2, climb to 3500 feet, S-MG\n[atc] S-MG airborne at 20, next report ME2\n[pilot] Maribor Approach S-MG, over ME2 at time 25, {{0}}, estimating DIMLO at time 42",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "maintaining 3500 feet",
+          "synonyms": ["maintaining 3500", "maintaining three thousand five hundred feet"],
+          "rule": "Derivable from the climb clearance three lines above, now being held."
+        }
+      ],
+      "explanation": "**A position report is the pilot calling, so the callsign goes in front.** Nothing is being read back here — you are volunteering where you are, what level you are holding, and when you expect the next point. The level is the one you were cleared to climb to and have now levelled at, so *climb to* has become *maintaining*. Compare the line above it: that one closes with the callsign, because that one was a readback."
+    },
+    {
+      "num": "VRT-P2-DLG-33",
+      "prompt": "Before start-up at Maribor.",
+      "template": "[pilot] Maribor Tower S5-DBS, {{0}} 119,200\n[atc] S5-DBS Maribor Tower, read you 5",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "radio check",
+          "synonyms": ["radio check on"],
+          "rule": "Standard phrase; appears nowhere on screen, so it is recalled."
+        }
+      ],
+      "explanation": "**A test transmission has a fixed shape: who you are calling, who you are, the words *radio check*, and the frequency you are using.** The reply grades you on a five-point readability scale — 1 unreadable, 2 readable now and then, 3 readable but with difficulty, 4 readable, 5 perfectly readable — so *read you 5* means you are coming through perfectly. Answering a readability report with a number of your own is the usual courtesy if he asks for one back."
     }
   ]
 }
