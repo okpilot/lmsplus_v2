@@ -12,6 +12,8 @@ type DialogLineProps = {
   /** Per-blank-index grading result once submitted; absent before submit. */
   results: Record<number, BlankResult>
   locked: boolean
+  /** Enter pressed in the blank at this index. Submits or advances — the parent decides. */
+  onEnter?: (index: number) => void
 }
 
 const SPEAKER_LABEL: Record<'atc' | 'pilot', string> = { atc: 'ATC', pilot: 'Pilot' }
@@ -30,6 +32,7 @@ export function DialogLine({
   disabled,
   results,
   locked,
+  onEnter,
 }: Readonly<DialogLineProps>) {
   return (
     // The speaker label sits in its OWN column, outside the wrapping flow. Inside a single
@@ -64,6 +67,12 @@ export function DialogLine({
                 disabled={disabled || locked}
                 aria-label={`Blank ${seg.index + 1}`}
                 data-testid={`blank-${seg.index}`}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  // Never let Enter reach a surrounding form and reload the page.
+                  e.preventDefault()
+                  onEnter?.(seg.index)
+                }}
                 // Grows with what the STUDENT types, never with the answer. The exam format
                 // brackets whole phrases (the briefing's own example is "[descending to 2500
                 // feet]", 25 chars), so a fixed box truncates a correct answer out of view. The

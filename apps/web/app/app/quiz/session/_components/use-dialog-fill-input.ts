@@ -32,6 +32,15 @@ export function buildSubmitPayload(
   return blankIndices.map((i) => ({ index: i, text: (values[i] ?? '').trim() }))
 }
 
+// Seeds the input values from a resumed draft answer. Pure helper, exported for direct testing.
+export function toSeedValues(
+  submittedBlanks: { index: number; text: string }[] | null | undefined,
+): Record<number, string> {
+  const map: Record<number, string> = {}
+  for (const b of submittedBlanks ?? []) map[b.index] = b.text
+  return map
+}
+
 export type UseDialogFillInputResult = {
   lines: ReturnType<typeof parseDialogDisplay>
   values: Record<number, string>
@@ -47,10 +56,19 @@ export type UseDialogFillInputResult = {
 export function useDialogFillInput(
   template: string,
   blanks: DialogBlank[] | undefined,
+  /**
+   * What the student typed on a previous visit, from the resumed draft. Seeds the boxes so a
+   * graded question shows the ANSWER THEY GAVE beside the canonical — without it a resumed
+   * wrong answer renders as an empty red box next to the right answer, which tells the student
+   * nothing about what they got wrong. Mirrors ShortAnswerInput's `submittedText`.
+   */
+  submittedBlanks?: { index: number; text: string }[] | null,
 ): UseDialogFillInputResult {
   const lines = useMemo(() => parseDialogDisplay(template), [template])
   const blankIndices = useMemo(() => deriveBlankIndices(template), [template])
-  const [values, setValues] = useState<Record<number, string>>({})
+  // Seeded via useState's initialiser, not an effect: the control is keyed by question.id and so
+  // remounts per question, and a resumed answer never changes under it.
+  const [values, setValues] = useState<Record<number, string>>(() => toSeedValues(submittedBlanks))
 
   const results = useMemo(() => toBlankResults(blanks), [blanks])
   const allFilled =

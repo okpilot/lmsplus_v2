@@ -109,4 +109,66 @@ describe('DialogFillInput', () => {
     render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} submitted />)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
+
+  it('submits when Enter is pressed and every blank is filled', async () => {
+    const onSubmit = vi.fn()
+    render(<DialogFillInput template={TEMPLATE} onSubmit={onSubmit} disabled={false} />)
+    await userEvent.type(screen.getByTestId('blank-0'), 'cleared to land')
+    await userEvent.type(screen.getByTestId('blank-1'), '27{Enter}')
+    expect(onSubmit).toHaveBeenCalledWith([
+      { index: 0, text: 'cleared to land' },
+      { index: 1, text: '27' },
+    ])
+  })
+
+  it('moves to the next empty blank instead of submitting a half-filled dialogue', async () => {
+    const onSubmit = vi.fn()
+    render(<DialogFillInput template={TEMPLATE} onSubmit={onSubmit} disabled={false} />)
+    await userEvent.type(screen.getByTestId('blank-0'), 'cleared to land{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByTestId('blank-1')).toHaveFocus()
+  })
+
+  it('does not submit on Enter while a submission is already in flight', async () => {
+    const onSubmit = vi.fn()
+    const { rerender } = render(
+      <DialogFillInput template={TEMPLATE} onSubmit={onSubmit} disabled={false} />,
+    )
+    await userEvent.type(screen.getByTestId('blank-0'), 'cleared to land')
+    await userEvent.type(screen.getByTestId('blank-1'), '27')
+    rerender(
+      <DialogFillInput template={TEMPLATE} onSubmit={onSubmit} disabled={false} submitting />,
+    )
+    await userEvent.type(screen.getByTestId('blank-1'), '{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows the answer the student gave when a graded question is resumed', () => {
+    // Without this the boxes come back empty: a resumed WRONG answer renders as an empty red
+    // box beside the correct answer, so the student cannot see what they actually typed.
+    render(
+      <DialogFillInput
+        template={TEMPLATE}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        blanks={[
+          { index: 0, isCorrect: false, canonical: 'cleared to land' },
+          { index: 1, isCorrect: true, canonical: '27' },
+        ]}
+        submittedBlanks={[
+          { index: 0, text: 'clear to land' },
+          { index: 1, text: '27' },
+        ]}
+      />,
+    )
+    expect(screen.getByTestId('blank-0')).toHaveValue('clear to land')
+    expect(screen.getByTestId('blank-1')).toHaveValue('27')
+  })
+
+  it('starts empty when the question has not been answered before', () => {
+    render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} />)
+    expect(screen.getByTestId('blank-0')).toHaveValue('')
+    expect(screen.getByTestId('blank-1')).toHaveValue('')
+  })
 })

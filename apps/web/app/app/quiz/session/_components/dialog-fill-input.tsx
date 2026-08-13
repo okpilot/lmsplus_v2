@@ -1,6 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
+import { useRef } from 'react'
 import { DialogLine } from './dialog-line'
 import { useDialogFillInput } from './use-dialog-fill-input'
 
@@ -16,6 +17,8 @@ type DialogFillInputProps = {
   submitted?: boolean
   /** Per-blank grading results once submitted, keyed by blank index. */
   blanks?: { index: number; isCorrect: boolean; canonical: string }[]
+  /** What the student typed previously, from a resumed draft. */
+  submittedBlanks?: { index: number; text: string }[] | null
 }
 
 export function DialogFillInput({
@@ -25,12 +28,15 @@ export function DialogFillInput({
   submitting = false,
   submitted = false,
   blanks,
+  submittedBlanks,
 }: Readonly<DialogFillInputProps>) {
   const { lines, values, results, allFilled, handleChange, collectSubmission } = useDialogFillInput(
     template,
     blanks,
+    submittedBlanks,
   )
 
+  const rootRef = useRef<HTMLDivElement>(null)
   const locked = submitted
   const graded = locked && blanks != null
   const allBlanksCorrect = graded && blanks.every((b) => b.isCorrect)
@@ -40,9 +46,32 @@ export function DialogFillInput({
     if (payload) onSubmit(payload)
   }
 
+  /**
+   * Enter inside a blank. Mirrors short-answer-input, which submits on Enter — but a dialog has
+   * several boxes, so Enter only submits once they are ALL filled (the same condition that
+   * enables the button). Otherwise it moves to the next still-empty blank, which is what a
+   * student pressing Enter mid-dialogue actually wants. Reading the DOM rather than tracking
+   * focus in state keeps the visual order authoritative: `values` is keyed by blank index, and a
+   * template may place a higher index earlier in the line.
+   */
+  function handleEnter(index: number) {
+    if (allFilled) {
+      if (!disabled && !submitting) handleSubmit()
+      return
+    }
+    const inputs = Array.from(
+      rootRef.current?.querySelectorAll<HTMLInputElement>('input[data-testid^="blank-"]') ?? [],
+    )
+    const from = inputs.findIndex((el) => el.dataset.testid === `blank-${index}`)
+    const next =
+      inputs.slice(from + 1).find((el) => el.value.trim() === '') ??
+      inputs.find((el) => el.value.trim() === '')
+    next?.focus()
+  }
+
   return (
     <div className="space-y-3">
-      <div className="space-y-1 rounded-lg border border-border p-4">
+      <div ref={rootRef} className="space-y-1 rounded-lg border border-border p-4">
         {lines.map((line, i) => (
           <DialogLine
             // Parsed lines are stable per template; index key is safe.
@@ -54,6 +83,7 @@ export function DialogFillInput({
             disabled={disabled}
             results={results}
             locked={locked}
+            onEnter={handleEnter}
           />
         ))}
       </div>
