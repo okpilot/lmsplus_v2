@@ -94,17 +94,32 @@
       "explanation": "**The same slot takes two different answers in one exchange, and the controller decides which.** In the third line the pilot must still say the full **S5-ABC**: the controller has used the full callsign throughout, and a pilot may only use the shortened form *once addressed in that manner by the controller*. In the last line **S-BC** is correct — and required — because the controller abbreviated first. The readback follows the usual rules: QNH and *descending to 2500 feet* are both mandatory, *next report overhead PE2* takes **wilco**, and the callsign closes the message."
     },
     {
-      "num": "VRT-P2-DLG-05",
-      "prompt": "Ready to depart from Maribor.",
-      "unanchored": "R7 — blank 0 is answered-after rather than answered-above: the controller's 'line up and wait' only follows a report of readiness, so the reply reveals the request. Contrast DLG-24, where 'report final runway 14' followed both full-stop and touch-and-go alike and pinned nothing.",
-      "template": "[pilot] S-BS, {{0}}\n[atc] S-BS, line up and wait\n[pilot] {{1}}, S-BS",
+      "num": "VRT-P2-DLG-04",
+      "prompt": "Traffic information en route.",
+      "unanchored": "R7 — the anchor is two lines up, not adjacent. 'negative contact' is the competing phrase; it is excluded because the controller's visible 'report in sight' asks for the positive report, and the visible 'looking out' has already taken the still-searching answer.",
+      "template": "[atc] S-AB, light aircraft 11 o'clock, crossing left to right at 4500 feet, report in sight\n[pilot] looking out, S-AB\n[pilot] S-AB, {{0}}",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
+          "canonical": "traffic in sight",
+          "synonyms": ["traffic in sight now", "in sight"],
+          "rule": "The controller's visible 'report in sight' asks for exactly this report, and the visible 'looking out' has already used up the not-yet-found answer — so 'negative contact' cannot also fit."
+        }
+      ],
+      "explanation": "**Two standard phrases, and the callsign moves between them.** Until you have located the other aircraft you answer **looking out** — shown here — and if you cannot find it at all the phrase is **negative contact**; never silence, because the controller needs to know you are still searching. Once you have it visually you report **traffic in sight**. Watch the callsign: *looking out* acknowledges what the controller just told you, so it goes **last**; *traffic in sight* reports something new rather than reading anything back, so it goes **first**. The trigger for end-placement is reading back or acknowledging — not merely answering."
+    },
+    {
+      "num": "VRT-P2-DLG-05",
+      "prompt": "Ready to depart from Maribor.",
+      "template": "[atc] S-BS, taxi to holding point A, runway 14, report ready for departure\n[pilot] S-BS, {{0}}\n[atc] S-BS, line up and wait\n[pilot] {{1}}, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
           "canonical": "ready for departure",
-          "synonyms": [],
-          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
+          "synonyms": ["ready for departure runway 14"],
+          "rule": "Makes the report the controller asked for, in his words — 'ready for take-off' is excluded because the visible instruction says departure, and take-off is reserved for the clearance."
         },
         {
           "index": 1,
@@ -448,7 +463,7 @@
     {
       "num": "VRT-P2-DLG-21",
       "prompt": "Cloud ahead en route.",
-      "unanchored": "R7 — no controller is involved, but the blank sits INLINE inside a visible sentence: '___ to maintain VMC due clouds, request turn left'. The surrounding words pin it the way an [atc] line would elsewhere.",
+      "unanchored": "R7 — no controller is involved, but the blank sits INLINE inside a visible sentence: '___ to maintain VMC due clouds, request turn left'. No second standard phrase completes that sentence; 'not able' is the only variant and is accepted as a synonym.",
       "template": "[pilot] S5-DAA, {{0}} to maintain VMC due clouds, request turn left to Ptuj",
       "blanks": [
         {
@@ -460,6 +475,26 @@
         }
       ],
       "explanation": "**UNABLE is the word that starts the conversation early.** A VFR pilot who cannot stay in visual conditions has a developing problem, and the phrase that says so is *unable to maintain VMC*. Say it while you still have options — a turn, a descent, a diversion — rather than after the cloud has closed in. Note the callsign is at the **front**: you are initiating this transmission, not answering one."
+    },
+    {
+      "num": "VRT-P2-DLG-22",
+      "prompt": "Landing at Lesce, which is not the planned destination.",
+      "unanchored": "R7 — the blank is answered-after: the officer's visible reply names exactly what was requested ('flight plan closed at 40'), so no other request fits the slot. The reply is the guide's own, not a constructed line.",
+      "template": "[pilot] Ljubljana Information S5-DJJ, airport Lesce in sight, changing to local frequency, {{0}}\n[atc] S-JJ, flight plan closed at 40, frequency change approved",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "request close flight plan",
+          "synonyms": [
+            "request to close flight plan",
+            "request closing flight plan",
+            "request close flightplan"
+          ],
+          "rule": "Pinned by the visible reply 'flight plan closed at 40', which answers this request and no other."
+        }
+      ],
+      "explanation": "**A flight plan left open triggers a search.** When you land at an aerodrome that is not your planned destination, you must close the plan yourself — by radio before landing, as here, or by telephone afterwards — to avoid unnecessary search and rescue activity. The station confirms with a time: *flight plan closed at 40*. Note the shape of an initiating call: station name, then your callsign, then the message."
     },
     {
       "num": "VRT-P2-DLG-23",
@@ -522,8 +557,16 @@
           "index": 0,
           "shape": "derivable",
           "canonical": "S-AA",
-          "synonyms": ["SAA", "Sierra Alpha Alpha", "Sierra Alfa Alfa"],
-          "rule": "Bare callsign — the whole acknowledgement of a stand-by."
+          "synonyms": [
+            "SAA",
+            "Sierra Alpha Alpha",
+            "Sierra Alfa Alfa",
+            "standing by S-AA",
+            "standing by SAA",
+            "S-AA standing by",
+            "SAA standing by"
+          ],
+          "rule": "Bare callsign — the whole acknowledgement of a stand-by. 'standing by' is accepted too: it is not wrong, merely longer than needed, and the explanation is where that distinction is taught. Marking it wrong would fail a student who understood the exchange."
         }
       ],
       "explanation": "**A *stand-by* is acknowledged with the callsign alone.** The controller is not giving you an instruction to read back or a task to comply with; he is telling you to wait while he deals with something else. Answering with your callsign confirms you heard and that the frequency is now free for him. *Wilco* would be wrong — there is nothing to comply with — and *roger* adds nothing the callsign has not already said. Say nothing at all and he cannot know you are still listening."
@@ -633,7 +676,7 @@
     {
       "num": "VRT-P2-DLG-33",
       "prompt": "Before start-up at Maribor.",
-      "unanchored": "R7 — answered-after: 'read you 5' is a readability report, which is only ever the reply to a radio check. The visible frequency on the same line confirms it. Nothing else a pilot says before start-up draws that answer.",
+      "unanchored": "R7 — answered-after: 'read you 5' is a readability report, and a radio check is the only call that draws one. The visible frequency on the same line confirms it. 'request departure information' — the other pre-start call — would be answered with the departure information, not a readability figure.",
       "template": "[pilot] Maribor Tower S5-DBS, {{0}} 119,200\n[atc] S5-DBS Maribor Tower, read you 5",
       "blanks": [
         {
@@ -649,15 +692,15 @@
     {
       "num": "VRT-P2-DLG-34",
       "prompt": "Departing Novo mesto outside ATS hours.",
-      "unanchored": "R7 — blind self-announce at an unattended aerodrome: no controller exists to anchor anything. The visible sequence does it instead: taxiing to runway 23 → ___ runway 23 for departure → airborne. The only call between taxi and airborne is the line-up.",
-      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, taxiing to runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{0}} runway 23 for departure\n[pilot] Aerodrome Novo mesto, S5-DBK, airborne, departing north",
+      "unanchored": "R7 — blind self-announce, so no controller line can anchor the blank. Excluded by elimination instead: 'holding short of' is the one other call that fits this slot, so it is made VISIBLE on the line above. With taxi, holding short and airborne all shown, the line-up is the only call left.",
+      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, taxiing to runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, holding short of runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{0}} runway 23 for departure\n[pilot] Aerodrome Novo mesto, S5-DBK, airborne, departing north",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
           "canonical": "lining up",
-          "synonyms": ["lining-up"],
-          "rule": "No station is transmitting, so nothing on screen supplies it."
+          "synonyms": ["lining-up", "entering"],
+          "rule": "The only call remaining between the visible 'holding short of' and the visible 'airborne'."
         }
       ],
       "explanation": "**Nobody is listening on the ground, so you are talking to the other aircraft.** Outside ATS hours there is no controller to clear you; you broadcast your position and intention so anyone in the circuit knows where you are. Every call carries the same four things — the aerodrome name, who you are, what you are doing, and the runway. The aerodrome name comes first because the other pilot needs to know the call is about *his* airfield before he listens to the rest."
@@ -665,22 +708,22 @@
     {
       "num": "VRT-P2-DLG-35",
       "prompt": "Arriving at Novo mesto outside ATS hours.",
-      "unanchored": "R7 — blind self-announce at an unattended aerodrome: no controller exists to anchor anything. The visible sequence does it instead: the middle call states 'right downwind', which fixes blank 0 as the right-hand join, and the pattern joining → downwind → ___ fixes blank 1 as final.",
-      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, at 2000 feet, {{0}} runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, right downwind, runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{1}} runway 23",
+      "unanchored": "R7 — blind self-announce, so no controller line can anchor the blanks. Excluded by elimination instead: the visible 'right downwind' on the next line fixes blank 0 as the RIGHT-hand join (a left-hand join would contradict it), and 'base' — the one other pattern call that fits blank 1 — is made VISIBLE on the line above, leaving final as the only position left.",
+      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, at 2000 feet, {{0}} runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, right downwind, runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, right base, runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{1}} runway 23",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
           "canonical": "joining right-hand circuit",
           "synonyms": ["joining right hand circuit", "joining the right-hand circuit"],
-          "rule": "Broadcast intention; nothing on screen supplies it."
+          "rule": "The visible 'right downwind' on the next line fixes the hand of the circuit."
         },
         {
           "index": 1,
           "shape": "recall",
           "canonical": "final",
           "synonyms": ["on final"],
-          "rule": "Broadcast position in the pattern."
+          "rule": "The only pattern position left once downwind and base are both visible."
         }
       ],
       "explanation": "**The first call goes out five minutes before you arrive, not overhead.** An aircraft already in the circuit needs warning while there is still time to do something about it. The sequence then walks the pattern — joining, downwind, final — and each call repeats the runway, because a pilot joining from elsewhere may have picked a different one. These are announcements, not requests: no one is going to answer."

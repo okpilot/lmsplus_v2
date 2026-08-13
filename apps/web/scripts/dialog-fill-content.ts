@@ -47,9 +47,16 @@ export type DialogFillItem = {
   blanks: AuthoredBlank[]
   explanation?: string
   /**
-   * R7 opt-out: prose naming what pins this item's recall blanks when no `[atc]` line sits beside
-   * them. Free text by design — the point is to force the author to state the anchor, so a reader
-   * can check the claim. Authoring metadata only; nothing reads it and no DB column holds it.
+   * R7 opt-out. Must NAME the competing standard phrase that also fits the slot, and say what in
+   * the VISIBLE text excludes it — not merely assert that context pins the answer.
+   *
+   * That wording is the correction, not decoration. The first version of this field asked only
+   * for "what pins it", and DLG-34 was admitted on the strength of "the taxi → line-up → airborne
+   * sequence fixes the call". It does not: `holding short of` fits the same slot, and the user
+   * spotted it immediately. Naming the competitor is what forces the fix — in DLG-34's case,
+   * putting `holding short of` visibly in the transcript so elimination actually holds.
+   *
+   * Authoring metadata only; nothing reads it and no DB column holds it.
    */
   unanchored?: string
 }
@@ -365,11 +372,13 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  * means), so an adjacent controller line is not what makes them answerable. DLG-19 and DLG-23
  * blank a callsign on a line following another pilot line and are sound.
  *
- * Genuinely-unanchored items opt out via `unanchored`, which must say what pins the answer
- * instead. Five do, all legitimately: DLG-05 and DLG-33, where the controller's REPLY reveals the
- * request; DLG-21, where `unable` sits inline inside a visible sentence; and DLG-34/35, blind
- * self-announce at an unattended aerodrome where no controller exists and the taxi → line-up →
- * final sequence fixes the call.
+ * Items that cannot satisfy R7 opt out via `unanchored` — but the bar is EXCLUSION, not
+ * plausibility: the declaration must name the competing standard phrase and show what visible text
+ * rules it out. Where nothing ruled it out, the fix was to put the competitor INTO the transcript
+ * (DLG-34 now shows `holding short of`, DLG-35 shows `right base`), so elimination genuinely
+ * holds rather than being asserted. Four declare it: DLG-21 (`unable` completes a visible
+ * sentence no other phrase completes), DLG-22 and DLG-33 (the controller's REPLY names what was
+ * requested), and DLG-34/35 (blind self-announce, competitor made visible).
  */
 function assertRecallAnchored(item: DialogFillItem, at: string): void {
   if (typeof item.unanchored === 'string' && item.unanchored.trim() !== '') return
