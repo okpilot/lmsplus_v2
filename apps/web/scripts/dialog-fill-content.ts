@@ -60,7 +60,6 @@ function markerRe(): RegExp {
 // Non-global — safe to use with .test() and as a first-match .replace().
 const SPEAKER_PREFIX_RE = /^\[(atc|pilot)\]\s?/
 const FORBIDDEN_ANSWER_CHARS_RE = /[{}|;]/
-const WORD_CHAR_RE = /\w/
 const BRACE_RE = /[{}]/
 
 function lineMarkers(text: string): LineMarker[] {
@@ -257,11 +256,6 @@ function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[], at:
   const words = normalizeAnswer(blank.canonical)
     .split(' ')
     .filter((word) => word !== '')
-  if (words.length > 1) {
-    throw new Error(
-      `${at}: authoring R2 — recall canonical ${JSON.stringify(blank.canonical)} (blanks index ${blank.index}) must be a single word; split a recalled phrase one blank per word and leave its last word visible as the anchor. Synonyms are exempt from this rule.`,
-    )
-  }
   if (containsWordRun(visible, words)) {
     throw new Error(
       `${at}: authoring R3 — recall canonical ${JSON.stringify(blank.canonical)} (blanks index ${blank.index}) already appears in the visible template, so nothing is being recalled; mark it 'derivable' or reword the dialogue.`,
@@ -270,55 +264,94 @@ function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[], at:
 }
 
 /**
- * R4 for one line. A run of >= 2 consecutive recall blanks must be followed, immediately and on
- * the same line, by text containing a WORD CHARACTER. "Some visible text" is too loose: the
- * callsign shape `{{0}}, {{1}}` puts a bare comma between two blanks, so punctuation alone
- * would satisfy a loose reading and leave exactly the anchorless run the notes forbid.
- *
- * The speaker prefix is stripped by the caller BEFORE this runs — otherwise a run at the start
- * of a line appears anchored by its own `[pilot]` tag, which silently masks every all-blank line.
+ * A callsign canonical — `S-AA`, `S5-DBS`. Requires the hyphen, with at most two characters
+ * before it, so `wilco` and `touch-and-go` are not mistaken for one. Callsigns are exempt from
+ * R5 because the dialogue always states the callsign aloud, so the student can read it off the
+ * controller's line; blanking one never hides how a readback divides.
  */
-function assertLineRunsAnchored(
+const CALLSIGN_RE = /^[a-z0-9]{1,2}-[a-z]{2,3}$/i
+
+/**
+ * R5 — a readback line must leave at least one CONTENT item visible.
+ *
+ * The exam's own worked example brackets whole phrases but always keeps one item given:
+ * `QNH 1025, [descending to 2500 feet], [wilco], [S-BC]`. The visible `QNH 1025` is what shows
+ * the student how the readback divides. Blank every content item and only the commas remain,
+ * so the student must guess both the split AND each phrase — DLG-15 asked for three phrases off
+ * a bare `___, ___, ___, S-GI` and was rejected on eval for exactly this.
+ *
+ * A trailing callsign does NOT satisfy the rule: it is present on every readback and so carries
+ * no information about the division.
+ */
+function assertLineSplitLegible(
   body: string,
-  shapes: ReadonlyMap<number, AuthoredBlank['shape']>,
+  canonicals: ReadonlyMap<number, string>,
   at: string,
 ): void {
-  const markers = lineMarkers(body)
-  let run = 0
-  for (const [i, marker] of markers.entries()) {
-    const next = markers[i + 1]
-    const gap = body.slice(marker.end, next?.start ?? body.length)
-    const adjacent = next !== undefined && !WORD_CHAR_RE.test(gap)
-    // `adjacent` already implies `next !== undefined`, so no further guard is needed here.
-    const continues = adjacent && shapes.get(next?.index ?? -1) === 'recall'
-    run = shapes.get(marker.index) === 'recall' ? run + 1 : 0
-    // Test the gap directly rather than reusing `adjacent`: the two agree whenever a next marker
-    // exists, but `adjacent` is false at the LAST marker on the line, where the gap is still the
-    // thing that matters — it is what decides whether a terminal run has an anchor before EOL.
-    // Reusing `adjacent` here would silently pass every unanchored run that ends a line.
-    if (run >= 2 && !continues && !WORD_CHAR_RE.test(gap)) {
-      throw new Error(
-        `${at}: authoring R4 — the run of ${run} consecutive recall blanks ending at {{${marker.index}}} has no anchor; leave the LAST word of the recalled phrase visible right after the run, on the same line.`,
-      )
-    }
-    if (!adjacent) run = 0
+  const items = body
+    .split(',')
+    .map((i) => i.trim())
+    .filter((i) => i !== '')
+  const blankItems = items.filter((i) => new RegExp(`^${MARKER_PATTERN}$`).test(i))
+  const contentBlanks = blankItems.filter((i) => {
+    const index = Number(markerRe().exec(i)?.[1])
+    return !CALLSIGN_RE.test(canonicals.get(index) ?? '')
+  })
+  // An item mixing text and a blank (`runway {{0}}`) is itself an anchor — the split is visible.
+  const hasInlineAnchor = items.some(
+    (i) => markerRe().test(i) && !new RegExp(`^${MARKER_PATTERN}$`).test(i),
+  )
+  const visibleContent = items.filter((i) => !markerRe().test(i) && !CALLSIGN_RE.test(i))
+  if (contentBlanks.length >= 2 && visibleContent.length === 0 && !hasInlineAnchor) {
+    throw new Error(
+      `${at}: authoring R5 — this line blanks ${contentBlanks.length} content items with nothing visible between the commas, so the split cannot be inferred; leave the item that is NOT the lesson visible and blank the hard one.`,
+    )
+  }
+}
+
+/**
+ * Terms that name a Part 2 competency rather than the scene. The briefing lists these rules in
+ * its preamble — read during PREPARATION — and its example task carries no instruction at all,
+ * just the dialogue. A prompt that repeats a rule hands the student the answer at the moment they
+ * are meant to supply it: DLG-10 shipped as "Complete the callsign AT THE END of each pilot
+ * transmission", which is verbatim the rule under test.
+ */
+const PROMPT_LEAK_RE =
+  /\b(callsign|read ?back|in the order|wilco|abbreviat|decide|runway in use|only the qnh)\b/i
+
+/** R6 — the prompt sets the scene and nothing more. */
+function assertPromptSetsSceneOnly(prompt: string, at: string): void {
+  const leak = PROMPT_LEAK_RE.exec(prompt)
+  if (leak) {
+    throw new Error(
+      `${at}: authoring R6 — the prompt names the competency under test (${JSON.stringify(leak[0])}); the exam's own example task carries no instruction, so keep the prompt to the scene (where, what situation) and let the dialogue pose the question.`,
+    )
   }
 }
 
 /**
  * House authoring rules, derived from the content file's own `authoring_notes`:
  *   R1 every blank carries `shape` ∈ recall | derivable
- *   R2 a recall CANONICAL is a single word (synonyms exempt)
  *   R3 a recall canonical never appears in the visible template, under normalizeAnswer semantics
- *   R4 a run of >= 2 consecutive recall blanks is followed by an anchor word on the same line
+ *   R5 a line never blanks 2+ CONTENT items with no visible item to show the split
+ *   R6 the prompt sets the scene and never names the competency under test
+ *
+ * R2 (single-word recall canonicals) and R4 (anchor word after a run of recall blanks) were
+ * REMOVED on 2026-08-12: both existed to make a per-word split guessable, and per-word splitting
+ * is gone. The exam brackets whole phrases — `[descending to 2500 feet]`, `[wilco]` — so a
+ * recalled phrase is now one blank, exactly like a derivable one. The numbering is kept as-is so
+ * existing references to R5/R6 stay valid.
  *
  * R4 keys on RUNS, not lines. Five lines across four questions are entirely blanks — that shape
  * is mandatory for the callsign-placement questions, where the student decides which blank holds
- * the callsign — so a line-based rule would reject the corpus it was written for.
+ * the callsign — so a line-based rule would reject the corpus it was written for. R5 permits
+ * those same lines because only ONE of their two blanks is a content item.
  */
 export function assertDialogFillAuthoring(item: DialogFillItem, at: string): void {
   const shapes = new Map<number, AuthoredBlank['shape']>()
+  const canonicals = new Map(item.blanks.map((b) => [b.index, b.canonical]))
   const visible = visibleWords(item.template)
+  assertPromptSetsSceneOnly(item.prompt, at)
   for (const blank of item.blanks) {
     const shape = blank.shape
     if (shape !== 'recall' && shape !== 'derivable') {
@@ -330,6 +363,7 @@ export function assertDialogFillAuthoring(item: DialogFillItem, at: string): voi
     if (shape === 'recall') assertRecallBlank(blank, visible, at)
   }
   for (const rawLine of item.template.split('\n')) {
-    assertLineRunsAnchored(rawLine.trim().replace(SPEAKER_PREFIX_RE, ''), shapes, at)
+    const body = rawLine.trim().replace(SPEAKER_PREFIX_RE, '')
+    assertLineSplitLegible(body, canonicals, at)
   }
 }

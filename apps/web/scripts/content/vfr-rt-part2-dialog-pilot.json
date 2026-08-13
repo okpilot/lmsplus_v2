@@ -7,37 +7,23 @@
   "per_exam": 9,
   "status": "PILOT — 24 of a planned 36. Do not import to prod until the pattern is locked.",
   "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 2 — nine fill-in-the-blank tasks). Dialogues come from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc), the prep source the briefing names, except DLG-03 which is the briefing's own worked example. Every phrase used appears in the guide, but THREE TRANSCRIPTS ARE CONSTRUCTED rather than verbatim: DLG-04 merges the guide's two traffic exchanges (L777-781, two different aircraft) into one aircraft's dialogue; DLG-23 supplies a readback of 'maintain 2500 feet' that the guide's example omits although L322 makes a level instruction mandatory to read back; DLG-24 substitutes 'request full stop' from the phrase table (L1039) into the touch-and-go transcript.",
-  "authoring_notes": "TEMPLATE FORMAT: newline-separated lines, each prefixed [atc] or [pilot] for speaker styling (parse-dialog-display.ts). Blanks are bare {{n}} markers here; answers live only in `blanks`, and the importer composes the stored {{n|canonical;syn1;syn2}} token from that array so each answer has exactly one source of truth. Answers may not contain { } | ; (mig 125 CHECK — a student-leak guard).\n\nBLANK-SHAPE RULE (the core authoring decision, user-directed 2026-08-11): shape the blank by where the answer comes from.\n  * RECALLED — the answer appears nowhere on screen (e.g. 'request departure information', 'looking out'): give it ONE BLANK PER WORD and leave the LAST word of the phrase VISIBLE as the anchor ('{{0}} {{1}} information', '{{0}} out'). Anchoring on the final word is the house pattern — it is consistent across every recall blank in this file, and the validator enforces it as a RUN rule, not a line rule: a run of TWO OR MORE consecutive recall blanks must be followed, immediately and on the same line, by text containing a word character (punctuation alone does not count). A line rule would be wrong here — five lines across four questions are entirely blanks, which is exactly what the callsign-placement questions below require. Word count plus anchor turn blind recall into constrained recall. A student cannot guess a four-word phrase from a single empty box.\n  * DERIVABLE — the controller already said it, or it is a direct transformation of what the controller said (e.g. 'runway 33', 'QNH 1014', 'lining up and waiting' from 'line up and wait'): use ONE PHRASE BLANK. Splitting these would leak the answer, and on a readback-selection question it would reveal WHICH items to pick, destroying the test.\nThis diverges deliberately from the real exam, whose own example brackets whole phrases ('[descending to 2500 feet]'). The product is TRAINING, so learnability wins; revisit if the timed mock exam is built.\n\nCALLSIGN PLACEMENT — THE SOURCE'S RULE (corrected 2026-08-11 after a faithfulness audit): callsign at the FRONT by default; at the END when the pilot is READING BACK an instruction or important information, or ACKNOWLEDGING one (wilco / roger / looking out). Guide L535-537 verbatim: 'the message is normally prefixed with the aircraft call sign. However, when the pilot needs to read back an instruction or important information, he places the call sign at the end of the message.' Corroborated at L330-331 and by the briefing ('placing the callsign at the end of the readback').\n\nTHE DISCRIMINATOR IS READBACK, NOT RESPONSE. An earlier revision taught 'front if you initiate, end if you respond'. That is right wherever a response IS a readback — most of the time — and wrong where it is not: a pilot answering 'report position' front-places (L1329, L1383), and 'S-AA, traffic in sight' (L781) front-places because reporting something newly seen reads nothing back. That revision declared L781 a source typo to protect the inferred rule. It is NOT a typo; the guide is self-consistent, and L970 shows the same phrase END-placed when bundled into an acknowledgement. Never declare a source line erroneous to preserve a rule you inferred — re-read the prose first.\n\nVERIFIED COUNT (L86-L1028, the range every question draws from): 62 fixed-wing pilot transmissions, 33 front-placed and 29 end-placed, ZERO violations of the rule above. The book's two genuine violations sit outside that range (L1446, L1545 — requests carrying an end-placed callsign). A previously recorded '38/18/1' count was not reproducible under any scope and is withdrawn.\n\nHOW TO TEST PLACEMENT: only on a pilot line carrying EXACTLY TWO blanks, where the student decides which holds the callsign. If the callsign's slot is fixed by surrounding text, the template has already answered the question.\n\nDO NOT TEST: whether WIND is read back — the guide reads it back at Maribor take-off but omits it at Ljubljana take-off and at the S-MN landing clearance. Both were candidate questions and both were cut. Only test what the source states as a rule, never a pattern inferred across examples.\n\nEVERY BLANK CARRIES `shape`: 'recall' (answer appears nowhere on screen) or 'derivable' (the controller said it, or it is a direct transformation of what he said). The validator is scripts/dialog-fill-content.ts (assertDialogFillAuthoring), run over every question in this file by scripts/dialog-fill-content.test.ts and again by the importer before any write. It asserts four rules: R1 every blank carries a shape; R2 a recall CANONICAL is a single word — SYNONYMS ARE EXEMPT, and several single-word recall answers legitimately carry multi-word synonyms (wilco accepts 'will report runway vacated'); R3 a recall canonical never appears in the visible template, compared under normalize_answer semantics; R4 the run-anchor rule above. Single-word standard phrases (wilco) are recall but need no split, and a run of one never engages R4. This is what makes the rule checkable rather than a convention that erodes over 30 questions.",
+  "authoring_notes": "TEMPLATE FORMAT: newline-separated lines, each prefixed [atc] or [pilot] for speaker styling (parse-dialog-display.ts). Blanks are bare {{n}} markers here; answers live only in `blanks`, and the importer composes the stored {{n|canonical;syn1;syn2}} token from that array so each answer has exactly one source of truth. Answers may not contain { } | ; (mig 125 CHECK — a student-leak guard).\n\nBLANK-SHAPE RULE (settled 2026-08-12 on eval — ONE BLANK PER PHRASE, always). Every blank holds a COMPLETE phrase, exactly as the exam brackets them: the briefing's worked example is 'QNH 1025, [descending to 2500 feet], [wilco], [S-BC]' — four brackets, each a whole phrase, including the recalled '[wilco]' and the callsigns. Note '[descending to 2500 feet]' is itself a TRANSFORMATION of the controller's 'descend to 2500 feet', and the whole transformation sits in one bracket. NEVER split a phrase across boxes.\n\n  Superseded: an earlier revision split RECALLED phrases one blank per word with the last word left visible as an anchor ('{{0}} {{1}} information'). That was user-directed on 2026-08-11 because a single empty box for an unseen phrase looked unguessable, and it was withdrawn on 2026-08-12 for two reasons. First, the briefing's PREAMBLE names those very phrases — 'radio check, request departure information, traffic in sight, looking out' — so a prepared student HAS read them; they are recall, not guesswork. Second, the objection was partly that a long answer was unreadable in a fixed 112px box, and the runner's input now grows with what the student types. Five questions were converted (DLG-01/04/05/22/24) and validator rules R2 (single-word recall canonical) and R4 (anchor after a recall run) were deleted with them.\n\n  `shape` is still carried on every blank and still means what it meant — RECALLED (the answer appears nowhere on screen) vs DERIVABLE (the controller said it, or it is a direct transformation of what he said). It no longer changes how the blank is SPLIT; it drives R3, which asserts a recall canonical is not sitting in the visible template where the student could copy it.\n\nCALLSIGN PLACEMENT — THE SOURCE'S RULE (corrected 2026-08-11 after a faithfulness audit): callsign at the FRONT by default; at the END when the pilot is READING BACK an instruction or important information, or ACKNOWLEDGING one (wilco / roger / looking out). Guide L535-537 verbatim: 'the message is normally prefixed with the aircraft call sign. However, when the pilot needs to read back an instruction or important information, he places the call sign at the end of the message.' Corroborated at L330-331 and by the briefing ('placing the callsign at the end of the readback').\n\nTHE DISCRIMINATOR IS READBACK, NOT RESPONSE. An earlier revision taught 'front if you initiate, end if you respond'. That is right wherever a response IS a readback — most of the time — and wrong where it is not: a pilot answering 'report position' front-places (L1329, L1383), and 'S-AA, traffic in sight' (L781) front-places because reporting something newly seen reads nothing back. That revision declared L781 a source typo to protect the inferred rule. It is NOT a typo; the guide is self-consistent, and L970 shows the same phrase END-placed when bundled into an acknowledgement. Never declare a source line erroneous to preserve a rule you inferred — re-read the prose first.\n\nVERIFIED COUNT (L86-L1028, the range every question draws from): 62 fixed-wing pilot transmissions, 33 front-placed and 29 end-placed, ZERO violations of the rule above. The book's two genuine violations sit outside that range (L1446, L1545 — requests carrying an end-placed callsign). A previously recorded '38/18/1' count was not reproducible under any scope and is withdrawn.\n\nHOW TO TEST PLACEMENT: only on a pilot line carrying EXACTLY TWO blanks, where the student decides which holds the callsign. If the callsign's slot is fixed by surrounding text, the template has already answered the question.\n\nDO NOT TEST: whether WIND is read back — the guide reads it back at Maribor take-off but omits it at Ljubljana take-off and at the S-MN landing clearance. Both were candidate questions and both were cut. Only test what the source states as a rule, never a pattern inferred across examples.\n\nEVERY BLANK CARRIES `shape`: 'recall' (answer appears nowhere on screen) or 'derivable' (the controller said it, or it is a direct transformation of what he said). The validator is scripts/dialog-fill-content.ts (assertDialogFillAuthoring), run over every question in this file by scripts/dialog-fill-content.test.ts and again by the importer before any write. It asserts four rules: R1 every blank carries a shape; R2 a recall CANONICAL is a single word — SYNONYMS ARE EXEMPT, and several single-word recall answers legitimately carry multi-word synonyms (wilco accepts 'will report runway vacated'); R3 a recall canonical never appears in the visible template, compared under normalize_answer semantics; R4 the run-anchor rule above. Single-word standard phrases (wilco) are recall but need no split, and a run of one never engages R4. This is what makes the rule checkable rather than a convention that erodes over 30 questions.\n\nSPLIT LEGIBILITY (R5, user-directed 2026-08-12 after eval rejected DLG-15): a readback line must leave at least one CONTENT item VISIBLE. The briefing's own worked example does this — 'QNH 1025, [descending to 2500 feet], [wilco], [S-BC]' — the given 'QNH 1025' is what shows the student how the readback divides. Blank every item and only the commas remain, so the student must guess the SPLIT as well as each phrase. DLG-15 shipped as '{{0}}, {{1}}, {{2}}, S-GI' (three phrases off bare commas) and was rejected on sight. A trailing CALLSIGN does NOT count as the visible item: it is on every readback and says nothing about the division. Enforced as R5 in scripts/dialog-fill-content.ts; callsigns detected as /^[a-z0-9]{1,2}-[a-z]{2,3}$/i.\n\nWHICH item to leave visible — we diverge from the briefing. It gives the FIRST item and brackets the rest; we give whichever item is NOT the lesson (usually the trailing runway/clearance) and blank the hard one, so the test stays sharp. Reworked under this rule: DLG-01 (gives runway, tests which OTHER item returns from a six-item met report), DLG-08 (gives runway, tests the clearance), DLG-14 and DLG-15 (give the instruction, test the CONDITION — the distinctive part of a conditional clearance). Note this rule does NOT touch the callsign-placement lines ('{{0}}, {{1}}' in DLG-12/13/16/19): only one of those two blanks is a content item, so the split is never in doubt.\n\nBLANK WIDTH is a UI concern, not a content one. The exam brackets whole phrases — the briefing's own '[descending to 2500 feet]' is 25 characters — so the runner's input grows with what the student types (dialog-line.tsx). It must NOT size to the ANSWER: an empty box wide enough for its canonical leaks the answer length, which is why blanks_safe ships index-only.\n\nPROMPT SETS THE SCENE ONLY (R6, user-directed 2026-08-12). The briefing's example task carries NO instruction — just 'Example task:' and the dialogue. Its four competencies (basic phrases; forming a correct readback incl. callsign at the end, only the QNH from met info, the runway in use; use of 'wilco'; abbreviated callsigns only after ATC abbreviates) are stated in the PREAMBLE, read during preparation — they are NOT supplied with the task. So a prompt must give the scene (where, what situation) and never name the competency. All 24 prompts were stripped on eval: DLG-10 read 'Complete the callsign AT THE END of each pilot transmission' — verbatim the rule under test — and DLG-19 read 'decide where the callsign belongs in each'. 15 of 24 leaked this way. Enforced as R6 in scripts/dialog-fill-content.ts (denylist: callsign / read back / in the order / wilco / abbreviat / decide / runway in use / only the QNH). Corollary: do NOT add the competency list to the practice UI either — the exam does not put it in front of the student at question time.",
   "grading_notes": "Graded per blank against canonical + synonyms with normalize_answer (lowercase, strips punctuation, hyphen/underscore to space, collapses whitespace) — so case, commas, hyphens and the European decimal comma are already free ('118.0' and '118,0' both normalize to '1180'). Synonym policy: (a) numbers take digit AND spoken forms; (b) verbs take both aspects where a pilot could reasonably write either; (c) every abbreviated callsign accepts the run-together spelling, since the normalizer maps 'S-AA' to 's aa' and NOT to 'saa'. Fixed standard phrases stay STRICT — they are the exact terms under test. A full callsign is never a synonym for its abbreviated form, or the abbreviation rule becomes untestable.",
   "questions": [
     {
       "num": "VRT-P2-DLG-01",
-      "prompt": "Engine start-up at Portoroz. Complete the pilot's request, then the readback of the departure information. Read the items back in the order the controller gave them.",
-      "template": "[pilot] Portoroz Tower S5-DAA, radio check 115,15\n[atc] S5-DAA Portoroz Tower, read you 5\n[pilot] S5-DAA, {{0}} {{1}} information\n[atc] S-AA, runway 33, wind 090 degrees 6 knots, QNH 1014, temperature 5, dew point 3, clouds scattered at 2000 feet\n[pilot] {{2}}, {{3}}, S-AA",
+      "prompt": "Engine start-up at Portoroz.",
+      "template": "[pilot] Portoroz Tower S5-DAA, radio check 115,15\n[atc] S5-DAA Portoroz Tower, read you 5\n[pilot] S5-DAA, {{0}}\n[atc] S-AA, runway 33, wind 090 degrees 6 knots, QNH 1014, temperature 5, dew point 3, clouds scattered at 2000 feet\n[pilot] runway 33, {{1}}, S-AA",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
-          "canonical": "request",
-          "synonyms": [],
-          "rule": "Basic phrases — recalled, so split per word with 'information' left as the anchor."
+          "canonical": "request departure information",
+          "synonyms": ["request the departure information"],
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         },
         {
           "index": 1,
-          "shape": "recall",
-          "canonical": "departure",
-          "synonyms": [],
-          "rule": "Basic phrases — second word of the standard pre-departure request."
-        },
-        {
-          "index": 2,
-          "shape": "derivable",
-          "canonical": "runway 33",
-          "synonyms": ["runway three three", "runway in use 33", "rwy 33"],
-          "rule": "Items to be read back — runway in use. Derivable from the controller's transmission, so one phrase blank."
-        },
-        {
-          "index": 3,
           "shape": "derivable",
           "canonical": "QNH 1014",
           "synonyms": ["QNH one zero one four"],
@@ -48,7 +34,7 @@
     },
     {
       "num": "VRT-P2-DLG-02",
-      "prompt": "Taxi instructions at Maribor. Complete the pilot's readback.",
+      "prompt": "Taxi instructions at Maribor.",
       "template": "[pilot] Maribor Approach S5-DBS, main apron, information R, request taxi for VFR flight to Lesce\n[atc] S-BS Maribor Approach, taxi to holding point A, runway 14, QNH 1002, report ready for departure\n[pilot] taxiing to holding point A, runway 14, QNH 1002, {{0}}, {{1}}",
       "blanks": [
         {
@@ -70,7 +56,7 @@
     },
     {
       "num": "VRT-P2-DLG-03",
-      "prompt": "Approaching Portoroz. Complete the pilot's two transmissions — note carefully which form of the callsign each one takes.",
+      "prompt": "Approaching Portoroz.",
       "template": "[pilot] Portoroz Approach S5-ABC\n[atc] S5-ABC Portoroz Approach, go ahead\n[pilot] {{0}}, overhead PE1, 3500 feet, for approach\n[atc] S-BC, QNH 1025, descend to 2500 feet, next report overhead PE2\n[pilot] QNH 1025, {{1}}, {{2}}, {{3}}",
       "blanks": [
         {
@@ -116,54 +102,40 @@
     },
     {
       "num": "VRT-P2-DLG-04",
-      "prompt": "Traffic information en route. The pilot acknowledges traffic he cannot yet see, then reports it once he has located it. Complete both transmissions.",
-      "template": "[atc] S-AB, light aircraft 11 o'clock, crossing left to right at 4500 feet\n[pilot] {{0}} out, S-AB\n[pilot] S-AB, {{1}} {{2}} sight",
+      "prompt": "Traffic information en route. The pilot cannot see the traffic at first, then locates it.",
+      "template": "[atc] S-AB, light aircraft 11 o'clock, crossing left to right at 4500 feet\n[pilot] {{0}}, S-AB\n[pilot] S-AB, {{1}}",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
-          "canonical": "looking",
+          "canonical": "looking out",
           "synonyms": [],
-          "rule": "Basic phrases — acknowledging traffic not yet sighted; 'out' anchors the phrase."
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         },
         {
           "index": 1,
           "shape": "recall",
-          "canonical": "traffic",
-          "synonyms": [],
-          "rule": "Basic phrases — reporting the traffic located; 'sight' anchors the phrase."
-        },
-        {
-          "index": 2,
-          "shape": "recall",
-          "canonical": "in",
-          "synonyms": [],
-          "rule": "Basic phrases — middle word of the standard sighting report."
+          "canonical": "traffic in sight",
+          "synonyms": ["traffic in sight now"],
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         }
       ],
       "explanation": "**Two standard phrases, and the callsign moves between them.** Until you have located the other aircraft you answer **looking out**; once you have it visually you report **traffic in sight**. If you cannot find it at all the phrase is **negative contact** — never silence, because the controller needs to know you are still searching. Watch the callsign: *looking out* acknowledges what the controller just told you, so it goes **last**; *traffic in sight* reports something new rather than reading anything back, so it goes **first**. The trigger for end-placement is reading back or acknowledging — not merely answering."
     },
     {
       "num": "VRT-P2-DLG-05",
-      "prompt": "Ready to depart from Maribor. Complete the pilot's report and the acknowledgement that follows.",
-      "template": "[pilot] S-BS, {{0}} {{1}} departure\n[atc] S-BS, line up and wait\n[pilot] {{2}}, S-BS",
+      "prompt": "Ready to depart from Maribor.",
+      "template": "[pilot] S-BS, {{0}}\n[atc] S-BS, line up and wait\n[pilot] {{1}}, S-BS",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
-          "canonical": "ready",
+          "canonical": "ready for departure",
           "synonyms": [],
-          "rule": "Basic phrases — recalled, so split per word with 'departure' as the anchor."
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         },
         {
           "index": 1,
-          "shape": "recall",
-          "canonical": "for",
-          "synonyms": [],
-          "rule": "Basic phrases — second word of the standard report."
-        },
-        {
-          "index": 2,
           "shape": "derivable",
           "canonical": "lining up and waiting",
           "synonyms": [],
@@ -174,7 +146,7 @@
     },
     {
       "num": "VRT-P2-DLG-06",
-      "prompt": "Lined up at Ljubljana when the controller stops the departure. Complete the pilot's acknowledgement.",
+      "prompt": "Lined up at Ljubljana when the controller stops the departure.",
       "template": "[atc] S-AT, line up runway 12, cleared for take-off, wind 090 degrees 6 knots, after departure turn right to S3, climb to 2500 feet\n[pilot] line up runway 12, cleared for take-off, turn right to S3, climb to 2500 feet, S-AT\n[atc] S-AT, hold position, I say again, hold position, obstacle on runway 12\n[pilot] {{0}} position, S-AT",
       "blanks": [
         {
@@ -189,7 +161,7 @@
     },
     {
       "num": "VRT-P2-DLG-07",
-      "prompt": "En route, approaching Ljubljana. Complete the pilot's readback of the frequency change.",
+      "prompt": "En route, approaching Ljubljana.",
       "template": "[pilot] S-BS, 3 minutes before NE\n[atc] S-BS, contact Ljubljana tower 118.0\n[pilot] {{0}}, S-BS",
       "blanks": [
         {
@@ -209,18 +181,11 @@
     },
     {
       "num": "VRT-P2-DLG-08",
-      "prompt": "On base at Portoroz. Complete the pilot's readback of the landing clearance.",
-      "template": "[pilot] S-MN, base\n[atc] S-MN, runway 33, cleared to land, wind 300 degrees, 8 knots gusting at 12\n[pilot] {{0}}, {{1}}, S-MN",
+      "prompt": "On base at Portoroz.",
+      "template": "[pilot] S-MN, base\n[atc] S-MN, runway 33, cleared to land, wind 300 degrees, 8 knots gusting at 12\n[pilot] runway 33, {{0}}, S-MN",
       "blanks": [
         {
           "index": 0,
-          "shape": "derivable",
-          "canonical": "runway 33",
-          "synonyms": ["runway three three", "rwy 33"],
-          "rule": "Items to be read back — runway instruction."
-        },
-        {
-          "index": 1,
           "shape": "derivable",
           "canonical": "cleared to land",
           "synonyms": [],
@@ -231,7 +196,7 @@
     },
     {
       "num": "VRT-P2-DLG-09",
-      "prompt": "En route to Novo mesto, leaving controlled airspace. Complete the pilot's readback.",
+      "prompt": "En route to Novo mesto, leaving controlled airspace.",
       "template": "[pilot] Ljubljana Information S5-DAT, passing S3 at 43, to Novo mesto\n[atc] S-AT, QNH 1012, continue visually to Novo mesto, report before changing to local frequency\n[pilot] QNH 1012, continuing visually to Novo mesto, {{0}}, {{1}}",
       "blanks": [
         {
@@ -253,7 +218,7 @@
     },
     {
       "num": "VRT-P2-DLG-10",
-      "prompt": "Straight-in approach to Ljubljana. Complete the callsign at the end of each pilot transmission.",
+      "prompt": "Straight-in approach to Ljubljana.",
       "template": "[pilot] Ljubljana Tower S5-DJP, passing W1 at 4000 feet, for landing\n[atc] S5-DJP Ljubljana Tower, cleared straight-in-approach runway 12, wind 140 degrees 8 knots, QNH 1013, report final\n[pilot] cleared straight-in-approach runway 12, QNH 1013, will report final, {{0}}\n[atc] S-JP, runway 12 cleared to land, wind 140 degrees 8 knots\n[pilot] runway 12 cleared to land, {{1}}",
       "blanks": [
         {
@@ -275,7 +240,7 @@
     },
     {
       "num": "VRT-P2-DLG-11",
-      "prompt": "Joining the circuit at Portoroz. Complete the pilot's readback of the joining instructions, taking the items in the order the controller gave them.",
+      "prompt": "Joining the circuit at Portoroz.",
       "template": "[pilot] Portoroz Approach S5-DMN, over PE1, 3000 feet, for landing\n[atc] S5-DMN Portoroz Approach, QNH 1021, runway in use 33, continue to the airport, descend visually to 1000 feet, report runway in sight\n[pilot] {{0}}, {{1}}, continuing to the airport, descending visually to 1000 feet, {{2}}, {{3}}",
       "blanks": [
         {
@@ -311,7 +276,7 @@
     },
     {
       "num": "VRT-P2-DLG-12",
-      "prompt": "Position report to Ljubljana Information. Complete the pilot's acknowledgement.",
+      "prompt": "Position report to Ljubljana Information.",
       "template": "[pilot] Ljubljana Information S5-DEW\n[atc] S5-DEW Ljubljana Information\n[pilot] S5-DEW overhead Velike Lasce at 24, passing 4500 feet, climbing to 6500 feet, estimating ILB at 40, PE1 next\n[atc] S-EW report three minutes before PE1\n[pilot] {{0}}, {{1}}",
       "blanks": [
         {
@@ -333,7 +298,7 @@
     },
     {
       "num": "VRT-P2-DLG-13",
-      "prompt": "Transponder code assignment. Complete the pilot's readback.",
+      "prompt": "Transponder code assignment.",
       "template": "[atc] S-AA, advise transponder capability\n[pilot] transponder Charlie, S-AA\n[atc] S-AA, squawk 6503\n[pilot] {{0}}, {{1}}",
       "blanks": [
         {
@@ -360,8 +325,8 @@
     },
     {
       "num": "VRT-P2-DLG-14",
-      "prompt": "Conditional line-up at Ljubljana. Complete the pilot's readback of the conditional clearance.",
-      "template": "[atc] S5-DBS, report Seneca on final in sight\n[pilot] Seneca in sight, S5-DBS\n[atc] S5-DBS, behind the landing Seneca, line up behind\n[pilot] {{0}}, {{1}}, S5-DBS",
+      "prompt": "Conditional line-up at Ljubljana.",
+      "template": "[atc] S5-DBS, report Seneca on final in sight\n[pilot] Seneca in sight, S5-DBS\n[atc] S5-DBS, behind the landing Seneca, line up behind\n[pilot] {{0}}, line up behind, S5-DBS",
       "blanks": [
         {
           "index": 0,
@@ -369,21 +334,14 @@
           "canonical": "behind the landing Seneca",
           "synonyms": ["behind landing Seneca"],
           "rule": "Conditional clearance — the CONDITION must be repeated, not just the clearance."
-        },
-        {
-          "index": 1,
-          "shape": "derivable",
-          "canonical": "line up behind",
-          "synonyms": ["lining up behind"],
-          "rule": "Conditional clearance — the clearance itself follows the condition."
         }
       ],
-      "explanation": "**A conditional clearance is read back with its condition, and the condition comes first.** *Behind the landing Seneca* is not scene-setting — it is what makes the line-up safe, and repeating it proves you have identified the right aircraft. That is why the controller asked you to report the Seneca in sight first: for movements affecting an active runway, a conditional clearance may only be given when both controller and pilot can see the aircraft concerned. Note this readback echoes the clearance as issued rather than transforming it — *line up behind*, not *lining up behind* — though both are accepted here."
+      "explanation": "**A conditional clearance is read back with its condition, and the condition comes first.** *Behind the landing Seneca* is not scene-setting — it is what makes the line-up safe, and repeating it proves you have identified the right aircraft. That is why the controller asked you to report the Seneca in sight first: for movements affecting an active runway, a conditional clearance may only be given when both controller and pilot can see the aircraft concerned. Note the readback echoes the clearance as the controller issued it — *line up behind* — rather than transforming it into *lining up behind*."
     },
     {
       "num": "VRT-P2-DLG-15",
-      "prompt": "Conditional landing clearance. Complete the pilot's readback.",
-      "template": "[atc] S-GI, report departing Cessna in sight\n[pilot] Cessna in sight, S-GI\n[atc] S-GI, after departing Cessna has passed, runway 14, cleared to land, wind calm\n[pilot] {{0}}, {{1}}, {{2}}, S-GI",
+      "prompt": "Conditional landing clearance at Ljubljana.",
+      "template": "[atc] S-GI, report departing Cessna in sight\n[pilot] Cessna in sight, S-GI\n[atc] S-GI, after departing Cessna has passed, runway 14, cleared to land, wind calm\n[pilot] {{0}}, runway 14, cleared to land, S-GI",
       "blanks": [
         {
           "index": 0,
@@ -391,27 +349,13 @@
           "canonical": "after departing Cessna has passed",
           "synonyms": ["after the departing Cessna has passed"],
           "rule": "Conditional clearance — the condition is repeated first."
-        },
-        {
-          "index": 1,
-          "shape": "derivable",
-          "canonical": "runway 14",
-          "synonyms": ["runway one four", "rwy 14"],
-          "rule": "Items to be read back — runway instruction."
-        },
-        {
-          "index": 2,
-          "shape": "derivable",
-          "canonical": "cleared to land",
-          "synonyms": [],
-          "rule": "Items to be read back — a landing clearance."
         }
       ],
       "explanation": "**Condition, runway, clearance — and nothing else.** The controller also passed *wind calm*; the wind is information for flying the approach and is not read back. What must come back is the condition that the departing Cessna has passed, the runway, and the clearance itself. Drop the condition from your readback and you have told the controller you are cleared to land now, which is not what he said."
     },
     {
       "num": "VRT-P2-DLG-16",
-      "prompt": "The pilot asks Maribor Tower for the present weather. Complete the readback.",
+      "prompt": "The pilot asks Maribor Tower for the present weather.",
       "template": "[pilot] Maribor Tower S5-DBS, request present weather\n[atc] S5-DBS Maribor Tower, wind 120 degrees 5 knots, clouds scattered 2000 feet, temperature 5, dew point 3, QNH 1023\n[pilot] {{0}}, {{1}}",
       "blanks": [
         {
@@ -433,7 +377,7 @@
     },
     {
       "num": "VRT-P2-DLG-17",
-      "prompt": "Landing clearance with a braking-action warning. Read back the clearance, then acknowledge the warning.",
+      "prompt": "Landing clearance with a braking-action warning.",
       "template": "[atc] S5-DSC, runway 30 cleared to land, just landed Cessna reported braking action poor\n[pilot] runway 30 {{0}}, {{1}}, S5-DSC",
       "blanks": [
         {
@@ -455,7 +399,7 @@
     },
     {
       "num": "VRT-P2-DLG-18",
-      "prompt": "On short final when the controller sends you around. Complete the pilot's reply.",
+      "prompt": "On short final when the controller sends you around.",
       "template": "[atc] S-JP, go around, vehicle on the runway\n[pilot] {{0}} around, S-JP",
       "blanks": [
         {
@@ -470,7 +414,7 @@
     },
     {
       "num": "VRT-P2-DLG-19",
-      "prompt": "A touch-and-go at Ljubljana. Three pilot transmissions — decide where the callsign belongs in each.",
+      "prompt": "A touch-and-go at Ljubljana.",
       "template": "[pilot] S-AT, downwind, request touch-and-go\n[atc] S-AT, expect touch-and-go, report final runway 14\n[pilot] {{0}}, {{1}}\n[pilot] {{2}}, final runway 14\n[atc] S-AT, runway 14, cleared touch-and-go, wind 120 degrees 5 knots\n[pilot] {{3}}, {{4}}",
       "blanks": [
         {
@@ -516,7 +460,7 @@
     },
     {
       "num": "VRT-P2-DLG-20",
-      "prompt": "After landing at Portoroz. Complete the pilot's readback.",
+      "prompt": "After landing at Portoroz.",
       "template": "[atc] S-MN, vacate right, report runway vacated, continue to general aviation apron via taxiways A and T\n[pilot] {{0}}, continuing to general aviation apron via taxiways A and T, {{1}}, S-MN",
       "blanks": [
         {
@@ -538,7 +482,7 @@
     },
     {
       "num": "VRT-P2-DLG-21",
-      "prompt": "Cloud ahead en route. Complete the pilot's transmission telling the controller and requesting a turn.",
+      "prompt": "Cloud ahead en route.",
       "template": "[pilot] S5-DAA, {{0}} to maintain VMC due clouds, request turn left to Ptuj",
       "blanks": [
         {
@@ -553,29 +497,22 @@
     },
     {
       "num": "VRT-P2-DLG-22",
-      "prompt": "Lesce is in sight — not the planned destination — and the pilot is leaving the information frequency before landing. Complete the transmission.",
-      "template": "[pilot] Ljubljana Information S5-DJJ, airport Lesce in sight, changing to local frequency, {{0}} {{1}} flight plan",
+      "prompt": "Lesce is in sight — not the planned destination — and the pilot is leaving the information frequency before landing.",
+      "template": "[pilot] Ljubljana Information S5-DJJ, airport Lesce in sight, changing to local frequency, {{0}}",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
-          "canonical": "request",
-          "synonyms": [],
-          "rule": "Basic phrases — recalled, so split per word with 'flight plan' as the anchor."
-        },
-        {
-          "index": 1,
-          "shape": "recall",
-          "canonical": "close",
-          "synonyms": [],
-          "rule": "Basic phrases — second word of the standard request."
+          "canonical": "request close flight plan",
+          "synonyms": ["request to close flight plan", "request closing flight plan"],
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         }
       ],
       "explanation": "**A flight plan left open triggers a search.** When you land at an aerodrome that is not your planned destination, you must close the plan yourself — by radio before landing, as here, or by telephone afterwards — to avoid unnecessary search and rescue activity. The station confirms with a time: *flight plan closed at 40*. Note the shape of an initiating call: station name, then your callsign, then the message."
     },
     {
       "num": "VRT-P2-DLG-23",
-      "prompt": "Crossing controlled airspace near Maribor. Complete the pilot's position report on reaching the boundary point.",
+      "prompt": "Crossing controlled airspace near Maribor, reaching the boundary point.",
       "template": "[atc] S-AS, maintain 2500 feet, report over ME1\n[pilot] maintaining 2500 feet, wilco, S-AS\n[pilot] {{0}}, {{1}}, 2500 feet",
       "blanks": [
         {
@@ -597,22 +534,15 @@
     },
     {
       "num": "VRT-P2-DLG-24",
-      "prompt": "Finishing a training detail in the circuit. Complete the pilot's request.",
-      "template": "[pilot] S-AT, downwind, {{0}} {{1}} stop\n[atc] S-AT, report final runway 14",
+      "prompt": "Finishing a training detail in the circuit.",
+      "template": "[pilot] S-AT, downwind, {{0}}\n[atc] S-AT, report final runway 14",
       "blanks": [
         {
           "index": 0,
           "shape": "recall",
-          "canonical": "request",
-          "synonyms": [],
-          "rule": "Basic phrases — recalled, so split per word with 'stop' as the anchor."
-        },
-        {
-          "index": 1,
-          "shape": "recall",
-          "canonical": "full",
-          "synonyms": [],
-          "rule": "Basic phrases — naming which of the three training options you want."
+          "canonical": "request full stop",
+          "synonyms": ["request full-stop landing"],
+          "rule": "Whole phrase in one blank — the exam brackets complete phrases ([descending to 2500 feet], [wilco])."
         }
       ],
       "explanation": "**Three requests, three different intentions, and the controller plans the circuit around which one you use.** *Touch-and-go* means you land and take off again without stopping; *stop-and-go* means you land, come to a full stop, then depart; **full stop** means the training detail is over. Say which you want while still downwind so the sequence can be arranged. The callsign is in front because you are reporting your position and making a request — nothing is being read back."

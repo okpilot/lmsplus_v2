@@ -225,6 +225,66 @@ describe('assertDialogFillAuthoring', () => {
     expect(() => assertDialogFillAuthoring(makeItem(), AT)).not.toThrow()
   })
 
+  it.each([
+    ['the position of the callsign', 'Straight-in approach. Complete the callsign at the end.'],
+    ['the order items return in', 'Joining the circuit. Read the items back in the order given.'],
+    ['the acknowledgement to use', 'Position report. Acknowledge with wilco.'],
+    ['the abbreviation rule', 'Approaching. Note which form of the callsign is abbreviated.'],
+  ])('refuses a prompt that tells the student %s', (_label, prompt) => {
+    expect(() => assertDialogFillAuthoring(makeItem({ prompt }), AT)).toThrow(/authoring R6/)
+  })
+
+  it('accepts a prompt that only sets the scene', () => {
+    const item = makeItem({ prompt: 'Straight-in approach to Ljubljana.' })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('refuses a readback whose items are all blank, leaving only commas to divide them', () => {
+    const item = makeItem({
+      template:
+        '[atc] S-GI, after departing Cessna has passed, runway 14, cleared to land\n[pilot] {{0}}, {{1}}, {{2}}, S-GI',
+      blanks: [
+        blank(0, 'derivable', 'after departing Cessna has passed'),
+        blank(1, 'derivable', 'runway 14'),
+        blank(2, 'derivable', 'cleared to land'),
+      ],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R5/)
+  })
+
+  it('accepts a readback that keeps one item visible beside the blank', () => {
+    const item = makeItem({
+      template:
+        '[atc] S-GI, after departing Cessna has passed, runway 14, cleared to land\n[pilot] {{0}}, runway 14, cleared to land, S-GI',
+      blanks: [blank(0, 'derivable', 'after departing Cessna has passed')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('does not count a trailing callsign as the visible item', () => {
+    const item = makeItem({
+      template: '[atc] S-MN, runway 33, cleared to land\n[pilot] {{0}}, {{1}}, S-MN',
+      blanks: [blank(0, 'derivable', 'runway 33'), blank(1, 'derivable', 'cleared to land')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R5/)
+  })
+
+  it('accepts a line where only one blank is a content item and the other is the callsign', () => {
+    const item = makeItem({
+      template: '[atc] S-EW report three minutes before PE1\n[pilot] {{0}}, {{1}}',
+      blanks: [blank(0, 'recall', 'wilco'), blank(1, 'derivable', 'S-EW')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('accepts a blank that sits beside text in the same comma-separated item', () => {
+    const item = makeItem({
+      template: '[atc] S-MN, runway 33, cleared to land\n[pilot] runway {{0}}, {{1}}, S-MN',
+      blanks: [blank(0, 'derivable', '33'), blank(1, 'derivable', 'cleared to land')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
   it('refuses an answer with no declared origin', () => {
     const bad = { ...blank(0, 'recall', 'request') } as { shape?: unknown }
     bad.shape = undefined
@@ -232,14 +292,6 @@ describe('assertDialogFillAuthoring', () => {
       blanks: [bad as AuthoredBlank, blank(1, 'recall', 'departure')],
     })
     expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R1/)
-  })
-
-  it('refuses a whole recalled phrase crammed into one box', () => {
-    const item = makeItem({
-      template: '[pilot] S-AB, {{0}} information',
-      blanks: [blank(0, 'recall', 'request departure')],
-    })
-    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R2/)
   })
 
   it('accepts a multi-word alternative answer for a single-word recalled one', () => {
@@ -266,21 +318,6 @@ describe('assertDialogFillAuthoring', () => {
       blanks: [blank(0, 'recall', 'traffic'), blank(1, 'recall', 'in')],
     })
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
-  })
-
-  it('refuses consecutive recalled boxes with no word left visible after them', () => {
-    const item = makeItem({ template: '[pilot] S-AB, {{0}} {{1}}' })
-    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R4/)
-  })
-
-  it('refuses punctuation alone as the word left visible after the boxes', () => {
-    const item = makeItem({ template: '[pilot] S-AB, {{0}} {{1}}, ...' })
-    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R4/)
-  })
-
-  it('does not accept a speaker tag as the visible word for a run starting the line', () => {
-    const item = makeItem({ template: '[pilot] {{0}} {{1}}' })
-    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R4/)
   })
 
   it('accepts a single recalled box that ends its line', () => {
@@ -314,18 +351,6 @@ describe('assertDialogFillAuthoring', () => {
       ],
     })
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
-  })
-
-  it('refuses a longer run of recalled boxes that ends the line', () => {
-    const item = makeItem({
-      template: '[pilot] S-AB, {{0}} {{1}} {{2}}',
-      blanks: [
-        blank(0, 'recall', 'request'),
-        blank(1, 'recall', 'departure'),
-        blank(2, 'recall', 'aerodrome'),
-      ],
-    })
-    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/R4/)
   })
 })
 
