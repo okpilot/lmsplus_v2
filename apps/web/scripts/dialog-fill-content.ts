@@ -7,9 +7,10 @@
  * a failure knows immediately WHICH gate rejected the content:
  *   - `assertDialogFillItem`      — mirrors the DB CHECKs. A failure here means the row would
  *                                   have been rejected by Postgres (or stored un-answerable).
- *   - `assertDialogFillAuthoring` — R1–R4 house rules from the file's own `authoring_notes`.
- *                                   A failure here means the row would import fine but teach
- *                                   badly.
+ *   - `assertDialogFillAuthoring` — the R1/R3/R5/R6/R7 house rules from the file's own
+ *                                   `authoring_notes` (R2 and R4 were retired with per-word
+ *                                   splitting). A failure here means the row would import fine
+ *                                   but teach badly.
  *
  * Storage grammar: the source template carries bare `{{n}}` markers and the answers live only
  * in `blanks`; `composeDialogTemplate` builds the stored `{{n|canonical;syn1;syn2}}` token so
@@ -45,6 +46,12 @@ export type DialogFillItem = {
   template: string
   blanks: AuthoredBlank[]
   explanation?: string
+  /**
+   * R7 opt-out: prose naming what pins this item's recall blanks when no `[atc]` line sits beside
+   * them. Free text by design — the point is to force the author to state the anchor, so a reader
+   * can check the claim. Authoring metadata only; nothing reads it and no DB column holds it.
+   */
+  unanchored?: string
 }
 
 type LineMarker = { index: number; start: number; end: number }
@@ -315,6 +322,12 @@ function assertLineSplitLegible(
  * just the dialogue. A prompt that repeats a rule hands the student the answer at the moment they
  * are meant to supply it: DLG-10 shipped as "Complete the callsign AT THE END of each pilot
  * transmission", which is verbatim the rule under test.
+ *
+ * The prompt is no longer rendered to students at all (2026-08-13 eval — the exam shows nothing
+ * above the dialogue; `quiz-main-panel.tsx` skips QuestionCard for dialog_fill), so this check no
+ * longer guards a live leak. It is kept deliberately: `question_text` is NOT NULL and still holds
+ * the scene for the admin question list, and R7 below now assumes the prompt pins NOTHING. Were a
+ * competency to creep back into the prompt, the temptation to re-render it comes with it.
  */
 const PROMPT_LEAK_RE =
   /\b(callsign|read ?back|in the order|wilco|abbreviat|decide|runway in use|only the qnh)\b/i
@@ -330,11 +343,56 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
 }
 
 /**
+ * R7 — a recall blank must sit beside an `[atc]` line.
+ *
+ * The defect this exists to stop (found on eval 2026-08-13, cost 2 questions and 5 rewrites): a
+ * `recall` blank asks the student to produce a phrase that appears nowhere on screen, so SOMETHING
+ * must pin which phrase. For every sound one in this corpus that anchor is the adjacent controller
+ * transmission — `report ready for departure` → `wilco`, `read you 5` → `radio check`. Where no
+ * `[atc]` line was adjacent, the only thing pinning the answer was the scene prompt, and the exam
+ * does not show one: DLG-01 accepted only `request departure information` when `request start-up`
+ * is equally correct, DLG-24 only `request full stop` over `request touch-and-go`.
+ *
+ * The anchor must PRECEDE the blank — the recalled phrase reads back or acknowledges the line
+ * above it. A following line is deliberately NOT accepted, because whether it reveals the answer
+ * is a judgement no check can make: DLG-05's `ready for departure` is genuinely fixed by the
+ * `line up and wait` that answers it, but DLG-24's `request full stop` was NOT fixed by the
+ * `report final runway 14` that followed — full stop and touch-and-go draw the same reply. Those
+ * two are indistinguishable to a rule and opposite on the merits, so answered-after items take the
+ * `unanchored` declaration and state the reasoning where a reader can check it.
+ *
+ * `derivable` blanks are exempt: their answer IS in the visible text (that is what the shape
+ * means), so an adjacent controller line is not what makes them answerable. DLG-19 and DLG-23
+ * blank a callsign on a line following another pilot line and are sound.
+ *
+ * Genuinely-unanchored items opt out via `unanchored`, which must say what pins the answer
+ * instead. Five do, all legitimately: DLG-05 and DLG-33, where the controller's REPLY reveals the
+ * request; DLG-21, where `unable` sits inline inside a visible sentence; and DLG-34/35, blind
+ * self-announce at an unattended aerodrome where no controller exists and the taxi → line-up →
+ * final sequence fixes the call.
+ */
+function assertRecallAnchored(item: DialogFillItem, at: string): void {
+  if (typeof item.unanchored === 'string' && item.unanchored.trim() !== '') return
+  const lines = item.template.split('\n')
+  const recallIndexes = new Set(item.blanks.filter((b) => b.shape === 'recall').map((b) => b.index))
+  for (const [i, line] of lines.entries()) {
+    const held = lineMarkers(line).filter((m) => recallIndexes.has(m.index))
+    if (held.length === 0) continue
+    if (lines[i - 1]?.startsWith('[atc]') !== true) {
+      throw new Error(
+        `${at}: authoring R7 — recall blank(s) ${held.map((m) => m.index).join(', ')} sit on a line with no [atc] line above them, so nothing on screen pins which phrase is wanted and the student must guess; blank a readback of the controller's line instead, or declare 'unanchored' saying what does pin it.`,
+      )
+    }
+  }
+}
+
+/**
  * House authoring rules, derived from the content file's own `authoring_notes`:
  *   R1 every blank carries `shape` ∈ recall | derivable
  *   R3 a recall canonical never appears in the visible template, under normalizeAnswer semantics
  *   R5 a line never blanks 2+ CONTENT items with no visible item to show the split
  *   R6 the prompt sets the scene and never names the competency under test
+ *   R7 a recall blank sits beside an [atc] line, or the item declares `unanchored`
  *
  * R2 (single-word recall canonicals) and R4 (anchor word after a run of recall blanks) were
  * REMOVED on 2026-08-12: both existed to make a per-word split guessable, and per-word splitting
@@ -366,4 +424,5 @@ export function assertDialogFillAuthoring(item: DialogFillItem, at: string): voi
     const body = rawLine.trim().replace(SPEAKER_PREFIX_RE, '')
     assertLineSplitLegible(body, canonicals, at)
   }
+  assertRecallAnchored(item, at)
 }

@@ -25,7 +25,9 @@ function makeItem(overrides: Partial<DialogFillItem> = {}): DialogFillItem {
   return {
     num: 'VRT-P2-TEST-01',
     prompt: 'Complete the pilot transmission.',
-    template: '[pilot] S-AB, {{0}} {{1}} information\n[atc] S-AB, runway 33',
+    // The [atc] line leads so the default satisfies R7 (a recall blank reads back the line above
+    // it). Tests that exercise R7 itself override this.
+    template: '[atc] S-AB, pass your message\n[pilot] S-AB, {{0}} {{1}} information',
     blanks: [blank(0, 'recall', 'request'), blank(1, 'recall', 'departure')],
     ...overrides,
   }
@@ -342,13 +344,61 @@ describe('assertDialogFillAuthoring', () => {
   })
 
   it('accepts a longer run of recalled boxes that does end in a visible word', () => {
+    // Carries an [atc] line only to satisfy R7 — the assertion under test is R5's, that a visible
+    // trailing word anchors the split.
     const item = makeItem({
-      template: '[pilot] S-AB, {{0}} {{1}} {{2}} information',
+      template: '[atc] S-AB, pass your message\n[pilot] S-AB, {{0}} {{1}} {{2}} information',
       blanks: [
         blank(0, 'recall', 'request'),
         blank(1, 'recall', 'departure'),
         blank(2, 'recall', 'aerodrome'),
       ],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('rejects a recalled phrase with no controller transmission beside it', () => {
+    const item = makeItem({
+      template: '[pilot] S-AT, downwind, {{0}}\n[atc] S-AT, report final runway 14',
+      blanks: [blank(0, 'recall', 'request full stop')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R7/)
+  })
+
+  it('rejects a recalled phrase whose only controller line comes after it', () => {
+    // The DLG-05/DLG-24 shape. Whether the reply reveals the request is a judgement no check can
+    // make, so answered-after items must declare it rather than pass silently.
+    const item = makeItem({
+      template: '[pilot] S-BS, {{0}}\n[atc] S-BS, line up and wait',
+      blanks: [blank(0, 'recall', 'ready for departure')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R7/)
+  })
+
+  it('accepts an unpinned recalled phrase when the item declares what pins it', () => {
+    const item = makeItem({
+      template: '[pilot] S5-DAA, {{0}} to maintain VMC due clouds, request turn left',
+      blanks: [blank(0, 'recall', 'unable')],
+      unanchored: 'Sits inline inside a visible sentence, which pins it.',
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('rejects an empty declaration as though it were absent', () => {
+    const item = makeItem({
+      template: '[pilot] S5-DAA, {{0}} to maintain VMC due clouds, request turn left',
+      blanks: [blank(0, 'recall', 'unable')],
+      unanchored: '   ',
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R7/)
+  })
+
+  it('leaves a derivable phrase alone when no controller line is beside it', () => {
+    // DLG-23: the callsign line follows another pilot line; the answer is in the visible text.
+    const item = makeItem({
+      template:
+        '[atc] S-AS, report over ME1\n[pilot] maintaining 2500 feet, S-AS\n[pilot] {{0}}, over ME1',
+      blanks: [blank(0, 'derivable', 'S-AS', ['SAS'])],
     })
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
   })

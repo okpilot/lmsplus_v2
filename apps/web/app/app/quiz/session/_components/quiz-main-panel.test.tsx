@@ -380,6 +380,31 @@ describe('QuizMainPanel', () => {
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
     })
 
+    it('shows the transcript alone, with no scene text above it, for a dialog_fill question', () => {
+      // The exam's Part 2 task sheet shows nothing above the dialogue. `question_text` still holds
+      // the scene for the admin list, so the guard is that it does not reach the student here.
+      const s = makeState({
+        question: {
+          id: 'q-df3',
+          question_text: 'Engine start-up at Portoroz.',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}} runway {{1}}.',
+          blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
+          diagram_config: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.queryByTestId('question-card')).not.toBeInTheDocument()
+      expect(screen.queryByText('Engine start-up at Portoroz.')).not.toBeInTheDocument()
+      expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
+    })
+
     it('shows a sortable list for an ordering question', () => {
       const s = makeState({
         question: {
