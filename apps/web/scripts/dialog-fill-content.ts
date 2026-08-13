@@ -350,15 +350,20 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
 }
 
 /**
- * R7 — a recall blank must sit beside an `[atc]` line.
+ * R7 — a recall blank must be pinned: by the `[atc]` line above it, or by a declared `unanchored`.
  *
- * The defect this exists to stop (found on eval 2026-08-13, cost 2 questions and 5 rewrites): a
- * `recall` blank asks the student to produce a phrase that appears nowhere on screen, so SOMETHING
- * must pin which phrase. For every sound one in this corpus that anchor is the adjacent controller
- * transmission — `report ready for departure` → `wilco`, `read you 5` → `radio check`. Where no
- * `[atc]` line was adjacent, the only thing pinning the answer was the scene prompt, and the exam
- * does not show one: DLG-01 accepted only `request departure information` when `request start-up`
- * is equally correct, DLG-24 only `request full stop` over `request touch-and-go`.
+ * The defect this stops (eval 2026-08-13): a `recall` blank asks for a phrase that appears nowhere
+ * on screen, so SOMETHING must pin which phrase. Once the scene prompt stopped being rendered,
+ * several blanks had nothing left doing that job and became coin flips — DLG-24 accepted only
+ * `request full stop` when `request touch-and-go` draws the same reply.
+ *
+ * R7 is NOT "every blank must be a readback". That was this rule's first premise and the briefing
+ * falsifies it: Part 2 lists "Basic phrases (i.e., radio check, request departure information,
+ * traffic in sight, looking out, etc.)" as a tested competency in its own right, alongside
+ * readbacks, wilco and abbreviated callsigns. Supplying a phrase the controller never said IS the
+ * exam. Acting on the wrong premise, an earlier pass unblanked `request departure information`
+ * (DLG-01) and `ready for departure` (DLG-05) — deleting two of the four things Part 2 tests.
+ * Both are restored and declare `unanchored`; the readback anchor is the common case, not the law.
  *
  * The anchor must PRECEDE the blank — the recalled phrase reads back or acknowledges the line
  * above it. A following line is deliberately NOT accepted, because whether it reveals the answer
@@ -372,13 +377,15 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  * means), so an adjacent controller line is not what makes them answerable. DLG-19 and DLG-23
  * blank a callsign on a line following another pilot line and are sound.
  *
- * Items that cannot satisfy R7 opt out via `unanchored` — but the bar is EXCLUSION, not
- * plausibility: the declaration must name the competing standard phrase and show what visible text
- * rules it out. Where nothing ruled it out, the fix was to put the competitor INTO the transcript
- * (DLG-34 now shows `holding short of`, DLG-35 shows `right base`), so elimination genuinely
- * holds rather than being asserted. Four declare it: DLG-21 (`unable` completes a visible
- * sentence no other phrase completes), DLG-22 and DLG-33 (the controller's REPLY names what was
- * requested), and DLG-34/35 (blind self-announce, competitor made visible).
+ * Items that cannot satisfy the readback anchor opt out via `unanchored` — but the bar is
+ * EXCLUSION, not plausibility: the declaration must name the competing phrase and show what
+ * visible text rules it out.
+ *
+ * Exclude it with material that is IN THE GUIDE. An earlier pass invented a `holding short of`
+ * call for DLG-34 and a `right base` call for DLG-35 purely so elimination would hold — both
+ * phrases appear ZERO times in the guide, whose unattended sequences are exactly three calls
+ * (L1194-1196, L1208-1210). Fabricating source material to satisfy a validator is worse than the
+ * ambiguity it papered over; both are reverted to the guide's text.
  */
 function assertRecallAnchored(item: DialogFillItem, at: string): void {
   if (typeof item.unanchored === 'string' && item.unanchored.trim() !== '') return
