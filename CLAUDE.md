@@ -178,10 +178,18 @@ If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAU
 `.claude/run-log.md` was added to that list on 2026-08-15: it is a pure historical record written by `/endrun`, in the same class as `.claude/agent-memory/**`, but it sits under `.claude/` and matches neither `docs/**` nor root `*.md`. The branch that introduced this exemption carried FOUR run-log-only commits (`6aa1ebfc`, `4966d0cb`, `864936ca`, `5f207d24`) which the rule, as first written, formally required to run a full 4-agent cycle — caught by the PR-level sweep, and the count corrected from three by implementation-critic. A rule whose own introducing branch violates it four times is mis-scoped, not under-enforced.
 
 **Review-follow-up exemption (narrow):** a commit that applies ONLY findings raised by the post-commit cycle of its own parent commit runs a reduced cycle — **semantic-reviewer only** (which `agent-workflow.md` already requires whenever production code changes), not the other three. ALL of these must hold:
+- **the PARENT commit ran the FULL four-agent cycle and claimed neither exemption itself;**
 - every hunk traces to a specific finding from the parent commit's own cycle;
 - it touches only files the parent commit touched, and adds no new file;
 - ≤ 20 changed lines outside test files;
 - it touches no security path, no rules file, no migration, no CI/hook/config.
+
+The first condition is what bounds the chain. Without it a review-follow-up may parent another
+review-follow-up, each qualifying because its parent "had a cycle" — but that parent's cycle was
+semantic-reviewer alone. The chain can then run arbitrarily long with code-reviewer, doc-updater and
+test-writer never seeing any of it, which is exactly the opposite of the rationale below. A
+follow-up hangs off a FULL cycle or it gets a full cycle of its own. (Loophole found by CR-local on
+the very branch that introduced this exemption.)
 
 If any condition fails, run the full cycle. Rationale: code-reviewer, doc-updater and test-writer assessed this exact file set one commit ago, and an in-place refinement of it cannot change their answers — re-running them bills four agents to re-confirm a conclusion they reached minutes earlier. The **learner** (step 5) is skipped on a review-follow-up too: its input is the cycle's findings, and it will see them on the branch's next full cycle.
 

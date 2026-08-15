@@ -181,7 +181,9 @@ git commit
     │      .claude/agent-memory/**, .claude/run-log.md)            │
     │                                                             │
     ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)
-    │     (ALL must hold: every hunk traces to a finding from      │
+    │     (ALL must hold: the PARENT ran the FULL cycle and        │
+    │      claimed neither exemption — so a reduced path cannot    │
+    │      chain off another; every hunk traces to a finding from  │
     │      its own parent's cycle; same files as the parent;       │
     │      adds no new file; <= 20 changed lines outside tests;    │
     │      no security path, rules file, migration, CI/hook/config)│
@@ -191,24 +193,26 @@ git commit
         ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4│
         ├─► doc-updater      (haiku)   ─┤                          │
         └─► test-writer      (sonnet)  ─┘                          │
+                                     │                             │
+                              read ALL results                     │
+                                     │                             │
+                              validate findings (see below)        │
+                                     │                             │
+                              fix validated issues (commit)        │
+                                     │                             │
+                              ┌──────┴──────┐                      │
+                              │   learner   │  (sonnet) — pattern  │
+                              └──────┬──────┘   detection. FULL    │
+                                     │          cycle only — the   │
+                                     │          reduced paths skip │
+                                     │          it entirely.       │
+                                     │          (if it promotes a  │
+                                     │          rule, schedule the │
+                                     │          sweep per          │
+                                     │          agent-learner.md)  │
                                      │◄────────────────────────────┘
-                                     │  (the two reduced paths rejoin here and
-                                     │   skip straight past learner — see
-                                     │   CLAUDE.md § Post-commit review)
-                                     │
-                              read ALL results
-                                     │
-                              validate findings (see below)
-                                     │
-                              fix validated issues (commit)
-                                     │
-                              ┌──────┴──────┐
-                              │   learner   │  (sonnet) — pattern detection
-                              └──────┬──────┘   (if learner promotes a rule
-                                     │          to hard status, schedule a
-                                     │          sweep per agent-learner.md
-                                     │          § Sweep On Rule Promotion)
-                                     │
+                                     │  (reduced paths rejoin HERE — after the
+                                     │   learner, not before it)
                     (if diff touches security files)
                               ┌──────┴──────┐
                               │  red-team   │  (sonnet) — map diff to specs, flag gaps
@@ -528,7 +532,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch all 4 post-commit agents in parallel immediately after every commit — except under the two narrow exemptions in `CLAUDE.md § Post-commit review` (docs-only; review-follow-up). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone.
+- Launch all 4 post-commit agents in parallel immediately after every commit — except under the two narrow exemptions in `CLAUDE.md § Post-commit review` (docs-only; review-follow-up). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the full four-agent cycle and claimed neither exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -693,4 +697,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-11 (DO/NEVER now defer to CLAUDE.md's two post-commit exemptions and forbid chasing a reviewer to convergence on a review-follow-up commit; PR #1185. Prior: 2026-08-09 § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms.)*
+*Last updated: 2026-08-15 (Finding Validation now names the factual-claim classes to verify directly, learner count=3; the pipeline diagram gained the two reduced-cycle branches; the review-follow-up exemption is bounded to parents that ran a FULL cycle. Prior: 2026-08-11 — DO/NEVER defer to CLAUDE.md's two post-commit exemptions and forbid chasing a reviewer to convergence on a review-follow-up commit; PR #1185. Prior: 2026-08-09 § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms.)*
