@@ -231,7 +231,13 @@ describe('assertDialogFillAuthoring', () => {
     ['the position of the callsign', 'Straight-in approach. Complete the callsign at the end.'],
     ['the order items return in', 'Joining the circuit. Read the items back in the order given.'],
     ['the acknowledgement to use', 'Position report. Acknowledge with wilco.'],
-    ['the abbreviation rule', 'Approaching. Note which form of the callsign is abbreviated.'],
+    // No 'callsign' in this one — it must fail on `abbreviat` ALONE, or it would pass even with
+    // the abbreviation term broken (it was: a trailing \b stopped `abbreviat` matching any
+    // inflected form). Same reason the plural case below exists.
+    ['the abbreviation rule', 'Approaching. Note which form is abbreviated.'],
+    // No 'abbreviated' here either — this one must fail on the PLURAL `callsigns` alone, or it
+    // proves nothing about that half of the fix (the first draft contained both and was confounded).
+    ['a plural competency term', 'Departing. Give the callsigns for both aircraft.'],
   ])('refuses a prompt that tells the student %s', (_label, prompt) => {
     expect(() => assertDialogFillAuthoring(makeItem({ prompt }), AT)).toThrow(/authoring R6/)
   })
@@ -431,7 +437,7 @@ describe('the authored VFR RT Part 2 corpus', () => {
   const questions = (content as { questions: unknown[] }).questions
 
   it('is large enough for the per-question checks below to mean something', () => {
-    expect(questions.length).toBeGreaterThanOrEqual(24)
+    expect(questions.length).toBe(50) // exact, not a floor: a >= 24 check stopped tracking the corpus once it grew to 50, so a mass deletion would have passed
   })
 
   it.each(questions.map((q, i) => [(q as { num?: string }).num ?? `#${i}`, q] as const))(

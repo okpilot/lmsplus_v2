@@ -195,8 +195,12 @@ async function createAuthUser(email: string, password: string): Promise<string> 
   // than 1000 auth users keeps the account on page 2, and a single-page lookup would report a
   // user that demonstrably exists as missing. Walk until found or a short page ends the set.
   const PER_PAGE = 1000
+  // Bounded on purpose. An unbounded `for(;;)` exits only on "found" or a short page, so an API
+  // that keeps returning full pages spins forever against the auth endpoint. A cap turns that into
+  // a named failure instead of a hang. 100 pages = 100k auth users, far past any real project.
+  const MAX_PAGES = 100
   let scanned = 0
-  for (let page = 1; ; page++) {
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const { data: users, error: listErr } = await db.auth.admin.listUsers({
       page,
       perPage: PER_PAGE,
@@ -210,7 +214,7 @@ async function createAuthUser(email: string, password: string): Promise<string> 
     if (batch.length < PER_PAGE) break
   }
   throw new Error(
-    `Cannot find user ${email} after scanning ${scanned} auth users across all pages — it exists (creation reported it as already registered), so this is a lookup defect, not a real absence.`,
+    `Cannot find user ${email} after scanning ${scanned} auth users (stopped at the ${MAX_PAGES}-page cap if that many were returned) — it exists (creation reported it as already registered), so this is a lookup defect, not a real absence.`,
   )
 }
 
@@ -736,7 +740,8 @@ function alreadyInSync(row: SyncRow, want: SyncFields): boolean {
   )
 }
 
-/** Returns true when the row needed a change (whether or not --apply actually wrote it). */
+type SyncPlanEntry = { target: SyncRow; want: SyncFields; at: string }
+
 /**
  * Phase-1 gate: throws if a row that WOULD be written is not in the state the operator declared.
  * Runs over every question before any write, so a mismatch late in the file cannot leave earlier
@@ -757,6 +762,7 @@ function assertSyncPreconditions(target: SyncRow, want: SyncFields, at: string):
   }
 }
 
+/** Returns true when the row needed a change (whether or not --apply actually wrote it). */
 async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): Promise<boolean> {
   if (alreadyInSync(target, want)) return false
   // Enumerate EVERY field the UPDATE will write, not just the canonical. The update sends all of
@@ -795,7 +801,7 @@ async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): P
   return true
 }
 
-async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise<number> {
+async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise<SyncPlanEntry[]> {
   assertReleasedForRemote(entry.file, entry.rel)
   if (entry.file.question_type !== 'short_answer') {
     throw new Error(
@@ -806,7 +812,7 @@ async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise
   // a mismatch on question 20 cannot leave questions 1-19 already updated: there is no transaction
   // here (each update is its own statement), so a mid-loop throw would otherwise stand as a
   // partial write on live rows. Mirrors the up-front validation the import path already does.
-  const planned: { target: SyncRow; want: SyncFields; at: string }[] = []
+  const planned: SyncPlanEntry[] = []
   for (const q of entry.file.questions) {
     const at = `${entry.rel} (${q.num})`
     const row = buildRow(entry.file, q, { ...ctx.base, subject_id: entry.subjectId }, entry.topicId)
@@ -816,6 +822,11 @@ async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise
     planned.push({ target, want, at })
   }
 
+  return planned
+}
+
+/** Phase 2 for one file: the ONLY place --sync-content writes. */
+async function writeSyncPlan(entry: ResolvedFile, planned: SyncPlanEntry[]): Promise<number> {
   let changed = 0
   for (const { target, want, at } of planned) {
     if (await syncOneQuestion(target, want, at)) changed++
@@ -831,8 +842,16 @@ async function runSyncContent(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
 ): Promise<void> {
+  // Plan EVERY file before writing ANY of them. Per-file phasing was not enough: on a
+  // multi-file invocation, file 1's UPDATEs would land before file 2's lifecycle refusal, its
+  // question_type refusal and its preconditions ever ran — and those gates exist precisely to
+  // fire before anything is written. This is the parity with the import path that the phase
+  // comment claims.
+  const plans: { entry: ResolvedFile; planned: SyncPlanEntry[] }[] = []
+  for (const entry of resolved) plans.push({ entry, planned: await syncFileContent(entry, ctx) })
+
   let changed = 0
-  for (const entry of resolved) changed += await syncFileContent(entry, ctx)
+  for (const { entry, planned } of plans) changed += await writeSyncPlan(entry, planned)
   console.log('\nVFR RT content sync complete.')
   console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
   console.log(`  Mode:     ${SYNC_APPLY ? 'APPLIED' : 'DRY RUN (pass --apply to write)'}`)

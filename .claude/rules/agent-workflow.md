@@ -177,7 +177,8 @@ Implementation-critic review (always runs)
 git commit
     │
     ├─► docs-only commit? ────────────► doc-updater ONLY ──────────┐  (no learner pass)
-    │     (docs/**/*.md, root *.md except CLAUDE.md,               │
+    │     (docs/**/*.md EXCEPT docs/security.md, root *.md         │
+    │      except CLAUDE.md,                                       │
     │      .claude/agent-memory/**, .claude/run-log.md)            │
     │                                                             │
     ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)

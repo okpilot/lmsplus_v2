@@ -1033,4 +1033,4 @@ Promoted at count=3 (implementation-critic's own tracker reached this independen
 
 ---
 
-*Last updated: 2026-08-08 (added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*
+*Last updated: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*

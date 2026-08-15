@@ -50,6 +50,8 @@
 - **Test file splits:** moved `describe` block must carry ALL sentinel vars + cleanup guards + every branch — re-diff setup/`beforeAll`/`afterAll` against source before committing. Count=2: #698/#666, #951.
 - **`lib/queries/*.ts` JSONB branches:** co-located unit test with `makeChain(returnValue)` Proxy — integration tests always see well-formed data, so defensive guards are never exercised. Confirmed: `oral-exam-session.test.ts` (2026-07-02).
 - **Soft-delete of single-SELECT-policy tables must have an integration test:** when a Server Action soft-deletes a table that has only ONE permissive SELECT policy and that policy's USING clause requires `deleted_at IS NULL`, the RLS client cannot express the write — the post-update row is immediately invisible and Postgres rejects the statement. The unit test mocks the admin client and passes regardless. Only the app-layer integration tier catches a regression back to the RLS client. Tables with this property (commit d9abcf41): `questions` (fix: soft-delete-question.ts) and `users` (fix: toggle-student-status-mutations.ts). Integration tests: `soft-delete-question.integration.test.ts` and `toggle-student-status.integration.test.ts`.
+- **Zero-export CLI scripts (`apps/web/scripts/*.ts` with no `export` + top-level `process.exit`/env gates) are not unit-testable** — say so plainly, don't force a test. Detail: [durable-knowledge § zero-export-cli-scripts](topics/durable-knowledge.md#zero-export-cli-scripts).
+- **Isolate a new guard-path fixture from a shared deterministic random-selection pool** via `status: 'draft'` + a directly-inserted session row (bypass the start-RPC). Detail: [durable-knowledge § isolate-from-shared-pool](topics/durable-knowledge.md#isolate-from-shared-pool).
 
 ## Topics
 

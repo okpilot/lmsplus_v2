@@ -79,16 +79,26 @@ grep the retired/old token across the whole tree, not just the files the commit 
 a commit edits *part* of a multi-paragraph comment, re-read that comment end-to-end. A partial
 comment update is the tell.
 
-## 5. A doc asserts a prod-verification result a later commit's rationale contradicts
+## 5. ~~A doc asserts a prod-verification result a later commit's rationale contradicts~~ — FALSE POSITIVE
 
-`.claude/run-log.md:35` (`864936ca`) records the Part 1 prod import as *"verified them by read-back
-(40/40 status=active, **canonical matches file**…)"*. `a58e4d49` then changed CAVOK's canonical in
-the file, and `365730e2` added `--sync-content` describing it as *"update-only path for the CAVOK
-correction, **which the insert-only importer cannot reach**"* — i.e. asserting prod is stale.
+**Withdrawn 2026-08-15 (final pre-push sweep). The chronology was inverted; do not re-raise.**
 
-Both cannot be true. Neither surface tracks an outstanding prod action, and the canonical is what
-student feedback reveals — the entire reason `a58e4d49` exists.
+The original finding read: `.claude/run-log.md:35` (`864936ca`) records the Part 1 prod import as
+*"verified them by read-back (40/40 status=active, **canonical matches file**…)"*, and `a58e4d49`
+*then* changed CAVOK's canonical — so prod must be stale, as `365730e2`'s `--sync-content` blurb
+("**which the insert-only importer cannot reach**") asserted.
 
-**Review rule:** a "verified against production" claim is only true as of its commit. When a later
-commit on the same branch edits the verified artifact, re-check the claim and require an explicit
-remediation record (issue or plan.md line) rather than inferring one from a tool's existence.
+`a58e4d49` is `2026-08-11 16:10:27 +0200`; `864936ca` is `16:22:42`. The edit came FIRST, and
+run-log row 35 is that same run: it records the CAVOK swap *and* the import *and* the read-back in
+one entry. So "canonical matches file" was true when written and is still true — confirmed by the
+read-only prod probe in `070dca8f`, which found canonical, synonyms and explanation all matching.
+
+The genuine defect was the OTHER half: `365730e2` asserted prod staleness nobody had checked and
+scoped a production-WRITE path around it. That is already captured — learner tracker "Reviewer/CR
+finding's premise accepted w/o verification, later disproven" (count 3, PROMOTED →
+`agent-workflow.md § Finding Validation`, "*production is in state X* → probe production
+read-only"), and the importer header was rewritten in `070dca8f` to say so explicitly.
+
+**Lesson kept:** when two surfaces appear to contradict, order the COMMITS by timestamp before
+concluding which falsifies which — a same-run edit-then-verify reads exactly like a
+verify-then-invalidate in a flat file listing.

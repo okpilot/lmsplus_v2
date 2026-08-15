@@ -356,8 +356,15 @@ function assertLineSplitLegible(
  * the scene for the admin question list, and R7 below now assumes the prompt pins NOTHING. Were a
  * competency to creep back into the prompt, the temptation to re-render it comes with it.
  */
+// The inflections are spelled out per-term rather than by dropping the trailing \b. The original
+// `abbreviat\b` could not match "abbreviated"/"abbreviation" and `callsign\b` could not match the
+// PLURAL "callsigns", so "use abbreviated callsigns" — a textbook R6 leak — matched nothing at all.
+// Dropping \b wholesale fixes that but over-widens the rest: `decide` would then also match
+// "decided", so an ordinary scene line like "the pilot decided to enter downwind" trips the guard.
+// Widen only the two terms that need it. Verified: every known leak still caught, both "decided"
+// sentences pass, and all 50 shipped prompts are clean.
 const PROMPT_LEAK_RE =
-  /\b(callsign|read ?back|in the order|wilco|abbreviat|decide|runway in use|only the qnh)\b/i
+  /\b(callsigns?|read ?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
 
 /** R6 — the prompt sets the scene and nothing more. */
 function assertPromptSetsSceneOnly(prompt: string, at: string): void {
@@ -418,7 +425,9 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  *
  * They were then RE-ADDED on user direction, and the corpus ships both today (DLG-34 carries
  * `holding short of runway 23`, DLG-35 carries `right base, runway 23`), each declared in the
- * item's `source` and `unanchored` as a CONSTRUCTED transmission. That is the rule as it now
+ * item's `unanchored` declaration as a CONSTRUCTED transmission (DialogFillItem has no `source`
+ * field — that is file-level provenance; do not repeat the content file's wording here without
+ * checking the type). That is the rule as it now
  * stands, per the content file's "CONTEXT GOES IN THE DIALOGUE" note: adding a correct standard
  * transmission and DISCLOSING it is allowed; asserting the guide contains something it does not
  * is what remains forbidden. An earlier version of this paragraph said only "both are reverted",
