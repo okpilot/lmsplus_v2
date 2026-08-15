@@ -460,4 +460,75 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
     expect(error).not.toBeNull()
     expect(error?.message).toContain('unsupported_question_type')
   })
+
+  // ── Typo tolerance (mig 142) ────────────────────────────────────────────────
+  // Graded through the RPC, not against answer_matches directly, because what matters is that the
+  // tolerance actually reaches the student's mark.
+
+  it('accepts a short answer with two letters swapped', async () => {
+    const sessionId = await startSession([saCorrectId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: saCorrectId,
+      p_session_id: sessionId,
+      p_response_text: 'maydya mayday mayday',
+    })
+    expect(error).toBeNull()
+    expect(asResult(data).is_correct).toBe(true)
+  })
+
+  it('still rejects a short answer that is a different phrase', async () => {
+    const sessionId = await startSession([saCorrectId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: saCorrectId,
+      p_session_id: sessionId,
+      p_response_text: 'pan pan pan',
+    })
+    expect(error).toBeNull()
+    expect(asResult(data).is_correct).toBe(false)
+  })
+
+  it('accepts a misspelled dialog blank', async () => {
+    const sessionId = await startSession([dfId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: dfId,
+      p_session_id: sessionId,
+      p_blank_answers: [
+        { blank_index: 0, response_text: 'cleraed' },
+        { blank_index: 1, response_text: DF_B1 },
+        { blank_index: 2, response_text: DF_B2 },
+      ],
+    })
+    expect(error).toBeNull()
+    const result = asResult(data)
+    expect(result.is_correct).toBe(true)
+    if (!Array.isArray(result.blanks)) throw new Error('blanks is not an array')
+    expect(result.blanks.find((b) => b.index === 0)?.is_correct).toBe(true)
+  })
+
+  it.each([
+    ['an altimeter setting', 'qnh 1015', 'QNH 1014'],
+    ['a runway number', 'runway 32', 'runway 33'],
+    ['a squawk code', 'squawk 6502', 'squawk 6503'],
+    // The normaliser strips the separator, so 118.5 and 1185 ARE the same answer — the digits are
+    // what must differ for this to be a real case.
+    ['a frequency', '1180', '118.5'],
+  ])('never forgives a one-digit difference in %s', async (_label, response, candidate) => {
+    const { data, error } = await studentClient.rpc('answer_matches', {
+      p_norm_response: response,
+      p_candidate: candidate,
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('does not forgive a swap that produces a different word', async () => {
+    // 'lift' and 'left' are one edit apart, which is why nothing under five characters is
+    // fuzzy-matched at all.
+    const { data, error } = await studentClient.rpc('answer_matches', {
+      p_norm_response: 'turn lift',
+      p_candidate: 'turn left',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
 })
