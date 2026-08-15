@@ -49,10 +49,16 @@ export function ShortAnswerInput({
         value={display ?? ''}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            submit()
+          // Enter during an IME composition is the candidate-commit keypress, not a submit.
+          // Calling preventDefault there cancels the composition and then submits, so a
+          // Japanese/Chinese/Korean student cannot type an answer at all. `keyCode === 229` is
+          // the legacy signal for engines that omit `isComposing`. Per CLAUDE.md's sibling-audit
+          // rule, dialog-line.tsx carries the same guard on the same key.
+          if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) {
+            return
           }
+          e.preventDefault()
+          submit()
         }}
         disabled={disabled || locked}
         aria-label="Your answer"

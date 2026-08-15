@@ -1,45 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import type { BlankResult, DialogBlank } from '../_utils/dialog-fill-helpers'
+import {
+  buildSubmitPayload,
+  deriveBlankIndices,
+  toBlankResults,
+  toSeedValues,
+} from '../_utils/dialog-fill-helpers'
 import { parseDialogDisplay } from '../_utils/parse-dialog-display'
-import type { BlankResult } from './dialog-line'
-
-export type DialogBlank = { index: number; isCorrect: boolean; canonical: string }
-
-// Derives the ordered, de-duplicated blank indices from a parsed dialog
-// template. Pure helper, exported for direct testing.
-export function deriveBlankIndices(template: string): number[] {
-  const lines = parseDialogDisplay(template)
-  return Array.from(
-    new Set(lines.flatMap((l) => l.segments.filter((s) => s.type === 'blank').map((s) => s.index))),
-  )
-}
-
-// Maps the per-blank grading results (keyed by blank index) for the DialogLine
-// render. Pure helper, exported for direct testing.
-export function toBlankResults(blanks: DialogBlank[] | undefined): Record<number, BlankResult> {
-  const map: Record<number, BlankResult> = {}
-  for (const b of blanks ?? []) map[b.index] = { isCorrect: b.isCorrect, canonical: b.canonical }
-  return map
-}
-
-// Shapes the submit payload from the current input values, trimming each blank.
-// Pure helper, exported for direct testing.
-export function buildSubmitPayload(
-  blankIndices: number[],
-  values: Record<number, string>,
-): { index: number; text: string }[] {
-  return blankIndices.map((i) => ({ index: i, text: (values[i] ?? '').trim() }))
-}
-
-// Seeds the input values from a resumed draft answer. Pure helper, exported for direct testing.
-export function toSeedValues(
-  submittedBlanks: { index: number; text: string }[] | null | undefined,
-): Record<number, string> {
-  const map: Record<number, string> = {}
-  for (const b of submittedBlanks ?? []) map[b.index] = b.text
-  return map
-}
 
 export type UseDialogFillInputResult = {
   lines: ReturnType<typeof parseDialogDisplay>

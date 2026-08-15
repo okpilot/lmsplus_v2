@@ -42,6 +42,9 @@ export function DialogFillInput({
   const allBlanksCorrect = graded && blanks.every((b) => b.isCorrect)
 
   function handleSubmit() {
+    // Guarded here rather than at each call site so both share it: the button relies on its DOM
+    // `disabled` attribute, which an Enter keypress never consults.
+    if (disabled || submitting) return
     const payload = collectSubmission()
     if (payload) onSubmit(payload)
   }
@@ -53,16 +56,21 @@ export function DialogFillInput({
    * student pressing Enter mid-dialogue actually wants. Reading the DOM rather than tracking
    * focus in state keeps the visual order authoritative: `values` is keyed by blank index, and a
    * template may place a higher index earlier in the line.
+   *
+   * The starting point comes from the ELEMENT, not the index: a template may repeat the same
+   * blank index, and looking the index up would then always resolve to the first occurrence and
+   * advance from the wrong box. `_index` stays in the signature as part of the DialogLine
+   * contract even though the DOM position is what this handler needs.
    */
-  function handleEnter(index: number) {
+  function handleEnter(_index: number, el: HTMLInputElement) {
     if (allFilled) {
-      if (!disabled && !submitting) handleSubmit()
+      handleSubmit()
       return
     }
-    const inputs = Array.from(
-      rootRef.current?.querySelectorAll<HTMLInputElement>('input[data-testid^="blank-"]') ?? [],
-    )
-    const from = inputs.findIndex((el) => el.dataset.testid === `blank-${index}`)
+    // `rootRef` already scopes the query to this dialog's inputs, so no test-only attribute is
+    // needed as a production selector.
+    const inputs = Array.from(rootRef.current?.querySelectorAll<HTMLInputElement>('input') ?? [])
+    const from = inputs.indexOf(el)
     const next =
       inputs.slice(from + 1).find((el) => el.value.trim() === '') ??
       inputs.find((el) => el.value.trim() === '')

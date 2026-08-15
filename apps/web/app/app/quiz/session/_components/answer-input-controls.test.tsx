@@ -9,12 +9,12 @@ import { DialogFillAnswer } from './answer-input-controls'
 vi.mock('./dialog-fill-input', () => ({
   DialogFillInput: ({
     submittedBlanks,
-  }: {
+  }: Readonly<{
     template: string
     onSubmit: (blanks: { index: number; text: string }[]) => void
     disabled: boolean
     submittedBlanks?: { index: number; text: string }[] | null
-  }) => (
+  }>) => (
     <div data-testid="dialog-fill-input" data-submitted-blanks={JSON.stringify(submittedBlanks)} />
   ),
 }))

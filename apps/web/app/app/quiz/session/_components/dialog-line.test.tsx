@@ -86,7 +86,45 @@ describe('DialogLine', () => {
       />,
     )
     fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter' })
-    expect(onEnter).toHaveBeenCalledWith(0)
+    expect(onEnter).toHaveBeenCalledWith(0, expect.any(HTMLInputElement))
+  })
+
+  it('ignores Enter while an IME composition is still in progress', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    const notCancelled = fireEvent.keyDown(screen.getByTestId('blank-0'), {
+      key: 'Enter',
+      isComposing: true,
+    })
+    expect(onEnter).not.toHaveBeenCalled()
+    expect(notCancelled).toBe(true)
+  })
+
+  it('ignores Enter reported with the legacy composition key code', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter', keyCode: 229 })
+    expect(onEnter).not.toHaveBeenCalled()
   })
 
   it('does not call onEnter when a different key is pressed', () => {

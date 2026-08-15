@@ -129,6 +129,31 @@ describe('DialogFillInput', () => {
     expect(screen.getByTestId('blank-1')).toHaveFocus()
   })
 
+  it('wraps back to an earlier empty blank when Enter is pressed in the last blank', async () => {
+    const onSubmit = vi.fn()
+    render(<DialogFillInput template={TEMPLATE} onSubmit={onSubmit} disabled={false} />)
+    await userEvent.type(screen.getByTestId('blank-1'), '27{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByTestId('blank-0')).toHaveFocus()
+  })
+
+  it('advances from the box the student is actually in when a template repeats a blank index', async () => {
+    // Both boxes for blank 0 share one value, so identifying the starting box by its index alone
+    // resolves to the FIRST one — and Enter in the second box then lands focus back on itself.
+    const onSubmit = vi.fn()
+    render(
+      <DialogFillInput
+        template="[atc] {{0}} and {{1}} then {{0}} plus {{2}}."
+        onSubmit={onSubmit}
+        disabled={false}
+      />,
+    )
+    await userEvent.type(screen.getByTestId('blank-1'), '27')
+    await userEvent.type(screen.getAllByTestId('blank-0')[1] as HTMLElement, '{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByTestId('blank-2')).toHaveFocus()
+  })
+
   it('does not submit on Enter while a submission is already in flight', async () => {
     const onSubmit = vi.fn()
     const { rerender } = render(

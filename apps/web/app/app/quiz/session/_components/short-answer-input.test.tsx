@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ShortAnswerInput } from './short-answer-input'
@@ -36,6 +36,27 @@ describe('ShortAnswerInput', () => {
     await userEvent.type(input, '  cleared to land  ')
     await userEvent.keyboard('{Enter}')
     expect(onSubmit).toHaveBeenCalledWith('cleared to land')
+  })
+
+  it('leaves an in-progress IME composition alone instead of submitting it', async () => {
+    const onSubmit = vi.fn()
+    render(<ShortAnswerInput onSubmit={onSubmit} disabled={false} />)
+    const input = screen.getByTestId('short-answer-input')
+    await userEvent.type(input, 'roger')
+    // fireEvent returns false when the event's default was prevented — cancelling the keypress
+    // that commits an IME candidate is what loses the student's text.
+    const notCancelled = fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(notCancelled).toBe(true)
+  })
+
+  it('leaves Enter alone when it carries the legacy composition key code', async () => {
+    const onSubmit = vi.fn()
+    render(<ShortAnswerInput onSubmit={onSubmit} disabled={false} />)
+    const input = screen.getByTestId('short-answer-input')
+    await userEvent.type(input, 'roger')
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('does not submit on Enter while the field is empty', async () => {

@@ -90,12 +90,14 @@ vi.mock('./dialog-fill-input', () => ({
     disabled,
     submitting,
     submitted,
+    submittedBlanks,
   }: {
     template: string
     onSubmit: (blanks: { index: number; text: string }[]) => void
     disabled: boolean
     submitting?: boolean
     submitted?: boolean
+    submittedBlanks?: { index: number; text: string }[] | null
     blanks?: { index: number; isCorrect: boolean; canonical: string }[]
   }) => (
     <div
@@ -103,6 +105,7 @@ vi.mock('./dialog-fill-input', () => ({
       data-disabled={String(disabled)}
       data-submitting={String(submitting ?? false)}
       data-submitted={String(submitted ?? false)}
+      data-submitted-blanks={JSON.stringify(submittedBlanks ?? null)}
     >
       <button
         type="button"
@@ -708,7 +711,14 @@ describe('QuizMainPanel', () => {
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('dialog-fill-input')).toHaveAttribute('data-submitted', 'true')
+      const input = screen.getByTestId('dialog-fill-input')
+      expect(input).toHaveAttribute('data-submitted', 'true')
+      // data-submitted alone is driven by the `submitted` prop, which predates the resume fix —
+      // it stays true even if the answer never reaches the input. Assert the answer itself.
+      expect(input).toHaveAttribute(
+        'data-submitted-blanks',
+        JSON.stringify([{ index: 0, text: 'alpha' }]),
+      )
     })
   })
 
