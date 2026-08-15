@@ -1440,3 +1440,28 @@ Adds the second of the two Part-3 drag types — `diagram_label` — completing 
 - **Doc drift fixed alongside this Phase 6 pass:** the `blank_index` write-invariant trigger note (`docs/database.md` §2 `quiz_session_answers`) and the `docs/security.md` §15 companion carve-out list had never been updated for Phase 5's `ordering` widening (mig 144/146/149) — both corrected in the same doc-sync pass as the `diagram_label` addition.
 
 *Last updated: 2026-07-02 — VFR RT Training Phase 6 (`diagram_label` question type end-to-end, migs 150–156; DiagramLabelInput/DiagramLabelReport; Decision 52; 27/09 pattern seed; doc drift fix for Phase 5's ordering widening in database.md/security.md §15).*
+
+## VFR RT Part 2 — content fairness pass + typo-tolerant grading — 2026-08-15
+
+Content pool: **50 questions / 71 blanks**, status still `PILOT` (the importer refuses
+`--force-remote` while it starts with that string, so prod is untouched).
+
+- **Every blank is now answerable from the dialogue alone.** The scene prompt is no longer rendered
+  (the exam shows none), which exposed that a `recall` blank opening an exchange had nothing pinning
+  it. Fixed by adding transmissions, not scene lines — see Decision 55. Authoring rule **R7** in
+  `scripts/dialog-fill-content.ts` enforces it, with a declaration that must name the competing
+  phrase and what excludes it.
+- **DLG-21 and DLG-22 dropped** (single-line tasks with no exchange). Pool 52 → 50.
+- **Grading tolerates typos, never digits** — `answer_matches`, mig 142. See Decision 56.
+- **Verb-form tolerance widened** in content: `lining up` and `line up` both score. The corpus was
+  already inconsistent (4 of 18 such blanks accepted both, 13 did not).
+
+**Audit before the next eval** — whole pool, not a sample: no line blanks 2+ content items with
+nothing visible; all 15 callsign blanks decidable from the text above them (position-aware check,
+0 mismatches); no recall blank left unpinned. A closed-book proxy (briefing only, no guide) scored
+48/71 and reported **zero** blanks as pure guesses; 18 of its 23 misses had the answer printed in
+the controller's line above.
+
+**Open**: DLG-35 blank 0 still fails the proxy — left for a human call rather than a third rewrite.
+
+*Last updated: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (mig 142 `answer_matches`, all four text graders).*
