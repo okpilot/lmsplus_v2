@@ -341,8 +341,12 @@
           "index": 0,
           "shape": "derivable",
           "canonical": "after departing Cessna has passed",
-          "synonyms": ["after the departing Cessna has passed"],
-          "rule": "Conditional clearance — the condition is repeated first."
+          "synonyms": [
+            "after the departing Cessna has passed",
+            "after Cessna has passed",
+            "after the Cessna has passed"
+          ],
+          "rule": "The condition, repeated after the clearance. Variants keeping 'after ...' are accepted; dropping the condition entirely is not, since repeating it is the competency."
         }
       ],
       "explanation": "**Condition, runway, clearance — and nothing else.** The controller also passed *wind calm*; the wind is information for flying the approach and is not read back. What must come back is the condition that the departing Cessna has passed, the runway, and the clearance itself. Drop the condition from your readback and you have told the controller you are cleared to land now, which is not what he said."
@@ -665,9 +669,12 @@
             "maintaining three thousand five hundred feet",
             "maintain 3500 feet",
             "maintain 3500",
-            "maintain three thousand five hundred feet"
+            "maintain three thousand five hundred feet",
+            "3500 feet",
+            "at 3500 feet",
+            "three thousand five hundred feet"
           ],
-          "rule": "Derivable from the climb clearance three lines above, now being held."
+          "rule": "The level being flown, inside a position report. The bare level is accepted too — the lesson is the report's format, which survives either wording."
         }
       ],
       "explanation": "**A position report is the pilot calling, so the callsign goes in front.** Nothing is being read back here — you are volunteering where you are, what level you are holding, and when you expect the next point. The level is the one you were cleared to climb to and have now levelled at, so *climb to* has become *maintaining*. Compare the line above it: that one closes with the callsign, because that one was a readback."
