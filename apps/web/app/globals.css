@@ -145,12 +145,12 @@
 }
 
 /*
- * dialog_fill blank inputs (dialog-line.tsx).
+ * dialog_fill blank inputs (dialog-blank.tsx).
  *
- * The inline `width` there is a character-count estimate, and it overshoots: `ch` is the width of
- * "0", so a proportional-font phrase like "runway in use 33" renders much narrower than 18 zeros
- * and leaves dead space inside the box. Where the browser supports it, hand sizing to the engine —
- * it measures the real text — and keep the estimate as the fallback.
+ * The `--blank-w` custom property set there is a character-count estimate, and it overshoots:
+ * `ch` is the width of "0", so a proportional-font phrase like "runway in use 33" renders much
+ * narrower than 18 zeros and leaves dead space inside the box. Where the browser supports it,
+ * hand sizing to the engine — it measures the real text — and keep the estimate as the fallback.
  *
  * `min-width` must stay a CONSTANT, never the content length: a box sized to its own answer would
  * leak that answer's length before the student types (the same reason blanks_safe ships index-only).
@@ -170,7 +170,10 @@
  * "fix" it by dropping the min-width; that would restore the answer-length leak described above.
  */
 .dialog-blank-input {
-  width: var(--blank-w);
+  /* Constant fallback, never the answer length — a box sized to its own answer leaks that
+     length (see the note above). Without it, a blank rendered without the inline custom
+     property is invalid at computed-value time and collapses to the default input width. */
+  width: var(--blank-w, 15ch);
   max-width: 100%;
 }
 

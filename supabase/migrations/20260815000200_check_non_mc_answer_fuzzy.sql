@@ -154,7 +154,10 @@ BEGIN
       RAISE EXCEPTION 'question_missing_canonical_answer';
     END IF;
 
-    v_norm       := normalize_answer(p_response_text);
+    -- §5(d) / #950: coalesce at the call site, matching migs 158 and 160. Defensive today —
+    -- p_response_text IS NULL is rejected above and normalize_answer returns NULL only for a NULL
+    -- input — but without it a NULL would propagate through `v_norm <> ''` into a NULL is_correct.
+    v_norm       := coalesce(normalize_answer(p_response_text), '');
     v_is_correct := (v_norm <> '' AND (
       public.answer_matches(v_norm, v_canonical)
       OR EXISTS (

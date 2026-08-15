@@ -179,6 +179,17 @@ BEGIN
         IF v_response_text IS NULL OR v_selected IS NOT NULL OR v_blank_text IS NOT NULL THEN
           RAISE EXCEPTION 'answer_type_mismatch' USING DETAIL = format('question %s is short_answer; entry must carry only response_text', v_question_id);
         END IF;
+        -- security.md rule 12 (sibling guard-set parity): migs 158 and 159 both RAISE on a NULL
+        -- canonical. Defensive here — questions_question_type_columns_check already requires
+        -- canonical_answer IS NOT NULL for short_answer, so this is unreachable through the
+        -- constraint. Kept so all three graders fail loudly on a NULL canonical (158's helpers
+        -- raise prose, 159 and 160 raise this token) and a future constraint change
+        -- cannot silently turn a malformed question into a wrong mark: answer_matches coalesces
+        -- its candidate to '' and returns false, so without this a NULL canonical would grade
+        -- every answer wrong instead of failing loudly.
+        IF v_canonical IS NULL THEN
+          RAISE EXCEPTION 'question_missing_canonical_answer' USING DETAIL = format('question %s', v_question_id);
+        END IF;
         -- §5(d): coalesce at the call site so a future guard regression can't leak
         -- NULL through `v_norm <> ''` into the NOT NULL is_correct columns (#950).
         v_norm := coalesce(normalize_answer(v_response_text), '');
@@ -201,6 +212,16 @@ BEGIN
         WHERE (b->>'index')::int = v_blank_index;
         IF NOT FOUND THEN
           RAISE EXCEPTION 'invalid_blank_index' USING DETAIL = format('blank_index %s not in blanks_config of question %s', v_blank_index, v_question_id);
+        END IF;
+        -- Sibling parity with migs 158/159. Unlike short_answer this IS reachable: the
+        -- question_type CHECK requires a non-empty blanks_config but constrains no per-blank
+        -- 'canonical' key, so a malformed blank yields NULL here. Raise rather than grade wrong.
+        -- This aborts the WHOLE submission, which the 255-char guard in answer_matches
+        -- deliberately avoids doing — the difference is who can trigger it. That one is reachable
+        -- by a student typing a long answer, so it must degrade; this one is a content defect no
+        -- student can cause, and silently marking every attempt at the blank wrong is worse.
+        IF v_blank_canonical IS NULL THEN
+          RAISE EXCEPTION 'question_blank_missing_canonical' USING DETAIL = format('blank %s of question %s', v_blank_index, v_question_id);
         END IF;
         -- §5(d): coalesce at the call site (see short_answer branch above, #950).
         v_norm := coalesce(normalize_answer(v_response_text), '');

@@ -45,10 +45,12 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
     if (error) {
       // Deliberate single-message collapse — the documented exception to the
       // error-token-map completeness rule (agent-semantic-reviewer.md; sweep #920).
-      // submit_vfr_rt_exam_answers raises 14 distinct tokens (19 raise sites), all
+      // submit_vfr_rt_exam_answers raises 16 distinct tokens (21 raise sites), all
       // integrity/validation failures (malformed payload, answer_type_mismatch,
-      // invalid option/blank index, question-not-in-session) that signal a client
-      // bug or tampering, not a state a correctly-built submission can reach. None
+      // invalid option/blank index, question-not-in-session, and — added with mig 160 —
+      // question_missing_canonical_answer / question_blank_missing_canonical for a
+      // malformed question) that signal a client bug, tampering or bad content, not a
+      // state a correctly-built submission can reach. None
       // are individually actionable by a student mid-exam, so we intentionally do
       // NOT map them to distinct messages — every path returns one generic "retry"
       // string.

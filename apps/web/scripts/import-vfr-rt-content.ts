@@ -18,10 +18,18 @@
  * prefix match above, which reads `http://localhost.example.com` as local).
  *
  * --sync-content: the ONE narrow update path, for correcting an answer key on rows that are
- * already live (the CAVOK expansion). It exists because the two paths above cannot do it —
- * insertIfMissing skips anything already present, and --replace is refused under --force-remote
- * because soft-deleting live prod questions is not an acceptable way to edit one string. See
- * runSyncContent for the full contract; it is dry-run unless --apply is also passed.
+ * already live. It exists because the two paths above cannot do it — insertIfMissing skips
+ * anything already present, and --replace is refused under --force-remote because soft-deleting
+ * live prod questions is not an acceptable way to edit one string. See runSyncContent for the
+ * full contract; it is dry-run unless --apply is also passed.
+ *
+ * NOT motivated by an outstanding CAVOK drift — that was a false premise. A pre-push review
+ * asserted prod still served `Ceiling and Visibility OK`; a read-only probe of prod on
+ * 2026-08-15 disproved it (canonical, synonyms and explanation_text all already match the file,
+ * because the Part 1 import ran AFTER the a58e4d49 correction). This mode is a general
+ * capability for the NEXT such correction, not a repair for an existing one. Do not run it
+ * against prod expecting to find drift; run the dry run first and believe it when it reports
+ * nothing to do.
  *
  * Usage:
  *   cd apps/web
@@ -636,6 +644,13 @@ async function insertAll(
 //     --force-remote as the import path does. This path exists to touch already-live rows, so a
 //     pilot file is refused even against a local DB.
 //
+// DRY RUN IS NOT WHOLLY READ-ONLY, LOCALLY. Before it reaches any question, the run resolves an
+// org, an admin user and a bank — and against a LOCAL database those resolvers bootstrap
+// (upsert organizations, create the auth user, upsert users, create-or-restore question_banks).
+// Only the QUESTION writes are gated behind --apply. Against prod this does not apply: under
+// --force-remote all three resolvers are lookup-or-throw, so a prod dry run performs ZERO writes
+// of any kind. Stated because "dry run" otherwise implies read-only everywhere.
+//
 // AUDIT GAP, stated because it is real: this writes with the service-role key, straight past the
 // Server Action path every admin question mutation goes through, so it records NO `audit_events`
 // row. There is no operator-attributable trail of the change beyond this script's own output and
@@ -725,8 +740,9 @@ async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): P
   // Enumerate EVERY field the UPDATE will write, not just the canonical. The update sends all of
   // `want`, so printing one field lets a row that differs only in synonyms or explanation_text log
   // a line that reads as a no-op while a real write is queued — and the dry run exists precisely so
-  // the operator can see the intended writes before making them. The CAVOK fix this mode was built
-  // for changes all three fields.
+  // the operator can see the intended writes before making them. A content correction typically
+  // moves more than the canonical — the CAVOK edit that prompted this mode changed all three
+  // fields (canonical, synonyms, explanation), even though prod turned out to already have it.
   const changes: string[] = []
   if (target.canonical_answer !== want.canonical_answer) {
     changes.push(

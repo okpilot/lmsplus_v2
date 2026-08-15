@@ -1023,7 +1023,8 @@ not lose the mark to a keystroke.
 **Decision**: New `public.answer_matches(text, text)` (mig 158) replaces the equality test in all
 four text graders. It normalizes **both** arguments itself (`normalize_answer` is idempotent), so
 neither side has a pre-normalization precondition. Bounded spelling tolerance — Levenshtein ≤1 for
-words of 5+ characters, exact below 5, single adjacent transposition counted as one edit,
+candidate words of 5+ characters (the floor reads the candidate, so a shorter student token can
+still match a longer candidate), single adjacent transposition counted as one edit,
 whole-answer budget 2 (at most two single-edit words). There is deliberately no wider tier for long
 words: 2 edits at length ≥8 is exactly prefix negation (`serviceable`/`unserviceable`,
 `northbound`/`southbound`, `increase`/`decrease`), which is live ICAO phraseology, not a typo.

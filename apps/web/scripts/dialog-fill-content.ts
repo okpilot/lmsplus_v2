@@ -276,9 +276,13 @@ function containsWordRun(haystack: readonly string[], needle: readonly string[])
 }
 
 /**
- * R2 + R3 for one recall blank. R2 constrains the CANONICAL only — synonyms are exempt, and
- * that exemption is load-bearing: several single-word recall answers legitimately carry
- * multi-word synonyms (`wilco` accepts `will report runway vacated`).
+ * R3 for one recall blank: the canonical must not already be printed in the visible template,
+ * where the student could copy it instead of recalling it. R3 constrains the CANONICAL only —
+ * synonyms are exempt, and that exemption is load-bearing: several single-word recall answers
+ * legitimately carry multi-word synonyms (`wilco` accepts `will report runway vacated`).
+ *
+ * This function no longer implements R2 — R2 (single-word recall canonical) and R4 (anchor after
+ * a recall run) were REMOVED on 2026-08-12 with the one-blank-per-phrase rule. See the note below.
  */
 function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[], at: string): void {
   const words = normalizeAnswer(blank.canonical)
@@ -445,7 +449,8 @@ function assertRecallAnchored(item: DialogFillItem, at: string): void {
  * recalled phrase is now one blank, exactly like a derivable one. The numbering is kept as-is so
  * existing references to R5/R6 stay valid.
  *
- * R4 keys on RUNS, not lines. Five lines across four questions are entirely blanks — that shape
+ * R4 KEYED on RUNS, not lines (retired 2026-08-12). Five lines across four questions are
+ * entirely blanks — that shape
  * is mandatory for the callsign-placement questions, where the student decides which blank holds
  * the callsign — so a line-based rule would reject the corpus it was written for. R5 permits
  * those same lines because only ONE of their two blanks is a content item.

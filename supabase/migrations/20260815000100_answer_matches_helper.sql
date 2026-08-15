@@ -17,7 +17,10 @@
 --
 -- Thresholds were measured, not guessed (fuzzystrmatch levenshtein, 2026-08-15):
 --   lift/left = 1 and base/case = 1  -> 4-character words are one edit from a DIFFERENT word,
---                                       so nothing under 5 characters is fuzzy-matched at all.
+--                                       so a CANDIDATE word under 5 characters is never
+--                                       fuzzy-matched. The floor reads the candidate (wb) only,
+--                                       so a shorter STUDENT token can still match a 5+ candidate
+--                                       (answer_matches('limb','climb') is true).
 --   ONE edit per word is the whole allowance, from 5 characters up. There is deliberately NO
 --     wider tier for long words: prefix negation (un-/in-/de-/dis-) is exactly 2 edits at length
 --     >= 8, so a 2-edit tier would accept runway serviceable / runway UNserviceable, and likewise
@@ -88,7 +91,10 @@ BEGIN
     -- even though it is the commonest typo of all. Count a SINGLE ADJACENT SWAP as one edit.
     -- Checked explicitly rather than by raising the threshold (depart/report is distance 2 at
     -- length 6, so a looser threshold admits it) or by comparing sorted letters (left/felt is an
-    -- anagram of a different word). Each alternative admits genuinely different words.
+    -- anagram of a different word). This rule admits FEWER different words than either
+    -- alternative, not none: there/three, quite/quiet and trail/trial are all adjacent swaps and
+    -- all match. Verified against the whole Part 2 corpus (284 candidate strings) — zero
+    -- cross-blank collisions today — but an author adding one of those pairs must check.
     IF d = 2 AND length(wa) = length(wb) THEN
       FOR j IN 1 .. length(wb) - 1 LOOP
         IF overlay(wb placing substr(wb, j + 1, 1) || substr(wb, j, 1) from j for 2) = wa THEN

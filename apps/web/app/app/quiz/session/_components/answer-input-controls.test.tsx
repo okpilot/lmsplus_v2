@@ -51,7 +51,7 @@ describe('DialogFillAnswer', () => {
     vi.resetAllMocks()
   })
 
-  it('forwards the resumed answer as submittedBlanks so a returning student sees what they typed', () => {
+  it('restores the saved blanks for a resumed dialog-fill question', () => {
     const s = makeState({
       existingAnswer: {
         blankAnswers: [

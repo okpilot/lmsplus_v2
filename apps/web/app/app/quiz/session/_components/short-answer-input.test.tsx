@@ -50,7 +50,7 @@ describe('ShortAnswerInput', () => {
     expect(notCancelled).toBe(true)
   })
 
-  it('leaves Enter alone when it carries the legacy composition key code', async () => {
+  it('does not submit while a legacy IME composition is in progress', async () => {
     const onSubmit = vi.fn()
     render(<ShortAnswerInput onSubmit={onSubmit} disabled={false} />)
     const input = screen.getByTestId('short-answer-input')

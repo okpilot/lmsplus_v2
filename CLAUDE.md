@@ -173,7 +173,9 @@ If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts
 If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
-**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md` (EXCEPT CLAUDE.md — it is a rules file and a coderabbit-sync trigger, never exempt), or `.claude/agent-memory/**` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
+**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md` (EXCEPT CLAUDE.md — it is a rules file and a coderabbit-sync trigger, never exempt), `.claude/agent-memory/**`, or `.claude/run-log.md` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
+
+`.claude/run-log.md` was added to that list on 2026-08-15: it is a pure historical record written by `/endrun`, in the same class as `.claude/agent-memory/**`, but it sits under `.claude/` and matches neither `docs/**` nor root `*.md`. The branch that introduced this exemption carried FOUR run-log-only commits (`6aa1ebfc`, `4966d0cb`, `864936ca`, `5f207d24`) which the rule, as first written, formally required to run a full 4-agent cycle — caught by the PR-level sweep, and the count corrected from three by implementation-critic. A rule whose own introducing branch violates it four times is mis-scoped, not under-enforced.
 
 **Review-follow-up exemption (narrow):** a commit that applies ONLY findings raised by the post-commit cycle of its own parent commit runs a reduced cycle — **semantic-reviewer only** (which `agent-workflow.md` already requires whenever production code changes), not the other three. ALL of these must hold:
 - every hunk traces to a specific finding from the parent commit's own cycle;

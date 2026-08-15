@@ -110,7 +110,7 @@ describe('DialogLine', () => {
     expect(notCancelled).toBe(true)
   })
 
-  it('ignores Enter reported with the legacy composition key code', () => {
+  it('does not invoke the Enter action during a legacy IME composition', () => {
     const onEnter = vi.fn()
     render(
       <DialogLine

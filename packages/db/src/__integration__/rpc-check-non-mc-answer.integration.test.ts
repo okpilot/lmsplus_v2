@@ -604,6 +604,12 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
       p_candidate: 'cleared to land',
     })
     expect(error).not.toBeNull()
+    // Assert the CODE, not merely that something failed: a misspelled RPC name or a wrong
+    // argument name also produces an error, so a bare not-null check stays green even if the
+    // REVOKE is dropped — the exact regression this test exists to catch. 42501 is
+    // permission-denied; PostgREST reports PGRST202 when the revoked function drops out of the
+    // role's schema cache.
+    expect(['42501', 'PGRST202']).toContain(error?.code)
   })
 
   it('refuses a direct answer_matches call from an anonymous client', async () => {
@@ -613,6 +619,41 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
       p_candidate: 'cleared to land',
     })
     expect(error).not.toBeNull()
+    expect(['42501', 'PGRST202']).toContain(error?.code)
+  })
+
+  it('forgives two separately misspelled words in one phrase', async () => {
+    // Sits exactly ON the whole-answer budget: two adjacent-swap words, each costing one edit.
+    // Every word of the candidate is 5+ characters, which matters — a shorter candidate word
+    // (`land`) is rejected by the length floor before the budget is ever consulted.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'reqeust depatrure information',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(true)
+  })
+
+  it('rejects a phrase with three separately misspelled words', async () => {
+    // One past the budget. Paired with the accept case above, this is what pins `spent > 2`:
+    // no other test drives that branch, so without it the budget could be deleted and the whole
+    // suite would stay green.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'reqeust depatrure inofrmation',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('rejects an answer with a different number of words', async () => {
+    // Word-count mismatch returns early, before any per-word comparison runs.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'request departure information now',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
   })
 
   it('normalises its left argument rather than trusting the caller', async () => {
@@ -628,8 +669,9 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
   })
 
   it('does not forgive a swap that produces a different word', async () => {
-    // 'lift' and 'left' are one edit apart, which is why nothing under five characters is
-    // fuzzy-matched at all.
+    // 'lift' and 'left' are one edit apart, which is why a CANDIDATE under five characters is
+    // never fuzzy-matched. Note the floor reads the candidate only: a shorter student token can
+    // still match a 5+ candidate.
     const { data, error } = await admin.rpc('answer_matches', {
       p_norm_response: 'turn lift',
       p_candidate: 'turn left',
