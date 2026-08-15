@@ -4,6 +4,7 @@
   "topic_code": "P1_ACRONYMS",
   "subject_code": "RT",
   "question_type": "short_answer",
+  "lifecycle": "released",
   "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 1 — closed 40-acronym pool)",
   "per_exam": 8,
   "grading_notes": "Graded against canonical_answer + accepted_synonyms. The grader normalizes case, punctuation and whitespace, so no case/spacing variants are listed. Option B misspelling policy: explicit synonyms for the few genuinely error-prone words (aerodrome, meteorological, aeronautical, maneuvering, coordinated); everything else stays strict and the canonical is revealed in feedback. GA is General Aviation only. Two canonicals were checked against the VictorOne briefing package explicitly: CAVOK keys the briefing's (and ICAO's) 'Cloud and Visibility OK' and accepts the common 'Ceiling' mis-expansion; NOTAM is the one deliberate divergence, keying the current ICAO 'Notice to Air Missions' over the briefing's legacy 'Notice to Airmen', which is accepted.",

@@ -393,6 +393,15 @@ describe('assertDialogFillAuthoring', () => {
     expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R7/)
   })
 
+  it('still sees the controller line when the template lines carry stray indentation', () => {
+    // The shape checks trim before testing the [atc] prefix, so an indented template is valid
+    // content; R7 must read it the same way or it rejects an anchor that is plainly on screen.
+    const item = makeItem({
+      template: '  [atc] S-AB, pass your message\n  [pilot] S-AB, {{0}} {{1}} information',
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
   it('leaves a derivable phrase alone when no controller line is beside it', () => {
     // DLG-23: the callsign line follows another pilot line; the answer is in the visible text.
     const item = makeItem({

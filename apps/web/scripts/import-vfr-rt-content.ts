@@ -2,8 +2,10 @@
  * Importer for curated VFR RT question content (Parts 1–3).
  *
  * Reads one or more content JSON files (see scripts/content/vfr-rt-*.json) and
- * inserts the corresponding `questions` rows. Insert-only + idempotent: a question
- * already present (matched by bank_id + question_number) is skipped, never mutated.
+ * inserts the corresponding `questions` rows. The DEFAULT path is insert-only + idempotent: a
+ * question already present (matched by bank_id + question_number) is skipped, never mutated.
+ * Two flags depart from that and are gated accordingly — `--replace` (local only) and
+ * `--sync-content` (the narrow answer-key update); both are described below.
  *
  * Local (default): bootstraps the shared eval org + admin/student logins + bank so
  * you can drill the content at /app/vfr-rt immediately.
@@ -15,19 +17,33 @@
  * unless the target URL's HOST is this machine (isLocalSupabaseUrl — a stricter check than the
  * prefix match above, which reads `http://localhost.example.com` as local).
  *
+ * --sync-content: the ONE narrow update path, for correcting an answer key on rows that are
+ * already live (the CAVOK expansion). It exists because the two paths above cannot do it —
+ * insertIfMissing skips anything already present, and --replace is refused under --force-remote
+ * because soft-deleting live prod questions is not an acceptable way to edit one string. See
+ * runSyncContent for the full contract; it is dry-run unless --apply is also passed.
+ *
  * Usage:
  *   cd apps/web
  *   npx tsx scripts/import-vfr-rt-content.ts                       # imports Part 1 locally
  *   npx tsx scripts/import-vfr-rt-content.ts content/foo.json bar.json
  *   npx tsx scripts/import-vfr-rt-content.ts --force-remote        # prod (needs existing org+admin)
  *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/foo.json --replace   # local re-import
+ *   # answer-key correction, dry run then apply:
+ *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="Ceiling and Visibility OK"
+ *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="Ceiling and Visibility OK" --apply
  */
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import { isLocalSupabaseUrl, requireRecord, requireText } from './content-assertions'
+import {
+  assertReleasedForRemote,
+  isLocalSupabaseUrl,
+  requireRecord,
+  requireText,
+} from './content-assertions'
 import {
   assertDialogFillAuthoring,
   assertDialogFillItem,
@@ -71,6 +87,39 @@ if (REPLACE && !isLocalSupabaseUrl(SUPABASE_URL)) {
   process.exit(1)
 }
 
+// --sync-content updates live rows in place. Its gates run here, at module load, for the same
+// reason --replace's do: the process exits before createClient below, so no resolver runs and
+// nothing is written on a mis-invocation.
+const SYNC_CONTENT = process.argv.includes('--sync-content')
+// Dry run unless --apply. The default is the safe one because the operator's mental model of
+// what is live is exactly what --sync-content exists to correct — so it must be possible to see
+// the intended writes before making them.
+const SYNC_APPLY = process.argv.includes('--apply')
+const EXPECT_CANONICAL_PREFIX = '--expect-canonical='
+const EXPECT_CANONICAL = process.argv
+  .find((a) => a.startsWith(EXPECT_CANONICAL_PREFIX))
+  ?.slice(EXPECT_CANONICAL_PREFIX.length)
+// Both mutate the same rows by different means; combining them is never what anyone meant, and
+// the failure would be silent (--replace soft-deletes the rows --sync-content then cannot find).
+if (SYNC_CONTENT && REPLACE) {
+  console.error('--sync-content and --replace are mutually exclusive.')
+  process.exit(1)
+}
+// The optimistic guard. The content file carries only the NEW canonical, so the PREVIOUS value
+// is not derivable from it — the operator has to state it, and a row that has drifted from that
+// statement is refused rather than overwritten. An empty value is almost always shell quoting
+// gone wrong, and would compare equal to nothing, so it is rejected too.
+if (SYNC_CONTENT && (EXPECT_CANONICAL === undefined || EXPECT_CANONICAL.trim() === '')) {
+  console.error(
+    '--sync-content requires --expect-canonical="<the canonical_answer currently live>" — it is the optimistic guard, and a drifted row is refused with your own expectation quoted back.',
+  )
+  process.exit(1)
+}
+if (SYNC_APPLY && !SYNC_CONTENT) {
+  console.error('--apply only means anything with --sync-content.')
+  process.exit(1)
+}
+
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
@@ -107,8 +156,15 @@ type ContentFile = {
   subject_code: string
   topic_code: string
   question_type: 'short_answer' | 'multiple_choice' | 'dialog_fill'
-  // OPTIONAL — Part 1 has no `status` key at all, and Part 1 is the default target (see main()),
-  // i.e. the path that reached production. Every read of it must typeof-guard first.
+  /**
+   * The prod gate. `'released'` is the ONLY value that lets a file reach a remote database;
+   * everything else — including absence — is refused by `assertReleasedForRemote`. Typed
+   * `unknown` deliberately: this object is a cast over parsed JSON, so a `string` annotation
+   * would be an unchecked promise, and the assertion is meant to be the only reader.
+   */
+  lifecycle?: unknown
+  // Free-form prose describing the batch. Gates NOTHING — see assertReleasedForRemote's note on
+  // why the guard moved off this field. Read only by humans; the importer never inspects it.
   status?: string
   questions: (ShortAnswerItem | McItem | DialogFillItem)[]
 }
@@ -121,9 +177,20 @@ async function createAuthUser(email: string, password: string): Promise<string> 
     throw new Error(`Auth user ${email}: ${error.message}`)
   }
   if (data?.user) return data.user.id
-  const { data: users } = await db.auth.admin.listUsers()
+  // Reached only on the "already been registered" path swallowed above, so the user DOES exist
+  // and a "Cannot find user" here is always a lookup defect, never a real absence. Two ways it
+  // used to lie: an undestructured `{ error }` reported a transport/permission failure as a
+  // missing user, and listUsers() paginates at perPage=50 by DEFAULT — on a project with more
+  // than 50 auth users the account was simply on page 2. perPage is stated explicitly so the
+  // page size is visible at the call site; 1000 is the API's documented ceiling.
+  const { data: users, error: listErr } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  if (listErr) throw new Error(`Listing users to locate ${email}: ${listErr.message}`)
   const existing = users?.users.find((u) => u.email === email)
-  if (!existing) throw new Error(`Cannot find user ${email}`)
+  if (!existing) {
+    throw new Error(
+      `Cannot find user ${email} among the first ${users?.users.length ?? 0} auth users — it exists (creation reported it as already registered), so widen the listUsers page size or look it up by email.`,
+    )
+  }
   return existing.id
 }
 
@@ -400,7 +467,12 @@ type ReplaceScope = {
   nums: string[]
 }
 
-async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promise<void> {
+/**
+ * The live rows --replace is about to soft-delete, filtered exactly as the UPDATE below is, so
+ * the count it returns is the count that update must produce. An empty result warns and returns
+ * empty rather than throwing: a first import of a new file legitimately matches nothing.
+ */
+async function findReplaceTargets(scope: ReplaceScope): Promise<{ question_number: string }[]> {
   const { data: matched, error: matchErr } = await db
     .from('questions')
     .select('question_number')
@@ -415,14 +487,29 @@ async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promi
     // were imported, the old rows carry the OLD values and match nothing here, while
     // insertIfMissing (bank + number only) then skips every num — so the edit silently does not
     // take effect, which is exactly what --replace exists to prevent.
-    // console.WARN, not log: this is the same silent-no-op class the matched/removed check below
-    // throws on, so it must not read as an ordinary progress line. Not fatal — a first import of
-    // a new file legitimately matches nothing.
+    // console.WARN, not log: this is the same silent-no-op class the matched/removed check in the
+    // caller throws on, so it must not read as an ordinary progress line.
     console.warn(
       `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId}) — if this is not a first import, the file's topic_code or question_type changed and the edit will NOT take effect`,
     )
-    return
+    return []
   }
+  return matched as { question_number: string }[]
+}
+
+/**
+ * Appends every id it soft-deleted to `removedIds`, so a later failure can put every one of them
+ * back. The append happens BEFORE the matched/removed reconciliation below throws: that branch
+ * fires on a PARTIALLY blocked write, where rows really were soft-deleted, and a rollback list
+ * built from the return value would miss exactly those.
+ */
+async function softDeleteForReplace(
+  scope: ReplaceScope,
+  adminId: string,
+  removedIds: string[],
+): Promise<void> {
+  const matched = await findReplaceTargets(scope)
+  if (matched.length === 0) return
   // Disclosure, not detection: a hostname check cannot see through an SSH tunnel, so print the
   // target and exactly what is about to be soft-deleted before mutating.
   console.log(
@@ -439,6 +526,7 @@ async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promi
     .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(`--replace soft-delete (${scope.rel}): ${error.message}`)
+  for (const row of removed ?? []) removedIds.push(row.id as string)
   // code-style §5's "log only when > 0" shape is for cleanup where zero rows is VALID. Here the
   // SELECT above already proved N rows match, so anything less than N means the write was blocked
   // (RLS/grant — see #815) or the rows moved. Throw rather than warn: the insert loop that follows
@@ -452,6 +540,41 @@ async function softDeleteForReplace(scope: ReplaceScope, adminId: string): Promi
     )
   }
   console.log(`  ${scope.rel}: --replace soft-deleted ${removedCount} row(s)`)
+}
+
+/**
+ * Undo a --replace soft-delete after a LATER step failed. Without this, an insert that throws
+ * mid-run leaves the file's questions soft-deleted and NOT re-inserted — the content is simply
+ * gone from the bank until someone re-runs the importer, and `--replace` is the one flag whose
+ * whole purpose is that the operator can see the edit take effect.
+ *
+ * Per-step accumulator (code-style §7): each id is restored in its own try/catch so one blocked
+ * row cannot skip the rest of the rollback. Returns one message per id that could NOT be put
+ * back; the caller prints them and still rethrows the ORIGINAL failure, which is the one that
+ * explains why the import stopped.
+ *
+ * Restores `deleted_by` alongside `deleted_at`, matching how both are stamped on the way out and
+ * how ensureBank's restore path clears them. Every id here was live (`deleted_at IS NULL`) when
+ * it was matched, so nulling both is an exact reversal, not a guess.
+ */
+async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
+  const failures: string[] = []
+  for (const id of ids) {
+    try {
+      const { data, error } = await db
+        .from('questions')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', id)
+        .select('id')
+      if (error) throw new Error(error.message)
+      // Zero rows means the write was blocked (RLS/grant — see #815) or the row moved; a 200 OK
+      // with no rows would otherwise read as a successful rollback (code-style §5).
+      if (!data || data.length === 0) throw new Error('no rows updated — blocked or row moved')
+    } catch (err) {
+      failures.push(`${id}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return failures
 }
 
 async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
@@ -469,6 +592,280 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolea
   return true
 }
 
+type ResolvedFile = { rel: string; file: ContentFile; subjectId: string; topicId: string }
+type ImportContext = { bankId: string; adminId: string; base: Record<string, unknown> }
+
+async function insertAll(
+  resolved: readonly ResolvedFile[],
+  ctx: ImportContext,
+): Promise<{ inserted: number; skipped: number }> {
+  let totalInserted = 0
+  let totalSkipped = 0
+  for (const { rel, file, subjectId, topicId } of resolved) {
+    let inserted = 0
+    for (const q of file.questions) {
+      const row = buildRow(file, q, { ...ctx.base, subject_id: subjectId }, topicId)
+      if (await insertIfMissing(ctx.bankId, row)) inserted++
+      else totalSkipped++
+    }
+    totalInserted += inserted
+    console.log(
+      `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
+    )
+  }
+  return { inserted: totalInserted, skipped: totalSkipped }
+}
+
+// ---- --sync-content ----------------------------------------------------------
+//
+// The only path in this file that MUTATES a live question row.
+//
+// Contract, deliberately narrow:
+//   - matches on (bank_id, question_number) with deleted_at IS NULL — that is
+//     idx_questions_bank_number, the real UNIQUE index, and the same key insertIfMissing uses.
+//     NOT (topic_code, question_number): topic_code is not part of any uniqueness guarantee.
+//   - requires EXACTLY ONE live row per content entry; 0 (never imported) and >1 (the unique
+//     index is gone) both abort. It never inserts the missing row — an absent question is an
+//     import job, not a correction.
+//   - writes ONLY canonical_answer, accepted_synonyms and explanation_text. It never touches
+//     `status`, so it can neither publish a draft nor retire a live question; and it never
+//     deletes.
+//   - refuses any file that is not short_answer. dialog_fill answers live in blanks_config, not
+//     in these three columns, so it would otherwise report success having changed nothing.
+//   - refuses a file that is not `"lifecycle": "released"` UNCONDITIONALLY — not only under
+//     --force-remote as the import path does. This path exists to touch already-live rows, so a
+//     pilot file is refused even against a local DB.
+//
+// AUDIT GAP, stated because it is real: this writes with the service-role key, straight past the
+// Server Action path every admin question mutation goes through, so it records NO `audit_events`
+// row. There is no operator-attributable trail of the change beyond this script's own output and
+// the commit that changed the content file. That is the accepted cost of a scripted correction;
+// anything broader than a keyed answer fix belongs in the admin UI, where it is audited.
+
+type SyncRow = {
+  id: string
+  canonical_answer: string | null
+  accepted_synonyms: string[] | null
+  explanation_text: string | null
+}
+type SyncFields = {
+  canonical_answer: string
+  accepted_synonyms: string[]
+  explanation_text: string
+}
+
+async function fetchSyncTarget(bankId: string, questionNumber: string): Promise<SyncRow> {
+  const { data, error } = await db
+    .from('questions')
+    .select('id, canonical_answer, accepted_synonyms, explanation_text')
+    .eq('bank_id', bankId)
+    .eq('question_number', questionNumber)
+    .is('deleted_at', null)
+  if (error) throw new Error(`--sync-content lookup '${questionNumber}': ${error.message}`)
+  if (!Array.isArray(data) || data.length !== 1) {
+    throw new Error(
+      `--sync-content: expected exactly 1 live row for question_number '${questionNumber}' in bank ${bankId}, found ${Array.isArray(data) ? data.length : 0} — 0 means it was never imported (use the import path), and >1 means idx_questions_bank_number is not doing its job. Either way, aborting before any write.`,
+    )
+  }
+  // Guard the cast rather than trusting it (code-style §5): `db` is an untyped client, so the
+  // shape here is an assumption until something checks it.
+  const row = data[0] as unknown as SyncRow
+  requireText(row.id, `--sync-content: live row for '${questionNumber}' — 'id'`)
+  return row
+}
+
+/**
+ * Read the three synced values off the row buildRow would INSERT, so the update path and the
+ * insert path can never disagree about what the file says. Re-guarded because QuestionRow is a
+ * `Record<string, unknown>` — nothing structural stops a future branch writing another shape.
+ */
+function desiredSyncFields(row: QuestionRow, at: string): SyncFields {
+  const canonical = row.canonical_answer
+  const synonyms = row.accepted_synonyms
+  const explanation = row.explanation_text
+  requireText(canonical, `${at}: 'canonical_answer'`)
+  requireText(explanation, `${at}: 'explanation_text'`)
+  if (!Array.isArray(synonyms)) {
+    throw new Error(`${at}: 'accepted_synonyms' must be an array (got ${JSON.stringify(synonyms)})`)
+  }
+  for (const [i, synonym] of synonyms.entries()) {
+    requireText(synonym, `${at}: accepted_synonyms[${i}]`)
+  }
+  // Every element passed requireText immediately above.
+  return {
+    canonical_answer: canonical,
+    accepted_synonyms: synonyms as string[],
+    explanation_text: explanation,
+  }
+}
+
+function alreadyInSync(row: SyncRow, want: SyncFields): boolean {
+  return (
+    row.canonical_answer === want.canonical_answer &&
+    row.explanation_text === want.explanation_text &&
+    // Order-sensitive on purpose: accepted_synonyms is a TEXT[] the file authors by hand, so a
+    // reorder IS a content change and should be written, not silently treated as equivalent.
+    JSON.stringify(row.accepted_synonyms ?? []) === JSON.stringify(want.accepted_synonyms)
+  )
+}
+
+/** Returns true when the row needed a change (whether or not --apply actually wrote it). */
+async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): Promise<boolean> {
+  if (alreadyInSync(target, want)) return false
+  // The optimistic check runs only on rows that actually differ, so the operator states the
+  // pre-state of the row they came to fix — not of all 40 questions in the file.
+  // It guards ONE column. A row whose canonical_answer matches the expectation but whose synonyms
+  // or explanation_text have drifted is still overwritten; the per-field log below is what
+  // discloses that, which is why the dry run must be read before --apply.
+  if (target.canonical_answer !== EXPECT_CANONICAL) {
+    throw new Error(
+      `--sync-content ${at}: refusing to overwrite. The live canonical_answer is ${JSON.stringify(target.canonical_answer)}, but --expect-canonical said ${JSON.stringify(EXPECT_CANONICAL)}. The row is not in the state you expected; re-check before writing.`,
+    )
+  }
+  // Enumerate EVERY field the UPDATE will write, not just the canonical. The update sends all of
+  // `want`, so printing one field lets a row that differs only in synonyms or explanation_text log
+  // a line that reads as a no-op while a real write is queued — and the dry run exists precisely so
+  // the operator can see the intended writes before making them. The CAVOK fix this mode was built
+  // for changes all three fields.
+  const changes: string[] = []
+  if (target.canonical_answer !== want.canonical_answer) {
+    changes.push(
+      `canonical ${JSON.stringify(target.canonical_answer)} -> ${JSON.stringify(want.canonical_answer)}`,
+    )
+  }
+  if (JSON.stringify(target.accepted_synonyms) !== JSON.stringify(want.accepted_synonyms)) {
+    changes.push(
+      `synonyms ${JSON.stringify(target.accepted_synonyms)} -> ${JSON.stringify(want.accepted_synonyms)}`,
+    )
+  }
+  if (target.explanation_text !== want.explanation_text) {
+    changes.push(
+      `explanation ${JSON.stringify(target.explanation_text)} -> ${JSON.stringify(want.explanation_text)}`,
+    )
+  }
+  console.log(
+    `  ${at}: ${changes.join(' | ')}${SYNC_APPLY ? '' : '   [dry run — pass --apply to write]'}`,
+  )
+  if (!SYNC_APPLY) return true
+  const { data, error } = await db.from('questions').update(want).eq('id', target.id).select('id')
+  if (error) throw new Error(`--sync-content ${at}: ${error.message}`)
+  if (data?.length !== 1) {
+    throw new Error(
+      `--sync-content ${at}: expected 1 row updated, got ${data?.length ?? 0} — the write was blocked (RLS/grant, see #815) or the row moved.`,
+    )
+  }
+  return true
+}
+
+async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise<number> {
+  assertReleasedForRemote(entry.file, entry.rel)
+  if (entry.file.question_type !== 'short_answer') {
+    throw new Error(
+      `--sync-content refuses ${entry.rel}: it is ${entry.file.question_type}, and this path writes only canonical_answer / accepted_synonyms / explanation_text. A dialog_fill answer key lives in blanks_config, so syncing it here would report success and change nothing.`,
+    )
+  }
+  let changed = 0
+  for (const q of entry.file.questions) {
+    const at = `${entry.rel} (${q.num})`
+    const row = buildRow(entry.file, q, { ...ctx.base, subject_id: entry.subjectId }, entry.topicId)
+    const target = await fetchSyncTarget(ctx.bankId, q.num)
+    if (await syncOneQuestion(target, desiredSyncFields(row, at), at)) changed++
+  }
+  const verb = SYNC_APPLY ? 'updated' : 'would update'
+  console.log(
+    `  ${entry.rel}: ${verb} ${changed} row(s) / ${entry.file.questions.length - changed} already in sync`,
+  )
+  return changed
+}
+
+async function runSyncContent(
+  resolved: readonly ResolvedFile[],
+  ctx: ImportContext,
+): Promise<void> {
+  let changed = 0
+  for (const entry of resolved) changed += await syncFileContent(entry, ctx)
+  console.log('\nVFR RT content sync complete.')
+  console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
+  console.log(`  Mode:     ${SYNC_APPLY ? 'APPLIED' : 'DRY RUN (pass --apply to write)'}`)
+  console.log(`  Changed:  ${changed}`)
+  console.log('  No audit_events row was written — this is a service-role script write.')
+}
+
+async function softDeleteAll(
+  resolved: readonly ResolvedFile[],
+  ctx: ImportContext,
+  removedIds: string[],
+): Promise<void> {
+  for (const { rel, file, topicId } of resolved) {
+    // `removedIds` is appended to as each file is processed, so a throw on file 2 still leaves
+    // file 1's ids in the caller's rollback list.
+    await softDeleteForReplace(
+      {
+        rel,
+        bankId: ctx.bankId,
+        topicId,
+        questionType: file.question_type,
+        nums: file.questions.map((q) => q.num),
+      },
+      ctx.adminId,
+      removedIds,
+    )
+  }
+}
+
+/** Compensating write + its reporting. Never throws: the caller's original error is the one that matters. */
+async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
+  console.error(
+    `  --replace: import failed after soft-deleting ${softDeleted.length} row(s) — restoring them`,
+  )
+  const failures = await restoreSoftDeleted(softDeleted)
+  if (failures.length === 0) {
+    console.error(`  --replace: restored ${softDeleted.length} row(s)`)
+    return
+  }
+  console.error(
+    `  --replace: ROLLBACK INCOMPLETE — ${failures.length} row(s) are still soft-deleted: ${failures.join('; ')}`,
+  )
+  console.error(
+    '  --replace: the usual cause is that the row\'s question_number was ALREADY re-inserted before the failure — idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL, so clearing deleted_at collides with the live replacement. Restoring "by hand" fails the same way. Remedy: re-run the same --replace (it soft-deletes the partial inserts and redoes the file), or delete the partial inserts first. Only rows with no live replacement can be restored directly.',
+  )
+}
+
+/**
+ * Soft-delete (under --replace) and then insert, with a best-effort compensating restore if a
+ * later step fails.
+ *
+ * NOT an all-or-nothing unit. The restore clears `deleted_at` on rows this run soft-deleted, and
+ * that succeeds only where the row's `question_number` has NOT already been re-inserted — the
+ * partial-unique index rejects the second live row. So the guarantee is: nothing is lost when the
+ * failure happens before any insert, and a best-effort restore with an explicit ROLLBACK
+ * INCOMPLETE report otherwise.
+ *
+ * The window this closes: --replace soft-deletes the file's questions, then an insert throws
+ * (constraint, RLS, dropped connection) and the process exits — the content is now missing from
+ * the bank entirely, which is strictly worse than the no-op --replace exists to prevent. There
+ * is no transaction available here (inserts are row-at-a-time and individually committed), so
+ * the rollback is a compensating write, not an abort.
+ *
+ * The original failure is always what propagates: a rollback problem is additional information
+ * about the same incident, never a replacement for its cause. Rollback failures are logged
+ * (code-style §5 — every error path, including compensating ones, emits console.error) and the
+ * ids are printed so they can be restored by hand.
+ */
+async function runImport(
+  resolved: readonly ResolvedFile[],
+  ctx: ImportContext,
+): Promise<{ inserted: number; skipped: number }> {
+  const softDeleted: string[] = []
+  try {
+    if (REPLACE) await softDeleteAll(resolved, ctx, softDeleted)
+    return await insertAll(resolved, ctx)
+  } catch (err) {
+    if (softDeleted.length > 0) await rollbackReplace(softDeleted)
+    throw err
+  }
+}
+
 // ---- main --------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -479,6 +876,13 @@ async function main(): Promise<void> {
   // DB. Inserts are row-at-a-time and individually committed (no transaction), so a malformed
   // item found at INSERT time leaves earlier rows already written; validating up front turns
   // that half-import into a clean abort.
+  //
+  // The scope of that guarantee is MALFORMED CONTENT only. It is not a transaction and cannot
+  // be: a mid-insert DB failure (constraint, RLS, dropped connection) still commits the rows
+  // written before it and leaves the rest unwritten. Re-running is safe — insertIfMissing skips
+  // what is already there — but "clean abort" means "a bad content file writes nothing", not
+  // "any failure writes nothing". The one destructive case, --replace having already
+  // soft-deleted rows the insert then failed to restore, is handled by runImport's rollback.
   //
   // Keep this in step with buildRow — a field buildRow writes but this loop does not check is
   // a field that fails mid-run. The full set buildRow reads from content today: file-level
@@ -519,14 +923,12 @@ async function main(): Promise<void> {
         `${rel}: unsupported question_type ${JSON.stringify(file.question_type)} — this importer handles ${SUPPORTED_TYPES.join('/')}; add a buildRow branch first`,
       )
     }
-    // Importing makes rows immediately exam-eligible on the target DB, so a file that declares
-    // itself a pilot batch is the one thing --force-remote must not carry to prod. `status` is
-    // OPTIONAL and absent from Part 1 — the default target — so typeof-guard before .startsWith,
-    // or the prod import path throws a bare TypeError.
-    if (FORCE_REMOTE && typeof file.status === 'string' && file.status.startsWith('PILOT')) {
-      throw new Error(
-        `${rel}: refusing --force-remote — the file declares status ${JSON.stringify(file.status)}`,
-      )
+    // Importing makes rows immediately exam-eligible on the target DB, so an un-evaluated batch
+    // is the one thing --force-remote must not carry to prod. The gate is a structured
+    // `lifecycle` tag, allow-listed to the single value 'released'; a missing or unexpected
+    // value is refused. See assertReleasedForRemote for why it is not a prose check.
+    if (FORCE_REMOTE) {
+      assertReleasedForRemote(file, rel)
     }
     if (!Array.isArray(file.questions) || file.questions.length === 0) {
       throw new Error(`${rel}: 'questions' must be a non-empty array`)
@@ -589,7 +991,7 @@ async function main(): Promise<void> {
   // create a `question_banks` row. Ordering them after this loop is what makes "an import that
   // is going to abort writes nothing at all" true — the earlier form of this comment claimed
   // that while sitting below the two resolvers, so five rows were already written on an abort.
-  const resolved: { rel: string; file: ContentFile; subjectId: string; topicId: string }[] = []
+  const resolved: ResolvedFile[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
     resolved.push({
@@ -613,39 +1015,16 @@ async function main(): Promise<void> {
     created_by: adminId,
   }
 
-  if (REPLACE) {
-    for (const { rel, file, topicId } of resolved) {
-      await softDeleteForReplace(
-        {
-          rel,
-          bankId: bank.id,
-          topicId,
-          questionType: file.question_type,
-          nums: file.questions.map((q) => q.num),
-        },
-        adminId,
-      )
-    }
+  const ctx: ImportContext = { bankId: bank.id, adminId, base }
+
+  // Update-only mode: it shares every gate and every resolver above, then takes over instead of
+  // the insert path. Returning here is what keeps "never inserts" true.
+  if (SYNC_CONTENT) {
+    await runSyncContent(resolved, ctx)
+    return
   }
 
-  let totalInserted = 0
-  let totalSkipped = 0
-
-  for (const { rel, file, subjectId, topicId } of resolved) {
-    let inserted = 0
-    for (const q of file.questions) {
-      const added = await insertIfMissing(
-        bank.id,
-        buildRow(file, q, { ...base, subject_id: subjectId }, topicId),
-      )
-      if (added) inserted++
-      else totalSkipped++
-    }
-    totalInserted += inserted
-    console.log(
-      `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
-    )
-  }
+  const { inserted: totalInserted, skipped: totalSkipped } = await runImport(resolved, ctx)
 
   console.log('\nVFR RT content import complete.')
   console.log(

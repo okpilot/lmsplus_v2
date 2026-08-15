@@ -143,6 +143,33 @@ function assertTemplateShape(template: string, at: string): void {
   }
 }
 
+/**
+ * Both directions of the marker ↔ blanks correspondence. Kept as two separate loops with two
+ * separate messages because the failures have opposite fixes — a marker with no blank needs a
+ * `blanks` entry added, a blank with no marker needs the index removed or the template edited —
+ * and a single "sets differ" message would leave the author guessing which.
+ */
+function assertIndexSetsMatch(
+  markers: ReadonlySet<number>,
+  blankIndices: ReadonlySet<number>,
+  at: string,
+): void {
+  for (const index of markers) {
+    if (!blankIndices.has(index)) {
+      throw new Error(
+        `${at}: template marker {{${index}}} has no matching entry in 'blanks' — it would be stored as a bare {{n}} and rejected by questions_dialog_fill_template_wellformed`,
+      )
+    }
+  }
+  for (const index of blankIndices) {
+    if (!markers.has(index)) {
+      throw new Error(
+        `${at}: blanks[] carries index ${index} with no {{${index}}} marker in 'template' — unanswerable, yet still counted in the score denominator`,
+      )
+    }
+  }
+}
+
 function assertMarkerBlankBijection(
   template: string,
   blankIndices: ReadonlySet<number>,
@@ -160,20 +187,7 @@ function assertMarkerBlankBijection(
       `${at}: 'template' repeats a {{n}} marker — two inputs would share one answer slot; give each blank its own index`,
     )
   }
-  for (const index of markers) {
-    if (!blankIndices.has(index)) {
-      throw new Error(
-        `${at}: template marker {{${index}}} has no matching entry in 'blanks' — it would be stored as a bare {{n}} and rejected by questions_dialog_fill_template_wellformed`,
-      )
-    }
-  }
-  for (const index of blankIndices) {
-    if (!markers.has(index)) {
-      throw new Error(
-        `${at}: blanks[] carries index ${index} with no {{${index}}} marker in 'template' — unanswerable, yet still counted in the score denominator`,
-      )
-    }
-  }
+  assertIndexSetsMatch(markers, blankIndices, at)
 }
 
 /**
@@ -354,8 +368,13 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  *
  * The defect this stops (eval 2026-08-13): a `recall` blank asks for a phrase that appears nowhere
  * on screen, so SOMETHING must pin which phrase. Once the scene prompt stopped being rendered,
- * several blanks had nothing left doing that job and became coin flips — DLG-24 accepted only
- * `request full stop` when `request touch-and-go` draws the same reply.
+ * several blanks had nothing left doing that job and became coin flips — DLG-24 then blanked
+ * `request full stop`, which `request touch-and-go` fits just as well.
+ *
+ * EVERY DLG-nn EXAMPLE BELOW IS HISTORICAL — the case that produced the rule, quoted in the state
+ * it was in at the time. The corpus has moved on since: DLG-05 and DLG-24 no longer blank the
+ * phrases named here. Read them as the reasoning behind the rule, never as a description of what
+ * the content file currently holds; for that, read the file.
  *
  * R7 is NOT "every blank must be a readback". That was this rule's first premise and the briefing
  * falsifies it: Part 2 lists "Basic phrases (i.e., radio check, request departure information,
@@ -363,15 +382,20 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  * readbacks, wilco and abbreviated callsigns. Supplying a phrase the controller never said IS the
  * exam. Acting on the wrong premise, an earlier pass unblanked `request departure information`
  * (DLG-01) and `ready for departure` (DLG-05) — deleting two of the four things Part 2 tests.
- * Both are restored and declare `unanchored`; the readback anchor is the common case, not the law.
+ * The two were then fixed DIFFERENTLY, and that difference is the lesson: DLG-01's phrase came
+ * back as a `recall` blank and the item declares `unanchored`, while DLG-05's was left VISIBLE on
+ * its own line and the item instead blanks the readback beneath it (`lining up and waiting`, a
+ * `derivable` blank). The readback anchor is the common case, not the law — and the `unanchored`
+ * opt-out is not the only alternative to it.
  *
  * The anchor must PRECEDE the blank — the recalled phrase reads back or acknowledges the line
  * above it. A following line is deliberately NOT accepted, because whether it reveals the answer
- * is a judgement no check can make: DLG-05's `ready for departure` is genuinely fixed by the
- * `line up and wait` that answers it, but DLG-24's `request full stop` was NOT fixed by the
- * `report final runway 14` that followed — full stop and touch-and-go draw the same reply. Those
- * two are indistinguishable to a rule and opposite on the merits, so answered-after items take the
- * `unanchored` declaration and state the reasoning where a reader can check it.
+ * is a judgement no check can make: DLG-05's then-blanked `ready for departure` was genuinely
+ * fixed by the `line up and wait` that answers it, but DLG-24's then-blanked `request full stop`
+ * was NOT fixed by the `report final runway 14` that followed — full stop and touch-and-go draw
+ * the same reply. Those two were indistinguishable to a rule and opposite on the merits, so
+ * answered-after items take the `unanchored` declaration and state the reasoning where a reader
+ * can check it.
  *
  * `derivable` blanks are exempt: their answer IS in the visible text (that is what the shape
  * means), so an adjacent controller line is not what makes them answerable. DLG-19 and DLG-23
@@ -389,7 +413,12 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  */
 function assertRecallAnchored(item: DialogFillItem, at: string): void {
   if (typeof item.unanchored === 'string' && item.unanchored.trim() !== '') return
-  const lines = item.template.split('\n')
+  // Trim on split, matching assertTemplateShape, which trims before testing the speaker prefix.
+  // Untrimmed, a single leading space on an `[atc]` line makes `startsWith('[atc]')` false and
+  // the anchor invisible — the item is then rejected for lacking a controller line that is
+  // plainly there. Trimming can only flip that test false -> true, so this relaxes the rule and
+  // never admits anything a trimmed template would not already have admitted.
+  const lines = item.template.split('\n').map((line) => line.trim())
   const recallIndexes = new Set(item.blanks.filter((b) => b.shape === 'recall').map((b) => b.index))
   for (const [i, line] of lines.entries()) {
     const held = lineMarkers(line).filter((m) => recallIndexes.has(m.index))
@@ -422,7 +451,6 @@ function assertRecallAnchored(item: DialogFillItem, at: string): void {
  * those same lines because only ONE of their two blanks is a content item.
  */
 export function assertDialogFillAuthoring(item: DialogFillItem, at: string): void {
-  const shapes = new Map<number, AuthoredBlank['shape']>()
   const canonicals = new Map(item.blanks.map((b) => [b.index, b.canonical]))
   const visible = visibleWords(item.template)
   assertPromptSetsSceneOnly(item.prompt, at)
@@ -433,7 +461,6 @@ export function assertDialogFillAuthoring(item: DialogFillItem, at: string): voi
         `${at}: authoring R1 — blanks index ${blank.index} must carry shape 'recall' or 'derivable' (got ${JSON.stringify(shape)})`,
       )
     }
-    shapes.set(blank.index, shape)
     if (shape === 'recall') assertRecallBlank(blank, visible, at)
   }
   for (const rawLine of item.template.split('\n')) {

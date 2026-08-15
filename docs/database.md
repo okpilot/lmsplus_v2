@@ -818,6 +818,7 @@ verb_noun pattern:
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, trim again to remove stray edge spaces, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101, final trim added mig 128 / #921)
+  answer_matches             ← read (IMMUTABLE, PARALLEL SAFE plpgsql helper): typo-tolerant comparison of a student answer against a candidate (canonical or synonym) — exact after normalization, plus Levenshtein ≤ 1 for words of 5+ characters (single adjacent transposition counted as 1 edit, whole-answer budget 2), and **any token containing a digit must match exactly**; normalizes BOTH arguments itself (normalize_answer is idempotent); reads no table, so it is not an answer oracle; EXECUTE REVOKEd from PUBLIC, anon, authenticated — reachable only as the postgres owner from the four SECURITY DEFINER text graders, plus service_role (mig 158)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1164,8 +1165,8 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Allows partial submissions. Study mode: score = `correct_credit / answered`. Exam mode: score = `correct_credit / total` (unanswered = wrong); incomplete mock_exam auto-fails regardless of score.
 - Enforces server-side time limit with 30-second grace period; beyond grace period, auto-ends session with zero score and returns `expired: true`.
 - `multiple_choice` — `_grade_record_mc` helper (mig 120): option-membership validation, writes quiz_session_answers + student_responses + fsrs_cards. MC guards are conditional (not forced for non-MC answers).
-- `short_answer` — `_grade_record_short_answer` helper (mig 120): normalizes via `normalize_answer()` and compares via `answer_matches()` (mig 142), writes quiz_session_answers + student_responses (blank_index = NULL, one row per question).
-- `dialog_fill` — `_grade_record_dialog_fill` helper (mig 120): one call per blank (blank_index required in payload); writes quiz_session_answers + student_responses per blank.
+- `short_answer` — `_grade_record_short_answer` helper (mig 120): normalizes via `normalize_answer()` and compares via `answer_matches()` (mig 158), writes quiz_session_answers + student_responses (blank_index = NULL, one row per question).
+- `dialog_fill` — `_grade_record_dialog_fill` helper (mig 120): one call per blank (blank_index required in payload); compares each blank's canonical/synonyms via `answer_matches()` (mig 158) — same typo tolerance as `short_answer`, changed in the same migration per sibling-parity; writes quiz_session_answers + student_responses per blank.
 - `ordering` — `_grade_record_ordering` helper (mig 147): one call per slot (slot in blank_index, item id in selected_option); writes quiz_session_answers + student_responses per slot. Permutation guard (mig 148) ensures completeness before any row is written.
 - `diagram_label` — `_grade_record_diagram_label` helper (mig 154): one call per submitted zone placement (zone id carried in `response_text`, label id carried in `selected_option` — `diagram_label` has no free-text response field, so `response_text` is repurposed to carry the target zone id, mirroring how `ordering` repurposes `selected_option` to carry an item id). `blank_index` is required on the entry only to satisfy the `(question_id, blank_index)` dup-guard (same as ordering's slot) but is **discarded before calling the grader** — the grader derives the true zone ordinal itself from `diagram_config.zones` (the single ordinal source, shared by `get_report_answer_keys` mig 156). `response_text` in the written row is overwritten with the placed label's display TEXT (resolved server-side), not the raw zone/label ids.
 - **Internal helpers (migs 120/147/154):** `_grade_record_mc/_short_answer/_dialog_fill/_ordering/_diagram_label` are each `SECURITY DEFINER SET search_path = public` with `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` — not callable via PostgREST by anon/authenticated users (`FROM PUBLIC` alone is insufficient: Supabase default-grants EXECUTE to anon/authenticated separately; #952). The dispatcher is the single authorization boundary; `service_role` (trusted backend) retains EXECUTE. See Decision 47.
@@ -1985,8 +1986,8 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 ```
 
 **Grading semantics:**
-- `short_answer` — `p_response_text` required, `p_blank_answers`, `p_order`, and `p_mapping` must be NULL. Compares against `canonical_answer` and `accepted_synonyms` via `answer_matches()` (mig 142) — case/whitespace/punctuation-insensitive through `normalize_answer()` (mig 101), and typo-tolerant except on tokens containing digits.
-- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text`, `p_order`, and `p_mapping` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100).
+- `short_answer` — `p_response_text` required, `p_blank_answers`, `p_order`, and `p_mapping` must be NULL. Compares against `canonical_answer` and `accepted_synonyms` via `answer_matches()` (mig 158) — case/whitespace/punctuation-insensitive through `normalize_answer()` (mig 101), and typo-tolerant except on tokens containing digits.
+- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text`, `p_order`, and `p_mapping` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100). Each blank is compared via `answer_matches()` (mig 158), same typo tolerance as `short_answer`.
 - `ordering` — `p_order` (jsonb array of item IDs in the student's submitted sequence) required, `p_response_text`, `p_blank_answers`, and `p_mapping` must be NULL. Correct iff the submitted ID sequence equals the canonical stored array order of `ordering_items`, element-for-element (binary — partial credit is a batch-submit/report concern, not immediate feedback's signal). The revealed `correct_order` is an array of **canonical item IDs** (not texts) because two items may share display text; the client maps each id back to its text for display.
 - `diagram_label` — `p_mapping` (jsonb array of `{zone_id, label_id}` the student placed) required, `p_response_text`, `p_blank_answers`, and `p_order` must be NULL. Correctness is a **SET comparison** (order in the array is meaningless, unlike `ordering`): every zone must be covered exactly once (`jsonb_array_length(p_mapping) = jsonb_array_length(diagram_config.answer)` AND distinct `zone_id` count matches) and every submitted `{zone_id, label_id}` pair must match the canonical `diagram_config.answer` entry for that zone. The revealed `correct_mapping` is the raw `{zone_id, label_id}` answer array — the client already holds the full zones + labels arrays from the initial delivery (mig 152), so it resolves ids to display text/position locally, same posture as `ordering`'s revealed id-only `correct_order`.
 
@@ -2819,7 +2820,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 - Part 3 (multiple_choice): correct count / 8 (default) * 100
 - Unanswered questions contribute 0
 
-**Answer normalization:** `normalize_answer(text)` helper (mig 101) — trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics (Slovenian č/š/ž). **Matching** is `answer_matches()` (mig 142) against canonical_answer or any accepted_synonym: exact after normalization, plus a bounded spelling tolerance that never applies to a token containing a digit.
+**Answer normalization:** `normalize_answer(text)` helper (mig 101) — trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics (Slovenian č/š/ž). **Matching** is `answer_matches()` (mig 158) against canonical_answer or any accepted_synonym: exact after normalization, plus a bounded spelling tolerance that never applies to a token containing a digit.
 
 **Timer expiry guard (design.md § Migration 100):** Submit past `started_at + time_limit_seconds + 30s` grace → expires the session (zeroed result, `expired: true`), logged as `vfr_rt_exam.expired`.
 
@@ -2898,7 +2899,7 @@ Helper RPC (migration 101). Normalizes free-text exam answers for grading compar
 3. Collapse hyphen/underscore runs to single space
 4. Strip punctuation `.`,`,`,`;`,`:`,`!`,`?`,`"`,`'`,`(`,`)`,`[`,`]`
 5. Collapse whitespace runs to single space
-6. Trim again (final trim, **mig 128 / #921**) — steps 4–5 can leave a stray edge space when punctuation was adjacent to a leading/trailing space (`". hello"` → `" hello"`); without this, grading penalizes a correct answer (comparison is `normalize_answer(response)` vs `normalize_answer(canonical)`). Wraps the outermost `regexp_replace` in `trim()`; CREATE OR REPLACE, no signature change. The TS mirror gains the matching final `.trim()` in the same change.
+6. Trim again (final trim, **mig 128 / #921**) — steps 4–5 can leave a stray edge space when punctuation was adjacent to a leading/trailing space (`". hello"` → `" hello"`); without this, grading penalizes a correct answer. (The comparison itself is no longer a bare `normalize_answer(response)` = `normalize_answer(canonical)` equality test — since mig 158 it goes through `answer_matches()`, which normalizes both sides and then allows a bounded spelling tolerance. The final trim still matters: `answer_matches` short-circuits on exact equality, and a stray edge space would defeat that.) Wraps the outermost `regexp_replace` in `trim()`; CREATE OR REPLACE, no signature change. The TS mirror gains the matching final `.trim()` in the same change.
 
 **Deploy-time locale guard (mig 101):** The migration includes a DO-block that raises an exception if `lower('Č') <> 'č'` — catches misconfigured locales (e.g. tr_TR, C/POSIX) that fold Slovenian diacritics before the function is created, preventing silent answer miscount at runtime.
 
@@ -2911,24 +2912,37 @@ Helper RPC (migration 101). Normalizes free-text exam answers for grading compar
 
 #### `answer_matches` — IMMUTABLE typo-tolerant comparison helper
 
-Helper (migration 142, 2026-08-15). Decides whether a student's answer matches a candidate
-(canonical or synonym). Pure function (IMMUTABLE). Grants mirror `normalize_answer` — anon,
-authenticated, service_role — since it reads no data and needs both strings supplied by the caller.
+Helper (migration 158, 2026-08-15). Decides whether a student's answer matches a candidate
+(canonical or synonym). Pure function (IMMUTABLE, PARALLEL SAFE). Grants do **not** mirror
+`normalize_answer`: EXECUTE is REVOKEd from `PUBLIC`, `anon` and `authenticated`, so no client role
+may call it. Production grading never needs that — all four graders are SECURITY DEFINER and invoke
+it as the `postgres` owner, whose implicit EXECUTE survives the REVOKE. `service_role` is then
+GRANTed EXECUTE **explicitly**, which is how the integration tests reach it. That GRANT is
+load-bearing, not belt-and-braces: measured on a clean `supabase db reset`, a freshly created
+function in this schema lands with `proacl = {postgres=X/postgres}` alone, so without it
+`has_function_privilege('service_role', …)` is FALSE and the integration tests fail on a permission
+error. Do not "simplify" it away on the assumption that platform default privileges cover
+`service_role` — they did not here. Omitting a GRANT would not have closed the function either:
+Postgres grants EXECUTE to `PUBLIC` by default, so only the REVOKE does.
 
-**Signature:** `answer_matches(p_norm_response text, p_candidate text) → boolean`. The left argument
-is **already normalized** by the caller and the right is **raw**; this asymmetry exists so every
-grader's comparison stayed a one-liner and no function body had to be restructured.
+**Signature:** `answer_matches(p_norm_response text, p_candidate text) → boolean`. **Both**
+arguments are normalized inside the function, so either may be passed raw or already-normalized —
+`normalize_answer` is idempotent, so re-normalizing the left argument costs nothing. The parameter
+name `p_norm_response` records where callers happen to pass an already-normalized value; it is not
+a precondition, and passing a raw string there is not a bug.
 
 **Why it is not part of `normalize_answer`:** normalization produces a canonical form for ONE
 string; "is this a typo of that" is a pairwise question and cannot be expressed as a canonical form.
 
 **Logic:**
-1. Exact match after normalization → true (unchanged pre-mig-142 behaviour).
+1. Exact match after normalization → true (unchanged pre-mig-158 behaviour).
 2. Different word count → false. A different number of words is a different answer, never a typo.
 3. Per word, in order: identical → next; **any token containing a digit must match EXACTLY**;
-   otherwise allow Levenshtein distance ≤ 2 for words of 8+ characters, ≤ 1 for 5–7, and **0 below
-   5 characters**. A single adjacent transposition counts as distance 1.
-4. Total distance across the whole answer is capped at 2.
+   otherwise allow a Levenshtein distance of **at most 1**, and only for words of **5 or more
+   characters** — below 5, nothing but an exact match passes. A single adjacent transposition
+   counts as distance 1. A token longer than **255 characters** is never fuzzy-matched, because
+   `levenshtein` raises above that length; it returns false rather than aborting the submission.
+4. Total distance across the whole answer is capped at 2 — at most two single-edit words.
 
 **The digit rule is the load-bearing one.** In this domain a one-character difference is a different
 clearance, not a slip: `QNH 1014` vs `1015`, `runway 33` vs `32`, `squawk 6503` vs `6502`. Note
@@ -2936,17 +2950,26 @@ clearance, not a slip: `QNH 1014` vs `1015`, `runway 33` vs `32`, `squawk 6503` 
 themselves must differ for a frequency to be rejected.
 
 **Thresholds were measured, not chosen:** `lift`/`left` and `base`/`case` are distance 1, which is
-why nothing under 5 characters is fuzzy-matched; `depart`/`report` is distance 2 at length 6, which
-is why 2 is allowed only from 8 characters; `sigth`/`sight` is distance 2 despite being one swap,
-which is why transposition is special-cased instead of raising the threshold.
+why nothing under 5 characters is fuzzy-matched; `sigth`/`sight` is distance 2 despite being a
+single swap, which is why transposition is special-cased instead of raising the threshold (raising
+it would also admit `depart`/`report`, distance 2 at length 6). There is deliberately **no wider
+tier for long words**: prefix negation (`un-`/`in-`/`de-`/`dis-`) is exactly 2 edits at length ≥ 8,
+so a 2-edit tier would accept `runway serviceable`/`runway unserviceable`, `northbound`/
+`southbound` and `increase`/`decrease` — live ICAO phraseology, not typos. `airfiled`/`airfield`,
+the eval case that prompted this feature, still matches: it is a single adjacent swap, carried by
+the transposition rule rather than by any 2-edit tier.
 
 **Callers (all four text graders, changed together per `docs/security.md` sibling-parity):**
-`_grade_record_short_answer`, `_grade_record_dialog_fill` (mig 120), `check_non_mc_answer`
-(mig `20260702000400`), `submit_vfr_rt_exam_answers` (mig `20260623000800`). If only some tolerated
-typos, the same answer would score in practice and fail in the exam.
+`_grade_record_short_answer`, `_grade_record_dialog_fill` (bodies from mig 120, repointed in mig
+158), `check_non_mc_answer` (body from mig `20260702000400`, repointed in mig 159),
+`submit_vfr_rt_exam_answers` (body from mig `20260623000800`, repointed in mig 160). If only some
+tolerated typos, the same answer would score in practice and fail in the exam — which is why the
+three migrations must be applied as a set.
 
 **Requires** the `fuzzystrmatch` extension (`extensions` schema; `levenshtein` is schema-qualified
-at the call site so no `search_path` widening is needed).
+at the call site so no `search_path` widening is needed). Mig 158 asserts resolvability with a
+`to_regprocedure('extensions.levenshtein(text,text)')` DO-block immediately after `CREATE
+EXTENSION`, because `WITH SCHEMA` is silently ignored when the extension already exists.
 
 ---
 

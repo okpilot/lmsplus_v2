@@ -28,6 +28,34 @@ export function requireRecord(
   }
 }
 
+/** The only `lifecycle` value a content file may carry to a production database. */
+const RELEASED_LIFECYCLE = 'released'
+
+/**
+ * Refuse to carry a content file to a remote/production database unless it declares
+ * `"lifecycle": "released"` EXACTLY.
+ *
+ * Fail-closed by construction: a single `!==` against the one permitted literal rejects an
+ * absent key, a non-string, `"RELEASED"`, `" released"`, `"pilot"`, and anything else, so there
+ * is no value a future editor can introduce that silently opens the gate. That matters because
+ * the predecessor guard was the opposite shape — `status.startsWith('PILOT')`, a check for the
+ * BAD state on a free-prose field — and it failed open the moment an author rewrote the prose
+ * so it no longer began with that word. The field this reads carries no prose: it is a
+ * two-valued lifecycle tag (`pilot` | `released`) with no other job, so editing the surrounding
+ * narrative cannot disarm it.
+ *
+ * `lifecycle` is intentionally NOT optional-with-a-default. A file that forgets it is refused,
+ * not admitted — the failure mode being guarded is un-evaluated content reaching the live
+ * question bank, where it is immediately exam-eligible.
+ */
+export function assertReleasedForRemote(file: { lifecycle?: unknown }, rel: string): void {
+  if (file.lifecycle !== RELEASED_LIFECYCLE) {
+    throw new Error(
+      `${rel}: refusing to write this file to a remote database — it must declare "lifecycle": "${RELEASED_LIFECYCLE}" (got ${JSON.stringify(file.lifecycle)}). Set it only once the batch has passed its co-driven eval.`,
+    )
+  }
+}
+
 /**
  * True only when `url`'s HOST is this machine. Stricter than the importer's `--force-remote`
  * refusal, which is a prefix match and so reads `http://localhost.example.com` — a perfectly

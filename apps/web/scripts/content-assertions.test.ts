@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { isLocalSupabaseUrl, requireRecord, requireText } from './content-assertions'
+import part1 from './content/vfr-rt-part1-acronyms.json'
+import part2 from './content/vfr-rt-part2-dialog-pilot.json'
+import {
+  assertReleasedForRemote,
+  isLocalSupabaseUrl,
+  requireRecord,
+  requireText,
+} from './content-assertions'
 
 describe('requireText', () => {
   it('accepts a non-blank string', () => {
@@ -44,6 +51,49 @@ describe('requireRecord', () => {
 
   it('names the offending node in the message so the operator can find it', () => {
     expect(() => requireRecord(null, 'content/foo.json[2]')).toThrow('content/foo.json[2]')
+  })
+})
+
+describe('assertReleasedForRemote', () => {
+  it('lets a released batch through', () => {
+    expect(() =>
+      assertReleasedForRemote({ lifecycle: 'released' }, 'content/foo.json'),
+    ).not.toThrow()
+  })
+
+  it.each([
+    ['a pilot batch', { lifecycle: 'pilot' }],
+    ['a file with no lifecycle key at all', {}],
+    ['an undefined lifecycle', { lifecycle: undefined }],
+    ['a non-string lifecycle', { lifecycle: 1 }],
+    ['a null lifecycle', { lifecycle: null }],
+    ['a boolean lifecycle', { lifecycle: true }],
+    // Case and padding are NOT normalised: the comparison is against one exact literal, so a
+    // near-miss is refused rather than quietly accepted.
+    ['a differently-cased value', { lifecycle: 'RELEASED' }],
+    ['a value with leading whitespace', { lifecycle: ' released' }],
+    ['a value with trailing whitespace', { lifecycle: 'released ' }],
+    ['an unrelated value', { lifecycle: 'draft' }],
+  ])('refuses %s', (_label, file) => {
+    expect(() => assertReleasedForRemote(file, 'content/foo.json')).toThrow(
+      /refusing to write this file to a remote database/,
+    )
+  })
+
+  it('names the file and the value it received so the operator can act on it', () => {
+    expect(() => assertReleasedForRemote({ lifecycle: 'pilot' }, 'content/bar.json')).toThrow(
+      'content/bar.json',
+    )
+    expect(() => assertReleasedForRemote({ lifecycle: 'pilot' }, 'content/bar.json')).toThrow(
+      '"pilot"',
+    )
+  })
+
+  it('agrees with what the two shipped content files declare', () => {
+    // The regression this pins: Part 2 is un-evaluated and must stay refused, and the refusal
+    // must not depend on any prose field an author is free to rewrite.
+    expect(() => assertReleasedForRemote(part1, 'vfr-rt-part1-acronyms.json')).not.toThrow()
+    expect(() => assertReleasedForRemote(part2, 'vfr-rt-part2-dialog-pilot.json')).toThrow()
   })
 })
 
