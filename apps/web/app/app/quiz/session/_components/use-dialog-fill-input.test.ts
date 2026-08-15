@@ -4,6 +4,7 @@ import {
   buildSubmitPayload,
   deriveBlankIndices,
   toBlankResults,
+  toSeedValues,
   useDialogFillInput,
 } from './use-dialog-fill-input'
 
@@ -55,11 +56,47 @@ describe('buildSubmitPayload', () => {
   })
 })
 
+describe('toSeedValues', () => {
+  it('keys each submitted blank text by its index', () => {
+    expect(
+      toSeedValues([
+        { index: 0, text: 'cleared to land' },
+        { index: 1, text: '27' },
+      ]),
+    ).toEqual({ 0: 'cleared to land', 1: '27' })
+  })
+
+  it('returns an empty map when there is no resumed draft', () => {
+    expect(toSeedValues(undefined)).toEqual({})
+    expect(toSeedValues(null)).toEqual({})
+    expect(toSeedValues([])).toEqual({})
+  })
+})
+
 describe('useDialogFillInput', () => {
   it('starts with no submission available until every blank is filled', () => {
     const { result } = renderHook(() => useDialogFillInput(TEMPLATE, undefined))
     expect(result.current.allFilled).toBe(false)
     expect(result.current.collectSubmission()).toBeNull()
+  })
+
+  it('seeds the input values from a resumed draft answer', () => {
+    const { result } = renderHook(() =>
+      useDialogFillInput(TEMPLATE, undefined, [
+        { index: 0, text: 'cleared to land' },
+        { index: 1, text: '27' },
+      ]),
+    )
+    expect(result.current.values).toEqual({ 0: 'cleared to land', 1: '27' })
+    expect(result.current.allFilled).toBe(true)
+  })
+
+  it('treats a partially-answered resumed draft as still incomplete', () => {
+    const { result } = renderHook(() =>
+      useDialogFillInput(TEMPLATE, undefined, [{ index: 0, text: 'cleared to land' }]),
+    )
+    expect(result.current.values).toEqual({ 0: 'cleared to land' })
+    expect(result.current.allFilled).toBe(false)
   })
 
   it('offers the trimmed submission once every blank is filled', () => {
