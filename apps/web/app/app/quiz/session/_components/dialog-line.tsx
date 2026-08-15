@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import type { DialogLine as DialogLineModel } from '../_utils/parse-dialog-display'
 
 export type BlankResult = { isCorrect: boolean; canonical: string }
@@ -78,8 +79,19 @@ export function DialogLine({
                 // feet]", 25 chars), so a fixed box truncates a correct answer out of view. The
                 // floor must stay uniform across blanks: sizing an empty box to its canonical
                 // would leak the answer length, which is why blanks_safe ships index-only.
-                style={{ width: `${Math.max(15, (values[seg.index] ?? '').length + 2)}ch` }}
-                className={`inline-block rounded border px-2 py-1 text-sm transition-colors disabled:opacity-70 ${blankClass(result)}`}
+                //
+                // This character-count estimate is the FALLBACK, published as a custom property
+                // rather than as `width` so the stylesheet can win without `!important` (an inline
+                // `width` outranks every rule). It overshoots — `ch` is the width of "0" and
+                // proportional text is narrower — which left dead space to the right of the typed
+                // phrase. globals.css applies it as the width, and where `field-sizing: content`
+                // is supported it sizes to the MEASURED text instead.
+                style={
+                  {
+                    '--blank-w': `${Math.max(15, (values[seg.index] ?? '').length + 2)}ch`,
+                  } as CSSProperties
+                }
+                className={`dialog-blank-input inline-block rounded border px-2 py-1 text-sm transition-colors disabled:opacity-70 ${blankClass(result)}`}
               />
               {result && !result.isCorrect && (
                 <span

@@ -126,22 +126,14 @@
     {
       "num": "VRT-P2-DLG-05",
       "prompt": "Ready to depart from Maribor.",
-      "unanchored": "R7 — blank 0 is a basic phrase opening the exchange, so no controller line precedes it. Pinned by the visible reply: 'line up and wait' is only ever the answer to a report of readiness. 'ready for take-off' is excluded by the guide's own rule that take-off is reserved for the clearance and its cancellation. Guide L621-623 verbatim.",
-      "template": "[pilot] S-BS, {{0}}\n[atc] S-BS, line up and wait\n[pilot] {{1}}, S-BS",
+      "template": "[pilot] S-BS, ready for departure\n[atc] S-BS, line up and wait\n[pilot] {{0}}, S-BS",
       "blanks": [
         {
           "index": 0,
-          "shape": "recall",
-          "canonical": "ready for departure",
-          "synonyms": ["ready for departure runway 14"],
-          "rule": "Basic phrase. The visible 'line up and wait' answers only a readiness report; 'ready for take-off' is barred because take-off is reserved for the clearance."
-        },
-        {
-          "index": 1,
           "shape": "derivable",
           "canonical": "lining up and waiting",
           "synonyms": ["line up and waiting", "lining up and wait", "line up and wait"],
-          "rule": "Acknowledgement by transformation — derivable from the controller's instruction, so one phrase blank."
+          "rule": "Acknowledgement by transformation — 'line up and wait' is visible on the line above, so the readback is determined. Both the -ing and plain forms are accepted."
         }
       ],
       "explanation": "**An action instruction comes back as the action, not as an echo.** The controller says *line up and wait*; the pilot answers **lining up and waiting** — present participle, because you are describing what you are now doing. The same shape appears throughout: *taxi to holding point A* becomes *taxiing*, *vacate right* becomes *vacating*. This applies to action verbs; a clearance comes back unchanged (*runway 14 cleared for take-off*). Note also that **line up is not a take-off clearance** — it permits you onto the runway and nothing more. The word *take-off* is reserved for the clearance and its cancellation; at all other times say *departure* or *airborne*."
@@ -474,22 +466,6 @@
         }
       ],
       "explanation": "**Three instructions, three treatments, one transmission.** *Vacate right* and *continue to the apron* are things you are doing now, so they come back transformed — **vacating**, **continuing**. *Report runway vacated* is for later, so it takes **wilco**. You are still on a live runway until you report vacated, which is why that report matters and why the controller asked for it separately."
-    },
-    {
-      "num": "VRT-P2-DLG-21",
-      "prompt": "Cloud ahead en route.",
-      "unanchored": "R7 — no controller is involved, but the blank sits INLINE inside a visible sentence: '___ to maintain VMC due clouds, request turn left'. No second standard phrase completes that sentence; 'not able' is the only variant and is accepted as a synonym.",
-      "template": "[pilot] S5-DAA, {{0}} to maintain VMC due clouds, request turn left to Ptuj",
-      "blanks": [
-        {
-          "index": 0,
-          "shape": "recall",
-          "canonical": "unable",
-          "synonyms": ["not able"],
-          "rule": "Basic phrases — the standard way to state you cannot comply; 'to maintain VMC' anchors it."
-        }
-      ],
-      "explanation": "**UNABLE is the word that starts the conversation early.** A VFR pilot who cannot stay in visual conditions has a developing problem, and the phrase that says so is *unable to maintain VMC*. Say it while you still have options — a turn, a descent, a diversion — rather than after the cloud has closed in. Note the callsign is at the **front**: you are initiating this transmission, not answering one."
     },
     {
       "num": "VRT-P2-DLG-23",

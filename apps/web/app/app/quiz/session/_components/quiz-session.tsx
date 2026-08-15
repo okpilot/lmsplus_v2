@@ -18,18 +18,7 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
-  // Surface the explanation when a practice dialog_fill answer comes back wrong. The runner reveals
-  // only the canonical phrase under each blank; WHY it is the right phrase is in the explanation,
-  // which nothing ever opened. Excluded: exam mode (the tab strip is hidden and feedback is
-  // withheld until the report) and Discovery (answers are pre-marked, so nothing is "wrong").
-  const revealExplanationFor =
-    !s.isExam &&
-    !isDiscovery &&
-    s.currentFeedback?.questionType === 'dialog_fill' &&
-    !s.currentFeedback.isCorrect
-      ? s.questionId
-      : null
-  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex, revealExplanationFor)
+  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
     props.initialFlaggedIds ?? [],
   )
