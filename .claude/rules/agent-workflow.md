@@ -176,10 +176,25 @@ Implementation-critic review (always runs)
     ▼
 git commit
     │
-    ├─► code-reviewer   (sonnet)  ─┐
-    ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4
-    ├─► doc-updater      (haiku)   ─┤
-    └─► test-writer      (sonnet)  ─┘
+    ├─► docs-only commit? ────────────► doc-updater ONLY ──────────┐  (no learner pass)
+    │     (docs/**/*.md, root *.md except CLAUDE.md,               │
+    │      .claude/agent-memory/**, .claude/run-log.md)            │
+    │                                                             │
+    ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)
+    │     (ALL must hold: every hunk traces to a finding from      │
+    │      its own parent's cycle; same files as the parent;       │
+    │      adds no new file; <= 20 changed lines outside tests;    │
+    │      no security path, rules file, migration, CI/hook/config)│
+    │                                                             │
+    └─► otherwise — the FULL cycle:                                │
+        ├─► code-reviewer   (sonnet)  ─┐                           │
+        ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4│
+        ├─► doc-updater      (haiku)   ─┤                          │
+        └─► test-writer      (sonnet)  ─┘                          │
+                                     │◄────────────────────────────┘
+                                     │  (the two reduced paths rejoin here and
+                                     │   skip straight past learner — see
+                                     │   CLAUDE.md § Post-commit review)
                                      │
                               read ALL results
                                      │
@@ -337,6 +352,11 @@ Only invoke the tool once the base is proven current. Never let it run against a
 When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Validate first:
 
 1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
+   - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
+     - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked.
+     - *"this file is new"* / *"+N tests"* → `git diff --stat` and `git log --diff-filter=A`. A claimed-new file with "+18 tests" was a MODIFIED file whose real delta was 8.
+     - *"function A calls B"* / *"the siblings all do X"* → grep the call sites or read `pg_proc.prosrc`. A doc claimed a function called `normalize_answer`; it never has.
+     - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
 2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
 3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
 4. **If the fix changes the plan** — Re-validate the changed parts before implementing.

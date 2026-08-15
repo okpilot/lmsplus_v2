@@ -217,7 +217,9 @@ BEGIN
         RAISE EXCEPTION 'question_blank_missing_canonical';
       END IF;
 
-      v_norm        := normalize_answer(coalesce(v_blank_entry->>'response_text', ''));
+      -- Coalesce the OUTPUT, matching the short_answer branch above and migs 158/160. Coalescing
+      -- only the input leaves v_blank_correct NULL if normalize_answer ever returns NULL.
+      v_norm        := coalesce(normalize_answer(coalesce(v_blank_entry->>'response_text', '')), '');
       v_blank_correct := (v_norm <> '' AND (
         public.answer_matches(v_norm, v_blank_canonical)
         OR EXISTS (

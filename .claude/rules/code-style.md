@@ -907,6 +907,26 @@ In app-layer integration tests, verify every negative / isolation assertion is a
 
 (Promoted count=2, cross-commit within #925 Phase 1 — PR #927 [squash `fb2921c6`]; per-mechanism breakdown in the learner `tracker-archive.md` 2026-06-20 entry. The integration-tier analog of §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous." Sweep of the #925 integration files at promotion found them clean.)
 
+### A Test Must Fail If Its Mechanism Is Removed (general, from 2026-08-15)
+
+Before trusting any assertion, ask: **if I deleted the code this test exists to protect, would it go
+red?** If not, the test documents an outcome rather than pinning a mechanism. The two sub-rules that
+follow are worked examples of this principle; it also covers cases neither of them names.
+
+The recurring shape is a SECOND guard that reaches the same result first, so the guard under test is
+never consulted (learner count=4):
+- Four digit-rule fixtures used tokens of ≤4 characters, so the unrelated *length floor* rejected
+  them — delete the digit rule and all four still passed.
+- A budget fixture used `cleared to land`; `land` is four characters, so again the length floor fired
+  before the whole-answer budget was reached.
+- A resume assertion checked an attribute driven by a prop that predates the fix, so it passed with
+  the fix reverted — the mock never declared the prop under test at all.
+- Two REVOKE tests asserted only `error != null`, which a misspelled RPC name equally satisfies.
+
+Cheapest proof, and the one to prefer over argument: **revert the production change locally and watch
+the test fail**, then restore. Where that is impractical, pick a fixture whose expected value differs
+from every value an unrelated guard could produce.
+
 ### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
 
 When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
@@ -959,7 +979,32 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-## 10. Comment Accuracy for DB/RPC Claims (write-side)
+## 10. Comment Accuracy (write-side) — DB/RPC Claims and Beyond
+
+**Scope note (broadened 2026-08-15, learner count=10).** This section was written for DB/RPC claims
+and its tracing guidance below is still specific to them. The DEFECT, however, is general: a comment
+or doc that asserts behaviour the code does not have. One branch produced ten distinct instances on
+surfaces this section never named — a migration GRANT comment, a `docs/database.md` grant claim, a
+fuzzy-match threshold, a cross-function "called by" claim, a CSS credit left behind by the same
+commit's own extraction, a RAISE-site count invalidated by two added RAISEs, a rules paragraph
+miscounting the commits it was written about, an importer JSDoc promising a rollback invariant the
+code cannot honour, and a docblock citing retired validator rules. Apply the rule to any claim,
+not only to SQL.
+
+Two clauses that carry most of the weight:
+
+1. **Never propagate a claim forward from another doc — re-derive it from the code.** The sharpest
+   instance: a plan read `docs/database.md`'s "grants mirror `normalize_answer` — anon,
+   authenticated, service_role", and nearly codified it into SQL, widening a live GRANT to `anon`.
+   The doc was wrong (the real precedent is `authenticated` only) and the doc line *was itself the
+   finding being fixed*. A doc is evidence of what someone believed, never of what the code does.
+
+2. **A partial comment edit is the tell.** When a change moves code, the comment describing it moves
+   too — all of it. One commit updated the later paragraphs of a CSS comment for an extraction and
+   left the header crediting the old file; another added two RAISEs and left "14 distinct tokens
+   (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
+   block.
+
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
 

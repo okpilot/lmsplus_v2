@@ -191,15 +191,27 @@ async function createAuthUser(email: string, password: string): Promise<string> 
   // missing user, and listUsers() paginates at perPage=50 by DEFAULT — on a project with more
   // than 50 auth users the account was simply on page 2. perPage is stated explicitly so the
   // page size is visible at the call site; 1000 is the API's documented ceiling.
-  const { data: users, error: listErr } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  if (listErr) throw new Error(`Listing users to locate ${email}: ${listErr.message}`)
-  const existing = users?.users.find((u) => u.email === email)
-  if (!existing) {
-    throw new Error(
-      `Cannot find user ${email} among the first ${users?.users.length ?? 0} auth users — it exists (creation reported it as already registered), so widen the listUsers page size or look it up by email.`,
-    )
+  // PAGINATE. 1000 is the API's documented ceiling per page, not a total: a project with more
+  // than 1000 auth users keeps the account on page 2, and a single-page lookup would report a
+  // user that demonstrably exists as missing. Walk until found or a short page ends the set.
+  const PER_PAGE = 1000
+  let scanned = 0
+  for (let page = 1; ; page++) {
+    const { data: users, error: listErr } = await db.auth.admin.listUsers({
+      page,
+      perPage: PER_PAGE,
+    })
+    if (listErr)
+      throw new Error(`Listing users to locate ${email} (page ${page}): ${listErr.message}`)
+    const batch = users?.users ?? []
+    scanned += batch.length
+    const existing = batch.find((u) => u.email === email)
+    if (existing) return existing.id
+    if (batch.length < PER_PAGE) break
   }
-  return existing.id
+  throw new Error(
+    `Cannot find user ${email} after scanning ${scanned} auth users across all pages — it exists (creation reported it as already registered), so this is a lookup defect, not a real absence.`,
+  )
 }
 
 async function ensureUserRow(
@@ -725,18 +737,28 @@ function alreadyInSync(row: SyncRow, want: SyncFields): boolean {
 }
 
 /** Returns true when the row needed a change (whether or not --apply actually wrote it). */
-async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): Promise<boolean> {
-  if (alreadyInSync(target, want)) return false
-  // The optimistic check runs only on rows that actually differ, so the operator states the
-  // pre-state of the row they came to fix — not of all 40 questions in the file.
-  // It guards ONE column. A row whose canonical_answer matches the expectation but whose synonyms
-  // or explanation_text have drifted is still overwritten; the per-field log below is what
-  // discloses that, which is why the dry run must be read before --apply.
+/**
+ * Phase-1 gate: throws if a row that WOULD be written is not in the state the operator declared.
+ * Runs over every question before any write, so a mismatch late in the file cannot leave earlier
+ * rows already updated.
+ *
+ * The optimistic check applies only to rows that actually differ, so the operator states the
+ * pre-state of the row they came to fix — not of all 40 questions in the file. It guards ONE
+ * column: a row whose canonical_answer matches the expectation but whose synonyms or
+ * explanation_text have drifted is still overwritten, which is what the per-field dry-run log
+ * exists to disclose.
+ */
+function assertSyncPreconditions(target: SyncRow, want: SyncFields, at: string): void {
+  if (alreadyInSync(target, want)) return
   if (target.canonical_answer !== EXPECT_CANONICAL) {
     throw new Error(
       `--sync-content ${at}: refusing to overwrite. The live canonical_answer is ${JSON.stringify(target.canonical_answer)}, but --expect-canonical said ${JSON.stringify(EXPECT_CANONICAL)}. The row is not in the state you expected; re-check before writing.`,
     )
   }
+}
+
+async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): Promise<boolean> {
+  if (alreadyInSync(target, want)) return false
   // Enumerate EVERY field the UPDATE will write, not just the canonical. The update sends all of
   // `want`, so printing one field lets a row that differs only in synonyms or explanation_text log
   // a line that reads as a no-op while a real write is queued — and the dry run exists precisely so
@@ -780,12 +802,23 @@ async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise
       `--sync-content refuses ${entry.rel}: it is ${entry.file.question_type}, and this path writes only canonical_answer / accepted_synonyms / explanation_text. A dialog_fill answer key lives in blanks_config, so syncing it here would report success and change nothing.`,
     )
   }
-  let changed = 0
+  // TWO PHASES, deliberately. Resolving and CHECKING every row before writing any of them means
+  // a mismatch on question 20 cannot leave questions 1-19 already updated: there is no transaction
+  // here (each update is its own statement), so a mid-loop throw would otherwise stand as a
+  // partial write on live rows. Mirrors the up-front validation the import path already does.
+  const planned: { target: SyncRow; want: SyncFields; at: string }[] = []
   for (const q of entry.file.questions) {
     const at = `${entry.rel} (${q.num})`
     const row = buildRow(entry.file, q, { ...ctx.base, subject_id: entry.subjectId }, entry.topicId)
     const target = await fetchSyncTarget(ctx.bankId, q.num)
-    if (await syncOneQuestion(target, desiredSyncFields(row, at), at)) changed++
+    const want = desiredSyncFields(row, at)
+    assertSyncPreconditions(target, want, at)
+    planned.push({ target, want, at })
+  }
+
+  let changed = 0
+  for (const { target, want, at } of planned) {
+    if (await syncOneQuestion(target, want, at)) changed++
   }
   const verb = SYNC_APPLY ? 'updated' : 'would update'
   console.log(

@@ -71,6 +71,10 @@ function markerRe(): RegExp {
   return new RegExp(MARKER_PATTERN, 'g')
 }
 
+// Non-global on purpose: `.test()` on a /g regex advances lastIndex between calls, so a shared
+// global instance would return alternating results. Safe to hoist and reuse only without /g.
+const ANCHORED_MARKER_RE = new RegExp(`^${MARKER_PATTERN}$`)
+
 // Non-global — safe to use with .test() and as a first-match .replace().
 const SPEAKER_PREFIX_RE = /^\[(atc|pilot)\]\s?/
 const FORBIDDEN_ANSWER_CHARS_RE = /[{}|;]/
@@ -324,15 +328,13 @@ function assertLineSplitLegible(
     .split(',')
     .map((i) => i.trim())
     .filter((i) => i !== '')
-  const blankItems = items.filter((i) => new RegExp(`^${MARKER_PATTERN}$`).test(i))
+  const blankItems = items.filter((i) => ANCHORED_MARKER_RE.test(i))
   const contentBlanks = blankItems.filter((i) => {
     const index = Number(markerRe().exec(i)?.[1])
     return !CALLSIGN_RE.test(canonicals.get(index) ?? '')
   })
   // An item mixing text and a blank (`runway {{0}}`) is itself an anchor — the split is visible.
-  const hasInlineAnchor = items.some(
-    (i) => markerRe().test(i) && !new RegExp(`^${MARKER_PATTERN}$`).test(i),
-  )
+  const hasInlineAnchor = items.some((i) => markerRe().test(i) && !ANCHORED_MARKER_RE.test(i))
   const visibleContent = items.filter((i) => !markerRe().test(i) && !CALLSIGN_RE.test(i))
   if (contentBlanks.length >= 2 && visibleContent.length === 0 && !hasInlineAnchor) {
     throw new Error(
@@ -409,11 +411,18 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  * EXCLUSION, not plausibility: the declaration must name the competing phrase and show what
  * visible text rules it out.
  *
- * Exclude it with material that is IN THE GUIDE. An earlier pass invented a `holding short of`
- * call for DLG-34 and a `right base` call for DLG-35 purely so elimination would hold — both
- * phrases appear ZERO times in the guide, whose unattended sequences are exactly three calls
- * (L1194-1196, L1208-1210). Fabricating source material to satisfy a validator is worse than the
- * ambiguity it papered over; both are reverted to the guide's text.
+ * Exclude it with material that is DISCLOSED. An earlier pass invented a `holding short of` call
+ * for DLG-34 and a `right base` call for DLG-35 purely so elimination would hold, and asserted the
+ * guide contained them — both phrases appear ZERO times in it, whose unattended sequences are
+ * exactly three calls (L1194-1196, L1208-1210). Both were reverted at the time.
+ *
+ * They were then RE-ADDED on user direction, and the corpus ships both today (DLG-34 carries
+ * `holding short of runway 23`, DLG-35 carries `right base, runway 23`), each declared in the
+ * item's `source` and `unanchored` as a CONSTRUCTED transmission. That is the rule as it now
+ * stands, per the content file's "CONTEXT GOES IN THE DIALOGUE" note: adding a correct standard
+ * transmission and DISCLOSING it is allowed; asserting the guide contains something it does not
+ * is what remains forbidden. An earlier version of this paragraph said only "both are reverted",
+ * which the shipped corpus contradicts.
  */
 function assertRecallAnchored(item: DialogFillItem, at: string): void {
   if (typeof item.unanchored === 'string' && item.unanchored.trim() !== '') return

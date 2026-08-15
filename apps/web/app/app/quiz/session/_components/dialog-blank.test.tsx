@@ -74,7 +74,7 @@ describe('DialogBlank', () => {
     expect(notCancelled).toBe(true)
   })
 
-  it('ignores Enter reported with the legacy composition key code', () => {
+  it('does not invoke the Enter action during a legacy IME composition', () => {
     const onEnter = vi.fn()
     renderBlank({ onEnter })
     fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter', keyCode: 229 })
