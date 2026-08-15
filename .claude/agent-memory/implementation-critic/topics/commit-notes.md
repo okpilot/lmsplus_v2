@@ -483,3 +483,38 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
 **Playwright project ordering = dependency-depth PHASES, not config order.** Verified in the bundled runner source (`playwright@1.61.1/.../lib/runner/index.js`, task `"create phases"`): every project whose `deps` are all `processed` joins the SAME phase; phases run sequentially, projects within a phase interleave with NO defined order (even at `workers: 1`). Adding ONE `dependencies:` edge re-partitions EVERY project's phase — check the resulting partition, not just the edge. Precedent #1143: adding `internal-exam-student-setup → admin-setup` moved `admin-e2e` from phase 2 to 3, silently making it run after `e2e`. Each project sits in exactly one phase, so a diamond never double-runs the shared dep.
 
 **Every start RPC auto-clears the caller's active `discovery` row.** migs 137 (discovery), 141 (quiz), 138/139/140 (exam / internal-exam / VFR RT) all open their single-active guard with an unconditional `UPDATE quiz_sessions SET deleted_at = now() WHERE student_id = … AND mode = 'discovery' AND ended_at IS NULL AND deleted_at IS NULL`. So an orphaned discovery row can never strand a user on ANY start path — client-side discovery teardown is best-effort hygiene, NOT a correctness requirement. Do not accept (or write) a comment claiming an orphan "blocks the retry".
+
+## row detail 2026-08-15
+
+- **Doc/code comment vs migration body (4th instance, #1167 fixup).** The chain-trace obligation
+  extends to RLS POLICY migrations, not just `CREATE OR REPLACE FUNCTION` bodies: three comments
+  asserted the proxy's `users` lookup does not filter `deleted_at`, but `users_select`
+  (mig `20260312000012:14-16`, FORCE RLS table, anon-key client) already scopes it. Two of the
+  three contradicted a filter added in their own commit.
+- **Zero-row no-op, DISTINCT mechanism.** `.select('id')` IS present but the count is logged only
+  when `> 0`, so a blocked write AFTER a positive pre-match is silent. code-style §5's
+  "log only when > 0" shape assumes zero rows is VALID; where a prior SELECT proved N match,
+  compare against N and THROW. Seen on the VFR RT importer `--replace`: a silent no-op printed
+  `0 inserted / N skipped`, indistinguishable from a normal idempotent re-run.
+- **Redirect target copied without checking the route exists (#1167).** proxy admin-block
+  403→`redirect('/app')`, copied from `requireAdmin()` — but `app/app/` has only `layout.tsx`,
+  no `page.tsx`, so `/app` renders Next's default 404. Swaps one bare page for another; objective
+  unmet. Before approving any new redirect literal, `find app -path '*<seg>/page.tsx'`.
+- **Untracked files swept into a scoped fixup commit** (`chore/proportionate-review-gates`).
+  The commit staged `seed-1011-eval.ts` (+337) and `seed-907-pagination-eval.ts` (+194) —
+  leftovers from PRs #1020/#1042, merged ~6 weeks earlier and untracked since. Also disqualifies
+  CLAUDE.md's review-follow-up exemption ("adds no new file"). Diff the staged FILE LIST against
+  the commit's stated scope; `git status` at session start names the pre-existing untracked set.
+- **Claim-correction commit introducing NEW wrong claims.** Two instances in one commit whose
+  entire subject was claim accuracy: CLAUDE.md asserted "three run-log-only commits" on its own
+  branch (fresh-fetched `rev-list origin/master..HEAD` shows FOUR), and `docs/plan.md` labelled
+  #1192 `S/P1` while `.claude/run-log.md` in the same diff says `S/P2` (the GH issue carries no
+  labels, so neither is derivable).
+- **Cross-file prose divergence, 2nd instance.** `dialog-fill-content.ts` docstrings rewritten to
+  say validator rules R2/R4 were RETIRED, while the SAME COMMIT's `vfr-rt-part2-dialog-pilot.json`
+  `authoring_notes` still enumerates "asserts four rules: R1 R2 R3 R4" — and the new docstring
+  POINTS AT that stale list. Live validator asserts R1/R3/R5/R6/R7.
+- **New integration test reusing a REAL seeded reference code.**
+  `soft-delete-question.integration.test.ts` used `subjectCode: '050'`; `seedReferenceData` upserts
+  `onConflict: 'code'`, mutating the seed-e2e row + leaking a global `easa_topics` row. All 20
+  siblings use a unique suffixed code + `cleanupReferenceData`.

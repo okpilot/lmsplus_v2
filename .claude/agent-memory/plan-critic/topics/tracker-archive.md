@@ -49,3 +49,25 @@ if its pattern recurs.
 | docs/plan.md separates current-state counts from historical Phase-delivery records (never edit the latter). ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-11 | 1 | 2026-06-11 | WATCHING |
 | Red-team probe-only→seeding conversions must update the file header comment + add afterAll cleanup. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-13 | 1 | 2026-06-13 | WATCHING |
 
+
+## Relocated tracker rows — 2026-08-15 (cold count=1, last seen ≤ 2026-06-21)
+
+Verbatim. Re-promote into `MEMORY.md` if the pattern recurs.
+
+| Pattern | First Seen | Count | Last Seen | Status |
+|---|---|---|---|---|
+| New key-revealing grader RPC plans under-enumerate §15 ordering + per-type correctness guards. ([details](topics/security-definer-rpc-plan-lessons.md)). | 2026-06-21 | 1 | 2026-06-21 | WATCHING |
+| Mechanical static-analysis guard plans under-specify scan scope (scripts/ exclusion). ([details](topics/mechanical-guard-plan-925-phase3.md)). | 2026-06-20 | 1 | 2026-06-20 | RESOLVED-WATCH |
+| New test-tier plans under-specify unit-vitest + tsconfig ingestion exclusions. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | RESOLVED-WATCH |
+| Integration-test negative assertions go vacuous when RLS (not the helper) hides the excluded row. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Integration fixture flat admin INSERTs omit NOT NULL/UNIQUE columns the RPC path supplies. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Plans cite a stale migration as "latest" RPC body — trace the CREATE OR REPLACE chain. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Tooling/guard-script plans put new scripts under gitignored root /scripts/ — relocate to .claude/hooks/. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| biome `overrides` deep-merges per-rule — a narrow per-glob OFF override is safe. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Dual-client app-layer integration: action reads the cookie-jar session, fixtures seed via a separate client — same user required. ([details](topics/925-integration-tier-plan-lessons.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Rules-change proposals claim to "keep existing caps" while replacing the numbers — diff against the binding text. ([details](topics/multi-round-critic-protocol-draft.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Multi-round review-loop proposals risk learner double-counting within-gate re-findings. ([details](topics/multi-round-critic-protocol-draft.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Report query SELECT string not updated alongside AnswerRow widening — fields stay undefined at runtime. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+| Session-storage validator whitelist not widened for a new exam mode — breaks tab-refresh round-trip. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
+| Migration re-timestamp/rebase plans must enumerate inline `mig NNN` SQL-comment cross-refs too. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
+| Migration renumbering must update all 3 tech.md spec-count occurrences + decisions.md, from master's current value. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
