@@ -61,7 +61,10 @@ export function ShortAnswerInput({
           e.preventDefault()
           submit()
         }}
-        disabled={disabled || locked}
+        // `submitting` matches dialog-fill-input and the submit button below. CR flagged only the
+        // dialog sibling; this file had the identical gap, and fixing one of a pair is how the
+        // parity drift in CLAUDE.md's sibling-audit rule starts.
+        disabled={disabled || locked || submitting}
         aria-label="Your answer"
         data-testid="short-answer-input"
         className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors disabled:opacity-70 ${

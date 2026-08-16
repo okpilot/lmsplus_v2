@@ -983,8 +983,11 @@ This prevents documentation from drifting and confusing future readers.
 
 **Scope note (broadened 2026-08-15, learner count=10).** This section was written for DB/RPC claims
 and its tracing guidance below is still specific to them. The DEFECT, however, is general: a comment
-or doc that asserts behaviour the code does not have. One branch produced ten distinct instances on
-surfaces this section never named — a migration GRANT comment, a `docs/database.md` grant claim, a
+or doc that asserts behaviour the code does not have. One branch produced the nine instances below
+on surfaces this section never named (the learner tracker stood at 10 when this was written and is
+higher now; a tracker count and an enumerated list are different things and need not match — but a
+number stated *next to* a list must match that list, which is the defect in the last item here) —
+a migration GRANT comment, a `docs/database.md` grant claim, a
 fuzzy-match threshold, a cross-function "called by" claim, a CSS credit left behind by the same
 commit's own extraction, a RAISE-site count invalidated by two added RAISEs, a rules paragraph
 miscounting the commits it was written about, an importer JSDoc promising a rollback invariant the

@@ -186,7 +186,8 @@ git commit
     │      claimed neither exemption — so a reduced path cannot    │
     │      chain off another; every hunk traces to a finding from  │
     │      its own parent's cycle; same files as the parent;       │
-    │      adds no new file; <= 20 changed lines outside tests;    │
+    │      adds no new file; <= 20 changed lines outside tests     │
+    │      AND <= 60 inside them;                                  │
     │      no security path, rules file, migration, CI/hook/config)│
     │                                                             │
     └─► otherwise — the FULL cycle:                                │

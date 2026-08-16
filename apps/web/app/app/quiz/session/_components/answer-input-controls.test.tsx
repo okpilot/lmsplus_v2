@@ -71,7 +71,7 @@ describe('DialogFillAnswer', () => {
     )
   })
 
-  it('passes null submittedBlanks when the question has not been answered before', () => {
+  it('shows an empty dialogue when the question has not been answered before', () => {
     const s = makeState({ existingAnswer: undefined } as Partial<QuizState>)
     render(<DialogFillAnswer s={s} question={QUESTION} />)
     expect(screen.getByTestId('dialog-fill-input')).toHaveAttribute(

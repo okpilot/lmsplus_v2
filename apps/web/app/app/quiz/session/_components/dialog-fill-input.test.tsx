@@ -49,6 +49,18 @@ describe('DialogFillInput', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('stops the student editing their answer while it is being checked', () => {
+    // Pins the blanks' own disabled state, not the button's. The submitted payload is collected
+    // before the request starts, so an edit here cannot corrupt it — but the control locks
+    // afterwards without re-seeding, which would leave edited text on screen beside feedback for
+    // a different payload. Asserting the attribute directly rather than by typing: once the input
+    // is disabled, a type-then-assert-onSubmit-not-called test passes because typing is a no-op,
+    // which is true whether or not this guard exists.
+    render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} submitting />)
+    expect(screen.getByTestId('blank-0')).toBeDisabled()
+    expect(screen.getByTestId('blank-1')).toBeDisabled()
+  })
+
   it('hides Submit once submitted even while grading results are still pending', () => {
     render(<DialogFillInput template={TEMPLATE} onSubmit={vi.fn()} disabled={false} submitted />)
     expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()

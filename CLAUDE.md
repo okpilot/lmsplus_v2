@@ -183,7 +183,7 @@ The count here is deliberately not a number. It was written as "three", correcte
 - **the PARENT commit ran the FULL four-agent cycle and claimed neither exemption itself;**
 - every hunk traces to a specific finding from the parent commit's own cycle;
 - it touches only files the parent commit touched, and adds no new file;
-- ≤ 20 changed lines outside test files;
+- ≤ 20 changed lines outside test files, **and ≤ 60 inside them**. The test bound is the looser of the two on purpose — a follow-up that closes a finding by adding the test it was missing is exactly what this exemption should permit — but it cannot be absent, or a follow-up could add hundreds of lines of test code while running semantic-reviewer alone. test-writer is the agent whose prior assessment a large test addition invalidates, so past that bound it is new scope, not a refinement. (Loophole found by CR-local on this branch; its proposed "≤20 total including tests" was not adopted, because that inverts the rule's purpose and blocks the ordinary case.)
 - it touches no security path, no rules file, no migration, no CI/hook/config.
 
 The first condition is what bounds the chain. Without it a review-follow-up may parent another

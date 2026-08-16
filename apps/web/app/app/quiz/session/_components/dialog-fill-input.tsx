@@ -88,7 +88,12 @@ export function DialogFillInput({
             line={line}
             values={values}
             onChange={handleChange}
-            disabled={disabled}
+            // `submitting` too, matching the submit button below: without it the boxes stay
+            // editable while the request is in flight, so a student can change what is on screen
+            // after the payload was collected. The submission itself is unaffected
+            // (collectSubmission ran at submit time), but the control then locks without
+            // re-seeding and shows edited text beside feedback for a different payload.
+            disabled={disabled || submitting}
             results={results}
             locked={locked}
             onEnter={handleEnter}
