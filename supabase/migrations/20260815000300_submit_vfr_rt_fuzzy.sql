@@ -1,8 +1,15 @@
 -- Migration 160: repoint submit_vfr_rt_exam_answers at answer_matches (3 of 3).
 --
--- Body is verbatim from mig 20260623000800; only the comparison changed, from exact equality on
--- normalize_answer() output to public.answer_matches() (mig 158). Rationale, measured thresholds
--- and the digits-are-never-fuzzy rule all live in 158's header — read that first.
+-- Derived from mig 20260623000800 with TWO changes, not one. Do NOT re-emit this body by copying
+-- 20260623000800 and swapping the comparison — that silently drops the second change.
+--   1. The comparison moved from exact equality on normalize_answer() output to
+--      public.answer_matches() (mig 158). Rationale, measured thresholds and the
+--      digits-are-never-fuzzy rule all live in 158's header — read that first.
+--   2. Two canonical-NULL guards were ADDED that 20260623000800 does not have:
+--      `question_missing_canonical_answer` and `question_blank_missing_canonical`. They exist for
+--      security.md rule 12 sibling parity — both other graders carry them. The short_answer one is
+--      unreachable (questions_question_type_columns_check requires a non-null canonical); the
+--      dialog_fill one IS reachable, since no constraint covers a per-blank canonical.
 --
 -- Must land together with 158 and 159: this file is what makes VFR RT EXAM grading tolerant, so
 -- applying 159 without it leaves practice tolerant and the exam exact — the inconsistency

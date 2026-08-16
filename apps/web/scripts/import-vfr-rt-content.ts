@@ -37,9 +37,12 @@
  *   npx tsx scripts/import-vfr-rt-content.ts content/foo.json bar.json
  *   npx tsx scripts/import-vfr-rt-content.ts --force-remote        # prod (needs existing org+admin)
  *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/foo.json --replace   # local re-import
- *   # answer-key correction, dry run then apply:
- *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="Ceiling and Visibility OK"
- *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="Ceiling and Visibility OK" --apply
+ *   # answer-key correction, dry run then apply. --expect-canonical is the value you expect to
+ *   # find LIVE (the pre-correction one), not the value in the file. The placeholder below is
+ *   # deliberately not the CAVOK string — that drift was the false premise disproved above, and
+ *   # a copy-paste-ready invocation carrying it would re-teach the premise this docblock retires.
+ *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="<live value being replaced>"
+ *   npx tsx scripts/import-vfr-rt-content.ts --force-remote --sync-content --expect-canonical="<live value being replaced>" --apply
  */
 
 import { readFileSync } from 'node:fs'

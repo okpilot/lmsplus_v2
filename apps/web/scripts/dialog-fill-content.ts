@@ -308,7 +308,12 @@ function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[], at:
 const CALLSIGN_RE = /^[a-z0-9]{1,2}-[a-z]{2,3}$/i
 
 /**
- * R5 — a readback line must leave at least one CONTENT item visible.
+ * R5 — a line that blanks TWO OR MORE content items must leave one of them visible.
+ *
+ * The 2+ threshold is the rule, not an implementation detail: a line with a single content blank
+ * has no split to infer, so it needs no visible item and 13 shipped lines legitimately have none.
+ * Stating this as "must always leave one visible" — as this docblock previously did — describes a
+ * guard the code does not implement and would condemn those 13 lines.
  *
  * The exam's own worked example brackets whole phrases but always keeps one item given:
  * `QNH 1025, [descending to 2500 feet], [wilco], [S-BC]`. The visible `QNH 1025` is what shows
@@ -361,13 +366,18 @@ function assertLineSplitLegible(
 // PLURAL "callsigns", so "use abbreviated callsigns" — a textbook R6 leak — matched nothing at all.
 // Dropping \b wholesale fixes that but over-widens the rest: `decide` would then also match
 // "decided", so an ordinary scene line like "the pilot decided to enter downwind" trips the guard.
-// Widen only the three terms that need it — `callsigns?`, `read ?backs?` (the plural "readbacks"
-// missed for the same reason) and `abbreviat\w*`. Verified: every known leak still caught and all
-// 50 shipped prompts are clean. Note the corpus does NOT witness the trailing \b — no shipped
+// Widen the terms that need it, keeping the outer \b. Separator and inflection variants matter
+// because the source guide uses them: `call[\s-]?signs?` catches the guide's own two-word "call
+// sign" (its wording is "prefixed with the aircraft call sign"), and `read(?:s|ing)?[\s-]?backs?`
+// catches "read back", "read-back", "reads back" and "reading back" alongside "readbacks". An
+// author writing in the source's register was previously invisible to this guard.
+// Verified: every known leak caught, and all 50 shipped prompts still clean under the widened
+// pattern — the many "reading back"/"call sign" occurrences in the corpus are all in EXPLANATION
+// text, which R6 does not read. Note the corpus does NOT witness the trailing \b: no shipped
 // prompt contains a decide-family word, so dropping it leaves all 50 clean too. The unit fixture
 // 'The pilot decided to enter downwind for runway 25.' is the only thing pinning it.
 const PROMPT_LEAK_RE =
-  /\b(callsigns?|read ?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
+  /\b(call[\s-]?signs?|read(?:s|ing)?[\s-]?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
 
 /** R6 — the prompt sets the scene and nothing more. */
 function assertPromptSetsSceneOnly(prompt: string, at: string): void {

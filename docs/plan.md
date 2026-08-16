@@ -1462,7 +1462,7 @@ Content pool: **50 questions / 71 blanks**, `"lifecycle": "pilot"` — so the im
 - **DLG-21 and DLG-22 dropped** (single-line tasks with no exchange). Pool 52 → 50.
 - **Grading tolerates typos, never digits** — `answer_matches`, mig 158 (graders repointed across migs 158–160). See Decision 56.
 - **Verb-form tolerance widened** in content: `lining up` and `line up` both score. The corpus was
-  already inconsistent (4 of 18 such blanks accepted both, 13 did not).
+  already inconsistent (42 plain-form synonyms added to close it; an earlier "4 of 18 … 13 did not" is withdrawn — it does not partition and was not reproducible).
 
 **Audit before the next eval** — whole pool, not a sample: no line blanks 2+ content items with
 nothing visible; all 15 callsign blanks decidable from the text above them (position-aware check,

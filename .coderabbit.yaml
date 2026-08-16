@@ -142,6 +142,16 @@ reviews:
     - path: "**/*.ts"
       instructions: |
         TypeScript source. Enforce:
+        - Comment accuracy (code-style.md §10). A comment or docblock asserting behaviour the code
+          does not have is worse than no comment — it is what the next reader trusts when deciding
+          whether a guard can safely be removed. Flag: (a) a claim about a DB guard, grant,
+          ownership, replay/idempotency or constraint that is not verified against the LATEST
+          migration body; (b) a claim propagated from another doc rather than re-derived from code
+          — a doc records what someone believed, never what the code does; (c) a PARTIAL comment
+          edit, the strongest tell — if a diff moves or changes code, the whole surrounding comment
+          block must be re-read, not just the line touched; (d) a line-number or file-path citation
+          in a comment, which cannot survive its own file's edits — cite by symbol name instead;
+          (e) a count or "N + M" decomposition whose terms no longer sum to the headline it explains.
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
@@ -374,6 +384,14 @@ reviews:
           consuming the value. An unguarded cast throws an opaque TypeError on a null/shape
           regression instead of failing cleanly (code-style.md §5).
         - COALESCE/fallback-coincidence vacuity: when a test asserts a value producible by BOTH the correct-guard path AND a fallback/COALESCE default, seed a fixture whose real value differs from the fallback, or document the partial-vacuity limitation inline (code-style.md §7).
+        - A test must fail if its mechanism is removed (code-style.md §7, the general form of the
+          COALESCE rule above). Ask of every assertion: if the code this test exists to protect were
+          deleted, would it go red? The recurring defect is a SECOND guard reaching the same result
+          first, so the guard under test is never consulted — e.g. a fixture short enough that an
+          unrelated length floor rejects it before the rule under test is reached, or an assertion
+          checking only `error != null`, which a misspelled RPC name satisfies equally. Flag a new
+          test whose fixture cannot distinguish the guard under test from an unrelated one, and
+          prefer a fixture whose expected value differs from every value another guard could produce.
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"

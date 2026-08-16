@@ -53,7 +53,8 @@ export function ShortAnswerInput({
           // Calling preventDefault there cancels the composition and then submits, so a
           // Japanese/Chinese/Korean student cannot type an answer at all. `keyCode === 229` is
           // the legacy signal for engines that omit `isComposing`. Per CLAUDE.md's sibling-audit
-          // rule, dialog-line.tsx carries the same guard on the same key.
+          // rule, dialog-blank.tsx carries the same guard on the same key — the DialogBlank
+          // extraction moved the handler there, and dialog-line.tsx now has no keyboard code.
           if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) {
             return
           }

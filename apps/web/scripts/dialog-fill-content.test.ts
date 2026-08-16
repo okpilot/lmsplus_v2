@@ -242,6 +242,12 @@ describe('assertDialogFillAuthoring', () => {
     // readback fixture above trips on `in the order`, not on the readback term — so without this
     // case, deleting `s?` from `read ?backs?` leaves the whole suite green.
     ['a plural readback term', 'Final approach. Keep the readbacks short.'],
+    // Separator and inflection variants the guide itself uses. Each isolates ONE alternative:
+    // drop `[\s-]?` from call[\s-]?signs? and the first goes green; drop `(?:s|ing)?` from
+    // read(?:s|ing)?[\s-]?backs? and the other two do.
+    ['a two-word competency term', 'Taxiing out. Prefix each transmission with the call sign.'],
+    ['an inflected readback term', 'Descending. Note how the pilot reads back each item.'],
+    ['a gerund readback term', 'On frequency. Practise reading back the clearance.'],
   ])('refuses a prompt that tells the student %s', (_label, prompt) => {
     expect(() => assertDialogFillAuthoring(makeItem({ prompt }), AT)).toThrow(/authoring R6/)
   })
