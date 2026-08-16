@@ -374,8 +374,10 @@ function assertLineSplitLegible(
 // Verified: every known leak caught, and all 50 shipped prompts still clean under the widened
 // pattern — the many "reading back"/"call sign" occurrences in the corpus are all in EXPLANATION
 // text, which R6 does not read. Note the corpus does NOT witness the trailing \b: no shipped
-// prompt contains a decide-family word, so dropping it leaves all 50 clean too. The unit fixture
-// 'The pilot decided to enter downwind for runway 25.' is the only thing pinning it.
+// prompt contains a decide-family word, so dropping it leaves all 50 clean too. Three unit
+// fixtures pin it, one per widened term: 'The pilot decided…' for `decide`, 'ATC uses call signal
+// lights…' for `call[\s-]?signs?`, and '…practised reading backwards.' for the readback
+// alternative. Drop the trailing \b and all three go red.
 const PROMPT_LEAK_RE =
   /\b(call[\s-]?signs?|read(?:s|ing)?[\s-]?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
 

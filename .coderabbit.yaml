@@ -184,6 +184,13 @@ reviews:
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body (trace CREATE OR REPLACE and DROP+CREATE, plus
           ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp prefix, to HEAD).
+        - When the claim rests on them, trace the functions that body CALLS, and any RLS policy,
+          trigger, CHECK constraint, UNIQUE or exclusion constraint (with its backing index,
+          including partial ones), or GRANT that determines the asserted behaviour. A guard can
+          live outside the function body, so tracing only the function chain can certify a comment
+          that a policy or trigger contradicts. Policies supersede by DROP POLICY + CREATE POLICY
+          and by ALTER POLICY, which replaces TO / USING / WITH CHECK in place without recreating
+          the policy — so a DROP/CREATE-only search reports a stale predicate as current.
         - A claim propagated from another doc rather than re-derived from the code. A doc is
           evidence of what someone believed, never of what the code does.
         - A PARTIAL comment edit — the strongest tell. When a change moves or alters code, the

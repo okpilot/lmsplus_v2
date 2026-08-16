@@ -224,8 +224,10 @@ BEGIN
       p_blank_index, p_question_id;
   END IF;
 
-  -- Data-integrity guard mirroring _grade_record_short_answer's canonical NULL
-  -- check (line ~117): no schema CHECK enforces a non-null canonical per blank,
+  -- Data-integrity guard mirroring the `p_canonical IS NULL` check in
+  -- _grade_record_short_answer above (cited by name, not line: the earlier "line ~117" was
+  -- carried over without re-deriving and the check had moved to 154). No schema CHECK
+  -- enforces a non-null canonical per blank,
   -- so a corrupt blanks_config entry would silently grade every answer wrong.
   IF v_blank_canonical IS NULL THEN
     RAISE EXCEPTION 'blank % of question % has no canonical answer',

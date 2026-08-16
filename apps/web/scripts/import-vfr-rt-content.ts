@@ -107,9 +107,16 @@ const SYNC_CONTENT = process.argv.includes('--sync-content')
 // the intended writes before making them.
 const SYNC_APPLY = process.argv.includes('--apply')
 const EXPECT_CANONICAL_PREFIX = '--expect-canonical='
+// Trimmed at the parse site so the emptiness check below and the equality check in
+// assertSyncPreconditions test the SAME value. Validating `.trim()` while comparing the raw
+// string let `--expect-canonical=" Cleared to land "` pass validation and then fail the compare
+// against a live `Cleared to land`, reporting "not in the state you expected" for what is
+// actually a shell-quoting slip. A canonical never carries meaningful edge whitespace —
+// normalize_answer trims, and the DB CHECK stores authored content.
 const EXPECT_CANONICAL = process.argv
   .find((a) => a.startsWith(EXPECT_CANONICAL_PREFIX))
   ?.slice(EXPECT_CANONICAL_PREFIX.length)
+  ?.trim()
 // Both mutate the same rows by different means; combining them is never what anyone meant, and
 // the failure would be silent (--replace soft-deletes the rows --sync-content then cannot find).
 if (SYNC_CONTENT && REPLACE) {
