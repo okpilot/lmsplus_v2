@@ -164,15 +164,17 @@
  * `min-w-0` in dialog-line.tsx — that one is pre-existing and wraps the whole line's segments for
  * line-wrapping; the per-blank pairing moved into dialog-blank.tsx when DialogBlank was extracted.)
  *
- * Cascade note for a later reader: inside the `@supports` block a min-width WINS over
- * `max-width` whenever the two conflict — that is CSS's rule, not an oversight. That is why the
- * floor is written `min(15ch, 100%)` and not a bare `15ch`: in a column narrower than 15ch a bare
- * floor would win and overflow the panel, while the min() form clamps to the column instead. The
- * invariant to preserve is that the floor stays a CONSTANT — 15ch, or the full column width —
- * never the content length. Do not "fix" this by making the floor answer-derived: that is the
- * answer-length leak described above. Dropping it outright is a different bug — under
- * `field-sizing: content` every empty blank then collapses toward zero, uniformly, so it costs
- * usability rather than leaking anything.
+ * Cascade note for a later reader: inside the `@supports` block `min-width: 15ch` WINS over
+ * `max-width` whenever the two conflict — that is CSS's rule, not an oversight, and it only bites
+ * below roughly a 15-character-wide container, which no realistic viewport reaches. Do not
+ * "fix" it by dropping the min-width; that would restore the answer-length leak described above.
+ *
+ * Nor by bounding it as `min(15ch, 100%)`, which reads like a safe clamp and is not. The input's
+ * containing block is the `inline-flex` span in dialog-blank.tsx, which is shrink-to-fit, so that
+ * percentage resolves against the input's OWN content width, not the column. Measured in Chrome
+ * 151: an empty blank goes 116.8px -> 19.0px at 600px, 360px and 180px columns alike — the floor
+ * is destroyed at every width that matters, to avoid an overflow at a width none of them reach.
+ * Proposed by CodeRabbit on PR #1201, applied, measured, reverted.
  */
 .dialog-blank-input {
   /* Constant fallback, never the answer length — a box sized to its own answer leaks that
@@ -186,9 +188,7 @@
   .dialog-blank-input {
     field-sizing: content;
     width: auto;
-    /* Floor bounded by the column — see the cascade note above. Still a constant
-       (15ch, else the full column), never the answer length. Identical at >= 15ch. */
-    min-width: min(15ch, 100%);
+    min-width: 15ch;
     max-width: 100%;
   }
 }

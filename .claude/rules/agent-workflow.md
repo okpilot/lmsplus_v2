@@ -207,7 +207,8 @@ git commit
                     │ `git commit` above — on the     │            │
                     │ review-follow-up path when it   │            │
                     │ qualifies, else the FULL cycle. │            │
-                    │ Loop until no agent has an open │            │
+                    │ Loop (bounded by the stop rule) │            │
+                    │ until no agent has an open      │            │
                     │ finding; only THEN the learner. │            │
                     └────────────────┬────────────────┘            │
                                      │                             │

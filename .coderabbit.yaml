@@ -210,9 +210,10 @@ reviews:
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
     # and so would also sweep in .claude/run-log.md and .claude/agent-memory/** — write-once
     # history and tracker rows, not claims anyone reasons from. The list mirrors the set in
-    # agent-workflow.md § Rule-Mirror Sync; READMEs stay out. Not a clean partition: docs/ also
-    # holds point-in-time eval logs (docs/manual-eval-*.md), which this sweeps in. Harmless —
-    # reviewing a stale eval log costs nothing — but it is not the pure binding-doc set.
+    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, in two ways, both harmless:
+    # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
+    # a docs/README.md would match too if one were ever added (none exists today). Reviewing
+    # either costs nothing; the set is "binding docs plus a little", not the pure set.
     - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md}"
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
