@@ -61,10 +61,16 @@ export function ShortAnswerInput({
           e.preventDefault()
           submit()
         }}
-        // `submitting` matches dialog-fill-input and the submit button below. CR flagged only the
-        // dialog sibling; this file had the identical gap, and fixing one of a pair is how the
-        // parity drift in CLAUDE.md's sibling-audit rule starts.
-        disabled={disabled || locked || submitting}
+        // Deliberately NOT `|| submitting`, unlike ordering-input and dialog-fill-input.
+        // `submitting` is `answering` — a SESSION-WIDE in-flight counter, not per-question — and
+        // `locked` already covers this question during its own check: runAttempt's setAnswers
+        // lands before setInFlightAnswers in the same synchronous block, so `submittedText` is
+        // populated on the first render where `submitting` is true. The only state `|| submitting`
+        // could add here is "a DIFFERENT question's check is in flight", which is reachable by
+        // answering and clicking Next before the round trip returns — and this is the one control
+        // with autoFocus (see above). A disabled input makes React's mount-time .focus() a no-op
+        // and nothing refocuses when the flag clears, so the student lands on an unfocused field.
+        disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"
         className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors disabled:opacity-70 ${

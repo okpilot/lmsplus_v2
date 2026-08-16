@@ -166,6 +166,13 @@ describe('DialogFillInput', () => {
     expect(screen.getByTestId('blank-2')).toHaveFocus()
   })
 
+  // NOTE: this test no longer reaches handleSubmit's own `if (disabled || submitting) return`
+  // guard. Since the blanks became disabled while a check is in flight, userEvent will not
+  // dispatch keydown to them at all, so the keypress never gets as far as the guard — delete that
+  // line and this test still passes. It is kept because what it now proves is still worth
+  // proving (no submission escapes while one is in flight, by whichever mechanism), and the
+  // sibling test above pins the disabled attribute directly. The guard itself remains load-bearing
+  // for callers that are not the DOM: a programmatic handleSubmit() consults it and no attribute.
   it('does not submit on Enter while a submission is already in flight', async () => {
     const onSubmit = vi.fn()
     const { rerender } = render(

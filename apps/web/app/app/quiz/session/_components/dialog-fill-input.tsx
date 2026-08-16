@@ -88,11 +88,14 @@ export function DialogFillInput({
             line={line}
             values={values}
             onChange={handleChange}
-            // `submitting` too, matching the submit button below: without it the boxes stay
-            // editable while the request is in flight, so a student can change what is on screen
-            // after the payload was collected. The submission itself is unaffected
-            // (collectSubmission ran at submit time), but the control then locks without
-            // re-seeding and shows edited text beside feedback for a different payload.
+            // `submitting` matches ordering-input and diagram-label-input. Note what this does
+            // and does not do: for THIS question's own check it is redundant, because `locked`
+            // is already true on the first render where `submitting` is (runAttempt's setAnswers
+            // lands before setInFlightAnswers, synchronously, before the await). `submitting` is
+            // `answering` — a session-wide counter — so the state it actually adds is "some OTHER
+            // question's check is in flight", reachable by clicking Next before a round trip
+            // returns. Harmless here; short-answer-input deliberately omits it because it is the
+            // one control with autoFocus, which a mount-time disable would silently defeat.
             disabled={disabled || submitting}
             results={results}
             locked={locked}

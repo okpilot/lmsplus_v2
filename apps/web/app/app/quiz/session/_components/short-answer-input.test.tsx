@@ -80,6 +80,18 @@ describe('ShortAnswerInput', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('still accepts typing on a fresh question while an earlier answer is being checked', () => {
+    // `submitting` is a SESSION-WIDE in-flight flag, so it is true here for an UNANSWERED
+    // question whenever the student answered the previous one and clicked Next before its round
+    // trip returned. This control must stay enabled in that state: it is the only input with
+    // autoFocus, and React applies autoFocus by calling .focus() at mount, which is a no-op on a
+    // disabled element with nothing to refocus it when the flag clears.
+    // Goes red if `|| submitting` is added to the input's disabled prop — which was done once,
+    // on a CR finding whose premise did not hold, and reverted after tracing the flag's scope.
+    render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} submitting />)
+    expect(screen.getByTestId('short-answer-input')).not.toBeDisabled()
+  })
+
   it('hides Submit once an answer is submitted even while grading is still pending', () => {
     render(
       <ShortAnswerInput
