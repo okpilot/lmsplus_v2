@@ -167,7 +167,9 @@
  * Cascade note for a later reader: inside the `@supports` block `min-width: 15ch` WINS over
  * `max-width` whenever the two conflict — that is CSS's rule, not an oversight, and it only bites
  * below roughly a 15-character-wide container, which no realistic viewport reaches. Do not
- * "fix" it by dropping the min-width; that would restore the answer-length leak described above.
+ * "fix" it by dropping the min-width: under `field-sizing: content` every empty blank then
+ * collapses toward zero. That costs usability and leaks nothing — the box tracks the STUDENT's
+ * typed value, never the canonical. Making the floor answer-DERIVED is the actual leak above.
  *
  * Nor by bounding it as `min(15ch, 100%)`, which reads like a safe clamp and is not. The input's
  * containing block is the `inline-flex` span in dialog-blank.tsx, which is shrink-to-fit, so that
