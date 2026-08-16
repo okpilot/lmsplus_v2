@@ -2830,6 +2830,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 - `session_not_found_or_not_accessible` — owner/mode/deleted check
 - `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (mig 100 guard; pre-existing doc omission fixed alongside migs 105/106)
 - `invalid_answers_payload` — payload is null, not array, or empty
+- `invalid_answer_entry` — a payload entry is not an object, or carries a malformed `question_id` or `response_time_ms` (3 raise sites; `DETAIL` names which)
 - `duplicate_answer_entry` — (question_id, blank_index) pair appears twice
 - `invalid_question_id_for_session` — question not in session's frozen question_ids
 - `answer_type_mismatch` — answer entry has wrong field set for question type

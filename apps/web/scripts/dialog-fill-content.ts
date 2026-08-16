@@ -361,8 +361,9 @@ function assertLineSplitLegible(
 // PLURAL "callsigns", so "use abbreviated callsigns" — a textbook R6 leak — matched nothing at all.
 // Dropping \b wholesale fixes that but over-widens the rest: `decide` would then also match
 // "decided", so an ordinary scene line like "the pilot decided to enter downwind" trips the guard.
-// Widen only the two terms that need it. Verified: every known leak still caught, both "decided"
-// sentences pass, and all 50 shipped prompts are clean.
+// Widen only the three terms that need it — `callsigns?`, `read ?backs?` (the plural "readbacks"
+// missed for the same reason) and `abbreviat\w*`. Verified: every known leak still caught, both
+// "decided" sentences pass, and all 50 shipped prompts are clean.
 const PROMPT_LEAK_RE =
   /\b(callsigns?|read ?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
 

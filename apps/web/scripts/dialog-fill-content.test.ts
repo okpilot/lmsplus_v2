@@ -238,12 +238,28 @@ describe('assertDialogFillAuthoring', () => {
     // No 'abbreviated' here either — this one must fail on the PLURAL `callsigns` alone, or it
     // proves nothing about that half of the fix (the first draft contained both and was confounded).
     ['a plural competency term', 'Departing. Give the callsigns for both aircraft.'],
+    // The third widened term. `read ?back` could not match the plural either, and the existing
+    // readback fixture above trips on `in the order`, not on the readback term — so without this
+    // case, deleting `s?` from `read ?backs?` leaves the whole suite green.
+    ['a plural readback term', 'Final approach. Keep the readbacks short.'],
   ])('refuses a prompt that tells the student %s', (_label, prompt) => {
     expect(() => assertDialogFillAuthoring(makeItem({ prompt }), AT)).toThrow(/authoring R6/)
   })
 
   it('accepts a prompt that only sets the scene', () => {
     const item = makeItem({ prompt: 'Straight-in approach to Ljubljana.' })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('does not reject a prompt whose scene-setting uses the word "decided"', () => {
+    // Regression pin for the per-term widening in PROMPT_LEAK_RE. The fix adds `callsigns?`,
+    // `read ?backs?` and `abbreviat\w*` rather than dropping the trailing \b from the whole
+    // pattern (each of the three has its own single-term fixture). Without that outer
+    // word boundary, `decide` matches as a substring inside "decided" — a common past-tense verb in
+    // scene prose — and the guard trips falsely. This test goes red if \b is removed from the regex
+    // end; the generic "accepts a prompt that only sets the scene" test (which has no `decide`-family
+    // word) stays green either way and provides no protection for this case.
+    const item = makeItem({ prompt: 'The pilot decided to enter downwind for runway 25.' })
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
   })
 

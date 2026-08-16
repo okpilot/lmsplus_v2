@@ -163,7 +163,7 @@ run_cli_failure_case() {
 }
 run_cli_failure_case
 
-# 13. Full-script run: TIMEOUT (exit 124 from the `timeout 120` wrapper) must FAIL CLOSED.
+# 13. Full-script run: TIMEOUT (exit 124 from the `timeout $AUDIT_TIMEOUT_SECS` wrapper) must FAIL CLOSED.
 #     Same throwaway-repo setup as case 12, but the `claude` shim exits 124 — the code the
 #     hook's `EXIT_CODE -eq 124` timeout branch detects. The fallback grep scan finds
 #     nothing, so the timeout branch must block with exit 1 + the push-blocked message.

@@ -791,11 +791,24 @@ async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): P
     `  ${at}: ${changes.join(' | ')}${SYNC_APPLY ? '' : '   [dry run — pass --apply to write]'}`,
   )
   if (!SYNC_APPLY) return true
-  const { data, error } = await db.from('questions').update(want).eq('id', target.id).select('id')
+  // Optimistic predicate on the column assertSyncPreconditions checked at plan time. Planning now
+  // spans every file, so the check-then-act window is the whole run rather than one file; matching
+  // on the canonical_answer we READ means a concurrent edit yields zero rows and trips the throw
+  // below instead of silently clobbering. Never NULL here, which matters because PostgREST `.eq`
+  // cannot match NULL: `--sync-content` hard-exits without a non-empty `--expect-canonical`, and
+  // assertSyncPreconditions then either returned early on alreadyInSync (so it equals the non-null
+  // SyncFields value) or forced it to equal EXPECT_CANONICAL. NOT guaranteed by the question_type
+  // refusal — fetchSyncTarget matches on bank_id + question_number and never pins question_type.
+  const { data, error } = await db
+    .from('questions')
+    .update(want)
+    .eq('id', target.id)
+    .eq('canonical_answer', target.canonical_answer)
+    .select('id')
   if (error) throw new Error(`--sync-content ${at}: ${error.message}`)
   if (data?.length !== 1) {
     throw new Error(
-      `--sync-content ${at}: expected 1 row updated, got ${data?.length ?? 0} — the write was blocked (RLS/grant, see #815) or the row moved.`,
+      `--sync-content ${at}: expected 1 row updated, got ${data?.length ?? 0} — the write was blocked (RLS/grant, see #815), or its canonical_answer changed between planning and writing, or the row moved.`,
     )
   }
   return true
@@ -843,10 +856,13 @@ async function runSyncContent(
   ctx: ImportContext,
 ): Promise<void> {
   // Plan EVERY file before writing ANY of them. Per-file phasing was not enough: on a
-  // multi-file invocation, file 1's UPDATEs would land before file 2's lifecycle refusal, its
-  // question_type refusal and its preconditions ever ran — and those gates exist precisely to
-  // fire before anything is written. This is the parity with the import path that the phase
-  // comment claims.
+  // multi-file invocation, file 1's UPDATEs would land before file 2's question_type refusal
+  // (line ~806, sync-path-only — the up-front SUPPORTED_TYPES check does not cover it) and its
+  // assertSyncPreconditions ever ran, and those gates exist precisely to fire before anything is
+  // written. NOT the lifecycle refusal: main() already runs assertReleasedForRemote over every
+  // parsed file before any resolver, so on the --force-remote path — the only one that can write
+  // to prod — it has already fired. It is reachable here only on a local run. This is the parity
+  // with the import path that the phase comment claims.
   const plans: { entry: ResolvedFile; planned: SyncPlanEntry[] }[] = []
   for (const entry of resolved) plans.push({ entry, planned: await syncFileContent(entry, ctx) })
 
