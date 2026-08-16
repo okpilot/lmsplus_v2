@@ -687,6 +687,74 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     expect(replayResult.passed_overall).toBe(false)
     expect(Number(replayResult.correct_count)).toBe(0)
   })
+
+  it('raises question_blank_missing_canonical for a dialog_fill blank with no canonical answer', async () => {
+    // security.md rule 12 sibling-parity guard added in mig 160 (20260815000300, "submit_vfr_rt_fuzzy"):
+    // no CHECK constrains a per-blank 'canonical' key inside blanks_config (unlike short_answer's
+    // table-level canonical_answer IS NOT NULL), so a malformed blank is reachable through this RPC
+    // and must fail loudly rather than silently grade every attempt at it wrong. Distinct from
+    // #1196 (deferred): that issue is about the FUZZY-MATCH comparison itself, whose fixtures all
+    // contain digits; this guard fires before any fuzzy comparison runs, so it needs no digit-free
+    // fixture and is not part of that deferral.
+    const { p2TopicId } = await getRtRefs()
+    const bankId = await ensureBank(orgId, adminUserId)
+
+    // status: 'draft' keeps this question OUT of start_vfr_rt_exam_session's `status = 'active'`
+    // pool — the session below is constructed directly (not via startSession()), so the other
+    // tests' `ORDER BY random() LIMIT 9` selection over the 9 real DF fixtures stays deterministic.
+    const { data: badQ, error: badQErr } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        bank_id: bankId,
+        subject_id: rtSubjectId,
+        topic_id: p2TopicId,
+        question_text: `DF malformed blank ${suffix}?`,
+        explanation_text: 'DF malformed blank explanation',
+        question_type: 'dialog_fill',
+        dialog_template: '[atc] Say your position.\n[pilot] {{0|placeholder}}',
+        blanks_config: [{ index: 0, synonyms: [] }], // no 'canonical' key
+        options: [],
+        difficulty: 'medium',
+        status: 'draft',
+        created_by: adminUserId,
+      })
+      .select('id')
+      .single()
+    if (badQErr) throw new Error(`malformed DF question insert: ${badQErr.message}`)
+    const badQuestionId = requireRpcResult<{ id: string }>(badQ, 'questions insert').id
+
+    const { data: sessionRow, error: sessionErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'vfr_rt_exam',
+        subject_id: rtSubjectId,
+        config: { question_ids: [badQuestionId] },
+        total_questions: 1,
+        time_limit_seconds: 1800,
+      })
+      .select('id')
+      .single()
+    if (sessionErr) throw new Error(`malformed-blank session insert: ${sessionErr.message}`)
+    const sessionId = requireRpcResult<{ id: string }>(sessionRow, 'quiz_sessions insert').id
+
+    try {
+      const { error } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
+        p_session_id: sessionId,
+        p_answers: [{ question_id: badQuestionId, blank_index: 0, response_text: 'anything' }],
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('question_blank_missing_canonical')
+    } finally {
+      // The RAISE aborts the RPC's whole transaction (no ended_at UPDATE runs), so the
+      // directly-inserted session is still active and must be force-ended like every other
+      // error-path test in this describe, or it trips the single-active-session invariant
+      // for the next test.
+      await forceEndSession(sessionId)
+    }
+  })
 })
 
 // ─── Legacy RPC mode whitelist (#838) ─────────────────────────────────────────

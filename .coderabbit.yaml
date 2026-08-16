@@ -172,6 +172,65 @@ reviews:
           42703 at runtime while mocked tests, tsc, and Biome all pass. Mirrors the mechanical
           pre-commit guard .claude/hooks/check-soft-delete-guard.mjs (code-style.md §5).
 
+    # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened
+    # 2026-08-15 from DB/RPC claims to any claim). Scoping this to **/*.ts alone would miss the
+    # .tsx surfaces where the defect also lands; the .sql surface is covered in the migrations
+    # block below, and the binding-doc markdown surfaces in the block immediately after this one.
+    - path: "**/*.{ts,tsx}"
+      instructions: |
+        Comment accuracy (code-style.md §10). A comment or docblock asserting behaviour the code
+        does not have is worse than no comment — it is what the next reader trusts when deciding
+        whether a guard can safely be removed. Flag:
+        - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
+          verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
+          REPLACE and DROP+CREATE, plus ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp
+          prefix, to HEAD). Matching the name alone can land on a body that no longer exists:
+          get_report_correct_options once had (uuid[]) and (uuid, uuid[]) overloads, both dropped,
+          while the live signature is (uuid).
+        - When the claim rests on them, trace the functions that body CALLS, and any RLS policy,
+          trigger, CHECK constraint, UNIQUE or exclusion constraint (with its backing index,
+          including partial ones), or GRANT that determines the asserted behaviour. A guard can
+          live outside the function body, so tracing only the function chain can certify a comment
+          that a policy or trigger contradicts. Policies supersede by DROP POLICY + CREATE POLICY
+          and by ALTER POLICY, which replaces TO / USING / WITH CHECK in place without recreating
+          the policy — so a DROP/CREATE-only search reports a stale predicate as current.
+        - A claim propagated from another doc rather than re-derived from the code. A doc is
+          evidence of what someone believed, never of what the code does.
+        - A PARTIAL comment edit — the strongest tell. When a change moves or alters code, the
+          comment describing it moves too, all of it: if a diff edits any part of a comment block,
+          the whole block must be re-read. A header left crediting the old file after an extraction,
+          or a count left stale by lines the same commit added, are the canonical instances.
+        - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
+          explain. A correct total under an incomplete explanation invites the next reader to
+          "correct" it back to a wrong one.
+
+    # Comment accuracy — binding docs. code-style.md §10 governs any claim, not only code
+    # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant
+    # claim, a rules paragraph miscounting the commits it described). The glob ENUMERATES the
+    # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
+    # and so would also sweep in .claude/run-log.md and .claude/agent-memory/** — write-once
+    # history and tracker rows, not claims anyone reasons from. The list mirrors the set in
+    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, in two ways, both harmless:
+    # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
+    # a docs/README.md would match too if one were ever added (none exists today). Reviewing
+    # either costs nothing; the set is "binding docs plus a little", not the pure set.
+    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md}"
+      instructions: |
+        Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
+        so a wrong claim here propagates into code. Flag:
+        - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
+          re-derived from the LATEST migration for the matching signature. Cite the migration.
+        - A claim PROPAGATED from another doc rather than from the code. A doc is evidence of what
+          someone believed, never of what the code does — this is the sharpest instance on record
+          (a docs/database.md grant line nearly widened a live GRANT to anon).
+        - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
+          comment block, the WHOLE block must be re-read: a header left crediting the old file
+          after an extraction, or a count left stale by lines the same commit added.
+        - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
+          explain — including counts of files, rules, specs or commits described elsewhere.
+        - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
+          restatement must either carry the current mechanics or be reduced to a pointer.
+
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
       instructions: |
@@ -197,6 +256,14 @@ reviews:
     - path: "supabase/migrations/**/*.sql"
       instructions: |
         Database migration (SECURITY AUDIT). Enforce:
+        - Header-comment accuracy (code-style.md §10). A migration header that describes how this
+          body relates to an earlier one is load-bearing: this repo re-emits function bodies from a
+          cited parent (migs 153/159 say so explicitly), so a header claiming "verbatim from mig X,
+          only Y changed" is an instruction a future author will follow literally. If the body also
+          gained a guard, a RAISE, a COALESCE or a grant, the header must say so — otherwise the
+          next re-emit silently drops it. Verify such a claim by diffing the two bodies, not by
+          reading the header. Flag any header claim contradicted by the body, and flag a header left
+          untouched by a diff that changed the body it describes (the partial-edit tell).
         - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
         - RLS needs a policy for each command the table is INTENDED to permit — a command
           with no permitting policy is denied by default, so an immutable/read-only table
@@ -374,6 +441,14 @@ reviews:
           consuming the value. An unguarded cast throws an opaque TypeError on a null/shape
           regression instead of failing cleanly (code-style.md §5).
         - COALESCE/fallback-coincidence vacuity: when a test asserts a value producible by BOTH the correct-guard path AND a fallback/COALESCE default, seed a fixture whose real value differs from the fallback, or document the partial-vacuity limitation inline (code-style.md §7).
+        - A test must fail if its mechanism is removed (code-style.md §7, the general form of the
+          COALESCE rule above). Ask of every assertion: if the code this test exists to protect were
+          deleted, would it go red? The recurring defect is a SECOND guard reaching the same result
+          first, so the guard under test is never consulted — e.g. a fixture short enough that an
+          unrelated length floor rejects it before the rule under test is reached, or an assertion
+          checking only `error != null`, which a misspelled RPC name satisfies equally. Flag a new
+          test whose fixture cannot distinguish the guard under test from an unrelated one, and
+          prefer a fixture whose expected value differs from every value another guard could produce.
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"

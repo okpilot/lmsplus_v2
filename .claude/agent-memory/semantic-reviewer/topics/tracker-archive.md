@@ -88,3 +88,12 @@ Related, same file: the DB CHECK constrains `correct_option_id` to 'a'..'d' but 
 that it names an option that EXISTS in `options`, and `trg_sanitize_question_options` rewrites
 each element to `{id,text}`, silently emitting nulls for a malformed one. Both import clean and
 render un-answerable. Fixed by pre-flight validation covering every field `buildRow` writes.
+
+## Relocated 2026-08-16 (PR-sweep memory-budget compaction) — terminal-state rows, verbatim, still counted
+
+| Pattern | First Seen | Count | Last Seen | Status |
+|---|---|---|---|---|
+| Machine guard keyed on a PREFIX of free-text prose dies silently when the prose is rewritten, while N doc surfaces keep asserting it is live (`status.startsWith('PILOT')` prod-import gate) | 2026-08-15 | 1 | 2026-08-15 | RESOLVED-WATCH (fixed in `365730e2` — structured `lifecycle` field, fail-closed) — read the CURRENT field value, never the comment/doc → [prose-guards-and-migration-numbering](topics/prose-guards-and-migration-numbering.md) |
+| New-migration `-- Migration NNN` header reuses a taken number, then propagates into every doc citation (142 written while sequence is at 157) | 2026-08-15 | 1 | 2026-08-15 | RESOLVED-WATCH (renumbered 158/159/160 in `365730e2`) — but the per-citation sweep MISSED `.claude/run-log.md`; see the new stale-token row below → [prose-guards-and-migration-numbering](topics/prose-guards-and-migration-numbering.md) |
+| Negative test for a NEW guard passes identically with that guard DELETED — a coarser pre-existing rule in the same function already rejects every fixture | 2026-08-15 | 1 | 2026-08-15 | RESOLVED-WATCH (`12551`/`125.50` fixture added) — sibling of the PROMOTED fallback-coincidence row (code-style §7) → [prose-guards-and-migration-numbering](topics/prose-guards-and-migration-numbering.md) |
+| ~~A "verified against production" doc claim is falsified by a later commit that edits the verified artifact~~ (CAVOK) | 2026-08-15 | 1 | 2026-08-15 | **FALSE POSITIVE** — chronology inverted. `a58e4d49` (CAVOK swap, 16:10 +0200) PRECEDES `864936ca` (run-log, 16:22), and the run-log row itself records the swap and the import in ONE run, so "canonical matches file" was true. The real defect was the OTHER surface — `365730e2`'s `--sync-content` asserting prod staleness unverified — already PROMOTED as the learner's "reviewer premise accepted w/o verification" row (→ agent-workflow.md § Finding Validation) and corrected in `070dca8f`. Do NOT re-raise. → [prose-guards-and-migration-numbering](topics/prose-guards-and-migration-numbering.md) |

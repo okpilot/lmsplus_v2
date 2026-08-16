@@ -1306,6 +1306,10 @@ export type Database = {
           topic_id: string
         }[]
       }
+      answer_matches: {
+        Args: { p_candidate: string; p_norm_response: string }
+        Returns: boolean
+      }
       batch_submit_quiz: {
         Args: { p_answers: Json; p_session_id: string }
         Returns: Json

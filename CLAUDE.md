@@ -137,7 +137,7 @@ Also audit `package.json` `pnpm.overrides` after any dep bump: for each pin, che
 
 ### Workflow — hard stops
 - **NEVER** push without explicit user approval — always ask first
-- **NEVER** skip post-commit agent review — launch all 4 agents immediately after every commit
+- **NEVER** skip post-commit agent review — launch all 4 agents immediately after every commit, except under the two narrow exemptions defined in § Post-commit review (docs-only → doc-updater only; review-follow-up → semantic-reviewer only). Commit size is never a criterion; both exemptions are defined by what was *already reviewed*
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
 - **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
@@ -173,7 +173,33 @@ If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts
 If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
-**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md`, root `*.md` (EXCEPT CLAUDE.md — it is a rules file and a coderabbit-sync trigger, never exempt), or `.claude/agent-memory/**` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
+**Docs-only exemption (narrow):** a commit whose diff touches ONLY `docs/**/*.md` (EXCEPT `docs/security.md` — it is a red-team trigger path AND a coderabbit-sync trigger, never exempt), root `*.md` (EXCEPT CLAUDE.md — a rules file and a coderabbit-sync trigger, never exempt), `.claude/agent-memory/**`, or `.claude/run-log.md` may run a reduced cycle — doc-updater only. ANY diff touching code, rules, hooks, CI, or configs gets the full 4-agent cycle, no exceptions.
+
+`.claude/run-log.md` was added to that list on 2026-08-15: it is a pure historical record written by `/endrun`, in the same class as `.claude/agent-memory/**`, but it sits under `.claude/` and matches neither `docs/**` nor root `*.md`. The branch that introduced this exemption carried SEVERAL run-log-only commits which the rule, as first written, formally required to run a full 4-agent cycle. A rule whose own introducing branch violates it repeatedly is mis-scoped, not under-enforced.
+
+The count here is deliberately not a number. It was written as "three", corrected to "four" by implementation-critic, and found to be "five" by the PR-level sweep — because the branch kept adding run-log commits after each correction. A literal count of commits on the very branch that is still accumulating them cannot stay true; it is a self-invalidating claim, and each round spent re-counting it is a round not spent on the rule. If you need the exact set, derive it: `git fetch origin` (ABORT if it fails), then `git log origin/master..HEAD --name-only --format='%h'`, and keep the commits whose only path is `.claude/run-log.md`. Fetch first — a stale `origin/master` sits further back and admits commits this branch never authored.
+
+**Review-follow-up exemption (narrow):** a commit that applies ONLY findings raised by the post-commit cycle of its own parent commit runs a reduced cycle — **semantic-reviewer only** (which `agent-workflow.md` already requires whenever production code changes), not the other three. ALL of these must hold:
+- **the PARENT commit ran the FULL four-agent cycle and claimed neither exemption itself;**
+- every hunk traces to a specific finding from the parent commit's own cycle;
+- it touches only files the parent commit touched, and adds no new file;
+- ≤ 20 changed lines outside test files, **and ≤ 60 inside them**. The test bound is the looser of the two on purpose — a follow-up that closes a finding by adding the test it was missing is exactly what this exemption should permit — but it cannot be absent, or a follow-up could add hundreds of lines of test code while running semantic-reviewer alone. test-writer is the agent whose prior assessment a large test addition invalidates, so past that bound it is new scope, not a refinement. (Loophole found by CR-local on this branch; its proposed "≤20 total including tests" was not adopted, because that inverts the rule's purpose and blocks the ordinary case.)
+- it touches no security path, no rules file, no migration, no CI/hook/config.
+
+The first condition is what bounds the chain. Without it a review-follow-up may parent another
+review-follow-up, each qualifying because its parent "had a cycle" — but that parent's cycle was
+semantic-reviewer alone. The chain can then run arbitrarily long with code-reviewer, doc-updater and
+test-writer never seeing any of it, which is exactly the opposite of the rationale below. A
+follow-up hangs off a FULL cycle or it gets a full cycle of its own. (Loophole found by CR-local on
+the very branch that introduced this exemption.)
+
+If any condition fails, run the full cycle. Rationale: code-reviewer, doc-updater and test-writer assessed this exact file set one commit ago, and an in-place refinement of it cannot change their answers — re-running them bills four agents to re-confirm a conclusion they reached minutes earlier. The **learner** (step 5) is skipped on a review-follow-up too: its input is the cycle's findings, and it will see them on the branch's next full cycle.
+
+**This is NOT a "small commit" exemption.** A commit that introduces any new scope gets the full cycle even if it is one line. The opposite failure is on record: `.claude/run-log.md` (2026-08-11) documents a run where post-commit agents ran on 2 of 8 commits because CR fixups were rationalised as "already externally reviewed". External review is not the criterion; *already reviewed by these four agents, on these files, one commit ago* is.
+
+**Stop rule — the reviewer does not converge.** On a review-follow-up commit, act only on CRITICAL or ISSUE findings that identify a **runtime** defect. Log everything else and stop: SUGGESTION-level findings, and wording/comment-accuracy findings on prose the follow-up itself just rewrote, are **not** actioned in the same chain. An LLM reviewer returns non-empty on almost any prose, so "apply suggestion → re-review → new suggestion" terminates by rule, not by agreement. Park the remainder — fold it into the next substantive commit on the branch, or give it an explicit terminal disposition at wrap-up. "Drop it" here does NOT mean discard silently: `wrapup.md` requires every finding to end as APPLIED, DEFERRED (with an issue) or SKIPPED (with a written reason), and "noted" is not a disposition. Stopping the CHAIN and skipping the FINDING are different acts — this rule bounds how many review rounds a finding may trigger, not whether anyone ever has to answer for it.
+
+Precedent (2026-08-11, PR #1185): commit A added a runtime guard; its cycle produced 2 SUGGESTIONs; commit B applied them; the PR-level sweep then found a real ISSUE in older code; commit C fixed it; C's review returned 1 ISSUE + 3 SUGGESTIONs — every one a wording refinement to the comment C had just rewritten. Four agents ran on a 5-line log-message change. The user stopped it ("post commit again? what are we fixing so long?") and was right to.
 
 Pre-commit critics (plan-critic, implementation-critic) run BEFORE commit and do not replace post-commit agents. They are additive — catching issues earlier, not removing later review.
 

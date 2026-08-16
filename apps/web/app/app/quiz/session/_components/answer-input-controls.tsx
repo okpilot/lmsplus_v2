@@ -49,6 +49,7 @@ export function DialogFillAnswer({ s, question }: ControlProps) {
       submitting={s.answering}
       submitted={s.existingAnswer != null}
       blanks={fb?.blanks}
+      submittedBlanks={s.existingAnswer?.blankAnswers ?? null}
     />
   )
 }

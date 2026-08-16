@@ -1,0 +1,1069 @@
+{
+  "part": 2,
+  "title": "Fill-in-the-Blank Phraseology — pilot batch",
+  "topic_code": "P2_DIALOG",
+  "subject_code": "RT",
+  "question_type": "dialog_fill",
+  "per_exam": 9,
+  "lifecycle": "pilot",
+  "status": "50 questions / 71 blanks across the guide's departure/en-route/arrival sections, its unattended- and FIS-aerodrome sections, and all three complete cross-country flights. Format locked on eval 2026-08-12 (one blank per phrase; every readback keeps a visible content item) and again on 2026-08-13 (prompt not shown to students; every blank answerable from the dialogue alone — R7). This field is free-form prose and gates NOTHING: the prod gate is the separate `lifecycle` field above, which stays \"pilot\" until a co-driven eval of all 50 passes.",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 2 — nine fill-in-the-blank tasks). Dialogues come from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc), the prep source the briefing names, except DLG-03 which is the briefing's own worked example. Every phrase used appears in the guide, but SEVEN TRANSCRIPTS ARE CONSTRUCTED rather than verbatim: DLG-23 supplies a readback of 'maintain 2500 feet' that the guide's example omits although L322 makes a level instruction mandatory to read back; DLG-24 substitutes 'request full stop' from the phrase table (L1039) into the touch-and-go transcript AND adds a third line, the wilco readback of the controller's 'report final runway 14'; that line is constructed, though the construction itself is attested throughout the guide (e.g. L1429). DLG-33 applies the guide's documented test-transmission format (L484-486: station called, station calling, the words, the frequency) at Maribor, because its only two radio-check examples are the Portoroz exchange DLG-01 already uses and a glider call. DLG-01, DLG-34 and DLG-35 each gained a transmission the guide's example omits, so a blank the guide leaves un-inferable becomes inferable from the dialogue (user direction 2026-08-15): DLG-01 a trailing 'for VFR flight to Maribor'; DLG-34 the holding-short call; DLG-35 the inbound and base calls. All are standard practice — the guide's arrival section explicitly notes pilots adapt these calls to the situation — and none changes the phrase under test. DLG-52 reconstructs Padova's instruction: the guide's line 'S-AA Padova, request, 3000 feet over RIFEN, report 2 minutes before' does not make clear which station is speaking, so the controller's half is stated explicitly. Batches C-E (DLG-25..52) draw on sections 8, 9 and 12; the guide's own errors there were NOT carried across — 'willco' (x4), 'Gypr-per', 'SM-G', and the S-MG / S5-DMG drift.",
+  "authoring_notes": "TEMPLATE FORMAT: newline-separated lines, each prefixed [atc] or [pilot] for speaker styling (parse-dialog-display.ts). Blanks are bare {{n}} markers here; answers live only in `blanks`, and the importer composes the stored {{n|canonical;syn1;syn2}} token from that array so each answer has exactly one source of truth. Answers may not contain { } | ; (mig 125 CHECK — a student-leak guard).\n\nBLANK-SHAPE RULE (settled 2026-08-12 on eval — ONE BLANK PER PHRASE, always). Every blank holds a COMPLETE phrase, exactly as the exam brackets them: the briefing's worked example is 'QNH 1025, [descending to 2500 feet], [wilco], [S-BC]' — four brackets, each a whole phrase, including the recalled '[wilco]' and the callsigns. Note '[descending to 2500 feet]' is itself a TRANSFORMATION of the controller's 'descend to 2500 feet', and the whole transformation sits in one bracket. NEVER split a phrase across boxes — with one carve-out, stated here because two shipped questions rely on it. A DERIVABLE blank may take a single word out of a two-word phrase and leave the other visible as an anchor: DLG-06 blanks 'holding' before a visible 'position', DLG-18 blanks 'going' before a visible 'around'. That is legitimate because the controller's line already supplies the phrase, so the blank tests recall of the transformation, not of the phrase — and both carry a `rule` field naming the anchor deliberately. The prohibition binds RECALL blanks, where nothing on screen supplies the phrase and a visible anchor is the withdrawn per-word split (R3 and R7 forbid it). Read the sentence above as scoped to recall, not as unconditional: a future author taking it literally would either rewrite those two questions or, worse, copy the anchor pattern into a recall blank where it is genuinely wrong.\n\n  Superseded: an earlier revision split RECALLED phrases one blank per word with the last word left visible as an anchor ('{{0}} {{1}} information'). That was user-directed on 2026-08-11 because a single empty box for an unseen phrase looked unguessable, and it was withdrawn on 2026-08-12 for two reasons. First, the briefing's PREAMBLE names those very phrases — 'radio check, request departure information, traffic in sight, looking out' — so a prepared student HAS read them; they are recall, not guesswork. Second, the objection was partly that a long answer was unreadable in a fixed 112px box, and the runner's input now grows with what the student types. Five questions were converted (DLG-01/04/05/22/24) and validator rules R2 (single-word recall canonical) and R4 (anchor after a recall run) were deleted with them.\n\n  `shape` is still carried on every blank and still means what it meant — RECALLED (the answer appears nowhere on screen) vs DERIVABLE (the controller said it, or it is a direct transformation of what he said). It no longer changes how the blank is SPLIT; it drives R3, which asserts a recall canonical is not sitting in the visible template where the student could copy it.\n\nCALLSIGN PLACEMENT — THE SOURCE'S RULE (corrected 2026-08-11 after a faithfulness audit): callsign at the FRONT by default; at the END when the pilot is READING BACK an instruction or important information, or ACKNOWLEDGING one (wilco / roger / looking out). Guide L535-537 verbatim: 'the message is normally prefixed with the aircraft call sign. However, when the pilot needs to read back an instruction or important information, he places the call sign at the end of the message.' Corroborated at L330-331 and by the briefing ('placing the callsign at the end of the readback').\n\nTHE DISCRIMINATOR IS READBACK, NOT RESPONSE. An earlier revision taught 'front if you initiate, end if you respond'. That is right wherever a response IS a readback — most of the time — and wrong where it is not: a pilot answering 'report position' front-places (L1329, L1383), and 'S-AA, traffic in sight' (L781) front-places because reporting something newly seen reads nothing back. That revision declared L781 a source typo to protect the inferred rule. It is NOT a typo; the guide is self-consistent, and L970 shows the same phrase END-placed when bundled into an acknowledgement. Never declare a source line erroneous to preserve a rule you inferred — re-read the prose first.\n\nVERIFIED COUNT (L86-L1028, the range every question draws from): 62 fixed-wing pilot transmissions, 33 front-placed and 29 end-placed, ZERO violations of the rule above. The book's two genuine violations sit outside that range (L1446, L1545 — requests carrying an end-placed callsign). A previously recorded '38/18/1' count was not reproducible under any scope and is withdrawn.\n\nHOW TO TEST PLACEMENT: only on a pilot line carrying EXACTLY TWO blanks, where the student decides which holds the callsign. If the callsign's slot is fixed by surrounding text, the template has already answered the question.\n\nDO NOT TEST: whether WIND is read back — the guide reads it back at Maribor take-off but omits it at Ljubljana take-off and at the S-MN landing clearance. Both were candidate questions and both were cut. Only test what the source states as a rule, never a pattern inferred across examples.\n\nEVERY BLANK CARRIES `shape`: 'recall' (answer appears nowhere on screen) or 'derivable' (the controller said it, or it is a direct transformation of what he said). The validator is scripts/dialog-fill-content.ts (assertDialogFillAuthoring), run over every question in this file by scripts/dialog-fill-content.test.ts and again by the importer before any write. It asserts FIVE rules — R1/R3/R5/R6/R7: R1 every blank carries a shape; R3 a recall canonical never appears in the visible template, compared under normalize_answer semantics — SYNONYMS ARE EXEMPT, and several single-word recall answers legitimately carry multi-word synonyms (wilco accepts 'will report runway vacated'); R5 a line blanking TWO OR MORE content items leaves one of them visible (a single content blank has no split to infer and needs none — 13 shipped lines are legitimately in that case); R6 the prompt names no competency; R7 a recall blank is pinned by the [atc] line ABOVE it, or declares `unanchored` naming the competing phrase and what excludes it. R2 (single-word recall canonical) and R4 (anchor after a recall run) were DELETED on 2026-08-12 with the one-blank-per-phrase rule — do not look for them in the validator. Single-word standard phrases (wilco) are recall but need no split, and a run of one never engages R4. This is what makes the rule checkable rather than a convention that erodes over 30 questions.\n\nSPLIT LEGIBILITY (R5, user-directed 2026-08-12 after eval rejected DLG-15): a line that blanks TWO OR MORE content items must leave one of them VISIBLE. A line with a single content blank has no split to infer and is unaffected. The briefing's own worked example does this — 'QNH 1025, [descending to 2500 feet], [wilco], [S-BC]' — the given 'QNH 1025' is what shows the student how the readback divides. Blank every item and only the commas remain, so the student must guess the SPLIT as well as each phrase. DLG-15 shipped as '{{0}}, {{1}}, {{2}}, S-GI' (three phrases off bare commas) and was rejected on sight. A trailing CALLSIGN does NOT count as the visible item: it is on every readback and says nothing about the division. Enforced as R5 in scripts/dialog-fill-content.ts; callsigns detected as /^[a-z0-9]{1,2}-[a-z]{2,3}$/i.\n\nWHICH item to leave visible — we diverge from the briefing. It gives the FIRST item and brackets the rest; we give whichever item is NOT the lesson (usually the trailing runway/clearance) and blank the hard one, so the test stays sharp. Reworked under this rule: DLG-01 (gives runway, tests which OTHER item returns from a six-item met report), DLG-08 (gives runway, tests the clearance), DLG-14 and DLG-15 (give the instruction, test the CONDITION — the distinctive part of a conditional clearance). Note this rule does NOT touch the callsign-placement lines ('{{0}}, {{1}}' in DLG-12/13/16/19): only one of those two blanks is a content item, so the split is never in doubt.\n\nBLANK WIDTH is a UI concern, not a content one. The exam brackets whole phrases — the briefing's own '[descending to 2500 feet]' is 25 characters — so the runner's input grows with what the student types (dialog-line.tsx). It must NOT size to the ANSWER: an empty box wide enough for its canonical leaks the answer length, which is why blanks_safe ships index-only.\n\nPROMPT SETS THE SCENE ONLY (R6, user-directed 2026-08-12). The briefing's example task carries NO instruction — just 'Example task:' and the dialogue. Its four competencies (basic phrases; forming a correct readback incl. callsign at the end, only the QNH from met info, the runway in use; use of 'wilco'; abbreviated callsigns only after ATC abbreviates) are stated in the PREAMBLE, read during preparation — they are NOT supplied with the task. So a prompt must give the scene (where, what situation) and never name the competency. All 24 prompts were stripped on eval: DLG-10 read 'Complete the callsign AT THE END of each pilot transmission' — verbatim the rule under test — and DLG-19 read 'decide where the callsign belongs in each'. 15 of 24 leaked this way. Enforced as R6 in scripts/dialog-fill-content.ts (denylist: call sign / read back / in the order / wilco / abbreviat / decide / runway in use / only the QNH — the first two match separator and inflection variants too, so 'callsign', 'call-sign', 'read-back', 'reads back' and 'reading back' are all caught; the guide's own wording is two-word 'call sign'). Corollary: do NOT add the competency list to the practice UI either — the exam does not put it in front of the student at question time.\n\nPROMPT NOT SHOWN TO STUDENTS (settled 2026-08-13 on eval). R6 above stripped the prompts to scene-only; the eval then established that the exam shows NOTHING above the dialogue at all, so the prompt is no longer rendered: quiz-main-panel.tsx skips QuestionCard for dialog_fill. `prompt` still feeds question_text (NOT NULL) and remains visible in the ADMIN question list, so keep writing a useful scene line — but it pins nothing for the student and must never be what makes a blank answerable.\n\nANCHOR RULE — R7 (settled 2026-08-13 on eval, rewritten same day once the BRIEF and the GUIDE were both read directly). A blank must be answerable from the DIALOGUE alone. A `derivable` blank already is. A `recall` blank names a phrase appearing nowhere on screen, so the [atc] line ABOVE it must pin which phrase is wanted; a line that only follows does not qualify, because whether the reply reveals the request is a judgement no check can make (DLG-05's 'line up and wait' does, DLG-24's 'report final runway 14' did not — full-stop and touch-and-go draw the same reply). Exceptions declare `unanchored`, which must NAME the competing phrase and show what visible text excludes it.\n\n  R7 is NOT 'every blank must be a readback'. That was its first premise and the briefing falsifies it: Part 2's first listed competency is \"Basic phrases (i.e., radio check, request departure information, traffic in sight, looking out, etc.)\". Supplying a phrase the controller never said IS the exam. Acting on the wrong premise, one pass unblanked DLG-01's 'request departure information' and DLG-05's 'ready for departure' — deleting two of the four things Part 2 tests. DLG-01 was restored as a blank (blank 0, 'request departure information', shape recall). DLG-05 was NOT, and deliberately so: its 'ready for departure' is left VISIBLE and the item blanks the readback 'lining up and waiting' instead, because a recall blank that OPENS an exchange has no [atc] line above it to pin the phrase — see CONTEXT GOES IN THE DIALOGUE below. An earlier version of this note said 'Both restored', which was never true of DLG-05.\n\n  NEVER invent phraseology to make an exclusion argument hold. One pass added a 'holding short of' call to DLG-34 and a 'right base' call to DLG-35 purely so elimination would work; neither phrase occurs in the guide ('holding short' = zero hits) and both unattended sequences are exactly three calls (L1194-1196, L1208-1210). Fabricating source to satisfy a validator is worse than the ambiguity it hides. Reverted.\n\nCONTEXT GOES IN THE DIALOGUE, NEVER ABOVE IT (settled 2026-08-15 after four days of one-at-a-time fixes).\n\n  Testing a BASIC PHRASE is legitimate — the briefing lists it as Part 2's first competency. What is not legitimate is a blank the student cannot reason toward. The failure mode, hit repeatedly: a recall blank that OPENS an exchange has no controller line above it, so nothing on screen pins the phrase and the student guesses. DLG-21 and DLG-22 were dropped for it; DLG-05's opening call was made visible; DLG-01/34/35 were rejected on eval one after another.\n\n  The fix is to ADD TRANSMISSIONS to the dialogue until the blank is inferable — not to add a scene line above it, and not to delete the question. The exam shows no description above the task, so a scene line is both unfaithful and a crutch the student will not have. Extra transmissions are faithful in kind: they are the same radio traffic, and the guide's own arrival section notes pilots adapt these calls to the situation.\n\n  This OVERRIDES the earlier 'never invent phraseology' note in one specific respect. That note was written after a pass fabricated a line to prop up an exclusion argument while claiming the guide supported it. The prohibition that survives is on misrepresenting the source: adding a correct, standard transmission is allowed and must be DISCLOSED in `source`; asserting the guide contains something it does not is still forbidden.\n\n  Test each blank by asking what ELSE a competent student could write there, then check whether visible text excludes it. If nothing does, add the transmission that does.\n\nGRADING TOLERANCE (user directive 2026-08-13: \"we have to be more tolerant with grading\"). Accept every form a competent student could reasonably write; teach the preferred form in the explanation, do not enforce it with the mark. Concretely, an action readback accepts BOTH the present participle and the plain verb ('lining up' and 'line up'): the -ing form is the guide's house style (L605, L656-657) but is not among the four competencies the briefing lists, and the corpus was already inconsistent about it, and 42 plain-form synonyms were added to close that drift. (An earlier revision gave '4 of 18 such blanks accepted both forms, 13 did not'. Those figures do not partition — 4 + 13 = 17 — and could not be reproduced against the pre-pass corpus under any counting rule tried, so they are WITHDRAWN rather than guessed at. The 42 added synonyms are the verifiable number; re-derive the rest from the diff if it ever matters.) DLG-22's word order ('request close flight plan' vs 'request flight plan close') decided the mark, which is what this directive is against — but that is NOT why it was dropped. It and DLG-21 were dropped on 2026-08-15 as single-line tasks with no exchange, under CONTEXT GOES IN THE DIALOGUE above; see that note, which is authoritative here and which docs/plan.md and docs/decisions.md both follow. This paragraph previously claimed the grading directive as the cause and was left standing when the later determination superseded it.\n\n  RIDER (added after adversarial review, 2026-08-13). The test is not merely whether the variants mean the same thing — it is whether the blank's LESSON is invariant across them. DLG-34 accepts both 'lining up' and 'holding short of', which mean different things, because the blank tests the blind self-announce FORMAT and that is unchanged either way. Without this rider the principle forces every such blank into keep-or-drop, which is exactly how an earlier pass talked itself into fabricating a transcript line. Conversely a variant meaning the same thing is NOT automatically safe: dropping the leading verb from 'will report final runway 14' yields 'final runway 14', turning a promise to report into a false position report from a pilot still on downwind. Widen on the lesson, not on the wording.\n\n  Do NOT widen the four competencies the briefing actually names: abbreviated callsigns (a pilot may abbreviate only after ATC has), wilco versus echoing an instruction back, reading back the runway in use, and reading back only the QNH from a met report. Losing those loses the exam.",
+  "grading_notes": "Graded per blank against canonical + synonyms with answer_matches (mig 158), which normalizes both sides with normalize_answer (lowercase, strips punctuation, hyphen/underscore to space, collapses whitespace) and then TOLERATES SPELLING SLIPS: one Levenshtein edit per candidate word of 5+ characters, a single adjacent transposition counted as one edit, whole-answer budget two. ANY TOKEN CONTAINING A DIGIT MUST MATCH EXACTLY — a wrong QNH, runway or squawk is never forgiven. So a misspelling synonym is usually no longer needed; add one only where the variant is a different WORD, not a typo — so case, commas, hyphens and the European decimal comma are already free ('118.0' and '118,0' both normalize to '1180'). Synonym policy: (a) numbers take digit AND spoken forms; (b) verbs take both aspects where a pilot could reasonably write either; (c) every abbreviated callsign accepts the run-together spelling, since the normalizer maps 'S-AA' to 's aa' and NOT to 'saa'. Fixed standard phrases stay STRICT — they are the exact terms under test. A full callsign is never a synonym for its abbreviated form, or the abbreviation rule becomes untestable.",
+  "questions": [
+    {
+      "num": "VRT-P2-DLG-01",
+      "prompt": "Engine start-up at Portoroz.",
+      "unanchored": "R7 — blank 0 is a BASIC PHRASE, the briefing's first listed Part 2 competency. Pinned by visible text on its own line: 'for VFR flight to Maribor' makes it an outbound request, excluding the landing/arrival variants a closed-book student otherwise reached for. 'radio check' is already visible on line 1. That trailing phrase is CONSTRUCTED (guide L560 is the bare request) — added on user direction.",
+      "template": "[pilot] Portoroz Tower S5-DAA, radio check 115,15\n[atc] S5-DAA Portoroz Tower, read you 5\n[pilot] S5-DAA, {{0}} for VFR flight to Maribor\n[atc] S-AA, runway 33, wind 090 degrees 6 knots, QNH 1014, temperature 5, dew point 3, clouds scattered at 2000 feet\n[pilot] runway 33, {{1}}, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "request departure information",
+          "synonyms": ["request the departure information", "request departure info"],
+          "rule": "Basic phrase. The visible 'for VFR flight to Maribor' marks this as an outbound call, and the controller's reply is the departure information itself."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "QNH 1014",
+          "synonyms": ["QNH one zero one four"],
+          "rule": "Items to be read back — altimeter setting. Only the QNH is read back from a met report."
+        }
+      ],
+      "explanation": "**The controller passed six items — you read back two.** The departure information carries runway, wind, QNH, temperature, dew point and cloud, but only two sit on the mandatory readback list: the **runway in use** and the **altimeter setting**. Wind, temperature, dew point and cloud are information, not clearance, and are not read back at all. Read them back **in the order given** — the guide calls that normally best rather than absolute — and note the callsign, given here, sits at the **end**: this is a readback, and a readback closes with the callsign."
+    },
+    {
+      "num": "VRT-P2-DLG-02",
+      "prompt": "Taxi instructions at Maribor.",
+      "template": "[pilot] Maribor Approach S5-DBS, main apron, information R, request taxi for VFR flight to Lesce\n[atc] S-BS Maribor Approach, taxi to holding point A, runway 14, QNH 1002, report ready for departure\n[pilot] taxiing to holding point A, runway 14, QNH 1002, {{0}}, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report ready for departure"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-BS",
+          "synonyms": ["SBS", "Sierra Bravo Sierra"],
+          "rule": "Callsign placement — a readback ends with the callsign; abbreviated because ATC abbreviated first."
+        }
+      ],
+      "explanation": "**WILCO means 'I understand your message and will comply with it'.** Everything on the mandatory readback list has already come back — the runway and the QNH — along with the taxi limit, which is *not* on that list but is always read back so the controller knows where you will stop. What remains is *report ready for departure*, an instruction to act later, so it takes **wilco** (the guide also accepts *will report ready for departure*). The boundary matters: wilco is **never a substitute** for reading back a clearance, a runway instruction or an altimeter setting."
+    },
+    {
+      "num": "VRT-P2-DLG-03",
+      "prompt": "Approaching Portoroz.",
+      "template": "[pilot] Portoroz Approach S5-ABC\n[atc] S5-ABC Portoroz Approach, go ahead\n[pilot] {{0}}, overhead PE1, 3500 feet, for approach\n[atc] S-BC, QNH 1025, descend to 2500 feet, next report overhead PE2\n[pilot] QNH 1025, {{1}}, {{2}}, {{3}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "S5-ABC",
+          "synonyms": [
+            "S5ABC",
+            "Sierra five Alfa Bravo Charlie",
+            "Sierra five Alpha Bravo Charlie"
+          ],
+          "rule": "Abbreviated callsigns — the pilot may NOT abbreviate until ATC has."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "descending to 2500 feet",
+          "synonyms": [
+            "descending 2500 feet",
+            "descending to 2500",
+            "descending to two thousand five hundred feet",
+            "descending to 2500 ft",
+            "descending to two thousand five hundred",
+            "descend to 2500 feet",
+            "descend 2500 feet",
+            "descend to 2500",
+            "descend to two thousand five hundred feet",
+            "descend to 2500 ft",
+            "descend to two thousand five hundred"
+          ],
+          "rule": "Items to be read back — level instruction. Derivable from the controller's words, so one phrase blank."
+        },
+        {
+          "index": 2,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report overhead PE2"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        },
+        {
+          "index": 3,
+          "shape": "derivable",
+          "canonical": "S-BC",
+          "synonyms": ["SBC", "Sierra Bravo Charlie"],
+          "rule": "Abbreviated callsigns — permitted now, because ATC abbreviated in the previous transmission."
+        }
+      ],
+      "explanation": "**The same slot takes two different answers in one exchange, and the controller decides which.** In the third line the pilot must still say the full **S5-ABC**: the controller has used the full callsign throughout, and a pilot may only use the shortened form *once addressed in that manner by the controller*. In the last line **S-BC** is correct — and required — because the controller abbreviated first. The readback follows the usual rules: QNH and *descending to 2500 feet* are both mandatory, *next report overhead PE2* takes **wilco**, and the callsign closes the message."
+    },
+    {
+      "num": "VRT-P2-DLG-04",
+      "prompt": "Traffic information en route.",
+      "unanchored": "R7 — blank follows an [atc] line but acknowledges rather than reads back. Pinned by the visible CALLSIGN POSITION, itself a Part 2 competency: callsign LAST marks an acknowledgement, and 'looking out' is the guide's acknowledgement phrase (L773). A second blank on the S-AA report was REMOVED: there, callsign-first marks a report, but 'negative contact' is equally a report (L775) and nothing visible excludes it — two defensible answers. Guide L777-781 verbatim, both exchanges, two different aircraft.",
+      "template": "[atc] S-AB, light aircraft 11 o'clock, crossing left to right at 4500 feet\n[pilot] {{0}}, S-AB\n[atc] S-AA, light aircraft 2 o'clock, crossing right to left at 4000 feet\n[pilot] S-AA, traffic in sight",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "looking out",
+          "synonyms": ["looking out for traffic"],
+          "rule": "Callsign is LAST, and the guide calls 'looking out' the ACKNOWLEDGEMENT of traffic information (L773), whereas 'traffic in sight' and 'negative contact' are both post-search REPORTS (L774-775). Acknowledgement is what a callsign-last transmission carries, so only this phrase fits."
+        }
+      ],
+      "explanation": "**Two standard phrases, and the callsign moves between them.** Until you have located the other aircraft you answer **looking out** — shown here — and if you cannot find it at all the phrase is **negative contact**; never silence, because the controller needs to know you are still searching. Once you have it visually you report **traffic in sight**. Watch the callsign: *looking out* acknowledges what the controller just told you, so it goes **last**; *traffic in sight* reports something new rather than reading anything back, so it goes **first**. The trigger for end-placement is reading back or acknowledging — not merely answering."
+    },
+    {
+      "num": "VRT-P2-DLG-05",
+      "prompt": "Ready to depart from Maribor.",
+      "template": "[pilot] S-BS, ready for departure\n[atc] S-BS, line up and wait\n[pilot] {{0}}, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "lining up and waiting",
+          "synonyms": ["line up and waiting", "lining up and wait", "line up and wait"],
+          "rule": "Acknowledgement by transformation — 'line up and wait' is visible on the line above, so the readback is determined. Both the -ing and plain forms are accepted."
+        }
+      ],
+      "explanation": "**An action instruction comes back as the action, not as an echo.** The controller says *line up and wait*; the pilot answers **lining up and waiting** — present participle, because you are describing what you are now doing. The same shape appears throughout: *taxi to holding point A* becomes *taxiing*, *vacate right* becomes *vacating*. This applies to action verbs; a clearance comes back unchanged (*runway 14 cleared for take-off*). Note also that **line up is not a take-off clearance** — it permits you onto the runway and nothing more. The word *take-off* is reserved for the clearance and its cancellation; at all other times say *departure* or *airborne*."
+    },
+    {
+      "num": "VRT-P2-DLG-06",
+      "prompt": "Lined up at Ljubljana when the controller stops the departure.",
+      "template": "[atc] S-AT, line up runway 12, cleared for take-off, wind 090 degrees 6 knots, after departure turn right to S3, climb to 2500 feet\n[pilot] line up runway 12, cleared for take-off, turn right to S3, climb to 2500 feet, S-AT\n[atc] S-AT, hold position, I say again, hold position, obstacle on runway 12\n[pilot] {{0}} position, S-AT",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "holding",
+          "synonyms": ["hold"],
+          "rule": "Acknowledgement by transformation — 'position' is left visible as the anchor, so only the transformed verb is tested."
+        }
+      ],
+      "explanation": "**HOLD POSITION is a safety instruction and it has one correct answer: holding position.** The controller repeats it — *I say again* — because an aircraft rolling onto an occupied runway is the accident this phrase exists to prevent. Answer immediately, in the participle form, so the controller hears that you are complying. The take-off readback above is shown rather than tested; note it is a brief one, and the guide elsewhere reads the departure instructions back in full."
+    },
+    {
+      "num": "VRT-P2-DLG-07",
+      "prompt": "En route, approaching Ljubljana.",
+      "template": "[pilot] S-BS, 3 minutes before NE\n[atc] S-BS, contact Ljubljana tower 118.0\n[pilot] {{0}}, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "118.0",
+          "synonyms": [
+            "one one eight decimal zero",
+            "118 decimal 0",
+            "118 decimal zero",
+            "one one eight decimal 0"
+          ],
+          "rule": "Readback of a frequency — the number only, not the unit name."
+        }
+      ],
+      "explanation": "**Read back the frequency, not the station.** The controller names both the unit and the number; only the number is read back, then the callsign. Reading back *Ljubljana tower 118.0* is not wrong so much as wasteful — frequency changes are short by design, because you are about to leave this frequency and any delay is time nobody is listening to you. The decimal separator does not matter to the grader: **118.0** and **118,0** are treated identically, and both spellings appear in the source."
+    },
+    {
+      "num": "VRT-P2-DLG-08",
+      "prompt": "On base at Portoroz.",
+      "template": "[pilot] S-MN, base\n[atc] S-MN, runway 33, cleared to land, wind 300 degrees, 8 knots gusting at 12\n[pilot] runway 33, {{0}}, S-MN",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "cleared to land",
+          "synonyms": [],
+          "rule": "Items to be read back — a clearance to land on a runway."
+        }
+      ],
+      "explanation": "**A landing clearance must be read back in full; the wind that comes with it need not be.** Clearances to land on, take off from, enter, cross or backtrack a runway are all on the mandatory list — this is the readback that stops two aircraft being cleared onto the same strip of asphalt. The wind is passed so you can judge the approach, not because it needs confirming. Finish with the callsign, abbreviated here because the controller abbreviated earlier in the circuit."
+    },
+    {
+      "num": "VRT-P2-DLG-09",
+      "prompt": "En route to Novo mesto, leaving controlled airspace.",
+      "template": "[pilot] Ljubljana Information S5-DAT, passing S3 at 43, to Novo mesto\n[atc] S-AT, QNH 1012, continue visually to Novo mesto, report before changing to local frequency\n[pilot] QNH 1012, continuing visually to Novo mesto, {{0}}, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report before changing to local frequency"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-AT",
+          "synonyms": ["SAT", "Sierra Alpha Tango", "Sierra Alfa Tango"],
+          "rule": "Callsign placement — a readback ends with the callsign; abbreviated because ATC abbreviated first."
+        }
+      ],
+      "explanation": "**Three parts, three different treatments, in one transmission.** The **QNH** is an altimeter setting, so it is read back verbatim. *Continue visually to Novo mesto* is an instruction you act on now, so it comes back transformed — **continuing**. *Report before changing to local frequency* is an instruction for later, so it takes **wilco**. Learning to sort a controller's message into those three buckets — read back, transform, acknowledge — is most of Part 2."
+    },
+    {
+      "num": "VRT-P2-DLG-10",
+      "prompt": "Straight-in approach to Ljubljana.",
+      "template": "[pilot] Ljubljana Tower S5-DJP, passing W1 at 4000 feet, for landing\n[atc] S5-DJP Ljubljana Tower, cleared straight-in-approach runway 12, wind 140 degrees 8 knots, QNH 1013, report final\n[pilot] cleared straight-in-approach runway 12, QNH 1013, will report final, {{0}}\n[atc] S-JP, runway 12 cleared to land, wind 140 degrees 8 knots\n[pilot] runway 12 cleared to land, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "S5-DJP",
+          "synonyms": ["S5DJP", "Sierra five Delta Juliett Papa", "Sierra five Delta Juliet Papa"],
+          "rule": "Abbreviated callsigns — ATC is still using the full callsign, so the pilot must too."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-JP",
+          "synonyms": ["SJP", "Sierra Juliett Papa", "Sierra Juliet Papa"],
+          "rule": "Abbreviated callsigns — ATC abbreviated in the previous transmission, so the pilot may now."
+        }
+      ],
+      "explanation": "**One approach, two callsigns, and you do not choose either — the controller does.** Read the controller's line immediately above each blank and copy the form used there. In the first readback the tower is still saying *S5-DJP*, so the pilot must answer in full. By the landing clearance the tower has moved to *S-JP*, and only then may the pilot shorten it. The rule is one-directional: the controller abbreviates first, the pilot follows. Note in passing what each readback keeps — the approach clearance, the runway, the QNH — and what it drops: the wind, both times."
+    },
+    {
+      "num": "VRT-P2-DLG-11",
+      "prompt": "Joining the circuit at Portoroz.",
+      "template": "[pilot] Portoroz Approach S5-DMN, over PE1, 3000 feet, for landing\n[atc] S5-DMN Portoroz Approach, QNH 1021, runway in use 33, continue to the airport, descend visually to 1000 feet, report runway in sight\n[pilot] {{0}}, {{1}}, continuing to the airport, descending visually to 1000 feet, {{2}}, {{3}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "QNH 1021",
+          "synonyms": ["QNH one zero two one"],
+          "rule": "Items to be read back — altimeter setting."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "runway in use 33",
+          "synonyms": ["runway in use three three", "runway 33", "runway three three"],
+          "rule": "Items to be read back — runway in use."
+        },
+        {
+          "index": 2,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report runway in sight"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        },
+        {
+          "index": 3,
+          "shape": "derivable",
+          "canonical": "S5-DMN",
+          "synonyms": ["S5DMN", "Sierra five Delta Mike November"],
+          "rule": "Abbreviated callsigns — ATC has used the FULL callsign, so the pilot may not shorten it yet."
+        }
+      ],
+      "explanation": "**This one puts all four Part 2 skills in a single transmission.** The **QNH** and the **runway in use** are read back because both are on the mandatory list. The two continuation instructions come back transformed — *continuing*, *descending*. *Report runway in sight* takes **wilco**. And the callsign stays **full**: the controller opened with *S5-DMN* and has not abbreviated, so neither may you — a detail that is easy to lose at the end of a long readback, which is exactly where it is tested."
+    },
+    {
+      "num": "VRT-P2-DLG-12",
+      "prompt": "Position report to Ljubljana Information.",
+      "template": "[pilot] Ljubljana Information S5-DEW\n[atc] S5-DEW Ljubljana Information\n[pilot] S5-DEW overhead Velike Lasce at 24, passing 4500 feet, climbing to 6500 feet, estimating ILB at 40, PE1 next\n[atc] S-EW report three minutes before PE1\n[pilot] {{0}}, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report three minutes before PE1"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-EW",
+          "synonyms": ["SEW", "Sierra Echo Whiskey", "Sierra Echo Whisky"],
+          "rule": "Callsign placement — this READS BACK or acknowledges, so the callsign goes at the end."
+        }
+      ],
+      "explanation": "**Two blanks, and you decide which one holds the callsign.** *Report three minutes before PE1* is an instruction to act later, so it takes **wilco** — or *will report three minutes before PE1*; the guide uses both. Nothing here is on the mandatory readback list. Because this transmission acknowledges what the controller said, the callsign goes **last**. Compare the pilot's position report above it: that one reads nothing back, so the callsign came **first**."
+    },
+    {
+      "num": "VRT-P2-DLG-13",
+      "prompt": "Transponder code assignment.",
+      "template": "[atc] S-AA, advise transponder capability\n[pilot] transponder Charlie, S-AA\n[atc] S-AA, squawk 6503\n[pilot] {{0}}, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "squawk 6503",
+          "synonyms": [
+            "squawk six five zero three",
+            "squawking 6503",
+            "squawking six five zero three",
+            "six five zero three"
+          ],
+          "rule": "Items to be read back — SSR code."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-AA",
+          "synonyms": ["SAA", "Sierra Alpha Alpha", "Sierra Alfa Alfa"],
+          "rule": "Callsign placement — this READS BACK or acknowledges, so the callsign goes at the end."
+        }
+      ],
+      "explanation": "**An SSR code is on the mandatory readback list, and it is there for a reason.** A mis-set transponder makes you the wrong aircraft on the controller's screen, or invisible. Read the code back digit by digit — except codes of whole thousands, which are spoken as thousands. Remember the reserved codes: **7700** emergency, **7600** radio failure, **7500** unlawful interference, and **2000** when none has been assigned. The callsign goes last because you are reading back."
+    },
+    {
+      "num": "VRT-P2-DLG-14",
+      "prompt": "Conditional line-up at Ljubljana.",
+      "template": "[atc] S5-DBS, report Seneca on final in sight\n[pilot] Seneca in sight, S5-DBS\n[atc] S5-DBS, behind the landing Seneca, line up behind\n[pilot] {{0}}, line up behind, S5-DBS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "behind the landing Seneca",
+          "synonyms": ["behind landing Seneca", "behind the land Seneca", "behind land Seneca"],
+          "rule": "Conditional clearance — the CONDITION must be repeated, not just the clearance."
+        }
+      ],
+      "explanation": "**A conditional clearance is read back with its condition, and the condition comes first.** *Behind the landing Seneca* is not scene-setting — it is what makes the line-up safe, and repeating it proves you have identified the right aircraft. That is why the controller asked you to report the Seneca in sight first: for movements affecting an active runway, a conditional clearance may only be given when both controller and pilot can see the aircraft concerned. Note the readback echoes the clearance as the controller issued it — *line up behind* — rather than transforming it into *lining up behind*."
+    },
+    {
+      "num": "VRT-P2-DLG-15",
+      "prompt": "Conditional landing clearance at Ljubljana.",
+      "template": "[atc] S-GI, report departing Cessna in sight\n[pilot] Cessna in sight, S-GI\n[atc] S-GI, after departing Cessna has passed, runway 14, cleared to land, wind calm\n[pilot] {{0}}, runway 14, cleared to land, S-GI",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "after departing Cessna has passed",
+          "synonyms": [
+            "after the departing Cessna has passed",
+            "after Cessna has passed",
+            "after the Cessna has passed"
+          ],
+          "rule": "The condition, repeated after the clearance. Variants keeping 'after ...' are accepted; dropping the condition entirely is not, since repeating it is the competency."
+        }
+      ],
+      "explanation": "**Condition, runway, clearance — and nothing else.** The controller also passed *wind calm*; the wind is information for flying the approach and is not read back. What must come back is the condition that the departing Cessna has passed, the runway, and the clearance itself. Drop the condition from your readback and you have told the controller you are cleared to land now, which is not what he said."
+    },
+    {
+      "num": "VRT-P2-DLG-16",
+      "prompt": "The pilot asks Maribor Tower for the present weather.",
+      "template": "[pilot] Maribor Tower S5-DBS, request present weather\n[atc] S5-DBS Maribor Tower, wind 120 degrees 5 knots, clouds scattered 2000 feet, temperature 5, dew point 3, QNH 1023\n[pilot] {{0}}, {{1}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "QNH 1023",
+          "synonyms": ["QNH one zero two three"],
+          "rule": "Items to be read back — altimeter setting. It is the ONLY item read back from a weather report."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S5-DBS",
+          "synonyms": ["S5DBS", "Sierra five Delta Bravo Sierra"],
+          "rule": "Callsign placement and form — a readback ends with the callsign, and it stays FULL because ATC has not abbreviated."
+        }
+      ],
+      "explanation": "**Five items of weather, one readback.** Wind, cloud, temperature and dew point are all information you use and none of them is confirmed back — only the **QNH**, because an altimeter setting you have misheard puts you at the wrong height. This is the purest form of the Part 2 selection skill: the shorter your readback, the better you have understood the rule. Note the callsign stays **full**: the tower said *S5-DBS*, so you may not shorten it."
+    },
+    {
+      "num": "VRT-P2-DLG-17",
+      "prompt": "Landing clearance with a braking-action warning.",
+      "template": "[atc] S5-DSC, runway 30 cleared to land, just landed Cessna reported braking action poor\n[pilot] runway 30 {{0}}, roger, S5-DSC",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "cleared to land",
+          "synonyms": [],
+          "rule": "Items to be read back — a landing clearance. 'runway 30' is left visible so the split is unambiguous."
+        }
+      ],
+      "explanation": "**ROGER and WILCO are not interchangeable.** *Roger* means 'I have received all of your last transmission'; *wilco* means 'I understand your message and will comply with it'. The braking-action report is information — there is nothing to comply with and nothing to read back — so it takes **roger**. The landing clearance beside it is on the mandatory list and must come back in full. Using *wilco* for information, or *roger* for a clearance, are the two classic errors here. Strictly the guide allows the callsign alone to acknowledge; *roger* makes it explicit."
+    },
+    {
+      "num": "VRT-P2-DLG-18",
+      "prompt": "On short final when the controller sends you around.",
+      "template": "[atc] S-JP, go around, vehicle on the runway\n[pilot] {{0}} around, S-JP",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "going",
+          "synonyms": ["go"],
+          "rule": "Acknowledgement by transformation — 'around' is left visible as the anchor."
+        }
+      ],
+      "explanation": "**GO AROUND becomes GOING AROUND, and it is said immediately.** Like *hold position*, this is an instruction where the controller needs to hear that you are acting, not merely listening — so it comes back in the participle. Fly the aeroplane first and transmit second. If you decide to go around yourself, the same phrase announces it: **going around**. Unless told otherwise you then continue into the traffic circuit."
+    },
+    {
+      "num": "VRT-P2-DLG-19",
+      "prompt": "A touch-and-go at Ljubljana.",
+      "template": "[pilot] S-AT, downwind, request touch-and-go\n[atc] S-AT, expect touch-and-go, report final runway 14\n[pilot] {{0}}, {{1}}\n[pilot] {{2}}, final runway 14\n[atc] S-AT, runway 14, cleared touch-and-go, wind 120 degrees 5 knots\n[pilot] {{3}}, {{4}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "will report final",
+          "synonyms": ["wilco", "will report final runway 14"],
+          "rule": "Acknowledgement — responding to 'report final'."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "S-AT",
+          "synonyms": ["SAT", "Sierra Alpha Tango", "Sierra Alfa Tango"],
+          "rule": "Callsign placement — this READS BACK or acknowledges, so the callsign goes at the end."
+        },
+        {
+          "index": 2,
+          "shape": "derivable",
+          "canonical": "S-AT",
+          "synonyms": ["SAT", "Sierra Alpha Tango", "Sierra Alfa Tango"],
+          "rule": "Callsign placement — this reports something new rather than reading anything back, so the callsign goes in front."
+        },
+        {
+          "index": 3,
+          "shape": "derivable",
+          "canonical": "runway 14 cleared touch-and-go",
+          "synonyms": [
+            "runway one four cleared touch and go",
+            "runway 14 cleared for touch and go"
+          ],
+          "rule": "Items to be read back — a runway clearance."
+        },
+        {
+          "index": 4,
+          "shape": "derivable",
+          "canonical": "S-AT",
+          "synonyms": ["SAT", "Sierra Alpha Tango", "Sierra Alfa Tango"],
+          "rule": "Callsign placement — this READS BACK or acknowledges, so the callsign goes at the end."
+        }
+      ],
+      "explanation": "**The same callsign, three times, in two different places — and the aircraft never changed.** The first and third transmissions ACKNOWLEDGE or READ BACK what the controller said, so the callsign closes them. The middle one reports something new — you are on final, and nothing is being read back — so the callsign opens it. That is the rule: **front by default, last when you read back or acknowledge**. Either *will report final* or *wilco* is correct for the first blank; the guide uses both. Note the wind is not read back, and *expect touch-and-go* is not yet a clearance — the clearance is the last transmission."
+    },
+    {
+      "num": "VRT-P2-DLG-20",
+      "prompt": "After landing at Portoroz.",
+      "template": "[atc] S-MN, vacate right, report runway vacated, continue to general aviation apron via taxiways A and T\n[pilot] {{0}}, continuing to general aviation apron via taxiways A and T, {{1}}, S-MN",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "vacating right",
+          "synonyms": ["vacate right"],
+          "rule": "Acknowledgement by transformation — the instruction comes back as the action."
+        },
+        {
+          "index": 1,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report runway vacated"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably here, so both are accepted."
+        }
+      ],
+      "explanation": "**Three instructions, three treatments, one transmission.** *Vacate right* and *continue to the apron* are things you are doing now, so they come back transformed — **vacating**, **continuing**. *Report runway vacated* is for later, so it takes **wilco**. You are still on a live runway until you report vacated, which is why that report matters and why the controller asked for it separately."
+    },
+    {
+      "num": "VRT-P2-DLG-23",
+      "prompt": "Crossing controlled airspace near Maribor, reaching the boundary point.",
+      "template": "[atc] S-AS, maintain 2500 feet, report over ME1\n[pilot] maintaining 2500 feet, wilco, S-AS\n[pilot] {{0}}, {{1}}, 2500 feet",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "S-AS",
+          "synonyms": ["SAS", "Sierra Alpha Sierra", "Sierra Alfa Sierra"],
+          "rule": "Callsign placement — this reports something new rather than reading anything back, so the callsign goes in front."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "over ME1",
+          "synonyms": ["overhead ME1", "ME1"],
+          "rule": "Position report — the reporting point the controller asked for."
+        }
+      ],
+      "explanation": "**Compare the two pilot transmissions.** The first READS BACK the level instruction and acknowledges the reporting instruction, so it ends with the callsign. The second reports a new fact — you are over ME1 — and reads nothing back, so it opens with the callsign. That is the test: not whether you are answering, but whether you are reading something back. (The guide's own transcript omits the readback line shown here; a level instruction is on the mandatory list, so it is supplied.)"
+    },
+    {
+      "num": "VRT-P2-DLG-24",
+      "prompt": "Finishing a training detail in the circuit.",
+      "template": "[pilot] S-AT, downwind, request full stop\n[atc] S-AT, report final runway 14\n[pilot] {{0}}, S-AT",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "will report final runway 14",
+          "synonyms": ["wilco", "will report final", "will report on final runway 14"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back. The guide uses 'wilco' and 'will report ...' interchangeably."
+        }
+      ],
+      "explanation": "**Three requests, three different intentions, and the controller plans the circuit around which one you use.** *Touch-and-go* means you land and take off again without stopping; *stop-and-go* means you land, come to a full stop, then depart; **full stop** means the training detail is over. Say which you want while still downwind so the sequence can be arranged — note the callsign goes **in front** there, because you are reporting your position and making a request, not reading anything back. The reply is the mirror image: *report final runway 14* is an instruction to act later, so it takes **wilco** (or *will report final runway 14*), and because that acknowledges what the controller just said, the callsign closes the message."
+    },
+    {
+      "num": "VRT-P2-DLG-25",
+      "prompt": "Departure from Ljubljana.",
+      "template": "[atc] S-AA, RWY 12, cleared for take-off, wind 140 degrees 8 knots, after departure turn right to S3, climb to 2500 feet, squawk 3363\n[pilot] RWY 12, cleared for take-off, after departure turn right to S3, climb to 2500 feet, squawk 3663, S-AA\n[atc] S-AA, negative, squawk 3363\n[pilot] {{0}}, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "squawk 3363",
+          "synonyms": ["squawk three three six three", "3363", "three three six three"],
+          "rule": "The corrected code, derivable from the controller’s correction one line above."
+        }
+      ],
+      "explanation": "**The pilot mis-read the code and the controller said *negative*.** A wrong readback is not a small thing — the whole point of reading back is to let the controller hear his own instruction come back. He corrects it with *negative* followed by the correct code, and the pilot repeats **only the item that was wrong**, not the whole clearance again. Note also what never came back at all: the **wind**. It was passed with the take-off clearance as information for flying the departure, and information is not read back."
+    },
+    {
+      "num": "VRT-P2-DLG-26",
+      "prompt": "Requesting taxi at Ljubljana.",
+      "template": "[pilot] position G9, request taxi for a VFR flight, via S3, S5-DAA\n[atc] S-AA, stand-by, traffic entering GA apron\n[pilot] {{0}}",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "S-AA",
+          "synonyms": [
+            "SAA",
+            "Sierra Alpha Alpha",
+            "Sierra Alfa Alfa",
+            "standing by S-AA",
+            "standing by SAA",
+            "S-AA standing by",
+            "SAA standing by"
+          ],
+          "rule": "Bare callsign — the whole acknowledgement of a stand-by. 'standing by' is accepted too: it is not wrong, merely longer than needed, and the explanation is where that distinction is taught. Marking it wrong would fail a student who understood the exchange."
+        }
+      ],
+      "explanation": "**A *stand-by* is acknowledged with the callsign alone.** The controller is not giving you an instruction to read back or a task to comply with; he is telling you to wait while he deals with something else. Answering with your callsign confirms you heard and that the frequency is now free for him. *Wilco* would be wrong — there is nothing to comply with — and *roger* adds nothing the callsign has not already said. Say nothing at all and he cannot know you are still listening."
+    },
+    {
+      "num": "VRT-P2-DLG-27",
+      "prompt": "Requesting taxi at Maribor for a flight to Gyor.",
+      "template": "[pilot] Maribor Approach S5-DMG, request taxi for VFR route to Gyor\n[atc] S-MG, QNH 1030, line up runway 14, squawk 7003, report ready for departure\n[pilot] QNH 1030, {{0}}, squawk 7003, ready for departure, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "lining up runway 14",
+          "synonyms": [
+            "lining up runway one four",
+            "lining up RWY 14",
+            "line up runway 14",
+            "line up runway one four",
+            "line up RWY 14"
+          ],
+          "rule": "The instruction transformed into the pilot’s own action, as the exam’s example does with [descending to 2500 feet]."
+        }
+      ],
+      "explanation": "**Four items in, four items back — and the instruction changes tense on the way.** The controller instructs *line up*; the pilot reports what he is doing about it, *lining up*, exactly as *descend to 2500 feet* comes back as *descending to 2500 feet*. The altimeter setting, the runway, the squawk and the report all belong on the readback. The callsign closes it, because this is a readback."
+    },
+    {
+      "num": "VRT-P2-DLG-28",
+      "prompt": "Crossing Papa air base en route to Gyor.",
+      "template": "[pilot] Papa Approach S5-DMG, good afternoon\n[atc] S-MG good afternoon, identified, turn 045, maintain 3000 feet\n[pilot] {{0}}, maintaining 3000 feet, S-MG\n[atc] S-MG crossing of airfield approved, maintain 3000 feet\n[pilot] {{1}}, maintaining 3000 feet, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "turning 045",
+          "synonyms": [
+            "turning zero four five",
+            "turning heading 045",
+            "turn 045",
+            "turn zero four five",
+            "turn heading 045"
+          ],
+          "rule": "Imperative to participle: turn -> turning."
+        },
+        {
+          "index": 1,
+          "shape": "derivable",
+          "canonical": "crossing approved",
+          "synonyms": [
+            "crossing of airfield approved",
+            "crossing the airfield approved",
+            "cross approved",
+            "cross of airfield approved",
+            "cross the airfield approved"
+          ],
+          "rule": "The approval echoed back in the pilot’s own words."
+        }
+      ],
+      "explanation": "**Both replies do the same thing: they turn the controller’s instruction into what the aircraft is doing.** *Turn 045* comes back as *turning 045*; an approval comes back as *crossing approved*. The level is repeated each time because it was re-stated each time — read back what you were actually given, not what you remember from earlier. *Identified* needs no reply: it is the controller telling you he has you on radar, not an instruction."
+    },
+    {
+      "num": "VRT-P2-DLG-29",
+      "prompt": "Arriving at Lido.",
+      "template": "[pilot] Lido S5-DAA, overhead PZE1, 1000 feet AGL\n[atc] S-AA, Lido, good day, runway in use 05, report right downwind, traffic is Cessna, turning base\n[pilot] runway 05, {{0}}, looking out, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "will report right downwind",
+          "synonyms": ["wilco", "will report right hand downwind", "will report downwind"],
+          "rule": "Use of wilco — an instruction to report later is acknowledged, not read back."
+        }
+      ],
+      "explanation": "**Four items came down, and each is handled differently.** The **runway in use** is on the mandatory readback list and comes back verbatim. *Report right downwind* is an instruction to act later, so it takes **wilco** — or *will report right downwind*, which the guide accepts interchangeably. The traffic information needs neither: you have not seen the Cessna yet, so the answer is **looking out**, which says you are searching but do not have it. Only once you actually see it does that become *traffic in sight* — claiming sight of an aircraft you have not found is how two aeroplanes end up in the same piece of sky. The callsign closes the message, because all of this reads back or acknowledges what the controller just said."
+    },
+    {
+      "num": "VRT-P2-DLG-30",
+      "prompt": "Landing at Lido.",
+      "template": "[atc] S-AA, RWY 05, wind 110 degrees 5 knots, land at own discretion, vacate convenient left\n[pilot] RWY 05, {{0}}, wilco, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "landing at own discretion",
+          "synonyms": [
+            "landing at my own discretion",
+            "land at own discretion",
+            "land at my own discretion"
+          ],
+          "rule": "The clearance-equivalent transformed to the pilot’s action."
+        }
+      ],
+      "explanation": "**At own discretion is not a landing clearance — it is the absence of one.** The controller is telling you no clearance will be issued and the decision to land is yours. It still comes back, because it governs whether you may put the aircraft on the runway. The *vacate convenient left* is a request to comply with, which is what the *wilco* answers. The wind, once again, stays where it was."
+    },
+    {
+      "num": "VRT-P2-DLG-31",
+      "prompt": "Approaching the Hungarian border en route to Gyor.",
+      "template": "[pilot] Maribor Approach S-MG, 3 minutes before DIMLO\n[atc] S-MG contact Budapest Info 125,50\n[pilot] {{0}}, S-MG",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "125,50",
+          "synonyms": [
+            "125.50",
+            "one two five decimal five zero",
+            "one two five comma five zero",
+            "12550"
+          ],
+          "rule": "The frequency alone — the station name is not read back."
+        }
+      ],
+      "explanation": "**A frequency change is read back as the number and nothing else.** Not *contact*, not the name of the station — the digits, then your callsign. It is the shortest readback in the book and it exists so the controller hears that you have the right frequency before you disappear off his. Get it wrong and the next station never hears from you."
+    },
+    {
+      "num": "VRT-P2-DLG-32",
+      "prompt": "Departed Maribor, en route to Gyor.",
+      "template": "[atc] S-MG cleared to destination, after departure turn left to ME2, climb to 3500 feet\n[pilot] cleared to destination, after departure left to ME2, climb to 3500 feet, S-MG\n[atc] S-MG airborne at 20, next report ME2\n[pilot] Maribor Approach S-MG, over ME2 at time 25, {{0}}, estimating DIMLO at time 42",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "maintaining 3500 feet",
+          "synonyms": [
+            "maintaining 3500",
+            "maintaining three thousand five hundred feet",
+            "maintain 3500 feet",
+            "maintain 3500",
+            "maintain three thousand five hundred feet",
+            "3500 feet",
+            "at 3500 feet",
+            "three thousand five hundred feet"
+          ],
+          "rule": "The level being flown, inside a position report. The bare level is accepted too — the lesson is the report's format, which survives either wording."
+        }
+      ],
+      "explanation": "**A position report is the pilot calling, so the callsign goes in front.** Nothing is being read back here — you are volunteering where you are, what level you are holding, and when you expect the next point. The level is the one you were cleared to climb to and have now levelled at, so *climb to* has become *maintaining*. Compare the line above it: that one closes with the callsign, because that one was a readback."
+    },
+    {
+      "num": "VRT-P2-DLG-33",
+      "prompt": "Before start-up at Maribor.",
+      "unanchored": "R7 — answered-after: 'read you 5' is a readability report, and a radio check is the only call that draws one. The visible frequency on the same line confirms it. 'request departure information' — the other pre-start call — would be answered with the departure information, not a readability figure.",
+      "template": "[pilot] Maribor Tower S5-DBS, {{0}} 119,200\n[atc] S5-DBS Maribor Tower, read you 5",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "radio check",
+          "synonyms": ["radio check on"],
+          "rule": "Standard phrase; appears nowhere on screen, so it is recalled."
+        }
+      ],
+      "explanation": "**A test transmission has a fixed shape: who you are calling, who you are, the words *radio check*, and the frequency you are using.** The reply grades you on a five-point readability scale — 1 unreadable, 2 readable now and then, 3 readable but with difficulty, 4 readable, 5 perfectly readable — so *read you 5* means you are coming through perfectly. Answering a readability report with a number of your own is the usual courtesy if he asks for one back."
+    },
+    {
+      "num": "VRT-P2-DLG-34",
+      "prompt": "Departing Novo mesto outside ATS hours.",
+      "unanchored": "R7 — blind self-announce, no controller line exists. Pinned by ELIMINATION over visible calls: the holding-short transmission is shown, so the remaining call before 'airborne' is the line-up. That second line is CONSTRUCTED — the guide's example (L1194-1196) is three calls — added on user direction so the blank is inferable rather than a coin flip between two correct real-world calls.",
+      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, taxiing to runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, holding short of runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{0}} runway 23 for departure\n[pilot] Aerodrome Novo mesto, S5-DBK, airborne, departing north",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "lining up",
+          "synonyms": ["lining-up", "line up"],
+          "rule": "Taxi, holding short and airborne are all visible; the line-up is the only call left between them."
+        }
+      ],
+      "explanation": "**Nobody is listening on the ground, so you are talking to the other aircraft.** Outside ATS hours there is no controller to clear you; you broadcast your position and intention so anyone in the circuit knows where you are. Every call carries the same four things — the aerodrome name, who you are, what you are doing, and the runway. The aerodrome name comes first because the other pilot needs to know the call is about *his* airfield before he listens to the rest."
+    },
+    {
+      "num": "VRT-P2-DLG-35",
+      "prompt": "Arriving at Novo mesto outside ATS hours.",
+      "unanchored": "R7 — blind self-announce, no controller line exists. Both blanks are pinned by visible calls: the inbound call above and 'right downwind' below fix blank 0 as the right-hand join, and with downwind AND base shown, blank 1 can only be final. The inbound and base transmissions are CONSTRUCTED — the guide's example (L1208-1210) is three calls — added on user direction; the guide itself notes pilots adapt these calls to the situation.",
+      "template": "[pilot] Aerodrome Novo mesto, S5-DBK, 5 minutes to the north, inbound for landing\n[pilot] Aerodrome Novo mesto, S5-DBK, at 2000 feet, {{0}} runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, right downwind, runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, right base, runway 23\n[pilot] Aerodrome Novo mesto, S5-DBK, {{1}} runway 23",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "joining right-hand circuit",
+          "synonyms": [
+            "joining right hand circuit",
+            "joining the right-hand circuit",
+            "join right-hand circuit",
+            "join right hand circuit",
+            "join the right-hand circuit",
+            "joining right-hand pattern",
+            "joining right hand pattern",
+            "join right-hand pattern",
+            "join right hand pattern",
+            "right-hand circuit",
+            "right hand circuit",
+            "right-hand pattern",
+            "right hand pattern"
+          ],
+          "rule": "Inbound is visible above and 'right downwind' below, so this is the join and it is right-hand."
+        },
+        {
+          "index": 1,
+          "shape": "recall",
+          "canonical": "final",
+          "synonyms": ["on final"],
+          "rule": "Downwind and base are both visible, so final is the only pattern position left."
+        }
+      ],
+      "explanation": "**The first call goes out five minutes before you arrive, not overhead.** An aircraft already in the circuit needs warning while there is still time to do something about it. The sequence then walks the pattern — joining, downwind, final — and each call repeats the runway, because a pilot joining from elsewhere may have picked a different one. These are announcements, not requests: no one is going to answer."
+    },
+    {
+      "num": "VRT-P2-DLG-36",
+      "prompt": "Requesting taxi at Lesce for work in zone Vrba.",
+      "template": "[pilot] S-JJ, request taxi for work in zone Vrba\n[atc] S-JJ, taxi to runway 14, wind 160 degrees 2 knots, report ready for departure\n[pilot] {{0}}, wilco, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "taxiing to runway 14",
+          "synonyms": [
+            "taxiing to runway one four",
+            "taxiing runway 14",
+            "taxi to runway 14",
+            "taxi to runway one four",
+            "taxi runway 14"
+          ],
+          "rule": "The instruction transformed into the pilot’s action."
+        }
+      ],
+      "explanation": "**Two items came, one comes back.** The taxi instruction is read back, transformed into what you are doing — *taxi to* becomes *taxiing to*. The report is answered by *wilco*. The wind is neither: it is information for judging the take-off and it stays on the ground."
+    },
+    {
+      "num": "VRT-P2-DLG-37",
+      "prompt": "Holding at Lesce, ready to go.",
+      "template": "[pilot] S-JJ, holding point runway 14, ready for departure\n[atc] S-JJ, runway 14 free for departure, wind 100 degrees 3 knots, report overhead Vrba\n[pilot] {{0}}, wilco, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "runway 14 free for departure",
+          "synonyms": ["runway one four free for departure", "rwy 14 free for departure"],
+          "rule": "Echoed exactly as the officer gave it."
+        }
+      ],
+      "explanation": "**Notice what he did NOT say: *cleared for take-off*.** Lesce has a flight information service officer, not a controller. He tells you the runway is *free* — a statement of fact about the runway — and the decision to roll is yours. The words matter, so they come back exactly as given. If you ever hear yourself reading back a clearance at an AFIS field, one of you has misunderstood who is responsible."
+    },
+    {
+      "num": "VRT-P2-DLG-38",
+      "prompt": "Ready to depart from Lesce for circuit training.",
+      "template": "[pilot] S5-DJJ, ready for departure, traffic patterns\n[atc] S-JJ, runway free for departure, left-hand pattern, report downwind\n[pilot] left-hand pattern, {{0}}, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "will report downwind",
+          "synonyms": ["wilco", "will report on downwind"],
+          "rule": "The requested report, promised back."
+        }
+      ],
+      "explanation": "**A request to report is answered either by promising the report or by *wilco* — the guide uses both.** Naming the report you are promising is the clearer of the two when several reports are in play, and in the circuit they will be: downwind, then final. The pattern direction comes back because it is the one thing that decides which side of the runway you fly."
+    },
+    {
+      "num": "VRT-P2-DLG-39",
+      "prompt": "Requesting a practice engine failure at Lesce.",
+      "template": "[pilot] Lesce S-JJ, left-hand traffic circuit, for engine failure imitation\n[atc] S-JJ, engine failure imitation approved, report one minute before imitation\n[pilot] {{0}}, wilco, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "engine failure imitation approved",
+          "synonyms": ["engine failure imitation is approved"],
+          "rule": "The approval echoed back."
+        }
+      ],
+      "explanation": "**An approval is read back like an instruction, because it changes what you are allowed to do.** The officer needs to hear that you understood the exercise was approved and not merely acknowledged. The one-minute warning he asks for is what *wilco* covers — and it exists so that anyone else in the circuit can be told before an aircraft starts descending with the power at idle."
+    },
+    {
+      "num": "VRT-P2-DLG-40",
+      "prompt": "A practice engine failure at Lesce, about to begin.",
+      "template": "[pilot] Lesce S-JJ, one minute before start of imitation\n[atc] S-JJ, runway 14, land at own discretion, wind 130 degrees 2 knots\n[pilot] runway 14, {{0}}, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "land at own discretion",
+          "synonyms": [
+            "landing at own discretion",
+            "landing at my own discretion",
+            "land at my own discretion"
+          ],
+          "rule": "Echoed as given; the guide uses both the plain and the -ing form, so both are accepted."
+        }
+      ],
+      "explanation": "**No clearance, no *wilco*, and no wind.** The officer cannot clear you to land, so he tells you the decision is yours — and that comes back, because it governs whether you may touch the runway. There is nothing here to comply with later, so *wilco* would be wrong. The wind stays where it belongs. The guide writes this back both as *land* and as *landing at own discretion*; both are accepted."
+    },
+    {
+      "num": "VRT-P2-DLG-41",
+      "prompt": "Arriving at Lesce from the west.",
+      "template": "[pilot] S-JJ, over W2, altitude 3000 feet, for landing\n[atc] S-JJ, join left-hand circuit, runway 14, report downwind\n[pilot] {{0}}, runway 14, will report downwind, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "join left-hand circuit",
+          "synonyms": [
+            "joining left-hand circuit",
+            "join left hand circuit",
+            "joining left hand circuit",
+            "left-hand circuit",
+            "left hand circuit",
+            "left-hand pattern",
+            "left hand pattern"
+          ],
+          "rule": "Echoed back; the guide uses both the plain and the -ing form."
+        }
+      ],
+      "explanation": "**Joining information is read back in full: how you join, and which runway.** Get either wrong and you arrive on the opposite side of the field from where everyone expects you. The officer is passing information rather than issuing an instruction, but it still comes back — the test is whether the words affect where the aircraft goes, not whether they were phrased as an order."
+    },
+    {
+      "num": "VRT-P2-DLG-42",
+      "prompt": "On final at Lesce.",
+      "template": "[pilot] S5-DJJ, final runway 14\n[atc] S-JJ, runway 14 free for landing, wind 100 degrees 2 knots\n[pilot] {{0}}, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "runway 14 free for landing",
+          "synonyms": [
+            "runway one four free for landing",
+            "rwy 14 free for landing",
+            "runway 14 free for land",
+            "runway one four free for land",
+            "rwy 14 free for land"
+          ],
+          "rule": "Echoed exactly as the officer gave it."
+        }
+      ],
+      "explanation": "***Free for landing* is not *cleared to land*.** The officer is telling you he can see nothing on the runway; whether it is safe to land remains your judgement and your responsibility. Reading it back in his words rather than yours is what keeps that boundary visible. The wind, as ever, is information."
+    },
+    {
+      "num": "VRT-P2-DLG-43",
+      "prompt": "On final at Lesce for a touch-and-go.",
+      "template": "[pilot] S-JJ, final runway 14, for touch-and-go\n[atc] S-JJ, runway 14 free for touch-and-go, wind 130 degrees 2 knots\n[pilot] {{0}}, S-JJ",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "runway 14 free for touch-and-go",
+          "synonyms": ["runway one four free for touch-and-go", "runway 14 free for touch and go"],
+          "rule": "Echoed exactly, including the manoeuvre."
+        }
+      ],
+      "explanation": "**The manoeuvre is part of what comes back.** *Free for landing* and *free for touch-and-go* are different pieces of information, and the officer has answered the specific thing you asked for. Reading back the wrong one tells him you are stopping when you intend to roll — or the reverse, which is worse for anyone waiting to line up behind you."
+    },
+    {
+      "num": "VRT-P2-DLG-44",
+      "prompt": "Departing Portoroz for Ronchi.",
+      "template": "[atc] S-BS, runway 15 cleared for take-off, wind 120 degrees 6 knots, after departure turn left, climb to 2000 feet, report PN1\n[pilot] runway 15 cleared for take-off, after departure turn left, climb to 2000 feet, {{0}}, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "wilco",
+          "synonyms": ["will report PN1", "will report over PN1"],
+          "rule": "Standard acknowledgement; the guide uses wilco and the spelled-out promise interchangeably."
+        }
+      ],
+      "explanation": "**Five items came down, four went back, and one of them was not read back at all.** The runway, the clearance, the departure turn and the climb all govern where the aircraft goes, so all four return. The request to report PN1 is a thing to do later, which is what *wilco* covers. The wind governs nothing you must confirm — it is there to help you fly the take-off."
+    },
+    {
+      "num": "VRT-P2-DLG-45",
+      "prompt": "En route from Portoroz towards VICKY.",
+      "template": "[pilot] S-BS, over PN1, 2000 feet\n[atc] S-BS, continue direct to VICKY, climb to 2500 feet\n[pilot] continue direct to VICKY, {{0}}, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "climbing to 2500 feet",
+          "synonyms": [
+            "climbing to two thousand five hundred feet",
+            "climbing 2500 feet",
+            "climb to 2500 feet",
+            "climb to two thousand five hundred feet",
+            "climb 2500 feet"
+          ],
+          "rule": "Imperative to participle, exactly as the exam example does with [descending to 2500 feet]."
+        }
+      ],
+      "explanation": "**Both halves come back, but only one changes shape.** *Continue direct to VICKY* is already a description of what you will do, so it returns unchanged; *climb to 2500 feet* becomes *climbing*, because you are reporting the action rather than repeating the order. This is the same transformation the exam's own worked example uses."
+    },
+    {
+      "num": "VRT-P2-DLG-46",
+      "prompt": "En route to Ronchi. The reply comes back broken.",
+      "template": "[pilot] Ronchi Approach, S5-BS, passing VICKY, at 2500 feet, proceeding to GRADO, Ronchi next, for touch-and-go\n[atc] S-BS, sr, sh..., fdvn\n[pilot] Ronchi Approach, S5-BS, {{0}}, unreadable",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "recall",
+          "canonical": "say again",
+          "synonyms": ["say again please"],
+          "rule": "Standard phrase; nothing on screen supplies it."
+        }
+      ],
+      "explanation": "**When you cannot make out a transmission, you say so — and you say why.** *Say again* asks for the repeat; *unreadable* tells him the reason, so he knows to change something rather than simply repeat himself at the same strength. Guessing at a garbled clearance is how pilots end up doing what they expected to be told instead of what they were told. Note the callsign is back at the FRONT: this is a new request, not a readback."
+    },
+    {
+      "num": "VRT-P2-DLG-47",
+      "prompt": "Approaching GRADO en route to Ronchi.",
+      "template": "[atc] S5-BS, Ronchi Approach, proceed to GRADO, maintain 2500 feet, QNH 1013, report GRADO\n[pilot] proceed to GRADO, maintain 2500 feet, {{0}}, wilco, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "QNH 1013",
+          "synonyms": ["QNH one zero one three"],
+          "rule": "The altimeter setting, always read back."
+        }
+      ],
+      "explanation": "**Four items, and the altimeter setting is never the one you drop.** Route, level and QNH all come back; the report is covered by *wilco*. The QNH matters more than it looks — every other aircraft in that airspace is flying its levels against the same setting, and a pilot on the wrong one is quietly at a different altitude from the one everybody believes."
+    },
+    {
+      "num": "VRT-P2-DLG-48",
+      "prompt": "Joining the circuit at Ronchi.",
+      "template": "[pilot] Ronchi Tower, S5-DBS, passing GRADO, for touch-and-go\n[atc] S-BS Ronchi Tower, join left base runway 09, report final\n[pilot] {{0}}, will report final, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "joining left base runway 09",
+          "synonyms": [
+            "join left base runway 09",
+            "joining left base runway zero nine",
+            "join left base runway zero nine",
+            "left base runway 09",
+            "left base runway zero nine"
+          ],
+          "rule": "Echoed as the pilot’s action; the guide uses both the plain and the -ing form."
+        }
+      ],
+      "explanation": "**How you join and which runway — both come back, because both decide where the aeroplane appears.** Left base is a specific arrival path; a pilot who joins right base instead arrives from the opposite side into the face of anyone on final. The promised report is spelled out here rather than answered with *wilco*; the guide uses either."
+    },
+    {
+      "num": "VRT-P2-DLG-49",
+      "prompt": "Cleared for a touch-and-go at Ronchi.",
+      "template": "[pilot] S-BS, final\n[atc] S-BS, runway 09, cleared touch-and-go, wind 070 degrees 8 knots, after touch-and-go proceed to RIFEN, climb to 2500 feet, report RIFEN\n[pilot] runway 09, cleared touch-and-go, {{0}}, climb to 2500 feet, wilco, S-BS",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "after touch-and-go proceed to RIFEN",
+          "synonyms": [
+            "after touch and go proceed to RIFEN",
+            "after the touch-and-go proceed to RIFEN"
+          ],
+          "rule": "The onward routing, read back with its condition."
+        }
+      ],
+      "explanation": "**The clearance does not end at the runway.** What follows the touch-and-go is part of the same instruction: where to go, and to what level. Read back only the touch-and-go and you have agreed to the easy half — the controller has no confirmation that you know where to point the aircraft once the wheels are up again. The wind, once more, is not read back."
+    },
+    {
+      "num": "VRT-P2-DLG-50",
+      "prompt": "Taxiing at Ljubljana for a VFR departure.",
+      "template": "[atc] S-AA, taxi to holding point F, via TWY T and A, QNH 999\n[pilot] {{0}}, via TWY T and A, QNH 999, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "taxiing to holding point F",
+          "synonyms": [
+            "taxiing to holding point Foxtrot",
+            "taxi to holding point F",
+            "taxi to holding point Foxtrot",
+            "taxiing to hold point F",
+            "taxi to hold point F",
+            "taxiing to hold point Foxtrot",
+            "taxi to hold point Foxtrot"
+          ],
+          "rule": "The instruction transformed into the pilot’s action."
+        }
+      ],
+      "explanation": "**The route matters as much as the destination.** A taxi instruction names both where you are going and the way there, and both come back — an aircraft that takes the wrong taxiway can end up nose to nose with something in a place neither of you can turn around. The QNH is set on the ground before you move, so it returns with the rest."
+    },
+    {
+      "num": "VRT-P2-DLG-51",
+      "prompt": "En route towards RIFEN, requesting a higher level.",
+      "template": "[pilot] S-AA, abeam Logatec, request 6500 feet\n[atc] S-AA, 6500 feet approved, report estimated time over RIFEN\n[pilot] {{0}}, estimating RIFEN at 15 next hour, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "climbing to 6500 feet",
+          "synonyms": [
+            "climbing to six thousand five hundred feet",
+            "climbing 6500 feet",
+            "climb to 6500 feet",
+            "climb to six thousand five hundred feet",
+            "climb 6500 feet"
+          ],
+          "rule": "The approved level, reported as the action now being flown."
+        }
+      ],
+      "explanation": "**An approval is not a report — you still have to say what you are doing about it.** *6500 feet approved* answers your earlier request; the readback says you are climbing to it. The estimate he asked for goes in the same transmission rather than waiting for a second call, because the information is useful to him now while he is still building his picture of who is where."
+    },
+    {
+      "num": "VRT-P2-DLG-52",
+      "prompt": "Crossing RIFEN inbound to Italy.",
+      "template": "[pilot] S-AA Padova, request, 3000 feet over RIFEN, report 2 minutes before\n[atc] S-AA, cross RIFEN at 3000 feet, report 2 minutes before\n[pilot] {{0}}, wilco, S-AA",
+      "blanks": [
+        {
+          "index": 0,
+          "shape": "derivable",
+          "canonical": "crossing RIFEN at 3000 feet",
+          "synonyms": [
+            "crossing RIFEN at three thousand feet",
+            "cross RIFEN at 3000 feet",
+            "cross RIFEN at three thousand feet",
+            "descending to cross RIFEN at 3000 feet",
+            "descending to cross RIFEN at three thousand feet",
+            "descend to cross RIFEN at 3000 feet",
+            "descend to cross RIFEN at three thousand feet"
+          ],
+          "rule": "The crossing condition, read back as the action being flown. Canonical stays at the crossing itself: the transcript never states the current level, so a descent is not derivable from what the student can see — the descending forms remain accepted, but revealing one as THE answer would teach a fact the dialogue does not contain."
+        }
+      ],
+      "explanation": "**A crossing level is a condition on where you may be at a particular point, so it comes back with the point attached.** *3000 feet* alone would not say where; *at RIFEN* alone would not say how high. If you know you are above 3000 feet, adding the descent (*descending to cross RIFEN at 3000 feet*) is also correct and equally standard — but it is not required, and this transcript does not tell you your current level. The two-minute call is what *wilco* promises."
+    }
+  ]
+}

@@ -49,11 +49,27 @@ export function ShortAnswerInput({
         value={display ?? ''}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            submit()
+          // Enter during an IME composition is the candidate-commit keypress, not a submit.
+          // Calling preventDefault there cancels the composition and then submits, so a
+          // Japanese/Chinese/Korean student cannot type an answer at all. `keyCode === 229` is
+          // the legacy signal for engines that omit `isComposing`. Per CLAUDE.md's sibling-audit
+          // rule, dialog-blank.tsx carries the same guard on the same key — the DialogBlank
+          // extraction moved the handler there, and dialog-line.tsx now has no keyboard code.
+          if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) {
+            return
           }
+          e.preventDefault()
+          submit()
         }}
+        // Deliberately NOT `|| submitting`, unlike ordering-input and dialog-fill-input.
+        // `submitting` is `answering` — a SESSION-WIDE in-flight counter, not per-question — and
+        // `locked` already covers this question during its own check: runAttempt's setAnswers
+        // lands before setInFlightAnswers in the same synchronous block, so `submittedText` is
+        // populated on the first render where `submitting` is true. The only state `|| submitting`
+        // could add here is "a DIFFERENT question's check is in flight", which is reachable by
+        // answering and clicking Next before the round trip returns — and this is the one control
+        // with autoFocus (see above). A disabled input makes React's mount-time .focus() a no-op
+        // and nothing refocuses when the flag clears, so the student lands on an unfocused field.
         disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"

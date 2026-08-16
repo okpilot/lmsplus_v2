@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DialogLine as DialogLineModel } from '../_utils/parse-dialog-display'
 import { DialogLine } from './dialog-line'
@@ -70,5 +70,108 @@ describe('DialogLine', () => {
     )
     expect(screen.queryByText('ATC:')).not.toBeInTheDocument()
     expect(screen.queryByText('Pilot:')).not.toBeInTheDocument()
+  })
+
+  it('calls onEnter with the blank index when Enter is pressed in that blank', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter' })
+    expect(onEnter).toHaveBeenCalledWith(0, expect.any(HTMLInputElement))
+  })
+
+  it('ignores Enter while an IME composition is still in progress', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    const notCancelled = fireEvent.keyDown(screen.getByTestId('blank-0'), {
+      key: 'Enter',
+      isComposing: true,
+    })
+    expect(onEnter).not.toHaveBeenCalled()
+    expect(notCancelled).toBe(true)
+  })
+
+  it('does not invoke the Enter action during a legacy IME composition', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter', keyCode: 229 })
+    expect(onEnter).not.toHaveBeenCalled()
+  })
+
+  it('does not call onEnter when a different key is pressed', () => {
+    const onEnter = vi.fn()
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={onEnter}
+      />,
+    )
+    fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Tab' })
+    expect(onEnter).not.toHaveBeenCalled()
+  })
+
+  it('prevents the default Enter behaviour so a surrounding form does not reload the page', () => {
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+        onEnter={vi.fn()}
+      />,
+    )
+    // fireEvent's return value is false when the event's default was prevented.
+    const notCancelled = fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter' })
+    expect(notCancelled).toBe(false)
+  })
+
+  it('does not throw when Enter is pressed and no onEnter handler is provided', () => {
+    render(
+      <DialogLine
+        line={LINE}
+        values={{}}
+        onChange={vi.fn()}
+        disabled={false}
+        results={{}}
+        locked={false}
+      />,
+    )
+    expect(() => fireEvent.keyDown(screen.getByTestId('blank-0'), { key: 'Enter' })).not.toThrow()
   })
 })

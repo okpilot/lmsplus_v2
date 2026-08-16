@@ -10,13 +10,13 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 |-----------|-------|-----------|--------|
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. |
-| Partial fix applied to sibling file group — **CATCH-ALL: the count is 5 unrelated mechanisms, not one** | 19 | 2026-08-11 | PROMOTED → CLAUDE.md:117 — **enforcement gap, not a missing rule**. No mechanical guard: deliberate, 2026-08-11 audit. Do not increment further — split A–E first. See [sibling-group audit](topics/tracker-archive.md#sibling-group-audit-2026-08-11). |
+| Partial fix applied to sibling file group — **CATCH-ALL: 5 unrelated mechanisms, not one** | 19 | 2026-08-11 | PROMOTED → CLAUDE.md:117 — enforcement gap, not missing rule; no mechanical guard (deliberate). Do not increment further — split A–E first. See [sibling-group audit](topics/tracker-archive.md#sibling-group-audit-2026-08-11). |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |
 | UI event handler missing re-entry guard (double-fire) | 2 | 2026-03-16 | RULE CANDIDATE. |
 | UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE → code-style.md §5. |
-| Error path in existing function untested (count-error branch) | 7 | 2026-06-27 | RULE CANDIDATE (7). |
+| Error path in existing function untested (count-error branch) | 8 | 2026-08-11 | RULE CANDIDATE (8). |
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE. |
 | Supabase SELECT error swallowed in auth helper (distinct from mutation) | 3 | 2026-06-04 | RULE CANDIDATE → code-style.md §5 ext. |
@@ -46,7 +46,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 4 | 2026-06-13 | RULE CANDIDATE (4). |
 | Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap | 2 | 2026-06-06 | RULE CANDIDATE. |
 | Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (3). |
-| Integration-test count in plan.md goes stale on each test-adding commit | 6 | 2026-07-02 | RULE CANDIDATE (6). |
+| Integration-test count in plan.md goes stale on each test-adding commit | 7 | 2026-08-16 | RULE CANDIDATE (7). |
 | Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (2). On 3rd: code-style.md §4. |
 | Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE. |
 | Vitest passes / tsc fails on test file (esbuild strips types, tsc strict-mode catches) | 3 | 2026-06-24 | RULE CANDIDATE (3). |
@@ -72,9 +72,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Hook wiring added without live-probe verification (hooks found dead for months) | 1 | 2026-07-11 | WATCHING (archive row 490) |
 | Pre-existing infra/tooling bug missed by N prior verifiers, caught only by impl-critic | 1 | 2026-07-11 | WATCHING (archive row 491) |
 | Semantic-reviewer FP: recalled-but-unverified runtime behavior (tests disprove) | 1 | 2026-07-11 | WATCHING (archive row 493) |
-| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep (latest definition missed) | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
+| DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
 | CR-local re-raises adjudicated skip verdicts in later rounds of the same session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| Reviewer-proposed fix introduces a new defect (reviewer fixes need same scrutiny as original code) | 3 | 2026-08-11 | RULE CANDIDATE (3) → agent-coderabbit-local.md pitfall list or agent-workflow.md § Finding Validation. |
+| Reviewer-proposed fix introduces a new defect | 4 | 2026-08-16 | RULE CANDIDATE (4; 1c86ca6c: CR min-width clamp applied without reading file's inline warning 15 lines above, collapsed dialog_fill input from 116.8→19px in shrink-to-fit context, reverted in 43c7c4d1; prior: 2×2026-08-09, 1×2026-08-11) → PROPOSE PROMOTION to agent-coderabbit-local.md (extend pitfall #7/#9 or add pitfall #10: read surrounding file context — esp. inline warnings — before applying any reviewer CSS/disposition suggestion). |
 | CR-local catches shell/hook robustness gaps TypeScript-focused agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 | Parallel implementer diverges from sibling-established extraction pattern in same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
 | Plan validated against stale master; post-rebase reveals deleted file (plan item removed) | 1 | 2026-07-12 | WATCHING (archive row 505) |
@@ -94,11 +94,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Severity-gated verification misses sub-threshold advisories (gate-clean ≠ safe to remove) | 1 | 2026-08-08 | WATCHING (archive row 516) |
 | Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 (archive row 517). |
 | Test-file split duplicates unused fixture (Biome noUnusedVariables ERROR, no --unsafe fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
-| Rule promotion commit desyncs own count-label parenthetical from its evidence list | 1 | 2026-08-08 | WATCHING (archive row 519) |
+| Claim-correction commit updates a count but leaves its supporting arithmetic stale | 3 | 2026-08-16 | RULE CANDIDATE (3; all on chore/proportionate-review-gates — different commits, same branch; await cross-branch recurrence before promoting; see archive row 519). |
 | Branch memory/run-log SHAs orphaned on each forced rebase (repair commit per cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
 | CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") — distinct from pitfall #8 | 1 | 2026-08-08 | WATCHING (archive row 521) |
 | Multi-row tracker transition leaves sibling archive row STATUS token mismatched | 1 | 2026-08-08 | WATCHING (archive row 522) |
-| Orchestrator embeds unverified schema identifier (column/RPC count) in rule/doc prose | 2 | 2026-08-10 | RULE CANDIDATE (2) → agent-doc-updater.md cite-before-writing NEVER bullet (column names). |
+| Orchestrator embeds unverified schema identifier (column/RPC count) in rule/doc prose | 2 | 2026-08-10 | RULE CANDIDATE (2) → agent-doc-updater.md cite-before-writing NEVER bullet. |
 | Playwright getByRole('dialog') on AlertDialog (renders alertdialog) → zero matches | 1 | 2026-08-09 | WATCHING (archive row 524) |
 | Integration test uses real prod code in onConflict upsert, corrupts shared seed; missing cleanupReferenceData | 1 | 2026-08-09 | WATCHING (archive row 525) |
 | check-test-title-leakage.mjs misses bare snake_case column names in test titles | 1 | 2026-08-09 | WATCHING (archive row 526) |
@@ -121,23 +121,30 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR/reviewer suggestion adopted verbatim without checking established codebase idiom (style drift, non-defective) | 1 | 2026-08-11 | WATCHING (archive row 543) |
 | Sibling-scope sweep keyed on RPC/function-name rather than code structure — misses same-structure call sites with a different RPC | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing — tsc --noEmit with positional file paths bypasses tsconfig entirely | 1 | 2026-08-11 | WATCHING (archive row 546) |
+| Proposed verification command silently verifies nothing — `tsc --noEmit` w/ positional paths bypasses tsconfig; `&& echo` masks TS5112 no-op exit 0 | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation |
+| Plan prose states unverified content-item count that diverges from actual codebase (e.g. "5 questions" when 4 affected) | 1 | 2026-08-11 | WATCHING (archive row 547) |
+| Comment/doc asserts behaviour code doesn't implement | 13 | 2026-08-16 | PROMOTED → code-style.md §10 (broadened; +2 clauses: no forward-propagation, partial-edit is the tell). |
+| Reviewer/CR finding's premise accepted w/o verification, later disproven | 3 | 2026-08-15 | PROMOTED → agent-workflow.md § Finding Validation (cheap-to-verify claim classes). |
+| Test passes for wrong reason — a second unrelated guard masks reverted/missing prod logic | 5 | 2026-08-16 | PROMOTED → code-style.md §7 (vacuity principle; proof = revert prod change, watch test fail). |
+| Broad `git add <subdir>` sweeps unrelated untracked files into a commit (new loc., apps/web stray-.git class) | 1 | 2026-08-15 | WATCHING (archive row 548). |
+| `json.dumps` round-trip reformats an entire tracked JSON file to edit one string | 1 | 2026-08-15 | WATCHING (archive row 549). |
+| Blanket find/replace during tracker state-transition corrupts unrelated rows (status-token match, not distinctive text) | 1 | 2026-08-15 | WATCHING (archive row 550). |
+| Doc-updater flags drift by comparing against superseded migration body (lacks trace-before-flagging guidance unlike semantic-reviewer/critics) | 1 | 2026-08-16 | WATCHING (archive row 551) |
+| plan.md count bumped without reconciling its own N+M parenthetical decomposition | 1 | 2026-08-16 | WATCHING (archive row 552) |
+| Mechanical guard silently not running reads identically to passing — guard scope excludes the relevant path, output is "0 files clean" either way | 1 | 2026-08-16 | WATCHING (archive row 553) |
+| Verification tool parse stops at nested brace, reporting a field absent when it exists — spurious negative indistinguishable from genuine negative | 1 | 2026-08-16 | WATCHING (archive row 554) |
+| Fix commit correcting §10 violations introduces fresh §10 violations of its own (wrong line-ref, wrong enumeration count, wrong mechanism name, wrong glob semantics) | 1 | 2026-08-16 | WATCHING (archive row 555) |
 
 ## Durable knowledge (cross-agent)
 
-- This agent does cross-agent synthesis + owns **false-positive frequency tracking** — see `topics/cross-agent-lessons.md` for the FP catalog and the full rule-promotion record.
-- A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct.
-- On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites.
-- Biggest recurring defect class: **partial fix to a sibling-file group** (tracker count 19) — grep all instances in the same file AND siblings before committing. Scope-out decisions are per-defect, not per-file.
-- **Tracker is authoritative over rule-file parenthetical counts** — parentheticals lag; read the tracker.
-- Convergent "not mechanically enforceable" verdicts from two agents = classification signal (text-only rule), not a coderabbit-sync gap.
-- code-style.md §10 now also covers **RLS POLICY** migrations, not only `CREATE OR REPLACE FUNCTION` (verified in implementation-critic/MEMORY.md 3→4, #1167; not re-counted here).
-- *(Other bullets → `topics/cross-agent-lessons.md`)*
+- Promotion threshold = **2 distinct mechanisms**, different commits (not same-file repeats). Schedule Sweep-On-Rule-Promotion on every promotion. Tracker > rule-file parenthetical counts.
+- Biggest recurring defect: **partial fix to a sibling-file group** (count 19) — grep siblings before committing.
+- FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
 
 ## Topic pointers
 
-- [cross-agent-lessons](topics/cross-agent-lessons.md) — durable rule-promotion record, false-positive catalog, recurring meta-lessons.
-- [tracker-archive](topics/tracker-archive.md) — full tracker record; original journal at git `2e87c3e6`. **Before adding a NEW row, grep this file first — if it exists, increment it and lift to live table.**
+- [cross-agent-lessons](topics/cross-agent-lessons.md) — rule-promotion record, FP catalog, meta-lessons.
+- [tracker-archive](topics/tracker-archive.md) — full tracker record. **Grep before adding a NEW row.**
 - [query-helper-throw-boundary](topics/query-helper-throw-boundary.md) — Server Actions must catch now-throwing query helpers at the client boundary.
 - [paginated-fetch-page-error-testing](topics/paginated-fetch-page-error-testing.md) — two valid test forms for caller-level page-error recovery; promoted to code-style.md §7 (PR #699).
 - [postgres-security-invoker-rls-pattern](topics/postgres-security-invoker-rls-pattern.md) — SECURITY INVOKER functions on RLS-protected tables return `error: null + data: []` on unauth calls; impl-critic FP suppression pattern.

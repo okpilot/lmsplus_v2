@@ -907,6 +907,26 @@ In app-layer integration tests, verify every negative / isolation assertion is a
 
 (Promoted count=2, cross-commit within #925 Phase 1 — PR #927 [squash `fb2921c6`]; per-mechanism breakdown in the learner `tracker-archive.md` 2026-06-20 entry. The integration-tier analog of §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous." Sweep of the #925 integration files at promotion found them clean.)
 
+### A Test Must Fail If Its Mechanism Is Removed (general, from 2026-08-15)
+
+Before trusting any assertion, ask: **if I deleted the code this test exists to protect, would it go
+red?** If not, the test documents an outcome rather than pinning a mechanism. The two sub-rules that
+follow are worked examples of this principle; it also covers cases neither of them names.
+
+The recurring shape is a SECOND guard that reaches the same result first, so the guard under test is
+never consulted (learner count=4):
+- Four digit-rule fixtures used tokens of ≤4 characters, so the unrelated *length floor* rejected
+  them — delete the digit rule and all four still passed.
+- A budget fixture used `cleared to land`; `land` is four characters, so again the length floor fired
+  before the whole-answer budget was reached.
+- A resume assertion checked an attribute driven by a prop that predates the fix, so it passed with
+  the fix reverted — the mock never declared the prop under test at all.
+- Two REVOKE tests asserted only `error != null`, which a misspelled RPC name equally satisfies.
+
+Cheapest proof, and the one to prefer over argument: **revert the production change locally and watch
+the test fail**, then restore. Where that is impractical, pick a fixture whose expected value differs
+from every value an unrelated guard could produce.
+
 ### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
 
 When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
@@ -959,11 +979,39 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-## 10. Comment Accuracy for DB/RPC Claims (write-side)
+## 10. Comment Accuracy (write-side) — DB/RPC Claims and Beyond
+
+**Scope note (broadened 2026-08-15, learner count=10).** This section was written for DB/RPC claims
+and its tracing guidance below is still specific to them. The DEFECT, however, is general: a comment
+or doc that asserts behaviour the code does not have. One branch produced the nine instances below
+on surfaces this section never named (the learner tracker stood at 10 when this was written and is
+higher now; a tracker count and an enumerated list are different things and need not match — but a
+number stated *next to* a list must match that list, which is the defect in the last item here) —
+a migration GRANT comment, a `docs/database.md` grant claim, a
+fuzzy-match threshold, a cross-function "called by" claim, a CSS credit left behind by the same
+commit's own extraction, a RAISE-site count invalidated by two added RAISEs, a rules paragraph
+miscounting the commits it was written about, an importer JSDoc promising a rollback invariant the
+code cannot honour, and a docblock citing retired validator rules. Apply the rule to any claim,
+not only to SQL.
+
+Two clauses that carry most of the weight:
+
+1. **Never propagate a claim forward from another doc — re-derive it from the code.** The sharpest
+   instance: a plan read `docs/database.md`'s "grants mirror `normalize_answer` — anon,
+   authenticated, service_role", and nearly codified it into SQL, widening a live GRANT to `anon`.
+   The doc was wrong (the real precedent is `authenticated` only) and the doc line *was itself the
+   finding being fixed*. A doc is evidence of what someone believed, never of what the code does.
+
+2. **A partial comment edit is the tell.** When a change moves code, the comment describing it moves
+   too — all of it. One commit updated the later paragraphs of a CSS comment for an extraction and
+   left the header crediting the old file; another added two RAISEs and left "14 distinct tokens
+   (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
+   block.
+
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
 
-Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the redefinition chain **for the matching signature** — not only `CREATE OR REPLACE FUNCTION`, but also `DROP FUNCTION` followed by a fresh `CREATE FUNCTION`, which is how a signature change is made and which a `CREATE OR REPLACE`-only grep silently misses (19 migrations in this repo use `DROP FUNCTION`, and `get_report_correct_options` once existed in two overloads, `(uuid[])` and `(uuid, uuid[])`, both removed by `20260316225054_drop_insecure_report_overloads.sql` while the live signature is `(uuid)` — so matching the name alone can land you on a body that is not merely older but no longer exists). Trace that chain plus the functions it calls and any RLS policy, trigger, CHECK constraint, UNIQUE or exclusion constraint (and its backing index, including partial ones), or GRANT that determines the behaviour being asserted, whenever the claim rests on those. A guard can live outside the function body, so tracing only the function chain can certify a comment that a policy or trigger contradicts. The UNIQUE/exclusion case is not hypothetical: a replay branch is only *reachable* if its backing constraint exists — see §5 "`ON CONFLICT` Requires a UNIQUE Inference Target" for which constraint class arbitrates which form. The claim about replay behaviour rests on that constraint as much as on the function body — trace `ALTER TABLE` / `CREATE [UNIQUE] INDEX` forward to HEAD, mirroring the review-side enumeration in `.claude/rules/agent-semantic-reviewer.md` (the rules file — not the agent definition at `.claude/agents/semantic-reviewer.md`, which carries only the narrower `CREATE OR REPLACE` chain). Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
+Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the redefinition chain **for the matching signature** — not only `CREATE OR REPLACE FUNCTION`, but also `DROP FUNCTION` followed by a fresh `CREATE FUNCTION`, which is how a signature change is made and which a `CREATE OR REPLACE`-only grep silently misses (19 migrations in this repo use `DROP FUNCTION`, and `get_report_correct_options` once existed in two overloads, `(uuid[])` and `(uuid, uuid[])`, both removed by `20260316225054_drop_insecure_report_overloads.sql` while the live signature is `(uuid)` — so matching the name alone can land you on a body that is not merely older but no longer exists). Trace that chain plus the functions it calls and any RLS policy, trigger, CHECK constraint, UNIQUE or exclusion constraint (and its backing index, including partial ones), or GRANT that determines the behaviour being asserted, whenever the claim rests on those. **A POLICY supersedes by two forms, and this enumeration was incomplete without both:** `DROP POLICY` + `CREATE POLICY`, and `ALTER POLICY <name> ON <table>`, which replaces `TO` / `USING` / `WITH CHECK` **in place** without recreating the policy — so a DROP/CREATE-only search reports a stale predicate as current. (Already stated in `agent-workflow.md § Delegation Protocol`; added here because §10 is what a comment-accuracy claim cites, and citing §10 for a form it did not list is itself the propagated-claim defect this section names.) A guard can live outside the function body, so tracing only the function chain can certify a comment that a policy or trigger contradicts. The UNIQUE/exclusion case is not hypothetical: a replay branch is only *reachable* if its backing constraint exists — see §5 "`ON CONFLICT` Requires a UNIQUE Inference Target" for which constraint class arbitrates which form. The claim about replay behaviour rests on that constraint as much as on the function body — trace `ALTER TABLE` / `CREATE [UNIQUE] INDEX` forward to HEAD, mirroring the review-side enumeration in `.claude/rules/agent-semantic-reviewer.md` (the rules file — not the agent definition at `.claude/agents/semantic-reviewer.md`, which carries only the narrower `CREATE OR REPLACE` chain). Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
 
 ```ts
 // ❌ WRONG — asserts the id is always this request's own row, without tracing the
@@ -988,4 +1036,4 @@ Promoted at count=3 (implementation-critic's own tracker reached this independen
 
 ---
 
-*Last updated: 2026-08-08 (added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*
+*Last updated: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)*

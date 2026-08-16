@@ -90,12 +90,14 @@ vi.mock('./dialog-fill-input', () => ({
     disabled,
     submitting,
     submitted,
+    submittedBlanks,
   }: {
     template: string
     onSubmit: (blanks: { index: number; text: string }[]) => void
     disabled: boolean
     submitting?: boolean
     submitted?: boolean
+    submittedBlanks?: { index: number; text: string }[] | null
     blanks?: { index: number; isCorrect: boolean; canonical: string }[]
   }) => (
     <div
@@ -103,6 +105,7 @@ vi.mock('./dialog-fill-input', () => ({
       data-disabled={String(disabled)}
       data-submitting={String(submitting ?? false)}
       data-submitted={String(submitted ?? false)}
+      data-submitted-blanks={JSON.stringify(submittedBlanks ?? null)}
     >
       <button
         type="button"
@@ -378,6 +381,31 @@ describe('QuizMainPanel', () => {
       expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
       expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
       expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
+    })
+
+    it('shows the transcript alone, with no scene text above it, for a dialog_fill question', () => {
+      // The exam's Part 2 task sheet shows nothing above the dialogue. `question_text` still holds
+      // the scene for the admin list, so the guard is that it does not reach the student here.
+      const s = makeState({
+        question: {
+          id: 'q-df3',
+          question_text: 'Engine start-up at Portoroz.',
+          question_image_url: null,
+          question_number: '050-01-01-003',
+          explanation_text: null,
+          explanation_image_url: null,
+          options: [],
+          question_type: 'dialog_fill',
+          dialog_template: '[atc] {{0}} runway {{1}}.',
+          blanks_safe: [{ index: 0 }, { index: 1 }],
+          ordering_items: null,
+          diagram_config: null,
+        },
+      } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.queryByTestId('question-card')).not.toBeInTheDocument()
+      expect(screen.queryByText('Engine start-up at Portoroz.')).not.toBeInTheDocument()
+      expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
     })
 
     it('shows a sortable list for an ordering question', () => {
@@ -683,7 +711,14 @@ describe('QuizMainPanel', () => {
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('dialog-fill-input')).toHaveAttribute('data-submitted', 'true')
+      const input = screen.getByTestId('dialog-fill-input')
+      expect(input).toHaveAttribute('data-submitted', 'true')
+      // data-submitted alone is driven by the `submitted` prop, which predates the resume fix —
+      // it stays true even if the answer never reaches the input. Assert the answer itself.
+      expect(input).toHaveAttribute(
+        'data-submitted-blanks',
+        JSON.stringify([{ index: 0, text: 'alpha' }]),
+      )
     })
   })
 

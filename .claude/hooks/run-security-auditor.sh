@@ -82,9 +82,22 @@ TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
 printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, end with a line starting with BLOCKED (e.g. 'BLOCKED: reason').\nIf no CRITICAL or HIGH issues, end with a line containing only: APPROVED" "$DIFF" >> "$TMPFILE"
 
-# Timeout after 120 seconds to prevent hanging
+# Timeout to prevent hanging. Raised 120s -> 300s on 2026-08-16 because 120 was too small for a
+# legitimately-sized security diff, not because anything hung.
+#
+# Measured: a push carrying three migrations (`answer_matches` + the four repointed text graders —
+# five functions, 981 added lines of SQL, a ~70KB prompt after the agent definition is prepended)
+# needs ~197s. It timed out at the 120s cap TWICE on an idle machine, and the filtered diff was only
+# 1012 lines — well under MAX_DIFF_LINES, so truncation was never the issue. The audit itself passed
+# on the merits when given room (APPROVED).
+#
+# This does NOT weaken the gate — it is still fail-closed: a timeout still blocks the push, and no
+# fallback approval exists. It makes the audit MORE likely to complete rather than less. The real
+# risk of an under-sized budget is that every multi-migration PR becomes unpushable, which is what
+# pushes people toward `--no-verify` — the one thing this hook must never make tempting.
+AUDIT_TIMEOUT_SECS=300
 if command -v timeout &>/dev/null; then
-  TIMEOUT_CMD="timeout 120"
+  TIMEOUT_CMD="timeout $AUDIT_TIMEOUT_SECS"
 else
   TIMEOUT_CMD=""
 fi
@@ -96,8 +109,9 @@ OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
   EXIT_CODE=$?
   rm -f "$TMPFILE"
   if [ "$EXIT_CODE" -eq 124 ]; then
-    echo "[security-auditor] Timed out after 120s. Running basic checks instead..."
-    # Fallback: simple grep-based checks for critical issues
+    echo "[security-auditor] Timed out after ${AUDIT_TIMEOUT_SECS}s. Push will be BLOCKED — running a diagnostic scan first..."
+    # Diagnostic scan only. It can add a block reason, never remove one: finding nothing falls
+    # through to fail_closed_no_llm_output, which exits 1 regardless. It never approves.
     ISSUES=0
 
     # Check for .env files in diff
@@ -133,8 +147,9 @@ OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     fi
     fail_closed_no_llm_output
   fi
-  echo "[security-auditor] Agent failed (exit $EXIT_CODE). Running fallback checks..."
-  # Run the same fallback grep checks as the timeout branch
+  echo "[security-auditor] Agent failed (exit $EXIT_CODE). Push will be BLOCKED — running a diagnostic scan first..."
+  # Same diagnostic scan as the timeout branch, and the same contract: it can add a block reason,
+  # never remove one. Finding nothing falls through to fail_closed_no_llm_output, which exits 1.
   ISSUES=0
   if printf '%s' "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
     echo "[CRITICAL] .env file being committed!"

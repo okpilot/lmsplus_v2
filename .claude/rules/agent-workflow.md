@@ -176,24 +176,55 @@ Implementation-critic review (always runs)
     ▼
 git commit
     │
-    ├─► code-reviewer   (sonnet)  ─┐
-    ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4
-    ├─► doc-updater      (haiku)   ─┤
-    └─► test-writer      (sonnet)  ─┘
-                                     │
-                              read ALL results
-                                     │
-                              validate findings (see below)
-                                     │
-                              fix validated issues (commit)
-                                     │
-                              ┌──────┴──────┐
-                              │   learner   │  (sonnet) — pattern detection
-                              └──────┬──────┘   (if learner promotes a rule
-                                     │          to hard status, schedule a
-                                     │          sweep per agent-learner.md
-                                     │          § Sweep On Rule Promotion)
-                                     │
+    ├─► docs-only commit? ────────────► doc-updater ONLY ──────────┐  (no learner pass)
+    │     (docs/**/*.md EXCEPT docs/security.md, root *.md         │
+    │      except CLAUDE.md,                                       │
+    │      .claude/agent-memory/**, .claude/run-log.md)            │
+    │                                                             │
+    ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)
+    │     (ALL must hold: the PARENT ran the FULL cycle and        │
+    │      claimed neither exemption — so a reduced path cannot    │
+    │      chain off another; every hunk traces to a finding from  │
+    │      its own parent's cycle; same files as the parent;       │
+    │      adds no new file; <= 20 changed lines outside tests     │
+    │      AND <= 60 inside them;                                  │
+    │      no security path, rules file, migration, CI/hook/config)│
+    │                                                             │
+    └─► otherwise — the FULL cycle:                                │
+        ├─► code-reviewer   (sonnet)  ─┐                           │
+        ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4│
+        ├─► doc-updater      (haiku)   ─┤                          │
+        └─► test-writer      (sonnet)  ─┘                          │
+                                     │                             │
+                              read ALL results                     │
+                                     │                             │
+                              validate findings (see below)        │
+                                     │                             │
+                              fix validated issues (commit)        │
+                                     │                             │
+                    ┌────────────────┴────────────────┐            │
+                    │ that fix commit RE-ENTERS at    │            │
+                    │ `git commit` above — on the     │            │
+                    │ review-follow-up path when it   │            │
+                    │ qualifies, else the FULL cycle. │            │
+                    │ Loop (bounded by the stop rule) │            │
+                    │ until no agent has an open      │            │
+                    │ finding; only THEN the learner. │            │
+                    └────────────────┬────────────────┘            │
+                                     │                             │
+                              ┌──────┴──────┐                      │
+                              │   learner   │  (sonnet) — pattern  │
+                              └──────┬──────┘   detection. FULL    │
+                                     │          cycle only — the   │
+                                     │          reduced paths skip │
+                                     │          it entirely.       │
+                                     │          (if it promotes a  │
+                                     │          rule, schedule the │
+                                     │          sweep per          │
+                                     │          agent-learner.md)  │
+                                     │◄────────────────────────────┘
+                                     │  (reduced paths rejoin HERE — after the
+                                     │   learner, not before it)
                     (if diff touches security files)
                               ┌──────┴──────┐
                               │  red-team   │  (sonnet) — map diff to specs, flag gaps
@@ -337,6 +368,11 @@ Only invoke the tool once the base is proven current. Never let it run against a
 When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Validate first:
 
 1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
+   - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
+     - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
+     - *"this file is new"* / *"+N tests"* → `git diff --stat` and `git log --diff-filter=A`. A claimed-new file with "+18 tests" was a MODIFIED file whose real delta was 8.
+     - *"function A calls B"* / *"the siblings all do X"* → grep the call sites or read `pg_proc.prosrc`. A doc claimed a function called `normalize_answer`; it never has.
+     - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
 2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
 3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
 4. **If the fix changes the plan** — Re-validate the changed parts before implementing.
@@ -508,7 +544,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch all 4 post-commit agents in parallel immediately after every commit.
+- Launch all 4 post-commit agents in parallel immediately after every commit — except under the two narrow exemptions in `CLAUDE.md § Post-commit review` (docs-only; review-follow-up). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the full four-agent cycle and claimed neither exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -520,7 +556,8 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 ### NEVER
 - Skip implementation-critic, even for small changes.
 - Allow more than 2 revision rounds between critic and implementer.
-- Skip post-commit agents. Ever. Not even for "trivial" commits.
+- Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only exemptions are the two in `CLAUDE.md § Post-commit review`, and both are defined by what was *already reviewed*, not by how small the diff is.
+- Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect; log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
@@ -672,4 +709,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-09 (added § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms. Prior: 2026-07-23 (added § Always diff against `origin/master`, never the bare local `master` — learner count=2, #1134; converted every bare-`master` diff base in this file)*
+*Last updated: 2026-08-15 (Finding Validation now names the factual-claim classes to verify directly, learner count=3; the pipeline diagram gained the two reduced-cycle branches; the review-follow-up exemption is bounded to parents that ran a FULL cycle. Prior: 2026-08-11 — DO/NEVER defer to CLAUDE.md's two post-commit exemptions and forbid chasing a reviewer to convergence on a review-follow-up commit; PR #1185. Prior: 2026-08-09 § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms.)*

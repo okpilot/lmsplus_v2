@@ -10,7 +10,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 16 | 2026-07-13 | PROMOTED → enforced: write the branch test in the SAME commit |
+| New error path / branch in a modified file left untested (modified file already has a co-located test) | 2026-03-13 | 17 | 2026-08-16 | PROMOTED → enforced: write the branch test in the SAME commit |
 | `vi.fn` two-arg generic form (removed in Vitest 4, fails `check-types`) | 2026-03-14 | 2 | 2026-03-15 | PROMOTED → use single function-type arg form (recipes: vi.fn generic) |
 | Test name contradicts its assertion postcondition | 2026-04-05 | 3 | 2026-06-06 | PROMOTED → re-read name vs assertion, fix in same commit |
 
@@ -50,6 +50,9 @@
 - **Test file splits:** moved `describe` block must carry ALL sentinel vars + cleanup guards + every branch — re-diff setup/`beforeAll`/`afterAll` against source before committing. Count=2: #698/#666, #951.
 - **`lib/queries/*.ts` JSONB branches:** co-located unit test with `makeChain(returnValue)` Proxy — integration tests always see well-formed data, so defensive guards are never exercised. Confirmed: `oral-exam-session.test.ts` (2026-07-02).
 - **Soft-delete of single-SELECT-policy tables must have an integration test:** when a Server Action soft-deletes a table that has only ONE permissive SELECT policy and that policy's USING clause requires `deleted_at IS NULL`, the RLS client cannot express the write — the post-update row is immediately invisible and Postgres rejects the statement. The unit test mocks the admin client and passes regardless. Only the app-layer integration tier catches a regression back to the RLS client. Tables with this property (commit d9abcf41): `questions` (fix: soft-delete-question.ts) and `users` (fix: toggle-student-status-mutations.ts). Integration tests: `soft-delete-question.integration.test.ts` and `toggle-student-status.integration.test.ts`.
+- **Zero-export CLI scripts (`apps/web/scripts/*.ts` with no `export` + top-level `process.exit`/env gates) are not unit-testable** — say so plainly, don't force a test. Detail: [durable-knowledge § zero-export-cli-scripts](topics/durable-knowledge.md#zero-export-cli-scripts).
+- **Isolate a new guard-path fixture from a shared deterministic random-selection pool** via `status: 'draft'` + a directly-inserted session row (bypass the start-RPC). Detail: [durable-knowledge § isolate-from-shared-pool](topics/durable-knowledge.md#isolate-from-shared-pool).
+- **Regex widening: the `\b` pin must follow each new alternative.** When a regex alternative is widened (e.g. `callsigns?` → `call[\s-]?signs?`), the trailing `\b` that prevents partial-word false positives is already present — but an existing negative test pins it only for the OLD alternative's context. A corpus gate doesn't pin it either if the near-miss words (e.g. "call signal", "reading backwards") appear only in non-guarded text fields. Add a negative `it()` for each widened alternative whose `\b` boundary is not already pinned. Confirmed: `dialog-fill-content.test.ts` (2026-08-16, commit 6137a956).
 
 ## Topics
 

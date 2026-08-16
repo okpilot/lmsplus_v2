@@ -27,7 +27,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Push with unresolved CRITICAL or HIGH findings.
 - Downgrade a finding's severity to make a push go through.
 - Dismiss a finding because "RLS will catch it" — defense in depth means every layer must be correct.
-- Let the auditor's timeout (120s) be a reason to skip — if it times out, investigate why the diff is too large.
+- Let the auditor's timeout (`AUDIT_TIMEOUT_SECS`, 300s since 2026-08-16) be a reason to skip. A timeout FAILS CLOSED — it blocks the push, and there is no fallback approval — so the only way past it is to make the audit finish, never to bypass it. **Diagnose before assuming diff size:** the 120s cap was hit twice on a 1012-line filtered diff, far under `MAX_DIFF_LINES`, so truncation was never involved — 981 added lines of grader SQL across five functions (four of them SECURITY DEFINER) simply needs ~197s to audit on the merits. Reach for splitting the push only once you have confirmed the diff is genuinely oversized; otherwise the budget is the thing that is wrong.
 - Commit `.env*` files, even if the auditor didn't catch them (pre-commit hook should block these too).
 
 ## What This Agent Checks
@@ -48,4 +48,4 @@ The auditor's enumerated checklist (`.claude/agents/security-auditor.md`) is a h
 
 ---
 
-*Last updated: 2026-07-08 (added downstream-sync note + auditor checks for docs/security.md soft-delete-in-RPC / audit-subquery / multiple-permissive / single-active / sibling-parity rules).*
+*Last updated: 2026-08-16 (timeout raised 120s → 300s via `AUDIT_TIMEOUT_SECS`; the NEVER bullet no longer presumes an oversized diff is the cause. Prior: 2026-07-08 — added downstream-sync note + auditor checks for docs/security.md soft-delete-in-RPC / audit-subquery / multiple-permissive / single-active / sibling-parity rules).*

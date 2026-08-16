@@ -460,4 +460,223 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
     expect(error).not.toBeNull()
     expect(error?.message).toContain('unsupported_question_type')
   })
+
+  // ── Typo tolerance (answer_matches, mig 158; reaches this RPC via mig 159) ──────────────────
+  // Graded through the RPC, not against answer_matches directly, because what matters is that the
+  // tolerance actually reaches the student's mark. Where a case DOES need the helper in isolation,
+  // it is called with the service-role `admin` client: mig 158 REVOKEs EXECUTE on answer_matches
+  // from PUBLIC, anon and authenticated, so `studentClient` cannot reach it.
+
+  it('accepts a short answer with two letters swapped', async () => {
+    const sessionId = await startSession([saCorrectId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: saCorrectId,
+      p_session_id: sessionId,
+      p_response_text: 'maydya mayday mayday',
+    })
+    expect(error).toBeNull()
+    expect(asResult(data).is_correct).toBe(true)
+  })
+
+  it('still rejects a short answer that is a different phrase', async () => {
+    const sessionId = await startSession([saCorrectId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: saCorrectId,
+      p_session_id: sessionId,
+      p_response_text: 'pan pan pan',
+    })
+    expect(error).toBeNull()
+    expect(asResult(data).is_correct).toBe(false)
+  })
+
+  it('accepts a misspelled dialog blank', async () => {
+    const sessionId = await startSession([dfId])
+    const { data, error } = await studentClient.rpc('check_non_mc_answer', {
+      p_question_id: dfId,
+      p_session_id: sessionId,
+      p_blank_answers: [
+        { blank_index: 0, response_text: 'cleraed' },
+        { blank_index: 1, response_text: DF_B1 },
+        { blank_index: 2, response_text: DF_B2 },
+      ],
+    })
+    expect(error).toBeNull()
+    const result = asResult(data)
+    expect(result.is_correct).toBe(true)
+    if (!Array.isArray(result.blanks)) throw new Error('blanks is not an array')
+    expect(result.blanks.find((b) => b.index === 0)?.is_correct).toBe(true)
+  })
+
+  it.each([
+    ['an altimeter setting', 'qnh 1015', 'QNH 1014'],
+    ['a runway number', 'runway 32', 'runway 33'],
+    ['a squawk code', 'squawk 6502', 'squawk 6503'],
+    // The normaliser strips the separator, so 118.5 and 1185 ARE the same answer — the digits are
+    // what must differ for this to be a real case.
+    ['a frequency', '1180', '118.5'],
+  ])('rejects a one-digit difference in %s', async (_label, response, candidate) => {
+    // NOTE: these four prove the LENGTH FLOOR, not the digit rule. Every differing token here is
+    // four characters or fewer, so `lim` is 0 and the pair is rejected before the digit check is
+    // load-bearing — delete the digit rule and all four still pass. The genuinely digit-specific
+    // case is the next test; keep both, but do not read these as covering the digit rule.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: response,
+      p_candidate: candidate,
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('rejects a one-digit difference the spelling tolerance would otherwise forgive', async () => {
+    // The only non-vacuous digit case: 125.50 normalises to the 5-character token 12550, one edit
+    // from 12551, so the length floor ADMITS it (lim = 1) and the digit rule is the sole reason it
+    // is rejected. Remove that rule and this test — alone — goes red. Real values: 125.50 vs
+    // 125.51 MHz are different frequencies.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: '12551',
+      p_candidate: '125.50',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it.each([
+    ['a reciprocal heading', 'turn northbound', 'turn southbound'],
+    ['a runway serviceability', 'runway unserviceable', 'runway serviceable'],
+    ['a speed instruction', 'increase speed', 'decrease speed'],
+  ])('rejects %s that differs only by its opposite', async (_label, response, candidate) => {
+    // Directional and negated opposites are two edits apart at eight-plus characters. The original
+    // tier allowed two edits from that length and so ACCEPTED every one of these — an inverted
+    // clearance graded correct. `runway unserviceable` vs `runway serviceable` is live ICAO
+    // phraseology, which is why the tier was narrowed to one edit rather than patched with a
+    // denylist of known pairs.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: response,
+      p_candidate: candidate,
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('still forgives the transposition that the tolerance was built for', async () => {
+    // Non-regression for the motivating case. 'airfiled'/'airfield' is Levenshtein distance 2, so
+    // narrowing the tier to one edit would have broken it — it survives via the adjacent-swap
+    // reduction, not via the edit budget. If this goes red, the swap reduction is gone.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'crossing of airfiled approved',
+      p_candidate: 'crossing of airfield approved',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(true)
+  })
+
+  it('returns false rather than raising on a token past the levenshtein limit', async () => {
+    // extensions.levenshtein RAISES above 255 characters. responseText is Zod-capped at 500, and
+    // inside submit_vfr_rt_exam_answers an unguarded raise aborts the WHOLE exam submission, not
+    // one answer. Without the guard this call errors instead of returning.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'a'.repeat(260),
+      p_candidate: 'airfield',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('matches an exact answer longer than the levenshtein limit', async () => {
+    // The length guard must not reject a CORRECT long answer: equality is settled before
+    // tokenisation, so a 359-character exact match still returns true.
+    const long = 'b'.repeat(359)
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: long,
+      p_candidate: long,
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(true)
+  })
+
+  it('refuses a direct answer_matches call from an authenticated student', async () => {
+    // mig 158 REVOKEs EXECUTE from PUBLIC, anon and authenticated. Postgres grants EXECUTE to
+    // PUBLIC by DEFAULT, so this closes rather than merely fails-to-open — and a future
+    // CREATE OR REPLACE in a fresh migration that forgets to re-REVOKE would silently reopen it.
+    // Mirrors the existing _grade_record_ordering REVOKE [authenticated, anon] pair.
+    const { error } = await studentClient.rpc('answer_matches', {
+      p_norm_response: 'cleared to land',
+      p_candidate: 'cleared to land',
+    })
+    expect(error).not.toBeNull()
+    // Assert the CODE, not merely that something failed: a misspelled RPC name or a wrong
+    // argument name also produces an error, so a bare not-null check stays green even if the
+    // REVOKE is dropped — the exact regression this test exists to catch. 42501 is
+    // permission-denied; PostgREST reports PGRST202 when the revoked function drops out of the
+    // role's schema cache.
+    expect(['42501', 'PGRST202']).toContain(error?.code)
+  })
+
+  it('refuses a direct answer_matches call from an anonymous client', async () => {
+    const anonClient = getAnonClient()
+    const { error } = await anonClient.rpc('answer_matches', {
+      p_norm_response: 'cleared to land',
+      p_candidate: 'cleared to land',
+    })
+    expect(error).not.toBeNull()
+    expect(['42501', 'PGRST202']).toContain(error?.code)
+  })
+
+  it('forgives two separately misspelled words in one phrase', async () => {
+    // Sits exactly ON the whole-answer budget: two adjacent-swap words, each costing one edit.
+    // Every word of the candidate is 5+ characters, which matters — a shorter candidate word
+    // (`land`) is rejected by the length floor before the budget is ever consulted.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'reqeust depatrure information',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(true)
+  })
+
+  it('rejects a phrase with three separately misspelled words', async () => {
+    // One past the budget. Paired with the accept case above, this is what pins `spent > 2`:
+    // no other test drives that branch, so without it the budget could be deleted and the whole
+    // suite would stay green.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'reqeust depatrure inofrmation',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('rejects an answer with a different number of words', async () => {
+    // Word-count mismatch returns early, before any per-word comparison runs.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'request departure information now',
+      p_candidate: 'request departure information',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('normalises its left argument rather than trusting the caller', async () => {
+    // answer_matches used to normalise only the right argument and assume the left was already
+    // normalised — a silent precondition that returned WRONG RESULTS, not errors, when violated.
+    // Both are normalised now, so a raw left argument grades the same as a clean one.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: '  CLEARED to Land!! ',
+      p_candidate: 'cleared to land',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(true)
+  })
+
+  it('does not forgive a swap that produces a different word', async () => {
+    // 'lift' and 'left' are one edit apart, which is why a CANDIDATE under five characters is
+    // never fuzzy-matched. Note the floor reads the candidate only: a shorter student token can
+    // still match a 5+ candidate.
+    const { data, error } = await admin.rpc('answer_matches', {
+      p_norm_response: 'turn lift',
+      p_candidate: 'turn left',
+    })
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
 })
