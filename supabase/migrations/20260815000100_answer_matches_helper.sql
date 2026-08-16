@@ -39,7 +39,16 @@
 --                                                           (bodies from mig 120)
 --   159             check_non_mc_answer                     (body from mig 20260702000400)
 --   160             submit_vfr_rt_exam_answers              (body from mig 20260623000800)
--- Bodies are otherwise verbatim from those migrations; only the comparison changed.
+-- Within THIS file the executable bodies are verbatim from mig 120; only the comparison changed.
+-- That does NOT generalise to 159 and 160: each carries FURTHER changes (159 three, 160 two), so
+-- read their own headers before re-emitting either — copying a parent and swapping the comparison
+-- silently drops the rest, which is exactly what those two headers warn against.
+-- Comments are not verbatim even here, and three diverge: both REVOKE trailers now cite
+-- docs/database.md ("Internal helpers") rather than this file's header, and
+-- _grade_record_dialog_fill's mirror-guard comment now cites _grade_record_short_answer by NAME
+-- instead of by line. The old line reference had been carried forward without re-deriving; no
+-- line number is cited here anymore, because any such number drifts with every edit made above
+-- it, including this one.
 
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch WITH SCHEMA extensions;
 
@@ -226,8 +235,8 @@ BEGIN
 
   -- Data-integrity guard mirroring the `p_canonical IS NULL` check in
   -- _grade_record_short_answer above (cited by name, not line: the earlier "line ~117" was
-  -- carried over without re-deriving and the check had moved to 154). No schema CHECK
-  -- enforces a non-null canonical per blank,
+  -- carried over without re-deriving, and any line number drifts with every edit above it).
+  -- No schema CHECK enforces a non-null canonical per blank,
   -- so a corrupt blanks_config entry would silently grade every answer wrong.
   IF v_blank_canonical IS NULL THEN
     RAISE EXCEPTION 'blank % of question % has no canonical answer',

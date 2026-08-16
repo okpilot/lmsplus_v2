@@ -175,15 +175,18 @@ reviews:
     # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened
     # 2026-08-15 from DB/RPC claims to any claim). Scoping this to **/*.ts alone would miss the
     # .tsx surfaces where the defect also lands; the .sql surface is covered in the migrations
-    # block below.
+    # block below, and the binding-doc markdown surfaces in the block immediately after this one.
     - path: "**/*.{ts,tsx}"
       instructions: |
         Comment accuracy (code-style.md §10). A comment or docblock asserting behaviour the code
         does not have is worse than no comment — it is what the next reader trusts when deciding
         whether a guard can safely be removed. Flag:
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
-          verified against the LATEST migration body (trace CREATE OR REPLACE and DROP+CREATE, plus
-          ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp prefix, to HEAD).
+          verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
+          REPLACE and DROP+CREATE, plus ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp
+          prefix, to HEAD). Matching the name alone can land on a body that no longer exists:
+          get_report_correct_options once had (uuid[]) and (uuid, uuid[]) overloads, both dropped,
+          while the live signature is (uuid).
         - When the claim rests on them, trace the functions that body CALLS, and any RLS policy,
           trigger, CHECK constraint, UNIQUE or exclusion constraint (with its backing index,
           including partial ones), or GRANT that determines the asserted behaviour. A guard can
@@ -200,6 +203,32 @@ reviews:
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
           explain. A correct total under an incomplete explanation invites the next reader to
           "correct" it back to a wrong one.
+
+    # Comment accuracy — binding docs. code-style.md §10 governs any claim, not only code
+    # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant
+    # claim, a rules paragraph miscounting the commits it described). The glob ENUMERATES the
+    # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
+    # and so would also sweep in .claude/run-log.md and .claude/agent-memory/** — write-once
+    # history and tracker rows, not claims anyone reasons from. The list mirrors the set in
+    # agent-workflow.md § Rule-Mirror Sync; READMEs stay out. Not a clean partition: docs/ also
+    # holds point-in-time eval logs (docs/manual-eval-*.md), which this sweeps in. Harmless —
+    # reviewing a stale eval log costs nothing — but it is not the pure binding-doc set.
+    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md}"
+      instructions: |
+        Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
+        so a wrong claim here propagates into code. Flag:
+        - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
+          re-derived from the LATEST migration for the matching signature. Cite the migration.
+        - A claim PROPAGATED from another doc rather than from the code. A doc is evidence of what
+          someone believed, never of what the code does — this is the sharpest instance on record
+          (a docs/database.md grant line nearly widened a live GRANT to anon).
+        - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
+          comment block, the WHOLE block must be re-read: a header left crediting the old file
+          after an extraction, or a count left stale by lines the same commit added.
+        - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
+          explain — including counts of files, rules, specs or commits described elsewhere.
+        - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
+          restatement must either carry the current mechanics or be reduced to a pointer.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"

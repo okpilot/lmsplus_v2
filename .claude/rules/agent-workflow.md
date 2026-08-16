@@ -202,6 +202,15 @@ git commit
                                      │                             │
                               fix validated issues (commit)        │
                                      │                             │
+                    ┌────────────────┴────────────────┐            │
+                    │ that fix commit RE-ENTERS at    │            │
+                    │ `git commit` above — on the     │            │
+                    │ review-follow-up path when it   │            │
+                    │ qualifies, else the FULL cycle. │            │
+                    │ Loop until no agent has an open │            │
+                    │ finding; only THEN the learner. │            │
+                    └────────────────┬────────────────┘            │
+                                     │                             │
                               ┌──────┴──────┐                      │
                               │   learner   │  (sonnet) — pattern  │
                               └──────┬──────┘   detection. FULL    │
