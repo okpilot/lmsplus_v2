@@ -269,6 +269,28 @@ describe('assertDialogFillAuthoring', () => {
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
   })
 
+  it('accepts a prompt whose scene-setting mentions call signal lights', () => {
+    // call[\s-]?signs? widens the earlier callsigns? to accept the guide's two-word spelling
+    // "call sign". Without the trailing \b the widened pattern would also match "call sign" as a
+    // prefix inside "call signal" (both word chars follow "sign" in "signal", so no boundary
+    // exists there), falsely tripping R6 on innocent scene prose. This test goes red if \b is
+    // removed from PROMPT_LEAK_RE. The corpus gate does not pin it: no shipped prompt contains
+    // "call signal" — occurrences are confined to EXPLANATION text, which R6 does not read.
+    const item = makeItem({ prompt: 'ATC uses call signal lights for runway 23.' })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
+  it('accepts a prompt whose scene-setting says the student practised reading backwards', () => {
+    // read(?:s|ing)?[\s-]?backs? widens the earlier read ?backs? to accept "reads back" and
+    // "reading back" (inflection variants the guide uses). Without the trailing \b the pattern
+    // would also match the "reading back" prefix inside "reading backwards" (both word chars
+    // follow "back" in "backwards"), falsely flagging ordinary scene prose. This test goes red if
+    // \b is removed from PROMPT_LEAK_RE. No shipped prompt contains "reading backwards", so the
+    // corpus gate does not pin this boundary either.
+    const item = makeItem({ prompt: 'The student practised reading backwards.' })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
   it('refuses a readback whose items are all blank, leaving only commas to divide them', () => {
     const item = makeItem({
       template:

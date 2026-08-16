@@ -102,3 +102,26 @@ read-only"), and the importer header was rewritten in `070dca8f` to say so expli
 **Lesson kept:** when two surfaces appear to contradict, order the COMMITS by timestamp before
 concluding which falsifies which — a same-run edit-then-verify reads exactly like a
 verify-then-invalidate in a flat file listing.
+
+---
+
+## PR-level sweep, 2026-08-16 (`chore/proportionate-review-gates`, 37 commits) — +6 comment-accuracy instances
+
+Four of the six were **created or left standing by `070dca8f`**, the commit whose entire purpose was
+correcting eight false comments. That is the durable lesson: a comment-accuracy fix is the highest-risk
+site for a new comment-accuracy defect, because the author is editing prose at speed across many files.
+
+| # | Site | Mechanism |
+|---|---|---|
+| 1 | migs 158 L42 / 159 L3 / 160 L3 | "Bodies are otherwise verbatim … only the comparison changed." `070dca8f` then added two `RAISE` guards to mig 160 and a `coalesce` to 159, and never touched the headers (its diff on mig 160 starts at L179). **Concrete harm:** migs 153/159 establish a re-emit-verbatim-from-parent idiom, so a future author trusting the header would restore from `20260623000800` + swap the comparison and silently DROP both NULL-canonical guards that security.md rule 12 parity required. |
+| 2 | `short-answer-input.tsx:56` | Credits `dialog-line.tsx` with "the same guard on the same key". `9e651aaf` moved the IME/Enter handler to `dialog-blank.tsx`; `dialog-line.tsx` at HEAD has no keyboard code at all. `dialog-blank.tsx:53` names short-answer-input correctly → one-sided stale. SECOND instance from the same extraction; `070dca8f` fixed the `globals.css` one and missed this. |
+| 3 | `normalize-answer.ts:1-6` | Header (rewritten by `070dca8f`) says the TS copy "has to agree with the database's notion of 'the same string'". Since mig 158 the DB's notion is `answer_matches` (fuzzy); R3 is exact. Underlying gate gap deferred as **#1194** — the *claim* is not covered by that deferral. |
+| 4 | `import-vfr-rt-content.ts:41-42` | `--expect-canonical="Ceiling and Visibility OK"` usage examples encode the CAVOK pre-state that lines 26-32 of the SAME docblock declare disproved by a read-only prod probe. Behaviourally harmless (`alreadyInSync` short-circuits) but it is the invocation an operator copies. |
+| 5 | `CLAUDE.md` run-log exemption | "FOUR run-log-only commits (`6aa1ebfc`,`4966d0cb`,`864936ca`,`5f207d24`)" — `33ecab8b` landed after and makes five (all verified run-log-only). **Third drift of this one literal**: three→four (impl-critic)→five (this sweep). A count that enumerates commits on its own branch is guaranteed to drift; write it as a set or omit it. |
+| 6 | `dialog-fill-content.ts:311` | R5 header: "a readback line must leave at least one CONTENT item visible". Implementation fires only at `contentBlanks.length >= 2`; 13 shipped lines have one content blank and zero visible content items. Accurate wording exists 150 lines away at :464. |
+
+**Sweep technique that worked and is worth repeating:** for a migration claiming "verbatim from mig X",
+extract both bodies and `difflib` them rather than reading either. That is what turned an unfalsifiable
+prose claim into finding #1 in one command. Enumerate the chain with a `grep -lE '(CREATE OR REPLACE|CREATE|DROP) FUNCTION[^;]*<name>'`
+over `supabase/migrations/*.sql` sorted by timestamp first — mig 153 supersedes via DROP+CREATE, so a
+`CREATE OR REPLACE`-only grep finds the wrong parent.
