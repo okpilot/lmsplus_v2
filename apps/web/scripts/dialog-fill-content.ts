@@ -362,8 +362,10 @@ function assertLineSplitLegible(
 // Dropping \b wholesale fixes that but over-widens the rest: `decide` would then also match
 // "decided", so an ordinary scene line like "the pilot decided to enter downwind" trips the guard.
 // Widen only the three terms that need it — `callsigns?`, `read ?backs?` (the plural "readbacks"
-// missed for the same reason) and `abbreviat\w*`. Verified: every known leak still caught, both
-// "decided" sentences pass, and all 50 shipped prompts are clean.
+// missed for the same reason) and `abbreviat\w*`. Verified: every known leak still caught and all
+// 50 shipped prompts are clean. Note the corpus does NOT witness the trailing \b — no shipped
+// prompt contains a decide-family word, so dropping it leaves all 50 clean too. The unit fixture
+// 'The pilot decided to enter downwind for runway 25.' is the only thing pinning it.
 const PROMPT_LEAK_RE =
   /\b(callsigns?|read ?backs?|in the order|wilco|abbreviat\w*|decide|runway in use|only the qnh)\b/i
 

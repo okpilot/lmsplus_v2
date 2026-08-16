@@ -2826,7 +2826,9 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 
 **Idempotency:** On replay (session already ended), returns previously-computed result; no writes. If the session expired (timer grace period), detects the expiry via the append-only `vfr_rt_exam.expired` audit event and re-adds `expired:true` to the JSONB return (mig 129, #839), ensuring a retry returns the same payload as the original. Also catches expiry via `complete_overdue_exam_session` / `complete_empty_exam_session` (same event_type).
 
-**Error codes:**
+**Error codes:** (the full set — 16 distinct tokens across 21 raise sites in the latest body, mig `20260815000300`)
+- `not_authenticated` — `auth.uid()` is null
+- `user_not_found_or_inactive` — caller is missing or soft-deleted
 - `session_not_found_or_not_accessible` — owner/mode/deleted check
 - `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (mig 100 guard; pre-existing doc omission fixed alongside migs 105/106)
 - `invalid_answers_payload` — payload is null, not array, or empty
@@ -2836,6 +2838,8 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 - `answer_type_mismatch` — answer entry has wrong field set for question type
 - `invalid_option_for_question` — selected_option_id not in options array
 - `invalid_blank_index` — blank_index not in blanks_config array
+- `question_not_found` — a question id frozen into the session config no longer resolves (data error)
+- `unsupported_question_type` — the question's type is outside this RPC's dispatch (data error)
 - `question_missing_correct_option` — MC question has no correct option (data error)
 - `question_missing_canonical_answer` — short_answer question has no canonical_answer (data error, mig 160). Unreachable through `questions_question_type_columns_check`, which requires it non-null; kept for parity with migs 158/159.
 - `question_blank_missing_canonical` — a dialog_fill entry in blanks_config has no `canonical` (data error, mig 160). REACHABLE: no constraint covers a per-blank canonical key.

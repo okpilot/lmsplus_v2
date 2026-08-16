@@ -804,11 +804,15 @@ async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): P
     .update(want)
     .eq('id', target.id)
     .eq('canonical_answer', target.canonical_answer)
+    // fetchSyncTarget selected with `.is('deleted_at', null)`, so re-assert it here or the same
+    // widened window lets a row soft-deleted between planning and writing be updated anyway —
+    // and with 1 row affected, nothing would throw.
+    .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(`--sync-content ${at}: ${error.message}`)
   if (data?.length !== 1) {
     throw new Error(
-      `--sync-content ${at}: expected 1 row updated, got ${data?.length ?? 0} — the write was blocked (RLS/grant, see #815), or its canonical_answer changed between planning and writing, or the row moved.`,
+      `--sync-content ${at}: expected 1 row updated, got ${data?.length ?? 0} — the write was blocked (RLS/grant, see #815), or the row was soft-deleted or its canonical_answer changed between planning and writing, or the row moved.`,
     )
   }
   return true
@@ -821,10 +825,14 @@ async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise
       `--sync-content refuses ${entry.rel}: it is ${entry.file.question_type}, and this path writes only canonical_answer / accepted_synonyms / explanation_text. A dialog_fill answer key lives in blanks_config, so syncing it here would report success and change nothing.`,
     )
   }
-  // TWO PHASES, deliberately. Resolving and CHECKING every row before writing any of them means
-  // a mismatch on question 20 cannot leave questions 1-19 already updated: there is no transaction
-  // here (each update is its own statement), so a mid-loop throw would otherwise stand as a
-  // partial write on live rows. Mirrors the up-front validation the import path already does.
+  // TWO PHASES, deliberately. Resolving and CHECKING every row before writing any of them means a
+  // PRECONDITION mismatch on question 20 cannot leave questions 1-19 already updated: there is no
+  // transaction here (each update is its own statement), so a mid-loop throw would otherwise stand
+  // as a partial write on live rows. Mirrors the up-front validation the import path already does.
+  // This does NOT extend to write-phase failures: the optimistic predicate in syncOneQuestion
+  // throws from inside the write loop, so concurrent drift detected at question 20 does leave 1-19
+  // written. That is the deliberate trade — aborting beats silently clobbering a row someone else
+  // just changed — but it is a real partial write, so do not read phase 1 as full atomicity.
   const planned: SyncPlanEntry[] = []
   for (const q of entry.file.questions) {
     const at = `${entry.rel} (${q.num})`
@@ -857,7 +865,8 @@ async function runSyncContent(
 ): Promise<void> {
   // Plan EVERY file before writing ANY of them. Per-file phasing was not enough: on a
   // multi-file invocation, file 1's UPDATEs would land before file 2's question_type refusal
-  // (line ~806, sync-path-only — the up-front SUPPORTED_TYPES check does not cover it) and its
+  // (the short_answer-only guard at the top of syncFileContent — sync-path-only, since the
+  // up-front SUPPORTED_TYPES check admits all three types) and its
   // assertSyncPreconditions ever ran, and those gates exist precisely to fire before anything is
   // written. NOT the lifecycle refusal: main() already runs assertReleasedForRemote over every
   // parsed file before any resolver, so on the --force-remote path — the only one that can write

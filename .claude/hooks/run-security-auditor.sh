@@ -147,8 +147,9 @@ OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     fi
     fail_closed_no_llm_output
   fi
-  echo "[security-auditor] Agent failed (exit $EXIT_CODE). Running fallback checks..."
-  # Run the same fallback grep checks as the timeout branch
+  echo "[security-auditor] Agent failed (exit $EXIT_CODE). Push will be BLOCKED — running a diagnostic scan first..."
+  # Same diagnostic scan as the timeout branch, and the same contract: it can add a block reason,
+  # never remove one. Finding nothing falls through to fail_closed_no_llm_output, which exits 1.
   ISSUES=0
   if printf '%s' "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
     echo "[CRITICAL] .env file being committed!"
