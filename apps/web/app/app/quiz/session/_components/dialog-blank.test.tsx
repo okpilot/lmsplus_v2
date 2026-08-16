@@ -33,14 +33,21 @@ describe('DialogBlank', () => {
     expect(screen.getByTestId('blank-0')).toBeDisabled()
   })
 
+  // Both width tests seed a canonical FAR longer than the expected width. Without one the
+  // fixture holds no answer at all, so a regression that sized the box from `result.canonical`
+  // would still pass — the assertion could not fail if its mechanism were inverted.
   it('sizes the box from what the student typed, never from the answer', () => {
-    renderBlank({ value: 'cleared to land immediately', result: undefined })
-    // 27 characters typed + 2 padding; the empty-box floor is the constant 15ch.
+    renderBlank({
+      value: 'cleared to land immediately',
+      result: { isCorrect: false, canonical: 'x'.repeat(120) },
+    })
+    // 27 characters typed + 2 padding. Sizing from the 120-char canonical would give 122ch.
     expect(screen.getByTestId('blank-0')).toHaveStyle({ '--blank-w': '29ch' })
   })
 
   it('keeps an empty box at the uniform floor width so no answer length leaks', () => {
-    renderBlank({ value: '' })
+    renderBlank({ value: '', result: { isCorrect: false, canonical: 'x'.repeat(120) } })
+    // The floor is the constant 15ch, not 122ch — this is the leak the floor exists to prevent.
     expect(screen.getByTestId('blank-0')).toHaveStyle({ '--blank-w': '15ch' })
   })
 

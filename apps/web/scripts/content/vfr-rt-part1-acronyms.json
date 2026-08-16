@@ -7,7 +7,7 @@
   "lifecycle": "released",
   "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 1 — closed 40-acronym pool)",
   "per_exam": 8,
-  "grading_notes": "Graded against canonical_answer + accepted_synonyms via answer_matches (mig 158). The grader normalizes case, punctuation and whitespace, so no case/spacing variants are listed, and since 2026-08-15 it also tolerates spelling slips: one Levenshtein edit per candidate word of 5+ characters (a single adjacent transposition counts as one), whole-answer budget two, and any token containing a digit must match exactly. The misspelling synonyms below therefore now overlap with the grader's own tolerance — they are kept because they are explicit and auditable, not because they are still required. Option B misspelling policy: explicit synonyms for the few genuinely error-prone words (aerodrome, meteorological, aeronautical, maneuvering, coordinated); everything else stays strict and the canonical is revealed in feedback. GA is General Aviation only. Two canonicals were checked against the VictorOne briefing package explicitly: CAVOK keys the briefing's (and ICAO's) 'Cloud and Visibility OK' and accepts the common 'Ceiling' mis-expansion; NOTAM is the one deliberate divergence, keying the current ICAO 'Notice to Air Missions' over the briefing's legacy 'Notice to Airmen', which is accepted.",
+  "grading_notes": "Graded against canonical_answer + accepted_synonyms via answer_matches (mig 158). The grader normalizes case, punctuation and whitespace, so no case/spacing variants are listed, and since 2026-08-15 it also tolerates spelling slips: one Levenshtein edit per candidate word of 5+ characters (a single adjacent transposition counts as one), whole-answer budget two, and any token containing a digit must match exactly. The misspelling synonyms below therefore now overlap with the grader's own tolerance — they are kept because they are explicit and auditable, not because they are still required. Option B misspelling policy: explicit synonyms for the few genuinely error-prone words (aerodrome, meteorological, aeronautical, maneuvering, coordinated); everything else stays strict and the canonical is revealed in feedback. GA is General Aviation only. Two canonicals were checked against the VictorOne briefing package explicitly: CAVOK keys the briefing's 'Cloud and Visibility OK' and accepts the equally standard 'Ceiling' expansion — both are in common use, so neither is labelled a mis-expansion; NOTAM keys ICAO/EASA's 'Notice to Airmen', which is also the briefing's term, and accepts the FAA's 'Notice to Air Missions' (an FAA-only term from 2021 until it reverted in 2025 — it was never an ICAO rename, and an earlier note here wrongly said it was).",
   "questions": [
     {
       "num": "VRT-P1-ACR-01",
@@ -83,7 +83,7 @@
         "Cloud and Visibility Okay",
         "Ceiling and Visibility Okay"
       ],
-      "explanation": "**CAVOK — Cloud and Visibility OK** is a single reported term meaning three conditions are all met: **visibility ≥ 10 km**, **no cloud below 1500 m (5000 ft)** (or the highest minimum sector altitude) and no CB/TCU, and **no significant weather**. Hearing CAVOK in a METAR or ATIS is shorthand for 'conditions comfortably within VFR limits'. You may hear it expanded as *Ceiling* and Visibility OK — that variant is accepted, but ICAO's term is *Cloud*."
+      "explanation": "**CAVOK — Cloud and Visibility OK** is a single reported term meaning three conditions are all met: **visibility ≥ 10 km**, **no cloud below 1500 m (5000 ft)** (or the highest minimum sector altitude) and no CB/TCU, and **no significant weather**. Hearing CAVOK in a METAR or ATIS is shorthand for 'conditions comfortably within VFR limits'. You may also hear it expanded as *Ceiling* and Visibility OK; both expansions are in common use and either is accepted."
     },
     {
       "num": "VRT-P1-ACR-10",
@@ -193,9 +193,9 @@
       "num": "VRT-P1-ACR-23",
       "acronym": "NOTAM",
       "prompt": "What does the acronym \"NOTAM\" stand for?",
-      "canonical": "Notice to Air Missions",
-      "synonyms": ["Notice to Airmen"],
-      "explanation": "**NOTAM — Notice to Air Missions** (formerly *Notice to Airmen*, renamed by ICAO in 2021) is a time-critical notice of any hazard or change crews must know before flight — runway closures, unserviceable navaids, temporary airspace, obstacles. It carries information too short-notice for the permanent **AIP**, so reviewing relevant NOTAMs is a required part of pre-flight preparation."
+      "canonical": "Notice to Airmen",
+      "synonyms": ["Notice to Air Missions"],
+      "explanation": "**NOTAM — Notice to Airmen** is a time-critical notice of any hazard or change crews must know before flight — runway closures, unserviceable navaids, temporary airspace, obstacles. It carries information too short-notice for the permanent **AIP**, so reviewing relevant NOTAMs is a required part of pre-flight preparation. The **FAA** — not ICAO — used *Notice to Air Missions* from 2021 until reverting to *Airmen* in 2025; ICAO and EASA kept *Airmen* throughout, so that is the term for this syllabus. The FAA variant is still accepted."
     },
     {
       "num": "VRT-P1-ACR-24",

@@ -700,6 +700,12 @@ async function fetchSyncTarget(bankId: string, questionNumber: string): Promise<
     .select('id, canonical_answer, accepted_synonyms, explanation_text')
     .eq('bank_id', bankId)
     .eq('question_number', questionNumber)
+    // syncFileContent refuses any non-short_answer FILE (see its guard), but that says nothing
+    // about the live ROW: a row of another type carrying this question_number would still match,
+    // and the UPDATE would then trip questions_question_type_columns_check mid-write-loop, after
+    // earlier rows are already committed — the exact partial write the two-phase plan prevents.
+    // Pinning the type here turns that into a clean phase-1 abort via the count check below.
+    .eq('question_type', 'short_answer')
     .is('deleted_at', null)
   if (error) throw new Error(`--sync-content lookup '${questionNumber}': ${error.message}`)
   if (!Array.isArray(data) || data.length !== 1) {
@@ -806,8 +812,8 @@ async function syncOneQuestion(target: SyncRow, want: SyncFields, at: string): P
   // below instead of silently clobbering. Never NULL here, which matters because PostgREST `.eq`
   // cannot match NULL: `--sync-content` hard-exits without a non-empty `--expect-canonical`, and
   // assertSyncPreconditions then either returned early on alreadyInSync (so it equals the non-null
-  // SyncFields value) or forced it to equal EXPECT_CANONICAL. NOT guaranteed by the question_type
-  // refusal — fetchSyncTarget matches on bank_id + question_number and never pins question_type.
+  // SyncFields value) or forced it to equal EXPECT_CANONICAL. Independent of the question_type
+  // refusal, which guards the FILE; fetchSyncTarget separately pins question_type on the ROW.
   const { data, error } = await db
     .from('questions')
     .update(want)

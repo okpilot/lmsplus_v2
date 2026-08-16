@@ -137,7 +137,7 @@ Also audit `package.json` `pnpm.overrides` after any dep bump: for each pin, che
 
 ### Workflow — hard stops
 - **NEVER** push without explicit user approval — always ask first
-- **NEVER** skip post-commit agent review — launch all 4 agents immediately after every commit
+- **NEVER** skip post-commit agent review — launch all 4 agents immediately after every commit, except under the two narrow exemptions defined in § Post-commit review (docs-only → doc-updater only; review-follow-up → semantic-reviewer only). Commit size is never a criterion; both exemptions are defined by what was *already reviewed*
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
 - **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
