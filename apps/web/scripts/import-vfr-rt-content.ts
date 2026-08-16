@@ -193,10 +193,9 @@ async function createAuthUser(email: string, password: string): Promise<string> 
   // used to lie: an undestructured `{ error }` reported a transport/permission failure as a
   // missing user, and listUsers() paginates at perPage=50 by DEFAULT — on a project with more
   // than 50 auth users the account was simply on page 2. perPage is stated explicitly so the
-  // page size is visible at the call site; 1000 is the API's documented ceiling.
-  // PAGINATE. 1000 is the API's documented ceiling per page, not a total: a project with more
-  // than 1000 auth users keeps the account on page 2, and a single-page lookup would report a
-  // user that demonstrably exists as missing. Walk until found or a short page ends the set.
+  // page size is visible at the call site. 1000 is the API's documented ceiling per page, not a
+  // total, so a single-page lookup still misses an account past row 1000: walk until found or a
+  // short page ends the set.
   const PER_PAGE = 1000
   // Bounded on purpose. An unbounded `for(;;)` exits only on "found" or a short page, so an API
   // that keeps returning full pages spins forever against the auth endpoint. A cap turns that into

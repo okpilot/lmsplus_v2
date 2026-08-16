@@ -1,8 +1,17 @@
 -- Migration 159: repoint check_non_mc_answer at answer_matches (2 of 3).
 --
--- Body is verbatim from mig 20260702000400; only the comparison changed, from exact equality on
--- normalize_answer() output to public.answer_matches() (mig 158). Rationale, measured thresholds
--- and the digits-are-never-fuzzy rule all live in 158's header — read that first.
+-- Derived from mig 20260702000400 with THREE changes. Do NOT re-emit this body by copying that
+-- migration and swapping the comparison — that drops the other two.
+--   1. The comparison moved from exact equality on normalize_answer() output to
+--      public.answer_matches() (mig 158), at all four sites (canonical + synonym, in both the
+--      short_answer and dialog_fill branches). Rationale, measured thresholds and the
+--      digits-are-never-fuzzy rule all live in 158's header — read that first.
+--   2. normalize_answer()'s OUTPUT is now coalesced to '' in both branches (§5(d) / #950),
+--      matching migs 158 and 160. The parent coalesced only the dialog_fill INPUT, which leaves
+--      the boolean NULL if normalize_answer ever returns NULL.
+--   3. The parent used DROP + CREATE FUNCTION (it changed the signature); this is a plain
+--      CREATE OR REPLACE, since the signature is unchanged. Note the parent is therefore NOT
+--      findable by grepping `CREATE OR REPLACE FUNCTION` alone.
 --
 -- Must land together with 158 and 160: applying 159 without 160 splits VFR RT practice grading
 -- (tolerant) from exam grading (exact), the inconsistency security.md rule 12 forbids.
