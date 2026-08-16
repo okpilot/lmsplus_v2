@@ -1050,18 +1050,20 @@
         {
           "index": 0,
           "shape": "derivable",
-          "canonical": "descending to cross RIFEN at 3000 feet",
+          "canonical": "crossing RIFEN at 3000 feet",
           "synonyms": [
+            "crossing RIFEN at three thousand feet",
+            "cross RIFEN at 3000 feet",
+            "cross RIFEN at three thousand feet",
+            "descending to cross RIFEN at 3000 feet",
             "descending to cross RIFEN at three thousand feet",
-            "crossing RIFEN at 3000 feet",
             "descend to cross RIFEN at 3000 feet",
-            "descend to cross RIFEN at three thousand feet",
-            "cross RIFEN at 3000 feet"
+            "descend to cross RIFEN at three thousand feet"
           ],
-          "rule": "The crossing condition, read back as the action being flown."
+          "rule": "The crossing condition, read back as the action being flown. Canonical stays at the crossing itself: the transcript never states the current level, so a descent is not derivable from what the student can see — the descending forms remain accepted, but revealing one as THE answer would teach a fact the dialogue does not contain."
         }
       ],
-      "explanation": "**A crossing level is a condition on where you may be at a particular point, so it comes back with the point attached.** *3000 feet* alone would not say where; *at RIFEN* alone would not say how high. The readback also makes the descent explicit — you are not at 3000 feet yet, you are going there in time to arrive at the boundary correctly. The two-minute call is what *wilco* promises."
+      "explanation": "**A crossing level is a condition on where you may be at a particular point, so it comes back with the point attached.** *3000 feet* alone would not say where; *at RIFEN* alone would not say how high. If you know you are above 3000 feet, adding the descent (*descending to cross RIFEN at 3000 feet*) is also correct and equally standard — but it is not required, and this transcript does not tell you your current level. The two-minute call is what *wilco* promises."
     }
   ]
 }
