@@ -46,7 +46,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 4 | 2026-06-13 | RULE CANDIDATE (4). |
 | Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap | 2 | 2026-06-06 | RULE CANDIDATE. |
 | Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (3). |
-| Integration-test count in plan.md goes stale on each test-adding commit | 6 | 2026-07-02 | RULE CANDIDATE (6). |
+| Integration-test count in plan.md goes stale on each test-adding commit | 7 | 2026-08-16 | RULE CANDIDATE (7). |
 | Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (2). On 3rd: code-style.md §4. |
 | Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE. |
 | Vitest passes / tsc fails on test file (esbuild strips types, tsc strict-mode catches) | 3 | 2026-06-24 | RULE CANDIDATE (3). |
@@ -94,7 +94,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Severity-gated verification misses sub-threshold advisories (gate-clean ≠ safe to remove) | 1 | 2026-08-08 | WATCHING (archive row 516) |
 | Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 (archive row 517). |
 | Test-file split duplicates unused fixture (Biome noUnusedVariables ERROR, no --unsafe fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
-| Rule promotion commit desyncs own count-label parenthetical from its evidence list | 1 | 2026-08-08 | WATCHING (archive row 519) |
+| Claim-correction commit updates a count but leaves its supporting arithmetic stale | 3 | 2026-08-16 | RULE CANDIDATE (3; all on chore/proportionate-review-gates — different commits, same branch; await cross-branch recurrence before promoting; see archive row 519). |
 | Branch memory/run-log SHAs orphaned on each forced rebase (repair commit per cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
 | CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") — distinct from pitfall #8 | 1 | 2026-08-08 | WATCHING (archive row 521) |
 | Multi-row tracker transition leaves sibling archive row STATUS token mismatched | 1 | 2026-08-08 | WATCHING (archive row 522) |
@@ -123,12 +123,16 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
 | Proposed verification command silently verifies nothing — `tsc --noEmit` w/ positional paths bypasses tsconfig; `&& echo` masks TS5112 no-op exit 0 | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation |
 | Plan prose states unverified content-item count that diverges from actual codebase (e.g. "5 questions" when 4 affected) | 1 | 2026-08-11 | WATCHING (archive row 547) |
-| Comment/doc asserts behaviour code doesn't implement (10 surfaces) | 10 | 2026-08-15 | PROMOTED → code-style.md §10 (broadened; +2 clauses: no forward-propagation, partial-edit is the tell). |
+| Comment/doc asserts behaviour code doesn't implement | 13 | 2026-08-16 | PROMOTED → code-style.md §10 (broadened; +2 clauses: no forward-propagation, partial-edit is the tell). |
 | Reviewer/CR finding's premise accepted w/o verification, later disproven | 3 | 2026-08-15 | PROMOTED → agent-workflow.md § Finding Validation (cheap-to-verify claim classes). |
-| Test passes for wrong reason — a second unrelated guard masks reverted/missing prod logic | 4 | 2026-08-15 | PROMOTED → code-style.md §7 (vacuity principle; proof = revert prod change, watch test fail). |
+| Test passes for wrong reason — a second unrelated guard masks reverted/missing prod logic | 5 | 2026-08-16 | PROMOTED → code-style.md §7 (vacuity principle; proof = revert prod change, watch test fail). |
 | Broad `git add <subdir>` sweeps unrelated untracked files into a commit (new loc., apps/web stray-.git class) | 1 | 2026-08-15 | WATCHING (archive row 548). |
 | `json.dumps` round-trip reformats an entire tracked JSON file to edit one string | 1 | 2026-08-15 | WATCHING (archive row 549). |
 | Blanket find/replace during tracker state-transition corrupts unrelated rows (status-token match, not distinctive text) | 1 | 2026-08-15 | WATCHING (archive row 550). |
+| Doc-updater flags drift by comparing against superseded migration body (lacks trace-before-flagging guidance unlike semantic-reviewer/critics) | 1 | 2026-08-16 | WATCHING (archive row 551) |
+| plan.md count bumped without reconciling its own N+M parenthetical decomposition | 1 | 2026-08-16 | WATCHING (archive row 552) |
+| Mechanical guard silently not running reads identically to passing — guard scope excludes the relevant path, output is "0 files clean" either way | 1 | 2026-08-16 | WATCHING (archive row 553) |
+| Verification tool parse stops at nested brace, reporting a field absent when it exists — spurious negative indistinguishable from genuine negative | 1 | 2026-08-16 | WATCHING (archive row 554) |
 
 ## Durable knowledge (cross-agent)
 
