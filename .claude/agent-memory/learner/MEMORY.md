@@ -74,7 +74,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Semantic-reviewer FP: recalled-but-unverified runtime behavior (tests disprove) | 1 | 2026-07-11 | WATCHING (archive row 493) |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
 | CR-local re-raises adjudicated skip verdicts in later rounds of the same session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| Reviewer-proposed fix introduces a new defect | 3 | 2026-08-11 | RULE CANDIDATE (3) → agent-coderabbit-local.md pitfall list or agent-workflow.md § Finding Validation. |
+| Reviewer-proposed fix introduces a new defect | 4 | 2026-08-16 | RULE CANDIDATE (4; 1c86ca6c: CR min-width clamp applied without reading file's inline warning 15 lines above, collapsed dialog_fill input from 116.8→19px in shrink-to-fit context, reverted in 43c7c4d1; prior: 2×2026-08-09, 1×2026-08-11) → PROPOSE PROMOTION to agent-coderabbit-local.md (extend pitfall #7/#9 or add pitfall #10: read surrounding file context — esp. inline warnings — before applying any reviewer CSS/disposition suggestion). |
 | CR-local catches shell/hook robustness gaps TypeScript-focused agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 | Parallel implementer diverges from sibling-established extraction pattern in same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
 | Plan validated against stale master; post-rebase reveals deleted file (plan item removed) | 1 | 2026-07-12 | WATCHING (archive row 505) |
@@ -133,6 +133,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M parenthetical decomposition | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically to passing — guard scope excludes the relevant path, output is "0 files clean" either way | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting a field absent when it exists — spurious negative indistinguishable from genuine negative | 1 | 2026-08-16 | WATCHING (archive row 554) |
+| Fix commit correcting §10 violations introduces fresh §10 violations of its own (wrong line-ref, wrong enumeration count, wrong mechanism name, wrong glob semantics) | 1 | 2026-08-16 | WATCHING (archive row 555) |
 
 ## Durable knowledge (cross-agent)
 
