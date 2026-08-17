@@ -186,6 +186,21 @@ describe('buildDiscardHandler', () => {
     expect(setError).toHaveBeenCalledWith('Session not found')
   })
 
+  // Sibling of the test above, pinning the other half of "regardless of outcome": the clear
+  // must precede the Server Action, not merely be unconditional after it. Moved below
+  // `await discardQuiz(...)` it still runs on both resolved outcomes — so the success and
+  // resolved-failure tests stay green — but is skipped entirely on a throw. This is the only
+  // test that fails on that move.
+  it('honours the discard even when the request throws', async () => {
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-001'))
+    mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
+
+    await buildDiscardHandler(makeDeps())()
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(setError).toHaveBeenCalledWith('Server unavailable. Please try again later.')
+  })
+
   // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
   // an exam localStorage has already moved past — wiping a newer graded attempt's answers.
   // Fails if the id guard is removed.

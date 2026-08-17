@@ -54,7 +54,7 @@ describe('ActivePracticeBanner — rendering', () => {
     expect(screen.getByText(/air law/i)).toBeInTheDocument()
   })
 
-  it('names the Smart Review mode for a smart_review session', () => {
+  it('names the Smart Review mode in the notice', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SMART_REVIEW_SESSION} />)
     expect(screen.getByText(/^unfinished smart review session$/i)).toBeInTheDocument()
   })

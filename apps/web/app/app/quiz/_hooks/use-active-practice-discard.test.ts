@@ -135,6 +135,23 @@ describe('useActivePracticeDiscard', () => {
     expect(result.current.error).toBe('Session not found')
   })
 
+  // Sibling of the test above, pinning the other half of "regardless of outcome": the clear
+  // must precede the Server Action, not merely be unconditional after it. Moved below
+  // `await discardQuiz(...)` it still runs on both resolved outcomes — so the success and
+  // resolved-failure tests stay green — but is skipped entirely on a throw. This is the only
+  // test that fails on that move.
+  it('honours the discard even when the request throws', async () => {
+    mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(result.current.error).toMatch(/server unavailable/i)
+  })
+
   // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
   // a session that localStorage has already moved past. Fails if the id guard is removed.
   it('preserves a newer session when a stale banner discards an older one', async () => {
