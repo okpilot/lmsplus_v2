@@ -62,6 +62,7 @@ import {
   type DialogFillItem,
   toStoredBlanks,
 } from './dialog-fill-content'
+import { type AuthoredMcQuestion, assertMcItem, assertMcKeyBalance } from './mc-content'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -362,9 +363,6 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
 
 // ---- content validation --------------------------------------------------------
 
-// questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
-const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
-
 // The types buildRow has a branch for. Widen both together when adding ordering / diagram_label —
 // the DB accepts all five (questions_question_type_check).
 const SUPPORTED_TYPES = ['short_answer', 'multiple_choice', 'dialog_fill']
@@ -386,33 +384,16 @@ function validateShortAnswerItem(sa: ShortAnswerItem, at: string): void {
   }
 }
 
-function validateMcItem(mc: McItem, at: string): void {
-  if (!Array.isArray(mc.options) || mc.options.length === 0) {
-    throw new Error(`${at} (${mc.num}): 'options' must be a non-empty array`)
-  }
-  // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
-  // names an option that actually exists, and trg_sanitize_question_options rewrites each
-  // element to {id,text}, silently emitting nulls for a malformed one. Both would import
-  // clean and render un-answerable, so check the mapping here.
-  if (!MC_OPTION_IDS.includes(mc.correct)) {
-    throw new Error(
-      `${at} (${mc.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
-    )
-  }
-  const optionIds = new Set<string>()
-  for (const [j, opt] of mc.options.entries()) {
-    requireText(opt?.id, `${at} (${mc.num}): options[${j}].id`)
-    requireText(opt?.text, `${at} (${mc.num}): options[${j}].text`)
-    // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
-    if (optionIds.has(opt.id)) {
-      throw new Error(`${at} (${mc.num}): duplicate option id '${opt.id}'`)
-    }
-    optionIds.add(opt.id)
-  }
-  if (!mc.options.some((o) => o.id === mc.correct)) {
-    throw new Error(`${at} (${mc.num}): 'correct' is '${mc.correct}' but no option carries that id`)
-  }
-}
+// MC validation lives in ./mc-content, the same way dialog_fill's validators live in
+// ./dialog-fill-content. BOTH of its gates run here — `assertMcItem` per question in the loop
+// below, `assertMcKeyBalance` once per file after it — so the rules the authoring suite
+// enforces and the rules the importer enforces cannot drift apart.
+//
+// It is strictly stricter than the checks it replaced: a question needs at least 2 options,
+// option ids must be a LEADING RUN of a..d (a gap leaves the third button labelled "C" while
+// its stored id is 'd', since the runner labels from the array index — so any surface showing
+// `correct_option_id` as a letter contradicts the screen), and two options may not share text
+// after case folding.
 
 // ---- row building ------------------------------------------------------------
 
@@ -1073,7 +1054,7 @@ async function main(): Promise<void> {
           validateShortAnswerItem(q as ShortAnswerItem, at)
           break
         case 'multiple_choice':
-          validateMcItem(q as McItem, at)
+          assertMcItem(q, `${at} (${q.num})`)
           break
         case 'dialog_fill': {
           const label = `${at} (${q.num})`
@@ -1086,6 +1067,14 @@ async function main(): Promise<void> {
             `${at}: no per-item validator for question_type ${JSON.stringify(file.question_type)} — add one alongside the buildRow branch`,
           )
       }
+    }
+    // Corpus-level gate, AFTER the per-item loop has validated every question in this file —
+    // which is what makes the cast honest. Scoped per file because a "pool" is one content
+    // file: two MC files are two independent question sets, and merging their keys could hide
+    // a skew in either. Runs at import, not only in the suite, so a new MC content file cannot
+    // ship a guessable key merely by arriving without a test.
+    if (file.question_type === 'multiple_choice') {
+      assertMcKeyBalance(file.questions as AuthoredMcQuestion[], rel)
     }
   }
 

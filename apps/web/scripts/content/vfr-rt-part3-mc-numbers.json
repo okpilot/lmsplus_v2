@@ -1,0 +1,231 @@
+{
+  "part": 3,
+  "title": "Transmission of Numbers — multiple choice",
+  "topic_code": "P3_MC",
+  "subject_code": "RT",
+  "question_type": "multiple_choice",
+  "per_exam": 8,
+  "lifecycle": "pilot",
+  "status": "18 questions covering the whole of the guide's 'Transmission of numbers', 'Pronunciation of numbers', 'VHF frequencies' and 'Transmission of time' subsections (printed pp. 4-6). Covers Part 3 competency 1 only — the briefing's other three Part 3 competencies (MAYDAY/PAN PAN sequencing, position-report sequencing, traffic-pattern parts) are drag-and-drop and live in the ordering and diagram_label content files.",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 3 — competency 1, 'Correct transmission of numbers (headings, altitudes, frequencies, QNH, squawk codes)'). Every rule and every worked example is taken from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc), section 2 'General', subsections 'Transmission of numbers' (printed p. 4), 'Pronunciation of numbers' (Table 3, printed p. 5), 'VHF frequencies' (printed p. 6) and 'Transmission of time' (printed p. 6); the transponder emergency codes cited in one explanation are from section 4 (printed p. 16). Printed page = PDF page - 2. The briefing itself gives no worked example for Part 3, so question style is not modelled on it.",
+  "authoring_notes": "R1 EVERY question is answerable from the guide's numbers subsections alone. No ICAO doc, no outside aviation knowledge, no rule the guide does not state. The guide is the only thing the student is told to prepare from.\n\nR2 EVERY correct answer is either a worked example printed in the guide or a direct application of a rule sentence quoted in that question's explanation. Where the guide prints the exact example (Adria 14, RWY 30, Heading 101, FL 100, QNH 1010, SQUAWK 6503, altitude 2 300 feet, cloud height 2 600 feet, visibility 800 meters, 118,0 / 128.880 / 128.175, 07 08 / 14 25) the question uses it verbatim rather than a lookalike, so the answer is checkable against the page.\n\nR3 DISTRACTORS ARE THE REAL ERROR, not noise. Each wrong option is a mistake a Slovene PPL student actually makes: applying the plain-English form ('runway thirty'), applying the digit rule where an exception governs ('flight level one zero zero'), applying an exception where the digit rule governs ('QNH one thousand ten'), or dropping the DECIMAL word. A distractor that no one would pick teaches nothing and inflates the score.\n\nR4 EXACTLY ONE option is correct under the guide's rules. Where two forms are both legal the question says which one it wants, or the near-miss is moved to the stem. Time is the trap here: 'zero eight' and 'zero seven zero eight' are BOTH correct per the guide, so the two time questions pin the condition (hour clear vs. possibility of confusion) in the stem.\n\nR5 NO PRONUNCIATION-RESPELLING QUESTIONS. Table 3's pronunciation column is a Slovene-speaker respelling ('NAJN-r', 'FAJF', 'ZI-RO'), not the ICAO English one. Asking 'how is 9 pronounced' has source answer NAJN-r, which is untestable in a written multiple-choice item and would teach the respelling as if it were spelling. Table 3 is therefore used only for WHICH WORD is spoken (DECIMAL, HUNDRED, THOUSAND), never for how it sounds.\n\nR6 THE KEY CARRIES NO POSITIONAL SIGNAL. The correct id is spread deliberately across all four positions (a x4, b x5, c x5, d x4) in a non-repeating sequence, so no positional habit beats the content — an enforced rule, not just an intention: assertMcKeyBalance in scripts/mc-content.ts rejects any pool where one id holds more than 1.6x the even share, and it runs in the importer as well as the suite.\n\nCasing is uniform WITHIN each item rather than globally lower-cased: the guide prints some spoken forms in capitals ('TEN O'CLOCK', 'ONE THOUSAND'), and reproducing that in one option but not its siblings would mark the answer, so no item capitalizes a spoken form in one option only. Across items, established written forms keep their normal casing (QNH, SQUAWK, Adria).\n\nLENGTH IS NOT CONTROLLED, and this is the pool's one residual signal — stated honestly rather than claimed away. Measured over the 18: the correct option is strictly the shortest in 5 and strictly the longest in 1. Always picking the shortest option therefore scores 5/18 (28%) against a 25% chance baseline and a 75% pass mark, and in 3 of those 5 the margin is a single character, so it is not a usable strategy. Do not 'fix' this by padding correct answers — the spoken forms are fixed by the guide and must not be reworded to game a statistic.\n\nR7 EXPLANATIONS QUOTE THE GOVERNING SENTENCE. Every explanation opens with the rule in the guide's own words, then says why each tempting wrong form is wrong. The canonical answer is revealed on feedback, so the explanation is the teaching surface. Where an explanation adds context the guide does not state (e.g. that a flight level carries no unit), it is phrased as background, never as a quotation.",
+  "grading_notes": "Standard multiple_choice: one stored correct_option_id, graded by exact option match — no text normalization is involved, so none of the Part 1/Part 2 synonym or typo-tolerance machinery applies here. Options are stored as {id,text} and sanitized by trg_sanitize_question_options on write.",
+  "questions": [
+    {
+      "num": "VRT-P3-MC-01",
+      "prompt": "How is the callsign \"Adria 14\" transmitted?",
+      "options": [
+        { "id": "a", "text": "Adria fourteen" },
+        { "id": "b", "text": "Adria one four" },
+        { "id": "c", "text": "Adria one thousand four" },
+        { "id": "d", "text": "Adria ten four" }
+      ],
+      "correct": "b",
+      "explanation": "**\"All numbers used in the transmission of aircraft call signs, headings, runway, wind direction and speed shall be transmitted by pronouncing each digit separately.\"** So 14 is spoken *one four*, and the guide prints exactly this example: `Adria 14 → Adria one four`.\n\n*Adria fourteen* is the everyday English form and the most common habit to break — the whole point of digit-by-digit transmission is that *fourteen* and *forty* are easy to confuse on a noisy frequency, while *one four* and *four zero* are not."
+    },
+    {
+      "num": "VRT-P3-MC-02",
+      "prompt": "How is \"RWY 30\" transmitted?",
+      "options": [
+        { "id": "a", "text": "runway thirty" },
+        { "id": "b", "text": "runway three hundred" },
+        { "id": "c", "text": "runway three thousand" },
+        { "id": "d", "text": "runway three zero" }
+      ],
+      "correct": "d",
+      "explanation": "**Runway numbers are in the digit-by-digit group** — call signs, headings, runway, wind direction and speed are all \"transmitted by pronouncing each digit separately\". The guide prints `RWY 30 → runway three zero`.\n\n*Runway three hundred* and *runway three thousand* misapply the hundreds/thousands rule, which exists for altitude, cloud height, visibility and RVR — not for runway designators. A runway designator is a magnetic heading in tens of degrees, not a quantity, so it is never grouped."
+    },
+    {
+      "num": "VRT-P3-MC-03",
+      "prompt": "How is \"Heading 101\" transmitted?",
+      "options": [
+        { "id": "a", "text": "heading one zero one" },
+        { "id": "b", "text": "heading ten one" },
+        { "id": "c", "text": "heading one hundred and one" },
+        { "id": "d", "text": "heading one hundred one" }
+      ],
+      "correct": "a",
+      "explanation": "**Headings are in the digit-by-digit group**, so each digit is spoken on its own: *one zero one*. The guide prints `Heading 101 → heading one zero one`.\n\nNote what this means for a heading that ends in zeros: 100 is *one zero zero*, not *one hundred*. The HUNDRED and THOUSAND words belong to the quantity rule (altitude, cloud height, visibility, RVR) and to the flight-level exception — a heading gets neither."
+    },
+    {
+      "num": "VRT-P3-MC-04",
+      "prompt": "How is flight level 100 transmitted?",
+      "options": [
+        { "id": "a", "text": "flight level one zero zero feet" },
+        { "id": "b", "text": "flight level ten thousand" },
+        { "id": "c", "text": "flight level one hundred" },
+        { "id": "d", "text": "flight level one zero zero" }
+      ],
+      "correct": "c",
+      "explanation": "**\"Flight levels shall be transmitted by pronouncing each digit separately, except for the case of flight levels in whole hundreds.\"** FL 100 is a whole hundred, so the exception governs and it is spoken *flight level one hundred* — printed as a worked example in the guide.\n\n*Flight level one zero zero* is the digit form, correct for any flight level that is **not** a whole hundred (FL 085 is *flight level zero eight five*). *Flight level ten thousand* confuses a flight level with an altitude in feet. A flight level is a level referenced to the standard pressure setting rather than to QNH, and it carries no unit — so *feet* never follows it."
+    },
+    {
+      "num": "VRT-P3-MC-05",
+      "prompt": "How is flight level 085 transmitted?",
+      "options": [
+        { "id": "a", "text": "flight level eighty five" },
+        { "id": "b", "text": "flight level eight thousand five hundred" },
+        { "id": "c", "text": "flight level zero eighty five" },
+        { "id": "d", "text": "flight level zero eight five" }
+      ],
+      "correct": "d",
+      "explanation": "**The flight-level rule is digit-by-digit; only whole hundreds are excepted.** FL 085 is not a whole hundred, so no exception applies and every digit is spoken: *zero eight five*.\n\nThis is the companion case to FL 100 — the two together are the whole rule. *Flight level eight thousand five hundred* converts the level to feet, which is a different thing said a different way; a flight level is transmitted as a level, not as an altitude."
+    },
+    {
+      "num": "VRT-P3-MC-06",
+      "prompt": "How is an altimeter setting of 1010 hPa transmitted?",
+      "options": [
+        { "id": "a", "text": "QNH one zero one zero" },
+        { "id": "b", "text": "QNH one thousand ten" },
+        { "id": "c", "text": "QNH ten ten" },
+        { "id": "d", "text": "QNH one thousand and ten hectopascals" }
+      ],
+      "correct": "a",
+      "explanation": "**\"The altimeter setting shall be transmitted by pronouncing each digit separately, except for the case of a setting of 1 000 hPa.\"** 1010 is not that one exception, so it is spoken digit by digit: *QNH one zero one zero* — printed as a worked example in the guide.\n\n*QNH one thousand ten* borrows the 1000 hPa exception and applies it where it does not belong; that exception covers exactly one value. The altimeter setting is also on the guide's list of **items to be read back**, so getting this form right matters twice — once when you hear it, once when you say it back."
+    },
+    {
+      "num": "VRT-P3-MC-07",
+      "prompt": "How is an altimeter setting of 1000 hPa transmitted?",
+      "options": [
+        { "id": "a", "text": "QNH one zero double zero" },
+        { "id": "b", "text": "QNH one thousand" },
+        { "id": "c", "text": "QNH ten hundred" },
+        { "id": "d", "text": "QNH one zero zero zero" }
+      ],
+      "correct": "b",
+      "explanation": "**\"...except for the case of a setting of 1 000 hPa, which shall be transmitted as 'ONE THOUSAND'.\"** This is the single named exception in the altimeter rule, and the guide gives that spoken form in capitals.\n\n*QNH one zero zero zero* is the digit form — right for every other setting, wrong for this one. There is no *double zero* anywhere in radiotelephony: each digit is spoken individually, or the exception applies, but never a contraction."
+    },
+    {
+      "num": "VRT-P3-MC-08",
+      "prompt": "How is the instruction \"SQUAWK 6503\" transmitted?",
+      "options": [
+        { "id": "a", "text": "SQUAWK sixty five oh three" },
+        { "id": "b", "text": "SQUAWK six thousand five hundred and three" },
+        { "id": "c", "text": "SQUAWK six five zero three" },
+        { "id": "d", "text": "SQUAWK sixty five zero three" }
+      ],
+      "correct": "c",
+      "explanation": "**\"All numbers used in the transmission of transponder codes shall be transmitted by pronouncing each digit separately except, when the transponder codes contain whole thousands only.\"** 6503 is not whole thousands, so every digit is spoken: *six five zero three* — the guide's own worked example.\n\n*Oh* for zero is a habit from telephone numbers and has no place on the frequency — the word is *zero*. SSR codes are also on the guide's read-back list, so this form is needed in both directions."
+    },
+    {
+      "num": "VRT-P3-MC-09",
+      "prompt": "How is the instruction \"SQUAWK 7000\" transmitted?",
+      "options": [
+        { "id": "a", "text": "SQUAWK seven triple zero" },
+        { "id": "b", "text": "SQUAWK seventy hundred" },
+        { "id": "c", "text": "SQUAWK seven zero zero zero" },
+        { "id": "d", "text": "SQUAWK seven thousand" }
+      ],
+      "correct": "d",
+      "explanation": "**The transponder rule is digit-by-digit \"except, when the transponder codes contain whole thousands only\".** 7000 is whole thousands, so the exception governs: *seven thousand*.\n\nCompare with SQUAWK 6503, which takes the digit form. Note how narrow the exception is — it needs *whole* thousands, so 7500, 7600 and 7700 are all spoken digit by digit (*seven seven zero zero*, and so on) even though they end in zeros. Those three are the codes the guide names: 7700 for a state of emergency, 7600 for radio-communication failure, 7500 for unlawful interference."
+    },
+    {
+      "num": "VRT-P3-MC-10",
+      "prompt": "How is an altitude of 2 300 feet transmitted?",
+      "options": [
+        { "id": "a", "text": "twenty three hundred feet" },
+        { "id": "b", "text": "two thousand and three hundred feet" },
+        { "id": "c", "text": "two thousand three hundred feet" },
+        { "id": "d", "text": "two three zero zero feet" }
+      ],
+      "correct": "c",
+      "explanation": "**\"Combinations of thousands and whole hundreds shall be transmitted by pronouncing each digit in the number of thousands followed by the word 'THOUSAND', followed by the number of hundreds followed by the word 'HUNDRED'.\"** So 2 300 is *two thousand three hundred feet* — printed as a worked example.\n\n*Two three zero zero feet* applies the digit rule, which governs call signs, headings, runway, wind direction and speed — not quantities like altitude. *Twenty three hundred feet* is a habit from everyday English and is not the form the guide teaches. Note there is no *and*: the words run straight on."
+    },
+    {
+      "num": "VRT-P3-MC-11",
+      "prompt": "How is a cloud height of 2 600 feet transmitted?",
+      "options": [
+        { "id": "a", "text": "two thousand six hundred feet" },
+        { "id": "b", "text": "two six zero zero feet" },
+        { "id": "c", "text": "twenty six hundred feet" },
+        { "id": "d", "text": "two point six thousand feet" }
+      ],
+      "correct": "a",
+      "explanation": "**Cloud height is named in the quantity rule** alongside altitude, visibility and runway visual range: whole hundreds and whole thousands take the HUNDRED / THOUSAND words, and a combination takes both. The guide prints `cloud height 2 600 feet → two thousand six hundred feet`.\n\nThe rule is worth learning as a group rather than one item at a time — altitude, cloud height, visibility and RVR all behave the same way, which is why the same shape answers this question and the 2 300 feet one."
+    },
+    {
+      "num": "VRT-P3-MC-12",
+      "prompt": "How is a visibility of 800 meters transmitted?",
+      "options": [
+        { "id": "a", "text": "zero eight zero zero meters" },
+        { "id": "b", "text": "eight hundred meters" },
+        { "id": "c", "text": "eight thousand meters" },
+        { "id": "d", "text": "eight zero zero meters" }
+      ],
+      "correct": "b",
+      "explanation": "**Whole hundreds are spoken as \"each digit in the number of hundreds followed by the word 'HUNDRED'\"** — one digit here, so *eight hundred meters*. The guide prints this example directly.\n\n*Eight zero zero meters* is the digit form and belongs to the other group. Visibility is a quantity, and quantities are grouped so the magnitude is unmistakable — the difference between eight hundred meters and eight thousand meters decides whether a VFR flight is legal, and *eight zero zero* invites exactly that error."
+    },
+    {
+      "num": "VRT-P3-MC-13",
+      "prompt": "The frequency 118,000 MHz is to be transmitted. Which form does the guide give?",
+      "options": [
+        { "id": "a", "text": "one one eight" },
+        { "id": "b", "text": "one eighteen decimal zero" },
+        { "id": "c", "text": "one one eight decimal zero" },
+        { "id": "d", "text": "one one eight decimal zero zero zero" }
+      ],
+      "correct": "c",
+      "explanation": "**\"All six digits of the numerical designator shall be used... except when the fifth and sixth digits are zeros, in which case only the first four digits shall be used.\"** For 118,000 the fifth and sixth digits are zeros, so only the first four are spoken: *one one eight decimal zero* — the guide's worked example, printed as `118,0`.\n\nDropping the decimal altogether (*one one eight*) is not something the rule allows: the first four digits include the one after the decimal point, and \"numbers containing a decimal point shall be transmitted... with the decimal point in appropriate sequence, indicated by the word 'DECIMAL'\"."
+    },
+    {
+      "num": "VRT-P3-MC-14",
+      "prompt": "How is the frequency 128,175 MHz transmitted?",
+      "options": [
+        { "id": "a", "text": "one two eight decimal one seven five" },
+        { "id": "b", "text": "one two eight point one seven five" },
+        { "id": "c", "text": "one twenty eight decimal one seventy five" },
+        { "id": "d", "text": "one two eight decimal one hundred seventy five" }
+      ],
+      "correct": "a",
+      "explanation": "**All six digits are used unless the fifth and sixth are zeros.** Here they are 7 and 5, so the full designator is spoken digit by digit with the decimal point in sequence: *one two eight decimal one seven five* — the guide's worked example.\n\n*Point* is the everyday English word and the most common slip; radiotelephony uses **DECIMAL**, which appears in Table 3 as a numeral element in its own right. And the digits after the decimal are read individually — *one seven five*, never *one hundred seventy five*."
+    },
+    {
+      "num": "VRT-P3-MC-15",
+      "prompt": "A controller passes the surface wind as 300 degrees, 8 knots. How are those numbers transmitted?",
+      "options": [
+        { "id": "a", "text": "thirty degrees, eight knots" },
+        { "id": "b", "text": "three zero zero degrees, eight knots" },
+        { "id": "c", "text": "three hundred degrees, eight knots" },
+        { "id": "d", "text": "three zero zero degrees, zero eight knots" }
+      ],
+      "correct": "b",
+      "explanation": "**Wind direction and speed are in the digit-by-digit group**, listed in the rule alongside call signs, headings and runway: each digit separately. So 300 degrees is *three zero zero degrees*, and 8 knots is *eight knots* — a single digit is already a single digit.\n\n*Three hundred degrees* misapplies the quantity rule, which covers altitude, cloud height, visibility and RVR only. Wind is a direction, and directions behave like headings — this is the same reason a heading of 100 is *one zero zero* and not *one hundred*."
+    },
+    {
+      "num": "VRT-P3-MC-16",
+      "prompt": "A controller reports conflicting traffic at a relative bearing of 10 o'clock. How is that transmitted?",
+      "options": [
+        { "id": "a", "text": "one zero hundred" },
+        { "id": "b", "text": "one thousand o'clock" },
+        { "id": "c", "text": "ten o'clock" },
+        { "id": "d", "text": "one zero o'clock" }
+      ],
+      "correct": "c",
+      "explanation": "**\"When providing information regarding the relative bearing to an object or to conflicting traffic in terms of the 12-hour clock, the information shall be given pronouncing the digits together such as 'TEN O'CLOCK' or 'ELEVEN O'CLOCK'.\"**\n\nThis is the one place the guide asks for the digits **together** rather than separately, which is exactly why it is worth knowing — the general habit of splitting digits produces *one zero o'clock*, and that is wrong here. The clock-code positions are read as ordinary numbers because they name a direction on a clock face, not a quantity or a designator."
+    },
+    {
+      "num": "VRT-P3-MC-17",
+      "prompt": "It is 0708 UTC and there is no possibility of confusion about the hour. What does the guide say is normally transmitted?",
+      "options": [
+        { "id": "a", "text": "seven zero eight" },
+        { "id": "b", "text": "zero eight" },
+        { "id": "c", "text": "eight past seven" },
+        { "id": "d", "text": "zero seven zero eight" }
+      ],
+      "correct": "b",
+      "explanation": "**\"Normally, only minutes are passed. If there is any possibility of confusion, the hour should be included.\"** With the hour clear, 07 08 is passed as *zero eight* — the guide prints both forms for this time, `zero eight` **or** `zero seven zero eight`.\n\nSo both are legitimate transmissions; what decides between them is the risk of confusion, not preference. That is why this question fixes the condition in the stem. When you do include the hour, all four digits are spoken separately."
+    },
+    {
+      "num": "VRT-P3-MC-18",
+      "prompt": "It is 1425 UTC and the hour could be misunderstood. Which form does the guide give for the full time?",
+      "options": [
+        { "id": "a", "text": "two five" },
+        { "id": "b", "text": "fourteen twenty five" },
+        { "id": "c", "text": "one thousand four hundred twenty five" },
+        { "id": "d", "text": "one four two five" }
+      ],
+      "correct": "d",
+      "explanation": "**\"If there is any possibility of confusion, the hour should be included\"** — and when it is included, the digits are spoken separately: *one four two five*, printed in the guide beside the minutes-only form *two five*.\n\n*Fourteen twenty five* is the everyday English reading and the habit to break; time is never grouped into tens. This is the companion to the 07 08 question: same rule, opposite condition, so the pair covers the whole of it."
+    }
+  ]
+}
