@@ -38,11 +38,13 @@ function hasValidResumableMode(d: Record<string, unknown>): boolean {
 // readActiveSession can purge it once (rather than per-branch).
 //
 // Deliberately narrower than the sibling isValidSessionData, which routes optional fields
-// through hasValidOptionalFields: the purely cosmetic ones here (subjectName, subjectCode,
-// draftId, examMode, passMark) are NOT validated, so the `data is ActiveSession` predicate
-// asserts more than it checks. That is safe only because buildActiveSession is the sole
-// writer and JSON.stringify drops undefined keys, so none of them can arrive malformed from
-// storage. Validate them here if a second writer ever appears.
+// through hasValidOptionalFields. NOT validated here: subjectName, subjectCode, draftId,
+// examMode, passMark — plus startedAt and timeLimitSeconds outside exam mode, where
+// hasValidExamTimerFields short-circuits. So `data is ActiveSession` asserts more than it
+// checks. Tolerable because the app's sole writer is buildActiveSession and JSON.stringify
+// drops undefined keys; a hand-edited localStorage entry can still carry any of them, which
+// is self-inflicted only (the userId guard holds and React escapes strings). Validate the
+// full list above — not just the first five — if a second writer ever appears.
 export function isValidActiveSession(data: unknown, userId: string): data is ActiveSession {
   if (typeof data !== 'object' || data === null) return false
   const d = data as Record<string, unknown>

@@ -205,6 +205,9 @@ describe('buildResumeHandler', () => {
     const handle = buildResumeHandler({ userId: 'user-1', session, setError, router })
     handle()
 
+    // Positive assertion first: both checks below are negative, and an early return at either
+    // preceding guard would satisfy them while proving nothing.
+    expect(router.push).toHaveBeenCalledWith('/app/quiz/session')
     expect(mockClearSessionHandoff).not.toHaveBeenCalled()
     expect(mockDropCachedSession).not.toHaveBeenCalled()
   })
