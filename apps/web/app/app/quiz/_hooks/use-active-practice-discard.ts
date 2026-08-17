@@ -47,7 +47,7 @@ export function useActivePracticeDiscard(
     // can mismatch. This banner is SERVER-rendered and never revalidated on focus, so a stale
     // tab can hold an old sessionId while localStorage has moved on to a newer session — an
     // unguarded userId-keyed clear would destroy that newer session's answers. The single-
-    // active-session invariant (security.md rule 13 / mig 136) rules out two CONCURRENTLY
+    // active-session invariant (docs/security.md §11d, mig 136) rules out two CONCURRENTLY
     // live sessions but not a stale render. In the #1190 case the two ids are equal, so this
     // does not weaken the fix; readActiveSession purges a malformed, cross-user or >7-day
     // entry itself, so the false branch never leaves garbage behind.

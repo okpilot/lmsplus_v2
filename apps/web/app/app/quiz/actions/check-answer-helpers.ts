@@ -7,11 +7,13 @@
 //
 // This module must NOT carry 'use server', and the load-bearing reason is not that a sync
 // export would forbid it — that obstacle is removable, so do not rely on it. The reason is
-// that `gradeAnswer` returns `correct_option_id`, the MC answer key that docs/security.md §4
-// and mig 111's column REVOKE exist to protect. Adding the pragma would register it as a
-// client-invocable Server Action taking a caller-supplied sessionId, bypassing
-// verifySessionMembership entirely. `CheckAnswerRpcResult` and `isCheckAnswerRpcResult` are
-// kept file-private for the same reason: nothing here should widen the surface by accident.
+// that a 'use server' module publishes every async export as an endpoint, and `gradeAnswer`
+// returns `correct_option_id` — the MC answer key that docs/security.md §4 and mig 111's
+// column REVOKE exist to protect. Do not make it such a module. (It would not be a working
+// bypass today: the injected SupabaseClient is not serializable across the boundary, and the
+// RPC self-guards — see gradeAnswer's docblock. That margin is not ours to spend.)
+// `CheckAnswerRpcResult` and `isCheckAnswerRpcResult` are file-private for the same reason:
+// nothing here should widen the surface by accident.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
@@ -46,7 +48,7 @@ export async function verifySessionMembership(
     .single()
   if (error) {
     if (error.code === 'PGRST116') {
-      console.error('[checkAnswer] Session not found/not owned:', opts.sessionId, opts.questionId)
+      console.error('[checkAnswer] Session not found/not owned:', opts.questionId, opts.sessionId)
       return 'Session not found'
     }
     console.error('[checkAnswer] Session lookup error:', error.message, error.code)

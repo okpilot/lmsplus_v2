@@ -60,8 +60,9 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     // offering Resume (#1190). Guarded on the id because this banner is server-rendered and
     // never revalidated, so a stale tab could otherwise wipe a NEWER session's answer buffer
     // — for a mock_exam that is a graded attempt. See the fuller note in
-    // use-active-practice-discard.ts; rule 13 / mig 136 rules out concurrent sessions, not a
-    // stale render. Until #1026 lands server-side checkpointing, a transient discard failure
+    // use-active-practice-discard.ts; the single-active-session invariant (docs/security.md
+    // §11d, mig 136) rules out concurrent sessions, not a stale render. Until #1026 lands
+    // server-side checkpointing, a transient discard failure
     // still loses the local buffer for THIS session, which is the established repo trade.
     if (readActiveSession(deps.userId)?.sessionId === deps.activeSessionId) {
       clearActiveSession(deps.userId)
