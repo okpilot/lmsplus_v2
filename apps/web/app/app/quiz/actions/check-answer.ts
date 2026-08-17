@@ -2,32 +2,14 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
+import { gradeAnswer, verifySessionMembership } from './check-answer-helpers'
 
 const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
   selectedOptionId: z.string().trim().min(1),
   sessionId: z.uuid(),
 })
-
-type CheckAnswerRpcResult = {
-  is_correct: boolean
-  correct_option_id: string
-  explanation_text: string | null
-  explanation_image_url: string | null
-}
-
-function isCheckAnswerRpcResult(value: unknown): value is CheckAnswerRpcResult {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    typeof v.is_correct === 'boolean' &&
-    typeof v.correct_option_id === 'string' &&
-    (v.explanation_text === null || typeof v.explanation_text === 'string') &&
-    (v.explanation_image_url === null || typeof v.explanation_image_url === 'string')
-  )
-}
 
 export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   const supabase = await createServerSupabaseClient()
@@ -41,42 +23,21 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   try {
     parsed = CheckAnswerSchema.parse(raw)
   } catch {
+    // Bare string, no ZodError: its serialization is a library-internal detail a zod major
+    // bump or a custom error map can change. Matches lookup.ts / submit.ts. (This schema is
+    // NOT `.strict()`, so unrecognized keys are stripped, not echoed — unlike the non-MC one.)
+    console.error('[checkAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
   const { questionId, selectedOptionId, sessionId } = parsed
 
-  // Verify session belongs to this user, is active, and contains the question
-  const { data: session, error: sessionError } = await supabase
-    .from('quiz_sessions')
-    .select('config')
-    .eq('id', sessionId)
-    .eq('student_id', user.id)
-    .is('ended_at', null)
-    .is('deleted_at', null)
-    .single()
-  if (sessionError || !session) return { success: false, error: 'Session not found' }
-  const config = (session as unknown as { config: { question_ids: unknown } }).config
-  const qIds = config?.question_ids
-  if (!Array.isArray(qIds) || !qIds.includes(questionId)) {
-    return { success: false, error: 'Question not in session' }
-  }
-
-  const { data, error } = await rpc<CheckAnswerRpcResult>(supabase, 'check_quiz_answer', {
-    p_question_id: questionId,
-    p_selected_option_id: selectedOptionId,
-    p_session_id: sessionId,
+  // Verify session belongs to this user, is active, and contains the question.
+  const membershipError = await verifySessionMembership(supabase, {
+    sessionId,
+    userId: user.id,
+    questionId,
   })
+  if (membershipError) return { success: false, error: membershipError }
 
-  if (error || !isCheckAnswerRpcResult(data)) {
-    console.error('[checkAnswer] RPC error:', error?.message)
-    return { success: false, error: 'Question not found' }
-  }
-
-  return {
-    success: true,
-    isCorrect: data.is_correct,
-    correctOptionId: data.correct_option_id,
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+  return gradeAnswer(supabase, { questionId, selectedOptionId, sessionId })
 }

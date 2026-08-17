@@ -26,9 +26,27 @@ import { useActivePracticeDiscard } from './use-active-practice-discard'
 // ---- Fixtures --------------------------------------------------------------
 
 const SESSION_ID = 'sess-prac-001'
+const USER_ID = 'user-prac-001'
+const STORAGE_KEY = `quiz-active-session:${USER_ID}`
+
+// Must satisfy isValidActiveSession: readActiveSession PURGES anything malformed, so a
+// minimal { sessionId } stub would be dropped by the read itself and every assertion below
+// would pass whether or not the discard cleared anything.
+function storedSession(sessionId: string) {
+  return JSON.stringify({
+    userId: USER_ID,
+    sessionId,
+    questionIds: ['q-1', 'q-2'],
+    answers: {},
+    currentIndex: 0,
+    savedAt: Date.now(),
+    mode: 'study',
+  })
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
+  localStorage.clear()
   mockDiscardQuiz.mockResolvedValue({ success: true })
 })
 
@@ -36,7 +54,7 @@ beforeEach(() => {
 
 describe('useActivePracticeDiscard', () => {
   it('discards the session and refreshes in place on success', async () => {
-    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
     })
@@ -49,7 +67,7 @@ describe('useActivePracticeDiscard', () => {
 
   it('surfaces the action error and does not refresh when discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
-    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
     })
@@ -61,13 +79,81 @@ describe('useActivePracticeDiscard', () => {
 
   it('surfaces a generic error when the discard request throws', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
-    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
     })
 
     expect(result.current.error).toMatch(/server unavailable/i)
     expect(mockRouterRefresh).not.toHaveBeenCalled()
+  })
+
+  it('shows the fallback message when discard fails without details', async () => {
+    // success: false with no error field — the ?? fallback must kick in
+    // No cast needed: mockDiscardQuiz is an untyped vi.fn() here, unlike the typed mock in
+    // resume-exam-handlers.test.ts where the same line needs one to satisfy ActionResult.
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: undefined })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(result.current.error).toBe('Failed to discard. Please try again.')
+  })
+
+  // A failed attempt (resolved or thrown) must release the one-shot re-entry guard so the
+  // user can retry — only a terminal SUCCESS should keep it locked. Neither branch's release
+  // is observable from the single-attempt failure tests above: this fails if either release
+  // is dropped.
+  it('allows a retry that succeeds after a resolved failure', async () => {
+    mockDiscardQuiz.mockResolvedValueOnce({ success: false, error: 'Session not found' })
+    mockDiscardQuiz.mockResolvedValueOnce({ success: true })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toBe('Session not found')
+    expect(result.current.discarded).toBe(false)
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
+    expect(result.current.discarded).toBe(true)
+  })
+
+  it('allows a retry that succeeds after a thrown request', async () => {
+    mockDiscardQuiz.mockRejectedValueOnce(new Error('network failure'))
+    mockDiscardQuiz.mockResolvedValueOnce({ success: true })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toMatch(/server unavailable/i)
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
+    expect(result.current.discarded).toBe(true)
+  })
+
+  it('ignores further discard attempts after a successful discard', async () => {
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    // The banner is dismissed on success — a late duplicate must not re-fire.
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
   })
 
   it('submits a single discard when invoked twice before the first settles', async () => {
@@ -78,7 +164,7 @@ describe('useActivePracticeDiscard', () => {
       }),
     )
 
-    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       // Two synchronous invocations before the first promise settles — the
       // synchronous useRef guard rejects the second.
@@ -93,9 +179,93 @@ describe('useActivePracticeDiscard', () => {
     })
   })
 
+  it('prevents resuming a session after it is discarded', async () => {
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  // Pins the disposition, not just the outcome: if the clear were moved onto the success
+  // branch this fails, while the success-path test above would still pass.
+  it('honours the discard even when the request fails', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(result.current.error).toBe('Session not found')
+  })
+
+  // Sibling of the test above, pinning the other half of "regardless of outcome": the clear
+  // must precede the Server Action, not merely be unconditional after it. Moved below
+  // `await discardQuiz(...)` it still runs on both resolved outcomes — so the success and
+  // resolved-failure tests stay green — but is skipped entirely on a throw. This is the only
+  // test that fails on that move.
+  it('honours the discard even when the request throws', async () => {
+    mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(result.current.error).toMatch(/server unavailable/i)
+  })
+
+  // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
+  // a session that localStorage has already moved past. Fails if the id guard is removed.
+  it('preserves a newer session when a stale banner discards an older one', async () => {
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-prac-999'))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull()
+  })
+
+  // Distinct from the retry tests above, which only assert the END state after the retry
+  // resolves — that passes even if the stale error is never cleared, because a resolved-
+  // failure retry overwrites it and a successful retry's `discarded` flag hides it once the
+  // banner unmounts. This pins the clear firing at the START of the new attempt, before the
+  // second discardQuiz call settles, by holding the second call pending.
+  it('clears the previous error as soon as a new attempt starts', async () => {
+    mockDiscardQuiz.mockResolvedValueOnce({ success: false, error: 'Session not found' })
+    let resolveSecond!: (v: { success: true }) => void
+    mockDiscardQuiz.mockImplementationOnce(
+      () =>
+        new Promise<{ success: true }>((res) => {
+          resolveSecond = res
+        }),
+    )
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toBe('Session not found')
+
+    act(() => {
+      void result.current.discard()
+    })
+    expect(result.current.error).toBeNull()
+
+    await act(async () => {
+      resolveSecond({ success: true })
+    })
+  })
+
   it('clears the error when clearError is called', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
-    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
     })

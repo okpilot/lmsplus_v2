@@ -1,14 +1,9 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-
-// Practice modes are the only quiz_sessions a student can hold open without a
-// server-backed recovery surface — exams have ResumeExamBanner / recovery banners,
-// Discovery auto-clears on the next start. A practice session abandoned in one
-// browser is detectable only via localStorage (QuizRecoveryBanner), so a cross-
-// browser / cleared-storage student gets `another_session_active` with no way to
-// clear it. This query backs ActivePracticeBanner — the server-visible discard path.
-const PRACTICE_MODES = ['quick_quiz', 'smart_review'] as const
+// Imported, not re-inlined: exam-modes.ts owns this list and says to keep consumers in
+// lockstep by importing it. Why practice modes specifically — see the note at the query below.
+import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 export type ActivePracticeSession = {
   sessionId: string
@@ -58,6 +53,13 @@ export async function getActivePracticeSession(): Promise<GetActivePracticeSessi
       .from('quiz_sessions')
       .select('id, mode, subject_id, started_at, easa_subjects!subject_id(name, short)')
       .eq('student_id', user.id)
+      // Practice modes are the only quiz_sessions a student can hold open without a
+      // server-backed recovery surface: exams have ResumeExamBanner, and Discovery auto-clears
+      // on the next start (start_discovery_session soft-deletes prior discovery rows). BEFORE
+      // this lookup existed, a practice session abandoned in another browser was visible only
+      // via localStorage, so a cross-browser or cleared-storage student hit
+      // `another_session_active` with no way out — which is what this exists to fix. It feeds
+      // ActivePracticeBanner, whose Discard is the server-visible path.
       .in('mode', PRACTICE_MODES)
       .is('ended_at', null)
       .is('deleted_at', null)

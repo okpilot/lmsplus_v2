@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
-import { type ActiveSession, clearActiveSession } from '../_utils/quiz-session-storage'
+import { type ActiveSession, clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 
 export function useSessionRecovery(recovery: ActiveSession | null, userId: string) {
   const router = useRouter()
@@ -31,7 +31,7 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
         subjectCode: recovery.subjectCode,
       })
       if (result.success) {
-        clearActiveSession(userId)
+        clearActiveSessionIfCurrent(userId, recovery.sessionId)
         // Non-critical cleanup fired before the terminal nav; setLoading is a sync state
         // update, so router.replace stays the last statement (code-style.md §6).
         // Terminal: navigating away — the in-flight ref intentionally stays set.
@@ -56,7 +56,7 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
     inFlightRef.current = true
     setLoading(true)
     const captured = recovery
-    clearActiveSession(userId)
+    if (captured) clearActiveSessionIfCurrent(userId, captured.sessionId)
     // Non-critical cleanup: fire before the terminal nav (code-style.md §6).
     clearDeploymentPin().catch(() => {})
     // Critical: await the discard before navigating — a Server Action fired AFTER

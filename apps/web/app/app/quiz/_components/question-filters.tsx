@@ -11,6 +11,13 @@ type QuestionFiltersProps = {
   imageMode: ImageMode
   onImageModeChange: (mode: ImageMode) => void
   unseenLabel?: string
+  /**
+   * Show the calculation and image toggle groups. Default `true`; VFR RT opts out
+   * because radiotelephony has no calculation or image questions, so the two "Only …"
+   * toggles yield an empty pool and the two "Exclude …" ones are no-ops (#1189).
+   * Same default-on opt-out shape as TopicTree/TopicRow's `showCode`.
+   */
+  showCalcImageToggles?: boolean
 }
 
 export function QuestionFilters({
@@ -21,6 +28,7 @@ export function QuestionFilters({
   imageMode,
   onImageModeChange,
   unseenLabel,
+  showCalcImageToggles = true,
 }: Readonly<QuestionFiltersProps>) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
@@ -61,24 +69,26 @@ export function QuestionFilters({
             onToggle={() => handleToggle(opt.value)}
           />
         ))}
-        {CALC_TOGGLES.map((opt) => (
-          <FilterToggle
-            key={opt.mode}
-            label={opt.label}
-            hint={opt.hint}
-            checked={calcMode === opt.mode}
-            onToggle={() => handleCalcToggle(opt.mode)}
-          />
-        ))}
-        {IMAGE_TOGGLES.map((opt) => (
-          <FilterToggle
-            key={opt.mode}
-            label={opt.label}
-            hint={opt.hint}
-            checked={imageMode === opt.mode}
-            onToggle={() => handleImageToggle(opt.mode)}
-          />
-        ))}
+        {showCalcImageToggles &&
+          CALC_TOGGLES.map((opt) => (
+            <FilterToggle
+              key={opt.mode}
+              label={opt.label}
+              hint={opt.hint}
+              checked={calcMode === opt.mode}
+              onToggle={() => handleCalcToggle(opt.mode)}
+            />
+          ))}
+        {showCalcImageToggles &&
+          IMAGE_TOGGLES.map((opt) => (
+            <FilterToggle
+              key={opt.mode}
+              label={opt.label}
+              hint={opt.hint}
+              checked={imageMode === opt.mode}
+              onToggle={() => handleImageToggle(opt.mode)}
+            />
+          ))}
       </div>
     </div>
   )

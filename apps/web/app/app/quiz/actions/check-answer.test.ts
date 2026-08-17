@@ -145,7 +145,12 @@ describe('checkAnswer', () => {
 
   it('returns failure when session does not belong to user', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildSessionChain({ data: null, error: { message: 'not found' } }))
+    // PGRST116 is what PostgREST returns for a no-row `.single()` — a cross-user or
+    // discarded session reaches the action this way, not as a code-less error.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(
+      buildSessionChain({ data: null, error: { code: 'PGRST116', message: 'no rows' } }),
+    )
 
     const result = await checkAnswer({
       questionId: QUESTION_ID,
@@ -153,9 +158,32 @@ describe('checkAnswer', () => {
       sessionId: SESSION_ID,
     })
 
+    consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('Session not found')
+  })
+
+  // Pairs with the test above: a transient DB fault must NOT be reported as a dead
+  // session. The two cases share a lookup path, so asserting only one of them would pass
+  // even if the PGRST116 branch were dropped and everything collapsed to one string.
+  it('reports a generic failure when the session lookup errors for any other reason', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(
+      buildSessionChain({ data: null, error: { code: '08006', message: 'connection failure' } }),
+    )
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when questionId is not in session', async () => {

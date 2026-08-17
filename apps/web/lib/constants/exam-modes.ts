@@ -19,7 +19,8 @@ export const isExamMode = (mode: string): mode is 'mock_exam' | 'internal_exam' 
 
 // Positive allowlist of practice (answer-revealing, ungraded) session modes. Single
 // source of truth for the "never touch a graded exam" boundary used by the save-time
-// session close (draft-helpers), the resume validator (resume-helpers), and the
+// session close (draft-helpers), the resume validator (resume-helpers), the
+// server-visible active-practice lookup (get-active-practice-session), and the
 // one-time orphan cleanup script — keep those in lockstep by importing this, not
 // re-inlining the literal.
 export const PRACTICE_MODES = ['quick_quiz', 'smart_review'] as const

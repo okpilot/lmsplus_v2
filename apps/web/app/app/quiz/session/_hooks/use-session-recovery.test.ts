@@ -8,11 +8,13 @@ const {
   mockDiscardQuiz,
   mockClearActiveSession,
   mockClearDeploymentPin,
+  mockReadActiveSession,
   mockRouterReplace,
 } = vi.hoisted(() => ({
   mockSaveDraft: vi.fn(),
   mockDiscardQuiz: vi.fn(),
   mockClearActiveSession: vi.fn(),
+  mockReadActiveSession: vi.fn(),
   mockClearDeploymentPin: vi.fn(),
   mockRouterReplace: vi.fn(),
 }))
@@ -27,6 +29,15 @@ vi.mock('../../actions/discard', () => ({
 
 vi.mock('../_utils/quiz-session-storage', () => ({
   clearActiveSession: mockClearActiveSession,
+  readActiveSession: mockReadActiveSession,
+  // Implements the guard for real over the mocked read rather than stubbing it to a no-op: a
+  // bare vi.fn() would clear unconditionally, so the stale-snapshot test below would pass with
+  // the guard deleted from production.
+  clearActiveSessionIfCurrent: (userId: string, sessionId: string) => {
+    if (mockReadActiveSession(userId)?.sessionId !== sessionId) return false
+    mockClearActiveSession(userId)
+    return true
+  },
 }))
 
 vi.mock('../../actions/clear-deployment-pin', () => ({
@@ -62,6 +73,9 @@ beforeEach(() => {
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockDiscardQuiz.mockResolvedValue({ success: true })
   mockSaveDraft.mockResolvedValue({ success: true })
+  // Default: storage still holds the session the hook was given, so the id guard passes and
+  // the existing tests exercise the ordinary path.
+  mockReadActiveSession.mockReturnValue({ sessionId: 'sess-001' })
 })
 
 // ---- Initial state --------------------------------------------------------
@@ -114,6 +128,21 @@ describe('useSessionRecovery — handleSave', () => {
     })
 
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-001')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  // `recovery` is a mount-time prop (use-session-bootstrap reads storage once into state), so a
+  // second tab can start a newer session before this handler runs. saveDraft is awaited, which
+  // widens the window further. A blind userId-keyed clear would wipe the newer answer buffer.
+  it('preserves a newer session when the save completes after storage has moved on', async () => {
+    mockReadActiveSession.mockReturnValue({ sessionId: 'sess-newer' })
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      await result.current.handleSave()
+    })
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 
@@ -327,6 +356,19 @@ describe('useSessionRecovery — handleDiscard', () => {
 
     expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
+  })
+
+  it('preserves a newer session when a stale prompt discards an older one', async () => {
+    mockReadActiveSession.mockReturnValue({ sessionId: 'sess-newer' })
+    const { result } = renderHook(() => useSessionRecovery(RECOVERY, 'user-001'))
+
+    await act(async () => {
+      await result.current.handleDiscard()
+    })
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    // The OLD session's DB row is still discarded — only the newer local buffer is spared.
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-001', draftId: 'draft-001' })
   })
 
   it('still redirects to /app/quiz when the discard fails', async () => {

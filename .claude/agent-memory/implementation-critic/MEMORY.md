@@ -10,8 +10,10 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
 | Zero-row no-op: UPDATE/DELETE missing `.select('id')` + `data?.length` check | 2026-04-10 | 6 | 2026-06-06 | PROMOTED → code-style.md §5. Recurs in prod AND test helpers — still flag in new code. † |
+| Agent wrote its memory delta to the stray `apps/web/.claude/agent-memory/` instead of the repo-root path — a fresh truncated MEMORY.md, invisible to later invocations | 2026-08-17 | 1 | 2026-08-17 | WATCHING (PR #1207; recovered by hand at wrap-up). Cause: cwd was `apps/web`. Same loss class as a stashed delta per agent-memory.md. |
 | Zero-row no-op, DISTINCT mechanism: `.select('id')` present but count logged only when `> 0`, so a blocked write after a positive pre-match is silent | 2026-08-11 | 1 | 2026-08-11 | WATCHING. Where a prior SELECT proved N match, compare against N and THROW. †
 | Dead helper in test file → Biome `noUnusedVariables`/`noThenProperty` pre-commit fail | 2026-04-11 | 2 | 2026-05-27 | RULE CANDIDATE. Grep call sites for any large test helper before approving. †
+| New test line copied from a sibling exceeds `lineWidth: 100` → `biome check` FORMAT error blocks pre-commit | 2026-08-17 | 1 | 2026-08-17 | WATCHING. #1207: siblings passed a `session` var (98 ch); the new tests inlined `makeSession()` (102 ch). Run `npx biome check <staged files>` BEFORE commit — an amend is forbidden after a hook failure, so this costs a whole extra commit. |
 | Error message refactor breaks paired test assertion regex | 2026-05-06 | 1 | 2026-05-06 | WATCHING. Grep tests for the old message substring when context strings change (#628; #709 no recurrence). † |
 | TRANSPORT_LAYER/payload-group loop applied to fewer RPCs than plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. When a plan documents a payload group across N RPCs, count loops in each describe block (#108). †
 | Conditional redirect regression when helper return value discarded | 2026-04-14 | 1 | 2026-04-14 | WATCHING. Check callers of helpers that made an unconditional side-effect conditional. †
@@ -47,7 +49,7 @@
 | Playwright `getByRole('dialog')` used on a Base UI **AlertDialog** (role=`alertdialog`) | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `queryRole` is strict role equality — no superclass matching, so the locator never resolves. Check which primitive the component uses (#815/#367). †
 | Redirect target copied from a sibling helper without checking the route EXISTS (no `page.tsx`) | 2026-08-09 | 1 | 2026-08-09 | WATCHING. Before approving any new redirect literal, `find app -path '*<seg>/page.tsx'` (#1167). †
 | Pre-existing UNTRACKED files swept into a scoped fixup commit by a broad `git add <dir>` | 2026-08-15 | 1 | 2026-08-15 | WATCHING. Diff the staged FILE LIST against the commit's stated scope; session-start `git status` names the pre-existing untracked set. †
-| Claim-correction commit introduces a NEW wrong count/label while fixing others | 2026-08-15 | 1 | 2026-08-15 | WATCHING. Every NEW numeric/label claim in a correction commit needs the same measurement the corrected one got. †
+| Claim-correction commit introduces a NEW wrong count/label/ENUMERATION while fixing others | 2026-08-15 | 2 | 2026-08-17 | RULE CANDIDATE. Every NEW claim in a correction commit needs the same measurement the corrected one got. #1207: a §10 comment rewritten to fix an omission ("unlike the precedents") asserted "quiz-recovery-handlers.ts is THE one that shares this exposure" — `resume-exam-handlers.ts` shares it too, and points AT that comment as canonical. Re-derive the SET, don't patch the sentence. † |
 | New app-layer integration test reuses a REAL seeded reference code + omits `cleanupReferenceData` | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `seedReferenceData` upserts `onConflict: 'code'` — use a unique suffixed code, like all 20 siblings. †
 
 ## Durable knowledge
@@ -79,6 +81,9 @@
 - **Broad grep for component names returns false-positive matches** when siblings use same-named primitives from `@base-ui/react` directly (`SelectSeparator` uses `SelectPrimitive.Separator`). Verify import path, not just symbol name.
 - **Tailwind v4 `@plugin` directive placement** — after all `@import`, before `@custom-variant`/`@theme`. Verified #325.
 - **Playwright project ordering = dependency-depth PHASES, not config order.** Adding ONE `dependencies:` edge re-partitions EVERY project's phase; projects inside a phase interleave with no defined order even at `workers: 1` (#1143). †
+- **Comment-only diffs: scope the review to §10 + §7.** When every `+`/`-` line is a `//` comment or an `it('…')` title, only comment accuracy (§10) and test naming (§7) are in scope — do not hunt for runtime defects that the diff cannot contain. Pairs with the CLAUDE.md stop rule: on a review-follow-up commit, act only on CRITICAL/ISSUE naming a *runtime* defect, and never on wording findings against prose the follow-up itself just rewrote.
+- **`get-active-practice-session.ts`'s Discovery soft-delete claim is VERIFIED** (do not re-flag): `start_discovery_session`, mig `20260629000200`, does `UPDATE quiz_sessions SET deleted_at = now() WHERE mode = 'discovery' AND ended_at IS NULL AND deleted_at IS NULL` before inserting its new row.
+- **localStorage read-then-delete in the discard handlers is cross-tab only** (#1205, PR #1207): two adjacent synchronous calls, strictly safer than the prior unconditional clear, and superseded by the server-side checkpointing in #1026/#1205. Deferral validated — do not re-raise as a race.
 
 ## False positives (do not re-raise)
 

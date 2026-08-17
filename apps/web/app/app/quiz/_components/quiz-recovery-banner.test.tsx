@@ -26,6 +26,14 @@ vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
     ...actual,
     readActiveSession: () => mockReadActiveSession(),
     clearActiveSession: mockClearActiveSession,
+    // Must be overridden too, not inherited from `actual`: the real implementation calls the
+    // real readActiveSession through a module-local reference that this mock cannot intercept,
+    // so it would read the (empty) jsdom localStorage, find no match, and silently never clear.
+    clearActiveSessionIfCurrent: (userId: string, sessionId: string) => {
+      if (mockReadActiveSession()?.sessionId !== sessionId) return false
+      mockClearActiveSession(userId)
+      return true
+    },
   }
 })
 
@@ -223,6 +231,30 @@ describe('QuizRecoveryBanner — Resume', () => {
     // Navigation and session clear must both be skipped
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
+  it('shows an error and keeps the banner visible when the session was discarded elsewhere before Resume is clicked', async () => {
+    // Mount reads the session that made the banner render; a sibling banner (or another tab)
+    // discards it before the click, so the click-time re-read comes back empty (#1190's other
+    // half — this exercises it through the real hook + component, not the handler in isolation).
+    mockReadActiveSession.mockReturnValueOnce(ACTIVE_SESSION).mockReturnValue(null)
+    const mockSetItem = vi.fn()
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: { setItem: mockSetItem, getItem: vi.fn(), removeItem: vi.fn() },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/no longer available/i)
+    expect(mockSetItem).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    // The stale session state is never cleared on refusal — the banner stays up so the
+    // user sees the error instead of silently vanishing.
+    expect(screen.getByText(/unfinished quiz found/i)).toBeInTheDocument()
   })
 
   it('includes draftFeedback in sessionStorage handoff when the session has feedback', async () => {

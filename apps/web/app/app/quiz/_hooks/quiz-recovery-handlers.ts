@@ -2,11 +2,13 @@ import type { useRouter } from 'next/navigation'
 import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { discardQuiz } from '../actions/discard'
 import { saveDraft } from '../actions/draft'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { dropCachedSession } from '../session/_hooks/session-bootstrap-load'
+import { clearSessionHandoff, sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import {
   type ActiveSession,
   buildHandoffPayload,
-  clearActiveSession,
+  clearActiveSessionIfCurrent,
+  readActiveSession,
 } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -25,23 +27,61 @@ export type RecoveryDeps = {
   router: AppRouterInstance
 }
 
+function writeActiveSessionHandoff(userId: string, session: ActiveSession): boolean {
+  try {
+    sessionStorage.setItem(
+      sessionHandoffKey(userId),
+      JSON.stringify(buildHandoffPayload(userId, session)),
+    )
+    return true
+  } catch (err) {
+    console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
+    return false
+  }
+}
+
+// Abandons the handoff written moments ago, once the session it names is known to be stale.
+// BOTH sources must go: readBootstrapSession falls back to a module-level cache when
+// sessionStorage is empty (session-bootstrap-load.ts), and that cache is only dropped once
+// questions have rendered — so a session page that failed to load leaves it populated.
+// Clearing sessionStorage alone would still let a later soft-navigation rehydrate the dead
+// session from the cache, which is the failure this whole branch exists to prevent.
+function abandonStaleHandoff(userId: string) {
+  clearSessionHandoff(userId)
+  dropCachedSession(userId)
+}
+
 export function buildResumeHandler(
   deps: Pick<RecoveryDeps, 'userId' | 'session' | 'setError' | 'router'>,
 ) {
   return function handleResume() {
     const { userId, session } = deps
     if (!session) return
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify(buildHandoffPayload(userId, session)),
-      )
-    } catch (err) {
-      console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
+    // Re-read instead of trusting the mount-time snapshot. useQuizRecovery's effect is keyed
+    // on [userId] and router.refresh() RECONCILES rather than remounts, so this banner never
+    // re-runs it — a discard on the sibling ActivePracticeBanner (both render together on
+    // /app/quiz, one DB-backed and one localStorage-backed) clears the key while this
+    // component still holds the session in state. Resuming then mounts the runner on a
+    // soft-deleted session and every answer fails silently: #1190's exact failure mode,
+    // reached with no reload. A second tab reaches it too.
+    if (readActiveSession(userId)?.sessionId !== session.sessionId) {
+      deps.setError('That session is no longer available. Refresh to see your current sessions.')
+      return
+    }
+    if (!writeActiveSessionHandoff(userId, session)) {
       deps.setError('Unable to resume right now. Please try again.')
       return
     }
-    clearActiveSession(userId)
+    // False means the snapshot is no longer authoritative — replaced by a newer session (this
+    // clear no-ops, leaving it intact), removed outright (#1190's sibling-banner discard), or
+    // expired/unreadable (purged best-effort; safeRemove swallows its own failure). The handoff
+    // written above must go too: isValidSessionData checks shape and userId but never currency,
+    // so it would otherwise rehydrate this superseded session on a later entry.
+    if (!clearActiveSessionIfCurrent(userId, session.sessionId)) {
+      abandonStaleHandoff(userId)
+      deps.setError('That session is no longer available. Refresh to see your current sessions.')
+      return
+    }
     deps.router.push('/app/quiz/session')
   }
 }
@@ -69,7 +109,9 @@ export function buildSaveHandler(deps: RecoveryDeps) {
         subjectCode: session.subjectCode,
       })
       if (result.success) {
-        clearActiveSession(userId)
+        // Guarded: saveDraft is awaited, so storage can have moved on to a newer session
+        // while this was in flight. The draft just saved is THIS session's.
+        clearActiveSessionIfCurrent(userId, sessionId)
         // router.refresh() is non-terminal (user stays in place) — exempt from the
         // await-before-terminal-nav rule (code-style.md §6).
         clearDeploymentPin().catch(() => {})
@@ -102,7 +144,10 @@ export function buildDiscardHandler(
     const { userId, session, inFlightRef } = deps
     if (inFlightRef.current) return
     inFlightRef.current = true
-    clearActiveSession(userId)
+    // Guarded on the id like the two sibling discard sites: this handler acts on a session
+    // captured at mount, so a blind userId-keyed clear would wipe a NEWER session's answers.
+    // Nothing to clear when there is no session — the banner cannot render without one.
+    if (session) clearActiveSessionIfCurrent(userId, session.sessionId)
     // No terminal navigation in this handler at all (the parent component navigates), so the
     // await-before-terminal-nav rule (code-style.md §6) does not apply here.
     clearDeploymentPin().catch(() => {})
