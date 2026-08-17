@@ -1472,4 +1472,40 @@ the controller's line above.
 
 **Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) and #1194 (R3 tolerance parity with `answer_matches`, M/P2) rather than a third rewrite.
 
-*Last updated: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*
+## VFR RT Part 3 — transmission-of-numbers MC pool + MC authoring gate — 2026-08-17
+
+Content pool: **18 `multiple_choice` questions**, `"lifecycle": "pilot"` — so `assertReleasedForRemote`
+refuses this file to a remote DB and prod is untouched. Imported and read back on the local DB
+(18 rows, keys matching the file, options carrying no correctness marker).
+
+This is **one of Part 3's four competencies** — "correct transmission of numbers (headings,
+altitudes, frequencies, QNH, squawk codes)" per the VictorOne briefing. Sourced entirely from
+Štumberger's guide, printed pp. 4–6 (*Transmission of numbers*, *Pronunciation of numbers*,
+*VHF frequencies*, *Transmission of time*). Every correct answer is either a worked example printed
+in the guide or a direct application of a rule sentence quoted in that question's explanation.
+
+The other three competencies — MAYDAY/PAN PAN sequencing, position-report sequencing, and
+traffic-pattern parts — are the drag-and-drop types and are **not** blocked on authoring but on
+tooling: `scripts/import-vfr-rt-content.ts` `SUPPORTED_TYPES` is
+`['short_answer', 'multiple_choice', 'dialog_fill']`, with no `buildRow` branch or per-item
+validator for `ordering` or `diagram_label`. Those branches come next; #1045 (opaque ordering
+item-ids) still gates any ordering content reaching prod.
+
+> **Why the pool has an enforced key-balance gate.** The first draft put the answer on `b` or `c`
+> in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
+> per-question check passed it. `scripts/mc-content.ts` now carries `assertMcItem` (per question)
+> and `assertMcKeyBalance` (per pool: no id above 1.6× the even share, no offered id never used).
+> **Both run in the importer as well as the suite**, so a future MC content file cannot ship a
+> skewed key merely by arriving without a test — verified by feeding the importer a deliberately
+> skewed fixture and watching it refuse before any insert.
+
+The importer's own MC validation moved into that module and got strictly stricter: ≥2 options,
+ids a leading run of a..d, no two options sharing text after case folding. The id rule exists
+because the runner labels buttons from the array index (`LETTERS[index]`), so ids `a/b/d` render as
+`A/B/C` — the third button reads "C" while its stored id is `d`, and any surface showing
+`correct_option_id` as a letter then contradicts the screen.
+
+Run locally with `cd apps/web && npx tsx scripts/import-vfr-rt-content.ts scripts/content/vfr-rt-part3-mc-numbers.json`
+(there is no package.json script for it).
+
+*Last updated: 2026-08-17 — VFR RT Part 3 transmission-of-numbers MC pool (18 questions, lifecycle `pilot`) + `scripts/mc-content.ts` authoring gate wired into the importer. Prior: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*

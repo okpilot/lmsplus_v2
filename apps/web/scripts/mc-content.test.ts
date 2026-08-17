@@ -95,8 +95,36 @@ describe('a single authored question', () => {
     expect(() => assertMcItem(soleOption, AT)).toThrow(/at least 2 options/)
   })
 
+  it('rejects a question with more options than there are valid ids', () => {
+    const tooMany = question({
+      options: [
+        { id: 'a', text: 'runway thirty' },
+        { id: 'b', text: 'runway three hundred' },
+        { id: 'c', text: 'runway three thousand' },
+        { id: 'd', text: 'runway three zero' },
+        { id: 'e', text: 'runway thirty thousand' },
+      ],
+      correct: 'a',
+    })
+    expect(() => assertMcItem(tooMany, AT)).toThrow(/5 options, but only 4 ids exist/)
+  })
+
+  it('rejects a non-array options field', () => {
+    const raw: unknown = { ...question(), options: 'not-an-array' }
+    expect(() => assertMcItem(raw, AT)).toThrow(/non-empty array/)
+  })
+
+  it('rejects an option element that is not an object', () => {
+    const raw: unknown = { ...question(), options: [null] }
+    expect(() => assertMcItem(raw, AT)).toThrow(/must be an object/)
+  })
+
   it('rejects a blank prompt', () => {
     expect(() => assertMcItem(question({ prompt: '   ' }), AT)).toThrow(/prompt/)
+  })
+
+  it('rejects a blank num field', () => {
+    expect(() => assertMcItem(question({ num: '   ' }), AT)).toThrow(/num/)
   })
 
   it('rejects a present but blank explanation', () => {
@@ -125,9 +153,23 @@ describe('the answer key across a pool', () => {
     expect(() => assertMcKeyBalance(pool(20, ['a', 'b', 'c', 'd']), AT)).not.toThrow()
   })
 
+  it('accepts a pool where one option holds exactly the maximum permitted share', () => {
+    // four options: even share = 25%, tolerance 1.6× → cap = 40%.
+    // Cycle 'a/b/b/c/d' over 20 questions gives b exactly 8/20 = 40% — accepted because
+    // the comparison is strictly greater-than, not greater-than-or-equal.
+    const atCap = pool(20, ['a', 'b', 'b', 'c', 'd'])
+    expect(() => assertMcKeyBalance(atCap, AT)).not.toThrow()
+  })
+
   it('ignores an uneven key on a pool too small to judge', () => {
     const tiny = pool(MIN_CORPUS_FOR_KEY_BALANCE - 1, ['a'])
     expect(() => assertMcKeyBalance(tiny, AT)).not.toThrow()
+  })
+
+  it('rejects a skewed pool at exactly the minimum corpus size', () => {
+    // At exactly MIN_CORPUS_FOR_KEY_BALANCE the grace period is over — the guard fires.
+    const atMinimum = pool(MIN_CORPUS_FOR_KEY_BALANCE, ['a'])
+    expect(() => assertMcKeyBalance(atMinimum, AT)).toThrow(/option 'a'/)
   })
 
   it('does not demand an option the pool never offers', () => {
@@ -179,6 +221,9 @@ describe('the authored VFR RT Part 3 numbers corpus', () => {
   })
 
   it('explains every question, since the explanation is the teaching surface', () => {
+    // Validate before reading fields: without this the cast below is load-bearing, and a
+    // malformed question would surface as a TypeError here rather than a named failure.
+    for (const item of questions) assertMcItem(item, 'vfr-rt-part3-mc-numbers.json')
     const unexplained = (questions as AuthoredMcQuestion[]).filter(
       (q) => (q.explanation ?? '').trim() === '',
     )

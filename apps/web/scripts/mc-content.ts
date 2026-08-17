@@ -137,6 +137,9 @@ export function tallyKey(questions: readonly AuthoredMcQuestion[]): KeyBalance {
   const counts: Record<string, number> = {}
   for (const id of MC_OPTION_IDS) counts[id] = 0
   for (const question of questions) {
+    // `?? 0` is belt-and-suspenders, not a live path: every a..d key is pre-initialized above,
+    // and `assertMcItem` has already constrained `correct` to an id in that range. It stays so
+    // that calling this on unvalidated input tallies rather than producing NaN.
     counts[question.correct] = (counts[question.correct] ?? 0) + 1
   }
   return { counts, total: questions.length }
