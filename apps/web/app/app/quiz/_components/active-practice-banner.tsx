@@ -19,9 +19,15 @@ import type { ActivePracticeSession } from '../actions/get-active-practice-sessi
 // Discard-only banner for an active practice session detected server-side.
 // No Resume: practice answers live in localStorage, so a cross-browser session
 // can't be restored — the only useful action is to clear it and start fresh.
-export function ActivePracticeBanner({ session }: Readonly<{ session: ActivePracticeSession }>) {
+// `userId` is required (not optional) so a caller cannot silently skip the localStorage
+// clear the discard depends on — matching ResumeExamBanner and QuizRecoveryBanner.
+export function ActivePracticeBanner({
+  userId,
+  session,
+}: Readonly<{ userId: string; session: ActivePracticeSession }>) {
   const { discard, loading, error, discarded, clearError } = useActivePracticeDiscard(
     session.sessionId,
+    userId,
   )
   const [open, setOpen] = useState(false)
 

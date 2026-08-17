@@ -2,6 +2,7 @@ import type { useRouter } from 'next/navigation'
 import { discardQuiz } from '../actions/discard'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { clearActiveSession } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -54,6 +55,10 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.discardingRef.current = true // set before the first await (code-style §6)
     deps.setLoading(true)
     deps.setError(null)
+    // Always clear — respect discard intent even if Server Action fails (mirrors
+    // use-session-recovery.ts and quiz-submit.ts). A surviving localStorage key is what
+    // let a discarded session keep offering Resume (#1190).
+    clearActiveSession(deps.userId)
     try {
       const result = await discardQuiz({ sessionId: deps.activeSessionId })
       if (result.success) {

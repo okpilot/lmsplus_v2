@@ -139,6 +139,14 @@ describe('VfrRtConfigForm — filters', () => {
     renderForm()
     expect(screen.getByText('Unanswered')).toBeInTheDocument()
   })
+
+  // Radiotelephony has no calculation or image questions, so the "Only …" toggles would
+  // yield an empty pool and the "Exclude …" ones do nothing (#1189).
+  it('does not offer the calculation or image preferences', () => {
+    renderForm()
+    expect(screen.queryByText(/calculation questions/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/with an image/i)).not.toBeInTheDocument()
+  })
 })
 
 // ---- Topics --------------------------------------------------------------

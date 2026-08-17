@@ -58,6 +58,7 @@ export function VfrRtConfigForm({
           imageMode={config.imageMode}
           onImageModeChange={config.setImageMode}
           unseenLabel="Unanswered"
+          showCalcImageToggles={false}
         />
       </div>
 

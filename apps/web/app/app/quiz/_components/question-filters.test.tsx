@@ -38,6 +38,9 @@ function renderFilters(props: Partial<React.ComponentProps<typeof QuestionFilter
       imageMode={props.imageMode ?? 'all'}
       onImageModeChange={props.onImageModeChange ?? vi.fn()}
       unseenLabel={props.unseenLabel}
+      // Forwarded, not defaulted: `false` is falsy, and an unforwarded prop would make
+      // every opt-out test silently exercise the default instead.
+      showCalcImageToggles={props.showCalcImageToggles}
     />,
   )
 }
@@ -147,6 +150,22 @@ describe('QuestionFilters', () => {
   it('renders a hint button for every toggle (3 filters + 2 calculation + 2 image)', () => {
     renderFilters()
     expect(screen.getAllByLabelText(/Info about/)).toHaveLength(7)
+  })
+
+  // ---- Opting out of the calculation/image groups (#1189) -----------------
+
+  it('hides the calculation and image toggles when they are opted out', () => {
+    renderFilters({ showCalcImageToggles: false })
+
+    expect(screen.queryByRole('switch', { name: /calculation questions/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: /with an image/i })).not.toBeInTheDocument()
+    // The three preference filters survive — only the two dead groups go.
+    expect(screen.getAllByRole('switch')).toHaveLength(3)
+  })
+
+  it('keeps the calculation and image toggles when no preference is given', () => {
+    renderFilters()
+    expect(screen.getAllByRole('switch')).toHaveLength(7)
   })
 
   // ---- Calculation toggles (mutually exclusive, included by default) ------

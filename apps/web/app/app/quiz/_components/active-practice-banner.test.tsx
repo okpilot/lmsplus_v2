@@ -38,6 +38,8 @@ const SESSION: ActivePracticeSession = {
 
 const SMART_REVIEW_SESSION: ActivePracticeSession = { ...SESSION, mode: 'smart_review' }
 
+const USER_ID = 'user-prac-001'
+
 beforeEach(() => {
   vi.resetAllMocks()
   mockDiscardQuiz.mockResolvedValue({ success: true })
@@ -47,18 +49,18 @@ beforeEach(() => {
 
 describe('ActivePracticeBanner — rendering', () => {
   it('names the Quick Quiz mode and subject in the notice', () => {
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     expect(screen.getByText(/^unfinished quick quiz session$/i)).toBeInTheDocument()
     expect(screen.getByText(/air law/i)).toBeInTheDocument()
   })
 
   it('names the Smart Review mode for a smart_review session', () => {
-    render(<ActivePracticeBanner session={SMART_REVIEW_SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SMART_REVIEW_SESSION} />)
     expect(screen.getByText(/^unfinished smart review session$/i)).toBeInTheDocument()
   })
 
   it('offers a Discard control but no Resume control', () => {
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /resume/i })).not.toBeInTheDocument()
   })
@@ -68,7 +70,7 @@ describe('ActivePracticeBanner — rendering', () => {
 
 describe('ActivePracticeBanner — Discard', () => {
   it('discards the active session and refreshes in place on success', async () => {
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
@@ -86,7 +88,7 @@ describe('ActivePracticeBanner — Discard', () => {
   it('shows the error visibly inside the open dialog when discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
 
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
@@ -102,7 +104,7 @@ describe('ActivePracticeBanner — Discard', () => {
   it('shows a generic dialog error and does not refresh when the discard request fails', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
 
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
@@ -116,7 +118,7 @@ describe('ActivePracticeBanner — Discard', () => {
     // Keep the discard pending so the dialog stays open mid-request.
     mockDiscardQuiz.mockReturnValue(new Promise(() => {}))
 
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
@@ -135,7 +137,7 @@ describe('ActivePracticeBanner — Discard', () => {
       }),
     )
 
-    render(<ActivePracticeBanner session={SESSION} />)
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     const action = screen.getByRole('button', { name: /^discard$/i, hidden: false })
 

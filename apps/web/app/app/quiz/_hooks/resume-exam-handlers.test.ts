@@ -62,6 +62,7 @@ function makeDeps(overrides: Partial<ResumeExamDeps> = {}): ResumeExamDeps {
 beforeEach(() => {
   vi.resetAllMocks()
   discardingRef = { current: false }
+  localStorage.clear()
   Object.defineProperty(globalThis, 'sessionStorage', {
     value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
     writable: true,
@@ -143,6 +144,33 @@ describe('buildDiscardHandler', () => {
     expect(setDiscarded).toHaveBeenCalledWith(true)
     expect(router.refresh).toHaveBeenCalledTimes(1)
     expect(setLoading).toHaveBeenLastCalledWith(false)
+  })
+
+  it('removes the stored session so a discarded exam can no longer be resumed', async () => {
+    localStorage.setItem(
+      'quiz-active-session:user-1',
+      JSON.stringify({ sessionId: 'sess-exam-001' }),
+    )
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+
+    await buildDiscardHandler(makeDeps())()
+
+    expect(localStorage.getItem('quiz-active-session:user-1')).toBeNull()
+  })
+
+  // Pins the disposition, not just the outcome: moving the clear onto the success branch
+  // fails this test while leaving the success-path test above green.
+  it('removes the stored session even when the discard request fails', async () => {
+    localStorage.setItem(
+      'quiz-active-session:user-1',
+      JSON.stringify({ sessionId: 'sess-exam-001' }),
+    )
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
+
+    await buildDiscardHandler(makeDeps())()
+
+    expect(localStorage.getItem('quiz-active-session:user-1')).toBeNull()
+    expect(setError).toHaveBeenCalledWith('Session not found')
   })
 
   it('discards the session exactly once when triggered twice in the same tick', async () => {

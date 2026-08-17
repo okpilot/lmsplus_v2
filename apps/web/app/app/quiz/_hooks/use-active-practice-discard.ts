@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { discardQuiz } from '../actions/discard'
+import { clearActiveSession } from '../session/_utils/quiz-session-storage'
 
 export type UseActivePracticeDiscard = {
   discard: () => Promise<void>
@@ -17,7 +18,10 @@ export type UseActivePracticeDiscard = {
  * re-entry guard, the discardQuiz mutation, the in-place router.refresh, and the
  * loading/error/discarded state. The component renders; this hook holds the logic.
  */
-export function useActivePracticeDiscard(sessionId: string): UseActivePracticeDiscard {
+export function useActivePracticeDiscard(
+  sessionId: string,
+  userId: string,
+): UseActivePracticeDiscard {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +37,12 @@ export function useActivePracticeDiscard(sessionId: string): UseActivePracticeDi
     discardingRef.current = true
     setLoading(true)
     setError(null)
+    // Always clear — respect discard intent even if Server Action fails (mirrors
+    // quiz-submit.ts discardQuizSession). This banner is DB-backed while the recovery
+    // banner is localStorage-backed, so leaving the key behind is what let a discarded
+    // session still offer Resume (#1190). safeRemove swallows, so this cannot abort the
+    // discard below.
+    clearActiveSession(userId)
     try {
       const result = await discardQuiz({ sessionId })
       if (result.success) {
@@ -48,7 +58,7 @@ export function useActivePracticeDiscard(sessionId: string): UseActivePracticeDi
     } finally {
       setLoading(false)
     }
-  }, [router, sessionId])
+  }, [router, sessionId, userId])
 
   return { discard, loading, error, discarded, clearError }
 }

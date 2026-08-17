@@ -26,6 +26,11 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
   try {
     parsed = CheckNonMcAnswerSchema.parse(raw)
   } catch {
+    // Bare string, never the ZodError: the schema's four `.strict()` members echo
+    // unrecognized key names verbatim, and its serialization is a library-internal detail.
+    // Matches lookup.ts. (The ZodError does NOT carry the answer text — measured, not
+    // assumed — so that is not the reason.)
+    console.error('[checkNonMcAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
   const { questionId, sessionId } = parsed
@@ -35,7 +40,15 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     userId: user.id,
     questionId,
   })
-  if (membershipError) return { success: false, error: membershipError }
+  // #1190 AC3: verifySessionMembership's three returns were silent, which is what made a
+  // discarded-session runner undiagnosable. Logged at the caller because that helper is
+  // already at 210 lines against its 200-line cap (§1) — and `membershipError` names which
+  // of the three fired, so one line here covers all of them. It is our own sanitized
+  // domain string, never a raw DB message.
+  if (membershipError) {
+    console.error('[checkNonMcAnswer] Membership failed:', membershipError, questionId, sessionId)
+    return { success: false, error: membershipError }
+  }
 
   if ('responseText' in parsed) {
     const { data, error } = await rpc<ShortAnswerRpcResult>(supabase, 'check_non_mc_answer', {

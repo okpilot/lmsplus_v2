@@ -1,14 +1,15 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-
 // Practice modes are the only quiz_sessions a student can hold open without a
 // server-backed recovery surface — exams have ResumeExamBanner / recovery banners,
 // Discovery auto-clears on the next start. A practice session abandoned in one
 // browser is detectable only via localStorage (QuizRecoveryBanner), so a cross-
 // browser / cleared-storage student gets `another_session_active` with no way to
 // clear it. This query backs ActivePracticeBanner — the server-visible discard path.
-const PRACTICE_MODES = ['quick_quiz', 'smart_review'] as const
+// Imported, not re-inlined: exam-modes.ts owns this list and says to keep consumers
+// in lockstep by importing it.
+import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 export type ActivePracticeSession = {
   sessionId: string

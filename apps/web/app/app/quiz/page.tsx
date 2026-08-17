@@ -47,7 +47,7 @@ export default async function QuizPage() {
         <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
       ))}
 
-      {activePractice && <ActivePracticeBanner session={activePractice} />}
+      {activePractice && <ActivePracticeBanner userId={user.id} session={activePractice} />}
 
       <QuizRecoveryBanner userId={user.id} />
 
