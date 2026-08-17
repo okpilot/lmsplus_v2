@@ -232,6 +232,37 @@ describe('useActivePracticeDiscard', () => {
     expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull()
   })
 
+  // Distinct from the retry tests above, which only assert the END state after the retry
+  // resolves — that passes even if the stale error is never cleared, because a resolved-
+  // failure retry overwrites it and a successful retry's `discarded` flag hides it once the
+  // banner unmounts. This pins the clear firing at the START of the new attempt, before the
+  // second discardQuiz call settles, by holding the second call pending.
+  it('clears the previous error as soon as a new attempt starts', async () => {
+    mockDiscardQuiz.mockResolvedValueOnce({ success: false, error: 'Session not found' })
+    let resolveSecond!: (v: { success: true }) => void
+    mockDiscardQuiz.mockImplementationOnce(
+      () =>
+        new Promise<{ success: true }>((res) => {
+          resolveSecond = res
+        }),
+    )
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toBe('Session not found')
+
+    act(() => {
+      void result.current.discard()
+    })
+    expect(result.current.error).toBeNull()
+
+    await act(async () => {
+      resolveSecond({ success: true })
+    })
+  })
+
   it('clears the error when clearError is called', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
