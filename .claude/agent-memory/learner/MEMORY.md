@@ -96,7 +96,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Branch memory/run-log SHAs orphaned on each forced rebase | 1 | 2026-08-08 | WATCHING (archive row 520) |
 | CR fabricates repo-history claims (SHA/PR/issue "doesn't | 2 | 2026-08-17 | RULE CANDIDATE (2) → broaden agent-coderabbit-local.md Pitfall #8 (archive row 521). |
 | Multi-row tracker transition leaves sibling archive row | 1 | 2026-08-08 | WATCHING (archive row 522) |
-| Orchestrator embeds unverified schema identifier | 2 | 2026-08-10 | RULE CANDIDATE (2) → agent-doc-updater.md cite-before-writing NEVER bullet. |
+| Orchestrator embeds unverified schema identifier | 3 | 2026-08-17 | PROMOTED → agent-doc-updater.md cite-before-writing NEVER bullet (doc-updater agent fabricates script path + footer date, same class; rule written at count=2). |
 | Playwright getByRole('dialog') on AlertDialog (renders | 1 | 2026-08-09 | WATCHING (archive row 524) |
 | Integration test uses real prod code in onConflict | 1 | 2026-08-09 | WATCHING (archive row 525) |
 | check-test-title-leakage.mjs misses bare snake_case token | 2 | 2026-08-17 | RULE CANDIDATE (2) → extend hook DISALLOWED_PATTERNS or §7 note (archive row 526). |
@@ -137,7 +137,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Orchestrator copies a critic finding LABEL into a comment | 1 | 2026-08-17 | WATCHING (archive row 561). §10 sub-instance, caught pre-commit by impl-critic — no new rule, §10 already covers it. |
 | Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
 | Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
-| Follow-up commit misses review-follow-up line bound by margin | 1 | 2026-08-17 | WATCHING (archive row 564). 27 vs ≤20, forced a full clean cycle — process cost, not a bypass (distinct from row 560). |
+| Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) — commit doc updates separately from review-follow-up code fixes; a doc update widens the file set and disqualifies the reduced cycle (archive row 564). |
+| §10 violations (non-DB form) cluster in content/authoring commit (mechanism, intent, statistic) | 1 | 2026-08-17 | WATCHING (archive row 565). fefef96e: 4 sub-instances — partial constraint-name edit (same file had it right 10 lines lower), false rendering-mechanism claim ×2, intent-not-code claim, unverified statistic. All caught by impl-critic pre-commit. |
+| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). fefef96e: 17/18 questions on b/c, zero d-answers; per-question checks all pass. Tool-fixed: assertMcKeyBalance in test suite + importer. |
 
 ## Durable knowledge (cross-agent)
 
