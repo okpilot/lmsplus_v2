@@ -8,6 +8,7 @@ const {
   mockClearActiveSession,
   mockReadActiveSession,
   mockSessionStorageSetItem,
+  mockClearSessionHandoff,
 } = vi.hoisted(() => ({
   mockSaveDraft: vi.fn<() => Promise<ActionResult>>(),
   mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
@@ -15,6 +16,7 @@ const {
   mockClearActiveSession: vi.fn<(userId: string) => void>(),
   mockReadActiveSession: vi.fn<(userId: string) => { sessionId: string } | null>(),
   mockSessionStorageSetItem: vi.fn<(key: string, value: string) => void>(),
+  mockClearSessionHandoff: vi.fn<(userId: string) => void>(),
 }))
 
 vi.mock('../actions/draft', () => ({ saveDraft: mockSaveDraft }))
@@ -37,6 +39,7 @@ vi.mock('../session/_utils/quiz-session-storage', () => ({
 }))
 vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
+  clearSessionHandoff: mockClearSessionHandoff,
 }))
 
 import { createMockRouter } from '@/lib/test-support/mock-router'
@@ -147,6 +150,27 @@ describe('buildResumeHandler', () => {
     expect(router.push).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     warnSpy.mockRestore()
+  })
+
+  // The re-read guard above only catches staleness that existed BEFORE the handoff write.
+  // clearActiveSessionIfCurrent re-reads AGAIN right before clearing, so a replacement that
+  // lands in that window must still be caught — this pins the second guard, not the first.
+  it('refuses to resume when another tab replaces the session mid-handoff', () => {
+    const session = makeSession()
+    mockReadActiveSession
+      .mockReturnValueOnce({ sessionId: 'sess-abc' })
+      .mockReturnValue({ sessionId: 'sess-newer' })
+    const handle = buildResumeHandler({ userId: 'user-1', session, setError, router })
+
+    handle()
+
+    // The write happened — this is what pins the rejection at the CLEAR, not at the earlier
+    // re-read guard, which shares the same error string.
+    expect(mockSessionStorageSetItem).toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    expect(mockClearSessionHandoff).toHaveBeenCalledWith('user-1')
+    expect(router.push).not.toHaveBeenCalled()
+    expect(setError).toHaveBeenCalledWith(expect.stringMatching(/no longer available/i))
   })
 
   it('clears the active session and navigates to the quiz session page on success', () => {

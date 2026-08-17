@@ -74,7 +74,7 @@ export function readActiveSession(userId: string): ActiveSession | null {
   try {
     const raw = localStorage.getItem(storageKey(userId))
     if (!raw) return null
-    const data = JSON.parse(raw) as ActiveSession
+    const data: unknown = JSON.parse(raw)
     if (!isValidActiveSession(data, userId)) {
       safeRemove(userId)
       return null

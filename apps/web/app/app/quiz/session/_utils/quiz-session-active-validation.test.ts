@@ -65,6 +65,34 @@ describe('isValidActiveSession', () => {
   })
 
   it('rejects an entry with no questions', () => {
+    // No dedicated empty-list clause exists. The first case is rejected by the bounds term
+    // (makeSession's currentIndex is 1, so 1 >= 0). The second pins what that subsumption
+    // rests on — the `currentIndex < 0` clause being present, not its position in the `||`.
+    // Delete that clause and this second expectation is the one that goes red.
     expect(isValidActiveSession(makeSession({ questionIds: [] }), USER_ID)).toBe(false)
+    expect(isValidActiveSession(makeSession({ questionIds: [], currentIndex: -1 }), USER_ID)).toBe(
+      false,
+    )
+  })
+
+  // Pins the root-object guard directly — without it the old code THROWS on a null root
+  // (dereferencing sessionId on null) instead of returning false.
+  it('rejects a null payload', () => {
+    expect(isValidActiveSession(null, USER_ID)).toBe(false)
+  })
+
+  it('rejects a non-string session id', () => {
+    expect(isValidActiveSession(makeSession({ sessionId: 123 as never }), USER_ID)).toBe(false)
+  })
+
+  it('rejects an entry whose saved timestamp is not a finite number', () => {
+    expect(isValidActiveSession(makeSession({ savedAt: Number.NaN }), USER_ID)).toBe(false)
+    expect(isValidActiveSession(makeSession({ savedAt: Number.POSITIVE_INFINITY }), USER_ID)).toBe(
+      false,
+    )
+  })
+
+  it('rejects a null feedback map instead of skipping its validation', () => {
+    expect(isValidActiveSession(makeSession({ feedback: null as never }), USER_ID)).toBe(false)
   })
 })

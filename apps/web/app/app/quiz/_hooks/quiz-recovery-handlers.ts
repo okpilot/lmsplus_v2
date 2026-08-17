@@ -2,7 +2,7 @@ import type { useRouter } from 'next/navigation'
 import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { discardQuiz } from '../actions/discard'
 import { saveDraft } from '../actions/draft'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
+import { clearSessionHandoff, sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import {
   type ActiveSession,
   buildHandoffPayload,
@@ -26,6 +26,19 @@ export type RecoveryDeps = {
   router: AppRouterInstance
 }
 
+function writeActiveSessionHandoff(userId: string, session: ActiveSession): boolean {
+  try {
+    sessionStorage.setItem(
+      sessionHandoffKey(userId),
+      JSON.stringify(buildHandoffPayload(userId, session)),
+    )
+    return true
+  } catch (err) {
+    console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
+    return false
+  }
+}
+
 export function buildResumeHandler(
   deps: Pick<RecoveryDeps, 'userId' | 'session' | 'setError' | 'router'>,
 ) {
@@ -43,19 +56,20 @@ export function buildResumeHandler(
       deps.setError('That session is no longer available. Refresh to see your current sessions.')
       return
     }
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify(buildHandoffPayload(userId, session)),
-      )
-    } catch (err) {
-      console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
+    if (!writeActiveSessionHandoff(userId, session)) {
       deps.setError('Unable to resume right now. Please try again.')
       return
     }
-    // Proven current one statement above and nothing awaits in between, so this cannot clear
-    // a newer session; the guarded form would simply re-read.
-    clearActiveSessionIfCurrent(userId, session.sessionId)
+    // False means the snapshot is no longer authoritative — replaced by a newer session (this
+    // clear no-ops, leaving it intact), removed outright (#1190's sibling-banner discard), or
+    // expired/unreadable (purged best-effort; safeRemove swallows its own failure). Drop the
+    // handoff written above too: isValidSessionData checks shape and userId but never currency,
+    // so a later direct entry to /app/quiz/session would rehydrate this superseded session.
+    if (!clearActiveSessionIfCurrent(userId, session.sessionId)) {
+      clearSessionHandoff(userId)
+      deps.setError('That session is no longer available. Refresh to see your current sessions.')
+      return
+    }
     deps.router.push('/app/quiz/session')
   }
 }

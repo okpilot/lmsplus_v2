@@ -1,5 +1,6 @@
 import type { ActiveSession } from './quiz-session-storage'
 import {
+  isNonEmptyString,
   isValidDraftAnswer,
   isValidFeedbackEntry,
   isValidRecordOf,
@@ -13,45 +14,55 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 // owns the shape. `ActiveSession` is a type-only import, so the cycle between the two is
 // erased at compile time and no runtime cycle exists.
 
+// Exam mode requires startedAt + timeLimitSeconds for the timer. Reject pre-ship
+// entries lacking them, and garbage (NaN/Infinity/non-positive, unparseable startedAt).
+function hasValidExamTimerFields(d: Record<string, unknown>): boolean {
+  if (d.mode !== 'exam') return true
+  return (
+    typeof d.startedAt === 'string' &&
+    Number.isFinite(Date.parse(d.startedAt)) &&
+    typeof d.timeLimitSeconds === 'number' &&
+    Number.isFinite(d.timeLimitSeconds) &&
+    d.timeLimitSeconds > 0
+  )
+}
+
+// Active-session firewall: only 'study'/'exam' (or legacy undefined) may resume from
+// localStorage — a stored 'discovery' (browse-only, never persists) or garbage is stale/
+// tampered. DIVERGES from the handoff validator, which DOES admit 'discovery' (one-shot).
+function hasValidResumableMode(d: Record<string, unknown>): boolean {
+  return d.mode === undefined || d.mode === 'study' || d.mode === 'exam'
+}
+
 // Returns false for any malformed/stale/cross-user/non-resumable payload so
 // readActiveSession can purge it once (rather than per-branch).
-export function isValidActiveSession(data: ActiveSession, userId: string): boolean {
-  // Required fields
+export function isValidActiveSession(data: unknown, userId: string): data is ActiveSession {
+  if (typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
   if (
-    !data.sessionId ||
-    !Array.isArray(data.questionIds) ||
-    data.questionIds.length === 0 ||
-    typeof data.savedAt !== 'number' ||
-    typeof data.currentIndex !== 'number' ||
-    !Number.isInteger(data.currentIndex) ||
-    data.currentIndex < 0 ||
-    data.currentIndex >= data.questionIds.length ||
-    typeof data.answers !== 'object' ||
-    data.answers === null ||
-    Array.isArray(data.answers)
+    !isNonEmptyString(d.sessionId) ||
+    !Array.isArray(d.questionIds) ||
+    typeof d.savedAt !== 'number' ||
+    !Number.isFinite(d.savedAt) ||
+    typeof d.currentIndex !== 'number' ||
+    !Number.isInteger(d.currentIndex) ||
+    d.currentIndex < 0 ||
+    // Empty questionIds needs no clause of its own: currentIndex is proven a non-negative
+    // integer above, so this bounds check fires at length 0. That needs the `< 0` clause to
+    // be PRESENT — its position in the `||` is irrelevant; drop it and `[]` + `-1` validates.
+    d.currentIndex >= d.questionIds.length ||
+    typeof d.answers !== 'object' ||
+    d.answers === null ||
+    Array.isArray(d.answers)
   ) {
     return false
   }
-  if (data.questionIds.some((id) => typeof id !== 'string' || !id)) return false
-  if (!isValidRecordOf(data.answers, isValidDraftAnswer)) return false
-  if (data.feedback && !isValidRecordOf(data.feedback, isValidFeedbackEntry)) return false
-  if (data.userId !== userId) return false // cross-user contamination guard
-  // Active-session firewall: only 'study'/'exam' (or legacy undefined) may resume from
-  // localStorage — a stored 'discovery' (browse-only, never persists) or garbage is stale/
-  // tampered. DIVERGES from the handoff validator, which DOES admit 'discovery' (one-shot).
-  if (data.mode !== undefined && data.mode !== 'study' && data.mode !== 'exam') return false
-  // Exam mode requires startedAt + timeLimitSeconds for the timer. Reject pre-ship
-  // entries lacking them, and garbage (NaN/Infinity/non-positive, unparseable startedAt).
-  if (
-    data.mode === 'exam' &&
-    (typeof data.startedAt !== 'string' ||
-      !Number.isFinite(Date.parse(data.startedAt)) ||
-      typeof data.timeLimitSeconds !== 'number' ||
-      !Number.isFinite(data.timeLimitSeconds) ||
-      data.timeLimitSeconds <= 0)
-  ) {
-    return false
-  }
-  if (Date.now() - data.savedAt > SEVEN_DAYS_MS) return false // 7-day staleness
+  if (d.questionIds.some((id) => !isNonEmptyString(id))) return false
+  if (!isValidRecordOf(d.answers, isValidDraftAnswer)) return false
+  if (d.feedback !== undefined && !isValidRecordOf(d.feedback, isValidFeedbackEntry)) return false
+  if (d.userId !== userId) return false // cross-user contamination guard
+  if (!hasValidResumableMode(d)) return false
+  if (!hasValidExamTimerFields(d)) return false
+  if (Date.now() - d.savedAt > SEVEN_DAYS_MS) return false // 7-day staleness
   return true
 }
