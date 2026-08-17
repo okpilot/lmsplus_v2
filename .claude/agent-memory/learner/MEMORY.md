@@ -8,9 +8,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
-| Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE. |
+| Test fixture shape mismatch | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6. |
-| Partial fix applied to sibling file group — **CATCH-ALL: 5 unrelated mechanisms, not one** | 19 | 2026-08-11 | PROMOTED → CLAUDE.md:117 — enforcement gap, not missing rule; no mechanical guard (deliberate). Do not increment further — split A–E first. See [sibling-group audit](topics/tracker-archive.md#sibling-group-audit-2026-08-11). |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (on 3rd). |
@@ -37,8 +36,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE → agent-coderabbit-local.md pitfall #6. |
 | Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE. |
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE. |
-| plpgsql function body contains deferred-validation SQL (clean migration apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4). |
-| Semantic reviewer stale-baseline false positive (compared wrong predecessor migration/definition) | 2 | 2026-06-06 | RULE CANDIDATE. |
+| plpgsql body contains deferred-validation SQL (clean apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4). |
+| Semantic reviewer stale-baseline false positive (wrong predecessor migration) | 2 | 2026-06-06 | RULE CANDIDATE. |
 | Stale local Supabase volume / in-place migration edit causing local e2e failures | 2 | 2026-06-10 | RULE CANDIDATE. |
 | Haiku code-reviewer false positives on Playwright E2E spec complexity | 2 | 2026-06-05 | RULE CANDIDATE. |
 | Query helper promoted to throw on error, but SA caller missing catch boundary | 2 | 2026-06-01 | RULE CANDIDATE. |
@@ -74,7 +73,6 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Semantic-reviewer FP: recalled-but-unverified runtime behavior (tests disprove) | 1 | 2026-07-11 | WATCHING (archive row 493) |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only grep | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol (archive row 495). |
 | CR-local re-raises adjudicated skip verdicts in later rounds of the same session | 1 | 2026-07-11 | WATCHING (archive row 496) |
-| Reviewer-proposed fix introduces a new defect | 4 | 2026-08-16 | RULE CANDIDATE (4; 1c86ca6c: CR min-width clamp applied without reading file's inline warning 15 lines above, collapsed dialog_fill input from 116.8→19px in shrink-to-fit context, reverted in 43c7c4d1; prior: 2×2026-08-09, 1×2026-08-11) → PROPOSE PROMOTION to agent-coderabbit-local.md (extend pitfall #7/#9 or add pitfall #10: read surrounding file context — esp. inline warnings — before applying any reviewer CSS/disposition suggestion). |
 | CR-local catches shell/hook robustness gaps TypeScript-focused agents miss | 1 | 2026-07-11 | WATCHING (archive row 499) |
 | Parallel implementer diverges from sibling-established extraction pattern in same commit | 1 | 2026-07-12 | WATCHING (archive row 504) |
 | Plan validated against stale master; post-rebase reveals deleted file (plan item removed) | 1 | 2026-07-12 | WATCHING (archive row 505) |
@@ -89,12 +87,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Cycle commit message or drive-by comment introduces inaccuracy (caught by semantic-reviewer) | 1 | 2026-07-31 | WATCHING (archive row 506) |
 | Regression test can't detect fix's own reversion (passes on old and new code) | 1 | 2026-08-07 | WATCHING (archive row 511) |
 | Fake-timer test timeout leaks timer mode into later tests (finally skipped) | 1 | 2026-08-07 | WATCHING (archive row 513) |
-| Semantic-reviewer asserts unreachable code path without grepping for callers (FP) | 1 | 2026-08-07 | WATCHING (archive row 514) |
+| Reviewer asserts code/test element absent or unreachable without grepping to verify (FP) | 2 | 2026-08-16 | RULE CANDIDATE (2; archive row 514 + this run: red-team claimed no test for `'Could not check answer'` branch, contradicted by source). Propose: agent-semantic-reviewer.md + agent-red-team.md DO. |
 | Dep-bump type error cascades into N CI suite failures (shared build step aborts) | 1 | 2026-08-07 | WATCHING (archive row 515) |
 | Severity-gated verification misses sub-threshold advisories (gate-clean ≠ safe to remove) | 1 | 2026-08-08 | WATCHING (archive row 516) |
 | Behavior-first test-title rename overclaims a stronger property than the assertion body proves | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 (archive row 517). |
 | Test-file split duplicates unused fixture (Biome noUnusedVariables ERROR, no --unsafe fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
-| Claim-correction commit updates a count but leaves its supporting arithmetic stale | 3 | 2026-08-16 | RULE CANDIDATE (3; all on chore/proportionate-review-gates — different commits, same branch; await cross-branch recurrence before promoting; see archive row 519). |
+| Claim-correction commit updates a count but leaves its supporting arithmetic stale | 3 | 2026-08-16 | RULE CANDIDATE (3; same branch; await cross-branch recurrence; see archive row 519). |
 | Branch memory/run-log SHAs orphaned on each forced rebase (repair commit per cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
 | CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") — distinct from pitfall #8 | 1 | 2026-08-08 | WATCHING (archive row 521) |
 | Multi-row tracker transition leaves sibling archive row STATUS token mismatched | 1 | 2026-08-08 | WATCHING (archive row 522) |
@@ -109,7 +107,6 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Status/error-posture change leaves a sibling spec asserting the OLD value | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation (archive row 531). |
 | Orchestrator acts on ISSUE without Finding Validation; impl-critic falsifies premise | 1 | 2026-08-09 | WATCHING (archive row 532) |
 | buildChain mock Proxy absorbs any chain call — new guard ships with zero coverage | 1 | 2026-08-09 | WATCHING (archive row 533) |
-| Inline enumeration of sibling files/helpers goes stale as the set grows | 2 | 2026-08-10 | RULE CANDIDATE (2) — fixed eb091c91; no further rule needed. |
 | Post-commit gates miss new site violating a promoted §7 rule; CR-local catches it | 1 | 2026-08-09 | WATCHING (archive row 535) |
 | Local DB queried for grant evidence when drift is additive (local presence ≠ migration truth) | 1 | 2026-08-09 | WATCHING (archive row 536) |
 | Internal subagent fabricates repo-artifact identifier (wrong issue# or matrix row range) | 1 | 2026-08-09 | WATCHING (archive row 537) |
@@ -121,11 +118,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR/reviewer suggestion adopted verbatim without checking established codebase idiom (style drift, non-defective) | 1 | 2026-08-11 | WATCHING (archive row 543) |
 | Sibling-scope sweep keyed on RPC/function-name rather than code structure — misses same-structure call sites with a different RPC | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision carries forward after subsequent plan rounds add lines | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing — `tsc --noEmit` w/ positional paths bypasses tsconfig; `&& echo` masks TS5112 no-op exit 0 | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation |
-| Plan prose states unverified content-item count that diverges from actual codebase (e.g. "5 questions" when 4 affected) | 1 | 2026-08-11 | WATCHING (archive row 547) |
-| Comment/doc asserts behaviour code doesn't implement | 13 | 2026-08-16 | PROMOTED → code-style.md §10 (broadened; +2 clauses: no forward-propagation, partial-edit is the tell). |
-| Reviewer/CR finding's premise accepted w/o verification, later disproven | 3 | 2026-08-15 | PROMOTED → agent-workflow.md § Finding Validation (cheap-to-verify claim classes). |
-| Test passes for wrong reason — a second unrelated guard masks reverted/missing prod logic | 5 | 2026-08-16 | PROMOTED → code-style.md §7 (vacuity principle; proof = revert prod change, watch test fail). |
+| Proposed verification command silently verifies nothing (`tsc --noEmit` positional-path bypass; `&& echo` masks TS5112 exit 0) | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md § Plan Validation |
+| Plan prose states unverified content-item count that diverges from actual codebase | 2 | 2026-08-16 | RULE CANDIDATE (2; archive row 547 + this run: plan claimed "6 of 8 sites clear", grep showed 4). Propose: agent-workflow.md § Plan Validation — grep-verify counts. |
 | Broad `git add <subdir>` sweeps unrelated untracked files into a commit (new loc., apps/web stray-.git class) | 1 | 2026-08-15 | WATCHING (archive row 548). |
 | `json.dumps` round-trip reformats an entire tracked JSON file to edit one string | 1 | 2026-08-15 | WATCHING (archive row 549). |
 | Blanket find/replace during tracker state-transition corrupts unrelated rows (status-token match, not distinctive text) | 1 | 2026-08-15 | WATCHING (archive row 550). |
@@ -134,6 +128,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Mechanical guard silently not running reads identically to passing — guard scope excludes the relevant path, output is "0 files clean" either way | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting a field absent when it exists — spurious negative indistinguishable from genuine negative | 1 | 2026-08-16 | WATCHING (archive row 554) |
 | Fix commit correcting §10 violations introduces fresh §10 violations of its own (wrong line-ref, wrong enumeration count, wrong mechanism name, wrong glob semantics) | 1 | 2026-08-16 | WATCHING (archive row 555) |
+| Plan cites correct sibling precedent but implements its inverse disposition (author-plan variant; distinct from CR Pitfall #9) | 1 | 2026-08-16 | WATCHING (archive row 556) |
+| Doc-updater transposes two issue numbers and proposes to close a partially-fixed issue as fully resolved | 1 | 2026-08-16 | WATCHING (archive row 557) |
 
 ## Durable knowledge (cross-agent)
 
