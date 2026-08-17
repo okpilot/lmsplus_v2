@@ -134,6 +134,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) → code-style.md §10 addendum: shared-helper/grep-for-marker over enumeration (archive row 534). 2nd domain of the Rule-Mirror Sync defect shape. |
 | Promoted rule (§1 same-commit-extraction, count=8) not | 1 | 2026-08-17 | WATCHING (archive row 559). |
 | Review-follow-up exemption misapplied — commit pushed | 1 | 2026-08-17 | WATCHING (archive row 560). |
+| Orchestrator copies a critic finding LABEL into a comment | 1 | 2026-08-17 | WATCHING (archive row 561). §10 sub-instance, caught pre-commit by impl-critic — no new rule, §10 already covers it. |
+| Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
+| Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
+| Follow-up commit misses review-follow-up line bound by margin | 1 | 2026-08-17 | WATCHING (archive row 564). 27 vs ≤20, forced a full clean cycle — process cost, not a bypass (distinct from row 560). |
 
 ## Durable knowledge (cross-agent)
 
