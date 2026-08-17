@@ -29,6 +29,21 @@ const SESSION_ID = 'sess-prac-001'
 const USER_ID = 'user-prac-001'
 const STORAGE_KEY = `quiz-active-session:${USER_ID}`
 
+// Must satisfy isValidActiveSession: readActiveSession PURGES anything malformed, so a
+// minimal { sessionId } stub would be dropped by the read itself and every assertion below
+// would pass whether or not the discard cleared anything.
+function storedSession(sessionId: string) {
+  return JSON.stringify({
+    userId: USER_ID,
+    sessionId,
+    questionIds: ['q-1', 'q-2'],
+    answers: {},
+    currentIndex: 0,
+    savedAt: Date.now(),
+    mode: 'study',
+  })
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   localStorage.clear()
@@ -97,7 +112,7 @@ describe('useActivePracticeDiscard', () => {
   })
 
   it('removes the stored session so a discarded session can no longer be resumed', async () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: SESSION_ID }))
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
@@ -110,7 +125,7 @@ describe('useActivePracticeDiscard', () => {
   // branch this fails, while the success-path test above would still pass.
   it('removes the stored session even when the discard request fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: SESSION_ID }))
+    localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
@@ -118,6 +133,18 @@ describe('useActivePracticeDiscard', () => {
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
     expect(result.current.error).toBe('Session not found')
+  })
+
+  // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
+  // a session that localStorage has already moved past. Fails if the id guard is removed.
+  it('keeps a newer stored session when a stale banner discards an older one', async () => {
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-prac-999'))
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull()
   })
 
   it('clears the error when clearError is called', async () => {

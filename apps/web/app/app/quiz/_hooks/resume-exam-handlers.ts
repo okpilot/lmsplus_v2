@@ -2,7 +2,7 @@ import type { useRouter } from 'next/navigation'
 import { discardQuiz } from '../actions/discard'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
-import { clearActiveSession } from '../session/_utils/quiz-session-storage'
+import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -55,10 +55,17 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.discardingRef.current = true // set before the first await (code-style §6)
     deps.setLoading(true)
     deps.setError(null)
-    // Always clear — respect discard intent even if Server Action fails (mirrors
-    // use-session-recovery.ts and quiz-submit.ts). A surviving localStorage key is what
-    // let a discarded session keep offering Resume (#1190).
-    clearActiveSession(deps.userId)
+    // Clear regardless of outcome — respect discard intent even when the Server Action fails
+    // (mirrors quiz-submit.ts:68); a surviving key is what let a discarded session keep
+    // offering Resume (#1190). Guarded on the id because this banner is server-rendered and
+    // never revalidated, so a stale tab could otherwise wipe a NEWER session's answer buffer
+    // — for a mock_exam that is a graded attempt. See the fuller note in
+    // use-active-practice-discard.ts; rule 13 / mig 136 rules out concurrent sessions, not a
+    // stale render. Until #1026 lands server-side checkpointing, a transient discard failure
+    // still loses the local buffer for THIS session, which is the established repo trade.
+    if (readActiveSession(deps.userId)?.sessionId === deps.activeSessionId) {
+      clearActiveSession(deps.userId)
+    }
     try {
       const result = await discardQuiz({ sessionId: deps.activeSessionId })
       if (result.success) {

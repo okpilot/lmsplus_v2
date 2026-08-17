@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { discardQuiz } from '../actions/discard'
-import { clearActiveSession } from '../session/_utils/quiz-session-storage'
+import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
 
 export type UseActivePracticeDiscard = {
   discard: () => Promise<void>
@@ -37,12 +37,21 @@ export function useActivePracticeDiscard(
     discardingRef.current = true
     setLoading(true)
     setError(null)
-    // Always clear — respect discard intent even if Server Action fails (mirrors
-    // quiz-submit.ts discardQuizSession). This banner is DB-backed while the recovery
-    // banner is localStorage-backed, so leaving the key behind is what let a discarded
-    // session still offer Resume (#1190). safeRemove swallows, so this cannot abort the
-    // discard below.
-    clearActiveSession(userId)
+    // Clear regardless of the Server Action's outcome — respect discard intent even when it
+    // fails (mirrors quiz-submit.ts:68). This banner is DB-backed while the recovery banner
+    // is localStorage-backed, so leaving the key behind is what let a discarded session keep
+    // offering Resume (#1190).
+    //
+    // Guarded on the id, unlike the precedents. quiz-submit.ts runs inside the runner that
+    // owns the session and use-session-recovery.ts clears the entry it just read, so neither
+    // can mismatch. This banner is SERVER-rendered and never revalidated on focus, so a stale
+    // tab can hold an old sessionId while localStorage has moved on to a newer session — an
+    // unguarded userId-keyed clear would destroy that newer session's answers. The single-
+    // active-session invariant (security.md rule 13 / mig 136) rules out two CONCURRENTLY
+    // live sessions but not a stale render. In the #1190 case the two ids are equal, so this
+    // does not weaken the fix; readActiveSession purges a malformed, cross-user or >7-day
+    // entry itself, so the false branch never leaves garbage behind.
+    if (readActiveSession(userId)?.sessionId === sessionId) clearActiveSession(userId)
     try {
       const result = await discardQuiz({ sessionId })
       if (result.success) {

@@ -34,6 +34,25 @@ const EXAM: ActiveExamSession = {
   questionIds: ['q-1', 'q-2'],
 }
 
+const STORAGE_KEY = 'quiz-active-session:user-1'
+
+// Must satisfy isValidActiveSession, whose exam branch also requires startedAt and a positive
+// timeLimitSeconds. readActiveSession PURGES anything malformed, so a minimal { sessionId }
+// stub would be dropped by the read and the assertions would pass vacuously.
+function storedSession(sessionId: string) {
+  return JSON.stringify({
+    userId: 'user-1',
+    sessionId,
+    questionIds: ['q-1', 'q-2'],
+    answers: {},
+    currentIndex: 0,
+    savedAt: Date.now(),
+    mode: 'exam',
+    startedAt: '2026-04-27T10:00:00.000Z',
+    timeLimitSeconds: 3600,
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Shared stubs
 // ---------------------------------------------------------------------------
@@ -147,30 +166,36 @@ describe('buildDiscardHandler', () => {
   })
 
   it('removes the stored session so a discarded exam can no longer be resumed', async () => {
-    localStorage.setItem(
-      'quiz-active-session:user-1',
-      JSON.stringify({ sessionId: 'sess-exam-001' }),
-    )
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-001'))
     mockDiscardQuiz.mockResolvedValue({ success: true })
 
     await buildDiscardHandler(makeDeps())()
 
-    expect(localStorage.getItem('quiz-active-session:user-1')).toBeNull()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 
   // Pins the disposition, not just the outcome: moving the clear onto the success branch
   // fails this test while leaving the success-path test above green.
   it('removes the stored session even when the discard request fails', async () => {
-    localStorage.setItem(
-      'quiz-active-session:user-1',
-      JSON.stringify({ sessionId: 'sess-exam-001' }),
-    )
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-001'))
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
 
     await buildDiscardHandler(makeDeps())()
 
-    expect(localStorage.getItem('quiz-active-session:user-1')).toBeNull()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
     expect(setError).toHaveBeenCalledWith('Session not found')
+  })
+
+  // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
+  // an exam localStorage has already moved past — wiping a newer graded attempt's answers.
+  // Fails if the id guard is removed.
+  it('keeps a newer stored session when a stale banner discards an older one', async () => {
+    localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-999'))
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+
+    await buildDiscardHandler(makeDeps())()
+
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull()
   })
 
   it('discards the session exactly once when triggered twice in the same tick', async () => {

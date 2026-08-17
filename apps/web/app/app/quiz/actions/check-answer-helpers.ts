@@ -5,9 +5,13 @@
 // the same way, but across two files — helpers for the ownership check, dispatch for the
 // RPC calls; this merges both.
 //
-// No 'use server': every VALUE export of such a module must be an async function, and
-// isCheckAnswerRpcResult is synchronous. (A *type* export would have been fine — 14
-// 'use server' modules export types today, get-active-practice-session.ts among them.)
+// This module must NOT carry 'use server', and the load-bearing reason is not that a sync
+// export would forbid it — that obstacle is removable, so do not rely on it. The reason is
+// that `gradeAnswer` returns `correct_option_id`, the MC answer key that docs/security.md §4
+// and mig 111's column REVOKE exist to protect. Adding the pragma would register it as a
+// client-invocable Server Action taking a caller-supplied sessionId, bypassing
+// verifySessionMembership entirely. `CheckAnswerRpcResult` and `isCheckAnswerRpcResult` are
+// kept file-private for the same reason: nothing here should widen the surface by accident.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
@@ -42,7 +46,7 @@ export async function verifySessionMembership(
     .single()
   if (error) {
     if (error.code === 'PGRST116') {
-      console.error('[checkAnswer] Session not found or not owned:', opts.sessionId)
+      console.error('[checkAnswer] Session not found/not owned:', opts.sessionId, opts.questionId)
       return 'Session not found'
     }
     console.error('[checkAnswer] Session lookup error:', error.message, error.code)
@@ -96,14 +100,14 @@ export async function gradeAnswer(
   }
 }
 
-export type CheckAnswerRpcResult = {
+type CheckAnswerRpcResult = {
   is_correct: boolean
   correct_option_id: string
   explanation_text: string | null
   explanation_image_url: string | null
 }
 
-export function isCheckAnswerRpcResult(value: unknown): value is CheckAnswerRpcResult {
+function isCheckAnswerRpcResult(value: unknown): value is CheckAnswerRpcResult {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
   return (
