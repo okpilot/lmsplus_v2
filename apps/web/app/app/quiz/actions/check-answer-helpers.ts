@@ -1,9 +1,11 @@
 // Three roles for the checkAnswer Server Action: the session-ownership check, the
 // check_quiz_answer call (which reads the answer key), and a runtime guard on its result.
-// Hoisted out of check-answer.ts to keep that file under the 100-line cap and checkAnswer
-// itself inside the orchestrator boundary (code-style.md §1, §3). The non-MC path splits
-// the same way, but across two files — helpers for the ownership check, dispatch for the
-// RPC calls; this merges both.
+// Hoisted out of check-answer.ts for code-style.md §3, NOT §1: that file was 82/100 lines on
+// master, so the file cap was never the constraint — its `checkAnswer` body was 51 against the
+// 30-line cap. That body is now at exactly 30/30, i.e. ZERO headroom, so the next step added
+// to it must be extracted too; do not read this file's 43-line parent as spare room. The
+// non-MC path splits the same way but across two files — helpers for the ownership check,
+// dispatch for the RPC calls; this merges both.
 //
 // This module must NOT carry 'use server', and the load-bearing reason is not that a sync
 // export would forbid it — that obstacle is removable, so do not rely on it. The reason is
@@ -18,16 +20,21 @@ import type { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
 
-// Declared locally, matching draft-helpers.ts, resume-helpers.ts, _discard-guard.ts and
-// seven other helpers — the codebase re-declares this one-line derived type rather than
-// sharing it.
+// Declared locally, matching twelve other files under apps/web (draft-helpers.ts,
+// resume-helpers.ts, resume.ts, check-non-mc-answer-helpers.ts, lib/supabase-rpc.ts and more).
+// Ten of them name it `SupabaseClient`; `_discard-guard.ts` and `_flag-guard.ts` declare the
+// same expression as `ServerSupabaseClient`. The codebase re-declares this one-line derived
+// type rather than sharing it — only check-non-mc-answer-helpers.ts exports it, and nothing
+// imports that.
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
  * Defense-in-depth session ownership + membership check — the MC twin of
- * verifySessionMembership in check-non-mc-answer-helpers.ts, kept deliberately
- * identical in shape and disposition (docs/security.md §11a). The RPC self-guards; this
- * fails fast on a foreign/closed session or a question outside it.
+ * verifySessionMembership in check-non-mc-answer-helpers.ts, kept deliberately identical in
+ * QUERY and DISPOSITION (same four §11a predicates, same PGRST116 split, same three return
+ * strings). Logging PLACEMENT deliberately differs: this one logs inside the helper, the
+ * non-MC one at its call site — see the note there for why. The RPC self-guards; this fails
+ * fast on a foreign/closed session or a question outside it.
  *
  * Returns a user-facing error string on failure, null on success. Only PGRST116 (no row)
  * means the session is genuinely gone: `.single()` ERRORS on zero rows rather than

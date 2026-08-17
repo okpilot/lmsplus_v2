@@ -40,12 +40,11 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     userId: user.id,
     questionId,
   })
-  // #1190 AC3: verifySessionMembership's three returns were silent, which is what made a
-  // discarded-session runner undiagnosable. Logged at the caller because that helper is
-  // already at 210 lines against its 200-line cap (§1) — and `membershipError` names which
-  // CLASS of failure fired, so one line here covers all three returns. (Two of them emit the
-  // same 'Session not found' string, so it cannot distinguish PGRST116 from the unreachable
-  // null-row floor.) It is our own sanitized domain string, never a raw DB message.
+  // #1190 AC3: three of verifySessionMembership's FOUR returns were silent — what made a
+  // discarded-session runner undiagnosable. Logged here because that helper is at 210/200 lines
+  // (§1); `membershipError` (sanitized, never a raw DB message) names which CLASS fired.
+  // Caveats: two of the silent three both emit 'Session not found' (PGRST116 vs the unreachable
+  // null-row floor); and the fourth already logs there, so that fault emits two lines.
   if (membershipError) {
     console.error('[checkNonMcAnswer] Membership failed:', membershipError, questionId, sessionId)
     return { success: false, error: membershipError }
