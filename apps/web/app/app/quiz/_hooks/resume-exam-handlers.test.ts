@@ -165,7 +165,7 @@ describe('buildDiscardHandler', () => {
     expect(setLoading).toHaveBeenLastCalledWith(false)
   })
 
-  it('removes the stored session so a discarded exam can no longer be resumed', async () => {
+  it('prevents resuming an exam after it is discarded', async () => {
     localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-001'))
     mockDiscardQuiz.mockResolvedValue({ success: true })
 
@@ -176,7 +176,7 @@ describe('buildDiscardHandler', () => {
 
   // Pins the disposition, not just the outcome: moving the clear onto the success branch
   // fails this test while leaving the success-path test above green.
-  it('removes the stored session even when the discard request fails', async () => {
+  it('honours the discard even when the request fails', async () => {
     localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-001'))
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
 
@@ -189,7 +189,7 @@ describe('buildDiscardHandler', () => {
   // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
   // an exam localStorage has already moved past — wiping a newer graded attempt's answers.
   // Fails if the id guard is removed.
-  it('keeps a newer stored session when a stale banner discards an older one', async () => {
+  it('preserves a newer exam when a stale banner discards an older one', async () => {
     localStorage.setItem(STORAGE_KEY, storedSession('sess-exam-999'))
     mockDiscardQuiz.mockResolvedValue({ success: true })
 

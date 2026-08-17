@@ -111,7 +111,7 @@ describe('useActivePracticeDiscard', () => {
     })
   })
 
-  it('removes the stored session so a discarded session can no longer be resumed', async () => {
+  it('prevents resuming a session after it is discarded', async () => {
     localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
@@ -123,7 +123,7 @@ describe('useActivePracticeDiscard', () => {
 
   // Pins the disposition, not just the outcome: if the clear were moved onto the success
   // branch this fails, while the success-path test above would still pass.
-  it('removes the stored session even when the discard request fails', async () => {
+  it('honours the discard even when the request fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
     localStorage.setItem(STORAGE_KEY, storedSession(SESSION_ID))
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
@@ -137,7 +137,7 @@ describe('useActivePracticeDiscard', () => {
 
   // The banner is server-rendered and never revalidated, so a stale tab can offer to discard
   // a session that localStorage has already moved past. Fails if the id guard is removed.
-  it('keeps a newer stored session when a stale banner discards an older one', async () => {
+  it('preserves a newer session when a stale banner discards an older one', async () => {
     localStorage.setItem(STORAGE_KEY, storedSession('sess-prac-999'))
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
