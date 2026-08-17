@@ -88,6 +88,74 @@ describe('useActivePracticeDiscard', () => {
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
+  it('shows the fallback message when discard fails without details', async () => {
+    // success: false with no error field — the ?? fallback must kick in
+    // No cast needed: mockDiscardQuiz is an untyped vi.fn() here, unlike the typed mock in
+    // resume-exam-handlers.test.ts where the same line needs one to satisfy ActionResult.
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: undefined })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(result.current.error).toBe('Failed to discard. Please try again.')
+  })
+
+  // A failed attempt (resolved or thrown) must release the one-shot re-entry guard so the
+  // user can retry — only a terminal SUCCESS should keep it locked. Neither branch's release
+  // is observable from the single-attempt failure tests above: this fails if either release
+  // is dropped.
+  it('allows a retry that succeeds after a resolved failure', async () => {
+    mockDiscardQuiz.mockResolvedValueOnce({ success: false, error: 'Session not found' })
+    mockDiscardQuiz.mockResolvedValueOnce({ success: true })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toBe('Session not found')
+    expect(result.current.discarded).toBe(false)
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
+    expect(result.current.discarded).toBe(true)
+  })
+
+  it('allows a retry that succeeds after a thrown request', async () => {
+    mockDiscardQuiz.mockRejectedValueOnce(new Error('network failure'))
+    mockDiscardQuiz.mockResolvedValueOnce({ success: true })
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    expect(result.current.error).toMatch(/server unavailable/i)
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(2)
+    expect(result.current.discarded).toBe(true)
+  })
+
+  it('ignores further discard attempts after a successful discard', async () => {
+    const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    // The banner is dismissed on success — a late duplicate must not re-fire.
+    expect(mockDiscardQuiz).toHaveBeenCalledTimes(1)
+  })
+
   it('submits a single discard when invoked twice before the first settles', async () => {
     let resolveDiscard!: (v: { success: true }) => void
     mockDiscardQuiz.mockReturnValue(
