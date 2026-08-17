@@ -99,7 +99,12 @@ describe('isValidActiveSession', () => {
     )
   })
 
-  it('rejects a null feedback map instead of skipping its validation', () => {
+  it('rejects a stored session with malformed feedback', () => {
     expect(isValidActiveSession(makeSession({ feedback: null as never }), USER_ID)).toBe(false)
+  })
+
+  // A future timestamp has a negative age, so the 7-day staleness check alone lets it through.
+  it('rejects an entry saved in the future', () => {
+    expect(isValidActiveSession(makeSession({ savedAt: Date.now() + 60_000 }), USER_ID)).toBe(false)
   })
 })

@@ -34,6 +34,14 @@ function hasValidResumableMode(d: Record<string, unknown>): boolean {
   return d.mode === undefined || d.mode === 'study' || d.mode === 'exam'
 }
 
+// Both time bounds off ONE clock read. The upper bound is not redundant: a FUTURE savedAt has
+// a negative age, so the staleness check alone never expires it — a backwards clock change or
+// a hand-edited entry would stay resumable until real time caught up to it.
+function hasSaneSavedAt(savedAt: number): boolean {
+  const now = Date.now()
+  return savedAt <= now && now - savedAt <= SEVEN_DAYS_MS
+}
+
 // Returns false for any malformed/stale/cross-user/non-resumable payload so
 // readActiveSession can purge it once (rather than per-branch).
 //
@@ -72,6 +80,6 @@ export function isValidActiveSession(data: unknown, userId: string): data is Act
   if (d.userId !== userId) return false // cross-user contamination guard
   if (!hasValidResumableMode(d)) return false
   if (!hasValidExamTimerFields(d)) return false
-  if (Date.now() - d.savedAt > SEVEN_DAYS_MS) return false // 7-day staleness
+  if (!hasSaneSavedAt(d.savedAt)) return false
   return true
 }
