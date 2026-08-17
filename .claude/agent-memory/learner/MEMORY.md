@@ -94,12 +94,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Test-file split duplicates unused fixture (Biome noUnusedVariables ERROR, no --unsafe fallback) | 1 | 2026-08-08 | WATCHING (archive row 518) |
 | Claim-correction commit updates a count but leaves its supporting arithmetic stale | 3 | 2026-08-16 | RULE CANDIDATE (3; same branch; await cross-branch recurrence; see archive row 519). |
 | Branch memory/run-log SHAs orphaned on each forced rebase (repair commit per cycle) | 1 | 2026-08-08 | WATCHING (archive row 520) |
-| CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") — distinct from pitfall #8 | 1 | 2026-08-08 | WATCHING (archive row 521) |
+| CR fabricates repo-history claims (SHA/PR/issue "doesn't exist"/"unsupported") — distinct from pitfall #8 | 2 | 2026-08-17 | RULE CANDIDATE (2) → propose broadening agent-coderabbit-local.md Pitfall #8 (archive row 521). |
 | Multi-row tracker transition leaves sibling archive row STATUS token mismatched | 1 | 2026-08-08 | WATCHING (archive row 522) |
 | Orchestrator embeds unverified schema identifier (column/RPC count) in rule/doc prose | 2 | 2026-08-10 | RULE CANDIDATE (2) → agent-doc-updater.md cite-before-writing NEVER bullet. |
 | Playwright getByRole('dialog') on AlertDialog (renders alertdialog) → zero matches | 1 | 2026-08-09 | WATCHING (archive row 524) |
 | Integration test uses real prod code in onConflict upsert, corrupts shared seed; missing cleanupReferenceData | 1 | 2026-08-09 | WATCHING (archive row 525) |
-| check-test-title-leakage.mjs misses bare snake_case column names in test titles | 1 | 2026-08-09 | WATCHING (archive row 526) |
+| check-test-title-leakage.mjs misses bare snake_case token leakage in test titles (column names, enum/mode values) | 2 | 2026-08-17 | RULE CANDIDATE (2) → propose extending the hook's DISALLOWED_PATTERNS or a §7 textual note (archive row 526). |
 | as T cast on dynamic array access in test without runtime guard (§5 not relaxed in tests) | 1 | 2026-08-09 | WATCHING (archive row 527) |
 | afterEach teardown uses undefined fixture ids when beforeEach fails partway | 1 | 2026-08-09 | WATCHING (archive row 528) |
 | Stray apps/web/.git causes Turbopack to misidentify workspace root (local dev broken, CI clean) | 1 | 2026-08-09 | WATCHING (archive row 529) |
@@ -130,6 +130,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Fix commit correcting §10 violations introduces fresh §10 violations of its own (wrong line-ref, wrong enumeration count, wrong mechanism name, wrong glob semantics) | 1 | 2026-08-16 | WATCHING (archive row 555) |
 | Plan cites correct sibling precedent but implements its inverse disposition (author-plan variant; distinct from CR Pitfall #9) | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers and proposes to close a partially-fixed issue as fully resolved | 1 | 2026-08-16 | WATCHING (archive row 557) |
+| Sibling-parity test-coverage gap found by diffing `it()` titles between two sibling test files, not by re-deriving mechanisms file-by-file | 1 | 2026-08-17 | WATCHING (archive row 558). Sibling-file-audit meta-pattern (durable knowledge below, count=19) recurring in a NEW domain: test files/title lists, not code structure. |
 
 ## Durable knowledge (cross-agent)
 
