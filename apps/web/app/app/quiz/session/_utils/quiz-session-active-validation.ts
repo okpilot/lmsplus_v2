@@ -36,6 +36,13 @@ function hasValidResumableMode(d: Record<string, unknown>): boolean {
 
 // Returns false for any malformed/stale/cross-user/non-resumable payload so
 // readActiveSession can purge it once (rather than per-branch).
+//
+// Deliberately narrower than the sibling isValidSessionData, which routes optional fields
+// through hasValidOptionalFields: the purely cosmetic ones here (subjectName, subjectCode,
+// draftId, examMode, passMark) are NOT validated, so the `data is ActiveSession` predicate
+// asserts more than it checks. That is safe only because buildActiveSession is the sole
+// writer and JSON.stringify drops undefined keys, so none of them can arrive malformed from
+// storage. Validate them here if a second writer ever appears.
 export function isValidActiveSession(data: unknown, userId: string): data is ActiveSession {
   if (typeof data !== 'object' || data === null) return false
   const d = data as Record<string, unknown>

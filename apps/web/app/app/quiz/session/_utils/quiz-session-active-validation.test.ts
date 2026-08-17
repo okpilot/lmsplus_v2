@@ -81,6 +81,13 @@ describe('isValidActiveSession', () => {
     expect(isValidActiveSession(null, USER_ID)).toBe(false)
   })
 
+  // typeof null === 'object', so null is rejected by a DIFFERENT half of the root guard
+  // (`data === null`) than undefined is (`typeof data !== 'object'`). Property access on an
+  // undefined root throws, same as on null, so this half needs its own pin.
+  it('rejects an undefined payload', () => {
+    expect(isValidActiveSession(undefined, USER_ID)).toBe(false)
+  })
+
   it('rejects a non-string session id', () => {
     expect(isValidActiveSession(makeSession({ sessionId: 123 as never }), USER_ID)).toBe(false)
   })

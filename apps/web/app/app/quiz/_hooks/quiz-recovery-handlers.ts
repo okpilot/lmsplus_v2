@@ -2,6 +2,7 @@ import type { useRouter } from 'next/navigation'
 import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { discardQuiz } from '../actions/discard'
 import { saveDraft } from '../actions/draft'
+import { dropCachedSession } from '../session/_hooks/session-bootstrap-load'
 import { clearSessionHandoff, sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import {
   type ActiveSession,
@@ -39,6 +40,17 @@ function writeActiveSessionHandoff(userId: string, session: ActiveSession): bool
   }
 }
 
+// Abandons the handoff written moments ago, once the session it names is known to be stale.
+// BOTH sources must go: readBootstrapSession falls back to a module-level cache when
+// sessionStorage is empty (session-bootstrap-load.ts), and that cache is only dropped once
+// questions have rendered — so a session page that failed to load leaves it populated.
+// Clearing sessionStorage alone would still let a later soft-navigation rehydrate the dead
+// session from the cache, which is the failure this whole branch exists to prevent.
+function abandonStaleHandoff(userId: string) {
+  clearSessionHandoff(userId)
+  dropCachedSession(userId)
+}
+
 export function buildResumeHandler(
   deps: Pick<RecoveryDeps, 'userId' | 'session' | 'setError' | 'router'>,
 ) {
@@ -62,11 +74,11 @@ export function buildResumeHandler(
     }
     // False means the snapshot is no longer authoritative — replaced by a newer session (this
     // clear no-ops, leaving it intact), removed outright (#1190's sibling-banner discard), or
-    // expired/unreadable (purged best-effort; safeRemove swallows its own failure). Drop the
-    // handoff written above too: isValidSessionData checks shape and userId but never currency,
-    // so a later direct entry to /app/quiz/session would rehydrate this superseded session.
+    // expired/unreadable (purged best-effort; safeRemove swallows its own failure). The handoff
+    // written above must go too: isValidSessionData checks shape and userId but never currency,
+    // so it would otherwise rehydrate this superseded session on a later entry.
     if (!clearActiveSessionIfCurrent(userId, session.sessionId)) {
-      clearSessionHandoff(userId)
+      abandonStaleHandoff(userId)
       deps.setError('That session is no longer available. Refresh to see your current sessions.')
       return
     }

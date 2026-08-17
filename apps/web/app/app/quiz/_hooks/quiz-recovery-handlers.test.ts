@@ -9,6 +9,7 @@ const {
   mockReadActiveSession,
   mockSessionStorageSetItem,
   mockClearSessionHandoff,
+  mockDropCachedSession,
 } = vi.hoisted(() => ({
   mockSaveDraft: vi.fn<() => Promise<ActionResult>>(),
   mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
@@ -17,6 +18,7 @@ const {
   mockReadActiveSession: vi.fn<(userId: string) => { sessionId: string } | null>(),
   mockSessionStorageSetItem: vi.fn<(key: string, value: string) => void>(),
   mockClearSessionHandoff: vi.fn<(userId: string) => void>(),
+  mockDropCachedSession: vi.fn<(userId: string) => void>(),
 }))
 
 vi.mock('../actions/draft', () => ({ saveDraft: mockSaveDraft }))
@@ -40,6 +42,9 @@ vi.mock('../session/_utils/quiz-session-storage', () => ({
 vi.mock('../session/_utils/quiz-session-handoff', () => ({
   sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
   clearSessionHandoff: mockClearSessionHandoff,
+}))
+vi.mock('../session/_hooks/session-bootstrap-load', () => ({
+  dropCachedSession: mockDropCachedSession,
 }))
 
 import { createMockRouter } from '@/lib/test-support/mock-router'
@@ -169,6 +174,9 @@ describe('buildResumeHandler', () => {
     expect(mockSessionStorageSetItem).toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockClearSessionHandoff).toHaveBeenCalledWith('user-1')
+    // Clearing sessionStorage alone is not enough: readBootstrapSession falls back to a
+    // module-level cache, so a later soft-navigation would rehydrate the dead session.
+    expect(mockDropCachedSession).toHaveBeenCalledWith('user-1')
     expect(router.push).not.toHaveBeenCalled()
     expect(setError).toHaveBeenCalledWith(expect.stringMatching(/no longer available/i))
   })
@@ -188,6 +196,17 @@ describe('buildResumeHandler', () => {
     handle()
 
     expect(setError).not.toHaveBeenCalled()
+  })
+
+  // The handoff written just above the clear is what the destination page reads to rehydrate
+  // the session. It must survive a successful clear — only the failed-clear branch may drop it.
+  it('leaves the just-written handoff in place when the clear succeeds', () => {
+    const session = makeSession()
+    const handle = buildResumeHandler({ userId: 'user-1', session, setError, router })
+    handle()
+
+    expect(mockClearSessionHandoff).not.toHaveBeenCalled()
+    expect(mockDropCachedSession).not.toHaveBeenCalled()
   })
 
   it('scopes the recovered session to the current user', () => {
