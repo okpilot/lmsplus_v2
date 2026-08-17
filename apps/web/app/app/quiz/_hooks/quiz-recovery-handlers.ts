@@ -6,7 +6,8 @@ import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import {
   type ActiveSession,
   buildHandoffPayload,
-  clearActiveSession,
+  clearActiveSessionIfCurrent,
+  readActiveSession,
 } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -31,6 +32,17 @@ export function buildResumeHandler(
   return function handleResume() {
     const { userId, session } = deps
     if (!session) return
+    // Re-read instead of trusting the mount-time snapshot. useQuizRecovery's effect is keyed
+    // on [userId] and router.refresh() RECONCILES rather than remounts, so this banner never
+    // re-runs it — a discard on the sibling ActivePracticeBanner (both render together on
+    // /app/quiz, one DB-backed and one localStorage-backed) clears the key while this
+    // component still holds the session in state. Resuming then mounts the runner on a
+    // soft-deleted session and every answer fails silently: #1190's exact failure mode,
+    // reached with no reload. A second tab reaches it too.
+    if (readActiveSession(userId)?.sessionId !== session.sessionId) {
+      deps.setError('That session is no longer available. Refresh to see your current sessions.')
+      return
+    }
     try {
       sessionStorage.setItem(
         sessionHandoffKey(userId),
@@ -41,7 +53,9 @@ export function buildResumeHandler(
       deps.setError('Unable to resume right now. Please try again.')
       return
     }
-    clearActiveSession(userId)
+    // Proven current one statement above and nothing awaits in between, so this cannot clear
+    // a newer session; the guarded form would simply re-read.
+    clearActiveSessionIfCurrent(userId, session.sessionId)
     deps.router.push('/app/quiz/session')
   }
 }
@@ -69,7 +83,9 @@ export function buildSaveHandler(deps: RecoveryDeps) {
         subjectCode: session.subjectCode,
       })
       if (result.success) {
-        clearActiveSession(userId)
+        // Guarded: saveDraft is awaited, so storage can have moved on to a newer session
+        // while this was in flight. The draft just saved is THIS session's.
+        clearActiveSessionIfCurrent(userId, sessionId)
         // router.refresh() is non-terminal (user stays in place) — exempt from the
         // await-before-terminal-nav rule (code-style.md §6).
         clearDeploymentPin().catch(() => {})
@@ -102,7 +118,10 @@ export function buildDiscardHandler(
     const { userId, session, inFlightRef } = deps
     if (inFlightRef.current) return
     inFlightRef.current = true
-    clearActiveSession(userId)
+    // Guarded on the id like the two sibling discard sites: this handler acts on a session
+    // captured at mount, so a blind userId-keyed clear would wipe a NEWER session's answers.
+    // Nothing to clear when there is no session — the banner cannot render without one.
+    if (session) clearActiveSessionIfCurrent(userId, session.sessionId)
     // No terminal navigation in this handler at all (the parent component navigates), so the
     // await-before-terminal-nav rule (code-style.md §6) does not apply here.
     clearDeploymentPin().catch(() => {})

@@ -4,6 +4,7 @@ import {
   buildActiveSession,
   buildHandoffPayload,
   clearActiveSession,
+  clearActiveSessionIfCurrent,
   readActiveSession,
   toSessionData,
   writeActiveSession,
@@ -602,6 +603,44 @@ describe('clearActiveSession', () => {
   it('is safe when the key does not exist', () => {
     expect(() => clearActiveSession(USER_ID)).not.toThrow()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+})
+
+// ---- clearActiveSessionIfCurrent ---------------------------------------------
+
+describe('clearActiveSessionIfCurrent', () => {
+  let mockStorage: ReturnType<typeof makeLocalStorageMock>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockStorage = makeLocalStorageMock()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('removes the entry when it is the session the caller named', () => {
+    writeActiveSession(makeSession())
+
+    expect(clearActiveSessionIfCurrent(USER_ID, makeSession().sessionId)).toBe(true)
+    expect(mockStorage._store.has(STORAGE_KEY)).toBe(false)
+  })
+
+  // The reason this helper exists: every caller acts on a session it read earlier, so storage
+  // may already hold a NEWER one whose answer buffer a blind clear would destroy.
+  it('keeps a newer session and reports that it did not clear', () => {
+    writeActiveSession(makeSession({ sessionId: 'sess-newer' }))
+
+    expect(clearActiveSessionIfCurrent(USER_ID, 'sess-older')).toBe(false)
+    expect(mockStorage._store.has(STORAGE_KEY)).toBe(true)
+    expect(mockStorage.removeItem).not.toHaveBeenCalled()
+  })
+
+  it('reports no clear when there is no entry at all', () => {
+    expect(clearActiveSessionIfCurrent(USER_ID, 'sess-anything')).toBe(false)
+    expect(mockStorage.removeItem).not.toHaveBeenCalled()
   })
 })
 

@@ -6,12 +6,14 @@ const {
   mockDiscardQuiz,
   mockClearDeploymentPin,
   mockClearActiveSession,
+  mockReadActiveSession,
   mockSessionStorageSetItem,
 } = vi.hoisted(() => ({
   mockSaveDraft: vi.fn<() => Promise<ActionResult>>(),
   mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
   mockClearDeploymentPin: vi.fn<() => Promise<void>>(),
   mockClearActiveSession: vi.fn<(userId: string) => void>(),
+  mockReadActiveSession: vi.fn<(userId: string) => { sessionId: string } | null>(),
   mockSessionStorageSetItem: vi.fn<(key: string, value: string) => void>(),
 }))
 
@@ -22,6 +24,15 @@ vi.mock('../actions/clear-deployment-pin', () => ({
 }))
 vi.mock('../session/_utils/quiz-session-storage', () => ({
   clearActiveSession: mockClearActiveSession,
+  readActiveSession: mockReadActiveSession,
+  // The guard runs for real over the mocked read rather than being stubbed to a no-op:
+  // a bare vi.fn() here would clear unconditionally, so every id-mismatch test below would
+  // pass with the guard deleted from production. This mirrors the real implementation.
+  clearActiveSessionIfCurrent: (userId: string, sessionId: string) => {
+    if (mockReadActiveSession(userId)?.sessionId !== sessionId) return false
+    mockClearActiveSession(userId)
+    return true
+  },
   buildHandoffPayload: (_userId: string, session: unknown) => session,
 }))
 vi.mock('../session/_utils/quiz-session-handoff', () => ({
@@ -76,6 +87,10 @@ beforeEach(() => {
   setLoading = vi.fn()
   router = createMockRouter()
   mockClearDeploymentPin.mockResolvedValue(undefined)
+  // Default: storage still holds the session the handler was built with, so the id guard
+  // passes and the existing tests exercise the ordinary path. Tests that care about a stale
+  // snapshot override this.
+  mockReadActiveSession.mockReturnValue({ sessionId: 'sess-abc' })
 })
 
 // ---------------------------------------------------------------------------
@@ -86,6 +101,34 @@ describe('buildResumeHandler', () => {
   it('does nothing when there is no active session', () => {
     const handle = buildResumeHandler({ userId: 'user-1', session: null, setError, router })
     handle()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  // #1190, the half the discard-site fix could not reach. This banner reads storage once at
+  // mount and router.refresh() reconciles instead of remounting, so discarding on the sibling
+  // ActivePracticeBanner clears the key while this component still holds the session. Without
+  // the re-read the runner mounts on a soft-deleted session and every answer fails silently.
+  it('refuses to resume a session that has already been discarded', () => {
+    mockReadActiveSession.mockReturnValue(null)
+    const session = makeSession()
+    const handle = buildResumeHandler({ userId: 'user-1', session, setError, router })
+
+    handle()
+
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+    expect(setError).toHaveBeenCalledWith(expect.stringMatching(/no longer available/i))
+  })
+
+  it('refuses to resume when storage has moved on to a newer session', () => {
+    mockReadActiveSession.mockReturnValue({ sessionId: 'sess-newer' })
+    const session = makeSession()
+    const handle = buildResumeHandler({ userId: 'user-1', session, setError, router })
+
+    handle()
+
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(router.push).not.toHaveBeenCalled()
   })
@@ -183,6 +226,26 @@ describe('buildSaveHandler', () => {
 
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
     expect(router.refresh).toHaveBeenCalled()
+    expect(setSession).toHaveBeenCalledWith(null)
+  })
+
+  // saveDraft is awaited, so storage can move on mid-flight — the same exposure, reached by
+  // time rather than by a stale render.
+  it('preserves a newer session when the save completes after storage has moved on', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+    mockReadActiveSession.mockReturnValue({ sessionId: 'sess-newer' })
+
+    await buildSaveHandler({
+      userId: 'user-1',
+      session: makeSession(),
+      inFlightRef,
+      setLoading,
+      setError,
+      setSession,
+      router,
+    })()
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(setSession).toHaveBeenCalledWith(null)
   })
 
@@ -423,6 +486,27 @@ describe('buildDiscardHandler', () => {
     expect(setSession).toHaveBeenCalledWith(null)
   })
 
+  // Same mount-time-snapshot exposure as the resume path: a second tab can start a newer
+  // session (which clears the old key and writes its own) while this banner still holds the
+  // old one. A blind userId-keyed clear would destroy the newer session's answer buffer.
+  it('preserves a newer session when a stale banner discards an older one', () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    mockReadActiveSession.mockReturnValue({ sessionId: 'sess-newer' })
+    const handle = buildDiscardHandler({
+      userId: 'user-1',
+      session: makeSession(),
+      inFlightRef,
+      setSession,
+    })
+
+    handle()
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    // The DB row for the OLD session is still discarded — only the newer session's local
+    // buffer is spared.
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-abc', draftId: undefined })
+  })
+
   it('fires the discard server action with the session and draft ids', () => {
     const session = makeSession({ sessionId: 'sess-xyz', draftId: 'draft-123' })
     mockDiscardQuiz.mockResolvedValue({ success: true })
@@ -441,8 +525,11 @@ describe('buildDiscardHandler', () => {
     handle()
 
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
-    // clearActiveSession and setSession still run
-    expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
+    // No clear either: with no session there is no id to match, and a blind userId-keyed
+    // clear is the exact hazard the guard exists to prevent — it would wipe whatever session
+    // storage currently holds. Unreachable from the UI regardless (quiz-recovery-banner.tsx
+    // returns null when session is null), so this pins the defensive contract only.
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(setSession).toHaveBeenCalledWith(null)
   })
 

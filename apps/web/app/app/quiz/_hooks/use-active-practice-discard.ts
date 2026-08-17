@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { discardQuiz } from '../actions/discard'
-import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
+import { clearActiveSessionIfCurrent } from '../session/_utils/quiz-session-storage'
 
 export type UseActivePracticeDiscard = {
   discard: () => Promise<void>
@@ -38,20 +38,23 @@ export function useActivePracticeDiscard(
     setLoading(true)
     setError(null)
     // Clear regardless of the Server Action's outcome — respect discard intent even when it
-    // fails (mirrors quiz-submit.ts:68). This banner is DB-backed while the recovery banner
-    // is localStorage-backed, so leaving the key behind is what let a discarded session keep
-    // offering Resume (#1190).
+    // fails (mirrors discardQuizSession in quiz-submit.ts). This banner is DB-backed while the
+    // recovery banner is localStorage-backed, so leaving the key behind is what let a discarded
+    // session keep offering Resume (#1190).
     //
-    // Guarded on the id, unlike the precedents. quiz-submit.ts runs inside the runner that
-    // owns the session and use-session-recovery.ts clears the entry it just read, so neither
-    // can mismatch. This banner is SERVER-rendered and never revalidated on focus, so a stale
-    // tab can hold an old sessionId while localStorage has moved on to a newer session — an
-    // unguarded userId-keyed clear would destroy that newer session's answers. The single-
-    // active-session invariant (docs/security.md §11d, mig 136) rules out two CONCURRENTLY
-    // live sessions but not a stale render. In the #1190 case the two ids are equal, so this
-    // does not weaken the fix; readActiveSession purges a malformed, cross-user or >7-day
-    // entry itself, so the false branch never leaves garbage behind.
-    if (readActiveSession(userId)?.sessionId === sessionId) clearActiveSession(userId)
+    // Guarded on the id: this banner is SERVER-rendered and never revalidated on focus, so a
+    // stale tab can hold an old sessionId while localStorage has moved on to a newer session,
+    // and an unguarded userId-keyed clear would destroy that newer session's answers. Every
+    // clear that acts on a snapshot read EARLIER goes through clearActiveSessionIfCurrent —
+    // grep it rather than trusting a list here, since an enumeration is what went stale last
+    // time. The clears that stay unguarded are safe for a stated reason: quiz-submit.ts runs
+    // inside the runner that owns the session, use-session-recovery.ts clears the entry it
+    // just read, and the start handlers clear the OLD entry deliberately when opening a new
+    // one. The single-active-session invariant (docs/security.md §11d, mig 136) rules out two
+    // CONCURRENTLY live sessions but not a stale render. In the #1190 case the two ids are
+    // equal, so this does not weaken the fix; readActiveSession purges a malformed, cross-user
+    // or >7-day entry itself, so the false branch never leaves garbage behind.
+    clearActiveSessionIfCurrent(userId, sessionId)
     try {
       const result = await discardQuiz({ sessionId })
       if (result.success) {

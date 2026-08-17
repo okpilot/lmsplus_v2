@@ -26,6 +26,14 @@ vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
     ...actual,
     readActiveSession: () => mockReadActiveSession(),
     clearActiveSession: mockClearActiveSession,
+    // Must be overridden too, not inherited from `actual`: the real implementation calls the
+    // real readActiveSession through a module-local reference that this mock cannot intercept,
+    // so it would read the (empty) jsdom localStorage, find no match, and silently never clear.
+    clearActiveSessionIfCurrent: (userId: string, sessionId: string) => {
+      if (mockReadActiveSession()?.sessionId !== sessionId) return false
+      mockClearActiveSession(userId)
+      return true
+    },
   }
 })
 
