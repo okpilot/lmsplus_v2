@@ -1535,7 +1535,10 @@ legs question and the turns question using disjoint zone sets.
 > **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
 > `b` or `c` in 17 of 18 questions with no `d` at all, and every per-question check passed it. This
 > is a CONTENT-QUALITY rule, not a defence against guessing the graded draw: `get_quiz_questions`
-> and `get_vfr_rt_exam_questions` both project MC options `ORDER BY random()`, so a stored id's
+> (latest def `20260702000300`) and `get_vfr_rt_exam_questions` (latest def `20260623000600`) both
+> project MC options `ORDER BY random()` — both traced through `DROP FUNCTION`+`CREATE` as well as
+> `CREATE OR REPLACE`, since `agent-coderabbit-local.md` records a prior incident where a
+> superseded `get_quiz_questions` body was read as current — so a stored id's
 > on-screen position is re-rolled on every fetch and the skew is not exploitable there. The skew
 > IS visible wherever options render in AUTHORED order — Study Mode, the post-session report, and
 > the admin question editor, whose fixed a/b/c/d grid mis-renders a gapped option-id run onto the

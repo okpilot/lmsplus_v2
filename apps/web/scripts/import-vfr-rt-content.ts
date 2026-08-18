@@ -870,7 +870,9 @@ function buildRow(
  * authored by a DIFFERENT content file that happens to share the scope, which is exactly what
  * three Part 3 MC files do under `P3_MC`/`multiple_choice`. That is why `planReplaceAll` unions
  * every file in a scope and refuses to prune without `--prune`. Never a hard DELETE — and
- * idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL, so the
+ * idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND
+ * question_number IS NOT NULL — state BOTH conjuncts; import-questions.ts:380 states both and a
+ * short form here reads as a different index. So the
  * soft delete correctly frees the slot were anything ever re-inserted under that number again.
  */
 type ReplaceScope = {
@@ -1122,7 +1124,8 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<Insert
  */
 async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void> {
   // Update CONTENT only. `row` is the full buildRow output, which carries `base` — and base's
-  // fields are INSERT defaults, not content: `created_by` records who first authored the row,
+  // fields are INSERT defaults, not content: `created_by` records who first authored the row, while
+  // `difficulty`/`status` are per-row admin state.
   // `explanation_text` is the exception KEPT. Not because it is always content: an item authoring
   // no `explanation` falls back to base's boilerplate on four of the five branches, and on
   // short_answer too when it authors no `acronym` (that branch is two-tiered —
@@ -1130,7 +1133,7 @@ async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void
   // `acronym` is optional). Only short_answer WITH an acronym falls back to real content. It is
   // kept because every SHIPPED item authors an `explanation`, 140 of 140 counted. If that stops
   // being true, strip it everywhere except short_answer-with-acronym.
-  // while `difficulty`/`status` are per-row admin state. Sending the whole row would reassign
+  // Sending the whole row would reassign
   // authorship on every content edit and flip a question an admin had set to `draft` back to
   // `active` (those are the only two values — CHECK status IN ('active','draft')). `bank_id` is the match key; `organization_id` is fixed by it
   // (`question_banks` is UNIQUE per org), so neither can drift.
@@ -1524,7 +1527,7 @@ async function runSyncContent(
  * by no file in this run). `insertAll` then updates the matched numbers IN PLACE, preserving ids.
  *
  * Planning per FILE was the defect. The three Part 3 MC files share one scope, so each one's plan
- * called the other two's 36 rows orphans: a single-file --replace soft-deleted 16 live questions
+ * called the other two files' rows orphans: a single-file --replace soft-deleted 16 live questions
  * and exited 0, and a multi-file run put the same numbers in one file's toUpdate and another's
  * orphaned at once. Unioning the bucket's files before diffing is what makes "unaccounted" mean
  * "no file authors this" instead of "this file doesn't".
@@ -1636,7 +1639,7 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
     `  --replace: ROLLBACK INCOMPLETE — ${failures.length} row(s) are still soft-deleted: ${failures.join('; ')}`,
   )
   console.error(
-    "  --replace: since #1191, the soft-deleted set here is exactly the ORPHANED rows (live in scope but absent from the file) — a number no file in this run declares, so nothing in this run ever re-inserts it. A live replacement occupying the slot therefore points at an external/concurrent write rather than this run's own insert path. idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL, so clearing deleted_at collides with whatever is live there. Remedy: re-run the same --replace (it re-derives the orphan set and redoes the soft-delete), or investigate what else wrote that question_number.",
+    "  --replace: since #1191, the soft-deleted set here is exactly the ORPHANED rows (live in scope but absent from the file) — a number no file in this run declares, so nothing in this run ever re-inserts it. A live replacement occupying the slot therefore points at an external/concurrent write rather than this run's own insert path. idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL, so clearing deleted_at collides with whatever is live there. Remedy: re-run the same --replace (it re-derives the orphan set and redoes the soft-delete), or investigate what else wrote that question_number.",
   )
 }
 

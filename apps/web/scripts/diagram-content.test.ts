@@ -466,7 +466,9 @@ describe('the answer of a diagram config', () => {
     const base = config()
     const firstZone = base.zones[0]
     if (!firstZone) throw new Error('expected base.zones[0]')
-    const doubled = [base.answer[0], { ...base.answer[1], zone_id: firstZone.id }, base.answer[2]]
+    const [a0, a1, a2] = base.answer
+    if (!a0 || !a1 || !a2) throw new Error('expected three base answer entries')
+    const doubled = [a0, { ...a1, zone_id: firstZone.id }, a2]
     expect(() => assertDiagramConfig({ ...base, answer: doubled }, AT)).toThrow(
       `answer zone_id: '${firstZone.id}' appears at index 0 and again at index 1`,
     )
@@ -477,7 +479,9 @@ describe('the answer of a diagram config', () => {
     const base = config()
     const firstLabel = base.labels[0]
     if (!firstLabel) throw new Error('expected base.labels[0]')
-    const reused = [base.answer[0], { ...base.answer[1], label_id: firstLabel.id }, base.answer[2]]
+    const [b0, b1, b2] = base.answer
+    if (!b0 || !b1 || !b2) throw new Error('expected three base answer entries')
+    const reused = [b0, { ...b1, label_id: firstLabel.id }, b2]
     expect(() => assertDiagramConfig({ ...base, answer: reused }, AT)).toThrow(
       `answer label_id: '${firstLabel.id}' appears at index 0 and again at index 1`,
     )
