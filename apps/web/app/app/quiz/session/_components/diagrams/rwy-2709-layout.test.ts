@@ -92,6 +92,19 @@ describe('RWY_2709_LABELS', () => {
     expect(RWY_2709_LABELS.length).toBeGreaterThanOrEqual(CORRECT_LABEL_TEXTS.length + 2)
   })
 
+  it('lists the 9 correct labels in flight order, ahead of the distractors', () => {
+    // LOAD-BEARING, not cosmetic. The seeded diagram answer key is built by zipping
+    // RWY_2709_ZONES[i] with RWY_2709_LABELS[i] for i < 9 (buildRwy2709Answer in
+    // scripts/seed-vfr-rt-training-eval.ts), so this array's ORDER is the key. Alphabetise these
+    // labels, or hoist a distractor to the top, and the key silently becomes upwind leg ->
+    // Go-around: a valid bijection that passes the DB CHECK, passes assertDiagramConfig (which
+    // validates structure and derivation, never semantics), and passes the derived-id pin
+    // (ids travel with their text). It would surface only as a question nobody can answer.
+    expect(RWY_2709_LABELS.slice(0, CORRECT_LABEL_TEXTS.length).map((l) => l.text)).toEqual(
+      CORRECT_LABEL_TEXTS,
+    )
+  })
+
   it('has distinct, non-blank label ids', () => {
     const ids = RWY_2709_LABELS.map((l) => l.id)
     expect(new Set(ids).size).toBe(RWY_2709_LABELS.length)
@@ -99,7 +112,7 @@ describe('RWY_2709_LABELS', () => {
   })
 })
 
-describe('zone/label id disjointness (answer-oracle invariant)', () => {
+describe('zone and label ids (answer-oracle invariant)', () => {
   it('shares no id between the zone set and the label set', () => {
     const zoneIds = new Set(RWY_2709_ZONES.map((z) => z.id))
     const labelIds = new Set(RWY_2709_LABELS.map((l) => l.id))
@@ -107,25 +120,18 @@ describe('zone/label id disjointness (answer-oracle invariant)', () => {
     expect(intersection).toEqual([])
   })
 
-  it('uses unrelated id schemes — no zone id textually matches its own leg/turn name', () => {
-    // A parallel-naming leak would look like a zone id containing the same word as
-    // its intended correct label (e.g. zone id "upwind-1"). Check the DISTINCTIVE
-    // words of each label — not the whole normalized phrase — so a per-word leak
-    // like "upwind-1" is caught (the phrase "upwind leg" → "upwindleg" would miss
-    // it). Generic words shared by every leg ("leg", "turn", "approach") carry no
-    // answer signal, so they're excluded.
-    const genericWords = new Set(['leg', 'turn', 'approach'])
-    const leakedAnswerWords = CORRECT_LABEL_TEXTS.flatMap((text) =>
-      text
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((word) => !genericWords.has(word)),
-    )
-    for (const zone of RWY_2709_ZONES) {
-      const lowerId = zone.id.toLowerCase()
-      for (const word of leakedAnswerWords) {
-        expect(lowerId.includes(word)).toBe(false)
-      }
-    }
+  it('identifies every zone and label by a fixed-width digest and nothing else', () => {
+    // A derived id is a kind prefix, a scheme-version digit, and 8 hex characters
+    // of a SHA-256 — no author-chosen part survives in which the zone -> label
+    // pairing could be encoded. This shape check is what goes red if a hand-written
+    // id such as `z_upwind_1` (or the old `lk3f81a` family) is reintroduced. The
+    // exact values are pinned against the derivation itself in
+    // apps/web/scripts/diagram-content.test.ts; this file only sees the format.
+    const zoneIds = RWY_2709_ZONES.map((z) => z.id)
+    const labelIds = RWY_2709_LABELS.map((l) => l.id)
+    for (const id of zoneIds) expect(id).toMatch(/^z1[0-9a-f]{8}$/)
+    for (const id of labelIds) expect(id).toMatch(/^l1[0-9a-f]{8}$/)
+    // Every id is the same width, so none has spare room the others lack.
+    expect(new Set([...zoneIds, ...labelIds].map((id) => id.length))).toEqual(new Set([10]))
   })
 })

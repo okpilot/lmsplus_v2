@@ -3,6 +3,10 @@
 // renders it. Add one entry per new `diagram_label` diagram; never a barrel
 // re-export of the components themselves — import the component directly
 // from its own file wherever it's used outside the registry.
+//
+// Keys are the named `*_IMAGE_REF` consts owned by each layout module, never
+// literals repeated here and never a positional index into `DIAGRAM_IMAGE_REFS`
+// — `registry.test.ts` asserts these keys and that list hold the same members.
 
 import type React from 'react'
 import { RWY_2709_IMAGE_REF } from './rwy-2709-layout'

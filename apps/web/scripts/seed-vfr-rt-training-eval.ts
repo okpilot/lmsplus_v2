@@ -26,15 +26,13 @@
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import type {
-  DiagramLabel,
-  DiagramZone,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import {
   RWY_2709_IMAGE_REF,
   RWY_2709_LABELS,
   RWY_2709_ZONES,
 } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { assertDiagramConfig } from './diagram-content'
+import { assertOrderingItems, buildOrderingItems } from './ordering-content'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -351,11 +349,12 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
 type Ordering = {
   num: string
   text: string
-  // { id, text } in CANONICAL order — the array order IS the answer key.
-  // IDs are OPAQUE and non-sequential (not 1..N, and an alphabetical id sort does
-  // NOT match the canonical order), so neither the id nor a naive sort leaks the
-  // correct sequence; get_quiz_questions (mig 145) delivers the items shuffled.
-  items: { id: string; text: string }[]
+  // Plain strings in CANONICAL order — the array order IS the answer key, and it is
+  // the ONLY place the answer lives. Ids are never written here: buildOrderingItems
+  // derives each one from the step's own text (scripts/content-ids.ts), the same way
+  // the importer does, so a seeded question and an imported one carry ids built by
+  // one scheme. get_quiz_questions (mig 145) delivers the items shuffled.
+  items: string[]
 }
 
 // Part 3 — ordering. Drag the elements into the correct radiotelephony sequence.
@@ -363,23 +362,27 @@ const ORDERING: Ordering[] = [
   {
     num: 'VRT-P3-ORD-MAYDAY',
     text: 'Put the parts of a MAYDAY distress call in the correct spoken order.',
+    // SIX elements, not five. 'A Guide to VFR Phraseology' (Stumberger) prints six in its
+    // distress-message table; this fixture predates the curated content file and omitted
+    // 'position, level and heading' — see vfr-rt-part3-ordering.json authoring_notes R4.
     items: [
-      { id: 'distress', text: 'MAYDAY MAYDAY MAYDAY' },
-      { id: 'station', text: 'name of the station addressed' },
-      { id: 'callsign', text: 'aircraft callsign' },
-      { id: 'nature', text: 'nature of the emergency' },
-      { id: 'intentions', text: 'intentions of the pilot in command' },
+      'MAYDAY MAYDAY MAYDAY',
+      'name of the station addressed',
+      'aircraft callsign',
+      'nature of the emergency',
+      'intentions of the pilot in command',
+      'position, level and heading',
     ],
   },
   {
     num: 'VRT-P3-ORD-POSREP',
     text: 'Put the elements of a VFR position report in the correct order.',
     items: [
-      { id: 'ident', text: 'aircraft callsign' },
-      { id: 'where', text: 'present position' },
-      { id: 'when', text: 'time over the position' },
-      { id: 'altitude', text: 'flight level or altitude' },
-      { id: 'next', text: 'next reporting point and estimate' },
+      'aircraft callsign',
+      'present position',
+      'time over the position',
+      'flight level or altitude',
+      'next reporting point and estimate',
     ],
   },
 ]
@@ -395,69 +398,39 @@ type DiagramLabelQuestion = {
   answer: { zone_id: string; label_id: string }[]
 }
 
+/**
+ * The seeded answer key for the RWY 27/09 pattern, built from the shared arrays rather
+ * than written out as id literals.
+ *
+ * Zone i pairs with label i for i = 0..8: both arrays are in flight order and the first
+ * nine labels are the nine correct ones (labels 9-11 are distractors and appear in no
+ * answer entry). Ids are DERIVED from content — a zone's from (image_ref, index), a
+ * label's from its own text — so any literal copied in here would go stale the moment
+ * the layout module changed a text or a position, and would go stale SILENTLY: a wrong
+ * pair still passes every structural check and only shows up as a question that cannot
+ * be answered correctly.
+ */
+function buildRwy2709Answer(): { zone_id: string; label_id: string }[] {
+  return RWY_2709_ZONES.map((zone, index) => {
+    const label = RWY_2709_LABELS[index]
+    if (!label) {
+      throw new Error(
+        `RWY 27/09 answer key: zone ${index} has no label at the same index — RWY_2709_LABELS holds ${RWY_2709_LABELS.length} entries for ${RWY_2709_ZONES.length} zones`,
+      )
+    }
+    return { zone_id: zone.id, label_id: label.id }
+  })
+}
+
 // Part 3 — diagram_label. Label the RWY 27/09 left-hand traffic pattern by
 // dragging each chip onto its matching leg or turn zone.
 const DIAGRAM_LABEL: DiagramLabelQuestion[] = [
   {
     num: 'VRT-P3-DIAG-2709',
     text: 'Label the RWY 27/09 left-hand traffic pattern: drag each label onto its matching leg or turn.',
-    answer: [
-      { zone_id: 'z9f2a1c', label_id: 'lk3f81a' }, // upwind leg -> Upwind leg
-      { zone_id: 'zb84e7d', label_id: 'lm70cd2' }, // crosswind turn -> Crosswind turn
-      { zone_id: 'z3c1908', label_id: 'lp9e64b' }, // crosswind leg -> Crosswind leg
-      { zone_id: 'ze52af6', label_id: 'lq2a17f' }, // downwind turn -> Downwind turn
-      { zone_id: 'z71bd3a', label_id: 'lr58c93' }, // downwind leg -> Downwind leg
-      { zone_id: 'zd0946f', label_id: 'ls6b4e0' }, // base turn -> Base turn
-      { zone_id: 'z2e6c81', label_id: 'lt3d829' }, // base leg -> Base leg
-      { zone_id: 'za47b02', label_id: 'lu91f5c' }, // final turn -> Final turn
-      { zone_id: 'zc19d5e', label_id: 'lv7a26d' }, // final leg -> Final approach
-    ],
+    answer: buildRwy2709Answer(),
   },
 ]
-
-/**
- * Seed-time guard for the diagram_label answer-oracle security invariant
- * (see rwy-2709-layout.ts + phase6-plan.md): zone ids and label ids must be
- * disjoint sets, and the answer key must cover every zone exactly once.
- * Fails loudly — a silently-wrong answer key makes every manual eval wrong.
- */
-function assertDiagramConfigInvariants(
-  zones: DiagramZone[],
-  labels: DiagramLabel[],
-  answer: { zone_id: string; label_id: string }[],
-): void {
-  const zoneIds = new Set(zones.map((z) => z.id))
-  const labelIds = new Set(labels.map((l) => l.id))
-  const collisions = [...zoneIds].filter((id) => labelIds.has(id))
-  if (collisions.length > 0) {
-    throw new Error(`diagram_config invariant: zone/label id collision: ${collisions.join(', ')}`)
-  }
-  if (answer.length !== zoneIds.size) {
-    throw new Error(
-      `diagram_config invariant: answer has ${answer.length} entries, expected exactly ${zoneIds.size} (one per zone)`,
-    )
-  }
-  const answeredZoneIds = new Set(answer.map((a) => a.zone_id))
-  if (answeredZoneIds.size !== zoneIds.size) {
-    throw new Error(
-      'diagram_config invariant: answer does not cover each zone exactly once (duplicate zone_id)',
-    )
-  }
-  const answeredLabelIds = new Set(answer.map((a) => a.label_id))
-  if (answeredLabelIds.size !== answer.length) {
-    throw new Error('diagram_config invariant: answer uses the same label_id more than once')
-  }
-  for (const a of answer) {
-    if (!zoneIds.has(a.zone_id)) {
-      throw new Error(`diagram_config invariant: answer references unknown zone_id '${a.zone_id}'`)
-    }
-    if (!labelIds.has(a.label_id)) {
-      throw new Error(
-        `diagram_config invariant: answer references unknown label_id '${a.label_id}'`,
-      )
-    }
-  }
-}
 
 type QuestionRow = Record<string, unknown> & { question_number: string }
 
@@ -570,6 +543,12 @@ async function seed(): Promise<void> {
   // Part 3 — ordering (canonical sequence in ordering_items; delivered shuffled by
   // get_quiz_questions; graded per-slot with partial credit by batch_submit_quiz)
   for (const q of ORDERING) {
+    // Gated like the diagram insert below: the stored shape is composed here, so a fixture
+    // that drifted (a blank step, two steps that normalize to one, fewer than MIN_ORDER_ITEMS)
+    // must fail with a named error instead of reaching is_valid_ordering_items as a constraint
+    // violation — or, for the duplicate-step case, storing two steps that derive one id.
+    const orderingAt = `seed ORDERING ${q.num}`
+    assertOrderingItems(q.items, orderingAt)
     const added = await insertQuestionIfMissing(bankId, {
       ...base,
       question_number: q.num,
@@ -581,7 +560,7 @@ async function seed(): Promise<void> {
       accepted_synonyms: [],
       dialog_template: null,
       blanks_config: [],
-      ordering_items: q.items,
+      ordering_items: buildOrderingItems(q.items, orderingAt),
       correct_option_id: null,
     })
     if (added) inserted++
@@ -591,7 +570,18 @@ async function seed(): Promise<void> {
   // come from the canonical layout module shared with the SVG runner so the
   // seeded config always matches what's rendered — see rwy-2709-layout.ts)
   for (const q of DIAGRAM_LABEL) {
-    assertDiagramConfigInvariants(RWY_2709_ZONES, RWY_2709_LABELS, q.answer)
+    // Assembled BEFORE the insert so the shared gate sees exactly the object that will be
+    // stored. assertDiagramConfig mirrors the DB CHECK is_valid_diagram_config and adds the
+    // rule the DB cannot express: every zone and label id must be the id DERIVED from its own
+    // content, which is the answer-oracle invariant (see scripts/diagram-content.ts). It
+    // replaces a module-local checker that covered only disjointness and answer coverage.
+    const diagramConfig = {
+      image_ref: RWY_2709_IMAGE_REF,
+      zones: RWY_2709_ZONES,
+      labels: RWY_2709_LABELS,
+      answer: q.answer,
+    }
+    assertDiagramConfig(diagramConfig, `seed DIAGRAM_LABEL ${q.num}`)
     const added = await insertQuestionIfMissing(bankId, {
       ...base,
       explanation_text:
@@ -607,12 +597,7 @@ async function seed(): Promise<void> {
       blanks_config: [],
       ordering_items: [],
       correct_option_id: null,
-      diagram_config: {
-        image_ref: RWY_2709_IMAGE_REF,
-        zones: RWY_2709_ZONES,
-        labels: RWY_2709_LABELS,
-        answer: q.answer,
-      },
+      diagram_config: diagramConfig,
     })
     if (added) inserted++
   }
