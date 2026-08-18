@@ -1168,7 +1168,10 @@ async function seed() {
   // Final count
   const { count } = await db
     .from('questions')
-    .select('*', { count: 'exact', head: true })
+    // Named column, not `*` — see import-vfr-rt-content.ts's count leg. head:true returns no rows
+    // so nothing is exposed, but the ban in .coderabbit.yaml carries no exemption and is enforced
+    // by reviewers reading the call shape.
+    .select('id', { count: 'exact', head: true })
     .is('deleted_at', null)
 
   console.log(`\n--- DONE ---`)

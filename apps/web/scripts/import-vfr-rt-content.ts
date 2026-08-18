@@ -29,10 +29,11 @@
  * scope is bank+topic+question_type, and several files share one — the three Part 3 MC files are
  * all P3_MC/multiple_choice — so "not in the file I passed" and "deleted from the content" are
  * indistinguishable here, and guessing wrong silently deleted 16 live sibling questions. --prune
- * is how you say you meant it. Refused outright with
- * --force-remote, and refused unless the target URL's HOST is this machine (isLocalSupabaseUrl —
- * a stricter check than the prefix match above, which reads `http://localhost.example.com` as
- * local).
+ * is how you say you meant it. Refused outright when --force-remote is passed, and refused
+ * whenever the RESOLVED target is not local (isLocalSupabaseUrl, which compares the hostname).
+ * See the FORCE_REMOTE/isRemoteTarget block below for why the former
+ * `startsWith('http://localhost')` prefix test was dropped: it reads `http://localhost.evil.com`
+ * as local. That test no longer exists in this file, so there is no "prefix match above".
  *
  * --sync-content: the ONE narrow update path, for correcting an answer key on rows that are
  * already live. It exists because the two paths above cannot do it — insertIfMissing skips
@@ -902,7 +903,14 @@ async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
     () =>
       db
         .from('questions')
-        .select('*', { count: 'exact', head: true })
+        // Not `.select('*')` on `questions`. Nothing was exposed — `head: true` returns no rows,
+        // and this is a service-role script, not a student path, so security.md rule 1 ("never
+        // SELECT * questions FOR STUDENTS") was not actually breached. But the ban is written
+        // without that qualifier in `.coderabbit.yaml`, and it is enforced by REVIEWERS reading
+        // the call shape — there is no mechanical guard, though the pre-push security-auditor does look —
+        // so the bare `*` costs a review round every
+        // time. A named column is free and the count does not care which.
+        .select('question_number', { count: 'exact', head: true })
         .eq('bank_id', scope.bankId)
         .eq('topic_id', scope.topicId)
         .eq('question_type', scope.questionType)

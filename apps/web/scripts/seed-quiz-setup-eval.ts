@@ -300,13 +300,12 @@ async function seed() {
   // 4. Subjects, topics, subtopics, questions
   let questionNum = 1
   const allQuestionIds: string[] = []
-  // Track which questions belong to which subject (for drafts)
-  const subjectQuestionIds: Record<string, string[]> = {}
+  // Captured on the first subject iterated, for the draft path in step 8.
   let firstSubjectId = ''
   let firstSubjectName = ''
   let firstSubjectCode = ''
-  // Set alongside firstSubjectId below — avoids re-indexing subjectQuestionIds[firstSubjectId]
-  // later (a Record index read is `T | undefined` under noUncheckedIndexedAccess).
+  // Aliased to that subject's questionIdsForSubject array, so it fills as questions are inserted;
+  // step 8 slices the first 5 into the draft.
   let firstSubjectQuestionIds: string[] = []
 
   // Upload the two sample images once; reuse their URLs across all image questions.
@@ -326,7 +325,6 @@ async function seed() {
     if (subjErr) throw new Error(`Subject ${subj.code}: ${subjErr.message}`)
 
     const questionIdsForSubject: string[] = []
-    subjectQuestionIds[subject.id] = questionIdsForSubject
 
     if (!firstSubjectId) {
       firstSubjectId = subject.id

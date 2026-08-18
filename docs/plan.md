@@ -934,7 +934,7 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Import tool
 `apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
-`apps/web/scripts/check-import-conflicts.ts` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import.
+`apps/web/scripts/probe-<topic>-import-conflicts.py` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
 
 **Remote import workflow:**
 
