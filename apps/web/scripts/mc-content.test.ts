@@ -77,6 +77,34 @@ describe('a single authored question', () => {
     expect(() => assertMcItem(swapped, AT)).toThrow(/in order/)
   })
 
+  it('rejects two options that differ only by an interior double space', () => {
+    // The gate keys on normalizeForId, which collapses interior runs. A bare trim().toLowerCase()
+    // folds only case and the ends, so this pair used to pass as two distinct options while a
+    // student reads one answer twice. Permanent regression test: the behaviour change that fixed
+    // it was originally verified with a throwaway probe, which left it unpinned.
+    const doubled = question({
+      options: [
+        { id: 'a', text: 'runway three zero' },
+        { id: 'b', text: 'runway three  zero' },
+      ],
+      correct: 'a',
+    })
+    expect(() => assertMcItem(doubled, AT)).toThrow(/have the same text/)
+  })
+
+  it('keeps two genuinely different options apart', () => {
+    // Guards the opposite error: normalizeForId must not be confused with normalizeAnswer, which
+    // strips punctuation and would collapse distinct options into one false duplicate.
+    const distinct = question({
+      options: [
+        { id: 'a', text: 'RWY 27' },
+        { id: 'b', text: 'RWY-27 approach' },
+      ],
+      correct: 'a',
+    })
+    expect(() => assertMcItem(distinct, AT)).not.toThrow()
+  })
+
   it('rejects two options that differ only in case', () => {
     const shouting = question({
       options: [

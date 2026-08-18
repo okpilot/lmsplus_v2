@@ -18,9 +18,11 @@
  * Bounds are IMPORTED from the app-layer `ordering-validation` module rather than restated, so
  * the authoring gate and the runtime/Zod guards cannot drift apart.
  *
- * They are NOT a mirror of the database, and the asymmetry is deliberate: `is_valid_ordering_items`
- * (latest definition `20260630000100_questions_ordering_type.sql`) enforces the >= 2 floor and the
- * distinct-id rule, but declares NO upper bound. `MAX_ORDER_ITEMS = 50` is an app-layer cap only,
+ * They are NOT a mirror of the database, and the asymmetry is deliberate. Two DB constraints share
+ * the work (both in `20260630000100_questions_ordering_type.sql`): the ordering branch of
+ * `questions_question_type_columns_check` carries the `>= 2` floor, while `is_valid_ordering_items`
+ * carries the shape rules — array of objects, non-blank string `id`/`text`, all ids distinct.
+ * NEITHER declares an upper bound. `MAX_ORDER_ITEMS = 50` is an app-layer cap only,
  * so this gate rejects a 51-step question the DB would accept. Do not describe the two as mirrored
  * — if 50 is ever meant to be a server invariant it has to be added to the CHECK.
  *

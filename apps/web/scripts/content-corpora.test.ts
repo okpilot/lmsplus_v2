@@ -101,7 +101,11 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
     for (const item of questions as AuthoredDiagramQ[]) {
       const layout = layouts[item.diagram.image_ref]
       if (!layout) throw new Error(`${name} (${item.num}): unregistered ref`)
-      for (const key of Object.keys(item.diagram.answer_by_zone)) {
+      const placements = Object.keys(item.diagram.answer_by_zone)
+      // Without this, `answer_by_zone: {}` satisfies all three diagram cases: each iterates zero
+      // entries and asserts nothing. A question with no placements at all would sweep green.
+      expect(placements.length, `${name} (${item.num}): no placements`).toBeGreaterThan(0)
+      for (const key of placements) {
         const index = Number(key)
         expect(Number.isInteger(index), `${name} (${item.num}): zone key '${key}'`).toBe(true)
         expect(layout.zones[index], `${name} (${item.num}): zone index ${index}`).toBeDefined()
@@ -116,7 +120,11 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
     for (const item of questions as AuthoredDiagramQ[]) {
       const layout = layouts[item.diagram.image_ref]
       if (!layout) throw new Error(`${name} (${item.num}): unregistered ref`)
-      for (const [key, text] of Object.entries(item.diagram.answer_by_zone)) {
+      const entries = Object.entries(item.diagram.answer_by_zone)
+      // Per-case guard, not just the suite-level one: iterating {} asserts nothing, so without
+      // this the case would stay green for a question with no placements at all.
+      expect(entries.length, `${name} (${item.num}): no placements`).toBeGreaterThan(0)
+      for (const [key, text] of entries) {
         const matches = layout.labels.filter((l) => l.text === text)
         expect(matches.length, `${name} (${item.num}) zone ${key} names '${text}'`).toBe(1)
       }
@@ -126,6 +134,7 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
   it('never sends two zones the same chip', () => {
     for (const item of questions as AuthoredDiagramQ[]) {
       const texts = Object.values(item.diagram.answer_by_zone)
+      expect(texts.length, `${name} (${item.num}): no placements`).toBeGreaterThan(0)
       expect(new Set(texts).size, `${name} (${item.num}): duplicate chip`).toBe(texts.length)
     }
   })

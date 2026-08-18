@@ -31,6 +31,7 @@
  */
 
 import { requireRecord, requireText } from './content-assertions'
+import { normalizeForId } from './content-ids'
 
 /** The ids an option may carry, in order. This is now the only copy — the importer's own
  *  `MC_OPTION_IDS` was deleted when its MC validation moved here — and it mirrors the DB
@@ -90,12 +91,18 @@ function assertOptionIds(options: AuthoredMcOption[], at: string): void {
   }
 }
 
-/** Two options that differ only in case or surrounding space are the same answer to a reader,
- *  so one of them is unpickable and the item has no single correct response. */
+/** Two options that differ only in case or spacing are the same answer to a reader, so one of
+ *  them is unpickable and the item has no single correct response.
+ *
+ *  Keyed on `normalizeForId`, the same function the ordering gate uses to derive item ids, so the
+ *  two authoring gates agree on what "the same text" means. A bare `trim().toLowerCase()` folds
+ *  case and the ends but NOT interior runs, so `runway three  zero` and `runway three zero` passed
+ *  as two distinct options while a student reads one answer twice — the exact defect this check
+ *  exists to stop. */
 function assertOptionTextsDistinct(options: AuthoredMcOption[], at: string): void {
   const seen = new Map<string, string>()
   for (const option of options) {
-    const key = option.text.trim().toLowerCase()
+    const key = normalizeForId(option.text)
     const prior = seen.get(key)
     if (prior !== undefined) {
       throw new Error(`${at}: options ${prior} and ${option.id} have the same text`)
