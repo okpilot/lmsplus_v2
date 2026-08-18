@@ -327,7 +327,11 @@ describe("a question that uses only some of a diagram's zones", () => {
   it('keeps every delivered zone answered exactly once', () => {
     const partial = subset([0, 2])
     partial.answer = partial.answer.slice(0, 1)
-    expect(() => assertDiagramConfig(partial, AT)).toThrow()
+    // Message-pinned: a bare toThrow() would also go green if a zone-id, disjointness or
+    // derived-id guard fired first, so it could not prove the coverage check is what rejects this.
+    expect(() => assertDiagramConfig(partial, AT)).toThrow(
+      /answer holds 1 entries but there are 2 zones/,
+    )
   })
 
   it('rejects a subset whose zones run backwards through the diagram', () => {

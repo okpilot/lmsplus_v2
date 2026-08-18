@@ -437,9 +437,12 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
  * what went wrong instead of replacing the caller's error with its own.
  */
 async function describeSubtopicCodes(topicId: string): Promise<string> {
-  // No `.is('deleted_at', null)`: easa_subtopics is reference data and its CREATE TABLE (mig
-  // 20260311000001) declares only id/topic_id/code/name/sort_order — there is no deleted_at
-  // column to filter, and filtering one would be a 42703 at runtime (code-style §5).
+  // No `.is('deleted_at', null)`: easa_subtopics has no such column, so filtering it would be a
+  // 42703 at runtime (code-style §5). The drift-proof source is the generated
+  // `packages/db/src/types.ts` (`public.Tables.easa_subtopics.Row` — id/topic_id/code/name/
+  // sort_order), which is also what the mechanical soft-delete guard parses; the original
+  // CREATE TABLE in `20260311000001_initial_schema.sql` agrees, and no later migration ALTERs
+  // the table except to enable RLS.
   const { data, error } = await db.from('easa_subtopics').select('code').eq('topic_id', topicId)
   if (error) return `<could not list existing codes: ${error.message}>`
   const codes = (data ?? []).map((r) => r.code as string)
@@ -594,7 +597,10 @@ function assertDiagramAuthoring(raw: unknown, at: string): asserts raw is Author
   // list the runner keys off rather than against this file's private map. A ref the runner does
   // not know renders no artwork (getDiagramComponent fails closed), which imports clean and
   // leaves the question silently un-answerable.
-  if (!DIAGRAM_IMAGE_REFS.includes(raw.image_ref)) {
+  // `.some`, not `.includes`: DIAGRAM_IMAGE_REFS is an `as const` tuple, so its element type is
+  // the literal union and `.includes(string)` is a type error. `.some` compares without
+  // narrowing the argument.
+  if (!DIAGRAM_IMAGE_REFS.some((ref) => ref === raw.image_ref)) {
     throw new Error(
       `${at}: diagram.image_ref ${JSON.stringify(raw.image_ref)} is not a registered diagram — registered refs: ${DIAGRAM_IMAGE_REFS.join(', ')}`,
     )
@@ -1602,15 +1608,15 @@ async function main(): Promise<void> {
   const resolved: ResolvedFile[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
-    // Subtopics are scoped by the topic just resolved, not by code alone — easa_subtopics is
-    // UNIQUE (topic_id, code), so a bare-code lookup would break the moment another topic reuses
-    // one of these codes.
     const topicId = await lookupTopicByCode(subjectId, file.topic_code)
     resolved.push({
       rel,
       file,
       subjectId,
       topicId,
+      // Scoped by the topic just resolved, not by code alone — easa_subtopics is
+      // UNIQUE (topic_id, code), so a bare-code lookup would break the moment another topic
+      // reuses one of these codes.
       subtopicIds: await resolveSubtopicIds(file, topicId, rel),
     })
   }

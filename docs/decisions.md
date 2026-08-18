@@ -761,7 +761,9 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 **Implementation**: originally migs 100-103; the per-part ≥75% rule above is what binds, NOT those
 migration numbers, because every one of the three RPCs has since been redefined. Do not read this
-paragraph as a pointer to the current bodies — trace the chain, or consult `docs/database.md`.
+paragraph as a pointer to the current bodies: trace the latest matching definitions in
+`supabase/migrations/`, which is the sole source of truth. `docs/database.md` is explanatory and
+can itself lag.
 Latest definitions as of 2026-08-18, by `supabase/migrations/` timestamp (the sole source of truth;
 `packages/db/migrations/` is frozen and carries false history):
 

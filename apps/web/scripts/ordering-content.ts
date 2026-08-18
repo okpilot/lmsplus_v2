@@ -16,8 +16,13 @@
  *                              `{id, text}[]`, preserving canonical order.
  *
  * Bounds are IMPORTED from the app-layer `ordering-validation` module rather than restated, so
- * the authoring gate and the runtime/Zod guards cannot drift apart; that module in turn mirrors
- * the DB CHECK `is_valid_ordering_items`.
+ * the authoring gate and the runtime/Zod guards cannot drift apart.
+ *
+ * They are NOT a mirror of the database, and the asymmetry is deliberate: `is_valid_ordering_items`
+ * (latest definition `20260630000100_questions_ordering_type.sql`) enforces the >= 2 floor and the
+ * distinct-id rule, but declares NO upper bound. `MAX_ORDER_ITEMS = 50` is an app-layer cap only,
+ * so this gate rejects a 51-step question the DB would accept. Do not describe the two as mirrored
+ * — if 50 is ever meant to be a server invariant it has to be added to the CHECK.
  *
  * Keep this file flat in scripts/ — knip's apps/web entry glob is `scripts/*.ts`.
  */

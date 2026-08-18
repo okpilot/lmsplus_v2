@@ -45,13 +45,13 @@ describe('the authored items array', () => {
 
   it('rejects too few steps to put in an order', () => {
     expect(() => assertOrderingItems(steps(MIN_ORDER_ITEMS - 1), AT)).toThrow(
-      `'items' must hold between ${MIN_ORDER_ITEMS} and ${MAX_ORDER_ITEMS} steps (got 1)`,
+      `'items' must hold between ${MIN_ORDER_ITEMS} and ${MAX_ORDER_ITEMS} steps (got ${MIN_ORDER_ITEMS - 1})`,
     )
   })
 
   it('rejects more steps than a question may hold', () => {
     expect(() => assertOrderingItems(steps(MAX_ORDER_ITEMS + 1), AT)).toThrow(
-      `'items' must hold between ${MIN_ORDER_ITEMS} and ${MAX_ORDER_ITEMS} steps (got 51)`,
+      `'items' must hold between ${MIN_ORDER_ITEMS} and ${MAX_ORDER_ITEMS} steps (got ${MAX_ORDER_ITEMS + 1})`,
     )
   })
 

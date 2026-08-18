@@ -1517,7 +1517,7 @@ legs question and the turns question using disjoint zone sets.
 > as plain strings — there is no id field to encode a sequence into. A heuristic design was tried
 > first and retired: four plan-critic rounds showed it rejects legitimate content (a length sort is
 > the identity on uniform-length ids) while still not stopping deliberate encoding.
-
+>
 > **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
 > `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
 > per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
@@ -1527,7 +1527,7 @@ legs question and the turns question using disjoint zone sets.
 
 **How the content was verified.** Every Part 3 answer was independently re-derived from the source
 by solvers that never saw the answer key — for the ordering questions with items shuffled, so each
-sequence had to be reconstructed. All 48 keys agreed. All 60 ordering item strings were grepped
+sequence had to be reconstructed. All 48 single-key answers agreed — 36 multiple-choice keys plus 12 ordering sequences. The 2 `diagram_label` questions are not in that 48: their answer is a 5-zone mapping rather than one key, and both were verified separately by re-deriving each zone from the guide's circuit diagram. 36 + 12 + 2 = the 50 Part 3 questions. All 60 ordering item strings were grepped
 individually and confirmed to sit in the same printed transmission as their siblings. That pass
 caught five defects ordinary review missed, including a **fabricated item** in ORD-06 (a phrase
 lifted from a call 700 lines away that read naturally beside four genuine ones).
