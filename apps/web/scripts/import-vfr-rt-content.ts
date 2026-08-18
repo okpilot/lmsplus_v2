@@ -871,8 +871,10 @@ function buildRow(
  * three Part 3 MC files do under `P3_MC`/`multiple_choice`. That is why `planReplaceAll` unions
  * every file in a scope and refuses to prune without `--prune`. Never a hard DELETE — and
  * idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND
- * question_number IS NOT NULL — state BOTH conjuncts; import-questions.ts:380 states both and a
- * short form here reads as a different index. So the
+ * question_number IS NOT NULL — both conjuncts, per the defining migration
+ * `supabase/migrations/20260311000003_add_question_number.sql:5-7`. Cite the MIGRATION, not a
+ * sibling comment: a short form reads as a different index, and a claim sourced from another
+ * file's comment is the propagate-don't-derive defect (code-style.md §10). So the
  * soft delete correctly frees the slot were anything ever re-inserted under that number again.
  */
 type ReplaceScope = {
@@ -1017,7 +1019,8 @@ async function softDeleteForReplace(
   // code-style §5's "log only when > 0" shape is for cleanup where zero rows is VALID. Here the
   // SELECT above already proved N rows match, so anything less than N means the write was blocked
   // (RLS/grant — see #815) or the rows moved. Throw rather than warn: these are ORPHANED rows —
-  // absent from the file by construction — so nothing downstream ever touches their
+  // absent from EVERY file in this run by construction (scope-level since #1191) — so nothing
+  // downstream ever touches their
   // question_number again this run. A silently-incomplete soft-delete here would leave the
   // leftover rows live with no signal, which is exactly the #1191 defect this scope exists to
   // close. A silent no-op is the one outcome --replace must never produce.
@@ -1639,7 +1642,7 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
     `  --replace: ROLLBACK INCOMPLETE — ${failures.length} row(s) are still soft-deleted: ${failures.join('; ')}`,
   )
   console.error(
-    "  --replace: since #1191, the soft-deleted set here is exactly the ORPHANED rows (live in scope but absent from the file) — a number no file in this run declares, so nothing in this run ever re-inserts it. A live replacement occupying the slot therefore points at an external/concurrent write rather than this run's own insert path. idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL, so clearing deleted_at collides with whatever is live there. Remedy: re-run the same --replace (it re-derives the orphan set and redoes the soft-delete), or investigate what else wrote that question_number.",
+    "  --replace: since #1191, the soft-deleted set here is exactly the ORPHANED rows (live in scope but absent from EVERY file in this run — scope-level since #1191, not file-level) — a number no file in this run declares, so nothing in this run ever re-inserts it. A live replacement occupying the slot therefore points at an external/concurrent write rather than this run's own insert path. idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL, so clearing deleted_at collides with whatever is live there. Remedy: re-run the same --replace (it re-derives the orphan set and redoes the soft-delete), or investigate what else wrote that question_number.",
   )
 }
 
