@@ -462,10 +462,15 @@ describe('the ghost-option-quote check itself', () => {
     expect(ghosts).toEqual([])
   })
 
+  // The offered option must NOT contain the keyword as a substring. An earlier version of this
+  // fixture offered 'one two eight decimal one seven five', which already contains 'decimal' —
+  // so the substring guard suppressed the flag on its own and deleting the allowlist clause
+  // entirely left this test green. The allowlist has to be the only thing standing between
+  // **DECIMAL** and a flag, or this pins nothing (code-style.md §7).
   it('does not flag an allowlisted guide keyword', () => {
     const ghosts = findGhostOptionQuotes(
       'Give the frequency in **DECIMAL** form, never spelling out the word.',
-      ['one two eight decimal one seven five'],
+      ['climb to flight level one two zero'],
       GUIDE_KEYWORDS,
     )
     expect(ghosts).toEqual([])
