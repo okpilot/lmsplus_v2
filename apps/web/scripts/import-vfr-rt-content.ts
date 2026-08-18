@@ -1402,9 +1402,12 @@ async function main(): Promise<void> {
   // dialog_fill `template`, `blanks` (validated by assertDialogFillItem, which mirrors the DB
   // CHECKs, plus assertDialogFillAuthoring for the house blank-shape rules); ordering `items`
   // (assertOrderingItems, which mirrors the DB CHECK `is_valid_ordering_items`); diagram_label
-  // `diagram` (assertDiagramAuthoring — the COMPACT authoring shape, since the file carries no
-  // ids; the resolved config is separately gated by assertDiagramConfig inside buildRow, which
-  // is the one field whose full validation cannot happen in this loop). Everything else it
+  // `diagram` — the FULL chain runs here now (assertDiagramAuthoring for the compact authoring
+  // shape the file carries, then resolveDiagramConfig + assertDiagramConfig for the stored
+  // config, which is what catches a label text matching no chip in the layout). buildRow re-runs
+  // that chain when it builds the row; the duplication is deliberate, because resolution is pure
+  // and buildRow executes INSIDE the write loop, where a throw would land after earlier rows had
+  // already been committed. Everything else it
   // writes is a literal or comes from `base`. When you add a buildRow branch, extend the
   // per-type dispatch below in the same commit — its `default` arm is what turns "no validator
   // yet" into a named abort instead of a misleading MC error.
@@ -1502,12 +1505,27 @@ async function main(): Promise<void> {
         case 'ordering':
           assertOrderingItems((q as OrderingItem).items, `${at} (${q.num})`)
           break
-        case 'diagram_label':
-          // The AUTHORING shape only. The stored config is checked by assertDiagramConfig once
-          // resolveDiagramConfig has built it in buildRow — nothing here can validate ids the
-          // file does not carry.
-          assertDiagramAuthoring((q as DiagramItem).diagram, `${at} (${q.num})`)
+        case 'diagram_label': {
+          const label = `${at} (${q.num})`
+          // Bound to a const so the assertion signature narrows it for the resolve call below —
+          // asserting on a fresh `(q as DiagramItem).diagram` expression each time narrows
+          // nothing, and the second use stays `unknown`.
+          const authored = (q as DiagramItem).diagram
+          assertDiagramAuthoring(authored, label)
+          // Then RESOLVE and gate the stored config here too, even though buildRow does it again.
+          // assertDiagramAuthoring only checks the shape the FILE carries — a registered
+          // image_ref, in-bounds zone indices, non-blank label text. It cannot tell that
+          // "Downwnd leg" matches no chip in the layout, or that two zones name the same chip;
+          // those live in resolveDiagramConfig/assertDiagramConfig.
+          //
+          // buildRow runs per row INSIDE the write loop (see insertAll: buildRow then
+          // insertIfMissing, per question), so leaving them there means a typo in question 2
+          // throws only after question 1 is committed — and under --force-remote, committed to
+          // production. That contradicts this pass's own guarantee that a bad content file
+          // writes nothing. Resolution is pure and cheap, so doing it twice costs nothing.
+          assertDiagramConfig(resolveDiagramConfig(authored, label), label)
           break
+        }
         default:
           throw new Error(
             `${at}: no per-item validator for question_type ${JSON.stringify(file.question_type)} — add one alongside the buildRow branch`,
@@ -1522,6 +1540,44 @@ async function main(): Promise<void> {
     if (file.question_type === 'multiple_choice') {
       assertMcKeyBalance(file.questions as AuthoredMcQuestion[], rel)
     }
+  }
+
+  // Then the same gate across the UNION of every MC file sharing a topic.
+  //
+  // Per-file scoping is still correct — a student drilling one subarea draws only that file, so
+  // a skew inside it is guessable on its own. But per-file ALONE has a hole that this repo walked
+  // straight into: assertMcKeyBalance returns early below MIN_CORPUS_FOR_KEY_BALANCE (12), and
+  // splitting Part 3 into subareas turned one 20-question pool into 20 / 11 / 5. The two small
+  // files fell under the floor, so 16 of 36 Part 3 MC questions silently stopped being checked —
+  // and the split commit and the gate commit were each individually fine. A topic is also a pool
+  // a student can draw from, so check it as well; the union clears the floor when the parts do
+  // not. Only ONE file for a topic just re-checks that file, which is harmless.
+  //
+  // Keyed on (subject, topic), not topic alone: a topic is resolved as
+  // lookupTopicByCode(subjectId, topic_code), so codes are only unique WITHIN a subject — the
+  // same reason easa_subtopics is UNIQUE (topic_id, code) rather than UNIQUE (code). Keying on
+  // the code alone would merge two unrelated topics from different subjects into one union and
+  // could reject a valid import. No difference today (all Part 3 files are subject RT), which
+  // is exactly why it would rot unnoticed.
+  //
+  // Scope note: this union spans only the files passed to THIS invocation, so importing one
+  // subarea file alone still falls under the floor. That is inherent to a gate that sees only
+  // what it is handed; the corpus-wide guarantee lives in mc-content.test.ts, which reads every
+  // shipped pool unconditionally.
+  const mcByTopic = new Map<string, AuthoredMcQuestion[]>()
+  for (const { file } of parsed) {
+    if (file.question_type !== 'multiple_choice') continue
+    const key = `${file.subject_code}\u0000${file.topic_code}`
+    const bucket = mcByTopic.get(key) ?? []
+    bucket.push(...(file.questions as AuthoredMcQuestion[]))
+    mcByTopic.set(key, bucket)
+  }
+  for (const [key, questions] of mcByTopic) {
+    const [subjectCode, topicCode] = key.split('\u0000')
+    assertMcKeyBalance(
+      questions,
+      `subject ${subjectCode} topic ${topicCode} (union of its multiple_choice files)`,
+    )
   }
 
   // Resolve EVERY file's subject + topic + subtopics before inserting anything. Resolving inside

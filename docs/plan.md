@@ -1527,7 +1527,7 @@ legs question and the turns question using disjoint zone sets.
 
 **How the content was verified.** Every Part 3 answer was independently re-derived from the source
 by solvers that never saw the answer key — for the ordering questions with items shuffled, so each
-sequence had to be reconstructed. All 48 keys agreed. All 58 ordering item strings were grepped
+sequence had to be reconstructed. All 48 keys agreed. All 60 ordering item strings were grepped
 individually and confirmed to sit in the same printed transmission as their siblings. That pass
 caught five defects ordinary review missed, including a **fabricated item** in ORD-06 (a phrase
 lifted from a call 700 lines away that read naturally beside four genuine ones).

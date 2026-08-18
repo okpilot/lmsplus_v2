@@ -232,8 +232,43 @@ describe.each(MC_CORPORA)('the authored MC corpus in %s', (name, file, expectedC
 
   it('spreads the answer key so the pool cannot be guessed', () => {
     for (const item of questions) assertMcItem(item, name)
+    // PARTIALLY VACUOUS for two of the three rows, by design of the gate rather than by
+    // oversight: `emergency` (11) and `posrep` (5) sit under MIN_CORPUS_FOR_KEY_BALANCE, so
+    // this call returns immediately for them. The union block below is what actually covers
+    // their keys — do not delete it thinking this case already does.
     assertMcKeyBalance(questions as AuthoredMcQuestion[], name)
   })
+})
+
+/**
+ * The union of every Part 3 MC pool, checked as one corpus.
+ *
+ * The per-file block above cannot see a skew in `emergency` (11) or `posrep` (5): both sit under
+ * `MIN_CORPUS_FOR_KEY_BALANCE`, so `assertMcKeyBalance` returns immediately and their
+ * "spreads the answer key" case asserts nothing at all. That hole was opened by splitting Part 3
+ * into subareas — one 20-question pool became 20 / 11 / 5 — and it left 16 of 36 questions
+ * unchecked while every test stayed green. The importer carries the same gate; this block pins the CORPUS that gate protects, not the
+ * gate itself — the suite never loads the importer, so deleting its union block leaves every
+ * test here green.
+ */
+describe('the Part 3 multiple_choice pools taken together', () => {
+  const union = MC_CORPORA.flatMap(([, file]) => (file as { questions: unknown[] }).questions)
+
+  it('holds every Part 3 multiple-choice question', () => {
+    expect(union.length).toBe(36)
+  })
+
+  it('spreads the answer key across the whole topic, not just within each subarea', () => {
+    for (const item of union) assertMcItem(item, 'Part 3 MC union')
+    // Non-vacuous where the per-file cases are not: 36 clears the corpus floor, so this really
+    // does exercise the skew maths. Forcing every key onto one id here fails; doing the same to
+    // emergency or posrep alone does not.
+    assertMcKeyBalance(union as AuthoredMcQuestion[], 'Part 3 MC union')
+  })
+})
+
+describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, file) => {
+  const questions = (file as { questions: unknown[] }).questions
 
   it('explains every question, since the explanation is the teaching surface', () => {
     // Validate before reading fields: without this the cast below is load-bearing, and a
