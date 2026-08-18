@@ -1472,40 +1472,55 @@ the controller's line above.
 
 **Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) and #1194 (R3 tolerance parity with `answer_matches`, M/P2) rather than a third rewrite.
 
-## VFR RT Part 3 — transmission-of-numbers MC pool + MC authoring gate — 2026-08-17
+## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
 
-Content pool: **18 `multiple_choice` questions**, `"lifecycle": "pilot"` — so `assertReleasedForRemote`
-refuses this file to a remote DB and prod is untouched. Imported and read back on the local DB
-(18 rows, keys matching the file, options carrying no correctness marker).
+**Part 3 ships all four competencies the VictorOne briefing names: 50 questions**, all
+`"lifecycle": "released"`. The RT subject now uses subtopics so a student can drill one skill:
 
-This is **one of Part 3's four competencies** — "correct transmission of numbers (headings,
-altitudes, frequencies, QNH, squawk codes)" per the VictorOne briefing. Sourced entirely from
-Štumberger's guide, printed pp. 4–6 (*Transmission of numbers*, *Pronunciation of numbers*,
-*VHF frequencies*, *Transmission of time*). Every correct answer is either a worked example printed
-in the guide or a direct application of a rule sentence quoted in that question's explanation.
+| Subarea (`easa_subtopics` code) | multiple_choice | ordering | diagram_label |
+|---|---|---|---|
+| Transmission of Numbers (`P3_NUMBERS`) | 20 | — | — |
+| Distress & Urgency Messages (`P3_EMERGENCY`) | 11 | 5 | — |
+| Position Reports (`P3_POSREP`) | 5 | 7 | — |
+| Traffic Pattern (`P3_PATTERN`) | — | — | 2 |
 
-The other three competencies — MAYDAY/PAN PAN sequencing, position-report sequencing, and
-traffic-pattern parts — are the drag-and-drop types and are **not** blocked on authoring but on
-tooling: `scripts/import-vfr-rt-content.ts` `SUPPORTED_TYPES` is
-`['short_answer', 'multiple_choice', 'dialog_fill']`, with no `buildRow` branch or per-item
-validator for `ordering` or `diagram_label`. Those branches come next; #1045 (opaque ordering
-item-ids) still gates any ordering content reaching prod.
+Migration `20260818000100` seeds those four rows; it is idempotent and touches no question row.
+Parts 1 and 2 stay flat by design — Part 1 is a closed 40-acronym list the briefing prints as one
+pool, and Part 2's dialogues are not divided by the source. With Part 2 also released, all **140**
+RT questions are now importable to production (the import itself remains a manual script run).
 
-> **Why the pool has an enforced key-balance gate.** The first draft put the answer on `b` or `c`
-> in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
-> per-question check passed it. `scripts/mc-content.ts` now carries `assertMcItem` (per question)
-> and `assertMcKeyBalance` (per pool: no id above 1.6× the even share, no offered id never used).
-> **Both run in the importer as well as the suite**, so a future MC content file cannot ship a
-> skewed key merely by arriving without a test — verified by feeding the importer a deliberately
-> skewed fixture and watching it refuse before any insert.
+Sourced entirely from Štumberger's guide and the briefing package. Traffic Pattern is deliberately
+two questions — the guide contains exactly one pattern diagram, for a left-hand circuit — with the
+legs question and the turns question using disjoint zone sets.
 
-The importer's own MC validation moved into that module and got strictly stricter: ≥2 options,
-ids a leading run of a..d, no two options sharing text after case folding. The id rule exists
-because the runner labels buttons from the array index (`LETTERS[index]`), so ids `a/b/d` render as
-`A/B/C` — the third button reads "C" while its stored id is `d`, and any surface showing
-`correct_option_id` as a letter then contradicts the screen.
+> **Answer-key leak, found and fixed here.** The traffic-pattern question's 12 label ids were
+> hand-written with strictly ascending second characters in canonical order. `get_quiz_questions`
+> delivers diagram zones in STORED order (`ORDER BY z.ord`) and shuffles only the labels, so
+> `labels.sort(byId).slice(0,9)` zipped against the delivered zones reconstructed all 9 pairs —
+> the shuffle was defeated because the pairing rode in the ids. Never live (no `diagram_label` row
+> existed in prod), but this content is what would have made it live.
+> **Ids are now DERIVED** (`scripts/content-ids.ts`): a zone id from `(image_ref, canonical index)`,
+> a label id from its own text, an ordering item id from its own text. Ordering content is authored
+> as plain strings — there is no id field to encode a sequence into. A heuristic design was tried
+> first and retired: four plan-critic rounds showed it rejects legitimate content (a length sort is
+> the identity on uniform-length ids) while still not stopping deliberate encoding.
 
-Run locally with `cd apps/web && npx tsx scripts/import-vfr-rt-content.ts scripts/content/vfr-rt-part3-mc-numbers.json`
-(there is no package.json script for it).
+> **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
+> `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
+> per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
+> `assertMcKeyBalance` (per pool: no id above 1.6× the even share, no offered id never used), and
+> **both run in the importer as well as the suite**. Note `assertMcKeyBalance` skips pools under 12
+> questions, so the 11-question emergency and 5-question posrep pools are held by hand, not enforced.
 
-*Last updated: 2026-08-17 — VFR RT Part 3 transmission-of-numbers MC pool (18 questions, lifecycle `pilot`) + `scripts/mc-content.ts` authoring gate wired into the importer. Prior: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*
+**How the content was verified.** Every Part 3 answer was independently re-derived from the source
+by solvers that never saw the answer key — for the ordering questions with items shuffled, so each
+sequence had to be reconstructed. All 48 keys agreed. All 58 ordering item strings were grepped
+individually and confirmed to sit in the same printed transmission as their siblings. That pass
+caught five defects ordinary review missed, including a **fabricated item** in ORD-06 (a phrase
+lifted from a call 700 lines away that read naturally beside four genuine ones).
+
+The importer supports all five question types. Run locally with
+`cd apps/web && npx tsx scripts/import-vfr-rt-content.ts scripts/content/vfr-rt-part3-*.json`
+(add `--replace` to re-import an edited file; there is no package.json script for it).
+
+*Last updated: 2026-08-18 — VFR RT Part 3 complete (50 questions, four subareas, mig 20260818000100), derived content ids closing a diagram answer-key leak, importer support for `ordering` + `diagram_label`, and Part 2 released. Prior: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*
