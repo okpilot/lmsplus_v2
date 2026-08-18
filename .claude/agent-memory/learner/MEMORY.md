@@ -85,7 +85,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Idempotency/safety comment masks a real side effect | 1 | 2026-07-31 | WATCHING (archive row 504) |
 | Playwright setup project ordering assumed not declared | 1 | 2026-07-31 | WATCHING (archive row 505) |
 | Cycle commit message or drive-by comment introduces | 1 | 2026-07-31 | WATCHING (archive row 506) |
-| Regression test can't detect fix's own reversion (passes | 1 | 2026-08-07 | WATCHING (archive row 511) |
+| Regression test can't detect fix's own reversion (passes | 2 | 2026-08-18 | RULE CANDIDATE (2). §7 "A Test Must Fail If Its Mechanism Is Removed" already covers; recurrence post-promotion. Dead-branch lifecycle test: every shipped file was `released`, so delete the throw → still green; fixed with per-row counterfactual. |
 | Fake-timer test timeout leaks timer mode into later tests | 1 | 2026-08-07 | WATCHING (archive row 513) |
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-semantic-reviewer.md + agent-red-team.md DO (archive row 514). |
 | Dep-bump type error cascades into N CI suite failures | 1 | 2026-08-07 | WATCHING (archive row 515) |
@@ -118,7 +118,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR/reviewer suggestion adopted verbatim without checking | 1 | 2026-08-11 | WATCHING (archive row 543) |
 | Sibling-scope sweep keyed on RPC/function-name rather | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing | 2 | 2026-08-11 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation. |
+| Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes scripts/). |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
 | Broad `git add <subdir>` sweeps unrelated untracked files | 1 | 2026-08-15 | WATCHING (archive row 548). |
 | `json.dumps` round-trip reformats an entire tracked JSON | 1 | 2026-08-15 | WATCHING (archive row 549). |
@@ -130,7 +130,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Fix commit correcting §10 violations introduces fresh §10 | 1 | 2026-08-16 | WATCHING (archive row 555) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
-| Sibling-parity test-coverage gap found via it() | 1 | 2026-08-17 | WATCHING (archive row 558). |
+| Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: ordering + diagram corpora shipped with zero suite coverage; mc-content.test.ts had already documented the lesson one pool over and its header explicitly said so. |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) → code-style.md §10 addendum: shared-helper/grep-for-marker over enumeration (archive row 534). 2nd domain of the Rule-Mirror Sync defect shape. |
 | Promoted rule (§1 same-commit-extraction, count=8) not | 1 | 2026-08-17 | WATCHING (archive row 559). |
 | Review-follow-up exemption misapplied — commit pushed | 1 | 2026-08-17 | WATCHING (archive row 560). |
@@ -138,7 +138,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
 | Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) — commit doc updates separately from review-follow-up code fixes; a doc update widens the file set and disqualifies the reduced cycle (archive row 564). |
-| §10 violations (non-DB form) cluster in content/authoring commit (mechanism, intent, statistic) | 1 | 2026-08-17 | WATCHING (archive row 565). fefef96e: 4 sub-instances — partial constraint-name edit (same file had it right 10 lines lower), false rendering-mechanism claim ×2, intent-not-code claim, unverified statistic. All caught by impl-critic pre-commit. |
+| §10 violations (non-DB form) cluster in content/authoring commit (mechanism, intent, statistic) | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: 8 sub-instances across 5 commits — §10 rule already covers all; recurrence signals enforcement gap not rule gap. Stale-evidence sub-mechanism tracked separately. |
+| Evidence cited predates the code it certifies (stale build artifact / report as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3 fixup chain: verification comment said "absent from production chunk" citing a build 17 h before the fix; memory note then certified new code against the deleted code. Propose §10 sub-clause: evidence (build artifact, grep, tsc run) must postdate the change it certifies. |
 | MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). fefef96e: 17/18 questions on b/c, zero d-answers; per-question checks all pass. Tool-fixed: assertMcKeyBalance in test suite + importer. |
 
 ## Durable knowledge (cross-agent)
