@@ -518,3 +518,72 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
   `soft-delete-question.integration.test.ts` used `subjectCode: '050'`; `seedReferenceData` upserts
   `onConflict: 'code'`, mutating the seed-e2e row + leaking a global `easa_topics` row. All 20
   siblings use a unique suffixed code + `cleanupReferenceData`.
+
+## § row detail 2026-08-18 — VFR RT derived-content-id commit (diagram_label answer-key leak fix)
+
+- **Index-zip answer key with no alignment pin.** `seed-vfr-rt-training-eval.ts` replaced 9 explicit
+  commented `{zone_id, label_id}` literals with `buildRwy2709Answer()`, which zips
+  `RWY_2709_ZONES[i]` ↔ `RWY_2709_LABELS[i]` for i=0..8. `rwy-2709-layout.test.ts` asserts the label
+  set only with order-insensitive `toContain` + distinctness, and `diagram-content.test.ts` pins each
+  id to `deriveLabelId(label.text)` — which follows the text, so ids move WITH a reorder. Reordering
+  `RWY_2709_LABELS` (e.g. alphabetising, or moving a distractor up) therefore silently rewrites the
+  seeded key while every existing test, `assertDiagramConfig`, and the DB CHECK still pass. Fix: turn
+  the `toContain` loop into `expect(RWY_2709_LABELS.slice(0, 9).map(l => l.text)).toEqual(
+  CORRECT_LABEL_TEXTS)`. The seed's own comment names this exact failure mode ("would go stale
+  SILENTLY … only shows up as a question that cannot be answered correctly") for the literal form it
+  removed, then adopts a form with the same hazard from the other direction.
+- **Derive helpers exported with zero non-test callers.** `diagram-content.ts` L18-19 claims
+  `deriveZoneId`/`deriveLabelId` "are exported so the seed/import path builds ids the only way this
+  gate accepts them". Both paths instead import pre-computed LITERALS from `rwy-2709-layout.ts`
+  (which cannot call them — `node:crypto` is absent in the client bundle it reaches). Only
+  `diagram-content.test.ts` calls either. Second instance of the pattern after `assertMcKeyBalance`.
+- **Future-tense comment about a same-commit file.** `import-vfr-rt-content.ts` L559: "When
+  `_components/diagrams/diagram-refs.ts` lands, validate membership against it rather than growing a
+  second hand-maintained ref list." `diagram-refs.ts` is ADDED by the same staged diff, and
+  `DIAGRAM_LAYOUTS` is exactly the second list the comment warns about.
+- **VERIFIED, do not re-flag.** All 21 layout ids re-derive exactly (`z1`/`l1` + 8 hex of sha256).
+  Sorting the 12 label ids no longer restores canonical order — the first 9 sorted are
+  `Crosswind turn, Downwind turn, Downwind leg, Base turn, Threshold, Crosswind leg, Go-around,
+  Final approach, Final turn`, with 2 distractors interleaved. `assertDerivedZoneIds`'s search is
+  bounded (`j < MAX_ZONES`), uses exact string equality, and strictly ascends
+  (`nextCanonical = canonical + 1`), so legs `[0,2,4,6,8]` and turns `[1,3,5,7]` both pass while a
+  descending or repeated subset fails. `assertDiagramConfig` covers every clause of
+  `is_valid_diagram_config` (mig `20260702000100`, the latest ADD CONSTRAINT) plus the derived-id
+  rule, and nothing the deleted `assertDiagramConfigInvariants` checked was lost. Both new `buildRow`
+  branches resolve `explanation_text` and satisfy `questions_question_type_columns_check`.
+  `easa_subtopics` genuinely has no `deleted_at` and is `UNIQUE (topic_id, code)` — the importer's
+  comments on both are accurate. `RWY_2709_LABELS` is tree-shaken OUT of the client bundle (verified
+  on the 2026-08-18 build of the post-fix source: all 9 zone ids present as retained `rt("<zone id>",…)`
+  calls, zero label texts/ids anywhere in `.next/static`), so the index alignment is not readable
+  client-side today. Deliberately no chunk filename — it is content-hashed, and the first draft of this
+  note cited a chunk from the PRE-fix build, certifying the new code against the code it replaced.
+
+## § row detail 2026-08-18b (compaction spill from MEMORY.md)
+
+- **§10 code-comment-vs-corpus, 7th instance** (`content/vfr-rt-part3`, ghost-option guard in
+  `apps/web/scripts/mc-content.test.ts`). The comment justifying the lowercase filter says the
+  discarded spans "are bolded sentences, not quoted options". `VRT-P3-EMC-11` in the SAME staged
+  diff bolds `**technical trouble**`, which IS its option b. Measured over all three P3 MC corpora:
+  116 of 144 option texts (81%) contain lowercase, and only 7 non-allowlisted bold spans survive
+  the filter across 36 questions. The filter's real job is FALSE-POSITIVE suppression — without it
+  `**minor technical failure**` (EMC-11), `**immediate assistance**` (EMC-02) and `**three**`
+  (EMC-03) all flag as ghosts. Widens the §10 class beyond SQL: the contradicting authority was a
+  content corpus, not a migration body.
+- **Same-commit self-contradiction row, first instance**: a new test comment cited the
+  `content-ids.ts` docblock for a prefix-is-the-whole-disjointness-guarantee sentence that the same
+  diff deleted from that docblock. Closed in round 2 — the fixture switched to the `o`/`l` pair the
+  comment identifies as load-bearing, so the retracted z/l framing left both title and body rather
+  than merely being disclaimed. Rule: on a claim-correction commit, grep the diff for the OLD
+  wording, not just the file being corrected.
+- **Claim-correction commit introduces a NEW wrong ENUMERATION, 3rd instance**: plan-critic archive
+  pointer moved 30→48 by ADDING the delta to a baseline already stale by 9 (real: 57), and
+  enumerated a "2026-08-17" relocation section that was never created — 18 rows appended under a
+  heading whose stated bound was Last Seen ≤ 2026-06-21.
+- **RWY 2709 client-bundle DCE mechanism** (full detail behind the MEMORY.md false-positive row):
+  `RWY_2709_ZONES` initializers are `box(...)` CALL expressions the bundler cannot prove pure, so
+  the calls and their string args survive even though the array binding is dropped;
+  `RWY_2709_LABELS` is a plain object-literal array and IS dropped. No client file imports either.
+  The real guard is "LABELS stays a DCE-droppable literal array", not "nothing imports it" — a
+  `chip(...)` constructor form would ship all 12 chips in canonical order with no import change.
+  The first version of that row cited a PRE-fix chunk whose `rs("z9f2a1c",…)` ids the commit under
+  review had already deleted; cite the minified CALL FORM, never the content-hashed chunk filename.

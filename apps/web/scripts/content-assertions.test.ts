@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import part1 from './content/vfr-rt-part1-acronyms.json'
 import part2 from './content/vfr-rt-part2-dialog-pilot.json'
+import p3diagram from './content/vfr-rt-part3-diagram.json'
+import p3emergency from './content/vfr-rt-part3-mc-emergency.json'
+import p3numbers from './content/vfr-rt-part3-mc-numbers.json'
+import p3posrep from './content/vfr-rt-part3-mc-posrep.json'
+import p3ordering from './content/vfr-rt-part3-ordering.json'
 import {
   assertReleasedForRemote,
   isLocalSupabaseUrl,
@@ -89,11 +94,40 @@ describe('assertReleasedForRemote', () => {
     )
   })
 
-  it('agrees with what the two shipped content files declare', () => {
-    // The regression this pins: Part 2 is un-evaluated and must stay refused, and the refusal
-    // must not depend on any prose field an author is free to rewrite.
-    expect(() => assertReleasedForRemote(part1, 'vfr-rt-part1-acronyms.json')).not.toThrow()
-    expect(() => assertReleasedForRemote(part2, 'vfr-rt-part2-dialog-pilot.json')).toThrow()
+  it.each([
+    ['vfr-rt-part1-acronyms.json', part1],
+    ['vfr-rt-part2-dialog-pilot.json', part2],
+    ['vfr-rt-part3-mc-numbers.json', p3numbers],
+    ['vfr-rt-part3-mc-emergency.json', p3emergency],
+    ['vfr-rt-part3-mc-posrep.json', p3posrep],
+    ['vfr-rt-part3-ordering.json', p3ordering],
+    ['vfr-rt-part3-diagram.json', p3diagram],
+  ])('honours the lifecycle %s declares', (name, file) => {
+    // Pins the GATE against every real shipped file without hardcoding which pool is released —
+    // an earlier version asserted "Part 2 must stay refused", which broke the moment that pool
+    // was evaluated and graduated. What must hold forever is that the verdict follows the file's
+    // own `lifecycle` field and nothing else, least of all a prose field an author can rewrite.
+    //
+    // The counterfactual below is what keeps this test HONEST. Following the declared value is
+    // a one-sided assertion: every shipped file is now `released`, so without the second half
+    // only the `not.toThrow()` arm would ever execute and deleting the throw from
+    // assertReleasedForRemote would leave this green. Re-asserting the same object with the
+    // lifecycle flipped exercises the refusing arm on every row, whatever the files declare —
+    // so the arm cannot go dead again the next time a pool graduates.
+    const declared = (file as { lifecycle?: unknown }).lifecycle
+    expect(declared, `${name} declares no lifecycle`).toBeDefined()
+
+    // Message-pinned, not bare: a bare toThrow() goes green on ANY error, so it could not tell the
+    // lifecycle gate from an unrelated throw added to assertReleasedForRemote later — the same
+    // reason diagram-content.test.ts pins its messages.
+    const REFUSAL = /refusing to write this file to a remote database/
+    if (declared === 'released') {
+      expect(() => assertReleasedForRemote(file, name)).not.toThrow()
+      expect(() => assertReleasedForRemote({ ...file, lifecycle: 'pilot' }, name)).toThrow(REFUSAL)
+    } else {
+      expect(() => assertReleasedForRemote(file, name)).toThrow(REFUSAL)
+      expect(() => assertReleasedForRemote({ ...file, lifecycle: 'released' }, name)).not.toThrow()
+    }
   })
 })
 

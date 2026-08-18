@@ -759,7 +759,25 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 - **Per-part criterion**: mirrors the EASA regulatory exam structure (three distinct competency areas, each tested). A student weak in one area can retake focused study without failing overall due to another area's unrelated gap.
 - **Immutable ID list**: avoids the race condition where a question is soft-deleted mid-exam, and its explanation becomes unavailable on the results review. The question_ids array is the immutable contract; grading must honor it.
 
-**Implementation**: Migs 100 and 101 define the grading logic. Mig 102 extends `complete_overdue_exam_session` with per-part formulas for vfr_rt_exam mode. Mig 103 defines `get_vfr_rt_exam_results()` using the same formulas. No config or trigger changes needed; existing immutability (trigger mig 079) already enforces question_ids write-once.
+**Implementation**: originally migs 100-103; the per-part ≥75% rule above is what binds, NOT those
+migration numbers, because every one of the three RPCs has since been redefined. Do not read this
+paragraph as a pointer to the current bodies: trace the latest matching definitions in
+`supabase/migrations/`, which is the sole source of truth. `docs/database.md` is explanatory and
+can itself lag.
+Latest definitions as of 2026-08-18, by `supabase/migrations/` timestamp (the sole source of truth;
+`packages/db/migrations/` is frozen and carries false history):
+
+| RPC | Latest definition |
+|---|---|
+| `submit_vfr_rt_exam_answers` | `20260815000300_submit_vfr_rt_fuzzy.sql` |
+| `complete_overdue_exam_session` | `20260610001200_extend_overdue_for_vfr_rt_exam.sql` |
+| `get_vfr_rt_exam_results` | `20260619000500_vfr_rt_results_use_correct_option_id.sql` |
+
+The grader in particular has moved a long way from mig 100 — it now reads the relocated
+`questions.correct_option_id` (#823) and grades text answers through `answer_matches` typo
+tolerance (D56), and it raises `unsupported_question_type` for anything outside
+`short_answer` / `dialog_fill` / `multiple_choice`. No config or trigger changes were needed for
+this decision; existing immutability (trigger mig 079) already enforces question_ids write-once.
 
 ---
 

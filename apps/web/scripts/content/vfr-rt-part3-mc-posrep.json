@@ -1,0 +1,136 @@
+{
+  "part": 3,
+  "title": "Position Reporting — multiple choice",
+  "topic_code": "P3_MC",
+  "subtopic_code": "P3_POSREP",
+  "subject_code": "RT",
+  "question_type": "multiple_choice",
+  "per_exam": 8,
+  "lifecycle": "released",
+  "status": "5 questions on the rules that govern position reporting: when it may be omitted, the phrase that stops it, the OPERATIONS NORMAL progress report, where the call sign sits in a read-back, and what the fourth element of the standard report order must carry. The SEQUENCING of a position report is drag-and-drop and lives in vfr-rt-part3-ordering.json under the same P3_POSREP subtopic — this file deliberately does not duplicate it. Authored when P3_POSREP held only 2 ordering questions; ORD-08..12 landed in the same commit, so the subarea ships with 7 ordering + 5 multiple-choice.",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 3 — competency 3, 'Proper sequencing of a position report', and the reporting rules it depends on). Every rule and every worked example is taken from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc): section 2 'General', subsections 'Placing of call signs' and 'Reporting' (printed p. 11), and section 4 'En-route phraseology', subsection 'Initial call' with its standard report order, its omission rule and its RTF Position Reporting example (printed p. 16). The read-back examples quoted in one explanation are from printed pp. 12, 16 and 20. Printed page = PDF page - 2.",
+  "authoring_notes": "R1 EVERY question is answerable from the two guide passages named in `source` alone. Nothing here rests on ICAO documents, on SERA, or on outside aviation knowledge — the student is told to prepare from this guide and a short briefing package, so a question that needs anything else is unanswerable rather than hard.\n\nR2 EVERY correct answer is a sentence printed in the guide, quoted verbatim in that question's explanation. Nothing was written from general radiotelephony practice and no transmission was invented. Where a question needed a worked call, an existing printed one was used (`S5-DEW overhead Velike Lašče at 24...`, `runway 33, QNH 1014, S-AA`, `QNH 1012, wilco, S-BS`) rather than a lookalike, so every claim is checkable against the page.\n\nR3 NOTHING IS ASKED THAT THE GUIDE DOES NOT SETTLE. Two candidate questions were dropped for this reason and are recorded here so they are not re-attempted: (a) 'how often must a position report be made en-route' — the guide says only that the pilot 'shall report position over important reporting points', which names the trigger but no interval, and the 20-to-40-minute figure belongs to the separate OPERATIONS NORMAL rule; (b) 'what does the controller say to resume position reporting after OMIT POSITION REPORTING' — the guide prints no such phrase, so any option set would have had an invented answer.\n\nR4 DISTRACTORS ARE THE REAL ERROR, not filler. Each wrong option is a mistake a PPL student actually makes: treating the omission rule as an airspace-class rule, generalising the read-back call-sign placement to every transmission, halving the OPERATIONS NORMAL interval, or stopping the fourth standard element at the next point without the one after it. A distractor nobody would pick teaches nothing and inflates the score.\n\nR5 EXACTLY ONE option is correct under the guide's rules. The transponder was deliberately kept OUT of the omission question's distractors: a serviceable transponder does help produce the radar data the omission rule names, so 'when squawking an assigned code' is arguably a restatement of the correct answer rather than a wrong one, and an item with two defensible answers is a broken item.\n\nR6 CASING IS UNIFORM WITHIN EACH ITEM. The guide prints spoken phrases in capitals (OMIT POSITION REPORTING, OPERATIONS NORMAL), so an item that capitalised only its correct option would mark it. In the OMIT question all four options are capitalised spoken phrases; in the OPERATIONS NORMAL question three options carry a capitalised phrase and the fourth carries none, but the key is among the three, so casing isolates nothing.\n\nR7 THE KEY CARRIES NO POSITIONAL SIGNAL. Five questions over four ids: a x1, b x2, c x1, d x1, in an order that never repeats an id on adjacent questions (b, d, c, b, a). `assertMcKeyBalance` in scripts/mc-content.ts does not run on a pool this small (MIN_CORPUS_FOR_KEY_BALANCE = 12), so this distribution is a house rule the author holds, not a gate that would catch its absence — re-check it by hand whenever a question is added here.\n\nLENGTH IS NOT CONTROLLED and is stated rather than claimed away. Measured over the 5: the correct option is strictly the longest in 1 (the omission question, by 9 characters over the nearest distractor) and strictly the shortest in none. Always picking the longest scores 1/5; always picking the shortest scores 0/5. Re-measure when a question is added rather than carrying these numbers forward.\n\nR8 EXPLANATIONS QUOTE THE GOVERNING SENTENCE. Every explanation opens with the guide's own words, then says why each tempting wrong form is wrong. The canonical answer is revealed on feedback, so the explanation is the teaching surface. Where an explanation adds reasoning the guide does not state (why the call sign moves to the end of a read-back), it is phrased as background, never as a quotation.",
+  "grading_notes": "Standard multiple_choice: one stored correct_option_id, graded by exact option match — no text normalization is involved, so none of the Part 1/Part 2 synonym or typo-tolerance machinery applies here. Options are stored as {id,text} and sanitized by trg_sanitize_question_options on write.",
+  "questions": [
+    {
+      "num": "VRT-P3-PMC-01",
+      "prompt": "Under what circumstances does the guide say position reporting may be omitted?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Once the controller has acknowledged the initial call, unless further reports are requested"
+        },
+        {
+          "id": "b",
+          "text": "When flight progress data is available from another source such as radar, or the controller requests it"
+        },
+        {
+          "id": "c",
+          "text": "When the flight is outside controlled airspace, where no clearance is required in any case"
+        },
+        {
+          "id": "d",
+          "text": "When the whole route lies within a single flight information region and no boundary is crossed"
+        }
+      ],
+      "correct": "b",
+      "explanation": "**\"The pilot shall report position over important reporting points. Position reporting may be omitted if flight progress data is available from other sources such as radar, or if requested by the controller.\"** Two conditions, and only those two.\n\nNotice that neither is something the pilot decides alone. Reporting is the default — *shall report* — and both exceptions are worded around what the ground station already has or actively wants. Neither turns on the class of airspace, on the region being flown, or on how the initial call went.\n\nThat is what makes *once the controller has acknowledged the initial call* the dangerous answer: a pilot who stops reporting because nothing further has been said since the initial call has not been relieved of anything, they have simply stopped reporting."
+    },
+    {
+      "num": "VRT-P3-PMC-02",
+      "prompt": "Which phrase does the guide give as the controller's instruction that stops position reporting?",
+      "options": [
+        {
+          "id": "a",
+          "text": "STOP POSITION REPORTING"
+        },
+        {
+          "id": "b",
+          "text": "CANCEL POSITION REPORTING"
+        },
+        {
+          "id": "c",
+          "text": "POSITION REPORTS NOT REQUIRED"
+        },
+        {
+          "id": "d",
+          "text": "OMIT POSITION REPORTING"
+        }
+      ],
+      "correct": "d",
+      "explanation": "**Position reporting may be omitted \"if requested by the controller (e.g.: 'OMIT POSITION REPORTING')\"** — that is the phrase the guide prints, and the only one it gives for this purpose.\n\nThe verb is the thing to learn. **OMIT** is the standard word for leaving out something that would otherwise be transmitted, and it is the word used here rather than *stop* or *cancel* because nothing is being withdrawn: the requirement to report over important reporting points is simply not applied while the controller has your progress from another source.\n\nThe guide introduces the phrase with *e.g.*, so read it as the form to recognise on the frequency. It is the only wording the guide gives for this instruction, and the other three options appear nowhere in it."
+    },
+    {
+      "num": "VRT-P3-PMC-03",
+      "prompt": "The guide requires a report showing that the flight is progressing according to plan. What must that report contain, and when is it made?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The identification of the aircraft and the words OPERATIONS NORMAL, during the period 10 to 20 minutes"
+        },
+        {
+          "id": "b",
+          "text": "The identification of the aircraft, its position and its level, during the period 20 to 40 minutes"
+        },
+        {
+          "id": "c",
+          "text": "The identification of the aircraft and the words OPERATIONS NORMAL, during the period 20 to 40 minutes"
+        },
+        {
+          "id": "d",
+          "text": "The identification of the aircraft and the words FLIGHT PROGRESSING NORMALLY, during the period 20 to 40 minutes"
+        }
+      ],
+      "correct": "c",
+      "explanation": "**\"Aircraft equipped with suitable two-way radio-communications shall report during the period 20 to 40 minutes to indicate that the flight is progressing according to plan. Such report to comprise identification of the aircraft and the words 'OPERATIONS NORMAL'.\"** Two things only: who you are, and the fixed phrase.\n\nThis is *not* a position report, and the two must not be blurred together. It carries no position, no level and no estimate — which is exactly what makes it cheap to transmit and cheap for the ground station to handle. A position report is triggered by geography (\"the pilot shall report position over important reporting points\"); this one is triggered by the clock.\n\nThe wording is fixed too. *OPERATIONS NORMAL* is a set phrase, not an invitation to reassure the controller in your own words."
+    },
+    {
+      "num": "VRT-P3-PMC-04",
+      "prompt": "A pilot reads back an instruction. Where does the guide say the aircraft call sign goes?",
+      "options": [
+        {
+          "id": "a",
+          "text": "At the beginning of the message, exactly as in any other transmission the pilot makes"
+        },
+        {
+          "id": "b",
+          "text": "At the end of the message; a message that is not a read-back is normally prefixed with it"
+        },
+        {
+          "id": "c",
+          "text": "At the end of the message, and every other transmission the pilot makes ends with it too"
+        },
+        {
+          "id": "d",
+          "text": "At the beginning and again at the end, so that the read-back is bracketed by the call sign"
+        }
+      ],
+      "correct": "b",
+      "explanation": "**\"Once satisfactory communication has been established, the message is normally prefixed with the aircraft call sign. However, when the pilot needs to read back an instruction or important information, he places the call sign at the end of the message.\"** Two placements, one rule deciding between them.\n\nThe guide's own examples show both halves. A normal report leads with the call sign: `S5-DEW overhead Velike Lašče at 24, passing 4500 feet, climbing to 6500 feet...`. A read-back closes with it: `runway 33, QNH 1014, S-AA`, `QNH 1012, wilco, S-BS`, `wilco, S-EW`.\n\nThe placement carries information rather than being decoration — the controller hears the read-back content first and can check it against what was issued, with the call sign arriving to say whose read-back it was. Note those examples also use the shortened form: \"once satisfactory communication has been established, the abbreviated call signs shall be used\"."
+    },
+    {
+      "num": "VRT-P3-PMC-05",
+      "prompt": "The fourth element of the guide's standard order for a report is the next position. What must that element carry?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The next position, the time over it, and the following significant point"
+        },
+        {
+          "id": "b",
+          "text": "The next position and the time over it"
+        },
+        {
+          "id": "c",
+          "text": "The next position and the time over it, plus the level to be maintained there"
+        },
+        {
+          "id": "d",
+          "text": "The next position and the estimated time of arrival at the destination aerodrome"
+        }
+      ],
+      "correct": "a",
+      "explanation": "**The guide's standard order runs: aircraft call sign (and type if necessary); position (and time over); flight level or altitude; \"next position and time over and following significant point\"; additional information.** The fourth element is therefore three things, not two — the next reporting point, the estimate for it, and the point after that.\n\nRead the guide's worked report against the list: `S5-DEW overhead Velike Lašče at 24, passing 4500 feet, climbing to 6500 feet, estimating ILB at 40, PE1 next`. *Estimating ILB at 40* is the next position with its time over; *PE1 next* is the following significant point.\n\nStopping at the next point leaves the controller with a single dot to plan around; naming the one after it gives them a track. The level to be maintained is already the third element, and a destination estimate belongs to the flight plan rather than to a position report."
+    }
+  ]
+}

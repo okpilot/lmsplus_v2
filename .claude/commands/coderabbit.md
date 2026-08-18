@@ -45,6 +45,14 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
    - Check whether the thing CodeRabbit says is missing actually exists somewhere else in the codebase (grep for it)
    - Check whether the suggestion contradicts an existing project rule or decision
    - Only after reading the source can you assign a verdict — never skip or dismiss based on labels
+   - **Verifying the FILE PATH is not verifying the CLAIM.** A finding can cite a correct path and
+     correct line numbers and still be wrong on the merits — that is the common case, not the rare
+     one. Follow the claim-shape table in `.claude/rules/agent-coderabbit-local.md`
+     § Verify Before Acting — MANDATORY GATE: trace a function to its LATEST definition (both
+     `CREATE OR REPLACE` and `DROP`+`CREATE`), grep for a column said to exist, read the constraint
+     body rather than trusting its name, run a SCOPED type-check for a claimed type error, confirm a
+     proposed citation is current, and recompute any count. That gate is written for CR-local but
+     applies identically here — Pitfall #7 was broadened to cloud CR at count=5.
 
 4. For each comment, extract:
    - **Severity**: Trivial / Minor / Major (from CodeRabbit's own labels — but verify against source)

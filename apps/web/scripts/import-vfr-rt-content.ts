@@ -7,6 +7,11 @@
  * Two flags depart from that and are gated accordingly — `--replace` (local only) and
  * `--sync-content` (the narrow answer-key update); both are described below.
  *
+ * Syllabus placement: `subject_code` and `topic_code` are required; `subtopic_code` (file-level,
+ * overridable per question with `subtopic`) is OPTIONAL, and a file declaring neither imports
+ * with `subtopic_id` NULL — Parts 1 and 2 are flat by design, only Part 3 is split into subareas.
+ * An unresolvable subtopic code aborts the run before anything is written.
+ *
  * Local (default): bootstraps the shared eval org + admin/student logins + bank so
  * you can drill the content at /app/vfr-rt immediately.
  * Remote (--force-remote): looks up the target org + an existing admin (created_by)
@@ -49,12 +54,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
+import { DIAGRAM_IMAGE_REFS } from '../app/app/quiz/session/_components/diagrams/diagram-refs'
+import {
+  RWY_2709_IMAGE_REF,
+  RWY_2709_LABELS,
+  RWY_2709_ZONES,
+} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import {
   assertReleasedForRemote,
   isLocalSupabaseUrl,
   requireRecord,
   requireText,
 } from './content-assertions'
+import { assertDiagramConfig, type DiagramLabel, type DiagramZone } from './diagram-content'
 import {
   assertDialogFillAuthoring,
   assertDialogFillItem,
@@ -62,6 +74,8 @@ import {
   type DialogFillItem,
   toStoredBlanks,
 } from './dialog-fill-content'
+import { type AuthoredMcQuestion, assertMcItem, assertMcKeyBalance } from './mc-content'
+import { assertOrderingItems, buildOrderingItems } from './ordering-content'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -169,11 +183,60 @@ type McItem = {
   explanation?: string
 }
 
+/**
+ * An authored `ordering` question. `items` is a plain array of STRINGS in canonical order —
+ * NOT `ordering-content`'s per-step `OrderingItem` (`{id, text}`), which is the STORED shape
+ * `buildOrderingItems` composes from these strings. An author never writes an id, so the array
+ * order is the only place the answer lives (scripts/content-ids.ts).
+ */
+type OrderingItem = {
+  num: string
+  prompt: string
+  items: string[]
+  explanation?: string
+}
+
+/**
+ * An authored `diagram_label` question. `diagram` is typed `unknown` on purpose: it is the
+ * COMPACT authoring shape (`{image_ref, answer_by_zone}`), not a stored `diagram_config`, and
+ * `assertDiagramAuthoring` is meant to be its only reader — a structural annotation here would
+ * be an unchecked promise over parsed JSON.
+ */
+type DiagramItem = {
+  num: string
+  prompt: string
+  diagram: unknown
+  explanation?: string
+}
+
+/**
+ * Any authored item, whatever its type, may name the subarea it belongs to.
+ *
+ * Declared as an intersection over the five item types rather than a field on each of them
+ * because `DialogFillItem` is owned by ./dialog-fill-content, where a field only this importer
+ * reads has no business being. The intersection distributes over the union, so every existing
+ * per-branch cast and assertion in buildRow keeps working unchanged.
+ */
+type AuthoredQuestion = (ShortAnswerItem | McItem | DialogFillItem | OrderingItem | DiagramItem) & {
+  /**
+   * Per-question override of the file's `subtopic_code`. Optional: a file whose questions all
+   * belong to one subarea states it once at file level and no item repeats it.
+   */
+  subtopic?: string
+}
+
 type ContentFile = {
   title: string
   subject_code: string
   topic_code: string
-  question_type: 'short_answer' | 'multiple_choice' | 'dialog_fill'
+  /**
+   * The file-level default subarea for every question in it, resolved against `easa_subtopics`
+   * under this file's OWN topic. Optional on purpose: Parts 1 and 2 are deliberately flat (see
+   * mig `20260818000100_seed_vfr_rt_part3_subtopics.sql`), and a file that declares neither this
+   * nor a per-question `subtopic` imports with `subtopic_id` NULL, exactly as before.
+   */
+  subtopic_code?: string
+  question_type: 'short_answer' | 'multiple_choice' | 'dialog_fill' | 'ordering' | 'diagram_label'
   /**
    * The prod gate. `'released'` is the ONLY value that lets a file reach a remote database;
    * everything else — including absence — is refused by `assertReleasedForRemote`. Typed
@@ -184,7 +247,15 @@ type ContentFile = {
   // Free-form prose describing the batch. Gates NOTHING — see assertReleasedForRemote's note on
   // why the guard moved off this field. Read only by humans; the importer never inspects it.
   status?: string
-  questions: (ShortAnswerItem | McItem | DialogFillItem)[]
+  questions: AuthoredQuestion[]
+}
+
+/**
+ * The subarea a single question belongs to: its own `subtopic` if it states one, otherwise the
+ * file's default. `undefined` means the question is unfiled and `subtopic_id` stays NULL.
+ */
+function subtopicCodeFor(file: ContentFile, q: AuthoredQuestion): string | undefined {
+  return q.subtopic ?? file.subtopic_code
 }
 
 // ---- bootstrap helpers -------------------------------------------------------
@@ -360,14 +431,93 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
   return data.id
 }
 
+/**
+ * The codes that DO exist under `topicId`, for an unresolvable-code error message. Error path
+ * only — a lookup failure here degrades the hint, never the throw that follows it, so it reports
+ * what went wrong instead of replacing the caller's error with its own.
+ */
+async function describeSubtopicCodes(topicId: string): Promise<string> {
+  // No `.is('deleted_at', null)`: easa_subtopics has no such column, so filtering it would be a
+  // 42703 at runtime (code-style §5). The drift-proof source is the generated
+  // `packages/db/src/types.ts` (`public.Tables.easa_subtopics.Row` — id/topic_id/code/name/
+  // sort_order), which is also what the mechanical soft-delete guard parses; the original
+  // CREATE TABLE in `20260311000001_initial_schema.sql` agrees, and no later migration ALTERs
+  // the table except to enable RLS.
+  const { data, error } = await db.from('easa_subtopics').select('code').eq('topic_id', topicId)
+  if (error) return `<could not list existing codes: ${error.message}>`
+  const codes = (data ?? []).map((r) => r.code as string)
+  return codes.length > 0 ? codes.join(', ') : '<none — the topic has no subtopics seeded>'
+}
+
+async function lookupSubtopicByCode(topicId: string, code: string, at: string): Promise<string> {
+  // easa_subtopics is UNIQUE (topic_id, code) — NOT unique on code alone (mig 20260311000001) —
+  // so the lookup must be topic-scoped, the same way lookupTopicByCode is subject-scoped. There
+  // is no CHECK tying questions.subtopic_id to questions.topic_id (the two are independent FKs),
+  // so a code resolved against the wrong topic would insert cleanly and file the question under
+  // another topic's subarea.
+  const { data, error } = await db
+    .from('easa_subtopics')
+    .select('id')
+    .eq('topic_id', topicId)
+    .eq('code', code)
+    .single()
+  if (error || !data) {
+    // Throwing, never a silent NULL: an unfiled question is invisible to the subarea picker,
+    // which is the one outcome a typo'd code must not produce quietly.
+    throw new Error(
+      `${at}: subtopic code '${code}' not found under topic ${topicId} (${error?.message ?? 'not found'}) — codes under that topic: ${await describeSubtopicCodes(topicId)}`,
+    )
+  }
+  return data.id
+}
+
+/**
+ * Resolve every DISTINCT subtopic code this file uses — file-level default plus every
+ * per-question override — to an id, once, before any row is inserted.
+ *
+ * Up front for the same reason main() resolves subject and topic up front: resolving inside the
+ * insert loop would surface a bad code on question 20 only after 19 rows were committed. A file
+ * that names no code at all resolves to an empty map and does no query.
+ *
+ * Each code is remembered with WHERE it was written, so an unresolvable one points at the field
+ * to edit: a typo'd override on one question and a typo'd file-level default are the same error
+ * text otherwise, and only one of them is found by reading the top of the file. First writer
+ * wins — the code is looked up once, so the label names one origin, and a per-question override
+ * is more specific than the default it displaces.
+ */
+async function resolveSubtopicIds(
+  file: ContentFile,
+  topicId: string,
+  rel: string,
+): Promise<Map<string, string>> {
+  const origins = new Map<string, string>()
+  for (const q of file.questions) {
+    const code = subtopicCodeFor(file, q)
+    if (code === undefined || origins.has(code)) continue
+    origins.set(
+      code,
+      q.subtopic === undefined ? `${rel}: 'subtopic_code'` : `${rel} (${q.num}): 'subtopic'`,
+    )
+  }
+  const ids = new Map<string, string>()
+  for (const [code, at] of origins) {
+    ids.set(code, await lookupSubtopicByCode(topicId, code, at))
+  }
+  return ids
+}
+
 // ---- content validation --------------------------------------------------------
 
-// questions_mc_correct_option_id_check constrains correct_option_id to exactly these.
-const MC_OPTION_IDS = ['a', 'b', 'c', 'd']
-
-// The types buildRow has a branch for. Widen both together when adding ordering / diagram_label —
-// the DB accepts all five (questions_question_type_check).
-const SUPPORTED_TYPES = ['short_answer', 'multiple_choice', 'dialog_fill']
+// The types buildRow has a branch for — now the full set the DB accepts
+// (questions_question_type_check). Keep this list, ContentFile's question_type union, buildRow's
+// branches and the per-item validator switch in main() in step with each other.
+const SUPPORTED_TYPES = [
+  'short_answer',
+  'multiple_choice',
+  'dialog_fill',
+  'ordering',
+  'diagram_label',
+]
 
 function validateShortAnswerItem(sa: ShortAnswerItem, at: string): void {
   requireText(sa.canonical, `${at} (${sa.num}): 'canonical'`)
@@ -386,31 +536,147 @@ function validateShortAnswerItem(sa: ShortAnswerItem, at: string): void {
   }
 }
 
-function validateMcItem(mc: McItem, at: string): void {
-  if (!Array.isArray(mc.options) || mc.options.length === 0) {
-    throw new Error(`${at} (${mc.num}): 'options' must be a non-empty array`)
-  }
-  // The DB CHECK only constrains correct_option_id to 'a'..'d'; nothing enforces that it
-  // names an option that actually exists, and trg_sanitize_question_options rewrites each
-  // element to {id,text}, silently emitting nulls for a malformed one. Both would import
-  // clean and render un-answerable, so check the mapping here.
-  if (!MC_OPTION_IDS.includes(mc.correct)) {
+// MC validation lives in ./mc-content, the same way dialog_fill's validators live in
+// ./dialog-fill-content. BOTH of its gates run here — `assertMcItem` per question in the loop
+// below, `assertMcKeyBalance` once per file after it — so the rules the authoring suite
+// enforces and the rules the importer enforces cannot drift apart.
+//
+// It is strictly stricter than the checks it replaced: a question needs at least 2 options,
+// option ids must be a LEADING RUN of a..d (a gap leaves the third button labelled "C" while
+// its stored id is 'd', since the runner labels from the array index — so any surface showing
+// `correct_option_id` as a letter contradicts the screen), and two options may not share text
+// after case folding.
+
+// ---- diagram_label authoring -> stored config ----------------------------------
+
+/**
+ * The layouts an authored `diagram` may name, keyed by each layout module's own exported
+ * `*_IMAGE_REF` const — never a literal repeated here, the same rule
+ * `_components/diagrams/registry.ts` follows for the artwork components.
+ *
+ * This map is why a `diagram_label` content file carries no ids at all. Zone and label ids are
+ * DERIVED (zone from `(image_ref, index)`, label from its own text — see scripts/diagram-content.ts),
+ * so an author who wrote them by hand would both be guessing digests and gaining a field the
+ * zone -> label mapping could be encoded into. The file states an `image_ref` plus a zone-index
+ * -> label-TEXT map, and everything carrying an id is looked up from here.
+ *
+ * `DIAGRAM_IMAGE_REFS` (from `_components/diagrams/diagram-refs.ts`) is the registry's key list and
+ * is checked FIRST, so an unknown ref fails against the one list the runner also keys off. This map
+ * cannot be replaced by that list: it carries the zones and labels a ref resolves TO, which the ref
+ * list does not.
+ */
+type DiagramLayout = { zones: DiagramZone[]; labels: DiagramLabel[] }
+const DIAGRAM_LAYOUTS: Record<string, DiagramLayout> = {
+  [RWY_2709_IMAGE_REF]: { zones: RWY_2709_ZONES, labels: RWY_2709_LABELS },
+}
+
+/** The COMPACT authoring shape. `answer_by_zone` maps a canonical zone INDEX (as a decimal string
+ *  key) to the TEXT of the label that answers it. */
+type AuthoredDiagram = { image_ref: string; answer_by_zone: Record<string, string> }
+
+/** What gets stored in `questions.diagram_config`, mirroring `is_valid_diagram_config`'s exact
+ *  key set (mig `20260702000100`). */
+type ResolvedDiagramConfig = {
+  image_ref: string
+  zones: DiagramZone[]
+  labels: DiagramLabel[]
+  answer: { zone_id: string; label_id: string }[]
+}
+
+/**
+ * Gate over the AUTHORED shape, run in the per-item validator loop so a bad content file fails
+ * with a field-level message before any resolution or DB write is attempted.
+ *
+ * Keys must be in canonical decimal form (`String(Number(key)) === key`): `"00"` and `"0"` would
+ * otherwise both name zone 0, and the second would silently overwrite the first in the map.
+ */
+function assertDiagramAuthoring(raw: unknown, at: string): asserts raw is AuthoredDiagram {
+  requireRecord(raw, `${at}: 'diagram'`)
+  requireText(raw.image_ref, `${at}: diagram.image_ref`)
+  // Checked against the registry's own key list FIRST, so a typo'd ref fails against the same
+  // list the runner keys off rather than against this file's private map. A ref the runner does
+  // not know renders no artwork (getDiagramComponent fails closed), which imports clean and
+  // leaves the question silently un-answerable.
+  // `.some`, not `.includes`: DIAGRAM_IMAGE_REFS is an `as const` tuple, so its element type is
+  // the literal union and `.includes(string)` is a type error. `.some` compares without
+  // narrowing the argument.
+  if (!DIAGRAM_IMAGE_REFS.some((ref) => ref === raw.image_ref)) {
     throw new Error(
-      `${at} (${mc.num}): 'correct' must be one of ${MC_OPTION_IDS.join('/')} (got ${JSON.stringify(mc.correct)})`,
+      `${at}: diagram.image_ref ${JSON.stringify(raw.image_ref)} is not a registered diagram — registered refs: ${DIAGRAM_IMAGE_REFS.join(', ')}`,
     )
   }
-  const optionIds = new Set<string>()
-  for (const [j, opt] of mc.options.entries()) {
-    requireText(opt?.id, `${at} (${mc.num}): options[${j}].id`)
-    requireText(opt?.text, `${at} (${mc.num}): options[${j}].text`)
-    // A duplicate id makes `correct` ambiguous and the runner's option lookup arbitrary.
-    if (optionIds.has(opt.id)) {
-      throw new Error(`${at} (${mc.num}): duplicate option id '${opt.id}'`)
-    }
-    optionIds.add(opt.id)
+  const layout = DIAGRAM_LAYOUTS[raw.image_ref]
+  if (!layout) {
+    throw new Error(
+      `${at}: diagram.image_ref ${JSON.stringify(raw.image_ref)} names no known layout — known refs: ${Object.keys(DIAGRAM_LAYOUTS).join(', ')}`,
+    )
   }
-  if (!mc.options.some((o) => o.id === mc.correct)) {
-    throw new Error(`${at} (${mc.num}): 'correct' is '${mc.correct}' but no option carries that id`)
+  requireRecord(raw.answer_by_zone, `${at}: diagram.answer_by_zone`)
+  const entries = Object.entries(raw.answer_by_zone)
+  if (entries.length === 0) {
+    throw new Error(`${at}: diagram.answer_by_zone must name at least one zone`)
+  }
+  for (const [key, value] of entries) {
+    if (String(Number(key)) !== key || Number(key) < 0 || Number(key) >= layout.zones.length) {
+      throw new Error(
+        `${at}: diagram.answer_by_zone key ${JSON.stringify(key)} must be a zone index in canonical decimal form between 0 and ${layout.zones.length - 1} for image_ref ${JSON.stringify(raw.image_ref)}`,
+      )
+    }
+    requireText(value, `${at}: diagram.answer_by_zone[${JSON.stringify(key)}]`)
+  }
+}
+
+/**
+ * Resolve the authored shape into the stored `diagram_config`.
+ *
+ * `zones` holds ONLY the zones the file answers, in ascending canonical-index order — not the
+ * layout's full array. `is_valid_diagram_config` requires `answer.length = zones.length` (every
+ * delivered zone is answered exactly once), so shipping all 9 zones for a 5-leg question would
+ * fail at INSERT. Each zone object is taken from the layout UNCHANGED: its id was derived from
+ * its FULL-array index, so subsetting must not renumber it.
+ *
+ * `labels` is the layout's FULL pool. Labels may outnumber zones — the unused ones are the
+ * deliberate distractors (for RWY 27/09, the four turn names plus three more).
+ */
+function resolveDiagramConfig(authored: AuthoredDiagram, at: string): ResolvedDiagramConfig {
+  const layout = DIAGRAM_LAYOUTS[authored.image_ref]
+  // Unreachable after assertDiagramAuthoring, which rejects an unknown ref — but this function is
+  // exported to buildRow's branch and has to be self-defending about its own lookup.
+  if (!layout) {
+    throw new Error(`${at}: diagram.image_ref ${JSON.stringify(authored.image_ref)} has no layout`)
+  }
+  const placements = Object.entries(authored.answer_by_zone)
+    .map(([key, text]) => ({ index: Number(key), text }))
+    .sort((a, b) => a.index - b.index)
+  const answer = placements.map(({ index, text }) => {
+    // Index validity is re-derived here rather than trusted from assertDiagramAuthoring: this
+    // function is reachable from buildRow independently of that gate, and an out-of-range index
+    // would otherwise read `undefined` and store a null zone_id that only fails at INSERT.
+    const zone = layout.zones[index]
+    if (!zone) {
+      throw new Error(
+        `${at}: diagram.answer_by_zone names zone index ${index}, but layout ${JSON.stringify(authored.image_ref)} has only ${layout.zones.length} zones`,
+      )
+    }
+    // Exactly-one, not first-match: two labels sharing a text would make the pairing ambiguous,
+    // and zero means the file names a chip this layout does not offer (usually a typo or a
+    // label the layout renamed).
+    const matches = layout.labels.filter((label) => label.text === text)
+    if (matches.length !== 1) {
+      throw new Error(
+        `${at}: diagram.answer_by_zone[${index}] names label text ${JSON.stringify(text)}, which matches ${matches.length} label(s) in layout ${JSON.stringify(authored.image_ref)} — it must match exactly one. Available: ${layout.labels.map((label) => JSON.stringify(label.text)).join(', ')}`,
+      )
+    }
+    const label = matches[0]
+    if (!label) throw new Error(`${at}: label match for ${JSON.stringify(text)} vanished`)
+    return { zone_id: zone.id, label_id: label.id }
+  })
+  return {
+    image_ref: authored.image_ref,
+    // Safe: every index was bounds-checked in the answer pass above, which runs first.
+    zones: placements.flatMap(({ index }) => layout.zones[index] ?? []),
+    labels: layout.labels,
+    answer,
   }
 }
 
@@ -418,19 +684,34 @@ function validateMcItem(mc: McItem, at: string): void {
 
 type QuestionRow = Record<string, unknown> & { question_number: string }
 
+/**
+ * The syllabus placement of ONE row. An object rather than two positional params because
+ * `subtopicId` varies per QUESTION (a file may override its default on individual items) while
+ * `topicId` is per file, and code-style §3 caps positional params at 3 — buildRow is already at
+ * its limit with (file, q, base).
+ */
+type RowScope = { topicId: string; subtopicId: string | null }
+
 function buildRow(
   file: ContentFile,
-  q: ShortAnswerItem | McItem | DialogFillItem,
+  q: AuthoredQuestion,
   base: Record<string, unknown>,
-  topicId: string,
+  scope: RowScope,
 ): QuestionRow {
-  // `common` already satisfies every questions_question_type_columns_check discriminator: five
-  // are set explicitly below, and diagram_config by OMISSION — the column defaults to NULL
-  // (ADD COLUMN diagram_config JSONB NULL DEFAULT NULL). Whoever widens this to diagram_label
-  // must set it here rather than assume the default still applies.
+  // `common` sets every questions_question_type_columns_check discriminator EXPLICITLY, and each
+  // branch below overrides only the columns its own type populates. `diagram_config` used to be
+  // satisfied by OMISSION — the column defaults to NULL (ADD COLUMN diagram_config JSONB NULL
+  // DEFAULT NULL) — which held only while every supported type wanted NULL there. The
+  // diagram_label branch needs it NOT NULL, so the value is stated here rather than left to the
+  // default; the other four branches inherit the NULL their check clause requires.
+  //
+  // `subtopic_id` sits here, not in any branch: it is syllabus placement, orthogonal to the type
+  // discriminators, and no branch below overrides it — so every one of the five inherits it from
+  // this spread, and a new branch gets it for free.
   const common = {
     ...base,
-    topic_id: topicId,
+    topic_id: scope.topicId,
+    subtopic_id: scope.subtopicId,
     question_number: q.num,
     question_text: q.prompt,
     question_type: file.question_type,
@@ -441,6 +722,7 @@ function buildRow(
     blanks_config: [],
     ordering_items: [],
     correct_option_id: null,
+    diagram_config: null,
   }
   if (file.question_type === 'short_answer') {
     const sa = q as ShortAnswerItem
@@ -477,6 +759,42 @@ function buildRow(
       // silently replaced by that boilerplate: the column is NOT NULL and `base` satisfies it,
       // so nothing fails and it surfaces only at eval.
       explanation_text: q.explanation ?? (base.explanation_text as string),
+    }
+  }
+  if (file.question_type === 'ordering') {
+    const ord = q as OrderingItem
+    const label = `question '${q.num}'`
+    // Re-assert rather than trust the cast, the same way the dialog_fill branch does: this
+    // branch reads a nested structure and buildRow is also reached from the --sync-content plan.
+    assertOrderingItems(ord.items, label)
+    return {
+      ...common,
+      // The array order IS the answer key; buildOrderingItems derives each id from the step's own
+      // text and preserves that order. `diagram_config` stays NULL, per the ordering branch of
+      // questions_question_type_columns_check.
+      ordering_items: buildOrderingItems(ord.items, label),
+      // Same trap the dialog_fill branch documents: `common` spreads `base`, so a branch that
+      // leaves explanation_text unresolved silently ships the generic fallback — the column is
+      // NOT NULL and `base` satisfies it, so nothing fails and it surfaces only at eval.
+      explanation_text: ord.explanation ?? (base.explanation_text as string),
+    }
+  }
+  if (file.question_type === 'diagram_label') {
+    const dg = q as DiagramItem
+    const label = `question '${q.num}'`
+    assertDiagramAuthoring(dg.diagram, label)
+    const config = resolveDiagramConfig(dg.diagram, label)
+    // The resolved config passes the SAME gate as any other stored config — including the
+    // derived-id rule, which is the answer-oracle invariant and the reason ids are not authored.
+    assertDiagramConfig(config, label)
+    return {
+      ...common,
+      diagram_config: config,
+      // Restated even though `common` already has it: the diagram_label branch of
+      // questions_question_type_columns_check requires ordering_items = '[]' exactly, and this
+      // is the one branch where a reader might expect the sibling list column to be populated.
+      ordering_items: [],
+      explanation_text: dg.explanation ?? (base.explanation_text as string),
     }
   }
   throw new Error(`Unsupported question_type '${file.question_type}' (add a branch in buildRow)`)
@@ -610,43 +928,129 @@ async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
   return failures
 }
 
-async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
+/**
+ * Why this reports subtopic drift instead of just `true`/`false`:
+ *
+ * `subtopic_id` is written ONLY at INSERT. This function matches on
+ * (bank_id, question_number) alone, `--sync-content` touches just the three answer columns and
+ * refuses non-`short_answer` files, and `--replace` cannot run against a remote. So once a row
+ * exists, NOTHING can move it to a different subtopic on that database.
+ *
+ * That makes adding `subtopic_code` to an already-imported pool silently produce a HALF-FILED
+ * pool: the questions added in the same edit get the new subtopic, the pre-existing ones keep
+ * `subtopic_id` NULL forever. Since `getSubtopicsForTopic` drops any subtopic with
+ * `questionCount = 0` but happily shows a partial count, the picker then advertises
+ * "Transmission of Numbers - 2 questions" for a 20-question pool, and the plain output
+ * ("2 inserted / 18 skipped") is indistinguishable from a healthy no-op. Reading one extra
+ * column here is what makes that state observable.
+ */
+type InsertOutcome =
+  | { kind: 'inserted' }
+  | { kind: 'skipped'; drift: { stored: string | null; authored: string | null } | null }
+
+async function insertIfMissing(bankId: string, row: QuestionRow): Promise<InsertOutcome> {
   const { data: existing, error: existingErr } = await db
     .from('questions')
-    .select('id')
+    .select('id, subtopic_id')
     .eq('bank_id', bankId)
     .eq('question_number', row.question_number)
     .is('deleted_at', null)
     .limit(1)
   if (existingErr) throw new Error(`Question ${row.question_number} lookup: ${existingErr.message}`)
-  if (existing && existing.length > 0) return false
+  const hit = existing?.[0]
+  if (hit !== undefined) {
+    // The authored value is `string | null` by construction (scopeFor returns one or the other),
+    // but this row came back from the DB as `unknown`-ish, so normalize both sides before
+    // comparing rather than trusting the column's declared type.
+    const stored = (hit.subtopic_id ?? null) as string | null
+    const authored = (row.subtopic_id ?? null) as string | null
+    return { kind: 'skipped', drift: stored === authored ? null : { stored, authored } }
+  }
   const { error } = await db.from('questions').insert(row)
   if (error) throw new Error(`Question ${row.question_number}: ${error.message}`)
-  return true
+  return { kind: 'inserted' }
 }
 
-type ResolvedFile = { rel: string; file: ContentFile; subjectId: string; topicId: string }
+type ResolvedFile = {
+  rel: string
+  file: ContentFile
+  subjectId: string
+  topicId: string
+  /** Every distinct subtopic code the file uses -> its id. Empty for a file that names none. */
+  subtopicIds: ReadonlyMap<string, string>
+}
 type ImportContext = { bankId: string; adminId: string; base: Record<string, unknown> }
+
+/** The syllabus placement of one question, read off the map resolveSubtopicIds already built. */
+function scopeFor(entry: ResolvedFile, q: AuthoredQuestion): RowScope {
+  const code = subtopicCodeFor(entry.file, q)
+  if (code === undefined) return { topicId: entry.topicId, subtopicId: null }
+  const subtopicId = entry.subtopicIds.get(code)
+  // Unreachable: resolveSubtopicIds walked this same file with this same helper, so every code it
+  // can yield is a key here. Stated anyway rather than `?? null`, because the fallback a miss
+  // deserves is not a NULL — that is precisely the silent unfiling the throw in
+  // lookupSubtopicByCode exists to prevent, arrived at from the other side.
+  if (subtopicId === undefined) {
+    throw new Error(
+      `${entry.rel} (${q.num}): subtopic code '${code}' was never resolved — resolveSubtopicIds and subtopicCodeFor disagree about this file.`,
+    )
+  }
+  return { topicId: entry.topicId, subtopicId }
+}
 
 async function insertAll(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number }> {
+): Promise<{ inserted: number; skipped: number; drifted: number }> {
   let totalInserted = 0
   let totalSkipped = 0
-  for (const { rel, file, subjectId, topicId } of resolved) {
+  const drifted: string[] = []
+  for (const entry of resolved) {
+    const { rel, file, subjectId } = entry
     let inserted = 0
     for (const q of file.questions) {
-      const row = buildRow(file, q, { ...ctx.base, subject_id: subjectId }, topicId)
-      if (await insertIfMissing(ctx.bankId, row)) inserted++
-      else totalSkipped++
+      const row = buildRow(file, q, { ...ctx.base, subject_id: subjectId }, scopeFor(entry, q))
+      const outcome = await insertIfMissing(ctx.bankId, row)
+      if (outcome.kind === 'inserted') inserted++
+      else {
+        totalSkipped++
+        if (outcome.drift !== null) drifted.push(`${rel} ${row.question_number}`)
+      }
     }
     totalInserted += inserted
     console.log(
       `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
     )
   }
-  return { inserted: totalInserted, skipped: totalSkipped }
+  // Reported AFTER every file is walked, not on the first drifted row: the inserts are
+  // idempotent, so completing the pass costs nothing and the operator gets the whole affected
+  // list at once instead of rediscovering it one run at a time.
+  if (drifted.length > 0) {
+    const listed = drifted.map((d) => `  - ${d}`).join('\n')
+    // WARN, never throw, under --replace -- but still fail the RUN (see main()). Drift is
+    // unreachable for any row findReplaceTargets MATCHED (softDeleteAll runs first and
+    // insertIfMissing filters `deleted_at IS NULL`, so those rows are re-inserted, not skipped).
+    // Getting here means the row was NOT matched, which happens two ways: the whole file
+    // mismatched -- findReplaceTargets warns about that -- or individual rows were retyped or
+    // moved between files, which it does NOT warn about, because it matches on
+    // bank + topic_id + question_type + IN(nums) while insertIfMissing matches on
+    // bank + question_number alone. Do not assert WHICH of the two the operator hit.
+    //
+    // Throwing here would actively harm: runImport's catch calls rollbackReplace, which restores
+    // soft-deleted rows whose (bank_id, question_number) the successful inserts of EARLIER files
+    // now occupy, so idx_questions_bank_number rejects the restore and the operator gets a
+    // spurious "ROLLBACK INCOMPLETE" for a run that actually succeeded.
+    if (REPLACE) {
+      console.warn(
+        `  ${drifted.length} question(s) were skipped while filed under a different subtopic than the content file declares:\n${listed}\n  --replace did not match them, so they were never soft-deleted and could not be refiled — their live row's topic_id/question_type differs from what this file declares. Check above for a "matched no existing rows" warning; its absence means only SOME rows drifted. Fix the file's topic_code/question_type, or refile with a migration.`,
+      )
+    } else {
+      throw new Error(
+        `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n${listed}\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace soft-deletes and re-inserts this file's questions, which refiles them under new row ids — but only if it matches them, so check its output for a "matched no existing rows" warning first. On a remote (where --replace is refused), refile with a migration.`,
+      )
+    }
+  }
+  return { inserted: totalInserted, skipped: totalSkipped, drifted: drifted.length }
 }
 
 // ---- --sync-content ----------------------------------------------------------
@@ -851,7 +1255,12 @@ async function syncFileContent(entry: ResolvedFile, ctx: ImportContext): Promise
   const planned: SyncPlanEntry[] = []
   for (const q of entry.file.questions) {
     const at = `${entry.rel} (${q.num})`
-    const row = buildRow(entry.file, q, { ...ctx.base, subject_id: entry.subjectId }, entry.topicId)
+    const row = buildRow(
+      entry.file,
+      q,
+      { ...ctx.base, subject_id: entry.subjectId },
+      scopeFor(entry, q),
+    )
     const target = await fetchSyncTarget(ctx.bankId, q.num)
     const want = desiredSyncFields(row, at)
     assertSyncPreconditions(target, want, at)
@@ -881,7 +1290,7 @@ async function runSyncContent(
   // Plan EVERY file before writing ANY of them. Per-file phasing was not enough: on a
   // multi-file invocation, file 1's UPDATEs would land before file 2's question_type refusal
   // (the short_answer-only guard at the top of syncFileContent — sync-path-only, since the
-  // up-front SUPPORTED_TYPES check admits all three types) and its
+  // up-front SUPPORTED_TYPES check admits all five types) and its
   // assertSyncPreconditions ever ran, and those gates exist precisely to fire before anything is
   // written. NOT the lifecycle refusal: main() already runs assertReleasedForRemote over every
   // parsed file before any resolver, so on the --force-remote path — the only one that can write
@@ -963,7 +1372,7 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
 async function runImport(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number }> {
+): Promise<{ inserted: number; skipped: number; drifted: number }> {
   const softDeleted: string[] = []
   try {
     if (REPLACE) await softDeleteAll(resolved, ctx, softDeleted)
@@ -997,10 +1406,17 @@ async function main(): Promise<void> {
   // `subject_code`/`topic_code`/`question_type`; per-item `num`, `prompt`, `explanation`;
   // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`;
   // dialog_fill `template`, `blanks` (validated by assertDialogFillItem, which mirrors the DB
-  // CHECKs, plus assertDialogFillAuthoring for the house blank-shape rules). Everything else it
-  // writes is a literal or comes from `base`. When you add a buildRow branch (ordering /
-  // diagram_label), extend the per-type dispatch below in the same commit — its `default` arm
-  // is what turns "no validator yet" into a named abort instead of a misleading MC error.
+  // CHECKs, plus assertDialogFillAuthoring for the house blank-shape rules); ordering `items`
+  // (assertOrderingItems, which mirrors the DB CHECK `is_valid_ordering_items`); diagram_label
+  // `diagram` — the FULL chain runs here now (assertDiagramAuthoring for the compact authoring
+  // shape the file carries, then resolveDiagramConfig + assertDiagramConfig for the stored
+  // config, which is what catches a label text matching no chip in the layout). buildRow re-runs
+  // that chain when it builds the row; the duplication is deliberate, because resolution is pure
+  // and buildRow executes INSIDE the write loop, where a throw would land after earlier rows had
+  // already been committed. Everything else it
+  // writes is a literal or comes from `base`. When you add a buildRow branch, extend the
+  // per-type dispatch below in the same commit — its `default` arm is what turns "no validator
+  // yet" into a named abort instead of a misleading MC error.
   //
   // `num` gets the strictest treatment because it is the idempotency key: non-empty string and
   // unique across ALL loaded files (they share one bank). A missing/non-string `num` would
@@ -1021,6 +1437,12 @@ async function main(): Promise<void> {
     const file = raw as unknown as ContentFile
     requireText(file.subject_code, `${rel}: 'subject_code'`)
     requireText(file.topic_code, `${rel}: 'topic_code'`)
+    // Optional — absence means the file is flat (Parts 1 and 2) and its rows carry a NULL
+    // subtopic_id. Present means non-blank: `""` would reach lookupSubtopicByCode and fail there
+    // with a lookup error instead of a field-level one, after the resolvers have already run.
+    if (file.subtopic_code !== undefined) {
+      requireText(file.subtopic_code, `${rel}: 'subtopic_code'`)
+    }
     // Not read by buildRow — it is interpolated into the per-file completion summary, so it is
     // the one content field outside the buildRow parity contract described below. Unvalidated,
     // a missing or object-valued title prints `undefined` / `[object Object]` in the summary.
@@ -1062,6 +1484,11 @@ async function main(): Promise<void> {
       if (q.explanation !== undefined) {
         requireText(q.explanation, `${at} (${q.num}): 'explanation'`)
       }
+      // Same shape, and for the same reason: `subtopicCodeFor` resolves it with `??`, so
+      // `subtopic: ""` would override the file default with a blank rather than fall back to it.
+      if (q.subtopic !== undefined) {
+        requireText(q.subtopic, `${at} (${q.num}): 'subtopic'`)
+      }
       // Exhaustive by type, with a throwing default. The previous shape was
       // `if (short_answer) {…} else {…}` where the else was NOT guarded on multiple_choice, so
       // a third type fell into the MC validator and failed with a nonsense
@@ -1073,12 +1500,36 @@ async function main(): Promise<void> {
           validateShortAnswerItem(q as ShortAnswerItem, at)
           break
         case 'multiple_choice':
-          validateMcItem(q as McItem, at)
+          assertMcItem(q, `${at} (${q.num})`)
           break
         case 'dialog_fill': {
           const label = `${at} (${q.num})`
           assertDialogFillItem(q, label)
           assertDialogFillAuthoring(q, label)
+          break
+        }
+        case 'ordering':
+          assertOrderingItems((q as OrderingItem).items, `${at} (${q.num})`)
+          break
+        case 'diagram_label': {
+          const label = `${at} (${q.num})`
+          // Bound to a const so the assertion signature narrows it for the resolve call below —
+          // asserting on a fresh `(q as DiagramItem).diagram` expression each time narrows
+          // nothing, and the second use stays `unknown`.
+          const authored = (q as DiagramItem).diagram
+          assertDiagramAuthoring(authored, label)
+          // Then RESOLVE and gate the stored config here too, even though buildRow does it again.
+          // assertDiagramAuthoring only checks the shape the FILE carries — a registered
+          // image_ref, in-bounds zone indices, non-blank label text. It cannot tell that
+          // "Downwnd leg" matches no chip in the layout, or that two zones name the same chip;
+          // those live in resolveDiagramConfig/assertDiagramConfig.
+          //
+          // buildRow runs per row INSIDE the write loop (see insertAll: buildRow then
+          // insertIfMissing, per question), so leaving them there means a typo in question 2
+          // throws only after question 1 is committed — and under --force-remote, committed to
+          // production. That contradicts this pass's own guarantee that a bad content file
+          // writes nothing. Resolution is pure and cheap, so doing it twice costs nothing.
+          assertDiagramConfig(resolveDiagramConfig(authored, label), label)
           break
         }
         default:
@@ -1087,11 +1538,66 @@ async function main(): Promise<void> {
           )
       }
     }
+    // Corpus-level gate, AFTER the per-item loop has validated every question in this file —
+    // which is what makes the cast honest. Scoped per file because a "pool" is one content
+    // file: two MC files are two independent question sets, and merging their keys could hide
+    // a skew in either. Runs at import, not only in the suite, so a new MC content file cannot
+    // ship a guessable key merely by arriving without a test.
+    if (file.question_type === 'multiple_choice') {
+      assertMcKeyBalance(file.questions as AuthoredMcQuestion[], rel)
+    }
   }
 
-  // Resolve EVERY file's subject + topic before inserting anything. Resolving inside the import
-  // loop would surface a bad topic_code in file 2 only after file 1's rows were committed —
-  // the same half-import the content validation above exists to prevent. Both lookups throw.
+  // Then the same gate across the UNION of every MC file sharing a topic.
+  //
+  // Per-file scoping is still correct — a student drilling one subarea draws only that file, so
+  // a skew inside it is guessable on its own. But per-file ALONE has a hole that this repo walked
+  // straight into: assertMcKeyBalance returns early below MIN_CORPUS_FOR_KEY_BALANCE (12), and
+  // splitting Part 3 into subareas turned one 20-question pool into 20 / 11 / 5. The two small
+  // files fell under the floor, so 16 of 36 Part 3 MC questions silently stopped being checked —
+  // and the split commit and the gate commit were each individually fine. A topic is also a pool
+  // a student can draw from, so check it as well; the union clears the floor when the parts do
+  // not. Only ONE file for a topic just re-checks that file, which is harmless.
+  //
+  // Keyed on (subject, topic), not topic alone: a topic is resolved as
+  // lookupTopicByCode(subjectId, topic_code), so codes are only unique WITHIN a subject — the
+  // same reason easa_subtopics is UNIQUE (topic_id, code) rather than UNIQUE (code). Keying on
+  // the code alone would merge two unrelated topics from different subjects into one union and
+  // could reject a valid import. No difference today (all Part 3 files are subject RT), which
+  // is exactly why it would rot unnoticed.
+  //
+  // Arity note: the union is STRICTER than the per-file gate when a topic mixes option counts,
+  // and can in principle reject content that is fine. addressableIds() is the union of ids any
+  // question offers, and the cap is (1 / ids.length) * tolerance — so merging a 2-option file
+  // into a 4-option one re-caps the 2-option questions from 80% to 40%, and two individually
+  // balanced files can fail together. Not reachable today (every P3_MC file is uniformly
+  // 4-option), and the honest fix if it ever bites is to bucket by arity rather than to loosen
+  // the tolerance.
+  //
+  // Scope note: this union spans only the files passed to THIS invocation, so importing one
+  // subarea file alone still falls under the floor. That is inherent to a gate that sees only
+  // what it is handed; the corpus-wide guarantee lives in mc-content.test.ts, which reads every
+  // shipped pool unconditionally.
+  const mcByTopic = new Map<string, AuthoredMcQuestion[]>()
+  for (const { file } of parsed) {
+    if (file.question_type !== 'multiple_choice') continue
+    const key = `${file.subject_code}\u0000${file.topic_code}`
+    const bucket = mcByTopic.get(key) ?? []
+    bucket.push(...(file.questions as AuthoredMcQuestion[]))
+    mcByTopic.set(key, bucket)
+  }
+  for (const [key, questions] of mcByTopic) {
+    const [subjectCode, topicCode] = key.split('\u0000')
+    assertMcKeyBalance(
+      questions,
+      `subject ${subjectCode} topic ${topicCode} (union of its multiple_choice files)`,
+    )
+  }
+
+  // Resolve EVERY file's subject + topic + subtopics before inserting anything. Resolving inside
+  // the import loop would surface a bad topic_code in file 2 only after file 1's rows were
+  // committed — the same half-import the content validation above exists to prevent. All three
+  // lookups throw.
   //
   // These are SELECTs against the global easa_* tables and take no orgId/adminId, so they sit
   // ahead of EVERY write in this function: resolveOrgId upserts `organizations` in local mode,
@@ -1102,11 +1608,16 @@ async function main(): Promise<void> {
   const resolved: ResolvedFile[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
+    const topicId = await lookupTopicByCode(subjectId, file.topic_code)
     resolved.push({
       rel,
       file,
       subjectId,
-      topicId: await lookupTopicByCode(subjectId, file.topic_code),
+      topicId,
+      // Scoped by the topic just resolved, not by code alone — easa_subtopics is
+      // UNIQUE (topic_id, code), so a bare-code lookup would break the moment another topic
+      // reuses one of these codes.
+      subtopicIds: await resolveSubtopicIds(file, topicId, rel),
     })
   }
 
@@ -1132,7 +1643,7 @@ async function main(): Promise<void> {
     return
   }
 
-  const { inserted: totalInserted, skipped: totalSkipped } = await runImport(resolved, ctx)
+  const { inserted: totalInserted, skipped: totalSkipped, drifted } = await runImport(resolved, ctx)
 
   console.log('\nVFR RT content import complete.')
   console.log(
@@ -1145,6 +1656,17 @@ async function main(): Promise<void> {
     console.log(
       `  Login:    ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}  →  http://localhost:3000/app/vfr-rt`,
     )
+  }
+  // Set here rather than thrown from insertAll: under --replace a throw would reach runImport's
+  // catch and trigger rollbackReplace against rows the successful inserts already re-created,
+  // reporting a bogus incomplete rollback for a run that worked. Assigning process.exitCode after
+  // the summary keeps the non-zero exit — so CI and `&&` chains still fail — without unwinding
+  // anything. `exitCode`, not `exit()`: the latter would truncate buffered stdout.
+  if (drifted > 0) {
+    console.error(
+      `\n  ${drifted} question(s) remain filed under a subtopic the content file does not declare — see the warning above. Exiting non-zero.`,
+    )
+    process.exitCode = 1
   }
 }
 

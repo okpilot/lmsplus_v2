@@ -1472,4 +1472,77 @@ the controller's line above.
 
 **Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) and #1194 (R3 tolerance parity with `answer_matches`, M/P2) rather than a third rewrite.
 
-*Last updated: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*
+## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
+
+**Part 3 ships all four competencies the VictorOne briefing names: 50 questions**, all
+`"lifecycle": "released"`. The RT subject now uses subtopics so a student can drill one skill:
+
+| Subarea (`easa_subtopics` code) | multiple_choice | ordering | diagram_label |
+|---|---|---|---|
+| Transmission of Numbers (`P3_NUMBERS`) | 20 | — | — |
+| Distress & Urgency Messages (`P3_EMERGENCY`) | 11 | 5 | — |
+| Position Reports (`P3_POSREP`) | 5 | 7 | — |
+| Traffic Pattern (`P3_PATTERN`) | — | — | 2 |
+
+**Training-only vs exam-reachable — the table above is NOT the mock-exam pool.**
+`start_vfr_rt_exam_session` (latest definition
+`20260629000500_start_vfr_rt_exam_session_single_active_guard.sql`, where the single-active guard
+re-emitted the whole body) pins Part 3 sampling with the predicate
+`AND q.question_type = 'multiple_choice'` — grep that rather than a line number, which drifts. So
+only the 36 MC questions can ever be drawn into a VFR RT mock exam. The 12 `ordering` and 2
+`diagram_label` questions are reachable in training only — which means the mock exam currently
+never assesses the Traffic Pattern competency at all, since that subarea is 100% `diagram_label`.
+Widening the sampler needs a grader change too: `submit_vfr_rt_exam_answers` (latest definition
+mig `20260815000300` L241) raises `unsupported_question_type` for anything outside
+`short_answer` / `dialog_fill` / `multiple_choice`, and its per-part scoring (L278-284) aggregates
+only those three — so a sampler that drew an `ordering` row would fail the submit outright. Tracked
+separately in #1216 rather than fixed here. The `per_exam` field
+in the content JSON is documentation only — no code reads it.
+
+Migration `20260818000100` seeds those four rows; it is idempotent and touches no question row.
+Parts 1 and 2 stay flat by design — Part 1 is a closed 40-acronym list the briefing prints as one
+pool, and Part 2's dialogues are not divided by the source. With Part 2 also released, all **140**
+RT questions are now importable to production (the import itself remains a manual script run).
+
+Sourced entirely from Štumberger's guide and the briefing package. Traffic Pattern is deliberately
+two questions — the guide contains exactly one pattern diagram, for a left-hand circuit — with the
+legs question and the turns question using disjoint zone sets.
+
+> **Answer-key leak, found and fixed here.** The traffic-pattern question's 12 label ids were
+> hand-written with strictly ascending second characters in canonical order. `get_quiz_questions`
+> delivers diagram zones in STORED order (`ORDER BY z.ord`) and shuffles only the labels, so
+> `labels.sort(byId).slice(0,9)` zipped against the delivered zones reconstructed all 9 pairs —
+> the shuffle was defeated because the pairing rode in the ids. Never live (no `diagram_label` row
+> existed in prod), but this content is what would have made it live.
+> **Ids are now DERIVED** (`scripts/content-ids.ts`): a zone id from `(image_ref, canonical index)`,
+> a label id from its own text, an ordering item id from its own text. Ordering content is authored
+> as plain strings — there is no id field to encode a sequence into. A heuristic design was tried
+> first and retired: four plan-critic rounds showed it rejects legitimate content (a length sort is
+> the identity on uniform-length ids) while still not stopping deliberate encoding.
+>
+> **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
+> `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
+> per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
+> `assertMcKeyBalance` (per pool: no id above `KEY_SKEW_TOLERANCE` times the even share, no offered
+> id never used — both constants live in `scripts/mc-content.ts`, named rather than restated here so
+> the doc cannot drift from them), and
+> **both run in the importer as well as the suite**. `assertMcKeyBalance` skips pools under 12
+> questions (`MIN_CORPUS_FOR_KEY_BALANCE`), so the 11-question emergency and 5-question posrep pools are NOT covered by their own
+> per-file check — they are covered by a second pass over the union of every MC file sharing a
+> `(subject_code, topic_code)`, which is 36 questions for Part 3 and so clears the floor. Both the
+> importer and the suite run that union. The split into subareas is what opened the hole: the gate
+> was written when Part 3 MC was one 20-question pool, and splitting it to 20 / 11 / 5 silently
+> dropped 16 of 36 questions out of coverage while every test stayed green.
+
+**How the content was verified.** Every Part 3 answer was independently re-derived from the source
+by solvers that never saw the answer key — for the ordering questions with items shuffled, so each
+sequence had to be reconstructed. All 48 non-diagram answers agreed — 36 multiple-choice keys plus 12 ordering sequences. The 2 `diagram_label` questions are not in that 48: their answer is a 5-zone mapping rather than one key, and both were verified separately by re-deriving each zone from the guide's circuit diagram. 36 + 12 + 2 = the 50 Part 3 questions. All 60 ordering item strings were grepped
+individually and confirmed to sit in the same printed transmission as their siblings. That pass
+caught five defects ordinary review missed, including a **fabricated item** in ORD-06 (a phrase
+lifted from a call 700 lines away that read naturally beside four genuine ones).
+
+The importer supports all five question types. Run locally with
+`cd apps/web && npx tsx scripts/import-vfr-rt-content.ts scripts/content/vfr-rt-part3-*.json`
+(add `--replace` to re-import an edited file; there is no package.json script for it).
+
+*Last updated: 2026-08-18 — VFR RT Part 3 complete (50 questions, four subareas, mig 20260818000100), derived content ids closing a diagram answer-key leak, importer support for `ordering` + `diagram_label`, and Part 2 released. Prior: 2026-08-15 — VFR RT Part 2 fairness pass (pool 52 → 50, authoring rule R7, Decisions 55–56) + typo-tolerant grading (`answer_matches`, mig 158; all four text graders repointed across migs 158–160).*

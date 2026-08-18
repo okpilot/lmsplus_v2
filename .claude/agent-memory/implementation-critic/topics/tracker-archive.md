@@ -175,3 +175,24 @@
 ## Relocated tracker row: `if (orgId)` null-guard drop (2026-07-04 budget curation)
 
 | `if (orgId)` null-guard dropped when moving a describe block to a standalone file | 2026-06-23 | 1 | 2026-06-23 | RESOLVED. #951 rpc-vfr-rt-mig125-delimiter-guard.integration.test.ts: original had `if (orgId) await cleanupTestData(...)` (defensive guard when beforeAll throws before orgId is set); new file dropped the guard. All 3 sibling afterAll blocks in the source file use the guard consistently. Fixed in the CR-fix commit (#978 staged diff): guard is preserved at line 113. When a describe block is extracted, its afterAll must be compared line-by-line to the original — not just the structure of error accumulation. |
+
+## archived tracker rows 2026-08-18 (compaction spill from MEMORY.md)
+
+Rows moved verbatim out of the index to stay under the injection budget. State is unchanged —
+they are archived, not retired; a recurrence increments the count here and returns the row to `MEMORY.md`.
+
+| Pattern | First | N | Last | Status (→ rule loc) |
+|---|---|---|---|---|
+| Thin-wrapper page-error tests using the mock-dependency form | 2026-06-01 | 2 | 2026-06-25 | FALSE POSITIVE. Valid when the mocked helper is the ONLY fetch path (§7). † |
+| Readonly<Props> sweep: plan said "5 exist", reconciled to 3 | 2026-06-01 | 1 | 2026-06-01 | WATCHING. Track whether inline `Readonly<{...}>` also needs it. † |
+| Security.md bullet claims an RPC capability it does not have | 2026-06-05 | 1 | 2026-06-05 | RESOLVED. Read the latest CREATE OR REPLACE first. † |
+| Cross-org red-team Attack uses a sentinel UUID (target org has no seeded rows) | 2026-06-06 | 1 | 2026-06-06 | WATCHING. Throw, or flip attacker/victim. † |
+| DB CHECK violation from a too-long `document_version` in a test seed | 2026-06-06 | 1 | 2026-06-06 | WATCHING. Count chars against the 20-char CHECK. † |
+| Doc new-section insertion duplicates an existing heading/entry | 2026-06-10 | 1 | 2026-06-10 | WATCHING. Grep the target for the existing section's first line. † |
+| plan.md integration-test count: bad baseline propagated into a new "now N" claim | 2026-06-11 | 2 | 2026-06-11 | FALSE POSITIVE. It is the VITEST RUNTIME total, not an `it(` grep. † |
+| Red-team spec uses wrong vector ID sub-labels | 2026-06-14 | 1 | 2026-06-14 | WATCHING. Sub-labels take the matrix vector ID as prefix. † |
+| New localStorage namespace not threaded through to the persistence hook | 2026-06-20 | 1 | 2026-06-20 | WATCHING. † |
+| `if (orgId)` null-guard dropped when moving a describe block to a new file | 2026-06-23 | 1 | 2026-06-23 | RESOLVED → topics/tracker-archive.md |
+| Header comment cross-references a block "above" that extraction removed | 2026-06-23 | 1 | 2026-06-23 | RESOLVED. Audit "above"/"below"/"see block N" on any move. † |
+| No-insert seed scripts keep `.single()` where the plan specified `.maybeSingle()` | 2026-07-13 | 1 | 2026-07-13 | RESOLVED (#1121). |
+| `\|\| exit 1` inside `$(...)` aborts only the subshell | 2026-07-23 | 1 | 2026-07-23 | RESOLVED. Resolve into a var, guard in the OUTER shell. |

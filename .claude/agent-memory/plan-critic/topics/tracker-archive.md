@@ -71,3 +71,28 @@ Verbatim. Re-promote into `MEMORY.md` if the pattern recurs.
 | Session-storage validator whitelist not widened for a new exam mode — breaks tab-refresh round-trip. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
 | Migration re-timestamp/rebase plans must enumerate inline `mig NNN` SQL-comment cross-refs too. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
 | Migration renumbering must update all 3 tech.md spec-count occurrences + decisions.md, from master's current value. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-19 | 1 | 2026-06-19 | WATCHING |
+
+## Relocated tracker rows — 2026-08-17 (cold count=1, last seen ≤ 2026-07-13)
+
+Verbatim. Re-promote into `MEMORY.md` if the pattern recurs.
+
+| Pattern | First Seen | Count | Last Seen | Status |
+|---|---|---|---|---|
+| New `_hooks/` modules ship without their OWN co-located test (§7). ([details](topics/extraction-and-guard-plan-gaps.md#1)). | 2026-07-13 | 1 | 2026-07-13 | WATCHING |
+| Snap/clamp plans fix `disabled` but leave `onClick` on the raw page value. ([details](topics/extraction-and-guard-plan-gaps.md#2)). | 2026-07-13 | 1 | 2026-07-13 | RESOLVED (applied pre-stability-round) |
+| Plans grow an already-over-cap hook without a same-commit extraction. ([details](topics/extraction-and-guard-plan-gaps.md#3)). | 2026-07-13 | 1 | 2026-07-13 | WATCHING |
+| Re-entry ref-guard plans cite a confirm-less builder as precedent — ref lands before the confirm, locking re-attempts. ([details](topics/extraction-and-guard-plan-gaps.md#4)). | 2026-07-13 | 1 | 2026-07-13 | WATCHING |
+| Page-BODY→async-server-component extractions keep `page.test.tsx` as the logic test; RTL can't render the async child. ([details](topics/extraction-and-guard-plan-gaps.md#5)). | 2026-07-08 | 1 | 2026-07-08 | WATCHING |
+| Session-lifecycle save/discard/resume plans (#1085): positive-whitelist, all-3-save-callers, resume-from-session-row traps. ([details](topics/session-lifecycle-1085.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
+| Red-team success-path plans: numeric-field type-only specs, audit-tracker fixture registration, pool-seed idempotency. ([details](topics/redteam-success-path-gaps.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
+| Pure-structural refactors: React-hook block moved into a plain helper + missing tests for new _hooks/ files. ([details](topics/structural-refactor-hook-and-test-gaps.md)). | 2026-07-03 | 1 | 2026-07-03 | WATCHING |
+| ELP #1069 grader-audit-event: service-role-finalizer audit-INSERT deviation documented; both blocking fixes verified. ([details](topics/elp-oral-exam-security-lessons.md)). | 2026-07-03 | 1 | 2026-07-03 | RESOLVED-WATCH |
+| Drag-drop question-type CLONE plans under-enumerate execution-only SQL + CHECK/REVOKE/distractor tests. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
+| App-invoke "proxy" of a REVOKE-gated grader RPC re-introduces the forgery the REVOKE prevents. ([details](topics/elp-oral-exam-security-lessons.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
+| Split-module refactors declaring a module "standalone" must verify every function CALL inside it, not just imports. ([details](topics/misc-plan-review-lessons.md)). | 2026-07-02 | 1 | 2026-07-02 | WATCHING |
+| Prop-threading plans must enumerate all 4 files: source, form/trigger, state-holder, consumer. ([details](topics/misc-plan-review-lessons.md)). | 2026-06-18 | 1 | 2026-06-18 | WATCHING |
+| UI-sweep text-swap plans must enumerate every test querying that button by its pre-loading accessible name. ([details](topics/test-mock-scoping-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
+| UI-sweep spinner plans must distinguish sync-nav from async-action buttons. ([details](topics/test-mock-scoping-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
+| Cross-org non-vacuity: assert BOTH that the victim org HAS the resource and the attacker org does not. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
+| Red-team scaffolds needing multiple caller roles must enumerate every required client fixture. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
+| RETURNS TABLE extension requires DROP+CREATE, not CREATE OR REPLACE. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |

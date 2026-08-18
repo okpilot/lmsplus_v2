@@ -1,0 +1,280 @@
+{
+  "part": 3,
+  "title": "Distress and Urgency Messages — multiple choice",
+  "topic_code": "P3_MC",
+  "subtopic_code": "P3_EMERGENCY",
+  "subject_code": "RT",
+  "question_type": "multiple_choice",
+  "per_exam": 8,
+  "lifecycle": "released",
+  "status": "11 questions covering the whole of the guide's 'Distress message' and 'Urgency message' subsections including both situation lists (printed pp. 23-24), plus the three transponder emergency codes from 'Identification by transponder' (printed p. 16). They join the 5 drag-to-order questions already in the P3_EMERGENCY subarea (VRT-P3-ORD-01/02/03/04/07), which cover the ELEMENT ORDER of a MAYDAY and a PAN PAN call and the Table 5 priority order. No overlap: nothing here asks about sequencing, and nothing here asks about message priority, because ORD-07 already tests that. What these add is the signal words themselves, the two frequencies, the four controller/pilot phrases, the squawk codes, and the distress/urgency condition boundary.",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 3 — competency 'MAYDAY / PAN PAN'). Every correct answer is taken from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc): the 'Distress message' subsection including the ROGER MAYDAY / STOP TRANSMITTING, MAYDAY / cancel distress / DISTRESS TRAFFIC ENDED phrases (printed p. 23), the 'Distress situations' list, the 'Urgency message' subsection and the 'Urgency situations' list (printed p. 24), the transponder codes 7700 / 7600 / 7500 / 2000 from section 4 'Identification by transponder' (printed p. 16), and Table 5 'Categories of messages' for the priority context quoted in two explanations (printed p. 10). Printed page = PDF page - 2. The briefing gives no worked example for this competency, so question style is not modelled on it.",
+  "authoring_notes": "R1 EVERY correct answer is a sentence, a phrase or a list entry printed in the guide, and the governing sentence is QUOTED at the head of that question's explanation. Nothing here comes from general aviation knowledge, from ICAO Annex 10, or from what a phraseology guide 'would obviously say'. Where the guide is the only thing the student is told to prepare from, anything outside it is not fair game — and inventing a plausible transmission is the failure this rule exists to stop.\n\nR2 EVERY QUESTION IS SETTLED BY ONE SENTENCE OF THE SOURCE, not by inference across two. The three phraseology questions (06, 07 and 08, the last of which also carries the 'cancel distress' contrast) are each pinned to their own sentence on printed p. 23; the two squawk questions are pinned to the two consecutive sentences on p. 16; question 11 is pinned to the two printed lists on pp. 23-24 rather than to any judgement about how serious a situation feels.\n\nR3 DISTRACTORS ARE REAL PHRASES IN THE WRONG PLACE. The guide's emergency pages contain exactly four fixed phrases — ROGER MAYDAY, STOP TRANSMITTING MAYDAY, cancel distress and DISTRESS TRAFFIC ENDED — and questions 06, 07 and 08 draw every distractor from that same set of four, so no option is an invented near-miss. A student who knows only that a phrase 'is in the guide somewhere' cannot answer any of the three; a student who knows WHICH MOMENT each phrase belongs to answers all three. The same logic drives the squawk pair (the distractors are always the other three real codes) and question 11 (the distractors are always real entries from the OTHER list). A distractor nobody would pick teaches nothing and inflates the score.\n\nR4 THE URGENCY/DISTRESS BOUNDARY IS TAUGHT AS A DIFFERENCE IN CONDITION, NOT IN SEVERITY. Question 02 offers 'PAN PAN, but the pilot judges it less severe' as a distractor precisely because that is the common wrong model. The guide's line is immediate assistance: distress is 'threatened by serious and/or imminent danger and ... requiring immediate assistance', urgency 'does not require immediate assistance'. Question 02 is built as a 2x2 over signal word and condition so that getting the word right while getting the condition wrong still scores zero.\n\nR5 UNIFORM REGISTER AND CASING WITHIN EACH ITEM. The guide prints spoken signals and controller phrases in capitals; capitalising one option and not its siblings would mark the answer. So question 01 offers four bare capitalised signals, questions 06/07/08 offer four capitalised phrases, question 04 offers four frequencies in one format, questions 09/10 offer four bare four-digit codes, question 05 offers four lowercase noun phrases, question 11 offers four lowercase situation entries as the guide's lists print them, and question 02's four options all take the form SIGNAL + em-dash + condition gloss. No item mixes registers.\n\nR6 THE COUNTING TRAP IS AN OPTION, NOT AN OMISSION. Question 03 offers 'six times' because the guide's own table prints the urgency signal as 'PAN PAN PAN PAN PAN PAN' — six words, three utterances of a two-word signal. A student who counts words rather than utterances has made a real and specific error, and the explanation names it.\n\nR7 THE KEY CARRIES NO POSITIONAL SIGNAL: a x3, b x3, c x3, d x2, in a non-repeating sequence. assertMcKeyBalance in scripts/mc-content.ts skips pools below MIN_CORPUS_FOR_KEY_BALANCE (12 questions), so this 11-question file is NOT actually gated by it — the spread is held to the same standard voluntarily, because the gate's absence on a short pool is a statistical concession, not permission. Note also that the three questions drawing on the same four-phrase set (06, 07, 08) key on a, c and b respectively, so recognising one of them gives no positional hint about the other two.\n\nR8 LENGTH IS NOT CONTROLLED, and the residual signal is MEASURED and stated rather than claimed away. Counted over the 11: the correct option is strictly the shortest in 3 (questions 01, 06 and 11) and strictly the longest in 2 (questions 03 and 07). Always picking the shortest option therefore scores 3/11 (27%) against a 25% chance baseline and a 75% pass mark — inside the noise of an 11-item pool, and not a usable strategy. The three shortest-correct items are ones where the answer is a fixed string the guide sets and the author cannot touch: a one-word signal (MAYDAY), a two-word controller phrase (ROGER MAYDAY) and a two-word list entry (bird strike). Do not 'fix' those by padding the correct answer — reword a DISTRACTOR instead, which is what was done in question 05 when its correct option first measured as the strictly shortest.\n\nR9 EXPLANATIONS QUOTE FIRST, THEN TEACH. Every explanation opens with the governing sentence in the guide's own words, then says what each tempting wrong option actually is and where it belongs. The canonical answer is revealed on feedback, so the explanation is the teaching surface. Where an explanation adds context the guide does not state, it is phrased as background, never as a quotation. One quotation (question 07) reproduces a grammatical slip printed in the source ('may imposes') verbatim rather than silently correcting it, so that a student comparing the explanation against the page finds them identical.\n\nR10 WHAT WAS DELIBERATELY NOT ASKED. Message priority (Table 5, printed p. 10) is already tested by VRT-P3-ORD-07 in this same subarea, so no multiple-choice item duplicates it; Table 5 appears only as context inside two explanations. The distress and urgency message ELEMENT ORDER is already tested by ORD-01 through ORD-04 and is likewise not duplicated here.",
+  "grading_notes": "Standard multiple_choice: one stored correct_option_id, graded by exact option match — no text normalization is involved, so none of the Part 1/Part 2 synonym or typo-tolerance machinery applies here. Options are stored as {id,text} and sanitized by trg_sanitize_question_options on write.",
+  "questions": [
+    {
+      "num": "VRT-P3-EMC-01",
+      "prompt": "Which word announces a distress message?",
+      "options": [
+        {
+          "id": "a",
+          "text": "PAN PAN"
+        },
+        {
+          "id": "b",
+          "text": "PAN PAN MEDICAL"
+        },
+        {
+          "id": "c",
+          "text": "MAYDAY"
+        },
+        {
+          "id": "d",
+          "text": "DISTRESS"
+        }
+      ],
+      "correct": "c",
+      "explanation": "**\"The word ′MAYDAY′ announces a distress message that should be sent by an aircraft experiencing a condition of being threatened by serious and/or imminent danger and of requiring immediate assistance.\"** The guide's message table prints the spoken form as `MAYDAY MAYDAY MAYDAY`.\n\n*PAN PAN* is the urgency signal, not the distress one — Table 5 puts distress calls at priority 1 and urgency messages at priority 2, so they are neighbouring categories but never the same one. *PAN PAN MEDICAL* is the medical-transport form of that same urgency signal, listed in Table 5 beside PAN PAN; it is still urgency, one step below distress. *DISTRESS* is the name of the category and appears all over the page, but it is never the word spoken to open the message."
+    },
+    {
+      "num": "VRT-P3-EMC-02",
+      "prompt": "A pilot wishes to give notice of a condition concerning the safety of the aircraft, or of a person on board, which does not require immediate assistance. Which signal does the guide give, and what marks the condition out from a distress condition?",
+      "options": [
+        {
+          "id": "a",
+          "text": "MAYDAY — the condition threatens the aircraft with serious and/or imminent danger and requires immediate assistance"
+        },
+        {
+          "id": "b",
+          "text": "PAN PAN — the condition concerns safety but does not require immediate assistance"
+        },
+        {
+          "id": "c",
+          "text": "PAN PAN — the condition is the same kind as a distress condition, but the pilot judges it less severe"
+        },
+        {
+          "id": "d",
+          "text": "MAYDAY — the condition concerns safety but does not require immediate assistance"
+        }
+      ],
+      "correct": "b",
+      "explanation": "**\"An aircraft sends out the urgency message if she wishes to give notice of a condition, concerning the safety of an aircraft or other vehicle, or of some person on board or within sight, but which does not require immediate assistance. The pilot starts the message with the word ′PAN PAN′...\"**\n\nThe boundary the guide draws is **immediate assistance**, not seriousness. Compare the two definitions word for word: distress is \"being threatened by serious and/or imminent danger **and** of requiring immediate assistance\"; urgency \"does **not** require immediate assistance\". They are different conditions, not two settings of one dial — which is why option **c** is the answer to reject even though it names the right signal word. A pilot who reasons \"this feels serious, so I will upgrade to MAYDAY\" is using severity as the test; the question to ask instead is whether assistance is needed *now*.\n\nNote also who is protected: the urgency definition reaches a person \"on board **or within sight**\", so a PAN PAN can be about someone the aircraft is not carrying at all."
+    },
+    {
+      "num": "VRT-P3-EMC-03",
+      "prompt": "How many times does the guide say the urgency signal PAN PAN is preferably spoken at the start of the message?",
+      "options": [
+        {
+          "id": "a",
+          "text": "three times"
+        },
+        {
+          "id": "b",
+          "text": "twice"
+        },
+        {
+          "id": "c",
+          "text": "once"
+        },
+        {
+          "id": "d",
+          "text": "six times"
+        }
+      ],
+      "correct": "a",
+      "explanation": "**\"The pilot starts the message with the word ′PAN PAN′, preferably spoken three times.\"**\n\n*Six times* is the trap worth understanding rather than just avoiding. The guide's urgency-message table prints the signal as `PAN PAN PAN PAN PAN PAN` — six words on the page, but PAN PAN is a two-word signal, so that is **three** utterances of it. Counting words instead of utterances doubles the answer. The distress table prints `MAYDAY MAYDAY MAYDAY`, which is three utterances of a one-word signal, so both signals are spoken three times and only the word count differs.\n\nNote the guide says *preferably* three times, so this is the recommended form rather than an absolute — but three is the number it gives."
+    },
+    {
+      "num": "VRT-P3-EMC-04",
+      "prompt": "Which frequency does the guide name as the emergency frequency?",
+      "options": [
+        {
+          "id": "a",
+          "text": "118.000 MHz"
+        },
+        {
+          "id": "b",
+          "text": "121.500 MHz"
+        },
+        {
+          "id": "c",
+          "text": "121.900 MHz"
+        },
+        {
+          "id": "d",
+          "text": "123.450 MHz"
+        }
+      ],
+      "correct": "b",
+      "explanation": "**\"The pilot may change to the emergency frequency 121.500 MHz or another frequency if better assistance can be provided on these frequencies.\"**\n\nRead the sentence closely, because the next question turns on it: the word is **may**, not must. 121.500 MHz is where a pilot goes when better assistance is available there — it is not the default place to declare an emergency.\n\nSaying the frequency aloud follows the ordinary rule for frequencies: all six digits unless the fifth and sixth are zeros. Here they are, so 121.500 is transmitted as *one two one decimal five*."
+    },
+    {
+      "num": "VRT-P3-EMC-05",
+      "prompt": "On which frequency should a distress message normally be made?",
+      "options": [
+        {
+          "id": "a",
+          "text": "the emergency frequency 121.500 MHz, in every case"
+        },
+        {
+          "id": "b",
+          "text": "the nearest tower frequency"
+        },
+        {
+          "id": "c",
+          "text": "the flight information service frequency for the area"
+        },
+        {
+          "id": "d",
+          "text": "the frequency in use at the time"
+        }
+      ],
+      "correct": "d",
+      "explanation": "**\"A distress message should normally be made on the frequency used at the time. The pilot may change to the emergency frequency 121.500 MHz or another frequency if better assistance can be provided on these frequencies.\"**\n\nThe two sentences are one rule: stay where you are, and move only if moving helps. The reason is practical — the station you are already working is listening to you, knows your callsign and knows roughly where you are, so a MAYDAY on that frequency is answered immediately. Changing frequency costs time and hands you to someone who has never heard of you.\n\n*The emergency frequency, in every case* is the most common misconception and inverts the guide's advice; 121.500 MHz is an option the pilot **may** take, not the normal place to start. The tower and information options are the same error in a different coat: any frequency change is a change away from the one already in use."
+    },
+    {
+      "num": "VRT-P3-EMC-06",
+      "prompt": "With which phrase does the ATS unit acknowledge receipt of a distress message?",
+      "options": [
+        {
+          "id": "a",
+          "text": "ROGER MAYDAY"
+        },
+        {
+          "id": "b",
+          "text": "CANCEL DISTRESS"
+        },
+        {
+          "id": "c",
+          "text": "DISTRESS TRAFFIC ENDED"
+        },
+        {
+          "id": "d",
+          "text": "STOP TRANSMITTING, MAYDAY"
+        }
+      ],
+      "correct": "a",
+      "explanation": "**\"The ATS unit addressed by an aircraft in distress acknowledges the receipt of the distress message with the phrase ′ROGER MAYDAY′. The unit takes control of the communication or clearly transfers that responsibility.\"**\n\nThe second sentence is the point of the first: ROGER MAYDAY is not merely a receipt, it is the moment a named unit takes charge of the distress traffic, or explicitly hands that job to another unit. Nothing is left ambiguous about who is running the emergency.\n\nEvery option here is a real phrase from these two pages — what separates them is *who* says it and *when*. **CANCEL DISTRESS** is the pilot's, not the controller's, and it comes at the end: *S5-DAT Maribor Tower, cancel distress, fire extinguished*. **STOP TRANSMITTING, MAYDAY** silences an interfering station in the middle of the emergency. **DISTRESS TRAFFIC ENDED** is how the controller closes the whole episode. Knowing a phrase exists is not enough; you have to place it."
+    },
+    {
+      "num": "VRT-P3-EMC-07",
+      "prompt": "A station is interfering with distress traffic. Which phrase does the ATS unit in control of that traffic use to impose radio silence on it?",
+      "options": [
+        {
+          "id": "a",
+          "text": "DISTRESS TRAFFIC ENDED"
+        },
+        {
+          "id": "b",
+          "text": "ROGER MAYDAY"
+        },
+        {
+          "id": "c",
+          "text": "STOP TRANSMITTING, MAYDAY"
+        },
+        {
+          "id": "d",
+          "text": "CANCEL DISTRESS"
+        }
+      ],
+      "correct": "c",
+      "explanation": "**\"The ATS unit in control of distress traffic may imposes radio silence, either on all stations in the area or on any station which interferes with the distress traffic, using the phrase ′STOP TRANSMITTING, MAYDAY′.\"** (quoted as printed). The guide's worked example shows both targets in one line: `All stations/S5-DBS Ljubljana Approach, stop transmitting, MAYDAY` — *all stations* to silence the whole area, or a single callsign to silence one offender.\n\nThe word MAYDAY at the end is doing real work: it tells every station listening *why* silence is being imposed, so nobody mistakes it for a routine instruction.\n\n*CANCEL DISTRESS* is the opposite end of the emergency and is transmitted by the pilot, not the controller. *DISTRESS TRAFFIC ENDED* also ends things rather than controlling them mid-emergency, and *ROGER MAYDAY* is the acknowledgement that began them."
+    },
+    {
+      "num": "VRT-P3-EMC-08",
+      "prompt": "Which words does the controller include in the message that terminates the distress communication and the silence conditions?",
+      "options": [
+        {
+          "id": "a",
+          "text": "STOP TRANSMITTING, MAYDAY"
+        },
+        {
+          "id": "b",
+          "text": "DISTRESS TRAFFIC ENDED"
+        },
+        {
+          "id": "c",
+          "text": "CANCEL DISTRESS"
+        },
+        {
+          "id": "d",
+          "text": "ROGER MAYDAY"
+        }
+      ],
+      "correct": "b",
+      "explanation": "**\"The controller terminates the distress communication and silence conditions by transmitting a message, including the words ′DISTRESS TRAFFIC ENDED′.\"** One message closes both things at once: the distress traffic itself and any radio silence that was imposed while it ran.\n\n*CANCEL DISTRESS* is the sharpest distractor here because it describes the same event seen from the other seat. The guide: \"When an aircraft is no longer in distress, it shall transmit a message cancelling the distress condition\", with the example `S5-DAT Maribor Tower, cancel distress, fire extinguished`. So the **pilot** cancels the distress, and the **controller** then ends the distress traffic for everyone else on the frequency. Two speakers, two phrases, one emergency finishing.\n\n*STOP TRANSMITTING, MAYDAY* imposes the silence that this message lifts, and *ROGER MAYDAY* opened the whole sequence."
+    },
+    {
+      "num": "VRT-P3-EMC-09",
+      "prompt": "Which transponder code does the pilot select to indicate a state of emergency?",
+      "options": [
+        {
+          "id": "a",
+          "text": "2000"
+        },
+        {
+          "id": "b",
+          "text": "7500"
+        },
+        {
+          "id": "c",
+          "text": "7600"
+        },
+        {
+          "id": "d",
+          "text": "7700"
+        }
+      ],
+      "correct": "d",
+      "explanation": "**\"To indicate the state of emergency, the pilot selects Code 7700.\"**\n\nThe other three codes are the ones it is worth being able to tell apart under pressure, and all three are printed on the same page: **7600** for radio-communication failure, **7500** reserved for unlawful interference, and **2000** the code the pilot selects \"in absence of such instructions\" from the controller — the ordinary default, not an emergency code at all.\n\nSaying the code aloud follows the transponder rule from the numbers section: digit by digit *except* for whole thousands. 7700 is not whole thousands, so it is *seven seven zero zero* — not *seventy seven hundred*."
+    },
+    {
+      "num": "VRT-P3-EMC-10",
+      "prompt": "Which transponder code is selected to indicate a state of radio-communication failure?",
+      "options": [
+        {
+          "id": "a",
+          "text": "7600"
+        },
+        {
+          "id": "b",
+          "text": "7500"
+        },
+        {
+          "id": "c",
+          "text": "7700"
+        },
+        {
+          "id": "d",
+          "text": "2000"
+        }
+      ],
+      "correct": "a",
+      "explanation": "**\"Code 7600 is selected to indicate a state of radio-communication failure and Code 7500 is reserved for unlawful interference.\"**\n\nOne sentence carries two of the four codes, and they differ by a single digit — which is precisely why they are offered together here. A useful way to hold them apart: the guide introduces all three across two consecutive sentences, counting DOWN — 7700 for the state of emergency first, then \"Code 7600 ... radio-communication failure and Code 7500 ... unlawful interference\".\n\n*2000* is the default the pilot selects when the controller has given no code, not a failure code."
+    },
+    {
+      "num": "VRT-P3-EMC-11",
+      "prompt": "Three of the situations below appear on the guide's list of DISTRESS situations. Which one appears on its list of URGENCY situations?",
+      "options": [
+        {
+          "id": "a",
+          "text": "smoke in the cockpit"
+        },
+        {
+          "id": "b",
+          "text": "technical trouble"
+        },
+        {
+          "id": "c",
+          "text": "bird strike"
+        },
+        {
+          "id": "d",
+          "text": "severe icing problem"
+        }
+      ],
+      "correct": "c",
+      "explanation": "**The guide prints two lists. \"Urgency situations: bird strike, minor technical failure, pilot's health trouble, passenger's health trouble.\"** Against **\"Distress situations: engine shutdown / on fire / losing power, short of fuel / fuel, severe icing problem, lost [in cloud, fog], technical trouble, electrical failure, smoke in the cockpit.\"**\n\nSo *bird strike* is the only urgency entry offered here; the other three are printed on the distress list.\n\nThe pair worth studying is **technical trouble** (distress) against **minor technical failure** (urgency) — the guide puts them on opposite lists, and the only thing separating them is the word *minor*. That is the same boundary as the definitions: a failure you can manage does not require immediate assistance, and one you cannot does. *Smoke in the cockpit* and *severe icing problem* both sit on the distress list because they threaten the aircraft now, not eventually.\n\nOne caution about *bird strike*: it is on the urgency list as a category, which is a judgement about the ordinary case. The guide's own definitions still govern — a strike that shuts an engine down has become a condition requiring immediate assistance, and engine shutdown is on the distress list."
+    }
+  ]
+}
