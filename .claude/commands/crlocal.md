@@ -28,7 +28,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```bash
    git fetch origin || { echo 'fetch failed — ABORT, do not review against a stale base'; exit 1; }
    coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts. See agent-coderabbit-local.md\nSS Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and run the\npost-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
    echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
    ```
 
@@ -48,7 +48,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```bash
    BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
    coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts. See agent-coderabbit-local.md\nSS Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and run the\npost-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
    echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
    ```
 
@@ -66,7 +66,13 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 2. **Verify the CLI is installed:** if `which coderabbit` is empty, tell the user to install via the CodeRabbit docs and skip this step. Do NOT pretend the review ran.
 
-3. **For each finding, classify it (read the source, do not trust labels OR line numbers):**
+3. **For each finding, VERIFY ITS FACTUAL PREMISE, then classify it.** Do not trust the label, the
+   line number, or the assertion itself. A finding claiming a function behaves a certain way, that a
+   file writes a column, or that something is a type error is a HYPOTHESIS — confirm it against
+   source first (latest `CREATE OR REPLACE` **and** `DROP`+`CREATE`; grep the column; run a scoped
+   type-check that includes the file). Only a purely mechanical edit, where a wrong value fails a
+   test immediately, may be applied on the test's word. Full table:
+   `.claude/rules/agent-coderabbit-local.md` § Verify Before Acting — MANDATORY GATE.
 
    | Class | What it looks like | Action |
    |---|---|---|

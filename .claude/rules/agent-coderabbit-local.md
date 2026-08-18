@@ -18,6 +18,49 @@ Do NOT run after every commit — too slow (2-5 min per round), no value on smal
 
 The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Defer-budget per PR is 0-2; 3+ is a red flag.
 
+## Verify Before Acting — MANDATORY GATE
+
+**A CodeRabbit finding is a HYPOTHESIS about the code, never an observation of it.** CR sees a diff.
+It does not trace a `CREATE OR REPLACE` chain, does not know which directories are frozen, and
+routinely reasons from a superseded definition. Before ANY edit — including "obviously right" ones —
+the factual premise must be confirmed against the source. Applying an unverified claim is the same
+defect class as writing an unverified comment (`code-style.md` §10), and it is worse in one respect:
+the finding arrives pre-argued, so it reads as already-checked.
+
+### Which claims REQUIRE source verification (not optional, not "if unsure")
+
+| Claim shape | Required check |
+|---|---|
+| "function X does / does not do Y" | Trace to the LATEST definition — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION`, sorted by timestamp prefix. Never the first match. |
+| "file X writes / reads column Y" | `grep` the column in that file. Absence is proof; do not infer from the filename. |
+| "constraint / index / policy Z enforces W" | Read the constraint body. Which constraint carries a rule is frequently NOT the one its name suggests. |
+| "this is a type error" / "this is a syntax error" | Run a **scoped** type-check that actually INCLUDES the file (see `agent-workflow.md § Plan Validation`). A green `tsc` from a config that excludes the path proves nothing. |
+| "cite X instead" | Verify X exists AND is current. CR has proposed citing `packages/db/migrations/`, which is FROZEN and carries false history. |
+| A count, total, or line number | Recompute it. Line numbers drift; prefer citing a grep-able predicate. |
+
+### Which may be applied on the strength of a green test
+
+Purely mechanical edits where a wrong value fails immediately — turning a literal into the constant
+it already equals, a rename, a comment relocation. The test IS the check. **A behaviour change is
+never in this class:** pair it with a mutation test (break the mechanism, confirm exactly the
+intended test goes red) before committing.
+
+### Precedent — both from one branch, one round apart
+
+`content/vfr-rt-part3`, CR-local round 2, 2026-08-18. Two findings in the same round were **factually
+false**, and both would have caused damage if applied:
+
+1. *"`get_quiz_questions` does not shuffle ordering items — remove the clause."* It does:
+   `20260702000300` (latest) runs `ORDER BY random()` over `jsonb_array_elements(q.ordering_items)`.
+   CR had read `20260623000500`, a body predating the ordering type entirely. Complying would have
+   deleted a TRUE statement about an answer-exposure guard.
+2. *"`upsert-question.ts:47-55` updates questions with validated `subtopic_id`."* That file contains
+   no `subtopic_id` at all, and a repo-wide sweep finds no app-layer write of it. Complying would
+   have weakened a correct immutability claim into a hedge.
+
+Neither was labelled speculative; both read as confident findings with line numbers. The only thing
+that separated them from the ten real findings in the same run was tracing the source.
+
 ## Finding Classification (read source, do not trust labels)
 
 Every CR finding falls into exactly one of these classes. Severity labels (`trivial`, `minor`, `major`, `critical`, `nitpick`, `potential_issue`) are advisory — verify against the actual code.
@@ -48,7 +91,10 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - Run via `/crlocal` slash command — never call `coderabbit review` ad hoc; the command embeds the protocol.
 - **Always pass `-c .coderabbit.yaml`.** Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating `actions.ts` path_instructions was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it as belt-and-suspenders: it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if the file is absent. (Especially relevant post-Forgejo-migration, where the PR bot is gone and the CLI is the only CodeRabbit — the experiment confirms the CLI honors `.coderabbit.yaml` off-platform with no extra wiring.)
 - **Honor the minimum-rounds rule** (Stop Conditions §1): run at least M rounds (M=2 normal / 3 security-path), then stop on the first round at/after M with no apply-worthy findings. An APPLY verdict extends the loop by one round (fix + re-run); it does NOT reset to zero. Cloud CR on the pushed PR is the authoritative gate.
-- Read the source for every finding before triaging — CR's labels are LLM-generated, not authoritative.
+- **Verify the factual premise of every finding against source before triaging — see § Verify Before
+  Acting.** CR's labels AND its assertions are LLM-generated, not authoritative. A finding that
+  asserts what the code does is a hypothesis; confirm it, then triage. Two findings in a single
+  round on `content/vfr-rt-part3` were outright false.
 - Collect ALL APPLY-verdict findings of a round into ONE fixup commit per round (`agent-workflow.md § PR Batching`, user directive 2026-07-02) — never per-finding commits; each extra commit re-triggers the review cycle.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
 - Re-run the review after each fix commit — fixes can surface new findings that weren't visible before.
