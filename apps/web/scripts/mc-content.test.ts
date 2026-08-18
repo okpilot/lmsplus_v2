@@ -34,6 +34,33 @@ function pool(total: number, keys: readonly string[]): AuthoredMcQuestion[] {
   )
 }
 
+/**
+ * Test-local copy of the ghost-option-quote check the corpus sweep below runs against the real
+ * content. It is NOT exported from mc-content.ts — this check lives only in this test file — so
+ * this is the one place both the corpus sweep and the synthetic mechanism suite below share the
+ * exact same regex and substring logic; they cannot silently diverge from each other.
+ *
+ * Kept here rather than inlined twice because a corpus sweep alone cannot pin this mechanism:
+ * the shipped corpus contains no ghost option (it was fixed), so narrowing the marker regex back
+ * to bold-only leaves the sweep green either way — see 'the ghost-option-quote check itself'
+ * below, which is what actually goes red on that regression.
+ */
+function findGhostOptionQuotes(
+  explanation: string | undefined,
+  offeredOptionTexts: readonly string[],
+  guideKeywords: ReadonlySet<string>,
+): string[] {
+  const collapse = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ')
+  const offered = offeredOptionTexts.map(collapse)
+  const named = [...(explanation ?? '').matchAll(/\*{1,2}([^*\n]+)\*{1,2}/g)]
+    .map((m) => m[1] as string)
+    .filter((span) => !/[a-z]/.test(span))
+  return named.filter(
+    (span) =>
+      !guideKeywords.has(span.trim()) && !offered.some((option) => option.includes(collapse(span))),
+  )
+}
+
 describe('a single authored question', () => {
   it('accepts a four-option question whose key names one of them', () => {
     expect(() => assertMcItem(question(), AT)).not.toThrow()
@@ -334,28 +361,25 @@ describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, 
     // unguarded cast here would pre-empt the named failure that one arranges: a malformed question
     // would surface as an opaque TypeError instead (code-style.md §5 — not relaxed in test files).
     for (const item of questions) assertMcItem(item, name)
-    const collapse = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ')
     for (const item of questions) {
       const q = item as AuthoredMcQuestion
-      const offered = q.options.map((o) => collapse(o.text))
-      // SCOPE, measured — this covers ALL-CAPS quotes only, which is 19 of the 81 genuine option
-      // quotes in the corpora (emergency 16, numbers 1, posrep 2). The other 62 are lowercase and
-      // the filter below discards them, because bolding and italicising PROSE is how these
-      // explanations emphasise a rule: drop the filter and 75 emphasised phrases read as ghosts.
-      // The numbers corpus is where that bites — it spells its options out (`one two eight decimal
-      // one seven five`), so 0 of its 80 option texts are all-caps and the guard checks a single
-      // span there. Re-measure per corpus before widening; the discriminator that beats this has
-      // to tell an option quote from an emphasised phrase, which case alone cannot do.
-      const named = [...(q.explanation ?? '').matchAll(/\*{1,2}([^*\n]+)\*{1,2}/g)]
-        .map((m) => m[1] as string)
-        .filter((span) => !/[a-z]/.test(span))
+      // SCOPE, measured — this covers ALL-CAPS quotes only. The corpora carry far more emphasised
+      // quotes than that: bolding and italicising PROSE is how these explanations emphasise a
+      // rule, and the check discards every one that is not all-caps for that reason — widening it
+      // would read ordinary emphasised prose as a ghost. The numbers corpus is where that bites —
+      // it spells its options out (`one two eight decimal one seven five`), so its option texts
+      // are never all-caps and this check sees at most a handful of spans there. The discriminator
+      // that would beat this scope has to tell an option quote from an emphasised phrase, which
+      // case alone cannot do.
+      //
       // Substring, not equality: an explanation may quote a FRAGMENT of an option, as PMC-03 does
       // with *OPERATIONS NORMAL* against the longer option that contains it. A true ghost names a
-      // phrase no option contains at all, and still fails.
-      const ghosts = named.filter(
-        (span) =>
-          !GUIDE_KEYWORDS.has(span.trim()) &&
-          !offered.some((option) => option.includes(collapse(span))),
+      // phrase no option contains at all, and still fails. See findGhostOptionQuotes() above and
+      // 'the ghost-option-quote check itself' below for what this line actually pins.
+      const ghosts = findGhostOptionQuotes(
+        q.explanation,
+        q.options.map((o) => o.text),
+        GUIDE_KEYWORDS,
       )
       expect(ghosts, `${name} (${q.num}): explanation names non-existent option(s)`).toEqual([])
     }
@@ -369,5 +393,92 @@ describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, 
       (q) => (q.explanation ?? '').trim() === '',
     )
     expect(unexplained.map((q) => q.num)).toEqual([])
+  })
+})
+
+/**
+ * Synthetic-fixture coverage for findGhostOptionQuotes() itself, independent of the real corpus.
+ *
+ * WHY this describe block exists at all: the sweep above proves the SHIPPED content carries no
+ * ghost, but it cannot prove the CHECK still recognises one, because a corpus with no defect in
+ * it passes identically whether the marker regex matches `*italics*`, `**bold**`, or only one of
+ * the two. Measured directly — narrowing findGhostOptionQuotes() back to a bold-only regex still
+ * leaves every case in the sweep above green, because the real EMC-06 defect was already fixed
+ * out of the corpus before this test file existed. That is exactly the shape this branch has hit
+ * twice already: a second condition (here, "the corpus happens to be clean") reaches the same
+ * verdict as the guard, so the guard itself is never actually exercised.
+ *
+ * These fixtures are built so each one is discriminating: the italics case below asserts a ghost
+ * IS found, using a phrase wrapped in single-asterisk emphasis only. If the marker regex ever
+ * regresses to bold-only again — the original mistake this file's header names — this case goes
+ * red immediately, with no dependency on what the shipped JSON currently contains.
+ */
+describe('the ghost-option-quote check itself', () => {
+  const GUIDE_KEYWORDS = new Set(['DECIMAL', 'OMIT'])
+  const OPTIONS = ['ROGER MAYDAY', 'CANCEL DISTRESS', 'DISTRESS TRAFFIC ENDED']
+
+  it('flags a capitalised phrase in single-asterisk italics that no option names', () => {
+    const ghosts = findGhostOptionQuotes(
+      'Every option here is real, but *MAYDAY ACKNOWLEDGED* appears nowhere in the guide.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual(['MAYDAY ACKNOWLEDGED'])
+  })
+
+  it('flags a capitalised phrase in double-asterisk bold that no option names', () => {
+    const ghosts = findGhostOptionQuotes(
+      'Every option here is real, but **MAYDAY ACKNOWLEDGED** appears nowhere in the guide.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual(['MAYDAY ACKNOWLEDGED'])
+  })
+
+  it('does not flag an italicised phrase that quotes part of an option', () => {
+    const ghosts = findGhostOptionQuotes(
+      '*ROGER MAYDAY* is the phrase the ATS unit uses.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual([])
+  })
+
+  it('does not flag a bolded phrase that quotes part of an option', () => {
+    const ghosts = findGhostOptionQuotes(
+      '**CANCEL DISTRESS** is the pilot’s, not the controller’s.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual([])
+  })
+
+  it('ignores an emphasised phrase that is entirely lowercase', () => {
+    const ghosts = findGhostOptionQuotes(
+      'The second sentence is the point of the first: *who* says it and *when*.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual([])
+  })
+
+  it('does not flag an allowlisted guide keyword', () => {
+    const ghosts = findGhostOptionQuotes(
+      'Give the frequency in **DECIMAL** form, never spelling out the word.',
+      ['one two eight decimal one seven five'],
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual([])
+  })
+
+  it('flags a ghost even when a genuine allcaps quote appears earlier in the same explanation', () => {
+    // Two spans in one explanation: the first is genuine (ROGER MAYDAY), the second is not. A
+    // check that stops at the first match, or that only inspects the last span, would miss this.
+    const ghosts = findGhostOptionQuotes(
+      '**ROGER MAYDAY** is correct. **MAYDAY ACKNOWLEDGED** is not a phrase in the guide.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual(['MAYDAY ACKNOWLEDGED'])
   })
 })

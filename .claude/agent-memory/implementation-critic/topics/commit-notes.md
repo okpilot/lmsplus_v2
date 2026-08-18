@@ -587,3 +587,39 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
   `chip(...)` constructor form would ship all 12 chips in canonical order with no import change.
   The first version of that row cited a PRE-fix chunk whose `rs("z9f2a1c",…)` ids the commit under
   review had already deleted; cite the minified CALL FORM, never the content-hashed chunk filename.
+
+### row detail — 2026-08-18 (chore/part3-audit-followup, impl-critic round 2)
+
+**Enumeration row, 5th instance — the four AUTHORED-ORDER surfaces for MC options.** The
+`mc-content.ts` docblock's round-2 rewrite says "the three surfaces that render options in
+AUTHORED order" and names `get_study_questions` (mig `20260629000700`, `ORDER BY ord`), the
+student post-session report (`lib/queries/quiz-report-questions.ts`), and the admin editor
+(`option-editor.tsx`). The fourth is the ADMIN post-session report:
+`lib/queries/admin-quiz-report.ts` SELECTs `options` straight off `questions` (no shuffle),
+takes the key from `get_admin_report_correct_options`, and renders through the SAME
+`QuestionBreakdown` → `OptionsList` components as the student report — reachable at
+`/app/admin/dashboard/sessions/[id]` and `/app/admin/internal-exams/report`. The commit's OWN
+memory bullet ("`admin-quiz-report.ts` mirrors it") already names it, so the docblock contradicts
+memory written in the same commit. Root cause: the recount changed the unit of enumeration —
+three RENDERING COMPONENTS is correct, three QUERY SURFACES is not.
+
+**Verified-latest citations in the same docblock (all correct, do not re-flag):**
+`get_quiz_questions` latest = `20260702000300` (MC options `ORDER BY random()` at L74);
+`get_vfr_rt_exam_questions` latest = `20260623000600` (`ORDER BY random()` L116);
+`get_study_questions` latest = `20260629000700` (`ORDER BY ord` L119, and the quoted comment is
+verbatim at L115-116). `questions_mc_correct_option_id_check` has exactly one definition
+(`20260619000100` L104-107, `correct_option_id IN ('a','b','c','d')` iff MC) — no later
+DROP/ADD, so the round-2 reason (1) is sound and a gapped run a,b,d/key 'd' does satisfy it.
+
+**Bundler-DCE row, round-2 close.** Timestamps re-measured: `.next/BUILD_ID` = 2026-08-18
+05:50:13Z; squash commit `b28cc604` = 13:43:24Z (build PREDATES it ✓); the zone id
+`z1a077e7d6` first appears in `2e2fce68` at 04:51:51Z (build POSTDATES the content that
+introduced the ids ✓). The reworded memory now states exactly this and instructs a re-measure
+after rebuild — accepted. Note `e44c6201` (05:51:03Z) landed 50s AFTER the build, so the
+measurement is one commit stale even under the corrected framing; the hedge covers it.
+
+**`deriveContentId` multi-part callers.** "the one multi-part caller is `deriveZoneId`" is true
+only of NON-TEST code — `content-ids.test.ts:39,94,95` also pass 2 parts, hand-inlining the zone
+shape. Their second parts are digit runs so the separator-safety argument is unharmed; the
+sibling sentence three lines later already carries the "sole non-test caller" qualifier, so the
+omission is internally inconsistent rather than wrong. SUGGESTION class.

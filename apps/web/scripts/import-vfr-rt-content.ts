@@ -141,6 +141,11 @@ if (SYNC_CONTENT && REPLACE) {
 // is not derivable from it — the operator has to state it, and a row that has drifted from that
 // statement is refused rather than overwritten. An empty value is almost always shell quoting
 // gone wrong, and would compare equal to nothing, so it is rejected too.
+// SCOPE: EXPECT_CANONICAL is ONE value for the whole run, and assertSyncPreconditions requires
+// every row that differs from the file to match it. So an invocation corrects one drifted row —
+// or several that happen to share an identical live canonical — and correcting two rows whose
+// live canonicals differ aborts in the planning phase, before any write. Run it once per
+// distinct live value; that is a deliberate fail-closed, not a bug to work around.
 if (SYNC_CONTENT && (EXPECT_CANONICAL === undefined || EXPECT_CANONICAL.trim() === '')) {
   console.error(
     '--sync-content requires --expect-canonical="<the canonical_answer currently live>" — it is the optimistic guard, and a drifted row is refused with your own expectation quoted back.',
