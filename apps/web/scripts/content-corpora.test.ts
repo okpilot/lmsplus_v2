@@ -87,6 +87,18 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
   const layouts: Record<string, { zones: typeof RWY_2709_ZONES; labels: typeof RWY_2709_LABELS }> =
     { [RWY_2709_IMAGE_REF]: { zones: RWY_2709_ZONES, labels: RWY_2709_LABELS } }
 
+  it('ships an identifier and prompt for every question', () => {
+    // Parity with the ordering corpus above, which has always checked these. Without it a diagram
+    // question with a blank prompt or no num passes every remaining case, because they all key on
+    // the mapping — and the importer would happily build a row that renders an empty question.
+    for (const [i, item] of questions.entries()) {
+      const q = item as AuthoredDiagramQ
+      const at = `${name} (${q.num ?? `#${i}`})`
+      expect(typeof q.num === 'string' && q.num.trim() !== '', `${at}: num`).toBe(true)
+      expect(typeof q.prompt === 'string' && q.prompt.trim() !== '', `${at}: prompt`).toBe(true)
+    }
+  })
+
   it('holds exactly the number of questions the suite was told to expect', () => {
     expect(questions.length).toBe(expected)
   })

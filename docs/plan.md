@@ -1522,12 +1522,17 @@ legs question and the turns question using disjoint zone sets.
 > `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
 > per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
 > `assertMcKeyBalance` (per pool: no id above 1.6× the even share, no offered id never used), and
-> **both run in the importer as well as the suite**. Note `assertMcKeyBalance` skips pools under 12
-> questions, so the 11-question emergency and 5-question posrep pools are held by hand, not enforced.
+> **both run in the importer as well as the suite**. `assertMcKeyBalance` skips pools under 12
+> questions, so the 11-question emergency and 5-question posrep pools are NOT covered by their own
+> per-file check — they are covered by a second pass over the union of every MC file sharing a
+> `(subject_code, topic_code)`, which is 36 questions for Part 3 and so clears the floor. Both the
+> importer and the suite run that union. The split into subareas is what opened the hole: the gate
+> was written when Part 3 MC was one 20-question pool, and splitting it to 20 / 11 / 5 silently
+> dropped 16 of 36 questions out of coverage while every test stayed green.
 
 **How the content was verified.** Every Part 3 answer was independently re-derived from the source
 by solvers that never saw the answer key — for the ordering questions with items shuffled, so each
-sequence had to be reconstructed. All 48 single-key answers agreed — 36 multiple-choice keys plus 12 ordering sequences. The 2 `diagram_label` questions are not in that 48: their answer is a 5-zone mapping rather than one key, and both were verified separately by re-deriving each zone from the guide's circuit diagram. 36 + 12 + 2 = the 50 Part 3 questions. All 60 ordering item strings were grepped
+sequence had to be reconstructed. All 48 non-diagram answers agreed — 36 multiple-choice keys plus 12 ordering sequences. The 2 `diagram_label` questions are not in that 48: their answer is a 5-zone mapping rather than one key, and both were verified separately by re-deriving each zone from the guide's circuit diagram. 36 + 12 + 2 = the 50 Part 3 questions. All 60 ordering item strings were grepped
 individually and confirmed to sit in the same printed transmission as their siblings. That pass
 caught five defects ordinary review missed, including a **fabricated item** in ORD-06 (a phrase
 lifted from a call 700 lines away that read naturally beside four genuine ones).
