@@ -1484,6 +1484,19 @@ the controller's line above.
 | Position Reports (`P3_POSREP`) | 5 | 7 | — |
 | Traffic Pattern (`P3_PATTERN`) | — | — | 2 |
 
+**Training-only vs exam-reachable — the table above is NOT the mock-exam pool.**
+`start_vfr_rt_exam_session` (latest definition mig `20260629000500` L189, where the single-active
+guard re-emitted the whole body) pins Part 3 sampling to `question_type = 'multiple_choice'`, so
+only the 36 MC questions can ever be drawn into a VFR RT mock exam. The 12 `ordering` and 2
+`diagram_label` questions are reachable in training only — which means the mock exam currently
+never assesses the Traffic Pattern competency at all, since that subarea is 100% `diagram_label`.
+Widening the sampler needs a grader change too: `submit_vfr_rt_exam_answers` (latest definition
+mig `20260815000300` L241) raises `unsupported_question_type` for anything outside
+`short_answer` / `dialog_fill` / `multiple_choice`, and its per-part scoring (L278-284) aggregates
+only those three — so a sampler that drew an `ordering` row would fail the submit outright. Tracked
+separately in #1216 rather than fixed here. The `per_exam` field
+in the content JSON is documentation only — no code reads it.
+
 Migration `20260818000100` seeds those four rows; it is idempotent and touches no question row.
 Parts 1 and 2 stay flat by design — Part 1 is a closed 40-acronym list the briefing prints as one
 pool, and Part 2's dialogues are not divided by the source. With Part 2 also released, all **140**

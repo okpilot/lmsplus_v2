@@ -64,6 +64,27 @@ describe('an id derived from content', () => {
     expect(deriveContentId('z', ['Downwind leg'])).not.toBe(deriveContentId('l', ['Downwind leg']))
   })
 
+  it('gives an ordering item and a label over the same text the same eight-character digest', () => {
+    // The prefix character is PREPENDED to the digest, not hashed into it — only `parts` reaches
+    // update(). So two kinds derived over the SAME `parts` share all 8 digest characters and
+    // differ solely in that leading character, which is then the ONLY thing keeping them apart.
+    //
+    // Ordering item ('o') vs diagram label ('l') IS that pair — both derive from `[text]` — which
+    // is why the fixture uses them. Zone vs label is deliberately not used here: production zone
+    // ids derive from `[imageRef, index]`, so they differ in hashed input too. See the
+    // content-ids.ts docblock, which also warns not to read that as slack — it is an accident of
+    // today's parts domains, not a guarantee.
+    //
+    // If the implementation changed to hash the prefix in, this fails: the 8 chars would diverge
+    // even though the diagram gate's zone/label disjointness rule would still hold.
+    const text = ['Downwind leg']
+    expect(deriveContentId('o', text).slice(2)).toBe(deriveContentId('l', text).slice(2))
+    // Literal pin for the ordering side; the label side ('l128b13785') is already pinned by the
+    // 'kind + version + digest' test above. Together they make the shared digest a stability
+    // contract rather than a passing-but-unpinned implementation detail.
+    expect(deriveContentId('o', text)).toBe('o128b13785')
+  })
+
   it('ignores case and spacing differences the reader cannot see', () => {
     expect(deriveContentId('o', ['LINE   UP'])).toBe(deriveContentId('o', ['Line up']))
     expect(deriveContentId('o', ['  Line up  '])).toBe(deriveContentId('o', ['Line up']))

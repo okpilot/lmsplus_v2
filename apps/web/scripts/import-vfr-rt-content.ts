@@ -995,7 +995,7 @@ function scopeFor(entry: ResolvedFile, q: AuthoredQuestion): RowScope {
 async function insertAll(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number }> {
+): Promise<{ inserted: number; skipped: number; drifted: number }> {
   let totalInserted = 0
   let totalSkipped = 0
   const drifted: string[] = []
@@ -1016,17 +1016,35 @@ async function insertAll(
       `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
     )
   }
-  // Thrown AFTER every file is walked, not on the first drifted row: the inserts are idempotent,
-  // so completing the pass costs nothing and the operator gets the whole affected list at once
-  // instead of rediscovering it one run at a time.
+  // Reported AFTER every file is walked, not on the first drifted row: the inserts are
+  // idempotent, so completing the pass costs nothing and the operator gets the whole affected
+  // list at once instead of rediscovering it one run at a time.
   if (drifted.length > 0) {
-    throw new Error(
-      `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n` +
-        drifted.map((d) => `  - ${d}`).join('\n') +
-        `\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace soft-deletes and re-inserts this file's questions, which refiles them under new row ids; on a remote (where --replace is refused), refile with a migration.`,
-    )
+    const listed = drifted.map((d) => `  - ${d}`).join('\n')
+    // WARN, never throw, under --replace -- but still fail the RUN (see main()). Drift is
+    // unreachable for any row findReplaceTargets MATCHED (softDeleteAll runs first and
+    // insertIfMissing filters `deleted_at IS NULL`, so those rows are re-inserted, not skipped).
+    // Getting here means the row was NOT matched, which happens two ways: the whole file
+    // mismatched -- findReplaceTargets warns about that -- or individual rows were retyped or
+    // moved between files, which it does NOT warn about, because it matches on
+    // bank + topic_id + question_type + IN(nums) while insertIfMissing matches on
+    // bank + question_number alone. Do not assert WHICH of the two the operator hit.
+    //
+    // Throwing here would actively harm: runImport's catch calls rollbackReplace, which restores
+    // soft-deleted rows whose (bank_id, question_number) the successful inserts of EARLIER files
+    // now occupy, so idx_questions_bank_number rejects the restore and the operator gets a
+    // spurious "ROLLBACK INCOMPLETE" for a run that actually succeeded.
+    if (REPLACE) {
+      console.warn(
+        `  ${drifted.length} question(s) were skipped while filed under a different subtopic than the content file declares:\n${listed}\n  --replace did not match them, so they were never soft-deleted and could not be refiled — their live row's topic_id/question_type differs from what this file declares. Check above for a "matched no existing rows" warning; its absence means only SOME rows drifted. Fix the file's topic_code/question_type, or refile with a migration.`,
+      )
+    } else {
+      throw new Error(
+        `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n${listed}\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace soft-deletes and re-inserts this file's questions, which refiles them under new row ids — but only if it matches them, so check its output for a "matched no existing rows" warning first. On a remote (where --replace is refused), refile with a migration.`,
+      )
+    }
   }
-  return { inserted: totalInserted, skipped: totalSkipped }
+  return { inserted: totalInserted, skipped: totalSkipped, drifted: drifted.length }
 }
 
 // ---- --sync-content ----------------------------------------------------------
@@ -1348,7 +1366,7 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
 async function runImport(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number }> {
+): Promise<{ inserted: number; skipped: number; drifted: number }> {
   const softDeleted: string[] = []
   try {
     if (REPLACE) await softDeleteAll(resolved, ctx, softDeleted)
@@ -1555,7 +1573,7 @@ async function main(): Promise<void> {
     return
   }
 
-  const { inserted: totalInserted, skipped: totalSkipped } = await runImport(resolved, ctx)
+  const { inserted: totalInserted, skipped: totalSkipped, drifted } = await runImport(resolved, ctx)
 
   console.log('\nVFR RT content import complete.')
   console.log(
@@ -1568,6 +1586,17 @@ async function main(): Promise<void> {
     console.log(
       `  Login:    ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}  →  http://localhost:3000/app/vfr-rt`,
     )
+  }
+  // Set here rather than thrown from insertAll: under --replace a throw would reach runImport's
+  // catch and trigger rollbackReplace against rows the successful inserts already re-created,
+  // reporting a bogus incomplete rollback for a run that worked. Assigning process.exitCode after
+  // the summary keeps the non-zero exit — so CI and `&&` chains still fail — without unwinding
+  // anything. `exitCode`, not `exit()`: the latter would truncate buffered stdout.
+  if (drifted > 0) {
+    console.error(
+      `\n  ${drifted} question(s) remain filed under a subtopic the content file does not declare — see the warning above. Exiting non-zero.`,
+    )
+    process.exitCode = 1
   }
 }
 

@@ -24,11 +24,16 @@
 // if a literal ever drifts from the image ref, the index, or the label text.
 //
 // WHY derivation closes the oracle: the student receives the zones in stored
-// order and the labels shuffled, but never the zone -> label mapping — that
-// lives only in the seeded `questions.diagram_config.answer` array, stripped
-// server-side before delivery (see `get_quiz_questions()`). An id the author
-// picks is a free variable delivered right beside the content it names, so the
-// mapping can be encoded into it, deliberately (`z_correct_1`) or by accident.
+// order and the labels shuffled, but never the zone -> label mapping — it is
+// held in the seeded `questions.diagram_config.answer` array and stripped
+// server-side before delivery (see `get_quiz_questions()`). Read the SECURITY
+// note on `RWY_2709_LABELS` below before trusting that sentence: the seeded
+// row is not the ONLY place the pairing exists — the seed builds it by zipping
+// the two arrays in this file by index, so their shared order encodes it too.
+//
+// An id the author picks is a free variable delivered right beside the content
+// it names, so the mapping can be encoded into it, deliberately (`z_correct_1`)
+// or by accident.
 // Derivation removes the free variable: a zone id depends only on which image
 // and which position, a label id only on what the chip says, so neither can be
 // made to depend on the other and no assignment of ids can carry the pairing.
@@ -151,7 +156,9 @@ export const RWY_2709_ZONES: DiagramZone[] = [
  *   1. NEVER import `RWY_2709_LABELS` (or `RWY_2709_ZONES`) from a `'use client'`
  *      subtree. Nothing does today — `registry.ts`, `diagram-refs.ts` and the two
  *      artwork components take only `RWY_2709_IMAGE_REF` and the geometry consts,
- *      and neither array has any importer under `app/`. One client preview,
+ *      so neither array has any NON-TEST importer under `app/`. (The co-located
+ *      `rwy-2709-layout.test.ts` does import both, which is fine — test files are
+ *      not in the Next build; the Node-side scripts import them too.) One client preview,
  *      admin editor or debug overlay importing the labels ships all 12 chips in
  *      canonical order, and the zone ids are already delivered: the complete key.
  *   2. KEEP `RWY_2709_LABELS` A PLAIN OBJECT-LITERAL ARRAY. It is droppable only
@@ -163,9 +170,10 @@ export const RWY_2709_ZONES: DiagramZone[] = [
  *
  * The order-pin test in rwy-2709-layout.test.ts guards the array ORDER; these two
  * rules guard its REACHABILITY. Re-measure with a real build before restating any
- * claim here — the earlier version of this comment asserted both arrays were
- * tree-shaken, which was false for the zones and had been carried over from a
- * report rather than re-derived (code-style.md §10).
+ * claim here — an earlier DRAFT of this comment (never committed, so `git log -p`
+ * will not show it) asserted both arrays were tree-shaken, which was false for the
+ * zones and had been carried over from a report rather than re-derived
+ * (code-style.md §10).
  */
 export const RWY_2709_LABELS: DiagramLabel[] = [
   { id: 'l1e13b0b8a', text: 'Upwind leg' },

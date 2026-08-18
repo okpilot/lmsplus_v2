@@ -61,11 +61,16 @@ export function normalizeForId(text: string): string {
  * and differ solely in that leading character: `deriveContentId('z', ['Downwind leg'])` and
  * `deriveContentId('l', ['Downwind leg'])` are `z1…` and `l1…` over an identical digest.
  *
- * That single character is therefore load-bearing, and it is the whole of what makes the
- * diagram gate's zone-id/label-id disjointness rule hold. Never strip, normalize away, or
- * compare ids without it (an id-shortener or a v2 re-prefixing scheme is the realistic way
- * this breaks) — doing so collapses a zone and a label over the same text into one id, which
- * `is_valid_diagram_config` then rejects at INSERT with no hint as to why.
+ * That single character is therefore load-bearing for any two kinds derived over the SAME
+ * parts. Today that pair is ordering-item (`o`) vs diagram label (`l`) — both hash `[text]`,
+ * so the prefix is the only thing keeping them apart. It is NOT what currently separates a
+ * zone from a label: `deriveZoneId` hashes `[imageRef, index]` while `deriveLabelId` hashes
+ * `[text]`, so those two differ in the hashed input as well, and the diagram gate's
+ * zone-id/label-id disjointness rule would survive even a prefix-less scheme. Do not read
+ * that as slack — it is an accident of today's parts domains, not a guarantee. Never strip,
+ * normalize away, or compare ids without the prefix (an id-shortener or a v2 re-prefixing
+ * scheme is the realistic way this breaks); collapsing two kinds onto one id is what
+ * `is_valid_diagram_config` then rejects at INSERT, with no hint as to why.
  */
 export function deriveContentId(prefix: string, parts: readonly string[]): string {
   const canonical = parts.map(normalizeForId).join(' ')
