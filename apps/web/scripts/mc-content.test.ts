@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import content from './content/vfr-rt-part3-mc-numbers.json'
+import emergency from './content/vfr-rt-part3-mc-emergency.json'
+import numbers from './content/vfr-rt-part3-mc-numbers.json'
+import posrep from './content/vfr-rt-part3-mc-posrep.json'
 import {
   type AuthoredMcQuestion,
   assertMcItem,
@@ -199,31 +201,44 @@ describe('the answer key across a pool', () => {
   })
 })
 
-describe('the authored VFR RT Part 3 numbers corpus', () => {
-  const questions = (content as { questions: unknown[] }).questions
+/**
+ * Every shipped multiple_choice pool, not just the first one. The block below used to import a
+ * single file; when two more MC pools were added they shipped with NO suite coverage at all —
+ * no per-question validation, no explanation check, no count pin — while `mc-content.ts`'s
+ * header still advertised the `vfr-rt-part3-mc-*.json` glob. A table keeps the two honest and
+ * covers the next pool automatically.
+ */
+const MC_CORPORA: readonly (readonly [string, unknown, number])[] = [
+  ['vfr-rt-part3-mc-numbers.json', numbers, 20],
+  ['vfr-rt-part3-mc-emergency.json', emergency, 11],
+  ['vfr-rt-part3-mc-posrep.json', posrep, 5],
+]
 
-  it('is large enough for the per-question checks below to mean something', () => {
-    // Exact, not a floor: a >= N check stops tracking the corpus as it grows, so a mass
-    // deletion would pass. Update this number in the same commit that adds or drops a question.
-    expect(questions.length).toBe(18)
+describe.each(MC_CORPORA)('the authored MC corpus in %s', (name, file, expectedCount) => {
+  const questions = (file as { questions: unknown[] }).questions
+
+  it('holds exactly the number of questions the suite was told to expect', () => {
+    // Exact, not a floor: a >= N check stops tracking a corpus as it grows, so a mass deletion
+    // would pass. Update the number in MC_CORPORA in the same commit that adds or drops one.
+    expect(questions.length).toBe(expectedCount)
   })
 
-  it.each(questions.map((q, i) => [(q as { num?: string }).num ?? `#${i}`, q] as const))(
-    'ships %s ready to import',
-    (num, item) => {
-      assertMcItem(item, `vfr-rt-part3-mc-numbers.json (${num})`)
-    },
-  )
+  it('ships every question ready to import', () => {
+    for (const [i, item] of questions.entries()) {
+      const num = (item as { num?: string }).num ?? `#${i}`
+      assertMcItem(item, `${name} (${num})`)
+    }
+  })
 
   it('spreads the answer key so the pool cannot be guessed', () => {
-    for (const item of questions) assertMcItem(item, 'vfr-rt-part3-mc-numbers.json')
-    assertMcKeyBalance(questions as AuthoredMcQuestion[], 'vfr-rt-part3-mc-numbers.json')
+    for (const item of questions) assertMcItem(item, name)
+    assertMcKeyBalance(questions as AuthoredMcQuestion[], name)
   })
 
   it('explains every question, since the explanation is the teaching surface', () => {
     // Validate before reading fields: without this the cast below is load-bearing, and a
     // malformed question would surface as a TypeError here rather than a named failure.
-    for (const item of questions) assertMcItem(item, 'vfr-rt-part3-mc-numbers.json')
+    for (const item of questions) assertMcItem(item, name)
     const unexplained = (questions as AuthoredMcQuestion[]).filter(
       (q) => (q.explanation ?? '').trim() === '',
     )

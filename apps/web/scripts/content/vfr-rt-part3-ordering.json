@@ -1,0 +1,157 @@
+{
+  "part": 3,
+  "title": "Message Sequencing — drag into order",
+  "topic_code": "P3_MC",
+  "subtopic_code": "P3_EMERGENCY",
+  "subject_code": "RT",
+  "question_type": "ordering",
+  "per_exam": 8,
+  "lifecycle": "released",
+  "status": "12 questions covering two of Part 3's four competencies: 'Proper sequencing of a distress or urgency message (MAYDAY / PAN PAN)' — ORD-01 to ORD-04 and ORD-07, filed under the file's default P3_EMERGENCY subtopic — and 'Proper sequencing of a position report' — ORD-05, ORD-06 and ORD-08 to ORD-12, each of which overrides the default with subtopic P3_POSREP. The fourth competency (traffic-pattern parts) is diagram_label and lives in its own content file; the first (transmission of numbers) is multiple_choice. The position-reporting RULES (when reporting may be omitted, OPERATIONS NORMAL, call-sign placement) are multiple_choice and live in vfr-rt-part3-mc-posrep.json under the same P3_POSREP subtopic.",
+  "source": "VictorOne English Phraseology Exam Briefing Package 1 (Part 3, competencies 2 and 3). Element sequences are taken verbatim from 'A Guide to VFR Phraseology' (Karmen Stumberger, MSc): the distress-message table (printed p. 23), the urgency-message table (printed p. 24), the 'Initial call' standard report order (printed p. 16), and the message-priority table (Table 5, printed p. 10). Worked transmissions are the guide's own example column and its RTF Position Reporting block (printed p. 16). The five position reports added as ORD-08 to ORD-12 are each a different worked transmission printed elsewhere in the same guide: RTF Sailing (printed p. 29), RTF Position reporting under Ballooning (printed p. 31), and one report from each of the three complete flights — Portoroz to Ronchi (printed p. 32), Ljubljana to Venice (printed p. 33) and Maribor to Gyor (printed p. 35). Printed page = PDF page - 2.",
+  "authoring_notes": "IDS ARE NOT AUTHORED. Each item is a plain string and the array order IS the canonical answer. The importer derives every item id from the item's own text, so there is no field in which an author could encode the correct sequence — see scripts/content-ids.ts. This replaces an earlier design that let authors write ids and tried to detect order-encoding heuristically; four plan-critic rounds showed that approach rejects legitimate content (a length sort is the identity on uniform-length ids, a natural sort is the identity on digit-less ids) while still failing to stop deliberate encoding.\n\nR1 EVERY sequence is printed in the guide as an ordered list. None is inferred, reconstructed from an example, or ordered by what 'sounds right'. Where the guide prints a two-column Content/Example table, the CONTENT column is the element list and the EXAMPLE column is the worked transmission — the two make separate questions, never a blend.\n\nR2 THE ELEMENT-LIST AND TRANSMISSION FORMS ARE BOTH AUTHORED, deliberately. The element list tests whether the student knows the prescribed order; the transmission tests whether they can recognise it in a real call. A student who has memorised the list without understanding gets the first and fails the second.\n\nR3 DISTRESS AND URGENCY SHARE ONE ELEMENT ORDER. The guide's two tables carry the same six elements in the same sequence, differing only in the signal word and the strength of the obligation ('as many as possible ... if possible, in the following order' for distress; 'shall contain the following elements' for urgency). Both are authored because the signal words and the example content differ, and a student must not learn that PAN PAN is a lesser MAYDAY.\n\nR4 SIX-ELEMENT MAYDAY, NOT FIVE. The seeded eval fixture that predates this file has five elements and omits 'position, level and heading'. The guide prints six. This file is the correct one.\n\nR6 NEVER BLEND THE GUIDE'S TWO COLUMNS WITHIN ONE QUESTION. Its distress and urgency tables have a Content column ('distress signal', 'the name of the station addressed') and an Example column ('MAYDAY MAYDAY MAYDAY', 'Maribor Approach'). An element-list question uses the Content column ONLY; a transmission question uses the Example column ONLY. The first draft of ORD-01 and ORD-03 mixed them — item 1 read 'distress signal — MAYDAY MAYDAY MAYDAY' while items 2-6 were plain descriptions, so the only item carrying a signal word was identifiable as first WITHOUT knowing the sequence. One blended item hands the student a free slot in a question whose whole subject is the order.\n\nR6a NEVER CARRY A PHRASE IN FROM A DIFFERENT TRANSMISSION. ORD-06 shipped with a fifth item, 'for a touch-and-go', which appears NOWHERE in the p.16 call it claims to quote — every occurrence of that phrase in the guide is in the circuit and training sections. It was caught by an independent pass, not by review, because a fabricated item reads perfectly plausibly next to four real ones. When building a transmission question, grep the source for EVERY item string and confirm they all sit in the SAME printed call; a call that is shorter than the five-element template is complete as printed, and padding it to five is inventing phraseology.\n\nR5 NO ITEM TEXT REPEATS WITHIN A QUESTION. Two identical strings would derive one id and collide, and a sequence with two indistinguishable steps has no single correct answer.\n\nR7 ORD-08 TO ORD-12 EACH COME FROM A DIFFERENT PRINTED TRANSMISSION, so the five are genuinely distinct calls rather than one call reworded five times: a sailplane, a balloon, and one report from each of the three complete flights. Four of the five carry only four elements, and each explanation says which elements are absent and why the printed call is still complete — a report with fewer than five parts is the normal case, not a defective example, and a student who is taught to expect five will hear a four-part call as wrong. CANDIDATES DROPPED, recorded so they are not re-attempted: the 'Crossing of controlled airspace' call (printed p. 19) and the 'Entering the controlled airspace' call (printed p. 20) are initial calls stating route and intentions rather than position reports, and their route element ('VFR from Maribor to Ljubljana') has no slot in the standard order — sequencing them would have taught an order the guide does not prescribe. The gliding 'Approach' block (printed p. 30) was dropped as too close to the RTF Sailing call already used in ORD-08.",
+  "grading_notes": "Graded per slot with partial credit by batch_submit_quiz; delivered shuffled by get_quiz_questions, which never sends the canonical order. A permutation guard requires every slot filled exactly once.",
+  "questions": [
+    {
+      "num": "VRT-P3-ORD-01",
+      "prompt": "A distress message must contain these elements. Drag them into the order the guide prescribes.",
+      "items": [
+        "the distress signal",
+        "the name of the station addressed",
+        "the identification of the aircraft",
+        "the nature of the distress condition",
+        "the intention of the pilot-in-command",
+        "position, level and heading"
+      ],
+      "explanation": "**This is the guide's distress-message table, top to bottom.** The wording matters: distress messages \"shall consist of as many as possible of the following elements spoken distinctly and, if possible, in the following order\" — so the order is prescribed, but a pilot who cannot deliver every element still transmits what they can rather than staying silent.\n\nThe logic runs outward from the emergency: the signal seizes the frequency, the station addressed and your identity say who is talking to whom, then what is wrong, then what you intend to do about it, then where you are. Position comes last because it is the element a controller can most often supply from radar — and the first four cannot be supplied by anyone but you."
+    },
+    {
+      "num": "VRT-P3-ORD-02",
+      "prompt": "Drag the parts of a MAYDAY call into the order they are transmitted.",
+      "items": [
+        "MAYDAY MAYDAY MAYDAY",
+        "Maribor Approach",
+        "S5-DAT",
+        "engine shutdown",
+        "landing at airfield Cerkvenjak",
+        "overhead Lenart, 4500 feet"
+      ],
+      "explanation": "**This is the worked example printed beside the distress-message table**, read down its example column: *MAYDAY MAYDAY MAYDAY, Maribor Approach, S5-DAT, engine shutdown, landing at airfield Cerkvenjak, overhead Lenart, 4500 feet.*\n\nCompare it element by element with the prescribed list and the pattern is exact — signal, station, identification, nature, intention, position. Note the aircraft identification is the FULL callsign: abbreviation is a courtesy of routine traffic, and a distress call is not routine.\n\nThe controller acknowledges with **ROGER MAYDAY** and takes control of the communication. If other stations interfere, they are silenced with **STOP TRANSMITTING, MAYDAY**."
+    },
+    {
+      "num": "VRT-P3-ORD-03",
+      "prompt": "An urgency message must contain these elements. Drag them into the order the guide prescribes.",
+      "items": [
+        "the urgency signal",
+        "the name of the station addressed",
+        "the identification of the aircraft",
+        "the nature of the urgency condition",
+        "the intention of the pilot-in-command",
+        "position, level and heading"
+      ],
+      "explanation": "**The urgency sequence is identical to the distress sequence** — same six elements, same order. Only two things differ: the signal word, and the obligation. Distress says \"as many as possible ... if possible, in the following order\"; urgency says the message \"shall contain the following elements\".\n\nPAN PAN is not a weaker MAYDAY, it is a different condition: something \"concerning the safety of an aircraft ... but which does not require immediate assistance\". Bird strike, a minor technical failure, a passenger taken ill. The guide notes the signal word is \"preferably spoken three times\" — hence PAN PAN, three times over.\n\nBecause the two sequences are the same, learning one teaches the other; what must not blur is *which condition you are in*."
+    },
+    {
+      "num": "VRT-P3-ORD-04",
+      "prompt": "Drag the parts of a PAN PAN call into the order they are transmitted.",
+      "items": [
+        "PAN PAN PAN PAN PAN PAN",
+        "Portorož Approach",
+        "S5-PEA",
+        "passenger with health problems",
+        "request immediate landing",
+        "overhead Piran, at 2000 feet"
+      ],
+      "explanation": "**The guide's worked urgency example**, read down its example column. Set it beside the MAYDAY example and the shape is the same — which is the point of authoring both.\n\nNotice that the intention is phrased as a *request*: \"request immediate landing\". In the distress example the intention is a *statement*: \"landing at airfield Cerkvenjak\". A pilot in distress declares what they will do and the controller accommodates it; a pilot in an urgency condition asks. That distinction is the practical difference between the two message types, and it is visible in the phraseology rather than stated as a rule."
+    },
+    {
+      "num": "VRT-P3-ORD-05",
+      "subtopic": "P3_POSREP",
+      "prompt": "A position report follows a standard element order. Drag the elements into that order.",
+      "items": [
+        "aircraft call sign (and type if necessary)",
+        "position (and time over)",
+        "flight level or altitude",
+        "next position and time over, and the following significant point",
+        "additional information"
+      ],
+      "explanation": "**\"Reports should be transmitted in the standard order\"** — the guide's en-route 'Initial call' list, and the only prescribed element order for a position report in either document.\n\nFive elements, and the shape is *who — where — how high — where next — anything else*. The fourth element is doing more work than it looks: it carries both the next reporting point with its estimate AND the significant point after that, which is what lets a controller build a picture of your track rather than a single dot.\n\nThe guide also notes position reporting may be omitted when the controller has your track from other sources — you may hear **OMIT POSITION REPORTING**."
+    },
+    {
+      "num": "VRT-P3-ORD-06",
+      "subtopic": "P3_POSREP",
+      "prompt": "Drag the parts of this position report into the order they are transmitted.",
+      "items": [
+        "S5-DEW",
+        "overhead Velike Lašče at 24",
+        "passing 4500 feet, climbing to 6500 feet",
+        "estimating ILB at 40, PE1 next"
+      ],
+      "explanation": "**The guide's RTF Position Reporting example**, mapped onto the standard order: *S5-DEW* (call sign), *overhead Velike Lašče at 24* (position and time over), *passing 4500 feet, climbing to 6500 feet* (level), *estimating ILB at 40, PE1 next* (next position with its estimate, and the significant point after it).\n\n**Four elements, not five — and that is the lesson.** The standard order's fifth element, *additional information*, simply is not present in this call, because this pilot has nothing extra to add. The order is a template for the elements you DO transmit, not a checklist requiring all five every time. What it fixes is their relative sequence.\n\nNote the level element carries both the current level and the one being climbed to. A controller needs to know not just where you are vertically but where you are going, and *passing* is the word that distinguishes a level being crossed from one being maintained."
+    },
+    {
+      "num": "VRT-P3-ORD-07",
+      "prompt": "Radiotelephony messages are handled in a fixed order of priority. Drag these categories from highest priority to lowest.",
+      "items": [
+        "distress calls, distress messages and distress traffic",
+        "urgency messages, including messages preceded by the medical transport signal",
+        "communications related to direction finding",
+        "flight safety messages",
+        "meteorological messages",
+        "flight regularity messages"
+      ],
+      "explanation": "**This is Table 5 in the guide**, which sets \"the order of priority in the establishment of communications and the transmission of messages\".\n\nThe ordering is not arbitrary. The two emergency categories come first, distress above urgency — MAYDAY outranks PAN PAN, which is why a station already handling a PAN PAN will drop it for a MAYDAY. Direction finding sits third because a station that cannot navigate may be about to become category one. Everything below that is operational: flight safety messages (movement and control messages, and meteorological advice of *immediate* concern to an aircraft), then routine weather, then flight regularity.\n\nThe distinction between rows four and five catches people out: urgent weather for a specific aircraft is a flight *safety* message; a general forecast is a *meteorological* one."
+    },
+    {
+      "num": "VRT-P3-ORD-08",
+      "subtopic": "P3_POSREP",
+      "prompt": "A sailplane pilot is told \"report position\". Drag the parts of the reply into the order they are transmitted.",
+      "items": ["Cirus 16", "over Krvavec", "4000 meters", "climbing 3 meters per second"],
+      "explanation": "**The guide's RTF Sailing exchange**, printed in full: `Cirus 16 Podpeč, report position` — `Cirus 16, over Krvavec, 4000 meters, climbing 3 meters per second`.\n\nFour parts, not five, and the first three are the first three elements of the standard order: call sign, position, level. The fourth has no counterpart earlier in the list, so it reads as the *additional information* the order ends with — a sailplane's rate of climb is what tells the ground station how the flight is actually developing, in place of a next position and estimate that a glider working lift cannot honestly give.\n\nTwo details worth noticing. The level is in **meters**: the guide's gliding examples use metres throughout (`2000 m`, `1800 meters`, `1500 meters`) while its balloon example uses feet, so read the unit rather than assuming one. And the call sign is at the FRONT — this is a report, not a read-back, and \"the message is normally prefixed with the aircraft call sign\"."
+    },
+    {
+      "num": "VRT-P3-ORD-09",
+      "subtopic": "P3_POSREP",
+      "prompt": "A balloon pilot is asked to report position. Drag the parts of the reply into the order they are transmitted.",
+      "items": [
+        "Ljubljana Information S5-ORP",
+        "over Matena",
+        "altitude 2000 feet",
+        "direction east"
+      ],
+      "explanation": "**The guide's RTF Position reporting example under Ballooning**: `S5-ORP Ljubljana Information, report position` — `Ljubljana Information S5-ORP, over Matena, altitude 2000 feet, direction east`.\n\nThe elements are named in the guide's own prose a few lines above the example: the balloon pilot \"reports his position, height and flight direction\". That is why this report has four parts rather than five — a balloon has no *next position and time over* to offer, and the direction of drift takes the place of an estimate as the thing that lets the controller predict where it will be.\n\nThe reply opens with the station addressed followed by the pilot's own call sign, the same shape as any initial call: \"the initial call consists of the call sign of the unit the pilot is calling followed by his own call sign\"."
+    },
+    {
+      "num": "VRT-P3-ORD-10",
+      "subtopic": "P3_POSREP",
+      "prompt": "Drag the parts of this en-route position report into the order they are transmitted.",
+      "items": [
+        "Maribor Approach S-MG",
+        "over ME2 at time 25",
+        "maintaining 3500 feet",
+        "estimating DIMLO at time 42"
+      ],
+      "explanation": "**Printed in the guide's third complete flight, a cross-country from Maribor to Gyor**: `Maribor Approach S-MG, over ME2 at time 25, maintaining 3500 feet, estimating DIMLO at time 42`.\n\nSet it against the standard order and four of the five elements are there — call sign, position and time over, level, next position and time over. There is no *following significant point* and no *additional information*, and the printed exchange shows why: DIMLO is where this flight leaves the frequency. The controller answers `S-MG report 3 minutes before DIMLO`, and after that report comes `S-MG contact Budapest info 125.50`.\n\nCompare the level element with the one in the Velike Lašče report. There it reads *passing 4500 feet, climbing to 6500 feet*; here it reads *maintaining 3500 feet*. The verb is what tells the controller whether a level is being crossed or held, and one or the other is always needed."
+    },
+    {
+      "num": "VRT-P3-ORD-11",
+      "subtopic": "P3_POSREP",
+      "prompt": "Drag the parts of this position report into the order they are transmitted. The pilot has just checked in with the station, so this report carries no call sign of its own.",
+      "items": ["over S3", "estimating S1 at 53'", "RIFEN next", "request 6500 feet"],
+      "explanation": "**From the guide's second complete flight, Ljubljana to Venice.** The pilot checks in — `Ljubljana Information, S5-DAA, dober dan` / `S-AA Ljubljana Information, dober dan` — and then reports: `over S3, estimating S1 at 53', RIFEN next, request 6500 feet`.\n\nThis is the clearest printed illustration that the fourth element of the standard order is two things and not one. *Estimating S1 at 53'* is the next position with the time over it; *RIFEN next* is the following significant point. Split them apart and the report reads exactly as the element list prescribes.\n\nThe last part fills the *additional information* slot — here a request for a level rather than a purpose at an aerodrome. It is not granted straight away: the controller replies `S-AA, maintain 1000 feet AGL, report abeam Logatec`, and the climb is approved only later."
+    },
+    {
+      "num": "VRT-P3-ORD-12",
+      "subtopic": "P3_POSREP",
+      "prompt": "Drag the parts of this initial call to a new station into the order they are transmitted.",
+      "items": [
+        "Ronchi Approach, S5-BS",
+        "passing VICKY",
+        "at 2500 feet",
+        "proceeding to GRADO, Ronchi next",
+        "for touch-and-go"
+      ],
+      "explanation": "**From the guide's first complete flight, Portorož to Ronchi**, transmitted on first contact with Ronchi Approach: `Ronchi Approach, S5-BS, passing VICKY, at 2500 feet, proceeding to GRADO, Ronchi next, for touch-and-go`.\n\nAll five elements of the standard order are present — call sign (here preceded by the station being called), position, level, next position with the following significant point, and the purpose at the aerodrome as additional information.\n\nWhat this report does NOT carry is a time. The guide prints *passing VICKY* and *proceeding to GRADO, Ronchi next* with no estimate attached, and the element list allows exactly that: it brackets the time as *position (and time over)* rather than demanding it.\n\nNote also what an initial call to a new station carries that a routine report does not — the name of the station addressed, ahead of the pilot's own call sign, because \"the initial call consists of the call sign of the unit the pilot is calling followed by his own call sign\". Once the exchange is established the pilot drops back to the abbreviated `S-BS`."
+    }
+  ]
+}

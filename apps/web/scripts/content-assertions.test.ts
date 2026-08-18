@@ -89,11 +89,20 @@ describe('assertReleasedForRemote', () => {
     )
   })
 
-  it('agrees with what the two shipped content files declare', () => {
-    // The regression this pins: Part 2 is un-evaluated and must stay refused, and the refusal
-    // must not depend on any prose field an author is free to rewrite.
-    expect(() => assertReleasedForRemote(part1, 'vfr-rt-part1-acronyms.json')).not.toThrow()
-    expect(() => assertReleasedForRemote(part2, 'vfr-rt-part2-dialog-pilot.json')).toThrow()
+  it.each([
+    ['vfr-rt-part1-acronyms.json', part1],
+    ['vfr-rt-part2-dialog-pilot.json', part2],
+  ])('honours the lifecycle %s declares', (name, file) => {
+    // Pins the GATE against real shipped files without hardcoding which pool is released — an
+    // earlier version asserted "Part 2 must stay refused", which broke the moment that pool was
+    // evaluated and graduated. What must hold forever is that the verdict follows the file's own
+    // `lifecycle` field and nothing else, least of all a prose field an author can rewrite.
+    const declared = (file as { lifecycle?: unknown }).lifecycle
+    if (declared === 'released') {
+      expect(() => assertReleasedForRemote(file, name)).not.toThrow()
+    } else {
+      expect(() => assertReleasedForRemote(file, name)).toThrow()
+    }
   })
 })
 
