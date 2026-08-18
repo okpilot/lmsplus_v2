@@ -553,6 +553,17 @@ async function main() {
   console.log(`  Skipped:  ${skipped}`)
   console.log(`  Errors:   ${errors}`)
   console.log(`  Total:    ${questions.length}\n`)
+
+  // Exit non-zero when anything failed. The per-question catch above only counts, so without this
+  // a transport failure or a missing table grant (#815) — the two causes the dedup-read check
+  // names — fails EVERY question, prints 40 red lines, and still reports success to CI and to any
+  // `&&` chain. `exitCode`, not `exit()`: the latter truncates buffered stdout and would cut the
+  // summary that explains what went wrong. Same pattern and same reasoning as
+  // import-vfr-rt-content.ts's drift exit.
+  if (errors > 0) {
+    console.error(`  ${errors} question(s) failed — exiting non-zero.`)
+    process.exitCode = 1
+  }
 }
 
 main().catch((err) => {

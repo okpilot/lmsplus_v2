@@ -934,7 +934,9 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Import tool
 `apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
-`apps/web/scripts/probe-<topic>-import-conflicts.py` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
+`apps/web/scripts/probe-<topic>-import-conflicts.py` — companion dry-run (these probes are
+gitignored per `.gitignore` and written per-import, so a fresh clone has none; copy the shape from
+an existing one if any is present locally): validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
 
 **Remote import workflow:**
 
@@ -1480,7 +1482,7 @@ nothing visible; all 15 callsign blanks decidable from the text above them (posi
 48/71 and reported **zero** blanks as pure guesses; 18 of its 23 misses had the answer printed in
 the controller's line above.
 
-**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is closed BY THIS BRANCH as decided — see Decision 57 — but the divergence it describes is deliberately RETAINED, not fixed: R3 stays exact-match while the grader is tolerant, and the decision records the trigger to revisit. Read the issue as answered, not the gap as gone.
+**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P2), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is closed BY THIS BRANCH as decided — see Decision 57 — but the divergence it describes is deliberately RETAINED, not fixed: R3 stays exact-match while the grader is tolerant, and the decision records the trigger to revisit. Read the issue as answered, not the gap as gone.
 
 ## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
 

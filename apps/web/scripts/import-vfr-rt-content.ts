@@ -933,7 +933,10 @@ async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
   if (error) throw new Error(`--replace live-number lookup (${scope.rel}): ${error.message}`)
   // question_number is nullable in the schema; a NULL one cannot be authored by a content file,
   // so it is not a candidate for update OR for pruning. Dropping it here keeps it out of both.
-  return data.map((r) => r.question_number).filter((n): n is string => n !== null)
+  // `typeof n === 'string'`, not `n !== null`: `db` is the UNTYPED client, so the row shape is an
+  // unchecked assertion and a row missing the key yields `undefined`, which passes a null-check and
+  // lands in liveNums as `undefined` — matching no authored number and falling into `unaccounted`.
+  return data.map((r) => r.question_number).filter((n): n is string => typeof n === 'string')
 }
 
 /**
@@ -944,6 +947,11 @@ async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
  * result warns and returns empty rather than throwing because it is a concurrent-write race
  * safety net; see the body comment for why.
  */
+// NOT paginated, knowingly: max_rows caps the returned REPRESENTATION, not the rows the UPDATE
+// writes, so above 1000 orphans in one scope the soft-delete succeeds while `removedIds` (the
+// rollback list) captures only 1000 — and `matched.length` truncates too, so the reconciliation
+// below still balances. Unreachable at current pool sizes (largest scope is 36) and left as-is
+// rather than paginated; revisit if a scope ever approaches 1000.
 async function findReplaceTargets(scope: ReplaceScope): Promise<{ question_number: string }[]> {
   const { data: matched, error: matchErr } = await db
     .from('questions')
@@ -1110,6 +1118,10 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<Insert
 async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void> {
   // Update CONTENT only. `row` is the full buildRow output, which carries `base` — and base's
   // fields are INSERT defaults, not content: `created_by` records who first authored the row,
+  // (`explanation_text` is the exception KEPT, and not because it is content in every case — for
+  // an item authoring no `explanation`, buildRow resolves it from base, so --replace would write
+  // the boilerplate over the DB. It is kept because every SHIPPED item authors one, 140 of 140
+  // checked. Strip it too if that ever stops being true.)
   // while `difficulty`/`status` are per-row admin state. Sending the whole row would reassign
   // authorship on every content edit and flip a question an admin had set to `draft` back to
   // `active` (those are the only two values — CHECK status IN ('active','draft')). `bank_id` is the match key; `organization_id` is fixed by it
