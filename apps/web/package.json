@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "check-types:integration": "tsc --noEmit -p tsconfig.integration.json",
     "lint": "biome check .",
     "test": "vitest run",

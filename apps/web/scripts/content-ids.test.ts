@@ -101,8 +101,10 @@ describe('two pieces of content that derive one id', () => {
   it('are rejected, naming both sources and blaming normalization', () => {
     const sources = ['Line up', 'LINE   UP']
     const ids = sources.map((source) => ({ id: deriveContentId('o', [source]), source }))
+    const [firstId, secondId] = ids
+    if (!firstId || !secondId) throw new Error('expected exactly two derived ids')
     // Both really do derive the same id — otherwise this asserts nothing about the collision.
-    expect(ids[0].id).toBe(ids[1].id)
+    expect(firstId.id).toBe(secondId.id)
     let message = ''
     try {
       assertNoDerivedIdCollisions(ids, AT)

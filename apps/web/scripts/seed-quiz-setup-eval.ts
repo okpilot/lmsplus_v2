@@ -304,6 +304,10 @@ async function seed() {
   const subjectQuestionIds: Record<string, string[]> = {}
   let firstSubjectId = ''
   let firstSubjectName = ''
+  let firstSubjectCode = ''
+  // Set alongside firstSubjectId below — avoids re-indexing subjectQuestionIds[firstSubjectId]
+  // later (a Record index read is `T | undefined` under noUncheckedIndexedAccess).
+  let firstSubjectQuestionIds: string[] = []
 
   // Upload the two sample images once; reuse their URLs across all image questions.
   const questionImageUrl = await uploadSampleImage('Question image', '#1d4ed8')
@@ -321,12 +325,16 @@ async function seed() {
       .single()
     if (subjErr) throw new Error(`Subject ${subj.code}: ${subjErr.message}`)
 
+    const questionIdsForSubject: string[] = []
+    subjectQuestionIds[subject.id] = questionIdsForSubject
+
     if (!firstSubjectId) {
       firstSubjectId = subject.id
       firstSubjectName = subj.name
+      firstSubjectCode = subj.code
+      firstSubjectQuestionIds = questionIdsForSubject
     }
 
-    subjectQuestionIds[subject.id] = []
     let subjectQCount = 0
 
     for (const top of subj.topics) {
@@ -410,7 +418,7 @@ async function seed() {
             .single()
           if (qErr) throw new Error(`Q ${q.question_number}: ${qErr.message}`)
           allQuestionIds.push(qRow.id)
-          subjectQuestionIds[subject.id].push(qRow.id)
+          questionIdsForSubject.push(qRow.id)
           questionNum++
           subjectQCount++
         }
@@ -473,11 +481,15 @@ async function seed() {
   console.log(`  Flagged questions: ${flaggedIds.length}`)
 
   // 8. Saved quiz draft — partially completed quiz on first subject
-  const draftQuestionIds = subjectQuestionIds[firstSubjectId].slice(0, 5)
+  const draftQuestionIds = firstSubjectQuestionIds.slice(0, 5)
   // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
   // to a literal "undefined" key and silently corrupt the draft's answers map.
   if (draftQuestionIds.length < 2) {
     throw new Error(`Draft seed needs >= 2 questions, got ${draftQuestionIds.length}`)
+  }
+  const [draftAnswerQ1, draftAnswerQ2] = draftQuestionIds
+  if (!draftAnswerQ1 || !draftAnswerQ2) {
+    throw new Error('Draft seed needs >= 2 questions with ids')
   }
   const { error: draftErr } = await db.from('quiz_drafts').insert({
     student_id: studentId,
@@ -485,15 +497,15 @@ async function seed() {
     session_config: {
       sessionId: '',
       subjectName: firstSubjectName,
-      subjectCode: SUBJECTS[0].code,
+      subjectCode: firstSubjectCode,
       mode: 'study',
     },
     question_ids: draftQuestionIds,
     // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
     // strings are skipped as malformed on load and the draft shows 0/N progress (#1119).
     answers: {
-      [draftQuestionIds[0]]: { selectedOptionId: 'b', responseTimeMs: 3000 },
-      [draftQuestionIds[1]]: { selectedOptionId: 'a', responseTimeMs: 4500 },
+      [draftAnswerQ1]: { selectedOptionId: 'b', responseTimeMs: 3000 },
+      [draftAnswerQ2]: { selectedOptionId: 'a', responseTimeMs: 4500 },
     },
     current_index: 2,
   })

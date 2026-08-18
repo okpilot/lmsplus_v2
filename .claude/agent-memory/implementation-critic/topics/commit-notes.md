@@ -623,3 +623,22 @@ only of NON-TEST code — `content-ids.test.ts:39,94,95` also pass 2 parts, hand
 shape. Their second parts are digit runs so the separator-safety argument is unharmed; the
 sibling sentence three lines later already carries the "sole non-test caller" qualifier, so the
 omission is internally inconsistent rather than wrong. SUGGESTION class.
+
+### § row detail — 2026-08-18 (moved out of MEMORY.md for budget)
+
+**Claim-correction commit introduces a NEW wrong count/label/ENUMERATION (tracker N=5).**
+The 4th and 5th instances are rounds 1 and 2 of the SAME `mc-content.ts` docblock. The round-2
+recount ("the three surfaces that render options in AUTHORED order") is ALSO wrong: it is four,
+missing `admin-quiz-report.ts`. A recount that silently changes the UNIT (components=3 vs query
+surfaces=4) lands on a new wrong number. Remedy: **de-quantify** — "the surfaces … — A, B, C, D" —
+rather than patch the numeral.
+
+**Comment asserts a BUNDLER DCE outcome against a build that predates the commit (tracker N=2).**
+`stat .next/BUILD_ID` against the commit date; rebuild before restating "verified". The 2nd
+instance wrote the stale-build justification into AGENT MEMORY ("postdates the commit because it
+contains `z1a077e7d6`" — build 05:50Z, commit 13:43Z), where future agents inherit it unverified.
+
+**Comment-accuracy FIX replaces a false claim with a false UNIVERSAL NEGATIVE (tracker N=1).**
+RESOLVED at round 2 by SCOPING the negative to the student paths and naming both renderers, with
+the admin editor stated as the exception (#1223); the replacement scoped positive was re-verified
+true. Rule of thumb: **a universal negative needs an enumeration, not an example.**
