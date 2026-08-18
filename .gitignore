@@ -72,3 +72,15 @@ HANDOVER.md
 # (Study Mode, #1006) and is unaffected by this rule — removing it is a separate cleanup,
 # deliberately not done in a content PR.
 apps/web/.claude/
+
+# Two per-issue manual-eval seed scripts, ignored BY NAME. Local scratch for #1011 and #907 —
+# never shipped, and they carry hardcoded local credentials. Listed individually rather than as
+# `seed-*-eval.ts` on purpose: six eval seeds ARE tracked (seed-quiz-setup-eval.ts,
+# seed-vfr-rt-training-eval.ts, seed-dashboard-eval.ts, seed-admin-eval.ts,
+# seed-internal-exam-eval.ts, seed-eval.ts) and a glob would silently swallow the next legitimate
+# one — gitignore spares them today only because it cannot untrack, which is not a guarantee.
+# Why mechanical: a directory-wide `git add apps/web/scripts/` swept these two into a commit FOUR
+# times across the VFR RT branches. Each time the fix was "use explicit paths", and it did not
+# hold. Use `git add -f` if one ever genuinely needs to ship.
+apps/web/scripts/seed-1011-eval.ts
+apps/web/scripts/seed-907-pagination-eval.ts
