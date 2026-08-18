@@ -378,7 +378,8 @@ async function insertQuestion(
   // ceremony: PostgREST returns 200 with data:null on a failed read, which is indistinguishable
   // from "no match", so the importer falls through to the INSERT below. It does NOT create a
   // duplicate — idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at
-  // IS NULL — it trips that index and surfaces an opaque 23505 instead of naming the read that
+  // IS NULL AND question_number IS NOT NULL, and this importer always sets question_number and
+  // always inserts live rows, so both predicates hold — it trips that index and surfaces an opaque 23505 instead of naming the read that
   // actually failed. Reachable causes here are transport failure, a missing table grant (#815)
   // and PostgREST/schema errors; NOT RLS, since this client holds the service-role key and so
   // BYPASSRLS. (code-style.md §5, whose rule text names RLS because it is written for the

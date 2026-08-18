@@ -1480,7 +1480,7 @@ nothing visible; all 15 callsign blanks decidable from the text above them (posi
 48/71 and reported **zero** blanks as pure guesses; 18 of its 23 misses had the answer printed in
 the controller's line above.
 
-**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is resolved — see Decision 57: R3 stays exact-match, the gap is recorded rather than ported, with a revisit trigger.
+**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is CLOSED as decided — see Decision 57 — but the divergence it describes is deliberately RETAINED, not fixed: R3 stays exact-match while the grader is tolerant, and the decision records the trigger to revisit. Read the issue as answered, not the gap as gone.
 
 ## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
 
@@ -1545,7 +1545,12 @@ legs question and the turns question using disjoint zone sets.
 > questions (`MIN_CORPUS_FOR_KEY_BALANCE`), so the 11-question emergency and 5-question posrep pools are NOT covered by their own
 > per-file check — they are covered by a second pass over the union of every MC file sharing a
 > `(subject_code, topic_code)`, which is 36 questions for Part 3 and so clears the floor. Both the
-> importer and the suite run that union. The split into subareas is what opened the hole: the gate
+> importer and the suite run that union — but they see different inputs. The SUITE always loads
+> all three files, so its union is always 36. The IMPORTER unions only the files passed to the
+> invocation, so `import ... vfr-rt-part3-mc-emergency.json` ALONE unions 11, stays under
+> `MIN_CORPUS_FOR_KEY_BALANCE`, and the key-balance gate does not run at all. Pass the whole
+> `vfr-rt-part3-mc-*.json` glob, as the documented invocation does, or the union check is silently
+> absent — the same per-invocation scoping that governs `--replace`'s orphan set. The split into subareas is what opened the hole: the gate
 > was written when Part 3 MC was one 20-question pool, and splitting it to 20 / 11 / 5 silently
 > dropped 16 of 36 questions out of coverage while every test stayed green.
 

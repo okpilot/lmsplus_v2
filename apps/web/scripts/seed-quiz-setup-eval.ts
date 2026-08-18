@@ -508,7 +508,9 @@ async function seed() {
     current_index: 2,
   })
   if (draftErr) throw new Error(`Draft: ${draftErr.message}`)
-  console.log(`  Saved draft: 5 questions, 2 answered (${firstSubjectName})`)
+  console.log(
+    `  Saved draft: ${draftQuestionIds.length} questions, 2 answered (${firstSubjectName})`,
+  )
 
   // Done
   console.log(`
