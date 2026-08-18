@@ -323,45 +323,39 @@ describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, 
     // which then contradicted the next paragraph's "every option here is a real phrase". A student
     // reads the explanation as the teaching surface, so a ghost option is worse than a vague one.
     //
-    // Keyed on **BOLD CAPS**, the convention these files use to quote an option — the title says
-    // "in capitals" because that is the whole of what this covers; see the SCOPE note below for
-    // what it does not. Two guide keywords are bolded the same way without being options; they are
-    // allowlisted rather than pattern-matched, so a third one fails loudly and gets a deliberate
-    // decision instead of silent drift.
+    // Matches a span emphasised with EITHER marker. Bold-only was the original mistake and it
+    // missed the very defect above: EMC-06's ghost shipped in *italics*, so restoring that exact
+    // sentence left the suite green. Italic is the commoner form here, not the rarer one.
+    //
+    // Two guide keywords are emphasised like an option quote without being options; they are
+    // allowlisted by exact string, so a third one fails loudly rather than drifting in silently.
     const GUIDE_KEYWORDS = new Set(['DECIMAL', 'OMIT'])
-    // Validate BEFORE the cast, matching the sibling case below. This test now runs first, so an
+    // Validate BEFORE the cast, matching the sibling case below. This case runs first, so an
     // unguarded cast here would pre-empt the named failure that one arranges: a malformed question
-    // would surface as `TypeError: Cannot read properties of undefined` from this test instead
-    // (code-style.md §5 — the cast-guard rule is not relaxed in test files).
+    // would surface as an opaque TypeError instead (code-style.md §5 — not relaxed in test files).
     for (const item of questions) assertMcItem(item, name)
+    const collapse = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ')
     for (const item of questions) {
       const q = item as AuthoredMcQuestion
-      const offered = new Set(q.options.map((o) => o.text.trim().toLowerCase()))
-      // Match ANY bold span, then discard the ones containing lowercase. Keying on a character
-      // class instead (this test's first version required A-Z and >=4 chars) made the guard blind
-      // to digit-leading option quotes: EMC-09, in the EMERGENCY corpus, bolds **7600**, **7500**
-      // and **2000** and that pattern saw none of them. Those three are the whole of what the
-      // widening gained — measured per corpus, emergency +3, numbers +0, posrep +0.
-      //
-      // SCOPE, measured rather than assumed — this catches ALL-CAPS option quotes, not every one:
-      // 116 of 144 option texts contain lowercase, so a bold quote of any of them is discarded by
-      // the filter. Dropping the filter is not the fix; across the three corpora it would produce
-      // 53 false positives, because bolded PROSE is how these explanations emphasise a rule. Today
-      // the filter costs exactly one real blind spot — EMC-11 bolds **technical trouble**, a
-      // genuine lowercase option quote — so a ghost reference to a lowercase-containing option
-      // still slips through.
-      //
-      // Where this guard is WEAKEST is the opposite of what the digit example suggests: it is
-      // inert on the NUMBERS corpus. None of that corpus's 80 option texts is all-caps (they are
-      // spelled-out forms — `one two eight decimal one seven five`), so the filter discards every
-      // possible quote of them; the only span it inspects there is **DECIMAL**, which is
-      // allowlisted. Re-measure per corpus before widening this. The discriminator that beats it
-      // has to separate an option quote from an emphasised phrase, which case alone does not do.
-      const named = [...(q.explanation ?? '').matchAll(/\*\*([^*]+)\*\*/g)]
+      const offered = q.options.map((o) => collapse(o.text))
+      // SCOPE, measured — this covers ALL-CAPS quotes only, which is 19 of the 81 genuine option
+      // quotes in the corpora (emergency 16, numbers 1, posrep 2). The other 62 are lowercase and
+      // the filter below discards them, because bolding and italicising PROSE is how these
+      // explanations emphasise a rule: drop the filter and 75 emphasised phrases read as ghosts.
+      // The numbers corpus is where that bites — it spells its options out (`one two eight decimal
+      // one seven five`), so 0 of its 80 option texts are all-caps and the guard checks a single
+      // span there. Re-measure per corpus before widening; the discriminator that beats this has
+      // to tell an option quote from an emphasised phrase, which case alone cannot do.
+      const named = [...(q.explanation ?? '').matchAll(/\*{1,2}([^*\n]+)\*{1,2}/g)]
         .map((m) => m[1] as string)
-        .filter((sp) => !/[a-z]/.test(sp))
+        .filter((span) => !/[a-z]/.test(span))
+      // Substring, not equality: an explanation may quote a FRAGMENT of an option, as PMC-03 does
+      // with *OPERATIONS NORMAL* against the longer option that contains it. A true ghost names a
+      // phrase no option contains at all, and still fails.
       const ghosts = named.filter(
-        (n) => !offered.has(n.trim().toLowerCase()) && !GUIDE_KEYWORDS.has(n.trim()),
+        (span) =>
+          !GUIDE_KEYWORDS.has(span.trim()) &&
+          !offered.some((option) => option.includes(collapse(span))),
       )
       expect(ghosts, `${name} (${q.num}): explanation names non-existent option(s)`).toEqual([])
     }
