@@ -55,7 +55,7 @@ function questionsOf(file: unknown): unknown[] {
 describe.each(ORDERING_CORPORA)('the authored ordering corpus in %s', (name, file, expected) => {
   const questions = questionsOf(file)
 
-  it('holds exactly the number of questions the suite was told to expect', () => {
+  it(`contains exactly ${expected} ordering questions`, () => {
     // Exact, not a floor — a `>=` check stops tracking a corpus as it grows, so a mass deletion
     // would pass. Update the number in ORDERING_CORPORA in the same commit that adds or drops one.
     expect(questions.length).toBe(expected)
@@ -99,7 +99,7 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
     }
   })
 
-  it('holds exactly the number of questions the suite was told to expect', () => {
+  it(`contains exactly ${expected} diagram questions`, () => {
     expect(questions.length).toBe(expected)
   })
 

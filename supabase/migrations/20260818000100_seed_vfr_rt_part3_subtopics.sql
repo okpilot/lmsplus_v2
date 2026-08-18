@@ -34,3 +34,33 @@ CROSS JOIN (VALUES
 ) AS st(code, name, sort_order)
 WHERE s.code = 'RT' AND t.code = 'P3_MC'
 ON CONFLICT (topic_id, code) DO NOTHING;
+
+-- Fail the APPLY if the four rows are not there afterwards.
+--
+-- Without this the migration is a silent no-op whenever subject 'RT' or topic 'P3_MC' is absent or
+-- renamed: the SELECT yields zero rows, the INSERT still succeeds, and the migration applies clean.
+-- The failure then surfaces far away and much later, when the content importer rejects every Part 3
+-- file at lookupSubtopicByCode. Same stance the importer takes in this PR — throw, never silently
+-- unfile.
+--
+-- Asserts EXISTENCE, not rows-inserted. A re-apply legitimately inserts zero (ON CONFLICT DO
+-- NOTHING) while all four rows are present, so counting insertions would turn the idempotency this
+-- migration is built for into a spurious failure.
+DO $$
+DECLARE
+  v_found integer;
+BEGIN
+  SELECT count(*) INTO v_found
+  FROM easa_subtopics st
+  JOIN easa_topics t ON t.id = st.topic_id
+  JOIN easa_subjects s ON s.id = t.subject_id
+  WHERE s.code = 'RT'
+    AND t.code = 'P3_MC'
+    AND st.code IN ('P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN');
+
+  IF v_found <> 4 THEN
+    RAISE EXCEPTION
+      'VFR RT Part 3 subtopic seed found % of 4 rows under subject RT / topic P3_MC — the parent subject or topic is missing or renamed, so the seed matched nothing',
+      v_found;
+  END IF;
+END $$;

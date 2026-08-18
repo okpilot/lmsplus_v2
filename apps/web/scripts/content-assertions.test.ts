@@ -117,11 +117,15 @@ describe('assertReleasedForRemote', () => {
     const declared = (file as { lifecycle?: unknown }).lifecycle
     expect(declared, `${name} declares no lifecycle`).toBeDefined()
 
+    // Message-pinned, not bare: a bare toThrow() goes green on ANY error, so it could not tell the
+    // lifecycle gate from an unrelated throw added to assertReleasedForRemote later — the same
+    // reason diagram-content.test.ts pins its messages.
+    const REFUSAL = /refusing to write this file to a remote database/
     if (declared === 'released') {
       expect(() => assertReleasedForRemote(file, name)).not.toThrow()
-      expect(() => assertReleasedForRemote({ ...file, lifecycle: 'pilot' }, name)).toThrow()
+      expect(() => assertReleasedForRemote({ ...file, lifecycle: 'pilot' }, name)).toThrow(REFUSAL)
     } else {
-      expect(() => assertReleasedForRemote(file, name)).toThrow()
+      expect(() => assertReleasedForRemote(file, name)).toThrow(REFUSAL)
       expect(() => assertReleasedForRemote({ ...file, lifecycle: 'released' }, name)).not.toThrow()
     }
   })

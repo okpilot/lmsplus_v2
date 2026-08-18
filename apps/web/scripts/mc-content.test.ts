@@ -317,6 +317,29 @@ describe('the Part 3 multiple_choice pools taken together', () => {
 describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, file) => {
   const questions = (file as { questions: unknown[] }).questions
 
+  it('never argues against an option the question does not offer', () => {
+    // EMC-06 shipped an explanation that told the student *MAYDAY ACKNOWLEDGED* "appears nowhere in
+    // the guide" — a distractor that had been REPLACED in the options and left behind in the prose,
+    // which then contradicted the next paragraph's "every option here is a real phrase". A student
+    // reads the explanation as the teaching surface, so a ghost option is worse than a vague one.
+    //
+    // Keyed on **BOLD CAPS**, the convention these files use to quote an option. Two guide keywords
+    // are bolded the same way without being options; they are allowlisted rather than pattern-
+    // matched, so a third one fails loudly and gets a deliberate decision instead of silent drift.
+    const GUIDE_KEYWORDS = new Set(['DECIMAL', 'OMIT'])
+    for (const item of questions) {
+      const q = item as AuthoredMcQuestion
+      const offered = new Set(q.options.map((o) => o.text.trim().toLowerCase()))
+      const named = [...(q.explanation ?? '').matchAll(/\*\*([A-Z][A-Z0-9 ,'’-]{3,})\*\*/g)].map(
+        (m) => m[1] as string,
+      )
+      const ghosts = named.filter(
+        (n) => !offered.has(n.trim().toLowerCase()) && !GUIDE_KEYWORDS.has(n.trim()),
+      )
+      expect(ghosts, `${name} (${q.num}): explanation names non-existent option(s)`).toEqual([])
+    }
+  })
+
   it('explains every question, since the explanation is the teaching surface', () => {
     // Validate before reading fields: without this the cast below is load-bearing, and a
     // malformed question would surface as a TypeError here rather than a named failure.

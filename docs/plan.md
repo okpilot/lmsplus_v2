@@ -1485,8 +1485,10 @@ the controller's line above.
 | Traffic Pattern (`P3_PATTERN`) | — | — | 2 |
 
 **Training-only vs exam-reachable — the table above is NOT the mock-exam pool.**
-`start_vfr_rt_exam_session` (latest definition mig `20260629000500` L189, where the single-active
-guard re-emitted the whole body) pins Part 3 sampling to `question_type = 'multiple_choice'`, so
+`start_vfr_rt_exam_session` (latest definition
+`20260629000500_start_vfr_rt_exam_session_single_active_guard.sql`, where the single-active guard
+re-emitted the whole body) pins Part 3 sampling with the predicate
+`AND q.question_type = 'multiple_choice'` — grep that rather than a line number, which drifts. So
 only the 36 MC questions can ever be drawn into a VFR RT mock exam. The 12 `ordering` and 2
 `diagram_label` questions are reachable in training only — which means the mock exam currently
 never assesses the Traffic Pattern competency at all, since that subarea is 100% `diagram_label`.
@@ -1521,9 +1523,11 @@ legs question and the turns question using disjoint zone sets.
 > **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
 > `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
 > per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
-> `assertMcKeyBalance` (per pool: no id above 1.6× the even share, no offered id never used), and
+> `assertMcKeyBalance` (per pool: no id above `KEY_SKEW_TOLERANCE` times the even share, no offered
+> id never used — both constants live in `scripts/mc-content.ts`, named rather than restated here so
+> the doc cannot drift from them), and
 > **both run in the importer as well as the suite**. `assertMcKeyBalance` skips pools under 12
-> questions, so the 11-question emergency and 5-question posrep pools are NOT covered by their own
+> questions (`MIN_CORPUS_FOR_KEY_BALANCE`), so the 11-question emergency and 5-question posrep pools are NOT covered by their own
 > per-file check — they are covered by a second pass over the union of every MC file sharing a
 > `(subject_code, topic_code)`, which is 36 questions for Part 3 and so clears the floor. Both the
 > importer and the suite run that union. The split into subareas is what opened the hole: the gate
