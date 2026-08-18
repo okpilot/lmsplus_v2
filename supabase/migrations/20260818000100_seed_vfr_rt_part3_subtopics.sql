@@ -12,10 +12,11 @@
 -- question row is touched by this migration.
 --
 -- Notes:
--- - Idempotency: easa_subtopics UNIQUE is (topic_id, code), NOT (code) alone (mig 001 line 79),
+-- - Idempotency: easa_subtopics UNIQUE is (topic_id, code), NOT (code) alone (declared inline on its
+--   CREATE TABLE in 20260311000001_initial_schema.sql),
 --   so ON CONFLICT names both columns; a bare ON CONFLICT (code) would raise 42P10. Re-running
 --   is a no-op. This mirrors the same care taken for easa_topics in mig 097.
--- - FK lookup via subquery on code -- no hard-coded UUIDs.
+-- - FK lookup via JOINs on the subject/topic codes (easa_topics -> easa_subjects) -- no hard-coded UUIDs.
 -- - sort_order follows the briefing's own ordering of the four competencies.
 -- - The two sequencing subareas share a question type (`ordering`) but test different content,
 --   which is exactly why they are separate: a student drilling MAYDAY sequencing should not also

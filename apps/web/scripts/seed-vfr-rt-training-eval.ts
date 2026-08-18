@@ -377,6 +377,14 @@ const ORDERING: Ordering[] = [
   {
     num: 'VRT-P3-ORD-POSREP',
     text: 'Put the elements of a VFR position report in the correct order.',
+    // Diverges from the curated ORD-05 the same way the MAYDAY fixture above diverges from ORD-01,
+    // and for the same reason: this fixture predates the content file. ORD-05 prescribes
+    // 'aircraft call sign (and type if necessary)' / 'position (and time over)' / 'flight level or
+    // altitude' / 'next position and time over, and the following significant point' /
+    // 'additional information'. The wording below is the older paraphrase. It is an eval fixture,
+    // not shipped content, so it is left as-is — but do not copy it back into the content file,
+    // and note the sibling comment above existed while this one did not, which is exactly the
+    // partial-edit tell code-style.md §10 names.
     items: [
       'aircraft callsign',
       'present position',

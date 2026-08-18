@@ -143,6 +143,36 @@ describe.each(DIAGRAM_CORPORA)('the authored diagram corpus in %s', (name, file,
     }
   })
 
+  it('maps each question to its expected zones and chips', () => {
+    // The checks above are per-placement: they prove each entry names a real zone and a real chip,
+    // but not that the mapping is the RIGHT one or a COMPLETE one. `{ "0": "Go-around" }` — one
+    // valid zone, one real (distractor) chip — satisfies every one of them while seeding a broken
+    // question. Pinning the whole map is what makes this corpus sweep able to fail.
+    //
+    // The two questions use disjoint zone sets by design: DIAG-01 is the five LEGS (even indices),
+    // DIAG-02 the four TURNS between them (odd). That split is the reason both can share one
+    // artwork, so it is worth pinning rather than deriving.
+    const expected: Record<string, Record<string, string>> = {
+      'VRT-P3-DIAG-01': {
+        '0': 'Upwind leg',
+        '2': 'Crosswind leg',
+        '4': 'Downwind leg',
+        '6': 'Base leg',
+        '8': 'Final approach',
+      },
+      'VRT-P3-DIAG-02': {
+        '1': 'Crosswind turn',
+        '3': 'Downwind turn',
+        '5': 'Base turn',
+        '7': 'Final turn',
+      },
+    }
+    for (const item of questions as AuthoredDiagramQ[]) {
+      expect(expected[item.num], `${name}: no pinned map for ${item.num}`).toBeDefined()
+      expect(item.diagram.answer_by_zone, `${name} (${item.num})`).toEqual(expected[item.num])
+    }
+  })
+
   it('never sends two zones the same chip', () => {
     for (const item of questions as AuthoredDiagramQ[]) {
       const texts = Object.values(item.diagram.answer_by_zone)

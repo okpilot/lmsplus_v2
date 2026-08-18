@@ -113,7 +113,10 @@ export const finalCenter = midpoint(finalTurn, runwayEast)
  * The 9 drop zones (5 legs + 4 turns), positioned along the circuit above, in
  * flight order. Each id is `deriveZoneId(RWY_2709_IMAGE_REF, <its index>)`, so
  * it says only WHERE the zone is on WHICH image — see the SECURITY note at the
- * top of this file. Reordering this array changes every id below it.
+ * top of this file. Reordering this array does NOT change the literal ids — they are literals.
+ * It makes them WRONG: each id is derived from its INDEX, so a reorder breaks the derivation
+ * pin in diagram-content.test.ts and invalidates every stored answer mapping keyed on the old
+ * positions. Re-derive the ids and re-seed if you reorder.
  */
 export const RWY_2709_ZONES: DiagramZone[] = [
   box('z1a077e7d6', upwindCenter), // upwind leg
