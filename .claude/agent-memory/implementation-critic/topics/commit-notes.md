@@ -642,3 +642,57 @@ contains `z1a077e7d6`" — build 05:50Z, commit 13:43Z), where future agents inh
 RESOLVED at round 2 by SCOPING the negative to the student paths and naming both renderers, with
 the admin editor stated as the exception (#1223); the replacement scoped positive was re-verified
 true. Rule of thumb: **a universal negative needs an enumeration, not an example.**
+
+### § row detail — 2026-08-18 (b), `chore/part3-audit-followup` CR-round-1 follow-up
+
+**Comment vs authority, 9th + 10th instances (tracker: "Doc or code comment … contradicts").**
+- 9th — `import-vfr-rt-content.ts` `updateReplacedRow`: a NEW comment justified stripping `status`
+  by "a question an admin had set to draft **or retired**". `questions.status` is
+  `CHECK (status IN ('active','draft'))` (`20260311000001_initial_schema.sql`), and the admin
+  surfaces (`admin/questions/types.ts`, `page.tsx` `STATUS_VALUES`, `question-filter-selects.tsx`,
+  `bulk-actions-bar.tsx`) all union exactly `'active' | 'draft'`. "Retired" everywhere else in the
+  repo means SOFT-DELETED (`docs/database.md:204`, `get_study_questions` mig comment) — and the
+  UPDATE carries `.is('deleted_at', null)`, so that state is unreachable on this path. False on
+  both readings.
+- 10th — `import-questions.ts` dedup comment: claimed a failed read "inserts a duplicate — exactly
+  the row this query exists to prevent". `idx_questions_bank_number`
+  (`20260311000003_add_question_number.sql`) is `UNIQUE (bank_id, question_number) WHERE
+  deleted_at IS NULL AND question_number IS NOT NULL`, so the INSERT 23505s instead. Same comment
+  blamed "RLS-blocked", but the client is `createClient<Database>(url, SERVICE_ROLE_KEY)` and
+  `service_role` holds BYPASSRLS. The *change* is right (fail loudly); the stated mechanism and
+  consequence are both wrong.
+- Lesson: **before writing WHY a guard exists, name the failure it prevents, then check whether
+  some OTHER mechanism already prevents it.** A guard can be correct while its rationale is fiction.
+
+**Docblock vs body, 3rd instance.** `updateReplacedRow`'s docblock argues "`row` never carries an
+`id` … so **`.update(row)`** leaves the target row's id untouched" 13 lines above its own body's
+`.update(content)`; and the `InsertOutcome` docblock ~50 lines up still says `updateReplacedRow`
+"sends the **full** `buildRow` output". Both survive as *substantively* true (content is derived
+from row by omission, and `subtopic_id` is still sent) while naming a call that no longer exists —
+which is why a correctness read misses them. **Grep the identifier, not the enclosing function.**
+
+**Retraction vs sibling, 3rd instance.** `ReplacePlan.orphaned`'s docblock was rewritten to
+"INFORMATIONAL ONLY — no caller acts on it, and none should", verified against `planScope`
+(destructures only `{ toUpdate, toInsert }`) and `planReplaceAll` (`plans.set(rel, { ...decided,
+orphaned: [] })`). But `replace-planning.test.ts:18` still titles its case "flags a question
+dropped from the file as orphaned **for soft-delete**" — the exact intent just retracted.
+**A test title is a claim; grep test titles when a docblock retracts a field's purpose.**
+
+**Verified clean this cycle (do not re-raise).**
+- `base` is exactly 6 keys; the 5-key strip leaves `explanation_text` (content, overridden in all
+  five `buildRow` branches) plus `subject_id`/`topic_id`/`subtopic_id` (deliberate, #1191).
+- Stripping `bank_id` cannot break `.eq('bank_id', …)` — a WHERE filter never reads the SET payload.
+- No NOT NULL risk: an UPDATE omitting a column leaves the stored value. `questions` carries no
+  immutable-column or `updated_at` trigger; only `trg_sanitize_question_options`
+  (`BEFORE INSERT OR UPDATE OF options`), which the payload still satisfies.
+- The strip is correctly localized: `insertIfMissing` still `.insert(row)` with the full base
+  (`created_by`/`difficulty`/`organization_id`/`bank_id` are NOT NULL, `difficulty` has no default).
+- `import-questions.ts` throw is safe at its call site: `insertQuestion` runs inside a per-question
+  `try/catch` that increments `errors` and continues; no caller depended on the swallow.
+- Seed-script removal is clean — zero references repo-wide; `tsconfig.scripts.json`
+  (`scripts/**/*.ts`) and `knip.json` (`scripts/*.ts`) are globs.
+- `docs/plan.md` claim verified: `import-questions.ts` reads `NEXT_PUBLIC_SUPABASE_URL` at one site
+  and prints it only on the two ERROR paths — never on a successful run.
+- `tsconfig.scripts.json`'s "only `import-questions.ts` and `cleanup-orphaned-draft-sessions.ts`
+  pass `<Database>`" is still accurate (2 of 14 `createClient(` script files) — the operator's SKIP
+  of the CR "type every script client" finding is correct: documented, accurate, separate concern.

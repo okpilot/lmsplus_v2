@@ -210,3 +210,23 @@ they are archived, not retired; a recurrence increments the count here and retur
 | "Type-only" refactor hoists `args[i+1]` into a `const` while a LATER branch still reads the MUTATED `args[i]` | 2026-08-18 | 1 | 2026-08-18 | WATCHING. `import-questions.ts` parseArgs; verified unobservable (readFileSync dies first). Diff old-vs-new parsers in `node`, don't reason. |
 | Code comment names the wrong CI JOB for a gate it wires up ("CI lint job" for a job named `type-check`) | 2026-08-18 | 1 | 2026-08-18 | WATCHING → §10. Substantive claim true, job name false. Read `.github/workflows/ci.yml` job keys before naming one. |
 | Comment-accuracy FIX replaces a false claim with a false UNIVERSAL NEGATIVE, counterexample in the same docblock | 2026-08-18 | 1 | 2026-08-18 | RESOLVED (round 2, #1223) — scope the negative + name the renderers. A universal negative needs an enumeration, not an example. |
+
+
+## archived tracker rows 2026-08-18 (c)
+
+Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all WATCHING.
+
+| Pattern | First | N | Last | Status |
+|---|---|---|---|---|
+| Error message refactor breaks paired test assertion regex | 2026-05-06 | 1 | 2026-05-06 | WATCHING. Grep tests for the old substring. † |
+| Payload-group loop applied to fewer RPCs than the plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. Count loops per describe block. † |
+| Conditional redirect regression when a helper's return value is discarded | 2026-04-14 | 1 | 2026-04-14 | WATCHING. Check callers when a side-effect becomes conditional. † |
+| Hard DELETE on quiz_sessions in red-team cleanup | 2026-06-05 | 1 | 2026-06-05 | WATCHING. Soft-delete only — hard `.delete()` = ISSUE. † |
+| Red-team non-vacuity read omits a filter the RPC itself uses | 2026-06-14 | 1 | 2026-06-14 | WATCHING. Mirror ALL of the RPC's predicates. † |
+| Pre-existing file-size violation worsened by a bug-fix commit | 2026-06-21 | 1 | 2026-06-21 | WATCHING. SUGGESTION class; the split is a separate refactor. † |
+| Fractional partial-credit SUM funneled through an `int` plpgsql var → rounded early | 2026-06-21 | 1 | 2026-06-21 | WATCHING. Var stays `numeric` until the percentage is derived. † |
+| Agent-memory stub rows with an archive pointer the archive does not hold | 2026-06-22 | 1 | 2026-06-22 | WATCHING. Fuzzy-grep the archive + other suffix forms first. † |
+| packages/db migration NNN prefix collides with a parallel UNMERGED branch | 2026-06-26 | 1 | 2026-06-26 | WATCHING. Merge-sequencing hazard, not a staged-diff defect. † |
+| Integration fixture retyped to satisfy a new trigger, leaving the original CHECK active | 2026-06-24 | 1 | 2026-06-24 | WATCHING. Retarget to a trigger-allowed type. † |
+| Restore UPDATE on a just-fetched row omits the `.select('id')` zero-row chain | 2026-07-13 | 1 | 2026-07-13 | WATCHING. SUGGESTION only — zero-row impossible for an id from a committed same-request query. |
+| Soft-delete restore clears `deleted_at` but omits a sibling nullable column | 2026-07-13 | 1 | 2026-07-13 | WATCHING. 8 seed scripts missed `deleted_by: null`. Check the types.ts Update shape. |

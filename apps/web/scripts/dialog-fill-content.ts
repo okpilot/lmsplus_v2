@@ -462,7 +462,11 @@ function nearestNonEmptyLineBefore(lines: readonly string[], i: number): string 
  *
  * Items that cannot satisfy the readback anchor opt out via `unanchored` — but the bar is
  * EXCLUSION, not plausibility: the declaration must name the competing phrase and show what
- * visible text rules it out.
+ * visible text rules it out. That bar is an AUTHORING obligation, not a checked one: the code
+ * below verifies only that `unanchored` ITSELF is a non-empty string (the anchor scan above it
+ * is enforced normally). Nothing can machine-check whether
+ * a sentence actually excludes a phrase, so the escape hatch is exactly as strong as the review
+ * that reads it — do not cite R7 as proof an unanchored blank was justified.
  *
  * Exclude it with material that is DISCLOSED. An earlier pass invented a `holding short of` call
  * for DLG-34 and a `right base` call for DLG-35 purely so elimination would hold, and asserted the

@@ -1024,8 +1024,12 @@ request departure information, traffic in sight, looking out"). Enforced as auth
 in `apps/web/scripts/dialog-fill-content.ts`: a recall blank needs an `[atc]` line above it — ignoring blank
 separator lines, which `apps/web/app/app/quiz/session/_utils/parse-dialog-display.ts` filters out before rendering, so the anchor is
 directly above ON SCREEN even when the template array separates them — or an `unanchored`
-declaration that NAMES the competing phrase and shows what visible text excludes it. (The check
-originally read exactly `lines[i - 1]` and so rejected an anchor a blank line had pushed up; #1198.)
+declaration. What the VALIDATOR enforces is the anchor scan and that `unanchored` is a non-empty
+string; the requirement that the declaration NAME the competing phrase and show what visible text
+excludes it is an authoring obligation carried by review, not by the gate — no check can decide
+whether a sentence excludes a phrase. Do not read a passing gate as evidence an unanchored blank
+was justified. (The anchor scan originally read exactly `lines[i - 1]` and so rejected an anchor a
+blank line had pushed up; #1198.)
 
 **Consequence accepted**: Three transcripts now carry transmissions the guide's compressed examples
 omit (DLG-01, 34, 35), disclosed in the content file's `source` block — constructed transcripts
