@@ -317,7 +317,7 @@ describe('the Part 3 multiple_choice pools taken together', () => {
 describe.each(MC_CORPORA)('the authored MC corpus in %s (explanations)', (name, file) => {
   const questions = (file as { questions: unknown[] }).questions
 
-  it('never quotes in capitals an option the question does not offer', () => {
+  it('does not emphasise a capitalised phrase that no option contains', () => {
     // EMC-06 shipped an explanation that told the student *MAYDAY ACKNOWLEDGED* "appears nowhere in
     // the guide" — a distractor that had been REPLACED in the options and left behind in the prose,
     // which then contradicted the next paragraph's "every option here is a real phrase". A student
