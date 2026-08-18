@@ -949,8 +949,13 @@ async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
  */
 // NOT paginated, knowingly: max_rows caps the returned REPRESENTATION, not the rows the UPDATE
 // writes, so above 1000 orphans in one scope the soft-delete succeeds while `removedIds` (the
-// rollback list) captures only 1000 — and `matched.length` truncates too, so the reconciliation
-// below still balances. Unreachable at current pool sizes (largest scope is 36) and left as-is
+// rollback list) captures only 1000. Whether the reconciliation below then balances depends on
+// PostgREST applying max-rows to a mutation's returning representation as well as to reads, which
+// I did not verify — if it does not, the count check throws AFTER the soft-delete, which fails
+// closed with a complete `removedIds` and rollback is safe. In the other case it balances
+// SILENTLY, `removedIds` under-records past 1000, and a later failure in the same run would
+// restore only what it recorded — leaving the excess soft-deleted. That asymmetry is the reason
+// for the "revisit if a scope ever approaches 1000" note above. Unreachable at current pool sizes (largest scope is 36) and left as-is
 // rather than paginated; revisit if a scope ever approaches 1000.
 async function findReplaceTargets(scope: ReplaceScope): Promise<{ question_number: string }[]> {
   const { data: matched, error: matchErr } = await db
@@ -1118,10 +1123,13 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<Insert
 async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void> {
   // Update CONTENT only. `row` is the full buildRow output, which carries `base` — and base's
   // fields are INSERT defaults, not content: `created_by` records who first authored the row,
-  // (`explanation_text` is the exception KEPT, and not because it is content in every case — for
-  // an item authoring no `explanation`, buildRow resolves it from base, so --replace would write
-  // the boilerplate over the DB. It is kept because every SHIPPED item authors one, 140 of 140
-  // checked. Strip it too if that ever stops being true.)
+  // `explanation_text` is the exception KEPT. Not because it is always content: an item authoring
+  // no `explanation` falls back to base's boilerplate on four of the five branches, and on
+  // short_answer too when it authors no `acronym` (that branch is two-tiered —
+  // `sa.explanation ?? (sa.acronym ? "<acronym>: <canonical>" : base.explanation_text)`, and
+  // `acronym` is optional). Only short_answer WITH an acronym falls back to real content. It is
+  // kept because every SHIPPED item authors an `explanation`, 140 of 140 counted. If that stops
+  // being true, strip it everywhere except short_answer-with-acronym.
   // while `difficulty`/`status` are per-row admin state. Sending the whole row would reassign
   // authorship on every content edit and flip a question an admin had set to `draft` back to
   // `active` (those are the only two values — CHECK status IN ('active','draft')). `bank_id` is the match key; `organization_id` is fixed by it

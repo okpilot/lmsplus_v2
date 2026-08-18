@@ -230,3 +230,18 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
 | Integration fixture retyped to satisfy a new trigger, leaving the original CHECK active | 2026-06-24 | 1 | 2026-06-24 | WATCHING. Retarget to a trigger-allowed type. † |
 | Restore UPDATE on a just-fetched row omits the `.select('id')` zero-row chain | 2026-07-13 | 1 | 2026-07-13 | WATCHING. SUGGESTION only — zero-row impossible for an id from a committed same-request query. |
 | Soft-delete restore clears `deleted_at` but omits a sibling nullable column | 2026-07-13 | 1 | 2026-07-13 | WATCHING. 8 seed scripts missed `deleted_by: null`. Check the types.ts Update shape. |
+
+## archived tracker rows 2026-08-19 (d) — count=1 WATCHING rows moved out of MEMORY.md for budget
+
+| Pattern | First | N | Last | Status |
+|---|---|---|---|---|
+| Memory delta written to the stray `apps/web/.claude/agent-memory/` (cwd was `apps/web`) | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Same loss class as a stashed delta. † |
+| Zero-row no-op, DISTINCT: `.select('id')` present but count logged only when `> 0` | 2026-08-11 | 1 | 2026-08-11 | WATCHING. If a prior SELECT proved N match, compare to N and THROW. † |
+| New test line copied from a sibling exceeds `lineWidth: 100` → format gate fails | 2026-08-17 | 1 | 2026-08-17 | WATCHING. `npx biome check <staged>` BEFORE commit — amend is forbidden after a hook failure. † |
+| Rules edit bumps one file's `Last updated` footer but not a sibling's | 2026-08-08 | 1 | 2026-08-08 | WATCHING. Distinct from prose divergence (that is rule TEXT drifting). † |
+| Playwright `getByRole('dialog')` on a Base UI **AlertDialog** (role=`alertdialog`) | 2026-08-09 | 1 | 2026-08-09 | WATCHING. Strict role equality — no superclass matching. † |
+| Redirect target copied from a sibling without checking the route EXISTS | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `find app -path '*<seg>/page.tsx'` first. † |
+| Pre-existing UNTRACKED files swept in by a broad `git add <dir>` | 2026-08-15 | 1 | 2026-08-15 | WATCHING. Diff the staged FILE LIST against the commit's stated scope. † |
+| New app-layer integration test reuses a REAL seeded reference code | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `seedReferenceData` upserts `onConflict: 'code'` — use a unique suffix. † |
+| A new authoring guard justified by a RUNTIME/UI mechanism the component contradicts | 2026-08-17 | 1 | 2026-08-17 | WATCHING. §10 beyond SQL. Read the renderer before writing why a content rule exists. † |
+| Content-file `authoring_notes` asserts a corpus invariant the corpus violates | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Measure every countable claim against the JSON. † |

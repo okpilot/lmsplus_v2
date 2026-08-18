@@ -696,3 +696,49 @@ dropped from the file as orphaned **for soft-delete**" — the exact intent just
 - `tsconfig.scripts.json`'s "only `import-questions.ts` and `cleanup-orphaned-draft-sessions.ts`
   pass `<Database>`" is still accurate (2 of 14 `createClient(` script files) — the operator's SKIP
   of the CR "type every script client" finding is correct: documented, accurate, separate concern.
+
+## § row detail — 2026-08-19 (`711d95a9`, branch `chore/part3-audit-followup`)
+
+Post-hoc review of the commit closing the 4-agent-cycle findings on six under-reviewed commits.
+The one runtime change (`import-questions.ts` `process.exitCode = 1` when `errors > 0`) is clean —
+see the durable-knowledge bullet for the empirical proof. Three comment/doc findings:
+
+- **Enumeration (tracker row "NEW wrong count", 7th).** `import-questions.ts:558` says "the two
+  causes the dedup-read check names"; the cited comment at L383-384 names THREE — transport
+  failure, a missing table grant, and PostgREST/schema errors. The commit message repeats it. The
+  set being counted sat 175 lines up in the SAME FILE and was still miscounted from memory.
+  De-quantify ("the causes the dedup-read check names") rather than patch "two" → "three".
+- **Wrong issue citation, propagated (§10 row, 11th).** Both L384 (added 5 commits earlier in
+  `09c12638`) and the new L558 cite `#815` as the exemplar of "a missing table grant". `#815` is
+  *"Admins cannot soft-delete questions — RLS WITH CHECK blocks deleted_at update"* (CLOSED) — an
+  RLS defect, cited by a sentence that at L384-387 explicitly rules RLS out because the client
+  holds the service-role key and so BYPASSRLS. The new comment inherited the citation without
+  re-deriving it: exactly code-style §10 clause 1.
+- **Doc path names a directory holding no such file (§10 row, 12th).** `docs/plan.md:937` defines
+  the companion probe as `apps/web/scripts/probe-<topic>-import-conflicts.py` and the commit
+  appended "these probes are gitignored … copy the shape from an existing one if any is present
+  locally". Every real `probe-*-import-conflicts.py` lives in ROOT `scripts/` (ignored by
+  `.gitignore:48 /scripts/`), which is also what the same section's own step 4 at L965 invokes
+  (`python3 scripts/probe-…`). `apps/web/scripts/` holds five probe files, none matching
+  `*-import-conflicts.py`. The gitignore half of the new claim is true for both paths; the
+  "copy from an existing one" half points at the wrong directory. Pre-existing path error, but the
+  commit edited that exact sentence.
+
+Verified-clean, do not re-raise on this commit: the `typeof n === 'string'` filter (`db` at
+`import-vfr-rt-content.ts:210` really is the untyped `createClient(...)`, `fetchAllRows<T>` is an
+unchecked assertion; `undefined` is defensive-only since `.select('question_number')` always
+returns the key — the comment states it conditionally and does not overclaim); the 140-of-140
+`explanation` count (exact); the R7 parenthetical (`assertRecallAnchored`'s `unanchored`
+early-return IS the first statement, the anchor scan is entirely below it).
+
+Two small over-generalisations left as SUGGESTIONs: `updateReplacedRow`'s new parenthetical says
+"for an item authoring no `explanation`, buildRow resolves it from base", but the `short_answer`
+branch resolves `` `${acronym}: ${canonical}` `` first — and THAT value is real content the
+`--replace` update should write, so the parenthetical's remedy ("strip it too") would be wrong for
+acronym items; and `dialog-fill-content.ts:466` says the code "verifies only that `unanchored`
+ITSELF is a non-empty string" when nothing verifies it — L488 merely conditions the opt-out on it,
+so `"unanchored": "  "` falls through to the scan (safe direction).
+
+`docs/plan.md:1485` `#1192 (S/P1)` → `(S/P2)` is CORRECT (the issue body states "**Effort** S ·
+**Priority** P2"; the issue carries no labels) and closes the discrepancy logged at
+commit-notes.md L511 — but it is the one hunk the commit message does not mention.

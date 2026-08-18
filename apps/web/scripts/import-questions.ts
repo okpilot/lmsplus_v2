@@ -381,7 +381,7 @@ async function insertQuestion(
   // IS NULL AND question_number IS NOT NULL, and this importer always sets question_number and
   // always inserts live rows, so both predicates hold. It trips that index and surfaces an
   // opaque 23505 instead of naming the read that actually failed. Reachable causes here are
-  // transport failure, a missing table grant (#815), and PostgREST/schema errors — NOT RLS,
+  // transport failure, a missing table grant, and PostgREST/schema errors — NOT RLS,
   // since this client holds the service-role key and so
   // BYPASSRLS. (code-style.md §5, whose rule text names RLS because it is written for the
   // app-layer anon/authenticated client.)
@@ -555,8 +555,9 @@ async function main() {
   console.log(`  Total:    ${questions.length}\n`)
 
   // Exit non-zero when anything failed. The per-question catch above only counts, so without this
-  // a transport failure or a missing table grant (#815) — the two causes the dedup-read check
-  // names — fails EVERY question, prints 40 red lines, and still reports success to CI and to any
+  // any of the causes the dedup-read check names — a transport failure, a missing table grant, a
+  // PostgREST/schema error — fails EVERY question, prints 40 red lines, and still reports success
+  // to CI and to any
   // `&&` chain. `exitCode`, not `exit()`: the latter truncates buffered stdout and would cut the
   // summary that explains what went wrong. Same pattern and same reasoning as
   // import-vfr-rt-content.ts's drift exit.

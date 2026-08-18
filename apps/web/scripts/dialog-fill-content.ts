@@ -463,7 +463,8 @@ function nearestNonEmptyLineBefore(lines: readonly string[], i: number): string 
  * Items that cannot satisfy the readback anchor opt out via `unanchored` — but the bar is
  * EXCLUSION, not plausibility: the declaration must name the competing phrase and show what
  * visible text rules it out. That bar is an AUTHORING obligation, not a checked one: the code
- * below verifies only that `unanchored` ITSELF is a non-empty string, and a non-empty one
+ * below does not verify the bar at all — it only CONDITIONS the opt-out on `unanchored` being a
+ * non-empty string, and a non-empty one
  * returns BEFORE the anchor scan below — so it opts the WHOLE ITEM out of R7, including blanks
  * that would have passed the scan on their own. Nothing can machine-check whether
  * a sentence actually excludes a phrase, so the escape hatch is exactly as strong as the review

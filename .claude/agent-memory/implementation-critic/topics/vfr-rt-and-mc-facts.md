@@ -48,3 +48,7 @@ survive in a client chunk as retained `rt("<zone id>",…)` calls; zero LABEL id
 in `.next/static`. Cite the minified CALL FORM, never the content-hashed chunk filename.
 The answer key is not client-readable (LABELS carries the pairing) — do NOT raise the index
 alignment as a leak. Mechanism + the pre-fix-chunk misfire: see `commit-notes.md`.
+
+## Part 3 MC scope + key-balance union (moved from MEMORY.md 2026-08-19)
+
+- **VFR RT Part 3 MC is THREE files in ONE DB scope** — `vfr-rt-part3-mc-{numbers,emergency,posrep}.json`, all `topic_code=P3_MC` / `multiple_choice`, 20+11+5 = 36 numbers, disjoint prefixes (`VRT-P3-MC-` / `-EMC-` / `-PMC-`). Any importer set keyed on bank+topic+question_type spans all three. `planScope` (`replace-planning.ts`) is the union point; `--prune` is the opt-in that lets it soft-delete. **The key-balance union is scoped DIFFERENTLY in the two gates:** `mc-content.test.ts` static-imports all three (`MC_CORPORA`, hand-maintained), so its union is always 36; the importer buckets only `process.argv` files, so a single-file run unions 11 or 5 and `assertMcKeyBalance` early-returns under `MIN_CORPUS_FOR_KEY_BALANCE = 12` (`mc-content.ts:209` — CALLED, but checks nothing). Same per-invocation scoping as `--replace`'s `unaccounted`.

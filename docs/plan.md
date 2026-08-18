@@ -934,9 +934,9 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Import tool
 `apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
-`apps/web/scripts/probe-<topic>-import-conflicts.py` — companion dry-run (these probes are
-gitignored per `.gitignore` and written per-import, so a fresh clone has none; copy the shape from
-an existing one if any is present locally): validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
+`scripts/probe-<topic>-import-conflicts.py` — companion dry-run, in ROOT `scripts/` (matching the
+invocation in step 4 below, not `apps/web/scripts/`). Root `/scripts/` is gitignored, so these are
+written per-import and a fresh clone has none; copy the shape from an existing one if present: validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
 
 **Remote import workflow:**
 
