@@ -76,6 +76,7 @@ import {
   RWY_2709_LABELS,
   RWY_2709_ZONES,
 } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { fetchAllRows } from '../lib/supabase-paginate'
 import {
   assertReleasedForRemote,
   isLocalSupabaseUrl,
@@ -887,15 +888,44 @@ type ReplaceScope = {
  * pass whichever ReplaceScope is convenient, its `nums` field is irrelevant to this query.
  */
 async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
-  const { data, error } = await db
-    .from('questions')
-    .select('question_number')
-    .eq('bank_id', scope.bankId)
-    .eq('topic_id', scope.topicId)
-    .eq('question_type', scope.questionType)
-    .is('deleted_at', null)
+  // PAGINATED, and it must be. PostgREST caps a response at max_rows = 1000
+  // (supabase/config.toml), and this query is deliberately UNFILTERED by number — it reads every
+  // live row in the scope. A silent truncation here does not merely under-report: numbers missing
+  // from `liveNums` fall out of `toUpdate` and into `toInsert`, where `insertIfMissing` matches
+  // them on (bank_id, question_number), finds them already live, and SKIPS them. The edited
+  // content never lands and the run exits 0 reporting "N inserted / M updated / K skipped" — the
+  // silent no-op this file says --replace must never produce. The repo has this truncation on
+  // record (#668/#673), which is why `fetchAllRows` exists.
+  // getCount and getPage build the SAME filtered query, as fetchAllRows requires — the filters are
+  // repeated rather than hoisted because the chain must start at .select() for each.
+  const { data, error } = await fetchAllRows<{ question_number: string | null }>(
+    () =>
+      db
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('bank_id', scope.bankId)
+        .eq('topic_id', scope.topicId)
+        .eq('question_type', scope.questionType)
+        .is('deleted_at', null),
+    (from, to) =>
+      db
+        .from('questions')
+        .select('question_number')
+        .eq('bank_id', scope.bankId)
+        .eq('topic_id', scope.topicId)
+        .eq('question_type', scope.questionType)
+        .is('deleted_at', null)
+        // Total order, and locally so: `question_number` is unique in this scope via the partial
+        // index idx_questions_bank_number, but the `id` tiebreaker means a future index change
+        // cannot silently make page boundaries unstable. Matches the sibling script's shape.
+        .order('question_number', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
   if (error) throw new Error(`--replace live-number lookup (${scope.rel}): ${error.message}`)
-  return (data ?? []).map((r) => r.question_number as string)
+  // question_number is nullable in the schema; a NULL one cannot be authored by a content file,
+  // so it is not a candidate for update OR for pruning. Dropping it here keeps it out of both.
+  return data.map((r) => r.question_number).filter((n): n is string => n !== null)
 }
 
 /**

@@ -1479,7 +1479,7 @@ nothing visible; all 15 callsign blanks decidable from the text above them (posi
 48/71 and reported **zero** blanks as pure guesses; 18 of its 23 misses had the answer printed in
 the controller's line above.
 
-**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) and #1194 (R3 tolerance parity with `answer_matches`, M/P2) rather than a third rewrite.
+**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is resolved — see Decision 57: R3 stays exact-match, the gap is recorded rather than ported, with a revisit trigger.
 
 ## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
 
@@ -1530,8 +1530,13 @@ legs question and the turns question using disjoint zone sets.
 > the identity on uniform-length ids) while still not stopping deliberate encoding.
 >
 > **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
-> `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
-> per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
+> `b` or `c` in 17 of 18 questions with no `d` at all, and every per-question check passed it. This
+> is a CONTENT-QUALITY rule, not a defence against guessing the graded draw: `get_quiz_questions`
+> and `get_vfr_rt_exam_questions` both project MC options `ORDER BY random()`, so a stored id's
+> on-screen position is re-rolled on every fetch and the skew is not exploitable there. The skew
+> IS visible wherever options render in AUTHORED order — Study Mode, the post-session report, and
+> the admin question editor, whose fixed a/b/c/d grid mis-renders a gapped option-id run onto the
+> wrong slot (a separate defect tracked as #1223). `scripts/mc-content.ts` carries `assertMcItem` (per question) and
 > `assertMcKeyBalance` (per pool: no id above `KEY_SKEW_TOLERANCE` times the even share, no offered
 > id never used — both constants live in `scripts/mc-content.ts`, named rather than restated here so
 > the doc cannot drift from them), and

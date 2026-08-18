@@ -16,6 +16,7 @@ import type { ImportQuestion } from '@repo/db/import-schema'
 import { ImportFileSchema } from '@repo/db/import-schema'
 import type { Database, Json } from '@repo/db/types'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { parseImportArgs } from './parse-import-args'
 
 // `ReturnType<typeof createClient>` does not resolve to the type of an actual call —
 // `createClient` is generic, and TS instantiates an unresolved return-type query using the
@@ -59,32 +60,17 @@ const STORAGE_BUCKET = 'question-images'
 // ---------------------------------------------------------------------------
 
 function parseArgs(): { file: string; baseDir: string } {
-  const args = process.argv.slice(2)
-  let file = ''
-  let baseDir = ''
-
-  for (let i = 0; i < args.length; i++) {
-    // `else if`, not two independent `if`s: the first branch does `i++`, so a second `if`
-    // reading the freshly-advanced `args[i]` against the STALE `next` can pair a flag with the
-    // wrong value (`--file --base-dir /d` set baseDir to '--base-dir'). Unreachable today —
-    // `main()` dies on the bogus `file` first — but it becomes live the moment a third flag
-    // is added.
-    const next = args[i + 1]
-    if (args[i] === '--file' && next) {
-      file = next
-      i++
-    } else if (args[i] === '--base-dir' && next) {
-      baseDir = next
-      i++
-    }
-  }
+  // Parsing lives in ./parse-import-args so it can be tested — this file has no exports and calls
+  // main() at module scope, so importing it from a test runs the importer rather than the parser.
+  const { file, baseDir: parsedBaseDir } = parseImportArgs(process.argv.slice(2))
 
   if (!file) {
     console.error('Usage: --file <path-to-json> [--base-dir <folder-with-images>]')
     process.exit(1)
   }
 
-  if (!baseDir) baseDir = dirname(file)
+  // Images default to sitting beside the JSON that references them.
+  const baseDir = parsedBaseDir || dirname(file)
 
   return { file: resolve(file), baseDir: resolve(baseDir) }
 }

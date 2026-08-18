@@ -118,7 +118,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR/reviewer suggestion adopted verbatim without checking | 1 | 2026-08-11 | WATCHING (archive row 543) |
 | Sibling-scope sweep keyed on RPC/function-name rather | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes scripts/). |
+| Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes e2e/ — NOT scripts/, which tsconfig.scripts.json has covered since #1219). |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
 | Broad `git add <subdir>` sweeps unrelated untracked files | 1 | 2026-08-15 | WATCHING (archive row 548). |
 | `json.dumps` round-trip reformats an entire tracked JSON | 1 | 2026-08-15 | WATCHING (archive row 549). |
