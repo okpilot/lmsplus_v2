@@ -557,3 +557,33 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
   calls, zero label texts/ids anywhere in `.next/static`), so the index alignment is not readable
   client-side today. Deliberately no chunk filename — it is content-hashed, and the first draft of this
   note cited a chunk from the PRE-fix build, certifying the new code against the code it replaced.
+
+## § row detail 2026-08-18b (compaction spill from MEMORY.md)
+
+- **§10 code-comment-vs-corpus, 7th instance** (`content/vfr-rt-part3`, ghost-option guard in
+  `apps/web/scripts/mc-content.test.ts`). The comment justifying the lowercase filter says the
+  discarded spans "are bolded sentences, not quoted options". `VRT-P3-EMC-11` in the SAME staged
+  diff bolds `**technical trouble**`, which IS its option b. Measured over all three P3 MC corpora:
+  116 of 144 option texts (81%) contain lowercase, and only 7 non-allowlisted bold spans survive
+  the filter across 36 questions. The filter's real job is FALSE-POSITIVE suppression — without it
+  `**minor technical failure**` (EMC-11), `**immediate assistance**` (EMC-02) and `**three**`
+  (EMC-03) all flag as ghosts. Widens the §10 class beyond SQL: the contradicting authority was a
+  content corpus, not a migration body.
+- **Same-commit self-contradiction row, first instance**: a new test comment cited the
+  `content-ids.ts` docblock for a prefix-is-the-whole-disjointness-guarantee sentence that the same
+  diff deleted from that docblock. Closed in round 2 — the fixture switched to the `o`/`l` pair the
+  comment identifies as load-bearing, so the retracted z/l framing left both title and body rather
+  than merely being disclaimed. Rule: on a claim-correction commit, grep the diff for the OLD
+  wording, not just the file being corrected.
+- **Claim-correction commit introduces a NEW wrong ENUMERATION, 3rd instance**: plan-critic archive
+  pointer moved 30→48 by ADDING the delta to a baseline already stale by 9 (real: 57), and
+  enumerated a "2026-08-17" relocation section that was never created — 18 rows appended under a
+  heading whose stated bound was Last Seen ≤ 2026-06-21.
+- **RWY 2709 client-bundle DCE mechanism** (full detail behind the MEMORY.md false-positive row):
+  `RWY_2709_ZONES` initializers are `box(...)` CALL expressions the bundler cannot prove pure, so
+  the calls and their string args survive even though the array binding is dropped;
+  `RWY_2709_LABELS` is a plain object-literal array and IS dropped. No client file imports either.
+  The real guard is "LABELS stays a DCE-droppable literal array", not "nothing imports it" — a
+  `chip(...)` constructor form would ship all 12 chips in canonical order with no import change.
+  The first version of that row cited a PRE-fix chunk whose `rs("z9f2a1c",…)` ids the commit under
+  review had already deleted; cite the minified CALL FORM, never the content-hashed chunk filename.
