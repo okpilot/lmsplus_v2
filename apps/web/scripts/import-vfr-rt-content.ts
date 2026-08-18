@@ -1046,7 +1046,7 @@ async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
  * Why this reports subtopic drift instead of just `true`/`false`:
  *
  * `subtopic_id` is written at INSERT and — since #1191 — by local `--replace`'s in-place update
- * (`updateReplacedRow` sends the full `buildRow` output, `subtopic_id` included). This function
+ * (`updateReplacedRow` sends `buildRow`'s CONTENT fields, `subtopic_id` included — it strips `base`'s INSERT defaults; see that function). This function
  * matches on (bank_id, question_number) alone, `--sync-content` touches just the three answer
  * columns and refuses non-`short_answer` files, and `--replace` cannot run against a remote. So
  * on a REMOTE database it is INSERT-only and nothing can move an existing row to a different
@@ -1092,17 +1092,31 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<Insert
  * of soft-delete + re-insert, so its `id` survives the re-import. A session created before this
  * run may have already frozen the row's id in `config.question_ids`; soft-delete-then-insert
  * silently orphaned that reference onto a NEW id, and the runner kept serving the now-soft-deleted
- * row with no signal. `row` never carries an `id` (buildRow does not set one), so `.update(row)`
- * leaves the target row's id untouched.
+ * row with no signal. `row` never carries an `id` (buildRow does not set one), and `content` is
+ * `row` minus five base keys, so `.update(content)` leaves the target row's id untouched.
  *
  * Scoped the same way `insertIfMissing`'s lookup is (bank_id + question_number, deleted_at IS
  * NULL) — `planReplaceAll` already proved the row is live and in this exact scope before calling
  * this, so a zero-row match here means the plan and the DB disagree; abort rather than guess.
  */
 async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void> {
+  // Update CONTENT only. `row` is the full buildRow output, which carries `base` — and base's
+  // fields are INSERT defaults, not content: `created_by` records who first authored the row,
+  // while `difficulty`/`status` are per-row admin state. Sending the whole row would reassign
+  // authorship on every content edit and flip a question an admin had set to `draft` back to
+  // `active` (those are the only two values — CHECK status IN ('active','draft')). `bank_id` is the match key; `organization_id` is fixed by it
+  // (`question_banks` is UNIQUE per org), so neither can drift.
+  const {
+    created_by: _createdBy,
+    organization_id: _orgId,
+    bank_id: _bankId,
+    difficulty: _difficulty,
+    status: _status,
+    ...content
+  } = row
   const { data, error } = await db
     .from('questions')
-    .update(row)
+    .update(content)
     .eq('bank_id', bankId)
     .eq('question_number', row.question_number)
     .is('deleted_at', null)
@@ -1902,6 +1916,10 @@ async function main(): Promise<void> {
   const adminId = await resolveAdminId(orgId)
   const bank = await ensureBank(orgId, adminId)
 
+  // Every key here EXCEPT explanation_text is an INSERT default, not content. Add a key and add
+  // it to updateReplacedRow's strip list, or local --replace will start writing it as content —
+  // nothing mechanical catches that (QuestionRow is Record<string, unknown> and this module is
+  // not unit-testable).
   const base = {
     organization_id: orgId,
     bank_id: bank.id,

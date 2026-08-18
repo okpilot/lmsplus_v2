@@ -976,7 +976,8 @@ Notes:
   previously that combination printed `[REMOTE]` over a local write, so an operator could watch
   rows insert and believe production had the content when it did not (#1221).
   ⚠️ `import-questions.ts` — the importer THIS procedure uses — does **not** have that abort yet
-  (#1224). Here, read the printed URL, not the flag.
+  (#1224). It also does not PRINT the resolved URL on a successful run, so there is nothing to
+  read back — check `NEXT_PUBLIC_SUPABASE_URL` in the environment before you invoke it.
 
 ---
 

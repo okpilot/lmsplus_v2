@@ -28,8 +28,11 @@ export type ReplacePlan = {
   /** Authored by the file but not currently live in this scope: insert a new row. */
   toInsert: readonly string[]
   /**
-   * Live in this scope but NOT authored by the file: the content was removed from the source.
-   * Soft-delete these and report the count — silence here is the other #1191 defect.
+   * Live in this scope but NOT authored by THIS file. INFORMATIONAL ONLY — no caller acts on it,
+   * and none should: `planScope` discards it and computes scope-level `unaccounted` instead,
+   * because "not in this file" is not "not in any file". Conflating the two is exactly what
+   * soft-deleted 16 sibling rows (#1191). If you are looking for the set the importer deletes,
+   * it is `ScopePlan.unaccounted`, and only under `--prune`.
    */
   orphaned: readonly string[]
 }

@@ -374,14 +374,25 @@ async function insertQuestion(
     throw new Error(`Q${question.question_number}: topic_id is required but missing`)
   }
 
-  // Dedup by question_number within the same bank
-  const { data: existing } = await db
+  // Dedup by question_number within the same bank. The `{ error }` check is load-bearing, not
+  // ceremony: PostgREST returns 200 with data:null on a failed read, which is indistinguishable
+  // from "no match", so the importer falls through to the INSERT below. It does NOT create a
+  // duplicate — idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at
+  // IS NULL — it trips that index and surfaces an opaque 23505 instead of naming the read that
+  // actually failed. Reachable causes here are transport failure, a missing table grant (#815)
+  // and PostgREST/schema errors; NOT RLS, since this client holds the service-role key and so
+  // BYPASSRLS. (code-style.md §5, whose rule text names RLS because it is written for the
+  // app-layer anon/authenticated client.)
+  const { data: existing, error: existingError } = await db
     .from('questions')
     .select('id')
     .eq('bank_id', bankId)
     .eq('question_number', question.question_number)
     .is('deleted_at', null)
     .limit(1)
+  if (existingError) {
+    throw new Error(`Dedup lookup failed for ${question.question_number}: ${existingError.message}`)
+  }
 
   const existingMatch = existing?.[0]
   if (existingMatch) {

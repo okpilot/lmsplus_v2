@@ -1021,8 +1021,8 @@ screen pins which phrase is wanted. Five questions were rejected on eval one aft
 transmissions until it is** — do not add a scene line, and do not delete the question. Testing a
 basic phrase is legitimate; the briefing lists it as Part 2's FIRST competency ("radio check,
 request departure information, traffic in sight, looking out"). Enforced as authoring rule **R7**
-in `scripts/dialog-fill-content.ts`: a recall blank needs an `[atc]` line above it — ignoring blank
-separator lines, which `parse-dialog-display.ts` filters out before rendering, so the anchor is
+in `apps/web/scripts/dialog-fill-content.ts`: a recall blank needs an `[atc]` line above it — ignoring blank
+separator lines, which `apps/web/app/app/quiz/session/_utils/parse-dialog-display.ts` filters out before rendering, so the anchor is
 directly above ON SCREEN even when the template array separates them — or an `unanchored`
 declaration that NAMES the competing phrase and shows what visible text excludes it. (The check
 originally read exactly `lines[i - 1]` and so rejected an anchor a blank line had pushed up; #1198.)

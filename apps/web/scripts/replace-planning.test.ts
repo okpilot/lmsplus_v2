@@ -15,7 +15,7 @@ describe('planReplace', () => {
     expect(plan.toUpdate).toEqual([])
   })
 
-  it('flags a question dropped from the file as orphaned for soft-delete', () => {
+  it('lists a live number the file no longer declares', () => {
     const plan = planReplace({ fileNums: ['DLG-01'], liveNums: ['DLG-01', 'DLG-04'] })
     expect(plan.orphaned).toEqual(['DLG-04'])
   })
@@ -25,7 +25,7 @@ describe('planReplace', () => {
     expect(plan.orphaned).toEqual([])
   })
 
-  it('reproduces the reported symptom: a shrunk file leaves removed numbers orphaned, not silently live', () => {
+  it('reproduces the reported symptom: numbers dropped from the file are listed, not left silently live', () => {
     // 2026-08-15 (#1191): DLG-04 and DLG-22 were removed from the file; the pool stayed at 52
     // active rows against a 50-question file until they were soft-deleted by hand. The fixture is
     // built from those numbers so the data matches the incident it cites — the removals are
