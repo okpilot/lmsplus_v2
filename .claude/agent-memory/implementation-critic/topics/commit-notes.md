@@ -518,3 +518,42 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
   `soft-delete-question.integration.test.ts` used `subjectCode: '050'`; `seedReferenceData` upserts
   `onConflict: 'code'`, mutating the seed-e2e row + leaking a global `easa_topics` row. All 20
   siblings use a unique suffixed code + `cleanupReferenceData`.
+
+## § row detail 2026-08-18 — VFR RT derived-content-id commit (diagram_label answer-key leak fix)
+
+- **Index-zip answer key with no alignment pin.** `seed-vfr-rt-training-eval.ts` replaced 9 explicit
+  commented `{zone_id, label_id}` literals with `buildRwy2709Answer()`, which zips
+  `RWY_2709_ZONES[i]` ↔ `RWY_2709_LABELS[i]` for i=0..8. `rwy-2709-layout.test.ts` asserts the label
+  set only with order-insensitive `toContain` + distinctness, and `diagram-content.test.ts` pins each
+  id to `deriveLabelId(label.text)` — which follows the text, so ids move WITH a reorder. Reordering
+  `RWY_2709_LABELS` (e.g. alphabetising, or moving a distractor up) therefore silently rewrites the
+  seeded key while every existing test, `assertDiagramConfig`, and the DB CHECK still pass. Fix: turn
+  the `toContain` loop into `expect(RWY_2709_LABELS.slice(0, 9).map(l => l.text)).toEqual(
+  CORRECT_LABEL_TEXTS)`. The seed's own comment names this exact failure mode ("would go stale
+  SILENTLY … only shows up as a question that cannot be answered correctly") for the literal form it
+  removed, then adopts a form with the same hazard from the other direction.
+- **Derive helpers exported with zero non-test callers.** `diagram-content.ts` L18-19 claims
+  `deriveZoneId`/`deriveLabelId` "are exported so the seed/import path builds ids the only way this
+  gate accepts them". Both paths instead import pre-computed LITERALS from `rwy-2709-layout.ts`
+  (which cannot call them — `node:crypto` is absent in the client bundle it reaches). Only
+  `diagram-content.test.ts` calls either. Second instance of the pattern after `assertMcKeyBalance`.
+- **Future-tense comment about a same-commit file.** `import-vfr-rt-content.ts` L559: "When
+  `_components/diagrams/diagram-refs.ts` lands, validate membership against it rather than growing a
+  second hand-maintained ref list." `diagram-refs.ts` is ADDED by the same staged diff, and
+  `DIAGRAM_LAYOUTS` is exactly the second list the comment warns about.
+- **VERIFIED, do not re-flag.** All 21 layout ids re-derive exactly (`z1`/`l1` + 8 hex of sha256).
+  Sorting the 12 label ids no longer restores canonical order — the first 9 sorted are
+  `Crosswind turn, Downwind turn, Downwind leg, Base turn, Threshold, Crosswind leg, Go-around,
+  Final approach, Final turn`, with 2 distractors interleaved. `assertDerivedZoneIds`'s search is
+  bounded (`j < MAX_ZONES`), uses exact string equality, and strictly ascends
+  (`nextCanonical = canonical + 1`), so legs `[0,2,4,6,8]` and turns `[1,3,5,7]` both pass while a
+  descending or repeated subset fails. `assertDiagramConfig` covers every clause of
+  `is_valid_diagram_config` (mig `20260702000100`, the latest ADD CONSTRAINT) plus the derived-id
+  rule, and nothing the deleted `assertDiagramConfigInvariants` checked was lost. Both new `buildRow`
+  branches resolve `explanation_text` and satisfy `questions_question_type_columns_check`.
+  `easa_subtopics` genuinely has no `deleted_at` and is `UNIQUE (topic_id, code)` — the importer's
+  comments on both are accurate. `RWY_2709_LABELS` is tree-shaken OUT of the client bundle (verified
+  on the 2026-08-18 build of the post-fix source: all 9 zone ids present as retained `rt("<zone id>",…)`
+  calls, zero label texts/ids anywhere in `.next/static`), so the index alignment is not readable
+  client-side today. Deliberately no chunk filename — it is content-hashed, and the first draft of this
+  note cited a chunk from the PRE-fix build, certifying the new code against the code it replaced.

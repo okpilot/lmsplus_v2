@@ -56,9 +56,16 @@ export function normalizeForId(text: string): string {
  * normalized parts joined by a single space — e.g. `o1a3f9c2b1`.
  *
  * `prefix` names the kind of thing being identified (`o` ordering item, `l` diagram label,
- * `z` diagram zone). It is part of the hashed-into id rather than metadata so that the same
- * text used as both a label and something else can never produce one shared id, which the
- * diagram gate's zone-id/label-id disjointness rule depends on.
+ * `z` diagram zone). It is PREPENDED to the digest, NOT hashed into it — only `parts` reaches
+ * `update()`. So one text used as two kinds yields two ids that share all 8 digest characters
+ * and differ solely in that leading character: `deriveContentId('z', ['Downwind leg'])` and
+ * `deriveContentId('l', ['Downwind leg'])` are `z1…` and `l1…` over an identical digest.
+ *
+ * That single character is therefore load-bearing, and it is the whole of what makes the
+ * diagram gate's zone-id/label-id disjointness rule hold. Never strip, normalize away, or
+ * compare ids without it (an id-shortener or a v2 re-prefixing scheme is the realistic way
+ * this breaks) — doing so collapses a zone and a label over the same text into one id, which
+ * `is_valid_diagram_config` then rejects at INSERT with no hint as to why.
  */
 export function deriveContentId(prefix: string, parts: readonly string[]): string {
   const canonical = parts.map(normalizeForId).join(' ')

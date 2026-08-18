@@ -922,19 +922,47 @@ async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
   return failures
 }
 
-async function insertIfMissing(bankId: string, row: QuestionRow): Promise<boolean> {
+/**
+ * Why this reports subtopic drift instead of just `true`/`false`:
+ *
+ * `subtopic_id` is written ONLY at INSERT. This function matches on
+ * (bank_id, question_number) alone, `--sync-content` touches just the three answer columns and
+ * refuses non-`short_answer` files, and `--replace` cannot run against a remote. So once a row
+ * exists, NOTHING can move it to a different subtopic on that database.
+ *
+ * That makes adding `subtopic_code` to an already-imported pool silently produce a HALF-FILED
+ * pool: the questions added in the same edit get the new subtopic, the pre-existing ones keep
+ * `subtopic_id` NULL forever. Since `getSubtopicsForTopic` drops any subtopic with
+ * `questionCount = 0` but happily shows a partial count, the picker then advertises
+ * "Transmission of Numbers - 2 questions" for a 20-question pool, and the plain output
+ * ("2 inserted / 18 skipped") is indistinguishable from a healthy no-op. Reading one extra
+ * column here is what makes that state observable.
+ */
+type InsertOutcome =
+  | { kind: 'inserted' }
+  | { kind: 'skipped'; drift: { stored: string | null; authored: string | null } | null }
+
+async function insertIfMissing(bankId: string, row: QuestionRow): Promise<InsertOutcome> {
   const { data: existing, error: existingErr } = await db
     .from('questions')
-    .select('id')
+    .select('id, subtopic_id')
     .eq('bank_id', bankId)
     .eq('question_number', row.question_number)
     .is('deleted_at', null)
     .limit(1)
   if (existingErr) throw new Error(`Question ${row.question_number} lookup: ${existingErr.message}`)
-  if (existing && existing.length > 0) return false
+  const hit = existing?.[0]
+  if (hit !== undefined) {
+    // The authored value is `string | null` by construction (scopeFor returns one or the other),
+    // but this row came back from the DB as `unknown`-ish, so normalize both sides before
+    // comparing rather than trusting the column's declared type.
+    const stored = (hit.subtopic_id ?? null) as string | null
+    const authored = (row.subtopic_id ?? null) as string | null
+    return { kind: 'skipped', drift: stored === authored ? null : { stored, authored } }
+  }
   const { error } = await db.from('questions').insert(row)
   if (error) throw new Error(`Question ${row.question_number}: ${error.message}`)
-  return true
+  return { kind: 'inserted' }
 }
 
 type ResolvedFile = {
@@ -970,17 +998,32 @@ async function insertAll(
 ): Promise<{ inserted: number; skipped: number }> {
   let totalInserted = 0
   let totalSkipped = 0
+  const drifted: string[] = []
   for (const entry of resolved) {
     const { rel, file, subjectId } = entry
     let inserted = 0
     for (const q of file.questions) {
       const row = buildRow(file, q, { ...ctx.base, subject_id: subjectId }, scopeFor(entry, q))
-      if (await insertIfMissing(ctx.bankId, row)) inserted++
-      else totalSkipped++
+      const outcome = await insertIfMissing(ctx.bankId, row)
+      if (outcome.kind === 'inserted') inserted++
+      else {
+        totalSkipped++
+        if (outcome.drift !== null) drifted.push(`${rel} ${row.question_number}`)
+      }
     }
     totalInserted += inserted
     console.log(
       `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
+    )
+  }
+  // Thrown AFTER every file is walked, not on the first drifted row: the inserts are idempotent,
+  // so completing the pass costs nothing and the operator gets the whole affected list at once
+  // instead of rediscovering it one run at a time.
+  if (drifted.length > 0) {
+    throw new Error(
+      `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n` +
+        drifted.map((d) => `  - ${d}`).join('\n') +
+        `\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace soft-deletes and re-inserts this file's questions, which refiles them under new row ids; on a remote (where --replace is refused), refile with a migration.`,
     )
   }
   return { inserted: totalInserted, skipped: totalSkipped }

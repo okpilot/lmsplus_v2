@@ -128,8 +128,44 @@ export const RWY_2709_ZONES: DiagramZone[] = [
  * nothing the delivered chip text does not already say and cannot hint at the
  * zone it answers — see the SECURITY note at the top of this file. Editing a
  * `text` here means re-deriving its `id`; the pin test names the new value.
- * The correct zone <-> label pairing is never delivered: it exists only in the
- * seeded `questions.diagram_config.answer`, stripped by `get_quiz_questions()`.
+ * The correct zone <-> label pairing is never DELIVERED — `get_quiz_questions()`
+ * strips `diagram_config.answer` and shuffles these chips. But it is a mistake to
+ * read that as "the pairing exists only in the seeded row": `buildRwy2709Answer()`
+ * in scripts/seed-vfr-rt-training-eval.ts BUILDS that seeded key by zipping
+ * `RWY_2709_ZONES[i]` with `RWY_2709_LABELS[i]`, so the pairing also lives,
+ * implicitly, in the shared index order of these two arrays — in this file.
+ *
+ * What actually reaches the client bundle is ASYMMETRIC, and the asymmetry is
+ * load-bearing. Measured against a fresh `pnpm --filter @repo/web build` of this
+ * commit's source: all 9 zone ids ARE in a client chunk, minified to `rt("z1a077e7d6",ro)`
+ * — the `box(...)` initializers below are CALL expressions, which the bundler
+ * cannot prove side-effect-free, so the calls and their string arguments survive
+ * dead-code elimination even though the array binding itself is dropped. No label
+ * id and no label TEXT appears anywhere in `.next/static`.
+ *
+ * Shipping the zone ids is harmless: `get_quiz_questions()` delivers exactly those
+ * ids to the student anyway. The key is the PAIRING, and recovering it needs the
+ * label order — so what protects it is that `RWY_2709_LABELS` is eliminated.
+ *
+ * ⚠️ TWO guards keep it that way, and neither is enforced by any lint rule:
+ *   1. NEVER import `RWY_2709_LABELS` (or `RWY_2709_ZONES`) from a `'use client'`
+ *      subtree. Nothing does today — `registry.ts`, `diagram-refs.ts` and the two
+ *      artwork components take only `RWY_2709_IMAGE_REF` and the geometry consts,
+ *      and neither array has any importer under `app/`. One client preview,
+ *      admin editor or debug overlay importing the labels ships all 12 chips in
+ *      canonical order, and the zone ids are already delivered: the complete key.
+ *   2. KEEP `RWY_2709_LABELS` A PLAIN OBJECT-LITERAL ARRAY. It is droppable only
+ *      because it is bare `{ id, text }` literals. Wrapping them in a helper —
+ *      `chip('Upwind leg')`, mirroring `box()` above — would ship all 12 texts in
+ *      canonical order with NO import change at all, invisible to guard 1. That
+ *      last sentence is INFERENCE, not measurement: it follows from the zones
+ *      above, which demonstrate the identical mechanism with a real build.
+ *
+ * The order-pin test in rwy-2709-layout.test.ts guards the array ORDER; these two
+ * rules guard its REACHABILITY. Re-measure with a real build before restating any
+ * claim here — the earlier version of this comment asserted both arrays were
+ * tree-shaken, which was false for the zones and had been carried over from a
+ * report rather than re-derived (code-style.md §10).
  */
 export const RWY_2709_LABELS: DiagramLabel[] = [
   { id: 'l1e13b0b8a', text: 'Upwind leg' },

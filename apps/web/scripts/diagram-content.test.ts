@@ -207,6 +207,28 @@ describe('the zones of a diagram config', () => {
     )
   })
 
+  it('rejects a zone placed below the bottom of the canvas', () => {
+    const zone = { id: deriveZoneId(IMAGE_REF, 0), ...BOXES[0], y: 1.5 }
+    expect(() => assertDiagramConfig(withZone(0, zone), AT)).toThrow(
+      /zones\[0\].y must be within \[0,1\]/,
+    )
+  })
+
+  it('rejects a zone with no height to place a chip over', () => {
+    const zone = { id: deriveZoneId(IMAGE_REF, 0), ...BOXES[0], h: 0 }
+    expect(() => assertDiagramConfig(withZone(0, zone), AT)).toThrow(
+      /zones\[0\].h must be greater than 0/,
+    )
+  })
+
+  it('rejects a zone that runs below the bottom edge of the artwork', () => {
+    // y and h are each within [0,1] individually; only their sum exits the canvas.
+    const zone = { id: deriveZoneId(IMAGE_REF, 0), ...BOXES[0], y: 0.9, h: 0.2 }
+    expect(() => assertDiagramConfig(withZone(0, zone), AT)).toThrow(
+      /zones\[0\]: y \+ h is 1\.1, so the zone overflows the canvas/,
+    )
+  })
+
   it('rejects a blank zone identifier', () => {
     const zone = { id: '  ', ...BOXES[0] }
     expect(() => assertDiagramConfig(withZone(0, zone), AT)).toThrow(
@@ -313,6 +335,18 @@ describe("a question that uses only some of a diagram's zones", () => {
     // targets relative to the artwork even though every id is genuinely derived.
     const backwards = subset([2, 0])
     expect(() => assertDiagramConfig(backwards, AT)).toThrow(/is not a derived id/)
+  })
+
+  it('accepts a subset of zones that does not begin at the first canonical position', () => {
+    // subset([0, 2]) — the existing legs-like test — does not exercise the case where the
+    // first zone in the subset sits past canonical index 0. subset([1, 2]) does: the search
+    // must advance past index 0 before finding the first match.
+    // One-sided BY DESIGN: this guards against over-strictness, so it is meant to stay green,
+    // and a §7 sweep should not read it as vacuous. The mechanism it complements IS pinned —
+    // commenting out the assertDerivedZoneIds call site turns exactly three sibling tests red:
+    // 'runs backwards through the diagram', 'identifier was written by hand', and 'derived
+    // identifiers are transposed' (measured, not assumed).
+    expect(() => assertDiagramConfig(subset([1, 2]), AT)).not.toThrow()
   })
 })
 
