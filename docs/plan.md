@@ -968,6 +968,15 @@ Notes:
 - Taxonomy (subject/topic/subtopic) must already exist in `easa_subjects`/`easa_topics`/`easa_subtopics`; the importer throws otherwise (it does not create taxonomy).
 - Images are referenced by **basename** in JSON and upload to `question-images/<subject_code>/<basename>` with `upsert: true`. Trap: nested source paths (`diagrams/.../x.svg`) 404 and get stored as raw strings = broken images — the builder must rewrite image fields to basenames.
 - The `--force-remote` flag is required for any non-localhost Supabase URL (safety guard).
+- **The env file selects the target; the flag only grants permission.** `--force-remote` does NOT
+  retarget the importer at production — the resolved `NEXT_PUBLIC_SUPABASE_URL` does, so
+  `apps/web/.env.remote` must be sourced first. `import-vfr-rt-content.ts` now derives its
+  `[REMOTE]`/`[local]` banner and every remote-vs-local branch from the RESOLVED URL
+  (`isRemoteTarget`), not the flag, and **aborts** if the flag is passed while the URL is local —
+  previously that combination printed `[REMOTE]` over a local write, so an operator could watch
+  rows insert and believe production had the content when it did not (#1221).
+  ⚠️ `import-questions.ts` — the importer THIS procedure uses — does **not** have that abort yet
+  (#1224). Here, read the printed URL, not the flag.
 
 ---
 
