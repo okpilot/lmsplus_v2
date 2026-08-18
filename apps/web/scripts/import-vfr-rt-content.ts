@@ -1560,6 +1560,14 @@ async function main(): Promise<void> {
   // could reject a valid import. No difference today (all Part 3 files are subject RT), which
   // is exactly why it would rot unnoticed.
   //
+  // Arity note: the union is STRICTER than the per-file gate when a topic mixes option counts,
+  // and can in principle reject content that is fine. addressableIds() is the union of ids any
+  // question offers, and the cap is (1 / ids.length) * tolerance — so merging a 2-option file
+  // into a 4-option one re-caps the 2-option questions from 80% to 40%, and two individually
+  // balanced files can fail together. Not reachable today (every P3_MC file is uniformly
+  // 4-option), and the honest fix if it ever bites is to bucket by arity rather than to loosen
+  // the tolerance.
+  //
   // Scope note: this union spans only the files passed to THIS invocation, so importing one
   // subarea file alone still falls under the floor. That is inherent to a gate that sees only
   // what it is handed; the corpus-wide guarantee lives in mc-content.test.ts, which reads every

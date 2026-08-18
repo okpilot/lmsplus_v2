@@ -252,10 +252,29 @@ describe.each(MC_CORPORA)('the authored MC corpus in %s', (name, file, expectedC
  * test here green.
  */
 describe('the Part 3 multiple_choice pools taken together', () => {
-  const union = MC_CORPORA.flatMap(([, file]) => (file as { questions: unknown[] }).questions)
+  // Scoped to ONE topic, mirroring the importer, which unions by (subject_code, topic_code).
+  // Flattening all of MC_CORPORA would diverge the moment a pool from another topic is added:
+  // the suite would assert key balance across a cross-topic union the importer deliberately
+  // refuses to form, so valid content would turn this red and the two gates would disagree
+  // about what a "pool" even is.
+  const P3_TOPIC = 'P3_MC'
+  const union = MC_CORPORA.filter(
+    ([, file]) => (file as { topic_code: string }).topic_code === P3_TOPIC,
+  ).flatMap(([, file]) => (file as { questions: unknown[] }).questions)
 
   it('holds every Part 3 multiple-choice question', () => {
-    expect(union.length).toBe(36)
+    // Derived from MC_CORPORA rather than a second hard-coded 36, so adding a pool fails the
+    // per-file count pin (which names the real number) instead of failing here confusingly.
+    const expected = MC_CORPORA.filter(
+      ([, file]) => (file as { topic_code: string }).topic_code === P3_TOPIC,
+    ).reduce((n, [, , count]) => n + count, 0)
+    // Anchor FIRST. `expected` is derived with the same filter as `union`, so if the filter ever
+    // matched nothing both would be 0: expect(0).toBe(0) passes, and the key-balance case below
+    // would early-return under MIN_CORPUS_FOR_KEY_BALANCE — two tests going vacuous at once with
+    // no signal. The hard-coded 36 this replaced was an accidental guard against exactly that;
+    // this line is the deliberate one.
+    expect(expected).toBeGreaterThan(0)
+    expect(union.length).toBe(expected)
   })
 
   it('spreads the answer key across the whole topic, not just within each subarea', () => {
