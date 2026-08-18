@@ -8,6 +8,9 @@
 
 | Pattern | First | N | Last | Status (→ rule loc) |
 |---|---|---|---|---|
+| A fix moves a guard EARLIER in the pipeline but leaves the file's own contract/checklist comment asserting it still runs at the old site | 2026-08-18 | 1 | 2026-08-18 | RESOLVED (fixed same commit) — `import-vfr-rt-content.ts` pre-flight checklist, after diagram resolution moved out of the write loop |
+| Gate keyed on a PARTIAL identity — `topic_code` alone where pool identity is `subject_code`+`topic_code` | 2026-08-18 | 1 | 2026-08-18 | RESOLVED (fixed same commit) — no runtime effect today (single subject `RT`), which is exactly why it would rot |
+| Deriving `expected` through the SAME filter as the value under test — both go 0 on an empty filter, so `expect(0).toBe(0)` passes and the corpus gate early-returns | 2026-08-18 | 1 | 2026-08-18 | RESOLVED — explicit `toBeGreaterThan(0)` anchor; the hard-coded literal it replaced had been an accidental guard |
 | Zero-row no-op: UPDATE/DELETE missing `.select('id')` + `data?.length` check | 2026-04-10 | 6 | 2026-06-06 | PROMOTED → code-style §5. Prod AND test helpers. † |
 | Memory delta written to the stray `apps/web/.claude/agent-memory/` (cwd was `apps/web`) | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Same loss class as a stashed delta. † |
 | Zero-row no-op, DISTINCT: `.select('id')` present but count logged only when `> 0` | 2026-08-11 | 1 | 2026-08-11 | WATCHING. If a prior SELECT proved N match, compare to N and THROW. † |
@@ -59,6 +62,9 @@
 | Comment asserts a BUNDLER DCE outcome ("tree-shaken out, verified absent") against a build that predates the commit | 2026-08-18 | 1 | 2026-08-18 | WATCHING. §10. `stat .next/BUILD_ID` vs the commit date; rebuild before restating "verified". † |
 
 ## Durable knowledge
+
+- **Both `apps/web/tsconfig.json` AND `tsconfig.integration.json` exclude `scripts`**, so neither proves anything about `apps/web/scripts/**`. Type-check with an ad-hoc config that `include`s them. (#1219)
+- **`asserts x is T` does not narrow a property access on a cast expression.** Bind `(q as DiagramItem).diagram` to a `const` first, or the second use stays `unknown`.
 
 - **CREATE OR REPLACE trace before flagging.** Trace to the LATEST migration definition. Grep BOTH `CREATE OR REPLACE FUNCTION <fn>` AND bare `CREATE FUNCTION <fn>` (DROP+recreate) — a CREATE-OR-REPLACE-only grep returns a superseded file as "latest".
 - **Migration source of truth: `supabase/migrations/` ONLY.** `packages/db/migrations/` was FROZEN 2026-07-11. Never flag a missing counterpart there; never cite it for current SQL.
