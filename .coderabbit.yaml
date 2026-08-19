@@ -196,6 +196,11 @@ reviews:
           the policy — so a DROP/CREATE-only search reports a stale predicate as current.
         - A claim propagated from another doc rather than re-derived from the code. A doc is
           evidence of what someone believed, never of what the code does.
+        - An ENUMERATION of an OPEN set in a comment or docblock — "the three callers", "both
+          consumers", "the tables that lack deleted_at" — where the set can gain a member after
+          the commit. State the derivation instead (how to find them), or mark the line as an
+          as-of measurement or an explicit illustration. code-style.md §10 clause 2. A CLOSED set,
+          one the code itself defines, is fine.
         - A PARTIAL comment edit — the strongest tell. When a change moves or alters code, the
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
