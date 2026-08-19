@@ -34,7 +34,11 @@ describe('planReplace', () => {
     const fileNums = liveNums.filter((n) => n !== 'DLG-04' && n !== 'DLG-22')
     const plan = planReplace({ fileNums, liveNums })
     expect(plan.orphaned).toEqual(['DLG-04', 'DLG-22'])
-    expect(plan.toUpdate).toHaveLength(50)
+    // toEqual, not toHaveLength: exact array equality, because the count alone is vacuous here.
+    // Verified by mutation (2026-08-19) — `toUpdate = liveNums.slice(0, fileNums.length)` yields
+    // 50 entries that INCLUDE the orphaned DLG-04 and OMIT DLG-51/52 which the file declares, so
+    // `toHaveLength(50)` stayed green on it while `toEqual(fileNums)` fails.
+    expect(plan.toUpdate).toEqual(fileNums)
   })
 
   it('handles a first import where nothing is live yet', () => {
