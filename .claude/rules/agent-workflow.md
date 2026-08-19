@@ -445,9 +445,12 @@ check needs a single source of truth:
   new and open when this PR merges, it counts. Two scopes, deliberately different, and only one of
   them is filtered: WHO is (the `author:@me` in the command below is not incidental — "on this
   branch" means created by its author, not by anyone who happened to file during the same window),
-  WHY is not (deferral, split, leftover all count alike). (On this branch that is #1233, carrying
+  WHY is not (deferral, split, leftover all count alike). (Two of this branch's own: #1233, carrying
   PR #1225's leftover critic findings, and #1234, split out of #360 — neither is a deferral of this
-  PR, both count.)
+  PR, both count anyway. Read those as ILLUSTRATIONS of the origin kinds, never as the branch's
+  list: the set is whatever the command returns at push time, and it kept growing while this
+  paragraph was being written — #1236 was filed 39 minutes before the commit that moved these very
+  lines, which is how the enumeration came to say "both" when three qualified.)
 - **The PR body's `## Deferred` section is the authoritative list**, and it is MANDATORY on any PR
   that files an issue: it must name every one, including the non-deferral kinds above. A commit
   message's deferral list is a convenience copy, never the record. On a FIRST push there is no PR
