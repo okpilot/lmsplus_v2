@@ -461,7 +461,8 @@ check needs a single source of truth:
   `--limit 200` is not decoration: `gh issue list` defaults to **30** and exits 0 on a truncated
   list, so a branch past that silently under-counts `filed`, which makes `filed >= closed` false and
   PASSES a check that should fail. Same fail-open shape as the empty-log hazard below, in a command
-  that looks like it cannot fail.
+  that looks like it cannot fail. If it ever returns exactly 200, treat that as truncated, not as
+  the answer, and raise the bound — a cap only closes the hole while the result stays under it.
   `--state open`, not `--state all`: the definition counts issues still open at merge, and an issue
   filed and closed on the same branch is zero backlog delta. (No figure is quoted here on purpose —
   on this branch both forms return 2, so the flag makes no observable difference and a measurement
@@ -617,7 +618,7 @@ second pipeline run.
 
 When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
 
-**The mirror set is the table below — enumerate it from the table, never from memory, and never from a count.** Most rows are fixed paths, including two single files (`docs/security.md` and `.coderabbit.yaml`) that are easy to drop if you glob only the directories, and two executable ones (`.claude/hooks/*.sh`) that every doc-shaped grep misses. The last row is open-ended and is the one that keeps being missed.
+**The mirror set is the table below — enumerate it from the table, never from memory, and never from a count.** Most rows are fixed paths, including single files (`docs/security.md`, `.coderabbit.yaml`, `package.json`) that are easy to drop if you glob only the directories, and executable ones (`.claude/hooks/*.sh`) that every doc-shaped grep misses. The last row is open-ended and is the one that keeps being missed.
 
 This paragraph deliberately carries NO total. It used to say "these seven" with a "six fixed plus the seventh" decomposition, and the count went stale the moment a row was added — the same failure this whole section exists to prevent. A number here is one more mirror to keep in sync.
 

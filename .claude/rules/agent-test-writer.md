@@ -15,7 +15,9 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.
 - Review test names — they should describe behavior, not implementation ("schedules shorter interval when wrong" not "calls updateFsrsState").
 - **Mutation-check any test that pins a mechanism.** Before reporting a new test as passing, break
-  the thing it protects and confirm exactly that test goes red, then restore. A green test proves
+  the thing it protects and confirm exactly that test goes red, then restore. Do this in a scratch
+  copy or a throwaway worktree, not in place — it is the one case where touching production code is
+  sanctioned, and only because nothing survives it: verify `git diff` is clean before reporting. A green test proves
   nothing on its own — `code-style.md` §7 ("A Test Must Fail If Its Mechanism Is Removed") states the
   rule; this bullet makes it the test-writer's terminal duty rather than a reviewer's catch. On PR
   #1225 a branch-authored disjointness test passed all four post-commit agents and could not fail:

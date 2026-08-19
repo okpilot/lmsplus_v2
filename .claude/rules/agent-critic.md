@@ -50,7 +50,9 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
     memory of prior rounds and cannot honour "raise it only once"; the orchestrator is what carries
     the round history and drops the repeat.
 
-  Applies to plan-critic and implementation-critic as well as the post-commit reviewers, and mirrors
+  Applies to plan-critic and implementation-critic as well as the post-commit reviewers — though
+  implementation-critic takes the CLASSIFICATION only, never the clean-round floor, from which it
+  stays exempt for the reasons below (its artifact mutates on every fix). Mirrors
   the post-commit stop rule in `CLAUDE.md § Post-commit review`. Rationale: an LLM reviewer returns
   non-empty on almost any prose, so the loop ends by rule or not at all. On this branch a single
   hook file drew four §10 wording findings across three critic rounds while the defects that

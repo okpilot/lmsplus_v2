@@ -23,7 +23,7 @@ for burndown work.
 ## PR 6 — backlog flow control  (branch `chore/backlog-flow-control`)
 
 Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
-`agent-workflow.md` and trigger the same seven-mirror sync, so it is paid once.
+`agent-workflow.md` and trigger the same mirror sync, so it is paid once.
 
 - [x] Cut branch from `origin/master` @ `51863782`
 - [x] `ff9119fa` — stale bot exempts `ops` + `product-decision`
@@ -60,7 +60,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
 - [x] `#1164` — drop the unbacked "Promoted at learner count=2" from `CLAUDE.md:107`.
       DANGER: that exact string appears at `agent-workflow.md:314` and `:675` on unrelated,
       properly substantiated promotions. Edit `CLAUDE.md:107` only.
-- [x] Widen the seven-mirror table — this sweep found two surfaces it does not name:
+- [x] Widen the mirror table — this sweep found two surfaces it does not name:
       `.claude/hooks/*.sh` (two files that `echo` the pipeline) and `package.json`
 - [x] Fix the learner tracker so #1164's claim is either backed or gone
 - [x] impl-critic on staged changes

@@ -59,7 +59,12 @@ in a steering doc misleads nobody who can run `ls`, while chasing it cost real r
 fixup commits — the "counts — is nonsense" complaint that sourced #1222.
 
 Deliberate consequence: those literals WILL drift and stay drifted. That is accepted. Do NOT flag a
-stale count as DRIFT, and do NOT re-derive one "while you are in there". See `docs/decisions.md`.
+stale INVENTORY count as DRIFT, and do NOT re-derive one "while you are in there".
+
+**The exemption is staleness only, and only for inventory counts.** A count that is INTERNALLY
+inconsistent is still a finding: an "N + M" whose terms no longer sum to the headline they explain,
+or a total that contradicts a list in the same block. That is the `code-style.md` §10 defect and it
+is unaffected by this drop — `.coderabbit.yaml` draws the same line. See `docs/decisions.md`.
 
 ### `lefthook.yml` / `ci.yml` change ⇒ audit `CLAUDE.md` §QA-pipeline
 
