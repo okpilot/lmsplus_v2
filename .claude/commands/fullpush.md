@@ -35,8 +35,9 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
     Per-item justifications do not answer either check — PR #1225 passed every per-item test and
     still filed **9** against 7 closed, sailing past the volume budget too. Nine as of ITS push, not
     the eight its own artifacts add up to: `#1232` counts, created after its merge-base and still
-    open. Run the same command against #1225 today and you get 11 — it has no upper time bound, so
-    it sweeps in what later branches filed. That is the point of comparing once, before push. Its
+    open. Run the same command against #1225 later and the answer only climbs — it has no
+    upper time bound, so it sweeps in what every later branch filed. That is the point of comparing
+    once, before push; do not record a "today" figure here, because it is wrong by the next issue. Its
     `## Deferred` section named 2 of the 9, which is why that section is mandatory AND must be
     complete — read literally against an incomplete section, #1225 computes filed=2 and passes.
 

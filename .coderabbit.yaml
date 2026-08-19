@@ -238,6 +238,14 @@ reviews:
           integration tests exist) for having drifted from the current file count: docs/decisions.md
           Decision 58 deliberately accepts that drift, because chasing it cost more review rounds
           than a stale number ever cost a reader who can run `ls`.
+        - An ENUMERATION of an OPEN set — one that can gain a member after the commit (files in
+          a directory, tables carrying a policy, issues filed on a branch, call sites matching a
+          pattern). Naming its current members, or counting them, is a claim that goes silently
+          false; the text must state the DERIVATION instead (a command, a query, a pointer to the
+          authoritative list), or mark the line as an as-of measurement or an explicit
+          illustration. code-style.md §10 clause 2. A CLOSED set — one the rule itself defines,
+          or a schema fact — is fine. This is distinct from the inventory-count drift above:
+          that is about not CHASING a stale number, this is about not WRITING one.
         - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
           restatement must either carry the current mechanics or be reduced to a pointer.
         - A LITERAL COUNT of the post-commit exemptions, in digits OR in words. "the two
@@ -316,12 +324,17 @@ reviews:
           session-derived columns. The outer auth guard does not cover these independent
           subqueries. Flag any INSERT INTO audit_events subquery missing AND deleted_at IS NULL.
         - Multi-policy RLS table reads: when a SECURITY INVOKER/DEFINER function reads a
-          table with more than one permissive SELECT policy (student_responses, quiz_sessions,
-          exam_configs, audit_events) and returns the caller's OWN rows, it must scope
-          explicitly with WHERE <owner_col> = auth.uid() (or an auth.uid() = p_student_id
-          identity guard). Postgres ORs permissive policies, so RLS alone over-scopes to the
-          broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
-          Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
+          table with more than one permissive SELECT policy and returns the caller's OWN rows,
+          it must scope explicitly with WHERE <owner_col> = auth.uid() (or an
+          auth.uid() = p_student_id identity guard). Postgres ORs permissive policies, so RLS
+          alone over-scopes to the broader instructor/admin policy. Admin/org-wide RPCs behind
+          is_admin() are exempt. Flag any per-caller RPC reading SUCH a table without an
+          explicit auth.uid() filter — do not limit the check to a fixed list. The set is
+          derived from pg_policies (cmd IN ('SELECT','ALL'), permissive, GROUP BY tablename
+          HAVING count(*) > 1) and grows with any migration adding a second read policy;
+          docs/security.md §3 carries the current members, which as of 2026-05-26 were
+          student_responses, quiz_sessions, exam_configs and audit_events. Note cmd 'ALL' is
+          the unqualified CREATE POLICY form and permits SELECT too.
         - SECURITY DEFINER soft-delete SELECT filter: every SELECT inside a SECURITY DEFINER
           function must filter AND deleted_at IS NULL on soft-deletable tables. These functions
           are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
@@ -484,7 +497,9 @@ reviews:
           student_responses, quiz_session_answers, flagged_questions,
           question_comments. Hard DELETE risks 23503 violations and breaks
           docs/security.md rule 6. EXCEPTION — hard-delete-by-design tables with
-          no `deleted_at` column and no FK children (currently `quiz_drafts`) must
+          no `deleted_at` column and no FK children (`quiz_drafts` is the known case;
+          decide from the table's columns, not this list, since a new such
+          table joins the set silently) must
           use `.delete()`, and cleanup/count queries must NOT add
           `.is('deleted_at', null)` (the column does not exist; the cap trigger
           counts unfiltered). Soft-deleting such a table errors at runtime.
