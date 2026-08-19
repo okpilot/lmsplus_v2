@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     # Nothing bounded this before: the 2026-08-19 apt stall ran 54 min and stopped only
     # because a human cancelled it (GitHub's default job timeout is 6 h). Normal wall-clock
-    # here is ~6-8 min, so 30 leaves wide headroom while capping the next network stall.
+    # here is ~4-6 min (red-team specs), so 30 leaves wide headroom while capping a stall.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,7 +52,7 @@ jobs:
         # No --with-deps: it runs `apt-get update` first, which drags an Ubuntu mirror we do
         # not control into the critical path. On 2026-08-19 that mirror
         # (azure.archive.ubuntu.com) returned `Ign:` for all 26 of its requests; apt failed over
-        # to archive.ubuntu.com, logged the start of the last two InRelease fetches at 07:58:16,
+        # to archive.ubuntu.com, logged the start of three more InRelease fetches at 07:58:16,
         # and printed nothing further -- no `Fetched ... in` summary, no package install, no
         # browser download -- until the job was cancelled ~53 min later. Not an outage: of the
         # two jobs running this same command in that window, one hung and one passed in ~6 min,
