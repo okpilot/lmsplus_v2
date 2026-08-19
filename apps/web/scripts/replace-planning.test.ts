@@ -154,7 +154,7 @@ describe('decideUnaccounted', () => {
     expect(decideUnaccounted({ unaccounted: ['VRT-P3-EMC-1'], prune: false })).toBe('abort')
   })
 
-  it('deletes rows no file claims once deletion is asked for', () => {
+  it('authorises pruning only once the operator has asked for it', () => {
     expect(decideUnaccounted({ unaccounted: ['VRT-P3-EMC-1'], prune: true })).toBe('prune')
   })
 })
