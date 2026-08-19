@@ -1555,7 +1555,12 @@ legs question and the turns question using disjoint zone sets.
 > invocation, so `import ... vfr-rt-part3-mc-emergency.json` ALONE unions 11, stays under
 > `MIN_CORPUS_FOR_KEY_BALANCE`, so the gate returns without checking anything. Pass the whole
 > `vfr-rt-part3-mc-*.json` glob, as the documented invocation does, or the union check is silently
-> absent — the same per-invocation scoping that governs `--replace`'s orphan set. The split into subareas is what opened the hole: the gate
+> absent. `--replace` reads the same invocation-scoped file list but does NOT fail this way:
+> `planScope` diffs the union of every file in the run that targets a given scope against that
+> scope's live rows, and `decideUnaccounted` ABORTS on any unaccounted row unless `--prune` is
+> passed — so a forgotten sibling file stops the run with the numbers named, rather than passing
+> quietly. Being silent is what makes the MC union gate the hole. The split into subareas is what
+> opened it: the gate
 > was written when Part 3 MC was one 20-question pool, and splitting it to 20 / 11 / 5 silently
 > dropped 16 of 36 questions out of coverage while every test stayed green.
 

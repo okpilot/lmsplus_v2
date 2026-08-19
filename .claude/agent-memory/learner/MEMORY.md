@@ -85,7 +85,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Idempotency/safety comment masks a real side effect | 1 | 2026-07-31 | WATCHING (archive row 504) |
 | Playwright setup project ordering assumed not declared | 1 | 2026-07-31 | WATCHING (archive row 505) |
 | Cycle commit message or drive-by comment introduces | 1 | 2026-07-31 | WATCHING (archive row 506) |
-| Regression test can't detect fix's own reversion (passes | 2 | 2026-08-18 | RULE CANDIDATE (2). §7 "A Test Must Fail If Its Mechanism Is Removed" already covers; recurrence post-promotion. Dead-branch lifecycle test: every shipped file was `released`, so delete the throw → still green; fixed with per-row counterfactual. |
+| Regression test can't detect fix's own reversion (passes | 3 | 2026-08-19 | RULE CANDIDATE (3). §7 covers it; recurrence = enforcement gap. PR #1225 +4 (bold/italic mismatch, allowlist substring, deriveBlankIndices ordering, --replace under-layered). Propose: test-writer DO — make the §7 mutation check mandatory pre-report. |
 | Fake-timer test timeout leaks timer mode into later tests | 1 | 2026-08-07 | WATCHING (archive row 513) |
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-semantic-reviewer.md + agent-red-team.md DO (archive row 514). |
 | Dep-bump type error cascades into N CI suite failures | 1 | 2026-08-07 | WATCHING (archive row 515) |
@@ -120,14 +120,14 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes e2e/ — NOT scripts/, which tsconfig.scripts.json has covered since #1219). |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
-| Broad `git add <subdir>` sweeps unrelated untracked files | 1 | 2026-08-15 | WATCHING (archive row 548). |
+| Broad `git add <subdir>` sweeps unrelated untracked files | 5 | 2026-08-19 | RESOLVED (mechanical). Archive row 744 = 1st. PR #1225 relapsed 3× on the same 2 eval-seed scripts despite a stated "use explicit paths" intent; fixed by `bffab393` adding them to `.gitignore` by name — prose relapsed, mechanical fix held immediately. See §10 row below for the same lesson at scale. |
 | `json.dumps` round-trip reformats an entire tracked JSON | 1 | 2026-08-15 | WATCHING (archive row 549). |
 | Blanket find/replace during tracker state-transition | 1 | 2026-08-15 | WATCHING (archive row 550). |
 | Doc-updater flags drift by comparing against superseded | 1 | 2026-08-16 | WATCHING (archive row 551) |
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 1 | 2026-08-16 | WATCHING (archive row 555) |
+| Fix commit correcting §10 violations introduces fresh §10 | 2 | 2026-08-19 | RULE CANDIDATE (2) — threshold met, different branch (row 555 = chore/proportionate-review-gates; this = PR #1225, e.g. `3c9a6c2a` "drop a wrong issue citation" surfaced only after a prior correction). Propose row 555's 3-part checklist (re-derive from source / re-check the same hunk / scan the whole block) for code-style.md §10. |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: ordering + diagram corpora shipped with zero suite coverage; mc-content.test.ts had already documented the lesson one pool over and its header explicitly said so. |
@@ -138,9 +138,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
 | Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) — commit doc updates separately from review-follow-up code fixes; a doc update widens the file set and disqualifies the reduced cycle (archive row 564). |
-| §10 violations (non-DB form) cluster in content/authoring commit (mechanism, intent, statistic) | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: 8 sub-instances across 5 commits — §10 rule already covers all; recurrence signals enforcement gap not rule gap. Stale-evidence sub-mechanism tracked separately. |
-| Evidence cited predates the code it certifies (stale build artifact / report as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3 fixup chain: verification comment said "absent from production chunk" citing a build 17 h before the fix; memory note then certified new code against the deleted code. Propose §10 sub-clause: evidence (build artifact, grep, tsc run) must postdate the change it certifies. |
-| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). fefef96e: 17/18 questions on b/c, zero d-answers; per-question checks all pass. Tool-fixed: assertMcKeyBalance in test suite + importer. |
+| §10 violations (non-DB form) cluster in content/authoring commit | 3 | 2026-08-19 | RULE CANDIDATE (3). PR #1225: 3rd cluster, ~9 sub-mechanisms/~20 instances/16 commits — see archive row 593 (reconciled master, count=14) for the full list + mechanical-vs-prose conclusion. Gap is reviewer-side re-derivation, not §10 text. |
+| Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2). Propose §10 sub-clause: evidence must postdate the change it certifies. |
+| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). Tool-fixed: assertMcKeyBalance in test suite + importer. |
+| Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225, 4 commits (#1219, #1194, #1192 status, #1192 priority). Unpushed `Closes #N` closes nothing. Propose: agent-workflow.md § Finding Validation table — add "issue closed/resolved" → `gh issue view N --json state`. |
+| Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2). PR #1225, 2 commits, no such exemption exists. Text is unambiguous; propose a named precedent line in agent-critic.md, not new text. |
+| Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING. PR #1225; run-log warns of this class twice already outside this tracker. On 2nd instance HERE, propose `date -u` over a 3rd prose warning. |
 
 ## Durable knowledge (cross-agent)
 
