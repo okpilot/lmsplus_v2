@@ -80,8 +80,13 @@ export function normalizeForId(text: string): string {
  * collision check that new kind is wired into — today `assertNoDerivedIdCollisions` guards
  * ORDERING ids only (its sole non-test caller is ordering-content.ts), while diagram zone/label
  * ids are checked by re-derivation in diagram-content.ts. Either way the message would blame
- * normalization, which would be the wrong lead. If
- * that day comes, join with `\u0000` and bump ID_VERSION in the same change.
+ * normalization, which would be the wrong lead. Tracked as #1229. If that day comes, join with
+ * `\u0000` and bump ID_VERSION in the same change — and note that the bump changes EVERY derived
+ * id string (ID_VERSION is a prefix component, not hashed input), so it must be paired with a
+ * content re-import. `quiz_sessions.config.question_ids` is unaffected — those are question ROW
+ * uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
+ * already holding the old `ordering_items[].id` / `diagram_config` zone and label ids submits
+ * them against re-derived ones.
  */
 export function deriveContentId(prefix: string, parts: readonly string[]): string {
   const canonical = parts.map(normalizeForId).join(' ')

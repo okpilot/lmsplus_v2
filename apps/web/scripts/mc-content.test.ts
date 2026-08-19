@@ -53,8 +53,8 @@ function findGhostOptionQuotes(
   const collapse = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ')
   const offered = offeredOptionTexts.map(collapse)
   const named = [...(explanation ?? '').matchAll(/\*{1,2}([^*\n]+)\*{1,2}/g)]
-    .map((m) => m[1] as string)
-    .filter((span) => !/[a-z]/.test(span))
+    .map((m) => m[1] ?? '')
+    .filter((span) => span !== '' && !/[a-z]/.test(span))
   return named.filter(
     (span) =>
       !guideKeywords.has(span.trim()) && !offered.some((option) => option.includes(collapse(span))),
