@@ -629,7 +629,7 @@ This paragraph deliberately carries NO total. It used to say "these seven" with 
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/*.md` | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — `.claude/skills/` currently holds three unrelated files, and `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
+| `.claude/skills/*.md` | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — `.claude/skills/` holds only files unrelated to the pipeline, and `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
 | `.claude/hooks/*.sh` | **executable mirrors** — `post-commit-reminder.sh` and `cr-local-plan-reminder.sh` PRINT the agent list at commit time, so a stale one instructs the orchestrator directly. Not `.md`, so every doc-shaped grep misses them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about; a rule change there is unverifiable without reading it |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the fixed paths above |
