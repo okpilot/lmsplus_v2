@@ -174,3 +174,32 @@ such a commit.**
     false.
 
 Detail on the six rows added by the 2026-08-16 PR-level sweep: see § PR-level sweep 2026-08-16 above.
+
+## Row detail relocated from MEMORY.md (2026-08-19, budget compaction)
+
+### Local-clock (+0200) date stamped while UTC is still the PRIOR day
+`e65f01f4` re-dated `.coderabbit.yaml` and one `commit-review-log.md` row local→UTC, declared the
+defect a promotion candidate, then ADDED six `2026-08-19` stamps (4 impl-critic tracker `Last Seen`
+cells, 2 topic-file relocation headers) for work committed 2026-08-19 23:06Z; a 7th landed in
+`attack-surface.md` via `a046d103`. Every `.claude/rules/*.md` footer in the same commit correctly
+reads 2026-08-19. Remedy: derive every dated stamp from `TZ=UTC git log -1 --date=iso-local
+--format=%ad` (note plain `%ad` prints the commit's OWN +0200 offset and is NOT a UTC read), never
+from the shell clock — the machine is +0200, so every commit after 22:00Z is a trap.
+
+### Authoring gate argued from STORED order on a SHUFFLED delivery surface
+`mc-content.ts` key-balance + leading-run docblocks (`b28cc604`). On the STUDENT paths
+(`answer-options.tsx`, `options-list.tsx`) letter and marker derive from the same array so they
+cannot disagree — but the ADMIN editor `option-editor.tsx` IS the exception: a fixed a/b/c/d slot
+grid matched against the SLOT letter, so a gapped run marks the wrong row and saving rewrites the
+key from the slot (#1223). Fix landed in `c5d5a98b` (PR #1225): the WHY LEADING RUN block now cites
+the admin-editor slot-grid mis-render (#1223) + the `questions_mc_correct_option_id_check` DB CHECK,
+not student-visible order. Before accepting any "guessable / the student sees X" rationale on MC
+options, ordering items or diagram labels, check whether the delivering RPC shuffles that array —
+three of them do. Such a gate may still be worth keeping; restate the WHY, do not delete it.
+
+### Enforcer-mirror incompleteness — the exception/suppression clause is the miss (`9ab38454`)
+The rule-11 "an identity guard is not an owner filter" edit reached `security-auditor.md` check 18
+but not the SAME file's DO-NOT-FLAG suppression 9, ~85 lines below, which still leads with the bare
+`auth.uid()` / `p_student_id` shorthand. Suppressions fail OPEN, so the enforcer's exception ended up
+looser than its own check. Generalises the earlier `.coderabbit.yaml` path-block instances: a mirror
+sweep must cover a check's exception and DO-NOT-FLAG clauses, which sit far from the check text.

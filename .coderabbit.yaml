@@ -508,12 +508,16 @@ reviews:
           student_responses, quiz_session_answers, flagged_questions,
           question_comments. Hard DELETE risks 23503 violations and breaks
           docs/security.md rule 6. EXCEPTION — hard-delete-by-design tables with
-          no `deleted_at` column and no FK children (`quiz_drafts` is the known case;
-          decide from the table's columns, not this list, since a new such
-          table joins the set silently) must
-          use `.delete()`, and cleanup/count queries must NOT add
-          `.is('deleted_at', null)` (the column does not exist; the cap trigger
-          counts unfiltered). Soft-deleting such a table errors at runtime.
+          a table DOCUMENTED as hard-delete-by-design in
+          docs/database.md §3 (quiz_drafts, exam_config_distributions,
+          question_comments) must
+          use `.delete()`. Where such a table also LACKS a `deleted_at` column
+          (quiz_drafts, exam_config_distributions), cleanup/count queries must
+          NOT add `.is('deleted_at', null)` — the column does not exist, so the
+          filter errors at runtime, and quiz_drafts' cap trigger counts
+          unfiltered. Note question_comments HAS the column and is still
+          hard-delete by policy: a missing column is a schema fact, never on
+          its own an authorization to hard-delete. §3 is the authority.
         - Cleanup helpers must chain `.select('id')` and gate logging on
           `data.length > 0` per code-style.md §5 (zero-row no-op rule). Silent
           on filter-only tests; observable when something actually changed.

@@ -203,7 +203,7 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
 
-9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier `auth.uid()` / `p_student_id` check on the owner row that scopes the later reads.
+9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier check that both identifies the owner row AND scopes the later reads.
 
 10. **Checks 16–20 apply ONLY to SECURITY INVOKER / SECURITY DEFINER function bodies present in the diff** (checks 16, 17, 19, 20 are DEFINER-specific by their own wording; check 18 also covers SECURITY INVOKER). The absence of such a function body is never itself a finding (`ALTER TABLE`, `CREATE INDEX`, and Server-Action-only migrations never trip them). These checks do NOT inherit item 7's "flag HIGH when the migration is unverifiable" default — that default is scoped to the auth-delegation check only.
 
