@@ -9,8 +9,11 @@ import {
 
 // next.config.ts `headers()` does NOT apply to non-routed responses
 // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
-// the static security headers on every middleware-emitted response so the
-// posture is uniform regardless of status code.
+// the static security headers onto each response this file BUILDS. Every
+// redirect exit funnels through `redirectWithCookies`, which calls this
+// once on their behalf; the 503 calls it directly. Keep that funnel — a
+// hand-built NextResponse that returns without calling this ships with no
+// CSP and no HSTS.
 function applySecurityHeaders(res: NextResponse): void {
   res.headers.set('X-DNS-Prefetch-Control', 'on')
   res.headers.set('X-Frame-Options', 'DENY')

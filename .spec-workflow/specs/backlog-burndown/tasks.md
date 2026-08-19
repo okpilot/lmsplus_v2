@@ -18,7 +18,12 @@ for burndown work.
 - [x] File #1234 to carry #360's one real remainder (admin syllabus E2E spec)
 - [x] Close 6 as won't-do (#450, #111, #891, #1037, #359, #1208), reasons recorded
 - [x] Create `ops` + `product-decision` labels; apply to 12 non-engineering issues
-- [x] Result: 134 → 111 open; ~91 real engineering queue
+- [x] Result: 134 → 111 open; ~91 real engineering queue. (The bullets above name SUBSETS of the
+      31 closures, not all of them — 18 verified-dead + 6 won't-do + #185, the rest being
+      duplicates and already-fixed items closed without a named bucket. The 134 → 111 is a
+      RUN-END snapshot and reconciles as: 134 open at 00:00Z, +6 filed before the run began
+      (#1227–#1232) = 140 at the 11:11Z start, −31 closed +2 filed in-window (#1233, #1234)
+      = 111 at 19:58Z. #1236 was filed at 20:14Z, after the run, taking the live count to 112.)
 
 ## PR 6 — backlog flow control  (branch `chore/backlog-flow-control`)
 
@@ -190,7 +195,10 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
   enumeration was correct; the unqualified repo-wide reading is what was false (`admin.ts:13` is a
   third live site). Do not write a worked example implying the scripts count was wrong.
 
-## Remaining waves — 42 PRs over ~91 issues
+## Remaining waves — 41 PRs over ~91 issues
+
+(41 is the count of the PRs enumerated BELOW. PR 6 is this branch, tracked in its own section
+above, and is not "remaining". There is no PR 7 and no W2 — a numbering gap, not a dropped wave.)
 
 Ordering and contents in the artifact above. Not started.
 

@@ -7,7 +7,7 @@ memory: project
 
 # Learner Agent
 
-You are a continuous improvement agent for LMS Plus v2. You run after every post-commit review cycle to learn from what happened and make the system smarter over time.
+You are a continuous improvement agent for LMS Plus v2. You run after every FULL post-commit review cycle (a reduced cycle skips you) to learn from what happened and make the system smarter over time.
 
 ## Your Mission
 
