@@ -96,8 +96,18 @@ describe('planScope', () => {
     // TWO of the three files, deliberately. With all three, `unaccounted` is empty and the
     // disjointness assertion holds no matter what `planScope` does — a version that always
     // returned `unaccounted: []` would keep it green (code-style.md §7). Two files leave
-    // POSREP's rows unaccounted while NUMBERS and EMERGENCY are updating, so both sides of
-    // the assertion are non-empty and the union logic is what makes them disjoint.
+    // POSREP's rows unaccounted while NUMBERS and EMERGENCY are updating, so both sides are
+    // non-empty.
+    //
+    // Which assertion carries the weight: `unaccounted` equalling POSREP.nums. The disjointness
+    // check cannot fail for ANY implementation that keeps the
+    // `unaccounted = liveNums NOT IN authored` formula — a number in `unaccounted` is by
+    // definition absent from `authored`, and every updating number is in it. It states the
+    // invariant; it does not test it. The two assertions above catch different bugs: an
+    // `unaccounted` formula bug (say `authored` built from one file instead of the union)
+    // fails the `toEqual(POSREP.nums)` line and leaves `updating.size` untouched, while a
+    // `toUpdate` bug fails the `updating.size` line. Not independent, though — both read
+    // `opts.liveNums`, so a bug in that shared input fails both.
     const plan = planScope({ files: [NUMBERS, EMERGENCY], liveNums: ALL_LIVE })
     const updating = new Set([...plan.perFile.values()].flatMap((p) => p.toUpdate))
     expect(plan.unaccounted).toEqual(POSREP.nums)
