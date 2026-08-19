@@ -13,6 +13,7 @@ in its own table below, never attributed to a single row.
 
 | Date | Run | Commits | Diff | PR | Span | Result |
 |------|-----|:-------:|------|----|------|--------|
+| 2026-08-19 | #1225 VFR RT toolchain — CR triage + manual eval | 6 | 12 files · +60 / −24 | #1225 · open | ~1h38m | ✅ 17/17 CI green · cloud CR COMMENTED on head · Chrome manual eval passed (answer-key stripping + diagram-id exploit verified) · CR-local converged r4 · un-vacuumed a §7-blind regression test (mutation-proved) · 5 issues filed #1227-#1231 |
 | 2026-07-04 | #1085 Save-for-later fix | ~4 | 23 files · +1674 / −320 | #1086 · open | ~2h41m | ✅ 17/17 CI green · CR approved · manual Chrome eval passed |
 | 2026-07-07 | Night /automerge batch (Jul 6–7) | ~21 | 30 files · +890 / −124 | #1090 #1091 #1092 #1093 · all merged | overnight (merges 16:33–17:28 UTC) | ✅ 4 PRs merged to master · #1065 closed · CI green [backfilled 2026-07-11] |
 | 2026-07-08 | /autonomerge VFR-RT redesign (report wording + Practice setup + RT type filter) | ~26 | ~96 files · +3864 / −1807 (final PR totals incl. later CR fixes) | #1097 #1098 #1099 · pushed, left open | ~17h (commit-derived, 01:34–19:17) | ✅ built + pushed, no merges per /autonomerge · #1100 filed [backfilled 2026-07-11] |
