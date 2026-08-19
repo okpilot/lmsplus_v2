@@ -1,6 +1,6 @@
 # Agent Rules — learner
 
-> Model: sonnet | Trigger: after all 4 post-commit agents report | Non-blocking
+> Model: sonnet | Trigger: after a full post-commit cycle reports | Non-blocking
 
 ## Purpose
 Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different commits). Prevents the same mistakes from happening repeatedly.
@@ -8,7 +8,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 ## Handling Results
 
 ### DO
-- Run the learner after every full post-commit cycle (all 4 agents reported, and any fixes they prompted committed). A clean cycle produces no fix commit and still gets its learner pass — "absence of findings is itself data", per the NEVER list below, so a fix commit is not a precondition. A commit running a reduced cycle under one of the two exemptions in `CLAUDE.md § Post-commit review` does NOT get its own learner pass — there is no 4-agent finding set to synthesise, and the branch's next full cycle picks up anything durable.
+- Run the learner after every full post-commit cycle (every agent reported, and any fixes they prompted committed). A clean cycle produces no fix commit and still gets its learner pass — "absence of findings is itself data", per the NEVER list below, so a fix commit is not a precondition. A commit running a reduced cycle under any exemption in `CLAUDE.md § Post-commit review` does NOT get its own learner pass — there is no full-cycle finding set to synthesise, and the branch's next full cycle picks up anything durable.
 - Trust its pattern detection — it tracks frequencies across commits in `.claude/agent-memory/learner/MEMORY.md`.
 - Apply rule changes the learner proposes if the pattern has 2+ occurrences AND the change is specific and actionable.
 - Note when the learner reports a pattern did NOT recur — that's a positive signal the fix worked.
@@ -42,10 +42,10 @@ When a pattern is promoted to a hard rule (the count≥2 threshold above trigger
 The code sweep above fixes existing *call sites*. It does NOT keep the **static rule mirrors** current. When a promotion writes to `docs/security.md` or `.claude/rules/security.md`, the orchestrator must also audit the enforcers that carry a hand-maintained mirror of those rules and add a matching entry **in the same session**:
 - **`.claude/agents/security-auditor.md`** — the pre-push gate's enumerated checklist. It does not auto-track `docs/security.md`; a promoted rule with no matching check is enforced everywhere *except* the final pre-push defense. (Observed drift: `docs/security.md` soft-delete-in-RPC / audit-subquery / multiple-permissive / sibling-guard-parity / single-active rules had no auditor checks until they were back-filled.)
 - **`.coderabbit.yaml`** — already owned by coderabbit-sync, whose full trigger set is `code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, and any new or changed `.claude/hooks/*.mjs` mechanical guard (see `agent-coderabbit-sync.md § Trigger Conditions` — the canonical list; a workflow-rule change that consults a shorter list silently skips external-config sync). Named here because it cannot follow a pointer and so must carry inline text.
-- **The rest of the mirror set** — `.claude/commands/*.md` and `.claude/skills/*.md` also carry restatements. `agent-workflow.md § Rule-Mirror Sync` owns the canonical seven-mirror table — the seventh being any other binding doc that re-states the mechanics, notably `docs/database.md`, whose §7 describes what the security-auditor flags. Enumerate it there rather than trusting this list, which named only two of the set until PR #1174.
+- **The rest of the mirror set** — `.claude/commands/*.md` and `.claude/skills/*.md` also carry restatements. `agent-workflow.md § Rule-Mirror Sync` owns the canonical mirror table — its open-ended row being any other binding doc that re-states the mechanics, notably `docs/database.md`, whose §7 describes what the security-auditor flags. Enumerate it there rather than trusting this list, which named only two of the set until PR #1174.
 
 This is the enforcer analogue of the call-site sweep: both close the "rule promoted, downstream lagging" gap. A promotion is not complete until every static mirror carries the rule.
 
 ---
 
-*Last updated: 2026-08-11 (a reduced-cycle commit gets no learner pass — there is no 4-agent finding set to synthesise; PR #1185. Prior: 2026-04-28.)*
+*Last updated: 2026-08-19 (count-free cycle phrasing — exemptions are named, never counted. Prior: 2026-08-11 — a reduced-cycle commit gets no learner pass, there being no full-cycle finding set to synthesise; PR #1185. Prior: 2026-04-28.)*

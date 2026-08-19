@@ -183,7 +183,7 @@ git commit
     │                                                             │
     ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)
     │     (ALL must hold: the PARENT ran the FULL cycle and        │
-    │      claimed neither exemption — so a reduced path cannot    │
+    │      claimed NO exemption — so a reduced path cannot         │
     │      chain off another; every hunk traces to a finding from  │
     │      its own parent's cycle; same files as the parent;       │
     │      adds no new file; <= 20 changed lines outside tests     │
@@ -372,6 +372,12 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
      - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
      - *"this file is new"* / *"+N tests"* → `git diff --stat` and `git log --diff-filter=A`. A claimed-new file with "+18 tests" was a MODIFIED file whose real delta was 8.
      - *"function A calls B"* / *"the siblings all do X"* → grep the call sites or read `pg_proc.prosrc`. A doc claimed a function called `normalize_answer`; it never has.
+     - *"a critic/reviewer told me X"* → verify X yourself before repeating it in a commit message,
+       a plan, or a rule. A critic's claim is evidence that it believed something, never that the
+       code does it. Precedent: `3a50780a`'s commit message states "impl-critic confirmed that pair
+       is exhaustive: `createClient<` matches exactly those two call sites" — `packages/db/src/admin.ts:13`
+       is a third. The enumeration was scoped to *scripts* and correct there; the unqualified
+       repo-wide restatement was not, and it is now permanent in the history.
      - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
 2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
 3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
@@ -409,6 +415,23 @@ If any of those is false, apply.
 - **0 deferrals** is the goal.
 - **1-2 deferrals** is acceptable when each one genuinely meets the three-condition test above.
 - **3+ deferrals** is a red flag — recheck triage. The PR scope was probably wrong (either too narrow → expand and apply some, or too broad → split). Re-evaluate every deferral before filing.
+
+**The per-item test is not the budget.** Each of the three conditions above is evaluated per finding,
+so a PR can pass every individual test and still file as many issues as it closes. That is not a
+hypothetical: PR #1225 closed 7 (#1188, #1191, #1194, #1198, #1200, #1219, #1221) and its own merge
+commit records 7 deferrals (#1224, #1226–#1231) — net ZERO, with every deferral individually
+justified. Counting the PR body's own `## Deferred` section it is 8 filed against 7 closed.
+
+So the budget is an **aggregate** check, made once before push, not a per-item one:
+
+- Count issues this PR CLOSES and issues it FILED. If filed ≥ closed, the PR did not reduce the
+  backlog and needs a written justification naming what made this batch exceptional — not three
+  separate per-item justifications.
+- **First-illumination exemption.** A PR that is the first to look hard at a neglected area will
+  legitimately surface more than it closes. Say so explicitly and name the area; that is a real
+  reason, and it is the only one that does not require re-triage.
+- Otherwise, re-triage: the fix is usually to APPLY two or three of the deferrals, not to argue for
+  them. Re-loading that context later costs more than finishing it now.
 
 ### What every deferred issue must include (no silent backlog growth)
 
@@ -513,7 +536,9 @@ second pipeline run.
 
 When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
 
-**The mirror set is these seven** — enumerate it, do not recall it from memory. Six are fixed paths (four directory globs plus two single files — `docs/security.md` and `.coderabbit.yaml`, which are easy to drop if you glob only the directories); the seventh is the open-ended one, and it is the one that keeps being missed:
+**The mirror set is the table below — enumerate it from the table, never from memory, and never from a count.** Most rows are fixed paths, including two single files (`docs/security.md` and `.coderabbit.yaml`) that are easy to drop if you glob only the directories, and two executable ones (`.claude/hooks/*.sh`) that every doc-shaped grep misses. The last row is open-ended and is the one that keeps being missed.
+
+This paragraph deliberately carries NO total. It used to say "these seven" with a "six fixed plus the seventh" decomposition, and the count went stale the moment a row was added — the same failure this whole section exists to prevent. A number here is one more mirror to keep in sync.
 
 | Mirror | Why it holds inline text |
 |---|---|
@@ -522,12 +547,14 @@ When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update eve
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/*.md` | skills are loaded as write-time guidance |
-| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the six paths above |
+| `.claude/skills/*.md` | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — `.claude/skills/` currently holds three unrelated files, and `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
+| `.claude/hooks/*.sh` | **executable mirrors** — `post-commit-reminder.sh` and `cr-local-plan-reminder.sh` PRINT the agent list at commit time, so a stale one instructs the orchestrator directly. Not `.md`, so every doc-shaped grep misses them |
+| `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about; a rule change there is unverifiable without reading it |
+| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the fixed paths above |
 
-How to apply: **grep is a FIRST PASS, not the sweep.** Grep the six fixed paths for the rule's distinctive phrases — then find the seventh by READING, not grepping, since it has no path to glob — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+How to apply: **grep is a FIRST PASS, not the sweep.** Grep every fixed path in the table for the rule's distinctive phrases — including `.claude/hooks/*.sh`, whose `echo` lines a doc-shaped glob skips — then find the open-ended row by READING, not grepping, since it has no path to glob — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
 
-**The enumeration itself is the recurring defect.** On PR #1174 this list was wrong three rounds running: it omitted `.claude/commands/` (round 3 — its own directory), then `.claude/skills/*.md` (round 4), then `docs/database.md` (round 5, found by implementation-critic, and the reason the seventh row exists). Each time the fix corrected the instance and left the count. Treat "the list is complete" as the claim most likely to be false, and when a sweep finds a surface the table does not name, widen the TABLE in the same commit — not just the file.
+**The enumeration itself is the recurring defect.** On PR #1174 this list was wrong three rounds running: it omitted `.claude/commands/` (round 3 — its own directory), then `.claude/skills/*.md` (round 4), then `docs/database.md` (round 5, found by implementation-critic, and the reason the open-ended row exists). Each time the fix corrected the instance and left the count. Treat "the list is complete" as the claim most likely to be false, and when a sweep finds a surface the table does not name, widen the TABLE in the same commit — not just the file.
 
 Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
 
@@ -544,7 +571,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch all 4 post-commit agents in parallel immediately after every commit — except under the two narrow exemptions in `CLAUDE.md § Post-commit review` (docs-only; review-follow-up). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the full four-agent cycle and claimed neither exemption**, so the reduced path cannot chain off another reduced path.
+- Launch every post-commit agent in parallel immediately after each commit — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -556,7 +583,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 ### NEVER
 - Skip implementation-critic, even for small changes.
 - Allow more than 2 revision rounds between critic and implementer.
-- Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only exemptions are the two in `CLAUDE.md § Post-commit review`, and both are defined by what was *already reviewed*, not by how small the diff is.
+- Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only reductions are the NAMED exemptions in `CLAUDE.md § Post-commit review`, each defined by what was *already reviewed*, never by how small the diff is.
 - Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect; log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
@@ -709,4 +736,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-15 (Finding Validation now names the factual-claim classes to verify directly, learner count=3; the pipeline diagram gained the two reduced-cycle branches; the review-follow-up exemption is bounded to parents that ran a FULL cycle. Prior: 2026-08-11 — DO/NEVER defer to CLAUDE.md's two post-commit exemptions and forbid chasing a reviewer to convergence on a review-follow-up commit; PR #1185. Prior: 2026-08-09 § Delegation Protocol — state the mechanism behind a constraint, and name both supersession forms.)*
+*Last updated: 2026-08-19 (aggregate defer budget — the per-item test is not the budget, with the PR #1225 7-closed/7-filed precedent, #1232; Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)*

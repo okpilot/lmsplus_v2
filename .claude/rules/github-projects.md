@@ -15,7 +15,29 @@
 | Size | Single select | S, M, L, XL |
 | Sprint | Iteration | 1-week cycles |
 
-Labels: `phase-1` through `phase-5`, `sprint-1`+, `tech-debt`, `testing`, `bug`
+## Labels
+
+| Group | Labels |
+|-------|--------|
+| Phase / sprint | `phase-1`…`phase-5`, `sprint-1`+ |
+| Work type | `tech-debt`, `testing`, `bug`, `enhancement`, `feature`, `documentation`, `security` |
+| Not engineering work | `ops`, `product-decision` |
+| Priority (stale-exempt) | `P0 - Critical` |
+| Applied by automation | `stale` (by `stale-issues.yml`), `coderabbit` |
+
+`ops` marks work no PR can close — infra, DNS, vendor tiers, tokens, compliance, production script runs. `product-decision` marks work blocked on scoping rather than on engineering capacity. **Both are excluded when counting the engineering backlog**; an issue carrying either is not a queue item.
+
+### Board fields are NOT labels
+
+The Priority / Size / Sprint values in the table above are **project-board fields**. `actions/stale` matches **repo labels only**, so a board field value cannot appear in `exempt-issue-labels` and do anything.
+
+This bit us: `exempt-issue-labels` carried `P0 - Critical` from the day the workflow was written, while no such *label* existed — so the entry was inert and critical issues had no stale protection at all. Nothing was wrongly closed (no issue ever carried a `P`-prefixed label), but the protection everyone assumed was there wasn't. A `P0 - Critical` **label** now exists to back the entry.
+
+Consequence: `P0 - Critical` exists in two places — as a board field value and as a label — and **nothing keeps them in sync**. Set both when an issue is genuinely a blocker; the board field drives the board, the label drives the stale bot.
+
+### Stale bot
+
+`.github/workflows/stale-issues.yml` marks an issue stale after 30 days of inactivity and closes it 30 days later as `not_planned`. `exempt-issue-labels` is its skip list: `P0 - Critical`, `bug`, `security`, `ops`, `product-decision`. Adding a label to that list is how work gets parked without the bot closing it — and every entry in the list must be a label that actually exists.
 
 ## During Work
 
@@ -91,4 +113,4 @@ Size field:     PVTSSF_lAHOB7qFm84BRy8izg_hNXU
 
 ---
 
-*Last updated: 2026-03-15*
+*Last updated: 2026-08-19 (real label set enumerated; board-field-vs-label distinction added after `exempt-issue-labels` was found listing a `P0 - Critical` label that did not exist; stale-bot skip list documented.)*

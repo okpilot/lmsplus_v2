@@ -19,6 +19,14 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
   - **N = 3** when the plan/diff touches a security path — the canonical trigger set from `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), determined from the plan's file list (plan reviews) or `git diff origin/master...HEAD --name-only` plus staged changes (diff reviews). Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`") — an unresolvable base must ABORT, never be read as "no paths matched".
   - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply). Stylistic-only and skip-with-reason findings do NOT break a clean round.
 - **Reset on finding; not on skip.** Any round with an APPLY finding resets the consecutive-clean counter to 0 (fix, then resume counting). A validated skip-with-reason (false positive / contradicts the codebase pattern) does NOT reset — otherwise the validate-first discipline (`agent-workflow.md § Finding Validation`) is structurally penalized.
+- **Comment-accuracy findings are bounded to ONE round (#1222).** A finding whose subject is the
+  wording of a comment, docstring or commit message — not a runtime defect — may be raised once. If
+  the next round returns a further wording finding on prose the previous round just rewrote, LOG IT
+  AND STOP; do not spend a round on it. This mirrors the post-commit stop rule in `CLAUDE.md
+  § Post-commit review` and applies to plan-critic and implementation-critic as well as the
+  post-commit reviewers. Rationale: an LLM reviewer returns non-empty on almost any prose, so the
+  loop ends by rule or not at all. On this branch a single hook file drew four §10 wording findings
+  across three critic rounds while the defects that mattered were behavioural.
 - **Ceiling / diminishing returns.** Cap at **4 total rounds**. If the floor is unmet at the ceiling, STOP and **escalate to the user** with the residual findings — do not loop. This replaces "orchestrator resolves directly" for the ceiling case: when the orchestrator cannot converge the critics, the user decides.
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (the `git diff --staged`) MUTATES on every fix, so "consecutive clean on the same artifact" is undefined; and it has no skip condition, so a floor would force ≥2 passes on every trivial commit. It keeps its existing **2-round revision maximum + orchestrator takeover** (below).
 - **Learner counting.** A finding that recurs across rounds of the SAME gate on the SAME artifact counts as ONE occurrence for the learner's frequency tracker (which promotes at 2+ across *different* commits, per `agent-learner.md`) — the orchestrator deduplicates within-run recurrences before reporting to the learner.
@@ -55,4 +63,4 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 
 ---
 
-*Last updated: 2026-07-23 (security-path floor derivation now reads `origin/master...HEAD` — never the stale local `master`; #1134. Prior: 2026-06-20 Multi-Round Review Discipline.)*
+*Last updated: 2026-08-19 (comment-accuracy findings bounded to ONE round on the pre-commit side too, #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*

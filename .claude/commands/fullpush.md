@@ -11,7 +11,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 
 ### Completeness
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
-5. **Did all post-commit agents run on EVERY commit in the push range** — not just on HEAD? Enumerate with `git fetch origin` (ABORT if it fails) then `git rev-list origin/master..HEAD`, and account for each one. The fetch is not optional: `origin/master` is itself a local ref that only advances on fetch, so a stale one sits further back and admits commits this branch never authored — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Checking only the latest commit lets an earlier unreviewed commit through whenever HEAD happens to be clean, which is precisely how this branch reached 24 commits with post-commit agents on 2 of them. For each commit: the full four, or a named exemption. The four are code-reviewer, semantic-reviewer, doc-updater and test-writer, in parallel. The **learner** is not one of them — it runs after all four report, takes their findings as its input, and is skipped entirely on a reduced cycle; check it separately rather than as a fifth member of the set. When applicable also: red-team if the diff touches security files, coderabbit-sync if rules changed. A commit covered by one of the two exemptions in `CLAUDE.md § Post-commit review` (docs-only → doc-updater only; review-follow-up → semantic-reviewer only) satisfies this — **name the exemption and the condition that qualified it**, rather than answering a bare "yes". A commit that merely felt small does not qualify.
+5. **Did all post-commit agents run on EVERY commit in the push range** — not just on HEAD? Enumerate with `git fetch origin` (ABORT if it fails) then `git rev-list origin/master..HEAD`, and account for each one. The fetch is not optional: `origin/master` is itself a local ref that only advances on fetch, so a stale one sits further back and admits commits this branch never authored — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Checking only the latest commit lets an earlier unreviewed commit through whenever HEAD happens to be clean, which is precisely how this branch reached 24 commits with post-commit agents on 2 of them. For each commit: the full four, or a named exemption. The four are code-reviewer, semantic-reviewer, doc-updater and test-writer, in parallel. The **learner** is not one of them — it runs after all four report, takes their findings as its input, and is skipped entirely on a reduced cycle; check it separately rather than as a fifth member of the set. When applicable also: red-team if the diff touches security files, coderabbit-sync if rules changed. A commit covered by a NAMED exemption in `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer) satisfies this — **name the exemption and the condition that qualified it**, rather than answering a bare "yes". A commit that merely felt small does not qualify.
 6. **If production code changed after initial review**, did you re-run semantic-reviewer on the fix commit?
 7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
 
@@ -22,14 +22,14 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 
     Check, and fix now if any is missing:
     - `docs/` — anything the change makes inaccurate (database.md matrices, security.md rules,
-      decisions.md entry for a real decision, plan.md phase/count literals).
+      decisions.md entry for a real decision).
     - `.claude/rules/*.md` — the rule text itself.
-    - **The mirror set for that rule — all SEVEN.** A rule lives in more than one place and the copies
+    - **The mirror set for that rule — every row of the table in `agent-workflow.md § Rule-Mirror Sync`, including the two executable `.claude/hooks/*.sh` mirrors and `package.json`.** A rule lives in more than one place and the copies
       do not auto-track: `docs/security.md`, `.claude/rules/*.md`, `.coderabbit.yaml`,
       `.claude/agents/*.md`, `.claude/commands/*.md`, `.claude/skills/*.md`, AND any other binding
       doc that re-states the mechanics rather than pointing at them — notably `docs/database.md`,
       whose §7 describes what the security-auditor flags. That last one is a CLASS, not a path — no
-      grep of the six fixed paths reaches it; find it by asking "what else asserts this claim?".
+      doc-shaped grep reaches it; find it by asking "what else asserts this claim?".
       (The canonical table lives in `agent-workflow.md § Rule-Mirror Sync`; see also
       `agent-learner.md § Downstream-enforcer sync`.) **`.claude/agents/security-auditor.md` is the
       one people forget, and it is the blocking pre-push gate** — a stale checklist there emits
@@ -40,8 +40,6 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       `.claude/commands/`, then `.claude/skills/*.md`, then `docs/database.md` across PR #1174's
       rounds 3, 4 and 5, which is exactly the drift the rule exists to catch. Each round fixed the
       instance and left the count; assume the list is still incomplete.
-    - Repeated numeric literals (red-team spec count in `tech.md` ×3 + `decisions.md`; integration
-      test count in `plan.md`).
 
     Why here and not in wrap-up: docs pushed after the fact are a second PR, a second review cycle,
     and a window where the repo documents behaviour it no longer has. The reviewers also read these

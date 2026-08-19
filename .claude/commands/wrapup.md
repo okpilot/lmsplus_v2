@@ -33,7 +33,7 @@ wait for a push that something else needs anyway. Report unpushed commits as sta
 process failure. The failure mode this step exists to catch is docs that were never *written*.
 
 - Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
-- Did every rule change land with its full mirror set — all seven (`docs/security.md`,
+- Did every rule change land with its full mirror set — every row of the mirror table (`docs/security.md`,
   `.claude/rules/*.md`, `.coderabbit.yaml`, `.claude/agents/*.md`, `.claude/commands/*.md`,
   `.claude/skills/*.md`, plus any other binding doc that re-states the mechanics — notably
   `docs/database.md`)? See `agent-workflow.md § Rule-Mirror Sync` for the canonical table.
@@ -54,7 +54,7 @@ Run through each item. Report pass/fail with brief notes.
 **Agent pipeline:**
 - **Agent findings resolved** — every ISSUE/CRITICAL from post-commit agents got fixed? No orphans?
 - **Non-blocking findings surfaced** — list ALL SUGGESTION/WARNING/non-blocking findings from every agent and reviewer (post-commit agents, CodeRabbit, critics). For each one, the user must see it and decide: FIX NOW (<10 lines), DEFER (create GitHub issue), or SKIP (with reason). "Noted" is not a valid disposition — every finding gets a ticket or an explicit skip.
-- **Post-commit pipeline completeness** — did every commit get all 4 agents, or an explicitly-named exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater only; review-follow-up → semantic-reviewer only, learner skipped)? Did we run the learner after each full cycle? **And the two CONDITIONAL agents** — red-team when the diff touched the security-path set (`supabase/migrations/**`, `packages/db/src/**`, quiz actions, auth, `proxy.ts`, `docs/security.md`), and coderabbit-sync when a rules file changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new/changed `.claude/hooks/*.mjs` guard). Checking only the four core agents plus the learner silently passes a security-path commit that red-team never saw.
+- **Post-commit pipeline completeness** — did every commit get the full cycle, or an explicitly-named exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer — learner skipped on both)? Did we run the learner after each full cycle? **And the two CONDITIONAL agents** — red-team when the diff touched the security-path set (`supabase/migrations/**`, `packages/db/src/**`, quiz actions, auth, `proxy.ts`, `docs/security.md`), and coderabbit-sync when a rules file changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new/changed `.claude/hooks/*.mjs` guard). Checking only the four core agents plus the learner silently passes a security-path commit that red-team never saw.
 - **Fix-commit re-review** — when production code was fixed from agent findings, did we re-run agents on the fix commit?
 - **Pre-push PR sweep** — for branches with 2+ commits, did we `git fetch origin` (and abort on failure) then run `git diff origin/master...HEAD` semantic review before pushing? A stale base silently distorts the sweep scope.
 - **Pre-commit critics** — did plan-critic and implementation-critic run before each commit? Any skipped without justification? (Plan-critic can skip for single-file <10 lines; implementation-critic never skips)

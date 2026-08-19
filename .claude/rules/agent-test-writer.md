@@ -14,6 +14,12 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Trust the agent's mock patterns — it maintains proven patterns in `.claude/agent-memory/test-writer/MEMORY.md`.
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.
 - Review test names — they should describe behavior, not implementation ("schedules shorter interval when wrong" not "calls updateFsrsState").
+- **Mutation-check any test that pins a mechanism.** Before reporting a new test as passing, break
+  the thing it protects and confirm exactly that test goes red, then restore. A green test proves
+  nothing on its own — `code-style.md` §7 ("A Test Must Fail If Its Mechanism Is Removed") states the
+  rule; this bullet makes it the test-writer's terminal duty rather than a reviewer's catch. On PR
+  #1225 a branch-authored disjointness test passed all four post-commit agents and could not fail:
+  forcing its function to return a constant left 16/16 green.
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
@@ -42,4 +48,4 @@ If the test-writer creates a test that fails because the production code has a b
 
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-08-19 (mutation-check is now the test-writer's terminal duty, not a reviewer's catch — code-style.md §7, #1231. Prior: 2026-03-12.)*
