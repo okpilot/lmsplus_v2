@@ -16,6 +16,9 @@
   // only `import-questions.ts` and `cleanup-orphaned-draft-sessions.ts` pass `<Database>` to
   // `createClient`, so everywhere else `.from()`/`.select()` type against `any` and a wrong
   // column name still compiles. "scripts are type-checked" is therefore narrower than it sounds.
+  // Closing that remaining SCHEMA half is tracked as #1230 — #1219 closes with the PR that added
+  // this file, so #1230 is what keeps the gap from going untracked. Until it lands, cite a green
+  // run here for the structural class only, never as evidence about a column or row shape.
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
     "paths": {
