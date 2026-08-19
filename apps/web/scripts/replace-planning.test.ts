@@ -81,8 +81,9 @@ describe('planScope', () => {
   it('does not treat a sibling file sharing the scope as removed content', () => {
     const plan = planScope({ files: [NUMBERS, EMERGENCY, POSREP], liveNums: ALL_LIVE })
     expect(plan.unaccounted).toEqual([])
-    expect(plan.perFile.get('mc-numbers.json')?.toUpdate).toHaveLength(20)
-    expect(plan.perFile.get('mc-emergency.json')?.toUpdate).toHaveLength(11)
+    expect(plan.perFile.get('mc-numbers.json')?.toUpdate).toEqual(NUMBERS.nums)
+    expect(plan.perFile.get('mc-emergency.json')?.toUpdate).toEqual(EMERGENCY.nums)
+    expect(plan.perFile.get('mc-posrep.json')?.toUpdate).toEqual(POSREP.nums)
   })
 
   it('reports every sibling row as unaccounted when only one of the files is given', () => {
@@ -99,19 +100,30 @@ describe('planScope', () => {
     // POSREP's rows unaccounted while NUMBERS and EMERGENCY are updating, so both sides are
     // non-empty.
     //
-    // Which assertion carries the weight: `unaccounted` equalling POSREP.nums. The disjointness
-    // check cannot fail for ANY implementation that keeps the
-    // `unaccounted = liveNums NOT IN authored` formula — a number in `unaccounted` is by
-    // definition absent from `authored`, and every updating number is in it. It states the
-    // invariant; it does not test it. The two assertions above catch different bugs: an
-    // `unaccounted` formula bug (say `authored` built from one file instead of the union)
-    // fails the `toEqual(POSREP.nums)` line and leaves `updating.size` untouched, while a
-    // `toUpdate` bug fails the `updating.size` line. Not independent, though — both read
-    // `opts.liveNums`, so a bug in that shared input fails both.
+    // Which assertions carry the weight: `unaccounted` equalling POSREP.nums, and `updating`
+    // equalling the exact union of the two authored files. They catch different bugs. An
+    // `unaccounted` formula bug (say `authored` built from one file instead of the union) fails
+    // the `toEqual(POSREP.nums)` line and leaves `updating` untouched, while a `toUpdate` bug
+    // THAT CHANGES THE UNION fails the `updating` line. Set equality there, not a count: a
+    // `toUpdate` carrying a number that is neither authored nor live — one bogus entry per file,
+    // replacing a real one — keeps the unique total at 31 and stays disjoint from `unaccounted`,
+    // so a `.size` check passed it (verified by mutation, 2026-08-19). Note what `updating`
+    // still cannot see: it is a UNION, so mis-attributing numbers BETWEEN the two files leaves
+    // it identical; that mutant is caught by the per-file `toEqual` assertions in the sibling
+    // test above, not here. Not independent, though — both read `opts.liveNums`, so a bug in
+    // that shared input fails both.
+    //
+    // The disjointness line adds no coverage ONCE THE TWO ABOVE IT PASS: `unaccounted` is
+    // pinned to POSREP.nums and `updating` to the exact NUMBERS union EMERGENCY, and those two
+    // sets are disjoint by construction (`VRT-P3-PMC-` vs `VRT-P3-MC-`/`VRT-P3-EMC-`), so it
+    // can only fail when one of them already has. It restates the test's title as an executable
+    // invariant. It is NOT unconditionally unfailable, though — an implementation keeping the
+    // `unaccounted = liveNums NOT IN authored` formula but returning every live number in
+    // `toUpdate` does fail it (that is the #1191 shape, and it fails the set-equality line too).
     const plan = planScope({ files: [NUMBERS, EMERGENCY], liveNums: ALL_LIVE })
     const updating = new Set([...plan.perFile.values()].flatMap((p) => p.toUpdate))
     expect(plan.unaccounted).toEqual(POSREP.nums)
-    expect(updating.size).toBe(NUMBERS.nums.length + EMERGENCY.nums.length)
+    expect(updating).toEqual(new Set([...NUMBERS.nums, ...EMERGENCY.nums]))
     expect(plan.unaccounted.filter((n) => updating.has(n))).toEqual([])
   })
 
@@ -123,7 +135,7 @@ describe('planScope', () => {
 
   it('plans a first import as all inserts with nothing to remove', () => {
     const plan = planScope({ files: [NUMBERS], liveNums: [] })
-    expect(plan.perFile.get('mc-numbers.json')?.toInsert).toHaveLength(20)
+    expect(plan.perFile.get('mc-numbers.json')?.toInsert).toEqual(NUMBERS.nums)
     expect(plan.unaccounted).toEqual([])
   })
 })
