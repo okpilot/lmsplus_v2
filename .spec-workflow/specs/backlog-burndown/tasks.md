@@ -167,7 +167,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       3 WARNING.
 - [x] **THE CAP FIRED.** `2749e56e` was chain commit 3 and code-reviewer's 3 findings were all in
       prose this chain wrote, so the rule refused a fourth fixup and escalated. User chose: apply
-      the three, commit, run NO further cycle. Applied in `dc4…`: the chain log had `387a29ac`
+      the three, commit, run NO further cycle. Applied in `1c22b201`: the chain log had `387a29ac`
       filed ABOVE `6d4aa646` (reversed, in the one file an auditor reads to check the cap was
       honoured); `agent-workflow.md`'s footer described only the a0e01943 changes, omitting both
       `--limit 200` and the step-scoping; and the rule presented the ARTIFACT figure 8 as the

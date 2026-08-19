@@ -85,7 +85,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Idempotency/safety comment masks a real side effect | 1 | 2026-07-31 | WATCHING (archive row 504) |
 | Playwright setup project ordering assumed not declared | 1 | 2026-07-31 | WATCHING (archive row 505) |
 | Cycle commit message or drive-by comment introduces | 1 | 2026-07-31 | WATCHING (archive row 506) |
-| Regression test can't detect fix's own reversion (passes | 4 | 2026-08-19 | RULE CANDIDATE (4). §7 covers it; recurrence = enforcement gap. PR #1225: 4 sub-instances; 59174cab (chore/part3-audit-followup): test-writer found toHaveLength(50) vacuous on #1191 regression test (4th distinct commit). Issue #1231 tracks mandatory mutation-check DO for test-writer. |
+| Regression test can't detect fix's own reversion (passes | 4 | 2026-08-19 | RULE CANDIDATE (4). §7 covers it; enforcement gap. 4th commit: 59174cab. Issue #1231 → mutation-check as test-writer terminal duty. |
 | Fake-timer test timeout leaks timer mode into later tests | 1 | 2026-08-07 | WATCHING (archive row 513) |
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-semantic-reviewer.md + agent-red-team.md DO (archive row 514). |
 | Dep-bump type error cascades into N CI suite failures | 1 | 2026-08-07 | WATCHING (archive row 515) |
@@ -94,9 +94,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Test-file split duplicates unused fixture (Biome | 1 | 2026-08-08 | WATCHING (archive row 518) |
 | Claim-correction commit updates a count but leaves its | 3 | 2026-08-16 | RULE CANDIDATE (3) → archive row 519 (await cross-branch recurrence). |
 | Branch memory/run-log SHAs orphaned on each forced rebase | 1 | 2026-08-08 | WATCHING (archive row 520) |
-| CR fabricates repo-history claims (SHA/PR/issue "doesn't | 3 | 2026-08-19 | RULE CANDIDATE (3) → broaden agent-coderabbit-local.md Pitfall #8 (archive row 521). 3rd: d2cadf6e CR-local round 3 claimed "no guard tests the --replace + --force-remote pair"; `import-vfr-rt-content.ts:145` is exactly `if (REPLACE && FORCE_REMOTE)`. |
+| CR fabricates repo-history claims (SHA/PR/issue "doesn't | 3 | 2026-08-19 | RULE CANDIDATE (3) → agent-coderabbit-local.md Pitfall #8 (archive row 521). Absence-of-guard claims equally fabricated (line 145 IS the guard). |
 | Multi-row tracker transition leaves sibling archive row | 1 | 2026-08-08 | WATCHING (archive row 522) |
-| Orchestrator embeds unverified schema identifier | 3 | 2026-08-17 | PROMOTED → agent-doc-updater.md cite-before-writing NEVER bullet (doc-updater agent fabricates script path + footer date, same class; rule written at count=2). |
+| Orchestrator embeds unverified schema identifier | 3 | 2026-08-17 | PROMOTED → agent-doc-updater.md NEVER bullet (cite-before-writing). Terminal-state → tracker-archive. |
 | Playwright getByRole('dialog') on AlertDialog (renders | 1 | 2026-08-09 | WATCHING (archive row 524) |
 | Integration test uses real prod code in onConflict | 1 | 2026-08-09 | WATCHING (archive row 525) |
 | check-test-title-leakage.mjs misses bare snake_case token | 2 | 2026-08-17 | RULE CANDIDATE (2) → extend hook DISALLOWED_PATTERNS or §7 note (archive row 526). |
@@ -107,7 +107,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Status/error-posture change leaves a sibling spec | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation (archive row 531). |
 | Orchestrator acts on ISSUE without Finding Validation | 1 | 2026-08-09 | WATCHING (archive row 532) |
 | buildChain mock Proxy absorbs any chain call — new guard | 1 | 2026-08-09 | WATCHING (archive row 533) |
-| Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: PR #1225 disjointness test passed all 3 fixture files (unaccounted always []) — 4 post-commit agents clean; CR-local round 3 caught it. Supports Regression-test row's test-writer DO proposal. |
+| Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: PR #1225 disjointness test (always []) — 4 agents clean, CR-local caught it. |
 | Local DB queried for grant evidence when drift is | 1 | 2026-08-09 | WATCHING (archive row 536) |
 | Internal subagent fabricates repo-artifact identifier | 1 | 2026-08-09 | WATCHING (archive row 537) |
 | Agent appends session-log to memory in REVIEW ONLY scope | 1 | 2026-08-09 | WATCHING (archive row 538) |
@@ -115,22 +115,22 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | §10 GRANT/REVOKE chain tracing stopped at function body | 1 | 2026-08-10 | WATCHING (archive row 541) |
 | Rule/skill asserts "effectively absolute" while cited | 1 | 2026-08-10 | WATCHING (archive row 542) |
 | Prod-capable script copies behavioral semantics from | 1 | 2026-08-11 | WATCHING (archive row 539) |
-| CR/reviewer suggestion adopted verbatim without checking | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: impl-critic claimed `createClient<` had 2 live call sites + JSDoc; orchestrator propagated this in 3a50780a commit message without verifying; admin.ts:13 is a third live call site. |
+| CR/reviewer suggestion adopted verbatim without checking | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: critic claimed 2 `createClient<` call sites; admin.ts:13 is a third. Verify the claim before repeating it. |
 | Sibling-scope sweep keyed on RPC/function-name rather | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
-| Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes e2e/ — NOT scripts/, which tsconfig.scripts.json has covered since #1219). |
+| Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → agent-workflow.md §Plan Validation — confirm scope covers changed files before citing a command. |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
-| Broad `git add <subdir>` sweeps unrelated untracked files | 5 | 2026-08-19 | RESOLVED (mechanical). Archive row 744 = 1st. PR #1225 relapsed 3× on the same 2 eval-seed scripts despite a stated "use explicit paths" intent; fixed by `bffab393` adding them to `.gitignore` by name — prose relapsed, mechanical fix held immediately. See §10 row below for the same lesson at scale. |
+| Broad `git add <subdir>` sweeps unrelated untracked files | 5 | 2026-08-19 | RESOLVED (mechanical) → tracker-archive. `.gitignore` fix held; prose relapsed but mechanical gate did not. |
 | `json.dumps` round-trip reformats an entire tracked JSON | 1 | 2026-08-15 | WATCHING (archive row 549). |
 | Blanket find/replace during tracker state-transition | 1 | 2026-08-15 | WATCHING (archive row 550). |
 | Doc-updater flags drift by comparing against superseded | 1 | 2026-08-16 | WATCHING (archive row 551) |
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 3 | 2026-08-19 | RULE CANDIDATE (3) — domain-general (archive row 555): `43c7c4d1` mig comments, `3c9a6c2a` code comments, `70f40ee8` CI yaml comment ("last two InRelease fetches" was 3; "~6-8 min" pasted onto 4 structurally different jobs). §10 partial-comment-edit clause is necessary but not sufficient — defects appear in newly-written corrections, not omitted surroundings. Propose code-style.md §10 addition: accuracy corrections are highest-risk for new §10 violations; re-derive every cited count/line-ref/mechanism name from current source; scan the surrounding sentence and whole block for claims the new text now invalidates. ⊕ `03db7fb8` (2026-08-19): first accuracy-fix commit this session with ZERO new §10 findings — verify-both-CR-premises-before-editing + deliberate non-touch of unverified sibling held. Promotion pending `chore/s10-accuracy-fix-rule` merge. |
+| Fix commit correcting §10 violations introduces fresh §10 | 4 | 2026-08-19 | RULE CANDIDATE (4). domain-general (archive row 555 for instances 1–3). 4th: `6d4aa646` (chore/backlog-flow-control) — four false claims introduced while correcting earlier claims in pipeline/workflow rule files: "8 filed…naming 2" (section named 2, union was 8), `wontfix` as "the one default we actually use" (0 issues carry it), #1219 as PR #1225 "headline finding" (merge commit says Headline=#1191, Second=#1219), "paste all three" heading over a four-step list. Author's attention on the thing being corrected; nearby prose unchecked. Promotion pending `chore/s10-accuracy-fix-rule` merge. |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
-| Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: ordering + diagram corpora shipped with zero suite coverage; mc-content.test.ts had already documented the lesson one pool over and its header explicitly said so. |
+| Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2). content/vfr-rt-part3: no coverage on ordering/diagram despite mc-content.test.ts documenting the same lesson in its header. |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) → code-style.md §10 addendum: shared-helper/grep-for-marker over enumeration (archive row 534). 2nd domain of the Rule-Mirror Sync defect shape. |
 | Promoted rule (§1 same-commit-extraction, count=8) not | 1 | 2026-08-17 | WATCHING (archive row 559). |
 | Review-follow-up exemption misapplied — commit pushed | 1 | 2026-08-17 | WATCHING (archive row 560). |
@@ -138,13 +138,18 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
 | Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) — commit doc updates separately from review-follow-up code fixes; a doc update widens the file set and disqualifies the reduced cycle (archive row 564). |
-| §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225: 4th cluster, final 5 commits — (a) config.question_ids conflation in 8393f126, (b) "2 of 16" mis-stated as "2 of 14" in 3a50780a commit msg, (d) 3 wrong comment versions in d2cadf6e/b0695921. See archive row 593 for master list. Gap remains reviewer-side re-derivation, not §10 text. |
+| §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225: 4th cluster. Archive row 593 for master list. Gap: reviewer-side re-derivation, not §10 text. |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2). Propose §10 sub-clause: evidence must postdate the change it certifies. |
 | MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). Tool-fixed: assertMcKeyBalance in test suite + importer. |
-| Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225, 4 commits (#1219, #1194, #1192 status, #1192 priority). Unpushed `Closes #N` closes nothing. Propose: agent-workflow.md § Finding Validation table — add "issue closed/resolved" → `gh issue view N --json state`. |
-| Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2). PR #1225, 2 commits, no such exemption exists. Text is unambiguous; propose a named precedent line in agent-critic.md, not new text. |
-| Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING. PR #1225; run-log warns of this class twice already outside this tracker. On 2nd instance HERE, propose `date -u` over a 3rd prose warning. |
+| Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225, 4 commits. Propose: Finding Validation — "closed/resolved" → `gh issue view N --json state`. |
+| Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2). No such exemption exists. Propose named precedent in agent-critic.md. |
+| Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING. On 2nd: propose `date -u` over a 3rd prose warning. |
 | Comment about what a test assertion proves written without mutation-verification | 1 | 2026-08-19 | WATCHING (archive row 594) |
+| Self-invalidating relative reference in durable rules/doc file | 3 | 2026-08-19 | RULE CANDIDATE (3). 387a29ac: "The previous commit on this branch" + placeholder SHA before commit existed; 2749e56e: "(Why, in full: the commit message for this change.)". Rules files have no "now" — name the SHA after the fact. |
+| Verification gate's pass condition is empty result — fails open on malformed input | 2 | 2026-08-19 | RULE CANDIDATE (2). 6d4aa646: `git log --since` test where empty=PASS, so a malformed date silently grants the exemption. 387a29ac: `gh issue list` default `--limit 30` exits 0 on truncated list, under-counting `filed`. Any check whose PASS is absence must also prove the mechanism ran. |
+| Rule-mirror written from memory of new text rather than source — multi-way drift | 2 | 2026-08-19 | RULE CANDIDATE (2). 6d4aa646: four-way drift (`>` vs `≥`, missing guard, stale "aggregate" claim, wrong count). 387a29ac: stop-rule mirror re-keyed on unreachable term. Rule-Mirror Sync procedure exists; add: write mirror text from the source text, not from memory of it. |
+| Ceiling or bound defined in terms of an unreachable precondition | 1 | 2026-08-19 | WATCHING (archive row 595) |
+| Pipeline bookkeeping lines pushed review-follow-up commit over 20-line threshold | 1 | 2026-08-19 | WATCHING (archive row 596) |
 
 ## Durable knowledge (cross-agent)
 
