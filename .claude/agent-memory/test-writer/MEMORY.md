@@ -14,6 +14,7 @@
 | `vi.fn` two-arg generic form (removed in Vitest 4, fails `check-types`) | 2026-03-14 | 2 | 2026-03-15 | PROMOTED → use single function-type arg form (recipes: vi.fn generic) |
 | Test name contradicts its assertion postcondition | 2026-04-05 | 3 | 2026-06-06 | PROMOTED → re-read name vs assertion, fix in same commit |
 | Sibling-parity retry test asserts only END-state, missing a sibling's "clears at start" test | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| `toHaveLength(N)` on an array whose CONTENT matters (toUpdate, toInsert) — count-only passes mutants that swap correct entries for wrong ones of equal count | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
 
 ## Durable knowledge
 

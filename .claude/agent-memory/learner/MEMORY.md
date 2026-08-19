@@ -85,7 +85,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Idempotency/safety comment masks a real side effect | 1 | 2026-07-31 | WATCHING (archive row 504) |
 | Playwright setup project ordering assumed not declared | 1 | 2026-07-31 | WATCHING (archive row 505) |
 | Cycle commit message or drive-by comment introduces | 1 | 2026-07-31 | WATCHING (archive row 506) |
-| Regression test can't detect fix's own reversion (passes | 3 | 2026-08-19 | RULE CANDIDATE (3). §7 covers it; recurrence = enforcement gap. PR #1225 +4 (bold/italic mismatch, allowlist substring, deriveBlankIndices ordering, --replace under-layered). Propose: test-writer DO — make the §7 mutation check mandatory pre-report. |
+| Regression test can't detect fix's own reversion (passes | 4 | 2026-08-19 | RULE CANDIDATE (4). §7 covers it; recurrence = enforcement gap. PR #1225: 4 sub-instances; 59174cab (chore/part3-audit-followup): test-writer found toHaveLength(50) vacuous on #1191 regression test (4th distinct commit). Issue #1231 tracks mandatory mutation-check DO for test-writer. |
 | Fake-timer test timeout leaks timer mode into later tests | 1 | 2026-08-07 | WATCHING (archive row 513) |
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-semantic-reviewer.md + agent-red-team.md DO (archive row 514). |
 | Dep-bump type error cascades into N CI suite failures | 1 | 2026-08-07 | WATCHING (archive row 515) |
@@ -144,6 +144,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225, 4 commits (#1219, #1194, #1192 status, #1192 priority). Unpushed `Closes #N` closes nothing. Propose: agent-workflow.md § Finding Validation table — add "issue closed/resolved" → `gh issue view N --json state`. |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2). PR #1225, 2 commits, no such exemption exists. Text is unambiguous; propose a named precedent line in agent-critic.md, not new text. |
 | Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING. PR #1225; run-log warns of this class twice already outside this tracker. On 2nd instance HERE, propose `date -u` over a 3rd prose warning. |
+| Comment about what a test assertion proves written without mutation-verification | 1 | 2026-08-19 | WATCHING (archive row 594) |
 
 ## Durable knowledge (cross-agent)
 
