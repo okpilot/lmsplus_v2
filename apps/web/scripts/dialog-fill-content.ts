@@ -259,15 +259,24 @@ export function composeDialogTemplate(
   })
 }
 
-/** Every word visible to the student: speaker prefixes and blank markers removed, normalized. */
-function visibleWords(template: string): string[] {
-  const visible = template
+/**
+ * Every word visible to the student, grouped ONE ARRAY PER TEMPLATE LINE: speaker prefixes and
+ * blank markers removed, normalized. Kept per-line (not flattened+joined) because
+ * `normalizeAnswer`'s `\s+` collapse would otherwise turn the '\n' between two transmissions into
+ * an ordinary space, letting a word run match ACROSS the boundary — `traffic` ending one
+ * transmission and `in sight` opening the next would then read as the contiguous phrase
+ * `traffic in sight`, even though no single transmission shows it and a student reading the
+ * dialogue would not see it as one run. `anyLineContainsWordRun` is what enforces the boundary.
+ */
+function visibleWordLines(template: string): string[][] {
+  return template
     .split('\n')
     .map((line) => line.trim().replace(SPEAKER_PREFIX_RE, ''))
-    .join('\n')
-    .replace(markerRe(), ' ')
-  const normalized = normalizeAnswer(visible)
-  return normalized === '' ? [] : normalized.split(' ')
+    .map((line) => line.replace(markerRe(), ' '))
+    .map((line) => {
+      const normalized = normalizeAnswer(line)
+      return normalized === '' ? [] : normalized.split(' ')
+    })
 }
 
 /** True when `needle`'s words appear as a contiguous run inside `haystack`. */
@@ -279,8 +288,15 @@ function containsWordRun(haystack: readonly string[], needle: readonly string[])
   return false
 }
 
+/** True when `needle` appears as a contiguous run WITHIN any single line of `lines`. */
+function anyLineContainsWordRun(lines: readonly string[][], needle: readonly string[]): boolean {
+  return lines.some((line) => containsWordRun(line, needle))
+}
+
 /**
- * R3 for one recall blank: the canonical must not already be printed in the visible template,
+ * R3 for one recall blank: the canonical must not already be printed as a contiguous word-run
+ * WITHIN A SINGLE TRANSMISSION of the visible template (per-line since #1198 — a phrase whose
+ * words straddle two transmissions is not copyable off one line and no longer trips this),
  * where the student could copy it instead of recalling it. R3 constrains the CANONICAL only —
  * synonyms are exempt, and that exemption is load-bearing: several single-word recall answers
  * legitimately carry multi-word synonyms (`wilco` accepts `will report runway vacated`).
@@ -288,13 +304,13 @@ function containsWordRun(haystack: readonly string[], needle: readonly string[])
  * This function no longer implements R2 — R2 (single-word recall canonical) and R4 (anchor after
  * a recall run) were REMOVED on 2026-08-12 with the one-blank-per-phrase rule. See the note below.
  */
-function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[], at: string): void {
+function assertRecallBlank(blank: AuthoredBlank, visible: readonly string[][], at: string): void {
   const words = normalizeAnswer(blank.canonical)
     .split(' ')
     .filter((word) => word !== '')
-  if (containsWordRun(visible, words)) {
+  if (anyLineContainsWordRun(visible, words)) {
     throw new Error(
-      `${at}: authoring R3 — recall canonical ${JSON.stringify(blank.canonical)} (blanks index ${blank.index}) already appears in the visible template, so nothing is being recalled; mark it 'derivable' or reword the dialogue.`,
+      `${at}: authoring R3 — recall canonical ${JSON.stringify(blank.canonical)} (blanks index ${blank.index}) already appears as a contiguous word-run within a single transmission of the visible template, so nothing is being recalled; mark it 'derivable' or reword the dialogue. (The check is PER TRANSMISSION: a phrase whose words straddle two lines does not trip R3.)`,
     )
   }
 }
@@ -392,6 +408,21 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
 }
 
 /**
+ * The nearest non-empty line strictly before index `i`, skipping blank separator lines.
+ * `assertTemplateShape` treats an empty line as a valid separator (`if (line === '') continue`),
+ * so a template may legitimately read `"[atc] x\n\n[pilot] {{0}}"`. It is two lines up in the
+ * TEMPLATE ARRAY but not on screen: `parse-dialog-display.ts` filters empty lines out before
+ * rendering, so the student sees the `[atc]` line directly above. Reading `lines[i - 1]` landed
+ * on the blank row and rejected an anchor the student sees immediately above it.
+ */
+function nearestNonEmptyLineBefore(lines: readonly string[], i: number): string | undefined {
+  for (let j = i - 1; j >= 0; j--) {
+    if (lines[j] !== '') return lines[j]
+  }
+  return undefined
+}
+
+/**
  * R7 — a recall blank must be pinned: by the `[atc]` line above it, or by a declared `unanchored`.
  *
  * The defect this stops (eval 2026-08-13): a `recall` blank asks for a phrase that appears nowhere
@@ -431,7 +462,13 @@ function assertPromptSetsSceneOnly(prompt: string, at: string): void {
  *
  * Items that cannot satisfy the readback anchor opt out via `unanchored` — but the bar is
  * EXCLUSION, not plausibility: the declaration must name the competing phrase and show what
- * visible text rules it out.
+ * visible text rules it out. That bar is an AUTHORING obligation, not a checked one: the code
+ * below does not verify the bar at all — it only CONDITIONS the opt-out on `unanchored` being a
+ * non-empty string. A non-empty value returns BEFORE the anchor scan below, so it opts the WHOLE
+ * ITEM out of R7, including blanks that would have passed the scan on their own. Nothing can
+ * machine-check whether
+ * a sentence actually excludes a phrase, so the escape hatch is exactly as strong as the review
+ * that reads it — do not cite R7 as proof an unanchored blank was justified.
  *
  * Exclude it with material that is DISCLOSED. An earlier pass invented a `holding short of` call
  * for DLG-34 and a `right base` call for DLG-35 purely so elimination would hold, and asserted the
@@ -460,7 +497,7 @@ function assertRecallAnchored(item: DialogFillItem, at: string): void {
   for (const [i, line] of lines.entries()) {
     const held = lineMarkers(line).filter((m) => recallIndexes.has(m.index))
     if (held.length === 0) continue
-    if (lines[i - 1]?.startsWith('[atc]') !== true) {
+    if (nearestNonEmptyLineBefore(lines, i)?.startsWith('[atc]') !== true) {
       throw new Error(
         `${at}: authoring R7 — recall blank(s) ${held.map((m) => m.index).join(', ')} sit on a line with no [atc] line above them, so nothing on screen pins which phrase is wanted and the student must guess; blank a readback of the controller's line instead, or declare 'unanchored' saying what does pin it.`,
       )
@@ -471,7 +508,8 @@ function assertRecallAnchored(item: DialogFillItem, at: string): void {
 /**
  * House authoring rules, derived from the content file's own `authoring_notes`:
  *   R1 every blank carries `shape` ∈ recall | derivable
- *   R3 a recall canonical never appears in the visible template, under normalizeAnswer semantics
+ *   R3 a recall canonical never appears as a contiguous word-run within ONE transmission of the
+ *      visible template, under normalizeAnswer semantics
  *   R5 a line never blanks 2+ CONTENT items with no visible item to show the split
  *   R6 the prompt sets the scene and never names the competency under test
  *   R7 a recall blank sits beside an [atc] line, or the item declares `unanchored`
@@ -490,7 +528,7 @@ function assertRecallAnchored(item: DialogFillItem, at: string): void {
  */
 export function assertDialogFillAuthoring(item: DialogFillItem, at: string): void {
   const canonicals = new Map(item.blanks.map((b) => [b.index, b.canonical]))
-  const visible = visibleWords(item.template)
+  const visible = visibleWordLines(item.template)
   assertPromptSetsSceneOnly(item.prompt, at)
   for (const blank of item.blanks) {
     const shape = blank.shape

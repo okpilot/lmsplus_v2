@@ -232,6 +232,10 @@ async function seed() {
     .single()
   if (studentErr || !student)
     throw new Error('Test student not found — run seed-test-user.ts first')
+  // Narrowing from the guards above doesn't cross into the nested `createCompletedSession`
+  // function declaration below — capture the ids as plain strings so it doesn't need to.
+  const orgId = org.id
+  const studentId = student.id
 
   // 3. Get admin user (for created_by)
   const { data: admin } = await db
@@ -411,8 +415,8 @@ async function seed() {
     const { data: session, error: sessErr } = await db
       .from('quiz_sessions')
       .insert({
-        organization_id: org.id,
-        student_id: student.id,
+        organization_id: orgId,
+        student_id: studentId,
         subject_id: subjectId,
         mode: 'quick_quiz',
         total_questions: questionCount,

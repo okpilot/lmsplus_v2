@@ -934,7 +934,9 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Import tool
 `apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
-`apps/web/scripts/check-import-conflicts.ts` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import.
+`scripts/probe-<topic>-import-conflicts.py` — companion dry-run, in ROOT `scripts/` (matching the
+invocation in step 4 below, not `apps/web/scripts/`). Root `/scripts/` is gitignored, so these are
+written per-import and a fresh clone has none; copy the shape from an existing one if present: validates syllabus rows exist and reports `question_number` collisions before a batch import. (A `check-import-conflicts.ts` was planned and never built; the Python probe is the actual tool — see the Conflict pre-check note above.)
 
 **Remote import workflow:**
 
@@ -968,6 +970,16 @@ Notes:
 - Taxonomy (subject/topic/subtopic) must already exist in `easa_subjects`/`easa_topics`/`easa_subtopics`; the importer throws otherwise (it does not create taxonomy).
 - Images are referenced by **basename** in JSON and upload to `question-images/<subject_code>/<basename>` with `upsert: true`. Trap: nested source paths (`diagrams/.../x.svg`) 404 and get stored as raw strings = broken images — the builder must rewrite image fields to basenames.
 - The `--force-remote` flag is required for any non-localhost Supabase URL (safety guard).
+- **The env file selects the target; the flag only grants permission.** `--force-remote` does NOT
+  retarget the importer at production — the resolved `NEXT_PUBLIC_SUPABASE_URL` does, so
+  `apps/web/.env.remote` must be sourced first. `import-vfr-rt-content.ts` now derives its
+  `[REMOTE]`/`[local]` banner and every remote-vs-local branch from the RESOLVED URL
+  (`isRemoteTarget`), not the flag, and **aborts** if the flag is passed while the URL is local —
+  previously that combination printed `[REMOTE]` over a local write, so an operator could watch
+  rows insert and believe production had the content when it did not (#1221).
+  ⚠️ `import-questions.ts` — the importer THIS procedure uses — does **not** have that abort yet
+  (#1224). It also does not PRINT the resolved URL on a successful run, so there is nothing to
+  read back — check `NEXT_PUBLIC_SUPABASE_URL` in the environment before you invoke it.
 
 ---
 
@@ -1470,7 +1482,7 @@ nothing visible; all 15 callsign blanks decidable from the text above them (posi
 48/71 and reported **zero** blanks as pure guesses; 18 of its 23 misses had the answer printed in
 the controller's line above.
 
-**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P1), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) and #1194 (R3 tolerance parity with `answer_matches`, M/P2) rather than a third rewrite.
+**Open**: DLG-35 blank 0 still fails the proxy — tracked as #1192 (S/P2), left for a human call. Also deferred from the pre-push review: #1193 (duplicate-synonym corpus gate, S–M/P2) rather than a third rewrite. #1194 (R3 tolerance parity with `answer_matches`) is closed BY THIS BRANCH as decided — see Decision 57 — but the divergence it describes is deliberately RETAINED, not fixed: R3 stays exact-match while the grader is tolerant, and the decision records the trigger to revisit. Read the issue as answered, not the gap as gone.
 
 ## VFR RT Part 3 — complete, split into four subareas — 2026-08-18
 
@@ -1521,8 +1533,16 @@ legs question and the turns question using disjoint zone sets.
 > the identity on uniform-length ids) while still not stopping deliberate encoding.
 >
 > **Why the MC pools have an enforced key-balance gate.** The first numbers draft put the answer on
-> `b` or `c` in 17 of 18 questions with no `d` at all — guessable without reading a stem, and every
-> per-question check passed it. `scripts/mc-content.ts` carries `assertMcItem` (per question) and
+> `b` or `c` in 17 of 18 questions with no `d` at all, and every per-question check passed it. This
+> is a CONTENT-QUALITY rule, not a defence against guessing the graded draw: `get_quiz_questions`
+> (latest def `20260702000300`) and `get_vfr_rt_exam_questions` (latest def `20260623000600`) both
+> project MC options `ORDER BY random()` — both traced through `DROP FUNCTION`+`CREATE` as well as
+> `CREATE OR REPLACE`, since `agent-coderabbit-local.md` records a prior incident where a
+> superseded `get_quiz_questions` body was read as current — so a stored id's
+> on-screen position is re-rolled on every fetch and the skew is not exploitable there. The skew
+> IS visible wherever options render in AUTHORED order — Study Mode, the post-session report, and
+> the admin question editor, whose fixed a/b/c/d grid mis-renders a gapped option-id run onto the
+> wrong slot (a separate defect tracked as #1223). `scripts/mc-content.ts` carries `assertMcItem` (per question) and
 > `assertMcKeyBalance` (per pool: no id above `KEY_SKEW_TOLERANCE` times the even share, no offered
 > id never used — both constants live in `scripts/mc-content.ts`, named rather than restated here so
 > the doc cannot drift from them), and
@@ -1530,7 +1550,17 @@ legs question and the turns question using disjoint zone sets.
 > questions (`MIN_CORPUS_FOR_KEY_BALANCE`), so the 11-question emergency and 5-question posrep pools are NOT covered by their own
 > per-file check — they are covered by a second pass over the union of every MC file sharing a
 > `(subject_code, topic_code)`, which is 36 questions for Part 3 and so clears the floor. Both the
-> importer and the suite run that union. The split into subareas is what opened the hole: the gate
+> importer and the suite run that union — but they see different inputs. The SUITE always loads
+> all three files, so its union is always 36. The IMPORTER unions only the files passed to the
+> invocation, so `import ... vfr-rt-part3-mc-emergency.json` ALONE unions 11, stays under
+> `MIN_CORPUS_FOR_KEY_BALANCE`, so the gate returns without checking anything. Pass the whole
+> `vfr-rt-part3-mc-*.json` glob, as the documented invocation does, or the union check is silently
+> absent. `--replace` reads the same invocation-scoped file list but does NOT fail this way:
+> `planScope` diffs the union of every file in the run that targets a given scope against that
+> scope's live rows, and `decideUnaccounted` ABORTS on any unaccounted row unless `--prune` is
+> passed — so a forgotten sibling file stops the run with the numbers named, rather than passing
+> quietly. Being silent is what makes the MC union gate the hole. The split into subareas is what
+> opened it: the gate
 > was written when Part 3 MC was one 20-question pool, and splitting it to 20 / 11 / 5 silently
 > dropped 16 of 36 questions out of coverage while every test stayed green.
 

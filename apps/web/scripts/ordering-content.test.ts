@@ -91,7 +91,10 @@ describe('the stored items built from authored text', () => {
   it('gives a step the same id wherever it appears', () => {
     const first = buildOrderingItems(['Contact tower', 'Line up'], AT)
     const second = buildOrderingItems(['Line up', 'Contact tower'], AT)
-    expect(first[1].id).toBe(second[0].id)
+    const firstLineUp = first[1]
+    const secondLineUp = second[0]
+    if (!firstLineUp || !secondLineUp) throw new Error('expected both ordering items to exist')
+    expect(firstLineUp.id).toBe(secondLineUp.id)
   })
 
   it('rejects steps that would share one id, blaming normalization', () => {

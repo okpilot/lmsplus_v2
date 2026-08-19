@@ -14,7 +14,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { ImportQuestion } from '@repo/db/import-schema'
 import { ImportFileSchema } from '@repo/db/import-schema'
-import { createClient } from '@supabase/supabase-js'
+import type { Database, Json } from '@repo/db/types'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { parseImportArgs } from './parse-import-args'
+
+// `ReturnType<typeof createClient>` does not resolve to the type of an actual call —
+// `createClient` is generic, and TS instantiates an unresolved return-type query using the
+// type parameters' constraints, not their defaults, producing a distinct (and here mismatched)
+// SupabaseClient instantiation. Name the concrete type explicitly instead.
+type AdminClient = SupabaseClient<Database>
 
 // Load .env.local from apps/web or repo root
 function loadEnv() {
@@ -52,21 +60,17 @@ const STORAGE_BUCKET = 'question-images'
 // ---------------------------------------------------------------------------
 
 function parseArgs(): { file: string; baseDir: string } {
-  const args = process.argv.slice(2)
-  let file = ''
-  let baseDir = ''
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--file' && args[i + 1]) file = args[++i]
-    if (args[i] === '--base-dir' && args[i + 1]) baseDir = args[++i]
-  }
+  // Parsing lives in ./parse-import-args so it can be tested — this file has no exports and calls
+  // main() at module scope, so importing it from a test runs the importer rather than the parser.
+  const { file, baseDir: parsedBaseDir } = parseImportArgs(process.argv.slice(2))
 
   if (!file) {
     console.error('Usage: --file <path-to-json> [--base-dir <folder-with-images>]')
     process.exit(1)
   }
 
-  if (!baseDir) baseDir = dirname(file)
+  // Images default to sitting beside the JSON that references them.
+  const baseDir = parsedBaseDir || dirname(file)
 
   return { file: resolve(file), baseDir: resolve(baseDir) }
 }
@@ -75,7 +79,7 @@ function parseArgs(): { file: string; baseDir: string } {
 // Supabase admin client
 // ---------------------------------------------------------------------------
 
-function createAdminClient() {
+function createAdminClient(): AdminClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {
@@ -91,14 +95,14 @@ function createAdminClient() {
     process.exit(1)
   }
 
-  return createClient(url, key)
+  return createClient<Database>(url, key)
 }
 
 // ---------------------------------------------------------------------------
 // Bootstrap: org, user, question bank
 // ---------------------------------------------------------------------------
 
-async function bootstrapOrg(db: ReturnType<typeof createClient>) {
+async function bootstrapOrg(db: AdminClient) {
   const { data, error } = await db
     .from('organizations')
     .upsert({ name: ORG_NAME, slug: ORG_SLUG }, { onConflict: 'slug' })
@@ -110,7 +114,7 @@ async function bootstrapOrg(db: ReturnType<typeof createClient>) {
   return data.id as string
 }
 
-async function bootstrapUser(db: ReturnType<typeof createClient>, orgId: string) {
+async function bootstrapUser(db: AdminClient, orgId: string) {
   // Check if auth user exists
   const { data: authUsers } = await db.auth.admin.listUsers()
   let authUser = authUsers?.users?.find((u) => u.email === ADMIN_EMAIL)
@@ -144,7 +148,7 @@ async function bootstrapUser(db: ReturnType<typeof createClient>, orgId: string)
   return authUser.id
 }
 
-async function bootstrapBank(db: ReturnType<typeof createClient>, orgId: string, userId: string) {
+async function bootstrapBank(db: AdminClient, orgId: string, userId: string) {
   // One bank per org (question_banks_organization_id_key, covering soft-deleted rows).
   // Look up without name/deleted_at filters so a mismatch fails with a clear diagnostic
   // instead of a 23505 insert collision. This prod importer never auto-restores a
@@ -205,22 +209,24 @@ function parseFolderPath(baseDir: string) {
     // Match topic: "050-01 The atmosphere"
     const topicMatch = part.match(/^(\d{3}-\d{2})\s+(.+)$/)
     if (topicMatch) {
-      topicCode = topicMatch[1]
-      topicName = topicMatch[2]
+      // Capture groups are mandatory in the pattern, so a successful match always
+      // populates both — the `?? null` fallback is a type-narrowing formality only.
+      topicCode = topicMatch[1] ?? null
+      topicName = topicMatch[2] ?? null
     }
 
     // Match subtopic: "050-01-01 - Composition, extent and vertical division"
     const subtopicMatch = part.match(/^(\d{3}-\d{2}-\d{2})\s+-\s+(.+)$/)
     if (subtopicMatch) {
-      subtopicCode = subtopicMatch[1]
-      subtopicName = subtopicMatch[2]
+      subtopicCode = subtopicMatch[1] ?? null
+      subtopicName = subtopicMatch[2] ?? null
     }
   }
 
   return { topicCode, topicName, subtopicCode, subtopicName }
 }
 
-async function lookupSubject(db: ReturnType<typeof createClient>, code: string) {
+async function lookupSubject(db: AdminClient, code: string) {
   const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
 
   if (error || !data) {
@@ -231,7 +237,7 @@ async function lookupSubject(db: ReturnType<typeof createClient>, code: string) 
   return data.id as string
 }
 
-async function lookupTopic(db: ReturnType<typeof createClient>, subjectId: string, code: string) {
+async function lookupTopic(db: AdminClient, subjectId: string, code: string) {
   const { data, error } = await db
     .from('easa_topics')
     .select('id')
@@ -247,7 +253,7 @@ async function lookupTopic(db: ReturnType<typeof createClient>, subjectId: strin
   return data.id as string
 }
 
-async function lookupSubtopic(db: ReturnType<typeof createClient>, topicId: string, code: string) {
+async function lookupSubtopic(db: AdminClient, topicId: string, code: string) {
   const { data, error } = await db
     .from('easa_subtopics')
     .select('id')
@@ -264,7 +270,7 @@ async function lookupSubtopic(db: ReturnType<typeof createClient>, topicId: stri
 }
 
 async function resolveRefs(
-  db: ReturnType<typeof createClient>,
+  db: AdminClient,
   question: ImportQuestion,
   folderMeta: ReturnType<typeof parseFolderPath>,
 ): Promise<RefIds> {
@@ -292,7 +298,7 @@ async function resolveRefs(
 // Image upload
 // ---------------------------------------------------------------------------
 
-async function ensureBucket(db: ReturnType<typeof createClient>) {
+async function ensureBucket(db: AdminClient) {
   const { data: buckets } = await db.storage.listBuckets()
   const exists = buckets?.some((b) => b.name === STORAGE_BUCKET)
   if (!exists) {
@@ -305,7 +311,7 @@ async function ensureBucket(db: ReturnType<typeof createClient>) {
 }
 
 async function uploadImage(
-  db: ReturnType<typeof createClient>,
+  db: AdminClient,
   baseDir: string,
   filename: string,
   subjectCode: string,
@@ -351,7 +357,7 @@ function guessContentType(filename: string): string {
 // ---------------------------------------------------------------------------
 
 async function insertQuestion(
-  db: ReturnType<typeof createClient>,
+  db: AdminClient,
   opts: {
     orgId: string
     bankId: string
@@ -368,17 +374,31 @@ async function insertQuestion(
     throw new Error(`Q${question.question_number}: topic_id is required but missing`)
   }
 
-  // Dedup by question_number within the same bank
-  const { data: existing } = await db
+  // Dedup by question_number within the same bank. The `{ error }` check is load-bearing, not
+  // ceremony: PostgREST returns 200 with data:null on a failed read, which is indistinguishable
+  // from "no match", so the importer falls through to the INSERT below. It does NOT create a
+  // duplicate — idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at
+  // IS NULL AND question_number IS NOT NULL, and this importer always sets question_number and
+  // always inserts live rows, so both predicates hold. It trips that index and surfaces an
+  // opaque 23505 instead of naming the read that actually failed. Reachable causes here are
+  // transport failure, a missing table grant, and PostgREST/schema errors — NOT RLS,
+  // since this client holds the service-role key and so
+  // BYPASSRLS. (code-style.md §5, whose rule text names RLS because it is written for the
+  // app-layer anon/authenticated client.)
+  const { data: existing, error: existingError } = await db
     .from('questions')
     .select('id')
     .eq('bank_id', bankId)
     .eq('question_number', question.question_number)
     .is('deleted_at', null)
     .limit(1)
+  if (existingError) {
+    throw new Error(`Dedup lookup failed for ${question.question_number}: ${existingError.message}`)
+  }
 
-  if (existing && existing.length > 0) {
-    return { status: 'skipped' as const, id: existing[0].id }
+  const existingMatch = existing?.[0]
+  if (existingMatch) {
+    return { status: 'skipped' as const, id: existingMatch.id }
   }
 
   const { data, error } = await db
@@ -393,7 +413,8 @@ async function insertQuestion(
       lo_reference: question.lo_reference,
       question_text: question.question_text,
       question_image_url: opts.questionImageUrl,
-      options: question.options as unknown as Record<string, unknown>,
+      // options[] is {id, text}[] — plain JSON-serializable data; the jsonb column type is Json.
+      options: question.options as unknown as Json,
       correct_option_id: question.correct_option_id,
       explanation_text: question.explanation_text,
       explanation_image_url: opts.explanationImageUrl,
@@ -461,8 +482,14 @@ async function main() {
   }
 
   console.log('Reference data:')
-  const refs = await resolveRefs(db, questions[0], folderMeta)
-  console.log(`  Subject: ${questions[0].subject} → ${refs.subjectId}`)
+  // ImportFileSchema is `z.array(...).min(1)`, so this is runtime-guaranteed non-empty —
+  // but z.array().min(1) doesn't narrow to a TS tuple, so guard explicitly.
+  const firstQuestion = questions[0]
+  if (!firstQuestion) {
+    throw new Error(`${file}: no questions after validation (unreachable — schema requires min 1)`)
+  }
+  const refs = await resolveRefs(db, firstQuestion, folderMeta)
+  console.log(`  Subject: ${firstQuestion.subject} → ${refs.subjectId}`)
   if (refs.topicId) console.log(`  Topic: ${folderMeta.topicCode} → ${refs.topicId}`)
   if (refs.subtopicId) console.log(`  Subtopic: ${folderMeta.subtopicCode} → ${refs.subtopicId}`)
   console.log()
@@ -526,6 +553,18 @@ async function main() {
   console.log(`  Skipped:  ${skipped}`)
   console.log(`  Errors:   ${errors}`)
   console.log(`  Total:    ${questions.length}\n`)
+
+  // Exit non-zero when anything failed. The per-question catch above only counts, so without this
+  // any of the causes the dedup-read check names — a transport failure, a missing table grant, a
+  // PostgREST/schema error — fails EVERY question, prints 40 red lines, and still reports success
+  // to CI and to any
+  // `&&` chain. `exitCode`, not `exit()`: the latter truncates buffered stdout and would cut the
+  // summary that explains what went wrong. Same pattern and same reasoning as
+  // import-vfr-rt-content.ts's drift exit.
+  if (errors > 0) {
+    console.error(`  ${errors} question(s) failed — exiting non-zero.`)
+    process.exitCode = 1
+  }
 }
 
 main().catch((err) => {

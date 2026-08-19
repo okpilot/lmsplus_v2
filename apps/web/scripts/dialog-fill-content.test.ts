@@ -372,6 +372,19 @@ describe('assertDialogFillAuthoring', () => {
     expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
   })
 
+  it('does not treat words from two different transmissions as one visible phrase', () => {
+    // 'traffic' ends the first transmission and 'in sight' opens the second — neither
+    // transmission shows the full phrase, so a student reading the dialogue never sees
+    // "traffic in sight" as a contiguous run. Only the newline-collapsing flatten used to make
+    // it read that way.
+    const item = makeItem({
+      template:
+        '[atc] S-AB, light aircraft traffic\n[atc] in sight, report your position\n[pilot] S-AB, {{0}}',
+      blanks: [blank(0, 'recall', 'traffic in sight')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
+  })
+
   it('accepts a single recalled box that ends its line', () => {
     // The DLG-12 shape: one recall answer plus a derivable callsign, both boxes, no anchor.
     const item = makeItem({
@@ -441,6 +454,18 @@ describe('assertDialogFillAuthoring', () => {
       unanchored: '   ',
     })
     expect(() => assertDialogFillAuthoring(item, AT)).toThrow(/authoring R7/)
+  })
+
+  it('still sees the controller line when a blank separator line sits between them', () => {
+    // assertTemplateShape treats an empty line as a valid separator (`if (line === '') continue`),
+    // so a template may legitimately place a blank row between transmissions. The anchor is
+    // visibly two rows up, not one — R7 must skip the blank row rather than reject an anchor
+    // that is plainly on screen.
+    const item = makeItem({
+      template: '[atc] S-AB, pass your message\n\n[pilot] S-AB, {{0}} information',
+      blanks: [blank(0, 'recall', 'request')],
+    })
+    expect(() => assertDialogFillAuthoring(item, AT)).not.toThrow()
   })
 
   it('still sees the controller line when the template lines carry stray indentation', () => {

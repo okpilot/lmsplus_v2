@@ -153,6 +153,14 @@ function assertIdsDisjoint(zones: DiagramZone[], labels: DiagramLabel[], at: str
  * Searching for `j` instead of being handed it keeps the check self-contained, and requiring the
  * sequence to ascend also pins delivery order — zones reach the student in stored order
  * (`ORDER BY z.ord`), so a reordered subset would silently move the drop targets.
+ *
+ * BOUND CAVEAT: the search runs to MAX_ZONES (the schema ceiling), NOT to the number of zones
+ * the named layout actually has — this validator is pure and has no access to the layout
+ * registry. So a config carrying `deriveZoneId(ref, 20)` against a 9-zone diagram passes HERE.
+ * It cannot reach the DB through the importer, which bounds keys to `layout.zones.length` in
+ * `assertDiagramAuthoring` and re-bounds them in `resolveDiagramConfig`. Callers that hand this
+ * function a hand-assembled object (seed-vfr-rt-training-eval.ts) do not get that bound and
+ * must not treat a pass here as proof the index exists.
  */
 function assertDerivedZoneIds(content: DiagramContent, at: string): void {
   let nextCanonical = 0

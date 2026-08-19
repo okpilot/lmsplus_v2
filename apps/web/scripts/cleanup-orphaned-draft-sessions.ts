@@ -30,6 +30,7 @@
  */
 
 import { resolve } from 'node:path'
+import type { Database } from '@repo/db/types'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { PRACTICE_MODES } from '../lib/constants/exam-modes'
@@ -60,18 +61,20 @@ if (cutoffIdx >= 0 && (!CUTOFF || Number.isNaN(Date.parse(CUTOFF)))) {
   process.exit(1)
 }
 
-const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+const db = createClient<Database>(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
 // Structural shape of a Supabase filter builder for the columns this script filters on.
-// Each method returns the same builder, so a generic constrained to it preserves the
-// concrete select/update builder type through the chain — no `any`, no drift between the
-// dry-run and mutation paths (both go through applyOrphanFilters).
-type OrphanFilterable<T> = {
-  in(column: string, values: readonly string[]): T
-  is(column: string, value: null): T
-  lt(column: string, value: string): T
+// Each method returns `this` (matching the real PostgrestFilterBuilder methods), so a
+// generic constrained to it preserves the concrete select/update builder type through the
+// chain — no `any`, no drift between the dry-run and mutation paths (both go through
+// applyOrphanFilters). Using `this` rather than a self-referential `OrphanFilterable<T>`
+// avoids TS2589 (excessively deep instantiation) when checked against the real builder type.
+interface OrphanFilterable {
+  in(column: string, values: readonly string[]): this
+  is(column: string, value: null): this
+  lt(column: string, value: string): this
 }
 
 /**
@@ -79,7 +82,7 @@ type OrphanFilterable<T> = {
  * and (optionally) created before the deploy cutoff. Shared by BOTH the dry-run select and
  * the real update so a future filter edit cannot make --dry-run misreport the real run.
  */
-function applyOrphanFilters<T extends OrphanFilterable<T>>(q: T): T {
+function applyOrphanFilters<T extends OrphanFilterable>(q: T): T {
   const filtered = q
     .in('mode', PRACTICE_MODES as readonly string[])
     .is('ended_at', null)

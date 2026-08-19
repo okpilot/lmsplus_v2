@@ -196,3 +196,52 @@ they are archived, not retired; a recurrence increments the count here and retur
 | Header comment cross-references a block "above" that extraction removed | 2026-06-23 | 1 | 2026-06-23 | RESOLVED. Audit "above"/"below"/"see block N" on any move. † |
 | No-insert seed scripts keep `.single()` where the plan specified `.maybeSingle()` | 2026-07-13 | 1 | 2026-07-13 | RESOLVED (#1121). |
 | `\|\| exit 1` inside `$(...)` aborts only the subshell | 2026-07-23 | 1 | 2026-07-23 | RESOLVED. Resolve into a var, guard in the OUTER shell. |
+
+### archived tracker rows 2026-08-18 (b) — Part 3 `--replace` pipeline, single-instance
+
+| A reconciler's DELETE scope is derived UNSCOPED while the mutation stays num-scoped — the old `.in(nums)` safety note survives verbatim and now describes nothing | 2026-08-18 | 1 | 2026-08-18 | WATCHING. `softDeleteForReplace` docstring kept "num-only scoping is safe today only because VRT-P2-DLG-* happens to be distinctive" after orphan selection stopped being num-scoped. |
+| A fix REPLACES the function a comment names, but the comment set still names the OLD one | 2026-08-18 | 1 | 2026-08-18 | WATCHING → §10. `import-vfr-rt-content.ts` has ZERO calls to `planReplace` (imports `planScope` only) yet 4 newly-ADDED `+` comment sites cite `planReplace` as the live decision path. Grep the retired symbol across the diff's own added lines. |
+| A behavioural gate is added but the operator-facing docblock/Usage block never learns the new flag | 2026-08-18 | 1 | 2026-08-18 | WATCHING. `--prune` appears nowhere in the file header spec or its `Usage:` list; the header still describes the pre-fix auto-soft-delete. |
+| A warning a message tells the operator to look for became structurally unreachable on the default path | 2026-08-18 | 1 | 2026-08-18 | WATCHING → §10. Drift warning cites a "matched no existing rows" warning whose absence is now the norm (`findReplaceTargets` runs only under `--prune`), and a sibling comment credits `findLiveNumbersInScope` with a warning it never emits. |
+| Deriving `expected` through the SAME filter as the value under test — both go 0, so `expect(0).toBe(0)` passes and the corpus gate early-returns | 2026-08-18 | 1 | 2026-08-18 | RESOLVED — explicit `toBeGreaterThan(0)` anchor. |
+| A fix moves a guard EARLIER but leaves the file's own contract/checklist comment asserting the old site | 2026-08-18 | 1 | 2026-08-18 | RESOLVED same commit — `import-vfr-rt-content.ts` pre-flight checklist. |
+| Answer key converted from commented literals to an index-zip over two sibling arrays, with no alignment pin | 2026-08-18 | 1 | 2026-08-18 | WATCHING. Order-insensitive `toContain` lets a reorder silently rewrite the key. Demand `toEqual` on BOTH arrays. |
+| Comment in future tense about a file that lands in the SAME staged commit | 2026-08-18 | 1 | 2026-08-18 | WATCHING. §10. Grep the staged list for every path a "when X lands" comment names. |
+| "Type-only" refactor hoists `args[i+1]` into a `const` while a LATER branch still reads the MUTATED `args[i]` | 2026-08-18 | 1 | 2026-08-18 | WATCHING. `import-questions.ts` parseArgs; verified unobservable (readFileSync dies first). Diff old-vs-new parsers in `node`, don't reason. |
+| Code comment names the wrong CI JOB for a gate it wires up ("CI lint job" for a job named `type-check`) | 2026-08-18 | 1 | 2026-08-18 | WATCHING → §10. Substantive claim true, job name false. Read `.github/workflows/ci.yml` job keys before naming one. |
+| Comment-accuracy FIX replaces a false claim with a false UNIVERSAL NEGATIVE, counterexample in the same docblock | 2026-08-18 | 1 | 2026-08-18 | RESOLVED (round 2, #1223) — scope the negative + name the renderers. A universal negative needs an enumeration, not an example. |
+
+
+## archived tracker rows 2026-08-18 (c)
+
+Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all WATCHING.
+
+| Pattern | First | N | Last | Status |
+|---|---|---|---|---|
+| Error message refactor breaks paired test assertion regex | 2026-05-06 | 1 | 2026-05-06 | WATCHING. Grep tests for the old substring. † |
+| Payload-group loop applied to fewer RPCs than the plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. Count loops per describe block. † |
+| Conditional redirect regression when a helper's return value is discarded | 2026-04-14 | 1 | 2026-04-14 | WATCHING. Check callers when a side-effect becomes conditional. † |
+| Hard DELETE on quiz_sessions in red-team cleanup | 2026-06-05 | 1 | 2026-06-05 | WATCHING. Soft-delete only — hard `.delete()` = ISSUE. † |
+| Red-team non-vacuity read omits a filter the RPC itself uses | 2026-06-14 | 1 | 2026-06-14 | WATCHING. Mirror ALL of the RPC's predicates. † |
+| Pre-existing file-size violation worsened by a bug-fix commit | 2026-06-21 | 1 | 2026-06-21 | WATCHING. SUGGESTION class; the split is a separate refactor. † |
+| Fractional partial-credit SUM funneled through an `int` plpgsql var → rounded early | 2026-06-21 | 1 | 2026-06-21 | WATCHING. Var stays `numeric` until the percentage is derived. † |
+| Agent-memory stub rows with an archive pointer the archive does not hold | 2026-06-22 | 1 | 2026-06-22 | WATCHING. Fuzzy-grep the archive + other suffix forms first. † |
+| packages/db migration NNN prefix collides with a parallel UNMERGED branch | 2026-06-26 | 1 | 2026-06-26 | WATCHING. Merge-sequencing hazard, not a staged-diff defect. † |
+| Integration fixture retyped to satisfy a new trigger, leaving the original CHECK active | 2026-06-24 | 1 | 2026-06-24 | WATCHING. Retarget to a trigger-allowed type. † |
+| Restore UPDATE on a just-fetched row omits the `.select('id')` zero-row chain | 2026-07-13 | 1 | 2026-07-13 | WATCHING. SUGGESTION only — zero-row impossible for an id from a committed same-request query. |
+| Soft-delete restore clears `deleted_at` but omits a sibling nullable column | 2026-07-13 | 1 | 2026-07-13 | WATCHING. 8 seed scripts missed `deleted_by: null`. Check the types.ts Update shape. |
+
+## archived tracker rows 2026-08-19 (d) — count=1 WATCHING rows moved out of MEMORY.md for budget
+
+| Pattern | First | N | Last | Status |
+|---|---|---|---|---|
+| Memory delta written to the stray `apps/web/.claude/agent-memory/` (cwd was `apps/web`) | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Same loss class as a stashed delta. † |
+| Zero-row no-op, DISTINCT: `.select('id')` present but count logged only when `> 0` | 2026-08-11 | 1 | 2026-08-11 | WATCHING. If a prior SELECT proved N match, compare to N and THROW. † |
+| New test line copied from a sibling exceeds `lineWidth: 100` → format gate fails | 2026-08-17 | 1 | 2026-08-17 | WATCHING. `npx biome check <staged>` BEFORE commit — amend is forbidden after a hook failure. † |
+| Rules edit bumps one file's `Last updated` footer but not a sibling's | 2026-08-08 | 1 | 2026-08-08 | WATCHING. Distinct from prose divergence (that is rule TEXT drifting). † |
+| Playwright `getByRole('dialog')` on a Base UI **AlertDialog** (role=`alertdialog`) | 2026-08-09 | 1 | 2026-08-09 | WATCHING. Strict role equality — no superclass matching. † |
+| Redirect target copied from a sibling without checking the route EXISTS | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `find app -path '*<seg>/page.tsx'` first. † |
+| Pre-existing UNTRACKED files swept in by a broad `git add <dir>` | 2026-08-15 | 1 | 2026-08-15 | WATCHING. Diff the staged FILE LIST against the commit's stated scope. † |
+| New app-layer integration test reuses a REAL seeded reference code | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `seedReferenceData` upserts `onConflict: 'code'` — use a unique suffix. † |
+| A new authoring guard justified by a RUNTIME/UI mechanism the component contradicts | 2026-08-17 | 1 | 2026-08-17 | WATCHING. §10 beyond SQL. Read the renderer before writing why a content rule exists. † |
+| Content-file `authoring_notes` asserts a corpus invariant the corpus violates | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Measure every countable claim against the JSON. † |

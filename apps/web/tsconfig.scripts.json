@@ -1,0 +1,31 @@
+{
+  // Type-checks apps/web/scripts/**, which BOTH other configs exclude: tsconfig.json
+  // lists "scripts" in `exclude`, and tsconfig.integration.json does the same. Before this
+  // file existed, `pnpm check-types` — the blocking pre-commit and CI gate — never looked at
+  // the directory at all, so 61 errors accumulated unseen and a green `tsc` was repeatedly
+  // cited as evidence about files it had not read (#1219, and the reporting failure #1217).
+  //
+  // Wired into `check-types` in package.json rather than a separate CI job on purpose: a
+  // non-blocking job is how this rots back. Both lefthook pre-commit and the CI `type-check` job
+  // (`.github/workflows/ci.yml`, `name: Type Check`) run `pnpm check-types`, so chaining here
+  // makes the directory blocking in both at once.
+  //
+  // SCOPE CAVEAT — read before citing a green run as evidence. This catches the STRUCTURAL class
+  // (nullability, `noUncheckedIndexedAccess`, unused symbols, bad signatures), which was most of
+  // the original 61. It does NOT currently check column names or row shapes for most scripts:
+  // only `import-questions.ts` and `cleanup-orphaned-draft-sessions.ts` pass `<Database>` to
+  // `createClient`, so everywhere else `.from()`/`.select()` type against `any` and a wrong
+  // column name still compiles. "scripts are type-checked" is therefore narrower than it sounds.
+  // Closing that remaining SCHEMA half is tracked as #1230 — #1219 closes with the PR that added
+  // this file, so #1230 is what keeps the gap from going untracked. Until it lands, cite a green
+  // run here for the structural class only, never as evidence about a column or row shape.
+  "extends": "@repo/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["next-env.d.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

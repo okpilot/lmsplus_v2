@@ -1166,10 +1166,15 @@ async function seed() {
   }
 
   // Final count
-  const { count } = await db
+  const { count, error: countErr } = await db
     .from('questions')
-    .select('*', { count: 'exact', head: true })
+    // Named column, not `*` — see import-vfr-rt-content.ts's count leg. head:true returns no rows
+    // so nothing is exposed, but the ban in .coderabbit.yaml carries no exemption and is enforced
+    // by reviewers reading the call shape.
+    .select('id', { count: 'exact', head: true })
     .is('deleted_at', null)
+  // Without this the script logs `Total questions in DB: null` and exits as if seeding worked.
+  if (countErr) throw new Error(`Question count: ${countErr.message}`)
 
   console.log(`\n--- DONE ---`)
   console.log(`Inserted: ${totalInserted} new questions`)

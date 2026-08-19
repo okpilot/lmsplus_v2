@@ -587,3 +587,158 @@ APPROVED with 1 SUGGESTION (non-blocking). 14 staged files — guard-bash.js, ru
   `chip(...)` constructor form would ship all 12 chips in canonical order with no import change.
   The first version of that row cited a PRE-fix chunk whose `rs("z9f2a1c",…)` ids the commit under
   review had already deleted; cite the minified CALL FORM, never the content-hashed chunk filename.
+
+### row detail — 2026-08-18 (chore/part3-audit-followup, impl-critic round 2)
+
+**Enumeration row, 5th instance — the four AUTHORED-ORDER surfaces for MC options.** The
+`mc-content.ts` docblock's round-2 rewrite says "the three surfaces that render options in
+AUTHORED order" and names `get_study_questions` (mig `20260629000700`, `ORDER BY ord`), the
+student post-session report (`lib/queries/quiz-report-questions.ts`), and the admin editor
+(`option-editor.tsx`). The fourth is the ADMIN post-session report:
+`lib/queries/admin-quiz-report.ts` SELECTs `options` straight off `questions` (no shuffle),
+takes the key from `get_admin_report_correct_options`, and renders through the SAME
+`QuestionBreakdown` → `OptionsList` components as the student report — reachable at
+`/app/admin/dashboard/sessions/[id]` and `/app/admin/internal-exams/report`. The commit's OWN
+memory bullet ("`admin-quiz-report.ts` mirrors it") already names it, so the docblock contradicts
+memory written in the same commit. Root cause: the recount changed the unit of enumeration —
+three RENDERING COMPONENTS is correct, three QUERY SURFACES is not.
+
+**Verified-latest citations in the same docblock (all correct, do not re-flag):**
+`get_quiz_questions` latest = `20260702000300` (MC options `ORDER BY random()` at L74);
+`get_vfr_rt_exam_questions` latest = `20260623000600` (`ORDER BY random()` L116);
+`get_study_questions` latest = `20260629000700` (`ORDER BY ord` L119, and the quoted comment is
+verbatim at L115-116). `questions_mc_correct_option_id_check` has exactly one definition
+(`20260619000100` L104-107, `correct_option_id IN ('a','b','c','d')` iff MC) — no later
+DROP/ADD, so the round-2 reason (1) is sound and a gapped run a,b,d/key 'd' does satisfy it.
+
+**Bundler-DCE row, round-2 close.** Timestamps re-measured: `.next/BUILD_ID` = 2026-08-18
+05:50:13Z; squash commit `b28cc604` = 13:43:24Z (build PREDATES it ✓); the zone id
+`z1a077e7d6` first appears in `2e2fce68` at 04:51:51Z (build POSTDATES the content that
+introduced the ids ✓). The reworded memory now states exactly this and instructs a re-measure
+after rebuild — accepted. Note `e44c6201` (05:51:03Z) landed 50s AFTER the build, so the
+measurement is one commit stale even under the corrected framing; the hedge covers it.
+
+**`deriveContentId` multi-part callers.** "the one multi-part caller is `deriveZoneId`" is true
+only of NON-TEST code — `content-ids.test.ts:39,94,95` also pass 2 parts, hand-inlining the zone
+shape. Their second parts are digit runs so the separator-safety argument is unharmed; the
+sibling sentence three lines later already carries the "sole non-test caller" qualifier, so the
+omission is internally inconsistent rather than wrong. SUGGESTION class.
+
+### § row detail — 2026-08-18 (moved out of MEMORY.md for budget)
+
+**Claim-correction commit introduces a NEW wrong count/label/ENUMERATION (tracker N=5).**
+The 4th and 5th instances are rounds 1 and 2 of the SAME `mc-content.ts` docblock. The round-2
+recount ("the three surfaces that render options in AUTHORED order") is ALSO wrong: it is four,
+missing `admin-quiz-report.ts`. A recount that silently changes the UNIT (components=3 vs query
+surfaces=4) lands on a new wrong number. Remedy: **de-quantify** — "the surfaces … — A, B, C, D" —
+rather than patch the numeral.
+
+**Comment asserts a BUNDLER DCE outcome against a build that predates the commit (tracker N=2).**
+`stat .next/BUILD_ID` against the commit date; rebuild before restating "verified". The 2nd
+instance wrote the stale-build justification into AGENT MEMORY ("postdates the commit because it
+contains `z1a077e7d6`" — build 05:50Z, commit 13:43Z), where future agents inherit it unverified.
+
+**Comment-accuracy FIX replaces a false claim with a false UNIVERSAL NEGATIVE (tracker N=1).**
+RESOLVED at round 2 by SCOPING the negative to the student paths and naming both renderers, with
+the admin editor stated as the exception (#1223); the replacement scoped positive was re-verified
+true. Rule of thumb: **a universal negative needs an enumeration, not an example.**
+
+### § row detail — 2026-08-18 (b), `chore/part3-audit-followup` CR-round-1 follow-up
+
+**Comment vs authority, 9th + 10th instances (tracker: "Doc or code comment … contradicts").**
+- 9th — `import-vfr-rt-content.ts` `updateReplacedRow`: a NEW comment justified stripping `status`
+  by "a question an admin had set to draft **or retired**". `questions.status` is
+  `CHECK (status IN ('active','draft'))` (`20260311000001_initial_schema.sql`), and the admin
+  surfaces (`admin/questions/types.ts`, `page.tsx` `STATUS_VALUES`, `question-filter-selects.tsx`,
+  `bulk-actions-bar.tsx`) all union exactly `'active' | 'draft'`. "Retired" everywhere else in the
+  repo means SOFT-DELETED (`docs/database.md:204`, `get_study_questions` mig comment) — and the
+  UPDATE carries `.is('deleted_at', null)`, so that state is unreachable on this path. False on
+  both readings.
+- 10th — `import-questions.ts` dedup comment: claimed a failed read "inserts a duplicate — exactly
+  the row this query exists to prevent". `idx_questions_bank_number`
+  (`20260311000003_add_question_number.sql`) is `UNIQUE (bank_id, question_number) WHERE
+  deleted_at IS NULL AND question_number IS NOT NULL`, so the INSERT 23505s instead. Same comment
+  blamed "RLS-blocked", but the client is `createClient<Database>(url, SERVICE_ROLE_KEY)` and
+  `service_role` holds BYPASSRLS. The *change* is right (fail loudly); the stated mechanism and
+  consequence are both wrong.
+- Lesson: **before writing WHY a guard exists, name the failure it prevents, then check whether
+  some OTHER mechanism already prevents it.** A guard can be correct while its rationale is fiction.
+
+**Docblock vs body, 3rd instance.** `updateReplacedRow`'s docblock argues "`row` never carries an
+`id` … so **`.update(row)`** leaves the target row's id untouched" 13 lines above its own body's
+`.update(content)`; and the `InsertOutcome` docblock ~50 lines up still says `updateReplacedRow`
+"sends the **full** `buildRow` output". Both survive as *substantively* true (content is derived
+from row by omission, and `subtopic_id` is still sent) while naming a call that no longer exists —
+which is why a correctness read misses them. **Grep the identifier, not the enclosing function.**
+
+**Retraction vs sibling, 3rd instance.** `ReplacePlan.orphaned`'s docblock was rewritten to
+"INFORMATIONAL ONLY — no caller acts on it, and none should", verified against `planScope`
+(destructures only `{ toUpdate, toInsert }`) and `planReplaceAll` (`plans.set(rel, { ...decided,
+orphaned: [] })`). But `replace-planning.test.ts:18` still titles its case "flags a question
+dropped from the file as orphaned **for soft-delete**" — the exact intent just retracted.
+**A test title is a claim; grep test titles when a docblock retracts a field's purpose.**
+
+**Verified clean this cycle (do not re-raise).**
+- `base` is exactly 6 keys; the 5-key strip leaves `explanation_text` (content, overridden in all
+  five `buildRow` branches) plus `subject_id`/`topic_id`/`subtopic_id` (deliberate, #1191).
+- Stripping `bank_id` cannot break `.eq('bank_id', …)` — a WHERE filter never reads the SET payload.
+- No NOT NULL risk: an UPDATE omitting a column leaves the stored value. `questions` carries no
+  immutable-column or `updated_at` trigger; only `trg_sanitize_question_options`
+  (`BEFORE INSERT OR UPDATE OF options`), which the payload still satisfies.
+- The strip is correctly localized: `insertIfMissing` still `.insert(row)` with the full base
+  (`created_by`/`difficulty`/`organization_id`/`bank_id` are NOT NULL, `difficulty` has no default).
+- `import-questions.ts` throw is safe at its call site: `insertQuestion` runs inside a per-question
+  `try/catch` that increments `errors` and continues; no caller depended on the swallow.
+- Seed-script removal is clean — zero references repo-wide; `tsconfig.scripts.json`
+  (`scripts/**/*.ts`) and `knip.json` (`scripts/*.ts`) are globs.
+- `docs/plan.md` claim verified: `import-questions.ts` reads `NEXT_PUBLIC_SUPABASE_URL` at one site
+  and prints it only on the two ERROR paths — never on a successful run.
+- `tsconfig.scripts.json`'s "only `import-questions.ts` and `cleanup-orphaned-draft-sessions.ts`
+  pass `<Database>`" is still accurate (2 of 14 `createClient(` script files) — the operator's SKIP
+  of the CR "type every script client" finding is correct: documented, accurate, separate concern.
+
+## § row detail — 2026-08-19 (`711d95a9`, branch `chore/part3-audit-followup`)
+
+Post-hoc review of the commit closing the 4-agent-cycle findings on six under-reviewed commits.
+The one runtime change (`import-questions.ts` `process.exitCode = 1` when `errors > 0`) is clean —
+see the durable-knowledge bullet for the empirical proof. Three comment/doc findings:
+
+- **Enumeration (tracker row "NEW wrong count", 7th).** `import-questions.ts:558` says "the two
+  causes the dedup-read check names"; the cited comment at L383-384 names THREE — transport
+  failure, a missing table grant, and PostgREST/schema errors. The commit message repeats it. The
+  set being counted sat 175 lines up in the SAME FILE and was still miscounted from memory.
+  De-quantify ("the causes the dedup-read check names") rather than patch "two" → "three".
+- **Wrong issue citation, propagated (§10 row, 11th).** Both L384 (added 5 commits earlier in
+  `09c12638`) and the new L558 cite `#815` as the exemplar of "a missing table grant". `#815` is
+  *"Admins cannot soft-delete questions — RLS WITH CHECK blocks deleted_at update"* (CLOSED) — an
+  RLS defect, cited by a sentence that at L384-387 explicitly rules RLS out because the client
+  holds the service-role key and so BYPASSRLS. The new comment inherited the citation without
+  re-deriving it: exactly code-style §10 clause 1.
+- **Doc path names a directory holding no such file (§10 row, 12th).** `docs/plan.md:937` defines
+  the companion probe as `apps/web/scripts/probe-<topic>-import-conflicts.py` and the commit
+  appended "these probes are gitignored … copy the shape from an existing one if any is present
+  locally". Every real `probe-*-import-conflicts.py` lives in ROOT `scripts/` (ignored by
+  `.gitignore:48 /scripts/`), which is also what the same section's own step 4 at L965 invokes
+  (`python3 scripts/probe-…`). `apps/web/scripts/` holds five probe files, none matching
+  `*-import-conflicts.py`. The gitignore half of the new claim is true for both paths; the
+  "copy from an existing one" half points at the wrong directory. Pre-existing path error, but the
+  commit edited that exact sentence.
+
+Verified-clean, do not re-raise on this commit: the `typeof n === 'string'` filter (`db` at
+`import-vfr-rt-content.ts:210` really is the untyped `createClient(...)`, `fetchAllRows<T>` is an
+unchecked assertion; `undefined` is defensive-only since `.select('question_number')` always
+returns the key — the comment states it conditionally and does not overclaim); the 140-of-140
+`explanation` count (exact); the R7 parenthetical (`assertRecallAnchored`'s `unanchored`
+early-return IS the first statement, the anchor scan is entirely below it).
+
+Two small over-generalisations left as SUGGESTIONs: `updateReplacedRow`'s new parenthetical says
+"for an item authoring no `explanation`, buildRow resolves it from base", but the `short_answer`
+branch resolves `` `${acronym}: ${canonical}` `` first — and THAT value is real content the
+`--replace` update should write, so the parenthetical's remedy ("strip it too") would be wrong for
+acronym items; and `dialog-fill-content.ts:466` says the code "verifies only that `unanchored`
+ITSELF is a non-empty string" when nothing verifies it — L488 merely conditions the opt-out on it,
+so `"unanchored": "  "` falls through to the scan (safe direction).
+
+`docs/plan.md:1485` `#1192 (S/P1)` → `(S/P2)` is CORRECT (the issue body states "**Effort** S ·
+**Priority** P2"; the issue carries no labels) and closes the discrepancy logged at
+commit-notes.md L511 — but it is the one hunk the commit message does not mention.

@@ -38,3 +38,27 @@
 1. `docs/plan.md` — mark the relevant phase complete; list the new specs, helpers (Mailpit, Supabase), and scripts (`pnpm e2e`, `e2e:ui`, `e2e:headed`); update the status line and footer.
 2. `MEMORY.md` — keep the Tests summary count accurate (unit + integration + E2E); note any newly configured tooling (e.g. `@playwright/test`).
 3. Files to check: `apps/web/playwright.config.ts`, `apps/web/e2e/`, `apps/web/package.json` (new scripts), `pnpm-lock.yaml` (new dep).
+
+### A commit corrects a false rationale in a code comment (code-style.md §10 class)
+`plan.md`/`decisions.md` narrative sections sometimes COPY a code comment's justification for a
+gate/rule verbatim (e.g. "why this validator exists"). When a commit rewrites that comment because
+the original justification was FALSE (not just reworded — actually wrong), grep the doc prose for
+the same false claim's distinctive phrase, not just the file/rule name — the doc copy goes stale
+silently because the doc-diff itself never touches it (the false claim was in the CODE COMMENT, not
+in the doc, when it was first written). Fix the doc to state the corrected rationale, matching the
+new comment's reasoning, not just its conclusion. Instance (2026-08-18, `chore/part3-audit-followup`):
+`mc-content.ts`'s comment justified the MC key-balance gate with "guessable without reading a
+stem" — false, because the graded draw shuffles options `ORDER BY random()`. The commit rewrote the
+comment to the correct rationale (content-quality + admin-editor mis-render hazard); `docs/plan.md`
+carried the same false phrase in its "Why the MC pools have an enforced key-balance gate" callout,
+untouched by that commit's diff. count=1 (WATCHING) — promote the general check ("did a
+rationale-correcting commit leave a doc copy of the old rationale behind") if it recurs.
+
+### A doc line says an issue is "deferred"/"open" and the SAME branch closes it
+A `Closes #N` trailer in this branch's own commits does not retroactively fix a `plan.md`/
+`decisions.md` line elsewhere that still narrates `#N` as open/deferred — `gh issue view N` shows it
+OPEN until merge, so don't rely on issue state to catch this; grep `docs/plan.md`/`docs/decisions.md`
+for every issue number a `Closes #N` trailer in the branch's commits touches, and update any prose
+that characterizes that issue as open. Instance: `chore/part3-audit-followup` closed #1194 (recorded
+as resolved via new Decision 57), but `docs/plan.md`'s dated "Open: ... deferred ... #1194 ..." line
+was untouched by the branch's diff and still read as if #1194 were an open deferral.

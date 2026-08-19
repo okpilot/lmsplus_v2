@@ -71,6 +71,22 @@ export function normalizeForId(text: string): string {
  * normalize away, or compare ids without the prefix (an id-shortener or a v2 re-prefixing
  * scheme is the realistic way this breaks); collapsing two kinds onto one id is what
  * `is_valid_diagram_config` then rejects at INSERT, with no hint as to why.
+ *
+ * THE SEPARATOR IS NOT INJECTIVE. `parts` are joined with a single space, so `['a b']` and
+ * `['a', 'b']` hash identically. That is safe only because the one NON-TEST multi-part caller is
+ * `deriveZoneId(imageRef, index)`, whose second part is `String(index)` — a digit run that
+ * cannot introduce a space and so cannot straddle the boundary. A future two-part id whose
+ * parts can BOTH contain spaces would collide silently, and would surface from whichever
+ * collision check that new kind is wired into — today `assertNoDerivedIdCollisions` guards
+ * ORDERING ids only (its sole non-test caller is ordering-content.ts), while diagram zone/label
+ * ids are checked by re-derivation in diagram-content.ts. Either way the message would blame
+ * normalization, which would be the wrong lead. Tracked as #1229. If that day comes, join with
+ * `\u0000` and bump ID_VERSION in the same change — and note that the bump changes EVERY derived
+ * id string (ID_VERSION is a prefix component, not hashed input), so it must be paired with a
+ * content re-import. `quiz_sessions.config.question_ids` is unaffected — those are question ROW
+ * uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
+ * already holding the old `ordering_items[].id` / `diagram_config` zone and label ids submits
+ * them against re-derived ones.
  */
 export function deriveContentId(prefix: string, parts: readonly string[]): string {
   const canonical = parts.map(normalizeForId).join(' ')

@@ -12,16 +12,46 @@
  *   - `assertMcKeyBalance` — a CORPUS-level house rule that no per-item check can see: the
  *                           answer key must not concentrate on one option id. This exists
  *                           because the first draft of the Part 3 pool put the key on `b` or
- *                           `c` in 17 of 18 questions with no `d` at all, which is guessable
- *                           without reading a single stem. Every per-question check passed.
+ *                           `c` in 17 of 18 questions with no `d` at all. Every per-question
+ *                           check passed. It is a CONTENT-QUALITY rule, NOT an anti-guessing
+ *                           defence — see WHERE THE SKEW IS ACTUALLY VISIBLE below.
  *
- * WHY THE OPTION-ID RULE IS A LEADING RUN: `questions_mc_correct_option_id_check`
- * (mig 20260619000100) constrains the stored `correct_option_id` to 'a'..'d', so an option with
- * any other id can never be the answer. A gap does NOT make the runner skip a letter — it
- * labels buttons from the array index (`LETTERS[index]` in app/app/_components/answer-options.tsx),
- * so ids a, b, d render as A, B, C. The hazard is the inverse: the third button reads "C" while
- * its stored id is 'd', so every surface that shows `correct_option_id` as a letter contradicts
- * what the student saw. Grading is unaffected — selection and comparison both key on the id.
+ * WHY THE OPTION-ID RULE IS A LEADING RUN — two independent reasons.
+ *
+ * (1) `questions_mc_correct_option_id_check` (mig 20260619000100) constrains the stored
+ * `correct_option_id` to 'a'..'d'. That is why an id OUTSIDE that range can never be the answer,
+ * and so why `assertOptionIds` rejects a 5th option. It is NOT what makes a GAP bad — ids a, b, d
+ * with key 'd' satisfy the CHECK perfectly. Reason (2) is the one that covers gaps.
+ *
+ * (2) The admin question editor mis-renders a gapped run.
+ * `app/app/admin/questions/_components/option-editor.tsx` draws a FIXED four-row a/b/c/d grid,
+ * fills row `idx` positionally (`options[idx]?.text`), and checks the correct-radio against the
+ * SLOT letter (`correctOptionId === letter`). With ids a, b, d and key 'd': row C shows option
+ * 'd''s text UNMARKED, while the EMPTY row D reads Correct. Saving from that state writes
+ * `correct_option_id: s.correctOptionId` — the slot letter — alongside the original `options`
+ * (question-form-dialog.tsx), so the key can be persisted onto an id no option carries. That
+ * editor defect is tracked as #1223; this gate is what keeps authored content clear of it.
+ *
+ * The STUDENT paths do NOT have this problem: `app/app/_components/answer-options.tsx` letters
+ * buttons from the DELIVERED array index (`LETTERS[index]`), and
+ * `app/app/quiz/report/_components/options-list.tsx` letters by position
+ * (`String.fromCodePoint(65 + i)`) while marking correctness by `option.id === correctOptionId`.
+ * On both, letter and marker derive from the same array and cannot disagree — ids a, b, d simply
+ * render as A, B, C. Grading is unaffected everywhere: selection and comparison both key on the id.
+ *
+ * WHERE THE SKEW IS ACTUALLY VISIBLE: not on the graded draw. `get_quiz_questions`
+ * (mig 20260702000300) and `get_vfr_rt_exam_questions` (mig 20260623000600) both project MC
+ * options `ORDER BY random()`, so a stored id's on-screen position is re-rolled on every fetch
+ * and key skew cannot be read off it. The skew IS visible wherever options render in AUTHORED
+ * order: `get_study_questions` (mig 20260629000700, whose own comment reads "No random() — the
+ * answer is shown in study mode, so a stable order is fine"); the post-session REPORT, student
+ * and admin alike (`lib/queries/quiz-report-questions.ts` and `lib/queries/admin-quiz-report.ts`
+ * both SELECT `options` off `questions` unshuffled and render through options-list.tsx, which
+ * marks the key in that order); and the admin editor. Deliberately not a count — an earlier
+ * draft of this paragraph said "three", which was right for rendering COMPONENTS and wrong for
+ * QUERY surfaces. If you add a surface, add a clause. The gate stands as a proxy for an author who
+ * never varies where the correct option sits. Keep it for those reasons — not in the belief that
+ * it defends the graded draw.
  *
  * NOT enforced here: `explanation` is optional to this gate (the importer falls back to a
  * generic string), while the suite requires one on every shipped question. That asymmetry is

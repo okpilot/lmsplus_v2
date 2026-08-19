@@ -38,7 +38,11 @@ function config(): Config {
     image_ref: IMAGE_REF,
     zones: zoneList,
     labels: labelList,
-    answer: zoneList.map((zone, index) => ({ zone_id: zone.id, label_id: labelList[index].id })),
+    answer: zoneList.map((zone, index) => {
+      const label = labelList[index]
+      if (!label) throw new Error(`config(): no label at index ${index}`)
+      return { zone_id: zone.id, label_id: label.id }
+    }),
   }
 }
 
@@ -238,9 +242,11 @@ describe('the zones of a diagram config', () => {
 
   it('rejects the same zone identifier used twice', () => {
     const base = config()
-    const twinned = base.zones.map((zone) => ({ ...zone, id: base.zones[0].id }))
+    const firstZone = base.zones[0]
+    if (!firstZone) throw new Error('expected base.zones[0]')
+    const twinned = base.zones.map((zone) => ({ ...zone, id: firstZone.id }))
     expect(() => assertDiagramConfig({ ...base, zones: twinned }, AT)).toThrow(
-      `zone id: '${base.zones[0].id}' appears at index 0 and again at index 1`,
+      `zone id: '${firstZone.id}' appears at index 0 and again at index 1`,
     )
   })
 })
@@ -286,18 +292,24 @@ describe('the labels of a diagram config', () => {
 
   it('rejects the same label identifier used twice', () => {
     const base = config()
-    const twinned = base.labels.map((label) => ({ ...label, id: base.labels[0].id }))
+    const firstLabel = base.labels[0]
+    if (!firstLabel) throw new Error('expected base.labels[0]')
+    const twinned = base.labels.map((label) => ({ ...label, id: firstLabel.id }))
     expect(() => assertDiagramConfig({ ...base, labels: twinned }, AT)).toThrow(
-      `label id: '${base.labels[0].id}' appears at index 0 and again at index 1`,
+      `label id: '${firstLabel.id}' appears at index 0 and again at index 1`,
     )
   })
 
   it('rejects a label wearing a zone identifier', () => {
     // A shared id would let a student line a delivered zone up with its answer chip.
     const base = config()
-    const shared = [{ ...base.labels[0], id: base.zones[0].id }, ...base.labels.slice(1)]
+    const firstZone = base.zones[0]
+    if (!firstZone) throw new Error('expected base.zones[0]')
+    const firstLabel = base.labels[0]
+    if (!firstLabel) throw new Error('expected base.labels[0]')
+    const shared = [{ ...firstLabel, id: firstZone.id }, ...base.labels.slice(1)]
     expect(() => assertDiagramConfig({ ...base, labels: shared }, AT)).toThrow(
-      `'${base.zones[0].id}' is used as both a zone id and a label id`,
+      `'${firstZone.id}' is used as both a zone id and a label id`,
     )
   })
 })
@@ -308,15 +320,20 @@ describe("a question that uses only some of a diagram's zones", () => {
   // zones.length, so delivering 9 zones and answering 5 is rejected outright.
   function subset(indices: readonly number[]): Config {
     const labelList = labels()
-    const zoneList = indices.map((canonical) => ({
-      id: deriveZoneId(IMAGE_REF, canonical),
-      ...BOXES[canonical],
-    }))
+    const zoneList = indices.map((canonical) => {
+      const box = BOXES[canonical]
+      if (!box) throw new Error(`subset(): no BOXES entry at canonical index ${canonical}`)
+      return { id: deriveZoneId(IMAGE_REF, canonical), ...box }
+    })
     return {
       image_ref: IMAGE_REF,
       zones: zoneList,
       labels: labelList,
-      answer: zoneList.map((zone, i) => ({ zone_id: zone.id, label_id: labelList[i].id })),
+      answer: zoneList.map((zone, i) => {
+        const label = labelList[i]
+        if (!label) throw new Error(`subset(): no label at index ${i}`)
+        return { zone_id: zone.id, label_id: label.id }
+      }),
     }
   }
 
@@ -447,26 +464,26 @@ describe('the answer of a diagram config', () => {
 
   it('rejects an answer that labels one zone twice', () => {
     const base = config()
-    const doubled = [
-      base.answer[0],
-      { ...base.answer[1], zone_id: base.zones[0].id },
-      base.answer[2],
-    ]
+    const firstZone = base.zones[0]
+    if (!firstZone) throw new Error('expected base.zones[0]')
+    const [a0, a1, a2] = base.answer
+    if (!a0 || !a1 || !a2) throw new Error('expected three base answer entries')
+    const doubled = [a0, { ...a1, zone_id: firstZone.id }, a2]
     expect(() => assertDiagramConfig({ ...base, answer: doubled }, AT)).toThrow(
-      `answer zone_id: '${base.zones[0].id}' appears at index 0 and again at index 1`,
+      `answer zone_id: '${firstZone.id}' appears at index 0 and again at index 1`,
     )
   })
 
   it('rejects an answer that spends one chip on two zones', () => {
     // Consume-on-place: a repeated label leaves the second zone with nothing to fill it.
     const base = config()
-    const reused = [
-      base.answer[0],
-      { ...base.answer[1], label_id: base.labels[0].id },
-      base.answer[2],
-    ]
+    const firstLabel = base.labels[0]
+    if (!firstLabel) throw new Error('expected base.labels[0]')
+    const [b0, b1, b2] = base.answer
+    if (!b0 || !b1 || !b2) throw new Error('expected three base answer entries')
+    const reused = [b0, { ...b1, label_id: firstLabel.id }, b2]
     expect(() => assertDiagramConfig({ ...base, answer: reused }, AT)).toThrow(
-      `answer label_id: '${base.labels[0].id}' appears at index 0 and again at index 1`,
+      `answer label_id: '${firstLabel.id}' appears at index 0 and again at index 1`,
     )
   })
 })

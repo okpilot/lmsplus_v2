@@ -17,10 +17,23 @@
  * Remote (--force-remote): looks up the target org + an existing admin (created_by)
  * and the bank; never creates auth users. Refuses non-local URLs without the flag.
  *
- * --replace (LOCAL ONLY): soft-delete the file's existing questions before inserting, so an
- * edited content file actually takes effect. Refused outright with --force-remote, and refused
- * unless the target URL's HOST is this machine (isLocalSupabaseUrl — a stricter check than the
- * prefix match above, which reads `http://localhost.example.com` as local).
+ * --replace (LOCAL ONLY): reconciles a DB SCOPE (bank + topic + question_type) against every file
+ * the run passes for that scope, via `planScope` (replace-planning.ts, pure — no DB I/O). A number
+ * a file still authors and that is already live is UPDATED IN PLACE, preserving its id — never
+ * soft-delete + re-insert, which used to mint a fresh id on every re-run and silently orphan any
+ * session that had already frozen the old one in `config.question_ids` (#1191). A number the file
+ * authors that isn't live yet is inserted, same as the default path.
+ *
+ * A number live in the scope that NO file in the run authors is UNACCOUNTED, and the run ABORTS
+ * naming them. It does not delete them unless you also pass --prune. A pool is a FILE but the
+ * scope is bank+topic+question_type, and several files share one — the three Part 3 MC files are
+ * all P3_MC/multiple_choice — so "not in the file I passed" and "deleted from the content" are
+ * indistinguishable here, and guessing wrong silently deleted 16 live sibling questions. --prune
+ * is how you say you meant it. Refused outright when --force-remote is passed, and refused
+ * whenever the RESOLVED target is not local (isLocalSupabaseUrl, which compares the hostname).
+ * See the FORCE_REMOTE/isRemoteTarget block below for why the former
+ * `startsWith('http://localhost')` prefix test was dropped: it reads `http://localhost.evil.com`
+ * as local. That test no longer exists in this file, so there is no "prefix match above".
  *
  * --sync-content: the ONE narrow update path, for correcting an answer key on rows that are
  * already live. It exists because the two paths above cannot do it — insertIfMissing skips
@@ -42,6 +55,10 @@
  *   npx tsx scripts/import-vfr-rt-content.ts content/foo.json bar.json
  *   npx tsx scripts/import-vfr-rt-content.ts --force-remote        # prod (needs existing org+admin)
  *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/foo.json --replace   # local re-import
+ *   # pass EVERY file sharing the scope, or the run aborts naming the rows no file claims:
+ *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/vfr-rt-part3-mc-*.json --replace
+ *   # ...and --prune only when you intend those unclaimed rows to be soft-deleted:
+ *   npx tsx scripts/import-vfr-rt-content.ts scripts/content/foo.json --replace --prune
  *   # answer-key correction, dry run then apply. --expect-canonical is the value you expect to
  *   # find LIVE (the pre-correction one), not the value in the file. The placeholder below is
  *   # deliberately not the CAVOK string — that drift was the false premise disproved above, and
@@ -60,6 +77,7 @@ import {
   RWY_2709_LABELS,
   RWY_2709_ZONES,
 } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { fetchAllRows } from '../lib/supabase-paginate'
 import {
   assertReleasedForRemote,
   isLocalSupabaseUrl,
@@ -76,6 +94,7 @@ import {
 } from './dialog-fill-content'
 import { type AuthoredMcQuestion, assertMcItem, assertMcKeyBalance } from './mc-content'
 import { assertOrderingItems, buildOrderingItems } from './ordering-content'
+import { decideUnaccounted, planScope, type ReplacePlan } from './replace-planning'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -87,12 +106,32 @@ if (!SERVICE_ROLE_KEY) {
   process.exit(1)
 }
 
+// TWO DIFFERENT THINGS, deliberately named apart (#1221).
+//   FORCE_REMOTE   = PERMISSION. "I accept that this may write to a remote database."
+//   isRemoteTarget = FACT.       "The resolved URL is not local."
+// The flag never redirects the target — only `.env.remote` does. Keying a branch or a label on
+// the flag therefore reports an INTENTION as if it were the target, which is how an operator who
+// passed --force-remote without sourcing .env.remote watched rows insert under a `[REMOTE]`
+// banner and believed production had the content.
 const FORCE_REMOTE = process.argv.includes('--force-remote')
-const isLocal =
-  SUPABASE_URL.startsWith('http://localhost') || SUPABASE_URL.startsWith('http://127.0.0.1')
-if (!isLocal && !FORCE_REMOTE) {
+const isRemoteTarget = !isLocalSupabaseUrl(SUPABASE_URL)
+// isLocalSupabaseUrl parses the URL and compares the HOSTNAME. It replaces a former
+// `startsWith('http://localhost')` prefix test this file also carried: a prefix match accepts
+// `http://localhost.evil.com` as local, and keeping two predicates for one fact is what let the
+// label drift from the guard. One predicate now, the stricter of the two.
+if (isRemoteTarget && !FORCE_REMOTE) {
   console.error(
     `Refusing to import against non-local Supabase URL: ${SUPABASE_URL}\nPass --force-remote to override.`,
+  )
+  process.exit(1)
+}
+// The inverse mistake, and the one #1221 was filed for: the flag passed at a LOCAL target. Always
+// an error, never an intent — the operator meant to reach production and did not. Fail closed
+// rather than print `[REMOTE]` over a local write.
+if (FORCE_REMOTE && !isRemoteTarget) {
+  console.error(
+    `--force-remote was passed but the resolved Supabase URL is LOCAL: ${SUPABASE_URL}\n` +
+      'The flag grants permission; it does not change the target. Source apps/web/.env.remote first.',
   )
   process.exit(1)
 }
@@ -107,8 +146,19 @@ if (REPLACE && FORCE_REMOTE) {
   console.error('--replace is local-only and cannot be combined with --force-remote.')
   process.exit(1)
 }
-if (REPLACE && !isLocalSupabaseUrl(SUPABASE_URL)) {
+if (REPLACE && isRemoteTarget) {
   console.error(`Refusing --replace against a non-local Supabase URL: ${SUPABASE_URL}`)
+  process.exit(1)
+}
+// Pruning (soft-deleting live rows that NO file in this run authors) is opt-in, because the
+// orphan scope is bank+topic+question_type and a POOL IS A FILE — three Part 3 MC files share
+// `P3_MC`/`multiple_choice`, so re-importing one of them alone sees the other two's 16 rows as
+// "no longer authored". Defaulting to prune turned a single-file re-import into silent deletion
+// of its siblings. The run now ABORTS on unaccounted rows and names them; --prune is how an
+// operator says "yes, delete those".
+const PRUNE = process.argv.includes('--prune')
+if (PRUNE && !REPLACE) {
+  console.error('--prune only means anything with --replace.')
   process.exit(1)
 }
 
@@ -141,6 +191,11 @@ if (SYNC_CONTENT && REPLACE) {
 // is not derivable from it — the operator has to state it, and a row that has drifted from that
 // statement is refused rather than overwritten. An empty value is almost always shell quoting
 // gone wrong, and would compare equal to nothing, so it is rejected too.
+// SCOPE: EXPECT_CANONICAL is ONE value for the whole run, and assertSyncPreconditions requires
+// every row that differs from the file to match it. So an invocation corrects one drifted row —
+// or several that happen to share an identical live canonical — and correcting two rows whose
+// live canonicals differ aborts in the planning phase, before any write. Run it once per
+// distinct live value; that is a deliberate fail-closed, not a bug to work around.
 if (SYNC_CONTENT && (EXPECT_CANONICAL === undefined || EXPECT_CANONICAL.trim() === '')) {
   console.error(
     '--sync-content requires --expect-canonical="<the canonical_answer currently live>" — it is the optimistic guard, and a drifted row is refused with your own expectation quoted back.',
@@ -318,7 +373,7 @@ async function ensureUserRow(
 }
 
 async function resolveOrgId(): Promise<string> {
-  if (FORCE_REMOTE) {
+  if (isRemoteTarget) {
     const { data, error } = await db
       .from('organizations')
       .select('id')
@@ -337,7 +392,7 @@ async function resolveOrgId(): Promise<string> {
 }
 
 async function resolveAdminId(orgId: string): Promise<string> {
-  if (FORCE_REMOTE) {
+  if (isRemoteTarget) {
     const { data, error } = await db
       .from('users')
       .select('id')
@@ -375,7 +430,7 @@ async function ensureBank(orgId: string, adminId: string): Promise<{ id: string;
       // Remote is lookup-only, matching resolveOrgId/resolveAdminId above: a soft-deleted
       // prod bank can only be the result of a deliberate manual act, so the operator
       // decides whether to revive it (same stance as import-questions.ts:147).
-      if (FORCE_REMOTE) {
+      if (isRemoteTarget) {
         throw new Error(
           `Org bank "${existing.name}" (${existing.id}) is soft-deleted — restore it manually before importing.`,
         )
@@ -390,7 +445,7 @@ async function ensureBank(orgId: string, adminId: string): Promise<{ id: string;
     }
     return { id: existing.id, name: existing.name }
   }
-  if (FORCE_REMOTE) {
+  if (isRemoteTarget) {
     throw new Error(
       `No question bank for org ${orgId} on remote — create it deliberately before importing.`,
     )
@@ -801,14 +856,26 @@ function buildRow(
 }
 
 /**
- * Soft-delete the rows this file is about to re-insert (--replace only, local only). The
- * importer is otherwise insert-only, so an edited question has no effect on re-run.
+ * Soft-delete ORPHANED rows under --replace (local only) — rows live in this file's DB scope
+ * that `planScope` determined NO file in the run authors (see `planReplaceAll`; only reached
+ * under --prune). Rows the file still authors are
+ * UPDATED IN PLACE (see `updateReplacedRow`) instead of being soft-deleted here, so their id
+ * survives the re-import (#1191). The importer is otherwise insert-only, so an edited question
+ * has no effect on re-run without --replace.
  *
- * Scoped to bank + topic + question_type + the file's own `num` set. There is exactly one bank
- * per organization, so locally that bank also holds Part 1 and everything the eval seeds
- * insert; num-only scoping is safe today only because VRT-P2-DLG-* happens to be distinctive.
- * Never a hard DELETE — and idx_questions_bank_number is UNIQUE (bank_id, question_number)
- * WHERE deleted_at IS NULL, so the soft delete correctly frees the slot for re-insert.
+ * Scoped to bank + topic + question_type + an explicit `nums` set (the orphaned numbers, not the
+ * whole file — see `planReplaceAll`). Do NOT reason about safety from the number PREFIX: the
+ * orphan set is derived by an UNFILTERED scope query (`findLiveNumbersInScope`), so every live
+ * row in this bank/topic/question_type is a candidate whatever its prefix — including rows
+ * authored by a DIFFERENT content file that happens to share the scope, which is exactly what
+ * three Part 3 MC files do under `P3_MC`/`multiple_choice`. That is why `planReplaceAll` unions
+ * every file in a scope and refuses to prune without `--prune`. Never a hard DELETE — and
+ * idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND
+ * question_number IS NOT NULL — both conjuncts, per the defining migration
+ * `supabase/migrations/20260311000003_add_question_number.sql:5-7`. Cite the MIGRATION, not a
+ * sibling comment: a short form reads as a different index, and a claim sourced from another
+ * file's comment is the propagate-don't-derive defect (code-style.md §10). So the
+ * soft delete correctly frees the slot were anything ever re-inserted under that number again.
  */
 type ReplaceScope = {
   rel: string
@@ -819,10 +886,81 @@ type ReplaceScope = {
 }
 
 /**
- * The live rows --replace is about to soft-delete, filtered exactly as the UPDATE below is, so
- * the count it returns is the count that update must produce. An empty result warns and returns
- * empty rather than throwing: a first import of a new file legitimately matches nothing.
+ * Every LIVE question_number in this scope (bank + topic + question_type), unfiltered by any
+ * particular num set — this is what `planScope` diffs the UNION of every file's authored numbers
+ * in this scope against, to
+ * find orphans (rows the DB has that the file no longer declares). `scope.nums` is ignored here;
+ * pass whichever ReplaceScope is convenient, its `nums` field is irrelevant to this query.
  */
+async function findLiveNumbersInScope(scope: ReplaceScope): Promise<string[]> {
+  // PAGINATED, and it must be. PostgREST caps a response at max_rows = 1000
+  // (supabase/config.toml), and this query is deliberately UNFILTERED by number — it reads every
+  // live row in the scope. A silent truncation here does not merely under-report: numbers missing
+  // from `liveNums` fall out of `toUpdate` and into `toInsert`, where `insertIfMissing` matches
+  // them on (bank_id, question_number), finds them already live, and SKIPS them. The edited
+  // content never lands and the run exits 0 reporting "N inserted / M updated / K skipped" — the
+  // silent no-op this file says --replace must never produce. The repo has this truncation on
+  // record (#668/#673), which is why `fetchAllRows` exists.
+  // getCount and getPage build the SAME filtered query, as fetchAllRows requires — the filters are
+  // repeated rather than hoisted because the chain must start at .select() for each.
+  const { data, error } = await fetchAllRows<{ question_number: string | null }>(
+    () =>
+      db
+        .from('questions')
+        // Not `.select('*')` on `questions`. Nothing was exposed — `head: true` returns no rows,
+        // and this is a service-role script, not a student path, so security.md rule 1 ("never
+        // SELECT * questions FOR STUDENTS") was not actually breached. But the ban is written
+        // without that qualifier in `.coderabbit.yaml`, and it is enforced by REVIEWERS reading
+        // the call shape — there is no mechanical guard, though the pre-push security-auditor does look —
+        // so the bare `*` costs a review round every
+        // time. A named column is free and the count does not care which.
+        .select('question_number', { count: 'exact', head: true })
+        .eq('bank_id', scope.bankId)
+        .eq('topic_id', scope.topicId)
+        .eq('question_type', scope.questionType)
+        .is('deleted_at', null),
+    (from, to) =>
+      db
+        .from('questions')
+        .select('question_number')
+        .eq('bank_id', scope.bankId)
+        .eq('topic_id', scope.topicId)
+        .eq('question_type', scope.questionType)
+        .is('deleted_at', null)
+        // Total order, and locally so: `question_number` is unique in this scope via the partial
+        // index idx_questions_bank_number, but the `id` tiebreaker means a future index change
+        // cannot silently make page boundaries unstable. Matches the sibling script's shape.
+        .order('question_number', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
+  if (error) throw new Error(`--replace live-number lookup (${scope.rel}): ${error.message}`)
+  // question_number is nullable in the schema; a NULL one cannot be authored by a content file,
+  // so it is not a candidate for update OR for pruning. Dropping it here keeps it out of both.
+  // `typeof n === 'string'`, not `n !== null`: `db` is the UNTYPED client, so the row shape is an
+  // unchecked assertion and a row missing the key yields `undefined`, which passes a null-check and
+  // lands in liveNums as `undefined` — matching no authored number and falling into `unaccounted`.
+  return data.map((r) => r.question_number).filter((n): n is string => typeof n === 'string')
+}
+
+/**
+ * The live rows matching `scope.nums` exactly, filtered exactly as the UPDATE below is, so
+ * the count it returns is the count that update must produce. Callers pass the ORPHANED numbers
+ * here (see `planReplaceAll`), not the whole file's num set — so the empty case is NOT a normal
+ * first import (an empty orphan set means `planReplaceAll` never calls this at all). An empty
+ * result warns and returns empty rather than throwing because it is a concurrent-write race
+ * safety net; see the body comment for why.
+ */
+// NOT paginated, knowingly: max_rows caps the returned REPRESENTATION, not the rows the UPDATE
+// writes, so above 1000 orphans in one scope the soft-delete succeeds while `removedIds` (the
+// rollback list) captures only 1000. Whether the reconciliation below then balances depends on
+// PostgREST applying max-rows to a mutation's returning representation as well as to reads, which
+// I did not verify — if it does not, the count check throws AFTER the soft-delete, which fails
+// closed with a complete `removedIds` and rollback is safe. In the other case it balances
+// SILENTLY, `removedIds` under-records past 1000, and a later failure in the same run would
+// restore only what it recorded — leaving the excess soft-deleted. That asymmetry is the reason
+// for the "revisit if a scope ever approaches 1000" note above. Unreachable at current pool sizes (largest scope is 36) and left as-is
+// rather than paginated; revisit if a scope ever approaches 1000.
 async function findReplaceTargets(scope: ReplaceScope): Promise<{ question_number: string }[]> {
   const { data: matched, error: matchErr } = await db
     .from('questions')
@@ -834,14 +972,14 @@ async function findReplaceTargets(scope: ReplaceScope): Promise<{ question_numbe
     .is('deleted_at', null)
   if (matchErr) throw new Error(`--replace lookup (${scope.rel}): ${matchErr.message}`)
   if (!matched || matched.length === 0) {
-    // Name the discriminators: if the file's topic_code or question_type changed since the rows
-    // were imported, the old rows carry the OLD values and match nothing here, while
-    // insertIfMissing (bank + number only) then skips every num — so the edit silently does not
-    // take effect, which is exactly what --replace exists to prevent.
-    // console.WARN, not log: this is the same silent-no-op class the matched/removed check in the
-    // caller throws on, so it must not read as an ordinary progress line.
+    // Unreachable in the normal --replace flow: `planReplaceAll` derives `scope.nums` FROM this
+    // same scope's live query (findLiveNumbersInScope) and only calls this with a non-empty
+    // orphaned set, so a re-check here should always match. Kept as a fail-closed safety net for
+    // a race (another process soft-deleted the row between the two queries) rather than removed —
+    // console.WARN, not log: a silent zero-match here would otherwise read as an ordinary
+    // progress line while the caller's matched/removed reconciliation below throws on it anyway.
     console.warn(
-      `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId}) — if this is not a first import, the file's topic_code or question_type changed and the edit will NOT take effect`,
+      `  ${scope.rel}: --replace matched no existing rows (type=${scope.questionType}, topic=${scope.topicId}) among [${scope.nums.join(', ')}] — expected a live match; the rows may have moved or been removed by something else since planning`,
     )
     return []
   }
@@ -880,10 +1018,12 @@ async function softDeleteForReplace(
   for (const row of removed ?? []) removedIds.push(row.id as string)
   // code-style §5's "log only when > 0" shape is for cleanup where zero rows is VALID. Here the
   // SELECT above already proved N rows match, so anything less than N means the write was blocked
-  // (RLS/grant — see #815) or the rows moved. Throw rather than warn: the insert loop that follows
-  // would find the rows still live, skip all of them, and print `0 inserted / N skipped`, which is
-  // indistinguishable from a successful idempotent re-run. A silent no-op is the one outcome
-  // --replace must never produce.
+  // (RLS/grant — see #815) or the rows moved. Throw rather than warn: these are ORPHANED rows —
+  // absent from EVERY file in this run by construction (scope-level since #1191) — so nothing
+  // downstream ever touches their
+  // question_number again this run. A silently-incomplete soft-delete here would leave the
+  // leftover rows live with no signal, which is exactly the #1191 defect this scope exists to
+  // close. A silent no-op is the one outcome --replace must never produce.
   const removedCount = removed?.length ?? 0
   if (removedCount !== matched.length) {
     throw new Error(
@@ -931,10 +1071,12 @@ async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
 /**
  * Why this reports subtopic drift instead of just `true`/`false`:
  *
- * `subtopic_id` is written ONLY at INSERT. This function matches on
- * (bank_id, question_number) alone, `--sync-content` touches just the three answer columns and
- * refuses non-`short_answer` files, and `--replace` cannot run against a remote. So once a row
- * exists, NOTHING can move it to a different subtopic on that database.
+ * `subtopic_id` is written at INSERT and — since #1191 — by local `--replace`'s in-place update
+ * (`updateReplacedRow` sends `buildRow`'s CONTENT fields, `subtopic_id` included — it strips `base`'s INSERT defaults; see that function). This function
+ * matches on (bank_id, question_number) alone, `--sync-content` touches just the three answer
+ * columns and refuses non-`short_answer` files, and `--replace` cannot run against a remote. So
+ * on a REMOTE database it is INSERT-only and nothing can move an existing row to a different
+ * subtopic; locally, `--replace` can.
  *
  * That makes adding `subtopic_code` to an already-imported pool silently produce a HALF-FILED
  * pool: the questions added in the same edit get the new subtopic, the pre-existing ones keep
@@ -971,6 +1113,56 @@ async function insertIfMissing(bankId: string, row: QuestionRow): Promise<Insert
   return { kind: 'inserted' }
 }
 
+/**
+ * --replace, matched-row path (#1191): UPDATE the existing live row's content in place instead
+ * of soft-delete + re-insert, so its `id` survives the re-import. A session created before this
+ * run may have already frozen the row's id in `config.question_ids`; soft-delete-then-insert
+ * silently orphaned that reference onto a NEW id, and the runner kept serving the now-soft-deleted
+ * row with no signal. `row` never carries an `id` (buildRow does not set one), and `content` is
+ * `row` minus five base keys, so `.update(content)` leaves the target row's id untouched.
+ *
+ * Scoped the same way `insertIfMissing`'s lookup is (bank_id + question_number, deleted_at IS
+ * NULL) — `planReplaceAll` already proved the row is live and in this exact scope before calling
+ * this, so a zero-row match here means the plan and the DB disagree; abort rather than guess.
+ */
+async function updateReplacedRow(bankId: string, row: QuestionRow): Promise<void> {
+  // Update CONTENT only. `row` is the full buildRow output, which carries `base` — and base's
+  // fields are INSERT defaults, not content: `created_by` records who first authored the row, while
+  // `difficulty`/`status` are per-row admin state.
+  // `explanation_text` is the exception KEPT. Not because it is always content: an item authoring
+  // no `explanation` falls back to base's boilerplate on four of the five branches, and on
+  // short_answer too when it authors no `acronym` (that branch is two-tiered —
+  // `sa.explanation ?? (sa.acronym ? "<acronym>: <canonical>" : base.explanation_text)`, and
+  // `acronym` is optional). Only short_answer WITH an acronym falls back to real content. It is
+  // kept because every SHIPPED item authors an `explanation`, 140 of 140 counted. If that stops
+  // being true, strip it everywhere except short_answer-with-acronym.
+  // Sending the whole row would reassign
+  // authorship on every content edit and flip a question an admin had set to `draft` back to
+  // `active` (those are the only two values — CHECK status IN ('active','draft')). `bank_id` is the match key; `organization_id` is fixed by it
+  // (`question_banks` is UNIQUE per org), so neither can drift.
+  const {
+    created_by: _createdBy,
+    organization_id: _orgId,
+    bank_id: _bankId,
+    difficulty: _difficulty,
+    status: _status,
+    ...content
+  } = row
+  const { data, error } = await db
+    .from('questions')
+    .update(content)
+    .eq('bank_id', bankId)
+    .eq('question_number', row.question_number)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`--replace update (${row.question_number}): ${error.message}`)
+  if (!data || data.length === 0) {
+    throw new Error(
+      `--replace update (${row.question_number}): matched 0 rows — the row was live when planned but is gone now; aborting.`,
+    )
+  }
+}
+
 type ResolvedFile = {
   rel: string
   file: ContentFile
@@ -1001,15 +1193,28 @@ function scopeFor(entry: ResolvedFile, q: AuthoredQuestion): RowScope {
 async function insertAll(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number; drifted: number }> {
+  plans: ReadonlyMap<string, ReplacePlan> | null,
+): Promise<{ inserted: number; updated: number; skipped: number; drifted: number }> {
   let totalInserted = 0
+  let totalUpdated = 0
   let totalSkipped = 0
   const drifted: string[] = []
   for (const entry of resolved) {
     const { rel, file, subjectId } = entry
+    // Numbers `planReplaceAll` already proved are live in THIS file's exact scope — update them
+    // in place (preserves id, #1191) instead of routing them through insertIfMissing's
+    // skip-if-present logic. Empty (a Set, not null) when REPLACE is off or this file matched
+    // nothing live, so every question falls through to insertIfMissing as before.
+    const toUpdate = new Set(plans?.get(rel)?.toUpdate ?? [])
     let inserted = 0
+    let updated = 0
     for (const q of file.questions) {
       const row = buildRow(file, q, { ...ctx.base, subject_id: subjectId }, scopeFor(entry, q))
+      if (toUpdate.has(q.num)) {
+        await updateReplacedRow(ctx.bankId, row)
+        updated++
+        continue
+      }
       const outcome = await insertIfMissing(ctx.bankId, row)
       if (outcome.kind === 'inserted') inserted++
       else {
@@ -1018,8 +1223,9 @@ async function insertAll(
       }
     }
     totalInserted += inserted
+    totalUpdated += updated
     console.log(
-      `  ${rel}: ${inserted} inserted / ${file.questions.length - inserted} skipped (${file.title}, ${file.question_type})`,
+      `  ${rel}: ${inserted} inserted / ${updated} updated / ${file.questions.length - inserted - updated} skipped (${file.title}, ${file.question_type})`,
     )
   }
   // Reported AFTER every file is walked, not on the first drifted row: the inserts are
@@ -1028,29 +1234,38 @@ async function insertAll(
   if (drifted.length > 0) {
     const listed = drifted.map((d) => `  - ${d}`).join('\n')
     // WARN, never throw, under --replace -- but still fail the RUN (see main()). Drift is
-    // unreachable for any row findReplaceTargets MATCHED (softDeleteAll runs first and
-    // insertIfMissing filters `deleted_at IS NULL`, so those rows are re-inserted, not skipped).
-    // Getting here means the row was NOT matched, which happens two ways: the whole file
-    // mismatched -- findReplaceTargets warns about that -- or individual rows were retyped or
-    // moved between files, which it does NOT warn about, because it matches on
-    // bank + topic_id + question_type + IN(nums) while insertIfMissing matches on
-    // bank + question_number alone. Do not assert WHICH of the two the operator hit.
+    // unreachable for any row `planReplaceAll` put in `toUpdate` (those go through
+    // updateReplacedRow above, never insertIfMissing). Getting here means the row's number was
+    // NOT live in this file's exact scope (bank + topic + question_type), which happens two ways:
+    // the whole file mismatched -- which now surfaces as planReplaceAll's UNACCOUNTED abort, not
+    // as a warning -- or individual rows were retyped or moved to a different topic/type since
+    // they were first imported, which nothing warns about, because insertIfMissing matches on
+    // bank + question_number alone, ignoring topic/type. Do not assert WHICH of the two the
+    // operator hit.
     //
-    // Throwing here would actively harm: runImport's catch calls rollbackReplace, which restores
-    // soft-deleted rows whose (bank_id, question_number) the successful inserts of EARLIER files
-    // now occupy, so idx_questions_bank_number rejects the restore and the operator gets a
-    // spurious "ROLLBACK INCOMPLETE" for a run that actually succeeded.
+    // Throwing here under --replace would still be safe from the OLD rollback-collision concern
+    // this comment used to name (soft-deleted rows are now exactly the ORPHANED set, which by
+    // construction no insert or update in this same run ever targets again, and since the scope
+    // fix that is finally true rather than nearly true) — but --replace's
+    // purpose is to force THIS file's own numbers to land, and a drifted row here is a
+    // pre-existing filing problem in a DIFFERENT scope that --replace was never asked to fix. So
+    // it is reported, not allowed to fail numbers that DID land correctly.
     if (REPLACE) {
       console.warn(
-        `  ${drifted.length} question(s) were skipped while filed under a different subtopic than the content file declares:\n${listed}\n  --replace did not match them, so they were never soft-deleted and could not be refiled — their live row's topic_id/question_type differs from what this file declares. Check above for a "matched no existing rows" warning; its absence means only SOME rows drifted. Fix the file's topic_code/question_type, or refile with a migration.`,
+        `  ${drifted.length} question(s) were skipped while filed under a different subtopic than the content file declares:\n${listed}\n  --replace did not match them in this file's scope (bank + topic + question_type), so they were left untouched — their live row's topic_id/question_type differs from what this file declares. A whole-file mismatch aborts earlier as "authored by no file in this run", so reaching this warning means only SOME rows drifted. Fix the file's topic_code/question_type, or refile with a migration.`,
       )
     } else {
       throw new Error(
-        `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n${listed}\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace soft-deletes and re-inserts this file's questions, which refiles them under new row ids — but only if it matches them, so check its output for a "matched no existing rows" warning first. On a remote (where --replace is refused), refile with a migration.`,
+        `${drifted.length} already-imported question(s) are filed under a different subtopic than the content file now declares, and the INSERT path can never move them:\n${listed}\nThe rows above kept the subtopic they were first inserted with. On a LOCAL database, --replace updates an in-scope match in place and leaves an out-of-scope one (different topic_id/question_type) untouched, exactly like this — it does not move rows across scopes either. Refile with a migration, on any database.`,
       )
     }
   }
-  return { inserted: totalInserted, skipped: totalSkipped, drifted: drifted.length }
+  return {
+    inserted: totalInserted,
+    updated: totalUpdated,
+    skipped: totalSkipped,
+    drifted: drifted.length,
+  }
 }
 
 // ---- --sync-content ----------------------------------------------------------
@@ -1302,32 +1517,115 @@ async function runSyncContent(
   let changed = 0
   for (const { entry, planned } of plans) changed += await writeSyncPlan(entry, planned)
   console.log('\nVFR RT content sync complete.')
-  console.log(`  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}`)
+  console.log(`  Target:   ${SUPABASE_URL}${isRemoteTarget ? '  [REMOTE]' : '  [local]'}`)
   console.log(`  Mode:     ${SYNC_APPLY ? 'APPLIED' : 'DRY RUN (pass --apply to write)'}`)
   console.log(`  Changed:  ${changed}`)
   console.log('  No audit_events row was written — this is a service-role script write.')
 }
 
-async function softDeleteAll(
+/**
+ * Per-SCOPE --replace planning (#1191). Files are bucketed by (bank, topic, question_type); each
+ * bucket queries its live question_numbers ONCE and hands every file in it to `planScope`, which
+ * returns per-file UPDATE/INSERT sets plus the scope-level UNACCOUNTED set (live here, authored
+ * by no file in this run). `insertAll` then updates the matched numbers IN PLACE, preserving ids.
+ *
+ * Planning per FILE was the defect. The three Part 3 MC files share one scope, so each one's plan
+ * called the other two files' rows orphans: a single-file --replace soft-deleted 16 live questions
+ * and exited 0, and a multi-file run put the same numbers in one file's toUpdate and another's
+ * orphaned at once. Unioning the bucket's files before diffing is what makes "unaccounted" mean
+ * "no file authors this" instead of "this file doesn't".
+ *
+ * UNACCOUNTED rows ABORT the run, naming them and the files given for the scope, unless --prune
+ * is passed. A row no file claims is either content deliberately deleted (prune it) or a sibling
+ * file the operator forgot to pass (do not) — nothing here can tell those apart, so it refuses to
+ * guess rather than guessing destructively.
+ *
+ * `removedIds` is appended to per bucket and ONLY under --prune, so a throw on a later bucket
+ * still leaves the earlier buckets' soft-deleted ids in the caller's rollback list.
+ */
+async function planReplaceAll(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
   removedIds: string[],
-): Promise<void> {
-  for (const { rel, file, topicId } of resolved) {
-    // `removedIds` is appended to as each file is processed, so a throw on file 2 still leaves
-    // file 1's ids in the caller's rollback list.
-    await softDeleteForReplace(
-      {
-        rel,
+): Promise<{ plans: ReadonlyMap<string, ReplacePlan>; orphanedCount: number }> {
+  // Bucket by the scope the orphan query actually uses. Planning per FILE was the defect: each
+  // file's plan diffed its own nums against every live row in the shared scope, so file B's rows
+  // were "orphans" of file A and vice versa — and in a multi-file run the same numbers landed in
+  // one file's toUpdate and another's orphaned at once.
+  const buckets = new Map<string, { scope: ReplaceScope; files: ResolvedFile[] }>()
+  for (const entry of resolved) {
+    const key = `${ctx.bankId}\u0000${entry.topicId}\u0000${entry.file.question_type}`
+    const bucket = buckets.get(key)
+    if (bucket) {
+      bucket.files.push(entry)
+      continue
+    }
+    buckets.set(key, {
+      scope: {
+        rel: entry.rel,
         bankId: ctx.bankId,
-        topicId,
-        questionType: file.question_type,
-        nums: file.questions.map((q) => q.num),
+        topicId: entry.topicId,
+        questionType: entry.file.question_type,
+        nums: [],
       },
-      ctx.adminId,
-      removedIds,
-    )
+      files: [entry],
+    })
   }
+
+  const plans = new Map<string, ReplacePlan>()
+  let orphanedCount = 0
+  for (const { scope, files } of buckets.values()) {
+    const liveNums = await findLiveNumbersInScope(scope)
+    // The decision itself lives in replace-planning.ts and is unit-tested there against the real
+    // three-file P3_MC shape. Keep it that way: this defect survived review because only the
+    // per-file `planReplace` was tested, and the scope-level union is where it actually went wrong.
+    const scopePlan = planScope({
+      files: files.map((f) => ({ rel: f.rel, nums: f.file.questions.map((q) => q.num) })),
+      liveNums,
+    })
+
+    // FAIL CLOSED. An unaccounted row is live in this scope and authored by no file in THIS run.
+    // It is either a question genuinely deleted from the content (#1191's case, which SHOULD be
+    // pruned) or a sibling file the operator did not pass (which must not be). Nothing here can
+    // tell them apart, so it refuses to guess and makes the operator say which.
+    const decision = decideUnaccounted({ unaccounted: scopePlan.unaccounted, prune: PRUNE })
+    if (decision === 'abort') {
+      throw new Error(
+        `--replace: ${scopePlan.unaccounted.length} live row(s) in this scope are authored by no file in this run: ` +
+          `${scopePlan.unaccounted.join(', ')}. Files given for this scope: ${files.map((f) => f.rel).join(', ')}. ` +
+          'If these were deleted from the content on purpose, re-run with --prune to soft-delete them. ' +
+          'If they belong to a sibling file, pass that file too — a pool is a FILE, but the scope is ' +
+          'bank+topic+question_type, and several files share one.',
+      )
+    }
+    if (decision === 'prune') {
+      console.warn(
+        `  --replace --prune: soft-deleting ${scopePlan.unaccounted.length} row(s) authored by no file in this run: ${scopePlan.unaccounted.join(', ')}`,
+      )
+      // `rel` is the disclosure label. These rows belong to the SCOPE, not to any one file, so
+      // naming the bucket's first file here would attribute a deletion to a file that does not
+      // author the rows.
+      await softDeleteForReplace(
+        {
+          ...scope,
+          rel: `${scope.topicId}/${scope.questionType}`,
+          nums: [...scopePlan.unaccounted],
+        },
+        ctx.adminId,
+        removedIds,
+      )
+      orphanedCount += scopePlan.unaccounted.length
+    }
+
+    // Orphans were handled once, at scope level, so every per-file plan carries an empty
+    // `orphaned` — nothing downstream may soft-delete again.
+    for (const entry of files) {
+      const decided = scopePlan.perFile.get(entry.rel)
+      if (!decided) throw new Error(`--replace: no plan for ${entry.rel} (internal)`)
+      plans.set(entry.rel, { ...decided, orphaned: [] })
+    }
+  }
+  return { plans, orphanedCount }
 }
 
 /** Compensating write + its reporting. Never throws: the caller's original error is the one that matters. */
@@ -1344,25 +1642,27 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
     `  --replace: ROLLBACK INCOMPLETE — ${failures.length} row(s) are still soft-deleted: ${failures.join('; ')}`,
   )
   console.error(
-    '  --replace: the usual cause is that the row\'s question_number was ALREADY re-inserted before the failure — idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL, so clearing deleted_at collides with the live replacement. Restoring "by hand" fails the same way. Remedy: re-run the same --replace (it soft-deletes the partial inserts and redoes the file), or delete the partial inserts first. Only rows with no live replacement can be restored directly.',
+    "  --replace: since #1191, the soft-deleted set here is exactly the ORPHANED rows (live in scope but absent from EVERY file in this run — scope-level since #1191, not file-level) — a number no file in this run declares, so nothing in this run ever re-inserts it. A live replacement occupying the slot therefore points at an external/concurrent write rather than this run's own insert path. idx_questions_bank_number is UNIQUE (bank_id, question_number) WHERE deleted_at IS NULL AND question_number IS NOT NULL, so clearing deleted_at collides with whatever is live there. Remedy: re-run the same --replace (it re-derives the orphan set and redoes the soft-delete), or investigate what else wrote that question_number.",
   )
 }
 
 /**
- * Soft-delete (under --replace) and then insert, with a best-effort compensating restore if a
- * later step fails.
+ * Soft-delete ORPHANED rows (under --replace) and then update/insert, with a best-effort
+ * compensating restore if a later step fails.
  *
- * NOT an all-or-nothing unit. The restore clears `deleted_at` on rows this run soft-deleted, and
- * that succeeds only where the row's `question_number` has NOT already been re-inserted — the
- * partial-unique index rejects the second live row. So the guarantee is: nothing is lost when the
- * failure happens before any insert, and a best-effort restore with an explicit ROLLBACK
+ * NOT an all-or-nothing unit. The restore clears `deleted_at` on rows this run soft-deleted
+ * (the orphaned set only — matched rows are updated in place, never soft-deleted, so there is
+ * nothing to roll back for them), and that succeeds only where the row's `question_number` has
+ * NOT been re-occupied by something else in the meantime — the partial-unique index rejects the
+ * second live row. So the guarantee is: nothing is lost when the failure happens before any
+ * write that could occupy the slot, and a best-effort restore with an explicit ROLLBACK
  * INCOMPLETE report otherwise.
  *
- * The window this closes: --replace soft-deletes the file's questions, then an insert throws
- * (constraint, RLS, dropped connection) and the process exits — the content is now missing from
- * the bank entirely, which is strictly worse than the no-op --replace exists to prevent. There
- * is no transaction available here (inserts are row-at-a-time and individually committed), so
- * the rollback is a compensating write, not an abort.
+ * The window this closes: --replace soft-deletes the file's orphaned rows, then an update or
+ * insert throws (constraint, RLS, dropped connection) and the process exits — those rows are now
+ * missing from the bank entirely, which is strictly worse than the no-op --replace exists to
+ * prevent. There is no transaction available here (writes are row-at-a-time and individually
+ * committed), so the rollback is a compensating write, not an abort.
  *
  * The original failure is always what propagates: a rollback problem is additional information
  * about the same incident, never a replacement for its cause. Rollback failures are logged
@@ -1372,11 +1672,22 @@ async function rollbackReplace(softDeleted: readonly string[]): Promise<void> {
 async function runImport(
   resolved: readonly ResolvedFile[],
   ctx: ImportContext,
-): Promise<{ inserted: number; skipped: number; drifted: number }> {
+): Promise<{
+  inserted: number
+  updated: number
+  skipped: number
+  drifted: number
+  orphaned: number
+}> {
   const softDeleted: string[] = []
   try {
-    if (REPLACE) await softDeleteAll(resolved, ctx, softDeleted)
-    return await insertAll(resolved, ctx)
+    // Orphans are a property of the SCOPE, not of any one file, so the count comes back alongside
+    // the per-file plans rather than being summed out of them (every per-file plan's `orphaned` is
+    // empty by construction — see planReplaceAll).
+    const planned = REPLACE ? await planReplaceAll(resolved, ctx, softDeleted) : null
+    const orphaned = planned?.orphanedCount ?? 0
+    const result = await insertAll(resolved, ctx, planned?.plans ?? null)
+    return { ...result, orphaned }
   } catch (err) {
     if (softDeleted.length > 0) await rollbackReplace(softDeleted)
     throw err
@@ -1403,7 +1714,9 @@ async function main(): Promise<void> {
   //
   // Keep this in step with buildRow — a field buildRow writes but this loop does not check is
   // a field that fails mid-run. The full set buildRow reads from content today: file-level
-  // `subject_code`/`topic_code`/`question_type`; per-item `num`, `prompt`, `explanation`;
+  // `question_type` ONLY (it does NOT read `subject_code`/`topic_code` — those are validated in
+  // this loop but consumed by lookupSubjectByCode/lookupTopicByCode further down, and buildRow
+  // sees only the RESOLVED ids via `scope`/`base`); per-item `num`, `prompt`, `explanation`;
   // short_answer `canonical`, `synonyms`, `acronym`; multiple_choice `options`, `correct`;
   // dialog_fill `template`, `blanks` (validated by assertDialogFillItem, which mirrors the DB
   // CHECKs, plus assertDialogFillAuthoring for the house blank-shape rules); ordering `items`
@@ -1443,8 +1756,10 @@ async function main(): Promise<void> {
     if (file.subtopic_code !== undefined) {
       requireText(file.subtopic_code, `${rel}: 'subtopic_code'`)
     }
-    // Not read by buildRow — it is interpolated into the per-file completion summary, so it is
-    // the one content field outside the buildRow parity contract described below. Unvalidated,
+    // Not read by buildRow — it is interpolated into the per-file completion summary. It is not
+    // the ONLY content field outside the buildRow parity contract described ABOVE: `subject_code`
+    // and `topic_code` are outside it too, feeding the taxonomy lookups instead. `title` is the
+    // one that reaches neither buildRow nor a lookup, so nothing else would catch it. Unvalidated,
     // a missing or object-valued title prints `undefined` / `[object Object]` in the summary.
     requireText(file.title, `${rel}: 'title'`)
     // buildRow throws on an unsupported type, but only once it reaches that item mid-loop.
@@ -1457,7 +1772,7 @@ async function main(): Promise<void> {
     // is the one thing --force-remote must not carry to prod. The gate is a structured
     // `lifecycle` tag, allow-listed to the single value 'released'; a missing or unexpected
     // value is refused. See assertReleasedForRemote for why it is not a prose check.
-    if (FORCE_REMOTE) {
+    if (isRemoteTarget) {
       assertReleasedForRemote(file, rel)
     }
     if (!Array.isArray(file.questions) || file.questions.length === 0) {
@@ -1600,11 +1915,21 @@ async function main(): Promise<void> {
   // lookups throw.
   //
   // These are SELECTs against the global easa_* tables and take no orgId/adminId, so they sit
-  // ahead of EVERY write in this function: resolveOrgId upserts `organizations` in local mode,
-  // resolveAdminId creates two auth users and upserts two `users` rows, and ensureBank may
-  // create a `question_banks` row. Ordering them after this loop is what makes "an import that
-  // is going to abort writes nothing at all" true — the earlier form of this comment claimed
-  // that while sitting below the two resolvers, so five rows were already written on an abort.
+  // ahead of EVERY write in this function. Against a LOCAL target: resolveOrgId upserts
+  // `organizations`, resolveAdminId creates two auth users and upserts two `users` rows, and
+  // ensureBank may create a `question_banks` row. Against a REMOTE target all three take their
+  // isRemoteTarget branch, which is lookup-or-throw — so the only write in a remote run is the
+  // questions insert in insertAll. (That "local" qualifier governs all three, not just
+  // resolveOrgId; an earlier form of this comment attached it to the first clause only.)
+  //
+  // SCOPE OF THE ABORT GUARANTEE — narrower than the earlier wording claimed. Ordering this loop
+  // ahead of the resolvers is what makes an abort write nothing, but that holds only for aborts
+  // raised UP HERE: content/taxonomy validation, the MC key-balance checks, and this resolution
+  // loop. It does NOT hold once execution passes them. resolveAdminId is a four-write sequence
+  // and a throw on its third leaves the first two committed; ensureBank's restore path UPDATEs
+  // before its own guard can throw; and inserts are row-at-a-time with no transaction, so a
+  // mid-insert failure keeps every row already written. The old text said "an import that is
+  // going to abort writes nothing at all" without qualification, which is false for all three.
   const resolved: ResolvedFile[] = []
   for (const { rel, file } of parsed) {
     const subjectId = await lookupSubjectByCode(file.subject_code)
@@ -1625,6 +1950,10 @@ async function main(): Promise<void> {
   const adminId = await resolveAdminId(orgId)
   const bank = await ensureBank(orgId, adminId)
 
+  // Every key here EXCEPT explanation_text is an INSERT default, not content. Add a key and add
+  // it to updateReplacedRow's strip list, or local --replace will start writing it as content —
+  // nothing mechanical catches that (QuestionRow is Record<string, unknown> and this module is
+  // not unit-testable).
   const base = {
     organization_id: orgId,
     bank_id: bank.id,
@@ -1643,25 +1972,38 @@ async function main(): Promise<void> {
     return
   }
 
-  const { inserted: totalInserted, skipped: totalSkipped, drifted } = await runImport(resolved, ctx)
+  const {
+    inserted: totalInserted,
+    updated: totalUpdated,
+    skipped: totalSkipped,
+    drifted,
+    orphaned: totalOrphaned,
+  } = await runImport(resolved, ctx)
 
   console.log('\nVFR RT content import complete.')
   console.log(
-    `  Target:   ${SUPABASE_URL}${FORCE_REMOTE ? '  [REMOTE]' : '  [local]'}${REPLACE ? '  [--replace]' : ''}`,
+    `  Target:   ${SUPABASE_URL}${isRemoteTarget ? '  [REMOTE]' : '  [local]'}${REPLACE ? '  [--replace]' : ''}`,
   )
   console.log(`  Org:      ${ORG_NAME} (${orgId})`)
   console.log(`  Bank:     ${bank.name} (${bank.id})`)
   console.log(`  Inserted: ${totalInserted}   Skipped (already present): ${totalSkipped}`)
-  if (!FORCE_REMOTE) {
+  // Updated/Orphaned only ever populate under --replace (insertAll's `plans` argument is null
+  // otherwise, so both stay 0) — gated on REPLACE rather than printed unconditionally, so the
+  // default insert-only path's summary stays exactly as it always was.
+  if (REPLACE) {
+    console.log(`  Updated:  ${totalUpdated}   Orphaned removed: ${totalOrphaned}`)
+  }
+  if (!isRemoteTarget) {
     console.log(
       `  Login:    ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}  →  http://localhost:3000/app/vfr-rt`,
     )
   }
   // Set here rather than thrown from insertAll: under --replace a throw would reach runImport's
-  // catch and trigger rollbackReplace against rows the successful inserts already re-created,
-  // reporting a bogus incomplete rollback for a run that worked. Assigning process.exitCode after
-  // the summary keeps the non-zero exit — so CI and `&&` chains still fail — without unwinding
-  // anything. `exitCode`, not `exit()`: the latter would truncate buffered stdout.
+  // catch and trigger rollbackReplace against the orphaned rows this run already soft-deleted,
+  // reporting a bogus incomplete rollback for a run that otherwise worked. Assigning
+  // process.exitCode after the summary keeps the non-zero exit — so CI and `&&` chains still
+  // fail — without unwinding anything. `exitCode`, not `exit()`: the latter would truncate
+  // buffered stdout.
   if (drifted > 0) {
     console.error(
       `\n  ${drifted} question(s) remain filed under a subtopic the content file does not declare — see the warning above. Exiting non-zero.`,
