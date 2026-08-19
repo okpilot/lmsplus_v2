@@ -19,14 +19,36 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
   - **N = 3** when the plan/diff touches a security path — the canonical trigger set from `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), determined from the plan's file list (plan reviews) or `git diff origin/master...HEAD --name-only` plus staged changes (diff reviews). Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`") — an unresolvable base must ABORT, never be read as "no paths matched".
   - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply). Stylistic-only and skip-with-reason findings do NOT break a clean round.
 - **Reset on finding; not on skip.** Any round with an APPLY finding resets the consecutive-clean counter to 0 (fix, then resume counting). A validated skip-with-reason (false positive / contradicts the codebase pattern) does NOT reset — otherwise the validate-first discipline (`agent-workflow.md § Finding Validation`) is structurally penalized.
-- **Comment-accuracy findings are bounded to ONE round (#1222).** A finding whose subject is the
-  wording of a comment, docstring or commit message — not a runtime defect — may be raised once. If
-  the next round returns a further wording finding on prose the previous round just rewrote, LOG IT
-  AND STOP; do not spend a round on it. This mirrors the post-commit stop rule in `CLAUDE.md
-  § Post-commit review` and applies to plan-critic and implementation-critic as well as the
-  post-commit reviewers. Rationale: an LLM reviewer returns non-empty on almost any prose, so the
-  loop ends by rule or not at all. On this branch a single hook file drew four §10 wording findings
-  across three critic rounds while the defects that mattered were behavioural.
+- **Wording-refinement findings are bounded to ONE round (#1222) — but a FALSE claim is not a
+  wording finding.** Split the class before applying the bound:
+  - **Refinement** — the prose is true but could be clearer, tighter, better placed, or the commit
+    message could be phrased better. Bounded. If a round returns a refinement finding on prose that
+    the PREVIOUS round just rewrote, the orchestrator LOGS IT AND STOPS; it does not spend a round.
+    The bound is scoped to prose the last round touched — a refinement on a comment no round has
+    rewritten is an ordinary finding and may be raised.
+  - **False claim** — the prose asserts something the code does not do: a guard that is not there, a
+    count that does not add up, an invariant the function does not hold. **Never bounded**, whatever
+    round it lands on. This is `code-style.md` §10, whose promoted rationale is that a wrong comment
+    is what the next reader trusts when deciding whether a guard can safely be removed. The
+    semantic-reviewer tracker records that a comment-accuracy FIX is the highest-risk site for a new
+    false claim — so round N+1 on rewritten prose is exactly where the real ones surface, and
+    bounding it would suppress the highest-yield case. The previous commit on this branch is itself an
+    instance: rewriting
+    the defer-budget section introduced a false "8 filed against 7 closed" attribution, caught in
+    the round after.
+  - **Bounded-out findings do not reset the clean counter.** A refinement that is logged-and-stopped
+    counts as a validated skip for the purposes of the consecutive-clean floor above, whatever
+    severity the critic labelled it. Otherwise a critic that keeps returning wording nits holds the
+    floor unmet to the ceiling and forces an escalation the bound exists to prevent.
+  - **This is an ORCHESTRATOR duty, not a critic constraint.** A fresh critic invocation has no
+    memory of prior rounds and cannot honour "raise it only once"; the orchestrator is what carries
+    the round history and drops the repeat.
+
+  Applies to plan-critic and implementation-critic as well as the post-commit reviewers, and mirrors
+  the post-commit stop rule in `CLAUDE.md § Post-commit review`. Rationale: an LLM reviewer returns
+  non-empty on almost any prose, so the loop ends by rule or not at all. On this branch a single
+  hook file drew four §10 wording findings across three critic rounds while the defects that
+  mattered were behavioural.
 - **Ceiling / diminishing returns.** Cap at **4 total rounds**. If the floor is unmet at the ceiling, STOP and **escalate to the user** with the residual findings — do not loop. This replaces "orchestrator resolves directly" for the ceiling case: when the orchestrator cannot converge the critics, the user decides.
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (the `git diff --staged`) MUTATES on every fix, so "consecutive clean on the same artifact" is undefined; and it has no skip condition, so a floor would force ≥2 passes on every trivial commit. It keeps its existing **2-round revision maximum + orchestrator takeover** (below).
 - **Learner counting.** A finding that recurs across rounds of the SAME gate on the SAME artifact counts as ONE occurrence for the learner's frequency tracker (which promotes at 2+ across *different* commits, per `agent-learner.md`) — the orchestrator deduplicates within-run recurrences before reporting to the learner.
@@ -63,4 +85,4 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 
 ---
 
-*Last updated: 2026-08-19 (comment-accuracy findings bounded to ONE round on the pre-commit side too, #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*
+*Last updated: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and count as validated skips against the clean-round floor, from FALSE claims about a guard/count/invariant, which never are — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*

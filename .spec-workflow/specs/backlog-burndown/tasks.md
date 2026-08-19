@@ -41,30 +41,59 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
 - [x] Draft the validated plan (files, impact, contracts, patterns, docs, security surface)
 - [x] plan-critic: 2 coverage rounds (6 findings, all applied) + 2 stability rounds CLEAN — N=2 floor met at the 4-round ceiling
 - [x] User decisions: one PR (not split); hook-based enforcement; DROP the numeric-literal sub-rules (#1222 AC#2)
-- [ ] `#1222 AC#2` — delete both numeric-literal sub-rules from `agent-doc-updater.md`; record the drop in `docs/decisions.md`
-- [ ] `#1222 AC#4` — round bound for comment-accuracy findings in `agent-critic.md` (pre-commit side)
+- [x] `#1222 AC#2` — delete both numeric-literal sub-rules from `agent-doc-updater.md`; record the drop in `docs/decisions.md`
+- [x] `#1222 AC#4` — round bound for comment-accuracy findings in `agent-critic.md` (pre-commit side)
 - [x] `#1222` — no-executable-change oracle: BUILT (TypeScript-parser based, 44 tests), then
       **REVERTED**. Measured across the last 300 commits on master it would have fired ONCE (0.33%);
       204 of the 300 were `.md`-only, already covered by docs-only. **DO NOT REBUILD** — the full
       reasoning, including the three probed designs and the non-injective pre-order walk that was
       still open at revert time, is `docs/decisions.md` Decision 58.
-- [ ] `#1232` — aggregate defer budget + issues-closed-vs-filed line in `fullpush.md` step 8 table
-- [ ] `#1232` — reconcile `.claude/commands/coderabbit.md:83-87`, whose defer criteria already
+- [x] `#1232` — aggregate defer budget + issues-closed-vs-filed line in `fullpush.md` step 8 table
+- [x] `#1232` — reconcile `.claude/commands/coderabbit.md:83-87`, whose defer criteria already
       contradict `agent-workflow.md:397-405` today (pre-existing; found by this sweep)
-- [ ] `#1231a` — mutation-check DO bullet in `agent-test-writer.md`, pointing at `code-style.md` §7
+- [x] `#1231a` — mutation-check DO bullet in `agent-test-writer.md`, pointing at `code-style.md` §7
       rather than restating it
-- [ ] `#1231b` — extend `agent-coderabbit-local.md` Pitfall #8 to absence-fabrication (CR asserting
+- [x] `#1231b` — extend `agent-coderabbit-local.md` Pitfall #8 to absence-fabrication (CR asserting
       a guard is missing when it exists). NOTE: the issue claims #8 already covers repo-history
       fabrication — it does not; that is a tracker candidate only
-- [ ] `#1231c` — unverified-critic-claim clause in `agent-workflow.md § Finding Validation`
-- [ ] `#1164` — drop the unbacked "Promoted at learner count=2" from `CLAUDE.md:107`.
+- [x] `#1231c` — unverified-critic-claim clause in `agent-workflow.md § Finding Validation`
+- [x] `#1164` — drop the unbacked "Promoted at learner count=2" from `CLAUDE.md:107`.
       DANGER: that exact string appears at `agent-workflow.md:314` and `:675` on unrelated,
       properly substantiated promotions. Edit `CLAUDE.md:107` only.
-- [ ] Widen the seven-mirror table — this sweep found two surfaces it does not name:
+- [x] Widen the seven-mirror table — this sweep found two surfaces it does not name:
       `.claude/hooks/*.sh` (two files that `echo` the pipeline) and `package.json`
-- [ ] Fix the learner tracker so #1164's claim is either backed or gone
-- [ ] impl-critic on staged changes
-- [ ] Post-commit cycle per commit; learner
+- [x] Fix the learner tracker so #1164's claim is either backed or gone
+- [x] impl-critic on staged changes
+- [x] `a0e01943` post-commit cycle — test-writer clean; doc-updater 1 (stale `decisions.md`
+      footer, applied); code-reviewer 1 WARNING (`fullpush.md` step 7 missed the aggregate budget,
+      applied); semantic-reviewer **12 ISSUE + 3 SUGGESTION**, all validated and applied in the
+      fixup — two live defer budgets with no precedence; "filed" undefined (2 / 7 / 8 depending on
+      artifact); the predicate firing at 0/0; a FALSE "8 filed" attribution I wrote while rewriting
+      that very section; first-illumination self-asserting and exempting PR #1225 itself; the
+      comment-accuracy bound silent on the clean counter, self-inconsistent in scope, and
+      suppressing §10's highest-yield case; `.coderabbit.yaml` pointed at the counts Decision 58
+      just dropped; and de-counting the EXEMPTIONS having wrongly de-counted the four AGENTS
+- [x] impl-critic round 2 on the fixup — **9 ISSUE + 3 SUGGESTION, all applied.** Four shared one
+      root cause: the mirrors were written from memory of the new rule instead of from its text, so
+      `>` drifted from `≥`, the `filed > 0` guard never reached the enforcement point, two mirrors
+      still said "the budget is aggregate" after it became two checks, and `fullpush.md` said 7
+      filed where the rule said 8. Also caught two NEW false claims in the fixes themselves —
+      `wontfix` described as "the one default we actually use" (0 issues carry it) citing a section
+      that says don't file at all, and #1219 called PR #1225's "headline finding" when its merge
+      commit calls #1191 headline and #1219 "Second". And the first-illumination git test failed
+      OPEN: an empty `--since` log is the PASS condition, so a typo'd pathspec granted the
+      exemption silently — `git log --since=zzz.months` exits 0 with no diagnostic.
+- [x] impl-critic round 2 (cap reached; orchestrator resolved the residue directly) — 3 ISSUE +
+      3 SUGGESTION, all applied. The first-illumination test was still fail-OPEN on one of the
+      three failure modes its own prose claimed to cover: a non-empty unfiltered log proves the
+      PATHSPEC but says nothing about the DATE, and `--since=zzz.months` / `--since=sixmonths`
+      both return 0 lines at exit 0. Closed with a second fail-closed half — a repo-wide
+      `--since` that must be non-empty (measured: 694 vs 0). Also: `fullpush.md`'s #1225 example
+      contradicted `fullpush.md`'s own definition of "filed" (the section names 2, the example
+      says 8 — so read literally #1225 PASSES), and `agent-critic.md` attributed the false
+      "8 filed" claim to THIS commit when `git show a0e01943` puts it in the parent — a false
+      provenance claim inside the clause that forbids false claims.
+- [ ] learner on the completed cycle
 - [ ] coderabbit-sync (rules changed → mandatory trigger)
 - [ ] PR-level semantic sweep against `origin/master...HEAD`
 - [ ] `/crlocal` rounds (M=2, not a security path)

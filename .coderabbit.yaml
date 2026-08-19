@@ -214,7 +214,12 @@ reviews:
     # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
     # either costs nothing; the set is "binding docs plus a little", not the pure set.
-    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/**/*.md}"
+    # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
+    # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
+    # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
+    # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
+    # revised in flight, so reviewing them is churn.
+    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/requirements.md,.spec-workflow/specs/**/design.md}"
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
@@ -227,7 +232,12 @@ reviews:
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
-          explain — including counts of files, rules, specs or commits described elsewhere.
+          explain, or which contradicts a list in the same block. The defect is INTERNAL
+          INCONSISTENCY, not staleness.
+          Do NOT flag a standalone inventory count (how many red-team specs, E2E specs or
+          integration tests exist) for having drifted from the current file count: docs/decisions.md
+          Decision 58 deliberately accepts that drift, because chasing it cost more review rounds
+          than a stale number ever cost a reader who can run `ls`.
         - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
           restatement must either carry the current mechanics or be reduced to a pointer.
         - A LITERAL COUNT of the post-commit exemptions, in digits OR in words. "the two

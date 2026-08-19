@@ -14,6 +14,22 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 5. **Did all post-commit agents run on EVERY commit in the push range** — not just on HEAD? Enumerate with `git fetch origin` (ABORT if it fails) then `git rev-list origin/master..HEAD`, and account for each one. The fetch is not optional: `origin/master` is itself a local ref that only advances on fetch, so a stale one sits further back and admits commits this branch never authored — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Checking only the latest commit lets an earlier unreviewed commit through whenever HEAD happens to be clean, which is precisely how this branch reached 24 commits with post-commit agents on 2 of them. For each commit: the full four, or a named exemption. The four are code-reviewer, semantic-reviewer, doc-updater and test-writer, in parallel. The **learner** is not one of them — it runs after all four report, takes their findings as its input, and is skipped entirely on a reduced cycle; check it separately rather than as a fifth member of the set. When applicable also: red-team if the diff touches security files, coderabbit-sync if rules changed. A commit covered by a NAMED exemption in `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer) satisfies this — **name the exemption and the condition that qualified it**, rather than answering a bare "yes". A commit that merely felt small does not qualify.
 6. **If production code changed after initial review**, did you re-run semantic-reviewer on the fix commit?
 7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
+7a. **Defer budgets — TWO checks, and step 7 is neither of them.** Step 7 is the per-item test;
+    these are the two once-before-push budgets from `agent-workflow.md § Apply-vs-Defer Discipline`,
+    and a PR must clear both.
+    - **Volume:** 0-2 deferrals is the budget. 3+ does not fail automatically, but every survivor
+      must be re-triaged and named here.
+    - **Ratio:** count the issues this PR CLOSES (its `Closes #N` / `Fixes #N` keywords) and the
+      issues it FILED (the PR body's `## Deferred` section, which must name every one). If
+      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim the
+      first-illumination exemption on its test (see the rule — naming the area is not enough on its
+      own) or re-triage and APPLY two or three of the deferrals. A PR that files nothing clears this
+      check whatever it closes.
+
+    Per-item justifications do not answer either check — PR #1225 passed every per-item test and
+    still filed 8 against 7 closed, sailing past the volume budget too. Note its own `## Deferred`
+    section named only 2 of the 8, which is exactly why that section is now mandatory AND must be
+    complete: read literally against an incomplete section, #1225 computes filed=2 and passes.
 
 ### Docs, rules and mirrors — land them BEFORE the push, not in wrap-up
 7b. **Every doc, rule and mirror update this change requires must already be committed on this

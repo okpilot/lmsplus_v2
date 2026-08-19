@@ -81,10 +81,21 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
 - **Any finding fixable in < 10 lines, regardless of category** — a one-line doc typo doesn't need a GitHub Issue, just fix it
 
 ### Defer if:
-- Valid but too broad (affects 10+ files, systematic refactor)
-- UX enhancement, not a functional bug
-- Test coverage gap (tests work, just not comprehensive enough)
-- Doc restructuring or large doc rewrites (not quick typo fixes — those are FIX NOW)
+
+`agent-workflow.md § Apply-vs-Defer Discipline` is binding here and **default is APPLY**. DEFER
+requires **all three** of: ≥ 30 LOC estimated (code + tests + docs), a genuinely separate concern
+that could stand as its own PR, and a design decision this PR does not establish. A finding that
+meets only one — "it's just a UX enhancement", "it's only a coverage gap", "it's a big doc rewrite" —
+is an APPLY, not a defer. Each of these used to be listed here as an independent defer criterion;
+they are not, and the looser list is what let deferrals accumulate.
+
+Every deferred issue carries effort (S/M/L) + priority (P0–P2) + acceptance criteria + a link to the
+originating finding. And **two budgets bind on top of the per-item test**: VOLUME (0-2 deferrals
+per PR; 3+ means re-triage every survivor and name them in the push summary) and RATIO (before
+pushing, count issues this PR closes against issues it files (the PR body's `## Deferred` section is
+the count, and must be complete) — if `filed > 0 AND filed >= closed`,
+either claim the first-illumination exemption on its test or re-triage and apply some of them). A PR
+that files nothing clears the ratio check whatever it closes.
 
 ### Skip if:
 - False positive (CodeRabbit misread the code)

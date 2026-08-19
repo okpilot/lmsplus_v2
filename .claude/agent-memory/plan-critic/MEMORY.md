@@ -8,6 +8,10 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
+| Rule-restatement plans that enumerate "Files to change" by LINE NUMBER miss occurrences of the same phrase at unlisted lines in the same file — the SAME-WORD-DIFFERENT-LINE gap. `CLAUDE.md:183` "claimed neither exemption" missed while `:547` in agent-workflow.md listed. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| A wording-constraint that says "replace every COUNT" without naming grammatical count synonyms ("both", "neither") leaves implementers fixing numerals and skipping pronouns — the synonym must be named explicitly. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| Plans that explicitly say "leave historical entry X alone" in docs/decisions.md satisfy themselves by ruling out an OLD entry while the AC requires a NEW one — the two are different rows. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| A reduced-cycle justification claims "agent X has nothing to assess" when it DOES (code-reviewer checks actual line counts, not stripped counts; comment additions can breach §1 size limits). | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
 | A DERIVED-value redesign specifies the derivation for ONE input domain (text) and leaves the other (floats/coords) unspecified — in the module the plan itself calls "the single owner of the contract". ([details](topics/derived-content-ids-20260817.md#1)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
 | Deriving an id from a VISUAL/cosmetic constant turns style edits into breaking data changes; the Risk row covers the normalizer, never the INPUTS. ([details](topics/derived-content-ids-20260817.md#2)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
 | "Existing tests name specific <values>" — grep the literals; they already derived them, and the REAL work (an assertion made unfalsifiable by the new alphabet) went unbudgeted. ([details](topics/derived-content-ids-20260817.md#3)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |

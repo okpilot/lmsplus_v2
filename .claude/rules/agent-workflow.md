@@ -410,26 +410,69 @@ Only file a GitHub Issue and defer when **every one** of these is true:
 
 If any of those is false, apply.
 
-### Defer-budget per PR
+### Defer-budget per PR — TWO checks, both binding
+
+They measure different things and neither subsumes the other: **volume** catches a PR that defers a
+lot, **ratio** catches a PR that hands back as much as it takes. A PR passes only if it clears both.
+
+**Check 1 — volume (per-PR count of deferrals).**
 
 - **0 deferrals** is the goal.
 - **1-2 deferrals** is acceptable when each one genuinely meets the three-condition test above.
-- **3+ deferrals** is a red flag — recheck triage. The PR scope was probably wrong (either too narrow → expand and apply some, or too broad → split). Re-evaluate every deferral before filing.
+- **3+ deferrals** is a red flag — recheck triage. The PR scope was probably wrong (either too narrow → expand and apply some, or too broad → split). Re-evaluate every deferral before filing. 3+ does not fail the check automatically, but each survivor must be re-triaged and named in the push summary — the same written justification Check 2 demands.
 
-**The per-item test is not the budget.** Each of the three conditions above is evaluated per finding,
-so a PR can pass every individual test and still file as many issues as it closes. That is not a
-hypothetical: PR #1225 closed 7 (#1188, #1191, #1194, #1198, #1200, #1219, #1221) and its own merge
-commit records 7 deferrals (#1224, #1226–#1231) — net ZERO, with every deferral individually
-justified. Counting the PR body's own `## Deferred` section it is 8 filed against 7 closed.
+**Check 2 — ratio (issues filed vs issues closed).** The per-item three-condition test is not a
+budget at all: each condition is evaluated per finding, so a PR can pass every individual test and
+still file as many issues as it closes. That is not a hypothetical. PR #1225 closed 7 (#1188, #1191,
+#1194, #1198, #1200, #1219, #1221) and its merge commit records 7 deferrals (#1224, #1226–#1231) —
+net ZERO, with every deferral individually justified. Its PR body's `## Deferred` section names two
+(#1223, #1224), one of which the merge commit does not; the union of the two lists is **8 filed
+against 7 closed**. It also blew straight past Check 1's "3+ is a red flag" — which is what a single
+merged budget hid, and why the two checks are stated separately now.
 
-So the budget is an **aggregate** check, made once before push, not a per-item one:
+That divergence — anywhere from 2 to 8 filed depending on which artifact you read, #1232's own title
+saying 6 — is itself the reason this
+check needs a single source of truth:
 
-- Count issues this PR CLOSES and issues it FILED. If filed ≥ closed, the PR did not reduce the
-  backlog and needs a written justification naming what made this batch exceptional — not three
-  separate per-item justifications.
-- **First-illumination exemption.** A PR that is the first to look hard at a neglected area will
-  legitimately surface more than it closes. Say so explicitly and name the area; that is a real
-  reason, and it is the only one that does not require re-triage.
+- **"Filed" means every issue this branch created, and the PR body's `## Deferred` section is the
+  authoritative list.** That section is MANDATORY on any PR that files an issue and must name all of
+  them; a commit message's deferral list is a convenience copy, never the record. If the two
+  disagree at push time, the PR body is the one to fix — before pushing, not after. To enumerate
+  rather than recall: `gh issue list --state all --search "author:@me created:>=<branch-cut date>"`,
+  cross-checked against that section. An unenumerable "filed" is what left #1225 readable as 2, 7
+  or 8.
+- **"Closed" means the issues this PR's `Closes #N` / `Fixes #N` keywords will actually close.**
+- Compare once, before push. If **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog
+  and needs a written justification naming what made this batch exceptional — not three separate
+  per-item justifications. A PR that files nothing passes this check whatever it closes.
+- **First-illumination exemption — evidence required, once per area.** A PR that is the first to
+  look hard at a neglected area will legitimately surface more than it closes. Self-assertion is not
+  enough: without evidence this exemption swallows the rule, and PR #1225 itself would be the first
+  to walk through it — its stated purpose ("a post-merge audit of #1220", one of whose findings is
+  that `apps/web/scripts/**` was excluded from both tsconfigs) reads as textbook first-illumination.
+  To claim it, name the path set, paste the output of every command below, and answer the last:
+  1. `git log --oneline -- <paths>` — must be **NON-empty**. Fail-closed half one: it proves the
+     PATHSPEC resolves to something real.
+  2. `git log --since=6.months.ago --oneline | head -1` — repo-wide, NO pathspec — must be
+     **NON-empty**. Fail-closed half two: it proves the DATE EXPRESSION parsed. Both halves are
+     needed and neither covers the other, because step 3's empty result is the PASS condition, so
+     anything that makes a log spuriously empty silently GRANTS the exemption. Git will not tell
+     you: `git log --since=zzz.months` and `--since=sixmonths` each return 0 lines, exit 0, no
+     diagnostic — so the usual "abort on a non-zero exit code" guard cannot catch either. Measured
+     on this repo 2026-08-19: `--since=6.months.ago` returns 694 commits repo-wide, both malformed
+     spellings return 0. Step 1 alone does not catch a bad date (a valid pathspec still lists its
+     history); step 2 alone does not catch a bad pathspec.
+  3. `git log --since=6.months.ago --oneline -- <paths>` — must hold no **substantive** commit,
+     meaning any commit that is not docs-only or agent-memory-only. Use the SAME date expression
+     here as in step 2, or step 2 validated an expression this step does not use.
+  4. No open issue targeted those paths when the branch was cut. Issues carry no path metadata, so
+     this one is a judgment call, not a command — state which issues you checked and why none
+     qualifies, rather than asserting the conclusion.
+
+  Record the claim in the PR body as a line reading `first-illumination: <path set>`. That line is
+  the whole once-per-area mechanism — a later PR into overlapping paths greps merged PR bodies for
+  it and, finding one, is no longer the first to look. There is no registry beyond that grep, and
+  "overlapping" is deliberately not formalised; treat a shared directory as the same area.
 - Otherwise, re-triage: the fix is usually to APPLY two or three of the deferrals, not to argue for
   them. Re-loading that context later costs more than finishing it now.
 
@@ -571,7 +614,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch every post-commit agent in parallel immediately after each commit — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
+- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -736,4 +779,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-19 (aggregate defer budget — the per-item test is not the budget, with the PR #1225 7-closed/7-filed precedent, #1232; Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)*
+*Last updated: 2026-08-19 (defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" pinned to the PR body's mandatory `## Deferred` section, a `filed > 0` guard so 0/0 does not fire, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)*

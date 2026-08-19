@@ -16,7 +16,7 @@ Do NOT run after every commit — too slow (2-5 min per round), no value on smal
 
 ## Apply-vs-Defer
 
-The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Defer-budget per PR is 0-2; 3+ is a red flag.
+The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Two budgets bind, both checked before push: VOLUME (0-2 deferrals per PR; 3+ is a red flag) and RATIO (if this PR filed at least as many issues as it closes, counted from the PR body's mandatory `## Deferred` section — `filed > 0 AND filed >= closed` — re-triage or claim the first-illumination exemption on its test).
 
 ## Verify Before Acting — MANDATORY GATE
 
@@ -163,4 +163,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-08-19 (Pitfall #8 extended to CR asserting the ABSENCE of a guard that exists — `import-vfr-rt-content.ts:145`, #1231. Prior: 2026-08-18 § Verify Before Acting.)*
+*Last updated: 2026-08-19 (Apply-vs-Defer restatement carries both budgets — volume and ratio — not just the 0-2 count, #1232; Pitfall #8 extended to CR asserting the ABSENCE of a guard that exists — `import-vfr-rt-content.ts:145`, #1231. Prior: 2026-08-18 § Verify Before Acting.)*

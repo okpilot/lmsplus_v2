@@ -24,6 +24,14 @@
 | Not engineering work | `ops`, `product-decision` |
 | Priority (stale-exempt) | `P0 - Critical` |
 | Applied by automation | `stale` (by `stale-issues.yml`), `coderabbit` |
+| GitHub defaults, mostly unused | `duplicate`, `good first issue`, `help wanted`, `invalid`, `question`, `wontfix` |
+
+`wontfix` is the one default our rules tell you to reach for — the Apply-vs-Defer **DO** list in
+`agent-workflow.md` says to close an aging deferred issue as `wontfix`. Nothing carries it yet
+(measured 2026-08-19: 0 issues, 0 PRs), same as the other five. Note the neighbouring
+`§ "Won't do" is a valid verdict at file time` is about NOT filing at all — no issue, so no label.
+This table is the complete label set as of 2026-08-19; `gh label list` is the source of truth if it
+has moved since.
 
 `ops` marks work no PR can close — infra, DNS, vendor tiers, tokens, compliance, production script runs. `product-decision` marks work blocked on scoping rather than on engineering capacity. **Both are excluded when counting the engineering backlog**; an issue carrying either is not a queue item.
 
@@ -113,4 +121,4 @@ Size field:     PVTSSF_lAHOB7qFm84BRy8izg_hNXU
 
 ---
 
-*Last updated: 2026-08-19 (real label set enumerated; board-field-vs-label distinction added after `exempt-issue-labels` was found listing a `P0 - Critical` label that did not exist; stale-bot skip list documented.)*
+*Last updated: 2026-08-19 (label table completed with the GitHub defaults, `wontfix` among them — `agent-workflow.md` tells you to use it; board-field-vs-label distinction added after `exempt-issue-labels` was found listing a `P0 - Critical` label that did not exist; stale-bot skip list documented.)*
