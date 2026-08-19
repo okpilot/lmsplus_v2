@@ -142,6 +142,21 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       review-follow-up LABEL that `CLAUDE.md` had just said it must not key on. Also trimmed
       `CLAUDE.md`'s cap paragraph — its two why-this-wording arguments moved to the commit message,
       which is what commit messages are for.
+- [x] `387a29ac` post-commit cycle — test-writer clean (27/27, 41/41, 14/14); doc-updater clean
+      across all 9 mirror rows; code-reviewer 0 BLOCKING / 2 WARNING; semantic-reviewer verdict
+      **SHIP after one fixup** — 3 actionable, **8 bounded and stopped**. First live proof the
+      bound is workable: the reviewer applied it to its own output, three findings survived the
+      false-claim gate on merit and eight stopped without argument. It also RAN the ratio check
+      end to end — filed 2, closed 4, so this branch clears both its own budgets — and traced the
+      ceiling to confirm it terminates. The 5 findings applied here: `fullpush.md`'s worked
+      example still computed under the RETIRED definition (PR #1225 filed 9, not 8 — `#1232`
+      counts under "whatever its origin"; verified by running the command against #1225's own
+      merge-base); the ratio command FAILED OPEN because `gh issue list` defaults to `--limit 30`
+      and exits 0 truncated, under-counting `filed` and PASSING a check that should fail; "you
+      paste command output, you do not argue" falsified by its own steps 3 and 4; the
+      `agent-critic.md` footer contradicting the body the same commit wrote; and a THIRD
+      self-invalidating reference ("the commit message for this change") in the commit that fixed
+      that exact pattern one file over.
 - [ ] learner on the completed cycle
 - [ ] coderabbit-sync (rules changed → mandatory trigger)
 - [ ] PR-level semantic sweep against `origin/master...HEAD`

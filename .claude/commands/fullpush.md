@@ -24,16 +24,18 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       origin, listed in the PR body's `## Deferred` section, which must name every one. On a FIRST
       push there is no PR yet, so the list is the `## Deferred` section of the body you are about
       to open the PR with. Enumerate with the merge-base TIMESTAMP, never its date:
-      `gh issue list --state open --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"` (step 5 already fetched). If
+      `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"` — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If
       **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim the
       first-illumination exemption on its test (see the rule — naming the area is not enough on its
       own) or re-triage and APPLY two or three of the deferrals. A PR that files nothing clears this
       check whatever it closes.
 
     Per-item justifications do not answer either check — PR #1225 passed every per-item test and
-    still filed 8 against 7 closed, sailing past the volume budget too. Note its own `## Deferred`
-    section named only 2 of the 8, which is exactly why that section is now mandatory AND must be
-    complete: read literally against an incomplete section, #1225 computes filed=2 and passes.
+    still filed **9** against 7 closed, sailing past the volume budget too. Nine, not the eight its
+    own artifacts add up to: run the command above against #1225's merge-base and `#1232` counts
+    too, created after it and still open. Its `## Deferred` section named 2 of the 9, which is
+    exactly why that section is mandatory AND must be complete — read literally against an
+    incomplete section, #1225 computes filed=2 and passes.
 
 ### Docs, rules and mirrors — land them BEFORE the push, not in wrap-up
 7b. **Every doc, rule and mirror update this change requires must already be committed on this

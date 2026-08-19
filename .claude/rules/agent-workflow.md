@@ -452,7 +452,11 @@ check needs a single source of truth:
   8 rows by date, 2 by timestamp.
   `git fetch origin` first (ABORT if it fails — a stale `origin/master` yields an older merge-base and
   over-reports, the very failure this fixes), then:
-  `gh issue list --state open --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
+  `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
+  `--limit 200` is not decoration: `gh issue list` defaults to **30** and exits 0 on a truncated
+  list, so a branch past that silently under-counts `filed`, which makes `filed >= closed` false and
+  PASSES a check that should fail. Same fail-open shape as the empty-log hazard below, in a command
+  that looks like it cannot fail.
   `--state open`, not `--state all`: the definition counts issues still open at merge, and an issue
   filed and closed on the same branch is zero backlog delta. (No figure is quoted here on purpose —
   on this branch both forms return 2, so the flag makes no observable difference and a measurement
@@ -462,7 +466,7 @@ check needs a single source of truth:
 - **"Closed" means the issues this PR's `Closes #N` / `Fixes #N` keywords will actually close.**
 - Compare once, before push. If **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog
   and needs a written justification naming what made this batch exceptional — not three separate
-  per-item justifications. **First-illumination below is the only accepted basis** — and it is an evidence test, not a narrative: you paste command output, you do not argue; anything
+  per-item justifications. **First-illumination below is the only accepted basis** — and its first three steps are an evidence test, not a narrative: you paste command output. Step 4 is openly a judgment call, and classifying step 3's output as substantive-or-not takes a sentence too; what is disqualified is a justification made ONLY of argument, with no pasted output behind it; anything
   else means re-triage. This is deliberately narrower than "write something down", so that the
   mirrors, which offer exactly those two paths, are not narrower than the rule they mirror. A PR that files nothing passes this check whatever it closes.
 - **First-illumination exemption — evidence required, once per area.** A PR that is the first to
