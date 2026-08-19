@@ -427,13 +427,15 @@ still file as many issues as it closes. That is not a hypothetical. PR #1225 clo
 #1194, #1198, #1200, #1219, #1221) and its merge commit records 7 deferrals (#1224, #1226–#1231) —
 net ZERO, with every deferral individually justified. Its PR body's `## Deferred` section names two
 (#1223, #1224), one of which the merge commit does not; the union of those two ARTIFACT lists is
-**8 filed against 7 closed**. Run the command below instead and the answer is **9** — `#1232`
-counts, created after that PR's merge-base and still open — which is the figure the rule now
-prescribes, and the one `fullpush.md`'s worked example uses. The artifact figure is not wrong; it
+**8 filed against 7 closed**. Run the command below **at that PR's push** and the answer is **9** — `#1232`
+counts, created after its merge-base and still open — which is the figure the rule now prescribes.
+The command has no upper time bound, so it is only meaningful run BEFORE the PR merges: re-run
+against #1225 today and it returns 11, having swept in every issue later branches filed (`#1233`,
+`#1234`). That is why the comparison is made once, before push, and not reconstructed afterwards, and the one `fullpush.md`'s worked example uses. The artifact figure is not wrong; it
 is a different question, and that is the whole point of pinning one source of truth. It also blew straight past Check 1's "3+ is a red flag" — which is what a single
 merged budget hid, and why the two checks are stated separately now.
 
-That divergence — 2, 6, 7 or 8 filed across just the artifacts named above (#1232's own title says 6), against 9 by the command
+That divergence — 2, 6, 7 or 8 filed across just the artifacts named above (#1232's own title says 6), against 9 by the command run at that PR's push
 — is itself the reason this
 check needs a single source of truth:
 

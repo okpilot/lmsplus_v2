@@ -31,11 +31,12 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       check whatever it closes.
 
     Per-item justifications do not answer either check — PR #1225 passed every per-item test and
-    still filed **9** against 7 closed, sailing past the volume budget too. Nine, not the eight its
-    own artifacts add up to: run the command above against #1225's merge-base and `#1232` counts
-    too, created after it and still open. Its `## Deferred` section named 2 of the 9, which is
-    exactly why that section is mandatory AND must be complete — read literally against an
-    incomplete section, #1225 computes filed=2 and passes.
+    still filed **9** against 7 closed, sailing past the volume budget too. Nine as of ITS push, not
+    the eight its own artifacts add up to: `#1232` counts, created after its merge-base and still
+    open. Run the same command against #1225 today and you get 11 — it has no upper time bound, so
+    it sweeps in what later branches filed. That is the point of comparing once, before push. Its
+    `## Deferred` section named 2 of the 9, which is why that section is mandatory AND must be
+    complete — read literally against an incomplete section, #1225 computes filed=2 and passes.
 
 ### Docs, rules and mirrors — land them BEFORE the push, not in wrap-up
 7b. **Every doc, rule and mirror update this change requires must already be committed on this
