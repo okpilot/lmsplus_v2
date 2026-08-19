@@ -92,7 +92,7 @@ they are not, and the looser list is what let deferrals accumulate.
 Every deferred issue carries effort (S/M/L) + priority (P0–P2) + acceptance criteria + a link to the
 originating finding. And **two budgets bind on top of the per-item test**: VOLUME (0-2 deferrals
 per PR; 3+ means re-triage every survivor and name them in the push summary) and RATIO (before
-pushing, count issues this PR closes against issues it files (every issue created on this branch after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all) — if `filed > 0 AND filed >= closed`,
+pushing, count issues this PR closes against issues it files (every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all) — if `filed > 0 AND filed >= closed`,
 either claim the first-illumination exemption on its test or re-triage and apply some of them). A PR
 that files nothing clears the ratio check whatever it closes.
 

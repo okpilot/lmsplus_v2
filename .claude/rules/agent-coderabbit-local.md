@@ -16,7 +16,7 @@ Do NOT run after every commit — too slow (2-5 min per round), no value on smal
 
 ## Apply-vs-Defer
 
-The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Two budgets bind, both checked before push: VOLUME (0-2 deferrals per PR; 3+ does not fail automatically but means re-triaging every survivor and naming them in the push summary) and RATIO (if this PR filed at least as many issues as it closes, counting every issue created on this branch after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all — `filed > 0 AND filed >= closed` — re-triage or claim the first-illumination exemption on its test).
+The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Two budgets bind, both checked before push: VOLUME (0-2 deferrals per PR; 3+ does not fail automatically but means re-triaging every survivor and naming them in the push summary) and RATIO (if this PR filed at least as many issues as it closes, counting every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all — `filed > 0 AND filed >= closed` — re-triage or claim the first-illumination exemption on its test).
 
 ## Verify Before Acting — MANDATORY GATE
 
