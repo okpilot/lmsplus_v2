@@ -60,7 +60,7 @@ alignment as a leak. Mechanism + the pre-fix-chunk misfire: see `commit-notes.md
 - **VFR RT Part 3 MC is THREE files in ONE DB scope** — `vfr-rt-part3-mc-{numbers,emergency,posrep}.json`, all `topic_code=P3_MC`/`multiple_choice`, 20+11+5 = 36. Any importer set keyed on bank+topic+question_type spans all three; `planScope` is the union point, `--prune` the opt-in that soft-deletes. **The key-balance union is scoped DIFFERENTLY in the two gates** (test = always 36; importer = only `process.argv` files, so a single-file run early-returns under `MIN_CORPUS_FOR_KEY_BALANCE = 12`).
 
 
-## Durable bullets relocated from MEMORY.md 2026-08-20 (index byte budget)
+## Durable bullets relocated from MEMORY.md 2026-08-19 (index byte budget)
 
 - **VFR RT importer `base` ↔ `updateReplacedRow` is an UNGUARDED coupling.** `base` = 6 keys; `updateReplacedRow` strips 5 BY NAME, keeping `explanation_text`. Nothing enforces the pair — a 7th `base` key is silently written as content by `--replace`. Stripping `bank_id` is safe; an omitted column keeps its stored value. †
 - **VFR RT Part 3 MC is THREE files in ONE DB scope** — `vfr-rt-part3-mc-{numbers,emergency,posrep}.json`, all `topic_code=P3_MC`/`multiple_choice`, 20+11+5 = 36. The key-balance union is scoped DIFFERENTLY in the two gates (test = always 36; importer = argv files only). Detail: [vfr-rt-and-mc-facts](topics/vfr-rt-and-mc-facts.md)

@@ -263,7 +263,7 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
 
   - **Verify a staged commit in isolation when the tree carries WIP:** `T=$(git write-tree); C=$(git commit-tree $T -p HEAD -m tmp); git worktree add --detach <scratch> $C`, symlink `node_modules` in, run the gate, `git worktree remove --force`. A working-tree run does NOT prove the committed tree is green.
 
-## Row detail moved out of MEMORY.md 2026-08-20 (pre-push batch for PR #1235)
+## Row detail moved out of MEMORY.md 2026-08-19 (pre-push batch for PR #1235)
 
 ### Index MUTATES mid-review — full instance list
 1. Staged tree lacked a fix the worktree had.

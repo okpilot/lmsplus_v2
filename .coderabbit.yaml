@@ -219,6 +219,10 @@ reviews:
     # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
     # either costs nothing; the set is "binding docs plus a little", not the pure set.
+    # This path list is the BINDING-DOCUMENT subset of agent-workflow.md § Rule-Mirror Sync, not
+    # the whole table: package.json is a mirror row too, reviewed INDIRECTLY — CLAUDE.md, which IS
+    # in this list, carries the pnpm.overrides audit instructions that apply to it. No
+    # path_instructions block matches package.json itself.
     # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
     # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md

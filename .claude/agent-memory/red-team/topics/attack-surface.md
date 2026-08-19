@@ -613,7 +613,7 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - **SPEC VALIDITY — No existing red-team spec passes vacuously after this diff.** There are no hardcoded authored content ids (old `lk3f…` / `z9f2…` style) in any spec file. All spec fixture ids are hand-crafted by the spec itself (admin-seeded). The shuffle of label ids changes at authoring time, not at the RPC layer.
 - **VERDICT:** GAP — Vector EY (identifier-encoded oracle for `diagram_label`/`ordering`) has no Playwright spec. No existing spec is broken or made vacuous. No specs need to be re-run as a direct result of this diff.
 
-2026-08-20 — review of commit 7a02f45a (fix(rules): promote the open-set clause and sweep):
+2026-08-19 — review of commit 7a02f45a (fix(rules): promote the open-set clause and sweep):
 
 - **WHAT THIS COMMIT IS**: A documentation-only sweep. No SQL, no migration, no RPC, no policy, no application code changed. Three docs and one blocking-enforcer checklist replaced a static four-table enumeration (rule 11 / multiple-permissive-SELECT) with a `pg_policies` derivation query. The `.coderabbit.yaml` check-18 was also unscoped from the stale list to the derivation query.
 - **NO RED-TEAM SPEC IS AFFECTED.** `dashboard-stats-rpc-isolation.spec.ts` references `student_responses` by name because it tests that table (BW3) — not because it copied the documentation list. No spec hard-codes the four-table list as a doctrine assertion; no spec checks for "no AS RESTRICTIVE policies." Zero spec assertions are stale as a result of this commit.
