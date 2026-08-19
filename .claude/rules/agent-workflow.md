@@ -462,8 +462,9 @@ check needs a single source of truth:
   body is what you fix, before pushing.
 - To enumerate rather than recall, pass the merge-base TIMESTAMP, not its date. A bare DATE is
   day-granular, so a branch cut on the same day a sibling PR filed its issues sweeps those in;
-  GitHub honours a full ISO timestamp, which is what makes the fix work. Measured on this branch:
-  8 rows by date, 2 by timestamp.
+  GitHub honours a full ISO timestamp, which is what makes the fix work. Measured on this branch
+  2026-08-19: 9 rows by date, 3 by timestamp — and both figures moved during the branch, which is
+  why the measurement carries a date rather than standing as a fact.
   `git fetch origin` first (ABORT if it fails — a stale `origin/master` yields an older merge-base and
   over-reports, the very failure this fixes), then:
   `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
@@ -472,10 +473,18 @@ check needs a single source of truth:
   PASSES a check that should fail. Same fail-open shape as the empty-log hazard below, in a command
   that looks like it cannot fail. If it ever returns exactly 200, treat that as truncated, not as
   the answer, and raise the bound — a cap only closes the hole while the result stays under it.
+  `author:@me` resolves to the **`gh`-authenticated account**, not to the branch's commit author.
+  They are the same here, and the rule assumes it; if you ever run this under a different `gh`
+  login than the one that filed the issues, `filed` under-counts and the check passes when it
+  should fail — the same fail-open shape as the truncation above. If in doubt compare like with
+  like — `gh api user --jq .login` against the login that actually filed them
+  (`gh issue list --state open --limit 1 --json author --jq '.[0].author.login'`); a login and a
+  git author email are different namespaces and never match textually, so do not "confirm" it
+  against `git log --format=%ae`.
   `--state open`, not `--state all`: the definition counts issues still open at merge, and an issue
   filed and closed on the same branch is zero backlog delta. (No figure is quoted here on purpose —
-  on this branch both forms return 2, so the flag makes no observable difference and a measurement
-  would be justifying the change with a number that cannot show it.)
+  on this branch both forms return the same count, so the flag makes no observable difference and a
+  measurement would be justifying the change with a number that cannot show it.)
   Cross-check the result against the `## Deferred` section. An unenumerable "filed" is what left
   #1225 readable as anywhere from 2 to 8.
 - **"Closed" means the issues this PR's `Closes #N` / `Fixes #N` keywords will actually close.**
@@ -638,7 +647,7 @@ This paragraph deliberately carries NO total. It used to say "these seven" with 
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/*.md` | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — `.claude/skills/` holds only files unrelated to the pipeline, and `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
+| `.claude/skills/*.md` | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — enumerate `.claude/skills/*.md` at sweep time rather than assuming, since a future pipeline skill would join it; note `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
 | `.claude/hooks/*.sh` | **executable mirrors** — `post-commit-reminder.sh` and `cr-local-plan-reminder.sh` PRINT the agent list at commit time, so a stale one instructs the orchestrator directly. Not `.md`, so every doc-shaped grep misses them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about; a rule change there is unverifiable without reading it |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the fixed paths above |

@@ -33,10 +33,10 @@ wait for a push that something else needs anyway. Report unpushed commits as sta
 process failure. The failure mode this step exists to catch is docs that were never *written*.
 
 - Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
-- Did every rule change land with its full mirror set — every row of the mirror table (`docs/security.md`,
-  `.claude/rules/*.md`, `.coderabbit.yaml`, `.claude/agents/*.md`, `.claude/commands/*.md`,
-  `.claude/skills/*.md`, plus any other binding doc that re-states the mechanics — notably
-  `docs/database.md`)? See `agent-workflow.md § Rule-Mirror Sync` for the canonical table.
+- Did every rule change land with its full mirror set? Read the rows off `agent-workflow.md
+  § Rule-Mirror Sync` — do not work from a copy here, which is how the executable `.claude/hooks/*.sh`
+  and `package.json` rows came to be missed on the branch that added them. The table is the list;
+  its last row is open-ended and is answered by reading, not grepping.
 
 **If you find something missing here, that is a process failure, not a to-do.** Say so explicitly,
 fix it, and note it — because it means the change shipped in a PR whose docs did not match its

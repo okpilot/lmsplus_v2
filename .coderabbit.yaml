@@ -610,7 +610,7 @@ reviews:
           Derive the set, do not trust a list: a table is soft-delete when it has a
           deleted_at column in packages/db/src/types.ts AND docs/database.md §3 does not
           record it as a hard-delete exception. Re-derive when a migration adds or drops
-          deleted_at. As of 2026-08-20 the set was organizations, users, question_banks,
+          deleted_at. As of 2026-08-19 (UTC) the set was organizations, users, question_banks,
           questions, courses, lessons, quiz_sessions, flagged_questions, exam_configs,
           internal_exam_codes.
           Hard-delete-by-design (docs/database.md §3): quiz_drafts,

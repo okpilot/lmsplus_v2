@@ -1,6 +1,6 @@
 # Agent Rules — learner
 
-> Model: sonnet | Trigger: after a full post-commit cycle reports | Non-blocking
+> Model: sonnet | Trigger: after a full post-commit cycle COMPLETES — all four core agents reported AND any fixes they prompted are committed | Non-blocking
 
 ## Purpose
 Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different commits). Prevents the same mistakes from happening repeatedly.

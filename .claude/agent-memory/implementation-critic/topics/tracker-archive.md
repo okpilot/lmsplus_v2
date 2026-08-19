@@ -262,3 +262,31 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
 - FULL PRIOR CONTENT (MEMORY.md line 39):
 
   - **Verify a staged commit in isolation when the tree carries WIP:** `T=$(git write-tree); C=$(git commit-tree $T -p HEAD -m tmp); git worktree add --detach <scratch> $C`, symlink `node_modules` in, run the gate, `git worktree remove --force`. A working-tree run does NOT prove the committed tree is green.
+
+## Row detail moved out of MEMORY.md 2026-08-20 (pre-push batch for PR #1235)
+
+### Index MUTATES mid-review — full instance list
+1. Staged tree lacked a fix the worktree had.
+2. `git show :<path>` returned two DIFFERENT bodies 4 min apart (implementer re-staged mid-round).
+3. Oracle rebuild: index moved 17:54:28→17:56:48 mid-round; `n.text` became a RAW SLICE and
+   `isTypeOnly` was added, invalidating a whole probe battery run against the earlier blob.
+4. Pre-push batch: index moved 00:44:38→00:45:36; `agent-memory.md` gained a capitalisation fix AND
+   lost a duplicated rationale clause. Two findings I had drafted against the stale blob were
+   already fixed — pinning prevented two FALSE findings, not merely stale ones.
+   Later mtime moves (00:45:36→00:51:23) carried NO content change: `git status` rewrites the index
+   to refresh its stat cache. Compare blob SHAs, never mtimes alone.
+
+### Claim-correction introduces a NEW wrong count — instances 11–12 (pre-push batch)
+- `docs/decisions.md`: "204 of those 300 were `.md`-only". Measured over `git log -300 origin/master`:
+  204 = commits touching **at least one** `.md`; `.md`-ONLY = **37**; commits qualifying for the
+  docs-only exemption = **17**. The derived "151 of those 204 qualify" is impossible under every
+  reading tried (all-.md-exempt-ignoring-other-paths = 104; any-exempt-.md = 182; all-.md-under-docs
+  = 30). "Three quarters of the class" is 17/37 = 46%, or 8.3% of 204.
+  The batch also added "(measured 2026-08-19 against `origin/master`)" — provenance stamped on a
+  figure nobody re-derived, which is what made the error look settled.
+- `.claude/run-log.md`: "eight issues — #1227 through #1234 — were filed during the same run".
+  Creation times UTC: #1227 02:36, #1228 02:37, #1229 02:38, #1230 02:54, #1231 03:38, #1232 10:14,
+  #1233 11:14, #1234 11:49. The row's own span is 11:11→19:58 UTC, so only #1233/#1234 qualify.
+  Reconstructed open counts: 134 @ 00:00Z, **140 @ 11:11Z**, 111 @ 19:58Z; 31 closed in-window,
+  2 filed in-window. The true bridge is 140 − 31 + 2 = 111. The 134 is the MIDNIGHT figure, and the
+  eight-issue bridge only closes if the baseline is midnight rather than the run start.

@@ -25,7 +25,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
-- Let the agent modify production code. It writes tests only.
+- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — `git diff` must be clean before the agent reports. A mutation the agent cannot make that way is the orchestrator's to run.
 - Skip running the tests the agent wrote. Always verify they pass.
 - Commit failing tests. If tests fail, fix them (or the production code) first.
 - Write tests for the same files the agent is covering — avoid duplicate work.
