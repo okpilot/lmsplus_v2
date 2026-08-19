@@ -430,21 +430,41 @@ net ZERO, with every deferral individually justified. Its PR body's `## Deferred
 against 7 closed**. It also blew straight past Check 1's "3+ is a red flag" — which is what a single
 merged budget hid, and why the two checks are stated separately now.
 
-That divergence — anywhere from 2 to 8 filed depending on which artifact you read, #1232's own title
-saying 6 — is itself the reason this
+That divergence — 2, 6, 7 or 8 filed across just the artifacts named above (#1232's own title says 6)
+— is itself the reason this
 check needs a single source of truth:
 
-- **"Filed" means every issue this branch created, and the PR body's `## Deferred` section is the
-  authoritative list.** That section is MANDATORY on any PR that files an issue and must name all of
-  them; a commit message's deferral list is a convenience copy, never the record. If the two
-  disagree at push time, the PR body is the one to fix — before pushing, not after. To enumerate
-  rather than recall: `gh issue list --state all --search "author:@me created:>=<branch-cut date>"`,
-  cross-checked against that section. An unenumerable "filed" is what left #1225 readable as 2, 7
-  or 8.
+- **"Filed" means every issue created on this branch after the merge-base, whatever its origin** —
+  a deferral of this PR's own findings, a split of an older issue, a leftover from a previous PR's
+  review. The check measures BACKLOG DELTA, so how an issue came to exist does not matter; if it is
+  new and open when this PR merges, it counts. (On this branch that is #1233, carrying PR #1225's
+  leftover critic findings, and #1234, split out of #360 — neither is a deferral of this PR, both
+  count.)
+- **The PR body's `## Deferred` section is the authoritative list**, and it is MANDATORY on any PR
+  that files an issue: it must name every one, including the non-deferral kinds above. A commit
+  message's deferral list is a convenience copy, never the record. On a FIRST push there is no PR
+  yet — the authoritative list is then the `## Deferred` section of the body being drafted for that
+  push, and the check runs against the draft. On a later push, if body and reality disagree, the
+  body is what you fix, before pushing.
+- To enumerate rather than recall, pass the merge-base TIMESTAMP, not its date. A bare DATE is
+  day-granular, so a branch cut on the same day a sibling PR filed its issues sweeps those in;
+  GitHub honours a full ISO timestamp, which is what makes the fix work. Measured on this branch:
+  8 rows by date, 2 by timestamp.
+  `git fetch origin` first (ABORT if it fails — a stale `origin/master` yields an older merge-base and
+  over-reports, the very failure this fixes), then:
+  `gh issue list --state open --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
+  `--state open`, not `--state all`: the definition counts issues still open at merge, and an issue
+  filed and closed on the same branch is zero backlog delta. (No figure is quoted here on purpose —
+  on this branch both forms return 2, so the flag makes no observable difference and a measurement
+  would be justifying the change with a number that cannot show it.)
+  Cross-check the result against the `## Deferred` section. An unenumerable "filed" is what left
+  #1225 readable as anywhere from 2 to 8.
 - **"Closed" means the issues this PR's `Closes #N` / `Fixes #N` keywords will actually close.**
 - Compare once, before push. If **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog
   and needs a written justification naming what made this batch exceptional — not three separate
-  per-item justifications. A PR that files nothing passes this check whatever it closes.
+  per-item justifications. **First-illumination below is the only accepted basis** — and it is an evidence test, not a narrative: you paste command output, you do not argue; anything
+  else means re-triage. This is deliberately narrower than "write something down", so that the
+  mirrors, which offer exactly those two paths, are not narrower than the rule they mirror. A PR that files nothing passes this check whatever it closes.
 - **First-illumination exemption — evidence required, once per area.** A PR that is the first to
   look hard at a neglected area will legitimately surface more than it closes. Self-assertion is not
   enough: without evidence this exemption swallows the rule, and PR #1225 itself would be the first
@@ -462,16 +482,25 @@ check needs a single source of truth:
      on this repo 2026-08-19: `--since=6.months.ago` returns 694 commits repo-wide, both malformed
      spellings return 0. Step 1 alone does not catch a bad date (a valid pathspec still lists its
      history); step 2 alone does not catch a bad pathspec.
-  3. `git log --since=6.months.ago --oneline -- <paths>` — must hold no **substantive** commit,
-     meaning any commit that is not docs-only or agent-memory-only. Use the SAME date expression
-     here as in step 2, or step 2 validated an expression this step does not use.
+  3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'`
+     — must list no **substantive** commit, meaning any commit that is not docs-only or
+     agent-memory-only. Use the SAME date expression as step 2 and the SAME path set as step 1, or
+     you validated inputs this step does not use. Note `--oneline` alone CANNOT answer this: it
+     prints only hash and subject, and "docs-only" is a property of the WHOLE commit while every
+     command here is pathspec-filtered — so `--name-only` does not fix it either. `git show --stat`
+     per commit is what shows the full file set, including paths outside `<paths>`.
   4. No open issue targeted those paths when the branch was cut. Issues carry no path metadata, so
      this one is a judgment call, not a command — state which issues you checked and why none
      qualifies, rather than asserting the conclusion.
 
   Record the claim in the PR body as a line reading `first-illumination: <path set>`. That line is
-  the whole once-per-area mechanism — a later PR into overlapping paths greps merged PR bodies for
-  it and, finding one, is no longer the first to look. There is no registry beyond that grep, and
+  the whole once-per-area mechanism — a later PR into overlapping paths runs
+  `gh pr list --state merged --search '"first-illumination" in:body'` and OPENS the hits, looking for
+  an actual `first-illumination: <paths>` claim line over overlapping paths. The query alone cannot
+  discriminate: GitHub's tokenizer discards a trailing colon inside a quoted phrase, so
+  `'"first-illumination:" in:body'` behaves identically (verified — `'"Closes:" in:body'` and
+  `'"Closes" in:body'` return the same PRs, none of which contain `Closes:`). It is a coarse filter
+  that still needs a human read; any PR merely discussing the exemption will match. There is no registry beyond that query, and
   "overlapping" is deliberately not formalised; treat a shared directory as the same area.
 - Otherwise, re-triage: the fix is usually to APPLY two or three of the deferrals, not to argue for
   them. Re-loading that context later costs more than finishing it now.
@@ -627,7 +656,7 @@ Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried 
 - Skip implementation-critic, even for small changes.
 - Allow more than 2 revision rounds between critic and implementer.
 - Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only reductions are the NAMED exemptions in `CLAUDE.md § Post-commit review`, each defined by what was *already reviewed*, never by how small the diff is.
-- Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect; log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
+- Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect **or a false claim in the prose** — a false claim is never bounded out, whatever round it lands on, though the CHAIN is capped at 3 consecutive commits whose only content is applying the previous commit's findings — the ACT, not this exemption label, which cannot chain — before escalating (see `CLAUDE.md § Post-commit review`); log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
@@ -779,4 +808,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-19 (defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" pinned to the PR body's mandatory `## Deferred` section, a `filed > 0` guard so 0/0 does not fire, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)*
+*Last updated: 2026-08-19 (defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue created on this branch after the merge-base (whatever its origin) and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)*

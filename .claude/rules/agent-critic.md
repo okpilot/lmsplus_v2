@@ -32,14 +32,20 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
     is what the next reader trusts when deciding whether a guard can safely be removed. The
     semantic-reviewer tracker records that a comment-accuracy FIX is the highest-risk site for a new
     false claim — so round N+1 on rewritten prose is exactly where the real ones surface, and
-    bounding it would suppress the highest-yield case. The previous commit on this branch is itself an
-    instance: rewriting
-    the defer-budget section introduced a false "8 filed against 7 closed" attribution, caught in
-    the round after.
+    bounding it would suppress the highest-yield case. `a0e01943` is itself an
+    instance: rewriting the defer-budget section, it attributed "8 filed against 7 closed" to
+    the PR body's `## Deferred` section, which names 2 — the figure 8 is right, its stated source
+    was not — and the round after caught it.
   - **Bounded-out findings do not reset the clean counter.** A refinement that is logged-and-stopped
-    counts as a validated skip for the purposes of the consecutive-clean floor above, whatever
-    severity the critic labelled it. Otherwise a critic that keeps returning wording nits holds the
-    floor unmet to the ceiling and forces an escalation the bound exists to prevent.
+    neither breaks a clean round nor resets the counter, whatever severity the critic labelled it —
+    exactly as a validated skip-with-reason does not. It is NOT one of those, though: that term is
+    reserved for findings wrong on the merits, and a refinement is correct on the merits, merely
+    deferred by rule. It carries an evidentiary burden all the same — record the finding and the
+    one-line basis on which the prose is TRUE. Classification is not self-certifying, and the
+    orchestrator is the party that wants the loop to end, so an unwritten "that's just a refinement"
+    is the same self-assertion this section refuses to accept from a first-illumination claim.
+    Without this clause a critic returning wording nits at ISSUE severity would hold the floor unmet
+    to the ceiling and force the escalation the bound exists to prevent.
   - **This is an ORCHESTRATOR duty, not a critic constraint.** A fresh critic invocation has no
     memory of prior rounds and cannot honour "raise it only once"; the orchestrator is what carries
     the round history and drops the repeat.
@@ -85,4 +91,4 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 
 ---
 
-*Last updated: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and count as validated skips against the clean-round floor, from FALSE claims about a guard/count/invariant, which never are — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*
+*Last updated: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and count as validated skips against the clean-round floor but must record the one-line basis on which the prose is TRUE, from FALSE claims about a guard/count/invariant, which are never bounded (the CHAIN is capped in `CLAUDE.md § Post-commit review`, at 3 follow-up commits then escalate) — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*

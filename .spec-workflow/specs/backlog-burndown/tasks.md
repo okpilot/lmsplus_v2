@@ -83,7 +83,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       commit calls #1191 headline and #1219 "Second". And the first-illumination git test failed
       OPEN: an empty `--since` log is the PASS condition, so a typo'd pathspec granted the
       exemption silently — `git log --since=zzz.months` exits 0 with no diagnostic.
-- [x] impl-critic round 2 (cap reached; orchestrator resolved the residue directly) — 3 ISSUE +
+- [x] impl-critic round 2 residue, resolved by the ORCHESTRATOR — not a third critic run; `agent-critic.md` caps implementation-critic at 2 revision rounds and that cap was honoured — 3 ISSUE +
       3 SUGGESTION, all applied. The first-illumination test was still fail-OPEN on one of the
       three failure modes its own prose claimed to cover: a non-empty unfiltered log proves the
       PATHSPEC but says nothing about the DATE, and `--since=zzz.months` / `--since=sixmonths`
@@ -93,6 +93,55 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       says 8 — so read literally #1225 PASSES), and `agent-critic.md` attributed the false
       "8 filed" claim to THIS commit when `git show a0e01943` puts it in the parent — a false
       provenance claim inside the clause that forbids false claims.
+- [x] `6d4aa646` post-commit cycle — test-writer clean (verified no executable file changed and no
+      test parses the rule files; both hook suites 27/27 and 41/41); doc-updater clean across
+      every row of the mirror table including the two executable `.claude/hooks/*.sh`; code-reviewer 0 BLOCKING /
+      2 WARNING (the stop-rule mirror at `agent-workflow.md:630` left un-widened by the very commit
+      that widened `CLAUDE.md` — Rule-Mirror Sync missed inside the commit widening the mirror
+      table; and an ambiguous "false '8 filed' attribution" phrasing); semantic-reviewer
+      **8 ISSUE + 5 SUGGESTION**, all applied. **No new false claims — the streak broke:** every
+      added assertion verified true, including the 694-vs-0 measurement and all PR #1225 numbers.
+      The residue was of a different kind, and its shape is the lesson: the parts made MORE
+      rigorous (first-illumination, "filed") got exact commands and evidence tests, while the
+      parts deciding WHEN TO STOP were left to judgment — the never-bounded false-claim class had
+      no ceiling (reinstating PR #1185's unbounded chain by another route; now capped at 3
+      follow-up commits then escalate), the refinement classification bought "validated skip"
+      credit with no written basis while the same commit refused self-assertion from a
+      first-illumination claim, and step 3 of the evidence test could not answer its own question
+      (`--oneline` carries no file list, and docs-only is a whole-commit property while every
+      command there is pathspec-filtered). Also: "filed" carried two incompatible definitions that
+      diverge on THIS branch (#1233/#1234), the `gh issue list` command was day-granular and
+      over-reported 8 rows where 2 are real, and the ratio check's source of truth does not exist
+      on a first push.
+- [x] impl-critic on the second fixup — 6 ISSUE + 9 SUGGESTION. **The streak restarted and was
+      caught:** my fix to the false-claim finding introduced a fresh false claim — "The previous
+      commit on this branch" was true when written and becomes FALSE the moment it is committed,
+      because a durable rules file has no "now". Now names `a0e01943`. Worse, the ceiling I added
+      to bound the false-claim chain **could not increment, for two independent reasons**: it fired
+      on false claims in prose an EARLIER follow-up wrote, while the cited mechanism puts them in
+      the CURRENT fix's own rewritten prose; and it keyed on "review-follow-up commit", a term
+      whose own parent-ran-a-full-cycle condition means two consecutive ones cannot exist. It now
+      counts the ACT, not the label, and includes the commit under review. Also: the single
+      "filed" definition had reached 2 of 5 surfaces; `--state all` counted issues filed AND
+      closed on the branch (39 rows vs 31) when the definition counts only those still open; the
+      widened mirror carried the unbounded claim and none of the bound; and "inherits that term's
+      evidence requirement in full" was false, since a refinement is correct on the merits and
+      SKIPPED is reserved for wrong-on-the-merits.
+- [x] impl-critic round 2 (cap reached; residue resolved by the orchestrator) — 4 ISSUE.
+      **Two were measurements quoted next to commands that do not produce them** — a new defect
+      shape, now in the tracker. `all returns 39 rows against open's 31` was measured on a
+      four-days-wider window; on THIS branch both return 2, so the figure justified the flag change
+      with a number that cannot show it (no figure is quoted there now). And `GitHub's created:>= is
+      day-granular` was INVERTED — GitHub honours a full ISO timestamp, which is precisely why
+      passing one fixes the over-report; the bare DATE is the day-granular form. Verified: 8 rows
+      by date, 2 by timestamp. Third: the tightened `'"first-illumination:" in:body'` search does
+      NOT discriminate — GitHub strips a trailing colon inside a quoted phrase (verified:
+      `'"Closes:"'` and `'"Closes"'` return identical PRs, none containing `Closes:`), so the
+      claim that it matches the claim LINE was false; it is now stated as a coarse filter needing a
+      human read. Fourth: the stop-rule mirror re-keyed the cap on the unreachable
+      review-follow-up LABEL that `CLAUDE.md` had just said it must not key on. Also trimmed
+      `CLAUDE.md`'s cap paragraph — its two why-this-wording arguments moved to the commit message,
+      which is what commit messages are for.
 - [ ] learner on the completed cycle
 - [ ] coderabbit-sync (rules changed → mandatory trigger)
 - [ ] PR-level semantic sweep against `origin/master...HEAD`
