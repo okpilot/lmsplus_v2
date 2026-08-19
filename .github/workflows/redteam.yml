@@ -24,6 +24,10 @@ jobs:
   redteam:
     name: Red Team Specs
     runs-on: ubuntu-latest
+    # Nothing bounded this before: the 2026-08-19 apt stall ran 54 min and stopped only
+    # because a human cancelled it (GitHub's default job timeout is 6 h). Normal wall-clock
+    # here is ~6-8 min, so 30 leaves wide headroom while capping the next network stall.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,7 +49,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm --filter @repo/web exec playwright install --with-deps chromium
+        # No --with-deps: it runs `apt-get update` first, which drags an Ubuntu mirror we do
+        # not control into the critical path. On 2026-08-19 that mirror
+        # (azure.archive.ubuntu.com) returned `Ign:` for all 26 of its requests; apt failed over
+        # to archive.ubuntu.com, logged the start of the last two InRelease fetches at 07:58:16,
+        # and printed nothing further -- no `Fetched ... in` summary, no package install, no
+        # browser download -- until the job was cancelled ~53 min later. Not an outage: of the
+        # two jobs running this same command in that window, one hung and one passed in ~6 min,
+        # so it is per-runner.
+        # ubuntu-latest preinstalls Chrome and Edge, whose deb dependencies cover Playwright's
+        # chromium library set, so the flag mainly bought that mirror dependency (plus a `tools`
+        # group of fonts and xvfb that no spec here uses -- no screenshot/snapshot assertions,
+        # headless only).
+        run: pnpm --filter @repo/web exec playwright install chromium
 
       - name: Start local Supabase
         run: supabase start
