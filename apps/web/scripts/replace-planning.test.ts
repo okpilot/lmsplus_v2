@@ -93,8 +93,15 @@ describe('planScope', () => {
   })
 
   it('never puts a number in one file to update and another file to remove at once', () => {
-    const plan = planScope({ files: [NUMBERS, EMERGENCY, POSREP], liveNums: ALL_LIVE })
+    // TWO of the three files, deliberately. With all three, `unaccounted` is empty and the
+    // disjointness assertion holds no matter what `planScope` does — a version that always
+    // returned `unaccounted: []` would keep it green (code-style.md §7). Two files leave
+    // POSREP's rows unaccounted while NUMBERS and EMERGENCY are updating, so both sides of
+    // the assertion are non-empty and the union logic is what makes them disjoint.
+    const plan = planScope({ files: [NUMBERS, EMERGENCY], liveNums: ALL_LIVE })
     const updating = new Set([...plan.perFile.values()].flatMap((p) => p.toUpdate))
+    expect(plan.unaccounted).toEqual(POSREP.nums)
+    expect(updating.size).toBe(NUMBERS.nums.length + EMERGENCY.nums.length)
     expect(plan.unaccounted.filter((n) => updating.has(n))).toEqual([])
   })
 

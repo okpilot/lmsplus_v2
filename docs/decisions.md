@@ -1098,8 +1098,10 @@ readable off-screen and still credited. Raised as #1194.
 (#1198) — previously the comparison ran over the whole template flattened, so a canonical whose
 words straddled two transmissions was falsely rejected even though neither line printed it. That
 narrows what R3 rejects but does not disturb the argument above: the tolerant-R3 simulation
-returns zero newly-failing canonicals on both the per-line and the old flattened basis, measured
-three times independently.
+returns zero newly-failing canonicals on BOTH bases — the current per-line one and the old
+flattened one. (No count is given here on purpose: the two independent runs are the ones
+enumerated in point 1, and re-running the same simulation on a second basis is not a third
+independent measurement.)
 
 **Consequence accepted**: the gap is real and stays open — a canonical within the edit budget of
 visible text passes R3 today. It is bounded by the corpus being small and hand-reviewed, and it
