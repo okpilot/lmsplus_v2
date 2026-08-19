@@ -453,6 +453,20 @@ describe('the ghost-option-quote check itself', () => {
     expect(ghosts).toEqual([])
   })
 
+  it('does not flag an emphasised phrase that is a strict fragment of a longer option', () => {
+    // The two cases above emphasise spans that EQUAL an option ('ROGER MAYDAY',
+    // 'CANCEL DISTRESS'), so swapping `option.includes(collapse(span))` for `===` leaves
+    // them green — the substring semantics the sweep relies on (PMC-03 quotes
+    // OPERATIONS NORMAL inside a longer option) was pinned by nothing. This fixture is a
+    // strict fragment of 'DISTRESS TRAFFIC ENDED' and fails under `===`.
+    const ghosts = findGhostOptionQuotes(
+      'The controller says **DISTRESS TRAFFIC** before the whole call.',
+      OPTIONS,
+      GUIDE_KEYWORDS,
+    )
+    expect(ghosts).toEqual([])
+  })
+
   it('ignores an emphasised phrase that is entirely lowercase', () => {
     const ghosts = findGhostOptionQuotes(
       'The second sentence is the point of the first: *who* says it and *when*.',

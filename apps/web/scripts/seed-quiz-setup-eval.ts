@@ -482,8 +482,11 @@ async function seed() {
   const draftQuestionIds = firstSubjectQuestionIds.slice(0, 5)
   // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
   // to a literal "undefined" key and silently corrupt the draft's answers map.
-  if (draftQuestionIds.length < 2) {
-    throw new Error(`Draft seed needs >= 2 questions, got ${draftQuestionIds.length}`)
+  // THREE, not two: `current_index: 2` below is an INDEX, and draft-schema.ts rejects
+  // `currentIndex >= questionIds.length`. At exactly 2 questions the answers map is fine but
+  // the draft is unloadable — the seed would succeed and the fixture would fail on read.
+  if (draftQuestionIds.length < 3) {
+    throw new Error(`Draft seed needs >= 3 questions, got ${draftQuestionIds.length}`)
   }
   const [draftAnswerQ1, draftAnswerQ2] = draftQuestionIds
   if (!draftAnswerQ1 || !draftAnswerQ2) {
