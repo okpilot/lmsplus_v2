@@ -482,11 +482,16 @@ async function seed() {
   const draftQuestionIds = firstSubjectQuestionIds.slice(0, 5)
   // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
   // to a literal "undefined" key and silently corrupt the draft's answers map.
-  // THREE, not two: `current_index: 2` below is an INDEX, and draft-schema.ts rejects
-  // `currentIndex >= questionIds.length`. At exactly 2 questions the answers map is fine but
-  // the draft is unloadable — the seed would succeed and the fixture would fail on read.
-  if (draftQuestionIds.length < 3) {
-    throw new Error(`Draft seed needs >= 3 questions, got ${draftQuestionIds.length}`)
+  // FIVE, because two separate things depend on the count and the larger one wins:
+  //   - `current_index: 2` below is an INDEX, so it needs at least 3 ids to be in range;
+  //   - checklist item 19 hardcodes "progress bar (2/5)", which assumes exactly 5.
+  // The read path does NOT bounds-check: `rowToDraftData` passes `current_index` through, and
+  // `loadDraftForResume` selects only question_ids + session_config. `draft-schema.ts` rejects
+  // `currentIndex >= questionIds.length` on the WRITE path only (its sole consumer is
+  // `saveDraft`), so an out-of-range draft loads fine and then strands the student: the runner
+  // resumes past the end and their next save is rejected as invalid input.
+  if (draftQuestionIds.length < 5) {
+    throw new Error(`Draft seed needs >= 5 questions, got ${draftQuestionIds.length}`)
   }
   const [draftAnswerQ1, draftAnswerQ2] = draftQuestionIds
   if (!draftAnswerQ1 || !draftAnswerQ2) {

@@ -455,10 +455,12 @@ describe('the ghost-option-quote check itself', () => {
 
   it('does not flag an emphasised phrase that is a strict fragment of a longer option', () => {
     // The two cases above emphasise spans that EQUAL an option ('ROGER MAYDAY',
-    // 'CANCEL DISTRESS'), so swapping `option.includes(collapse(span))` for `===` leaves
-    // them green — the substring semantics the sweep relies on (PMC-03 quotes
-    // OPERATIONS NORMAL inside a longer option) was pinned by nothing. This fixture is a
-    // strict fragment of 'DISTRESS TRAFFIC ENDED' and fails under `===`.
+    // 'CANCEL DISTRESS'), so swapping `option.includes(collapse(span))` for `===` leaves both
+    // green. The substring behaviour was not unpinned before this test — the corpus sweep
+    // above catches it through PMC-03's *OPERATIONS NORMAL*, as its own comment says — but that
+    // pin is CORPUS-dependent: reword that one item and it disappears silently, which is the
+    // failure mode this file's header warns about. This fixture pins it synthetically instead:
+    // a strict fragment of 'DISTRESS TRAFFIC ENDED', red under `===`.
     const ghosts = findGhostOptionQuotes(
       'The controller says **DISTRESS TRAFFIC** before the whole call.',
       OPTIONS,
