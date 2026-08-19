@@ -94,7 +94,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Test-file split duplicates unused fixture (Biome | 1 | 2026-08-08 | WATCHING (archive row 518) |
 | Claim-correction commit updates a count but leaves its | 3 | 2026-08-16 | RULE CANDIDATE (3) → archive row 519 (await cross-branch recurrence). |
 | Branch memory/run-log SHAs orphaned on each forced rebase | 1 | 2026-08-08 | WATCHING (archive row 520) |
-| CR fabricates repo-history claims (SHA/PR/issue "doesn't | 2 | 2026-08-17 | RULE CANDIDATE (2) → broaden agent-coderabbit-local.md Pitfall #8 (archive row 521). |
+| CR fabricates repo-history claims (SHA/PR/issue "doesn't | 3 | 2026-08-19 | RULE CANDIDATE (3) → broaden agent-coderabbit-local.md Pitfall #8 (archive row 521). 3rd: d2cadf6e CR-local round 3 claimed "no guard tests the --replace + --force-remote pair"; `import-vfr-rt-content.ts:145` is exactly `if (REPLACE && FORCE_REMOTE)`. |
 | Multi-row tracker transition leaves sibling archive row | 1 | 2026-08-08 | WATCHING (archive row 522) |
 | Orchestrator embeds unverified schema identifier | 3 | 2026-08-17 | PROMOTED → agent-doc-updater.md cite-before-writing NEVER bullet (doc-updater agent fabricates script path + footer date, same class; rule written at count=2). |
 | Playwright getByRole('dialog') on AlertDialog (renders | 1 | 2026-08-09 | WATCHING (archive row 524) |
@@ -107,7 +107,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Status/error-posture change leaves a sibling spec | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation (archive row 531). |
 | Orchestrator acts on ISSUE without Finding Validation | 1 | 2026-08-09 | WATCHING (archive row 532) |
 | buildChain mock Proxy absorbs any chain call — new guard | 1 | 2026-08-09 | WATCHING (archive row 533) |
-| Post-commit gates miss new site violating a promoted §7 | 1 | 2026-08-09 | WATCHING (archive row 535) |
+| Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: PR #1225 disjointness test passed all 3 fixture files (unaccounted always []) — 4 post-commit agents clean; CR-local round 3 caught it. Supports Regression-test row's test-writer DO proposal. |
 | Local DB queried for grant evidence when drift is | 1 | 2026-08-09 | WATCHING (archive row 536) |
 | Internal subagent fabricates repo-artifact identifier | 1 | 2026-08-09 | WATCHING (archive row 537) |
 | Agent appends session-log to memory in REVIEW ONLY scope | 1 | 2026-08-09 | WATCHING (archive row 538) |
@@ -115,7 +115,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | §10 GRANT/REVOKE chain tracing stopped at function body | 1 | 2026-08-10 | WATCHING (archive row 541) |
 | Rule/skill asserts "effectively absolute" while cited | 1 | 2026-08-10 | WATCHING (archive row 542) |
 | Prod-capable script copies behavioral semantics from | 1 | 2026-08-11 | WATCHING (archive row 539) |
-| CR/reviewer suggestion adopted verbatim without checking | 1 | 2026-08-11 | WATCHING (archive row 543) |
+| CR/reviewer suggestion adopted verbatim without checking | 2 | 2026-08-19 | RULE CANDIDATE (2). 2nd: impl-critic claimed `createClient<` had 2 live call sites + JSDoc; orchestrator propagated this in 3a50780a commit message without verifying; admin.ts:13 is a third live call site. |
 | Sibling-scope sweep keyed on RPC/function-name rather | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) → propose promotion: agent-workflow.md §Plan Validation — before citing a verification command, confirm its scope covers the changed files (e.g. apps/web/tsconfig.json excludes e2e/ — NOT scripts/, which tsconfig.scripts.json has covered since #1219). |
@@ -138,7 +138,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
 | Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) — commit doc updates separately from review-follow-up code fixes; a doc update widens the file set and disqualifies the reduced cycle (archive row 564). |
-| §10 violations (non-DB form) cluster in content/authoring commit | 3 | 2026-08-19 | RULE CANDIDATE (3). PR #1225: 3rd cluster, ~9 sub-mechanisms/~20 instances/16 commits — see archive row 593 (reconciled master, count=14) for the full list + mechanical-vs-prose conclusion. Gap is reviewer-side re-derivation, not §10 text. |
+| §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225: 4th cluster, final 5 commits — (a) config.question_ids conflation in 8393f126, (b) "2 of 16" mis-stated as "2 of 14" in 3a50780a commit msg, (d) 3 wrong comment versions in d2cadf6e/b0695921. See archive row 593 for master list. Gap remains reviewer-side re-derivation, not §10 text. |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2). Propose §10 sub-clause: evidence must postdate the change it certifies. |
 | MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). Tool-fixed: assertMcKeyBalance in test suite + importer. |
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4). PR #1225, 4 commits (#1219, #1194, #1192 status, #1192 priority). Unpushed `Closes #N` closes nothing. Propose: agent-workflow.md § Finding Validation table — add "issue closed/resolved" → `gh issue view N --json state`. |
