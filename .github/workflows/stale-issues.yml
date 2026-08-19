@@ -27,5 +27,11 @@ jobs:
           close-issue-message: >
             This issue has been automatically closed after 60 days of inactivity.
             If you believe this is still relevant, please open a new issue with updated context.
-          exempt-issue-labels: 'P0 - Critical,bug,security'
+          # `ops` and `product-decision` mark work that no PR can ever close — a DNS record,
+          # a vendor tier, a compliance document, a token rotation, a product scoping call.
+          # Without the exemption the bot closes them on the 60-day clock and they get
+          # reopened by hand: #187, #189, #369 and #370 have each been through that cycle
+          # once already (closed 2026-07-12, reopened 2026-07-23). Inactivity is the normal
+          # resting state for these, not a signal that they are stale.
+          exempt-issue-labels: 'P0 - Critical,bug,security,ops,product-decision'
           operations-per-run: 100
