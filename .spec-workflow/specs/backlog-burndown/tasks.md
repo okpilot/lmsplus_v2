@@ -157,7 +157,22 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       `agent-critic.md` footer contradicting the body the same commit wrote; and a THIRD
       self-invalidating reference ("the commit message for this change") in the commit that fixed
       that exact pattern one file over.
-- [ ] learner on the completed cycle
+- [x] `2749e56e` cycle — test-writer clean; doc-updater clean (and it correctly held the "2 to 8"
+      range in `agent-workflow.md` as HISTORICAL context while `fullpush.md`'s worked example moved
+      to 9 — two different claims about the same PR, only one of which changed); semantic-reviewer
+      **SHIP**, all 14 assertions re-derived by execution, **streak broken — first commit in the
+      chain that did not create the defect it was fixing**. It also bounded a finding on the
+      grounds that the SAME finding had been raised and bounded one round earlier, which is the
+      rule stopping a real recurrence rather than a hypothetical one. code-reviewer 0 BLOCKING /
+      3 WARNING.
+- [x] **THE CAP FIRED.** `2749e56e` was chain commit 3 and code-reviewer's 3 findings were all in
+      prose this chain wrote, so the rule refused a fourth fixup and escalated. User chose: apply
+      the three, commit, run NO further cycle. Applied in `dc4…`: the chain log had `387a29ac`
+      filed ABOVE `6d4aa646` (reversed, in the one file an auditor reads to check the cap was
+      honoured); `agent-workflow.md`'s footer described only the a0e01943 changes, omitting both
+      `--limit 200` and the step-scoping; and the rule presented the ARTIFACT figure 8 as the
+      filed count while its own command yields 9, with the divergence list omitting 9 entirely.
+- [ ] learner on the chain
 - [ ] coderabbit-sync (rules changed → mandatory trigger)
 - [ ] PR-level semantic sweep against `origin/master...HEAD`
 - [ ] `/crlocal` rounds (M=2, not a security path)
