@@ -688,13 +688,18 @@ SELECT tablename, policyname, cmd, qual
 FROM pg_policies
 WHERE schemaname = 'public'
   AND cmd IN ('SELECT', 'ALL')
-  AND qual NOT LIKE '%deleted_at IS NULL%'
+  AND qual NOT LIKE '%(deleted_at IS NULL)%'
 ORDER BY tablename, policyname;
 ```
 
-Cross-check each hit against the table actually having a `deleted_at` column (§3's matrix below),
-and read the predicate — a `deleted_at IS NULL` inside a subquery may constrain `users` rather
-than the table itself. Known members as of 2026-08-20, as illustrations of the shapes rather
+The parentheses are load-bearing. PostgreSQL renders a top-level own-column conjunct bare, as
+`(deleted_at IS NULL)`, and any other table's as an aliased `u.deleted_at IS NULL`. Matching the
+bare form is what stops a policy from being excluded merely because it mentions
+`deleted_at IS NULL` somewhere inside a subquery over another table — the unsafe direction, since
+a missing row reads as "this table is filtered" when it is not. `internal_exam_codes` is exactly
+that case and is returned only by the parenthesised form. Still cross-check each hit against the
+table actually having a `deleted_at` column (§3's matrix below): the query over-returns tables
+that have none, which is the harmless direction. Known members as of 2026-08-20, as illustrations of the shapes rather
 than a closed set: `organizations` (predicate keys on `id`, never carried the conjunct — a
 reader must filter explicitly, as `lib/queries/profile.ts:67-71` does); `flagged_questions` (all
 three policies are `student_id = auth.uid()` alone — filtered in application code and via the
@@ -749,7 +754,7 @@ and nothing else, with the org predicate and (where present) the `deleted_at IS 
 byte-identical to what mig 001 declared — so soft-delete filtering on reads is unchanged.
 See `docs/security.md` §3.
 
-**Exception:** `flagged_questions` table filters `deleted_at IS NULL` in application code (flag.ts), not in RLS, to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
+**Exception:** `flagged_questions` filters `deleted_at IS NULL` outside RLS — via the `active_flagged_questions` view (`20260323000050:34-35`) and an explicit `.is('deleted_at', null)` at `_flag-guard.ts:75`; note `flag.ts` itself contains no `deleted_at` — to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 
 ### Scoring Soft-Deleted Questions
 
