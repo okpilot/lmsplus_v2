@@ -38,7 +38,7 @@ After any commit that modifies:
 - Answer exposure (SELECT * on questions, bypassing get_quiz_questions RPC)
 - Soft delete enforcement
 - RLS requirements (a policy per permitted command; clause is per-command)
-- Role-gated carve-out: `tenant_isolation` must be `FOR SELECT` on a table with `is_admin()`-gated write policies
+- `tenant_isolation` must be `FOR SELECT`, on either ground: (a) the table has `is_admin()`-gated write policies, or (b) it has no intended user-scoped write path. Invariant: no table in `public` carries an unqualified `tenant_isolation`
 - Immutable table protections (audit_events, student_responses, quiz_session_answers)
 - Service role key isolation (admin.ts only)
 

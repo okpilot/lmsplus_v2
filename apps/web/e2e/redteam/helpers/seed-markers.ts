@@ -28,3 +28,17 @@ export const E2E_REDTEAM_EO_MARKER = '[E2E_REDTEAM_EO]'
 // Every write target the spec attacks is one of its OWN marked rows — a shared
 // seeded question must never be the target of a DELETE probe.
 export const E2E_REDTEAM_QW_MARKER = '[E2E_REDTEAM_QW]'
+// tenant-table direct-write spec (Vector FJ): marks the throwaway orgs, banks,
+// courses and lessons it creates so cleanup/maintenance can target them by
+// slug/name/title. Every write target this spec attacks is one of its OWN rows
+// in one of its OWN orgs — never a shared seeded row. That is load-bearing for
+// the DELETE and UPDATE probes: on a database where mig 20260820000100 is NOT
+// applied those probes really do mutate, so pointing them at the shared egmont
+// org or its single bank would corrupt state every downstream spec depends on.
+export const E2E_REDTEAM_TW_MARKER = '[E2E_REDTEAM_TW]'
+export const E2E_REDTEAM_TW_ORG_A_SLUG = 'redteam-tenantwrite-a'
+export const E2E_REDTEAM_TW_ORG_B_SLUG = 'redteam-tenantwrite-b'
+export const E2E_REDTEAM_TW_STUDENT_A_EMAIL = 'redteam-tenantwrite-student-a@lmsplus.local'
+export const E2E_REDTEAM_TW_STUDENT_B_EMAIL = 'redteam-tenantwrite-student-b@lmsplus.local'
+export const E2E_REDTEAM_TW_ADMIN_A_EMAIL = 'redteam-tenantwrite-admin-a@lmsplus.local'
+export const E2E_REDTEAM_TW_PASSWORD = 'redteam-tenantwrite-2026!'

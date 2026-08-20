@@ -111,42 +111,95 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
--- Tenant isolation policy (apply to EVERY table)
--- ⚠️ The unqualified form below is FOR ALL — it permits same-tenant INSERT, UPDATE
---    and DELETE. Use it ONLY when same-tenant users are actually meant to write.
---    Otherwise declare it FOR SELECT and leave writes with no permitting policy:
---      • table has is_admin()-gated write policies → MUST be FOR SELECT, or the
---        OR-ed FOR ALL supplies a second, weaker write path (see carve-out below)
---      • table is immutable / written only through SECURITY DEFINER RPCs → FOR SELECT
---    When declaring it FOR SELECT, DROP the WITH CHECK clause below — FOR SELECT
---    cannot carry one, and leaving it in place is a syntax error.
+-- Tenant isolation policy — for ORG-SCOPED tables only: those carrying an
+-- organization_id whose rows every member of the org may legitimately read,
+-- or, for the tenant root organizations itself, keyed on its own id (it has
+-- no organization_id column). FOR SELECT is the DEFAULT.
+-- NOT a universal template. The per-student tables have never carried a
+-- tenant_isolation policy, and two of the three scope reads to the CALLING
+-- STUDENT rather than the organisation. student_responses is the exception and
+-- the cautionary case: it has TWO permissive SELECT policies, and the second,
+-- instructors_read_students (20260311000001:393), DOES key on organization_id
+-- — which is the #540 premise, and why §3's multiple-permissive rule exists.
+-- The three: student_responses (20260311000005:24), quiz_session_answers
+-- (20260311000005:9, scoped via `session_id IN (SELECT id FROM quiz_sessions
+-- WHERE student_id = auth.uid())`) and flagged_questions (20260323000050:15).
+-- Applying the org-wide policy below to student_responses would let every
+-- member of an organisation read every peer's submitted answers. On the other
+-- two it would not even CREATE — neither carries an organization_id column, so
+-- the predicate raises 42703 — and that failure is itself the signal that this
+-- template does not belong on a per-student table.
+-- No table in public currently carries an unqualified (FOR ALL) tenant policy,
+-- and adding one is a defect on sight — see the two grounds below the block.
 CREATE POLICY "tenant_isolation" ON table_name
+  FOR SELECT
   USING (
     organization_id = (
       SELECT organization_id FROM users WHERE id = auth.uid()
     )
-  )
-  WITH CHECK (
-    organization_id = (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    )
   );
+
+-- ⚠️ The unqualified form below is FOR ALL — it opens the RLS path for
+--    same-tenant INSERT, UPDATE and DELETE, and is an EXCEPTION requiring
+--    explicit justification. RLS only PERMITS: the caller must ALSO hold the
+--    table-level privilege, which is a separate layer and not something a
+--    policy grants. Do not read that as a mitigation here — `authenticated`
+--    was measured on production 2026-08-20 to hold INSERT/UPDATE/DELETE on
+--    organizations, question_banks, courses and lessons, so RLS was the only
+--    thing standing in the way.
+--    Use it ONLY when same-tenant users are genuinely meant to write the table
+--    directly, which NO table in this schema currently does. It is wrong when:
+--      • the table has is_admin()-gated write policies → the OR-ed FOR ALL
+--        supplies a second, weaker write path and the role gate never binds
+--      • the table has no intended user-scoped write path — including one that
+--        is immutable or written only through SECURITY DEFINER RPCs or the
+--        service-role client → the FOR ALL policy IS the whole access control
+--    A FOR SELECT policy cannot carry WITH CHECK; leaving one in is a syntax
+--    error. Note the dropped WITH CHECK is often NOT inert — where it carried
+--    `AND deleted_at IS NULL` it was what blocked a user-scoped soft-delete
+--    UPDATE, so any future write policy must re-carry that conjunct itself.
+-- CREATE POLICY "tenant_isolation" ON table_name
+--   USING (
+--     organization_id = (
+--       SELECT organization_id FROM users WHERE id = auth.uid()
+--     )
+--   )
+--   WITH CHECK (
+--     organization_id = (
+--       SELECT organization_id FROM users WHERE id = auth.uid()
+--     )
+--   );
 ```
 
-**Carve-out — tables that also have role-gated write policies.** A `CREATE POLICY` with no
-`FOR` clause is `FOR ALL`: it governs SELECT, INSERT, UPDATE and DELETE. Postgres ORs
-permissive policies together, so on a table that *also* carries `is_admin()`-gated write
-policies, the unqualified tenant policy supplies a second, weaker write path and the role
-gate never binds — any in-org authenticated user satisfies same-org + `deleted_at IS NULL`.
-On such a table `tenant_isolation` must be declared **`FOR SELECT`**, which leaves the
-role-gated policies as the only write path. A `FOR SELECT` policy takes `USING` only, so
-its absent `WITH CHECK` is correct under the per-command rule above, not a gap.
+**`tenant_isolation` is `FOR SELECT`. Two independent grounds, and one invariant.** A
+`CREATE POLICY` with no `FOR` clause is `FOR ALL`: it governs SELECT, INSERT, UPDATE and
+DELETE. That is wrong on this schema for either of two reasons, and the reasons do not
+overlap — do not treat the first as the precondition for the second:
 
-`public.questions` is the current case. Its `tenant_isolation` policy was re-emitted as
-`FOR SELECT` with a byte-identical `USING` predicate in
-`supabase/migrations/20260809000100_questions_tenant_isolation_select_only.sql` (it had
-carried mig 001's unqualified form since `20260311000001_initial_schema.sql`). Resulting
-policy set:
+- **(a) The table also has role-gated write policies.** Postgres ORs permissive policies
+  together, so the unqualified tenant policy supplies a second, weaker write path and the
+  role gate never binds — any in-org authenticated user satisfies same-org +
+  `deleted_at IS NULL`. Declaring `tenant_isolation` `FOR SELECT` leaves the role-gated
+  policies as the only write path. Case: `public.questions`
+  (`20260809000100_questions_tenant_isolation_select_only.sql`).
+- **(b) The table has no intended user-scoped write path at all.** There is no role gate to
+  dissolve, because the unqualified policy *is* the entire access control and write access is
+  scoped only by org membership. Declaring it `FOR SELECT` leaves INSERT/UPDATE/DELETE with no
+  permitting policy, denied by default, matching rule 6. Cases: `organizations`,
+  `question_banks`, `courses`, `lessons`
+  (`20260820000100_tenant_isolation_select_only_four_tables.sql`).
+
+A `FOR SELECT` policy takes `USING` only, so its absent `WITH CHECK` is correct under the
+per-command rule above, not a gap.
+
+**Invariant: no table in `public` carries an unqualified `tenant_isolation` policy.** Six were
+created that way in `20260311000001_initial_schema.sql`; `users` was re-emitted as
+`users_select` (`20260311000004`, `20260312000012`, which are also what dropped its
+`tenant_isolation`) and later gained `users_update_own` (`20260326000056`), `questions` was
+narrowed under ground (a), and the remaining four under ground (b). A new unqualified tenant policy is a
+defect on sight — see the template above, which now leads with the `FOR SELECT` form.
+
+Resulting policy set for `questions` (ground (a)):
 
 | Command | Policy |
 |---------|--------|
@@ -155,12 +208,21 @@ policy set:
 | UPDATE | `admin_update_questions` — `is_admin()` AND caller-org (`20260324000054`) |
 | DELETE | none — hard DELETE is blocked at the RLS layer, matching rule 6 |
 
-Sibling tables (`organizations`, `question_banks`, `courses`, `lessons`) still carry
-`tenant_isolation` in the same unqualified (`FOR ALL`) form — the shape is what is shared, not
-the predicate. This *carve-out* does not apply to them — they have no role-gated write
-policy for an unqualified tenant policy to override — but that is **not** a clean bill of
-health, and they should not be treated as reviewed-and-fine. They are a separate open item,
-out of scope here, tracked privately in `GHSA-hjp9-x868-7wgw`.
+Resulting policy set for each of `organizations`, `question_banks`, `courses`, `lessons`
+(ground (b)): SELECT via `tenant_isolation` with a byte-identical predicate, and **no
+permissive policy for INSERT, UPDATE or DELETE**. Consequence worth stating explicitly,
+because it differs from `questions`: an authenticated **admin** is denied too, since
+`requireAdmin()` returns an RLS-bound client and these four have no `is_admin()` write policy
+to fall back on. Writes to them go through the service-role client. `organizations` keeps its
+own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct. As of 2026-08-20 it is
+the only table carrying a `tenant_isolation` policy whose predicate has no soft-delete filter;
+that set is open — any migration adding or replacing a policy can change it, so derive it from
+the query in `docs/database.md` §3 rather than trusting this line. (It is
+not the only soft-deletable table read without one — `flagged_questions` filters via the
+`active_flagged_questions` view and an explicit `.is('deleted_at', null)` in
+`_flag-guard.ts:75`, and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
+carries the query that derives the current set), and a SECURITY
+INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 
 ### Role-Scoped Policies (where needed)
 
@@ -877,4 +939,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-08-19 (three open-set enumerations replaced with their derivations — the multiple-permissive-SELECT table list is now dated and carries its `pg_policies` query, the "no `AS RESTRICTIVE` policies (0 of 62)" census is framed as a measurement with the query to re-run, and the middleware header count points at the code; `code-style.md` §10 open-set clause, learner count=2) | Earlier: 2026-08-09 (§3 rewritten to per-command policy coverage — the rule is now "a policy for each command the table is INTENDED to permit", `FOR INSERT` takes `WITH CHECK` only and inherits nothing, and the immutable-table "Critical rule" no longer claims a PERMISSIVE `WITH CHECK (false)` blocks a write beside a permitting policy; `FOR SELECT` tenant-isolation carve-out added for `questions`, mig `20260809000100`) | Earlier: 2026-07-02 (§15 example (a)/(c) corrected — the `ordering` [mig 146/149] and new `diagram_label` [mig 153/156] widenings of `check_non_mc_answer` / `get_report_answer_keys` had never been reflected here since VFR RT Phase 5; both closed in the same pass as the Phase 6 diagram_label doc sync) | Earlier: 2026-06-29 (§11d added — single-active-session invariant, #1011: global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row; structural complement to the §4 item 6 answer-oracle guard) | Earlier: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)* 
+*Last updated: 2026-08-20 (§3 rewritten: `tenant_isolation` is `FOR SELECT` on either of TWO INDEPENDENT grounds — role-gated writes exist, OR there is no intended user-scoped write path — stated so the first is not read as a precondition for the second, plus the invariant that no table in `public` carries an unqualified `tenant_isolation`; the policy TEMPLATE now leads with `FOR SELECT` and demotes `FOR ALL` to a commented-out justify-first exception, since Decision 53 identified that template as what propagated the shape; `organizations`/`question_banks`/`courses`/`lessons` narrowed by mig `20260820000100`, closing GHSA-hjp9-x868-7wgw §2 and #1175) | Earlier: 2026-08-19 (three open-set enumerations replaced with their derivations — the multiple-permissive-SELECT table list is now dated and carries its `pg_policies` query, the "no `AS RESTRICTIVE` policies (0 of 62)" census is framed as a measurement with the query to re-run, and the middleware header count points at the code; `code-style.md` §10 open-set clause, learner count=2) | Earlier: 2026-08-09 (§3 rewritten to per-command policy coverage — the rule is now "a policy for each command the table is INTENDED to permit", `FOR INSERT` takes `WITH CHECK` only and inherits nothing, and the immutable-table "Critical rule" no longer claims a PERMISSIVE `WITH CHECK (false)` blocks a write beside a permitting policy; `FOR SELECT` tenant-isolation carve-out added for `questions`, mig `20260809000100`) | Earlier: 2026-07-02 (§15 example (a)/(c) corrected — the `ordering` [mig 146/149] and new `diagram_label` [mig 153/156] widenings of `check_non_mc_answer` / `get_report_answer_keys` had never been reflected here since VFR RT Phase 5; both closed in the same pass as the Phase 6 diagram_label doc sync) | Earlier: 2026-06-29 (§11d added — single-active-session invariant, #1011: global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row; structural complement to the §4 item 6 answer-oracle guard) | Earlier: 2026-06-24 (§15 example (c) expanded for `get_report_answer_keys` / mig 133 — non-MC report answer-key delivery, same immutable quiz_session_answers.question_id FK boundary) | Earlier: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Previous: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100); 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)* 

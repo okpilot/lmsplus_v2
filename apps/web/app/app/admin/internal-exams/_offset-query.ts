@@ -27,8 +27,11 @@ export type OffsetClient = { from: (table: string) => OffsetChainBuilder }
 
 /**
  * adminClient cast to the offset chain surface. Both callers use the service-role
- * client because cross-row `users` embeds return null under the user-scoped client
- * (tenant_isolation RLS also applies to embedded resources).
+ * client because cross-row `users` embeds return null under the user-scoped client:
+ * RLS applies to embedded resources too, and `users`' live SELECT policy is
+ * `users_select` (`id = auth.uid()`), so a user-scoped client sees only its OWN
+ * row. NOT `tenant_isolation` — that policy was dropped from `users` (migs
+ * 20260311000004, 20260312000012) for infinite recursion.
  */
 export const offsetAdminClient = adminClient as unknown as OffsetClient
 

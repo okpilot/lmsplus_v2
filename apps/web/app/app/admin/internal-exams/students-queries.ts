@@ -6,7 +6,10 @@ import type { OrgStudentOption } from './types'
 type StudentRowRaw = { id: string; full_name: string | null; email: string | null }
 
 // adminClient (service role) bypasses RLS: cross-row reads on `users` are
-// unreliable under tenant_isolation RLS (self-referential subquery). Mirrors
+// impossible under its live policy `users_select` (`id = auth.uid()`), which
+// returns only the caller's own row. `users` has no `tenant_isolation` policy —
+// it was dropped (migs 20260311000004, 20260312000012) precisely because the
+// self-referential subquery recursed. Mirrors
 // apps/web/app/app/admin/students/queries.ts. The count and page queries share
 // the identical org + role + deleted_at filter so the total matches the page set.
 function studentsCountQuery(organizationId: string) {

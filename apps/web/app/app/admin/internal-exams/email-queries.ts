@@ -43,7 +43,9 @@ function isCodeRow(value: unknown): value is CodeRowRaw {
 /**
  * Fetches the single internal exam code's email payload, scoped to the admin's
  * organization. Uses adminClient (service role) because cross-row reads on
- * `users` are unreliable under tenant_isolation RLS, mirroring queries.ts.
+ * `users` are impossible under its live policy `users_select` (`id = auth.uid()`),
+ * which returns only the caller's own row — `users` carries no `tenant_isolation`
+ * policy (dropped, migs 20260311000004/20260312000012). Mirrors queries.ts.
  * Returns null on error, no row, a row missing a recipient email, or a
  * soft-deleted (deactivated) student — never email a deactivated student.
  */

@@ -307,13 +307,30 @@ reviews:
           when the write predicate must DIFFER from the read one; flag a too-broad
           predicate, never a merely absent clause. The recognizer: a reused USING
           constrains only the columns it NAMES, so a too-broad predicate leaves every
-          other column writable — that is the finding. CARVE-OUT:
-          on a table that also has role-gated write policies (is_admin() etc.), the
-          tenant_isolation policy MUST be declared FOR SELECT — an unqualified CREATE POLICY
-          is FOR ALL, and Postgres ORs permissive policies together, so it supplies a second,
-          weaker write path and the role gate never binds. A FOR SELECT policy takes USING
-          only; do NOT flag it for a missing WITH CHECK. Current case: public.questions
-          (20260809000100_questions_tenant_isolation_select_only.sql). (docs/security.md §3.)
+          other column writable — that is the finding. tenant_isolation applies to
+          ORG-SCOPED tables ONLY — those carrying an organization_id whose rows every
+          member of the org may legitimately read, or the tenant root organizations
+          itself, keyed on its own id. The per-student tables student_responses,
+          quiz_session_answers and flagged_questions must NOT carry one, and never have:
+          on student_responses the org-wide predicate would let every member of an
+          organisation read every peer's submitted answers, and on the other two it
+          raises 42703 at CREATE because neither has an organization_id column — that
+          failure is itself the signal the template does not belong there. Flag any
+          migration adding a tenant_isolation policy to a per-student table.
+          (docs/security.md §3.) tenant_isolation MUST be
+          declared FOR SELECT, on either of TWO INDEPENDENT GROUNDS — do not treat the
+          first as a precondition for the second: (a) the table ALSO has role-gated write
+          policies (is_admin() etc.), so an unqualified CREATE POLICY, which is FOR ALL,
+          supplies a second weaker write path and the role gate never binds, since Postgres
+          ORs permissive policies together — case public.questions
+          (20260809000100_questions_tenant_isolation_select_only.sql); (b) the table has NO
+          intended user-scoped write path, so the unqualified policy IS the entire access
+          control — cases public.organizations, public.question_banks, public.courses,
+          public.lessons (20260820000100_tenant_isolation_select_only_four_tables.sql),
+          which have no write policy at all and are written service-role only, so even an
+          authenticated admin is denied. A FOR SELECT policy takes USING only; do NOT flag
+          it for a missing WITH CHECK. DO flag any unqualified (FOR ALL) tenant_isolation
+          policy: the invariant is that no table in public carries one. (docs/security.md §3.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
           UPDATE or DELETE policy. (Each does carry permissive USING (false) policies; those match
