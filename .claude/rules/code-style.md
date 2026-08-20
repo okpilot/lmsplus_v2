@@ -1028,10 +1028,13 @@ The clauses that carry most of the weight:
 4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
    `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
    returns clean the moment the correct text exists on disk — it cannot tell you whether that text
-   is in the commit. Twice on one branch the corrected prose sat unstaged while the commit shipped
-   the stale version, and both times a local grep had "confirmed" the fix. Promoted at learner
-   count=2 (`57c3b452`, `d8d32b1f`). The same trap hides a deleted-and-recreated file: staging the
-   deletion without staging the new file passes every grep while the content leaves the branch.
+   is in the commit. Promoted at learner count=2 on `fix/admin-auth-cache-and-notfound`, both
+   instances verifiable in that branch's history: an e2e spec was extracted to a NEW file while its
+   tests were removed from the old one, and the new file sat untracked — one `git add` from the
+   branch losing that coverage entirely while every grep still found it; and a review agent's
+   memory delta was left unstaged and so missed the commit it belonged to. Note the deleted-and-
+   recreated-file case is the nastier half: staging the deletion without staging the new file
+   passes every grep, because the content is on disk the whole time.
 
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
@@ -1061,4 +1064,4 @@ Promoted at count=3 (implementation-critic's own tracker reached this independen
 
 ---
 
-*Last updated: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.))*
+*Last updated: 2026-08-20 (§10 gained clause 4 — "Verify the fix is STAGED, not merely written": `git grep` reads the WORKING TREE, so it returns clean the moment the correct text exists on disk and says nothing about what is in the commit. Learner count=2 — `57c3b452` and `d8d32b1f` each shipped stale prose while the corrected text sat unstaged, both times after a local grep had "confirmed" the fix. Prior: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)))*

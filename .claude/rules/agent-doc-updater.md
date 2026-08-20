@@ -17,8 +17,8 @@ Keeps project documentation in sync with code changes. Watches for schema change
   row), read the WHOLE block before reporting — adjacent claims in the same block are frequently
   stale too, and the diff scope will not surface them. Promoted at learner count=2 (2026-08-20,
   `docs/security.md` consent bullet): both cycles reported exactly one stale claim, and both times
-  reading the surrounding bullet found more — a redirect target, then a document-type list five
-  months out of date, then a misattributed actor. This is the read-side companion to
+  reading the surrounding bullet found more — a redirect target, then a document-type list stale
+  since migration `20260327000058` in March, then a misattributed actor. This is the read-side companion to
   `code-style.md` §10's "a partial comment edit is the tell".
 - Report DRIFT findings with specific steering doc reference and contradicting code.
 - Elevate to CRITICAL when drift contradicts security rules.
@@ -100,4 +100,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-08-19 (repeated-numeric-literal sub-rules DROPPED — see docs/decisions.md Decision 58, #1222. Prior: 2026-08-08.)*
+*Last updated: 2026-08-20 (new DO bullet — when a stale claim is found anywhere in a long-form doc block, read the WHOLE block before reporting; learner count=2, both instances the `docs/security.md` consent bullet, where each cycle reported one stale claim and a whole-block read found more. Read-side companion to `code-style.md` §10 clause 3. Prior: 2026-08-19 (repeated-numeric-literal sub-rules DROPPED — see docs/decisions.md Decision 58, #1222). Prior: 2026-08-08.)*

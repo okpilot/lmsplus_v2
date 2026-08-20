@@ -13,7 +13,11 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 //
 // A student-hitting-/app/admin case is deliberately NOT here: `proxy.ts` already
 // bounces that today with the page absent, so it would pass with the fix reverted.
-// admin-students.spec.ts § Access Control covers that property at the proxy layer.
+// admin-students.spec.ts § Access Control covers the property — but via
+// /app/admin/students, i.e. proxy.ts's `startsWith('/app/admin/')` branch. The
+// `pathname === '/app/admin'` branch has no student-facing assertion at any tier;
+// Layer 2 (`page.tsx`'s own requireAdmin()) bounces a non-admin there regardless,
+// which is why red-team rated the gap LOW rather than a hole.
 test.describe('Admin bare-path landing', () => {
   test('admin landing on the bare admin path reaches the admin dashboard', async ({ page }) => {
     await page.goto('/app/admin')
