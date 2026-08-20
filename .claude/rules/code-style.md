@@ -1025,6 +1025,14 @@ The clauses that carry most of the weight:
    (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
    block.
 
+4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
+   `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
+   returns clean the moment the correct text exists on disk — it cannot tell you whether that text
+   is in the commit. Twice on one branch the corrected prose sat unstaged while the commit shipped
+   the stale version, and both times a local grep had "confirmed" the fix. Promoted at learner
+   count=2 (`57c3b452`, `d8d32b1f`). The same trap hides a deleted-and-recreated file: staging the
+   deletion without staging the new file passes every grep while the content leaves the branch.
+
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
 

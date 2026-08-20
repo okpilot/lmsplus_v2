@@ -13,6 +13,13 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
 - Let the agent update progress tracking in `docs/plan.md` (sprint status, phase completion).
 - Review the agent's doc changes for accuracy — it sometimes hallucinate details about code it didn't read.
+- When a stale claim is found anywhere in a long-form doc block (a bullet, a paragraph, a table
+  row), read the WHOLE block before reporting — adjacent claims in the same block are frequently
+  stale too, and the diff scope will not surface them. Promoted at learner count=2 (2026-08-20,
+  `docs/security.md` consent bullet): both cycles reported exactly one stale claim, and both times
+  reading the surrounding bullet found more — a redirect target, then a document-type list five
+  months out of date, then a misattributed actor. This is the read-side companion to
+  `code-style.md` §10's "a partial comment edit is the tell".
 - Report DRIFT findings with specific steering doc reference and contradicting code.
 - Elevate to CRITICAL when drift contradicts security rules.
 
