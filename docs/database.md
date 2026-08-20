@@ -731,8 +731,12 @@ is what prevented a user-scoped `UPDATE … SET deleted_at = now()`. It retired 
 whole user-scoped write path, which is what makes its removal safe — any future write policy on
 these tables must re-carry that conjunct itself.
 
-This means deleted records are invisible to all normal queries automatically.
-No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
+RLS makes deleted records invisible **only where the effective policy carries the table's own
+active-row predicate** — as `question_banks`, `courses` and `lessons` above do. It is not
+automatic: where the policy omits that conjunct (the query at the top of this section derives
+the current set), a soft-deleted row is still returned and application code must filter it.
+`organizations` is exactly that case, which is why `lib/queries/profile.ts:67-71` applies
+`.is('deleted_at', null)` itself. Check the policy before omitting the filter.
 
 **Every `tenant_isolation` policy is `FOR SELECT` — the filter is unchanged in all cases.**
 No table in `public` carries an unqualified (`FOR ALL`) tenant policy any more. Two independent

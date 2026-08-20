@@ -103,9 +103,11 @@
 -- rather than organization_id and carries no deleted_at conjunct. Byte-identical
 -- reproduction is the acceptance criterion of #1175, and adding the filter would
 -- be a read-behaviour change. Consequence a future author must know:
--- organizations REMAINS the only one of the five tables carrying a
+-- as of 2026-08-20 organizations REMAINS the only table carrying a
 -- tenant_isolation policy whose predicate has no deleted_at conjunct — it
--- already was, this migration does not create the asymmetry. (It is not the
+-- already was, this migration does not create the asymmetry. That set is open:
+-- any later migration adding or replacing a policy can change it, so derive it
+-- from the docs/database.md §3 query rather than from this line. (It is not the
 -- only soft-deletable table read without an RLS deleted_at filter at all:
 -- flagged_questions filters via the active_flagged_questions view and an
 -- explicit .is('deleted_at', null) in _flag-guard.ts:75, internal_exam_codes'

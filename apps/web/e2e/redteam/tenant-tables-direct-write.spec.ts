@@ -29,9 +29,11 @@
  *     ones the mutation check is anchored on.
  *   - question_banks — same, but only because this spec owns its orgs. UNIQUE
  *     (organization_id) (mig 20260327000062:11) is PER ORG: the INSERT arm runs
- *     against org B, which deliberately has no bank, so WITH CHECK passes
- *     pre-fix with no 23505 behind it. The UPDATE/DELETE arms use org A's own
- *     childless bank, so DELETE is not shadowed by questions.bank_id.
+ *     against org B, which the setup keeps bank-free, so WITH CHECK passes
+ *     pre-fix with no 23505 behind it. That holds on a freshly reset database;
+ *     the beforeAll note states the one case where it does not. The
+ *     UPDATE/DELETE arms use org A's own childless bank, so DELETE is not
+ *     shadowed by questions.bank_id.
  *   - organizations UPDATE — genuinely flips.
  *   - organizations INSERT / DELETE — ERROR-CODE FLIPS ONLY, and the header
  *     says so rather than claiming more. Pre-fix the policy PASSES and a
@@ -46,8 +48,11 @@
  * rolled-back transaction on 2026-08-20, a question_banks INSERT into an org
  * that ALREADY held a bank raised 23505 under the old policy and 42501 under
  * the new one. That scenario is deliberately NOT the one this spec ships: its
- * INSERT arm runs against bank-less org B, where the same INSERT SUCCEEDED
- * pre-fix, which is what makes that arm a true flip rather than a shape change.
+ * INSERT arm runs against bank-free org B, where the same INSERT SUCCEEDED
+ * pre-fix, which is what makes that arm a true flip rather than a shape change
+ * — on a freshly reset database, which is what the mutation-check procedure
+ * uses. See the beforeAll note for the one case that degrades it to a shape
+ * flip, and why the mutation check is anchored on courses/lessons regardless.
  *
  * Assertion shapes, and a deliberate DIVERGENCE from the Vector EX model spec.
  *   - PRIMARY proof for every UPDATE/DELETE arm is a before/after read through
@@ -202,16 +207,23 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     )
     await upsertUser(adminClient, E2E_REDTEAM_TW_ADMIN_A_EMAIL, PASSWORD, orgAId, 'admin')
 
-    // Org B must have NO bank, or the INSERT arm's pre-fix signal would be a
-    // 23505 from UNIQUE (organization_id) rather than a successful write.
+    // Org B carries no bank of its own. Stray rows are SOFT-deleted, not hard-
+    // deleted: question_banks is soft-deletable and has FK children through
+    // questions.bank_id, so a hard DELETE would violate security.md rule 6 and
+    // risk 23503. Consequence to know before running a MUTATION CHECK:
+    // UNIQUE (organization_id) is non-partial, so a soft-deleted stray still
+    // holds the slot and the org-B INSERT arm would surface 23505 rather than a
+    // successful write on a pre-fix database. Anchor the mutation check on the
+    // courses/lessons arms, whose tables carry no such constraint.
     const { data: strayBanks, error: strayError } = await adminClient
       .from('question_banks')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('organization_id', orgBId)
+      .is('deleted_at', null)
       .select('id')
-    if (strayError) throw new Error(`Could not clear org B banks: ${strayError.message}`)
+    if (strayError) throw new Error(`Could not retire org B banks: ${strayError.message}`)
     if ((strayBanks?.length ?? 0) > 0) {
-      console.log(`[FJ setup] cleared ${strayBanks?.length} stray bank(s) from org B`)
+      console.log(`[FJ setup] retired ${strayBanks?.length} stray bank(s) from org B`)
     }
 
     // Org A's bank is UPSERTED, not recreated: UNIQUE (organization_id) is
@@ -297,7 +309,7 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
 
     for (const table of ['lessons', 'courses'] as const) {
       try {
-        const { error } = await adminClient
+        const { data, error } = await adminClient
           .from(table)
           .update({ deleted_at: new Date().toISOString() })
           .eq('organization_id', orgAId)
@@ -305,6 +317,9 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
           .like('title', `${MARKER}%`)
           .select('id')
         if (error) throw new Error(error.message)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[FJ cleanup] retired ${data?.length} ${table} row(s)`)
+        }
       } catch (e) {
         errors.push(`${table} cleanup: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -313,14 +328,38 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     // Bank A is restored, not deleted — UNIQUE (organization_id) is non-partial
     // and the next run upserts the same row.
     try {
-      const { error } = await adminClient
+      const { data, error } = await adminClient
         .from('question_banks')
         .update({ description: ORIGINAL_BANK_DESCRIPTION, deleted_at: null })
         .eq('organization_id', orgAId)
         .select('id')
       if (error) throw new Error(error.message)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[FJ cleanup] restored ${data?.length} bank row(s)`)
+      }
     } catch (e) {
       errors.push(`bank restore: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    // Org A is attacked on two columns (settings, deleted_at) and must be
+    // restored to what upsertSpecOrg seeds, exactly as the bank above is. On a
+    // GREEN run both writes were denied and this is a no-op; on a run where the
+    // migration is absent or regressed they succeeded, and without this step a
+    // forged settings payload and a non-null deleted_at would survive into
+    // every downstream spec in the same Playwright run. Independent of the
+    // steps above, so it takes no errors.length gate.
+    try {
+      const { data, error } = await adminClient
+        .from('organizations')
+        .update({ settings: {}, deleted_at: null })
+        .eq('id', orgAId)
+        .select('id')
+      if (error) throw new Error(error.message)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[FJ cleanup] restored org A (${data?.length} row)`)
+      }
+    } catch (e) {
+      errors.push(`org restore: ${e instanceof Error ? e.message : String(e)}`)
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
@@ -469,7 +508,7 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     expect(created ?? []).toHaveLength(0)
   })
 
-  test('a student cannot rewrite lesson content in their own organisation', async () => {
+  test('a student cannot rename a lesson in their own organisation', async () => {
     const { data: updated, error: updateError } = await studentA
       .from('lessons')
       .update({ title: `${MARKER} forged lesson title` })
@@ -509,8 +548,9 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   // --------------------------------------------------------- question_banks
 
   test('a student cannot create a question bank in their own organisation', async () => {
-    // Runs as student B, whose org deliberately has no bank — so pre-fix this
-    // INSERT succeeded rather than tripping UNIQUE (organization_id).
+    // Runs as student B, whose org the setup keeps bank-free — so on a freshly
+    // reset database this INSERT succeeded pre-fix rather than tripping
+    // UNIQUE (organization_id). See the beforeAll note for the exception.
     const marker = `${MARKER} forged bank ${Date.now()}`
     const { error } = await studentB.from('question_banks').insert({
       organization_id: orgBId,

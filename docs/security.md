@@ -111,7 +111,19 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
--- Tenant isolation policy (apply to EVERY table). FOR SELECT is the DEFAULT.
+-- Tenant isolation policy — for ORG-SCOPED tables only: those carrying an
+-- organization_id whose rows every member of the org may legitimately read.
+-- FOR SELECT is the DEFAULT.
+-- NOT a universal template. The per-student tables scope reads to the CALLING
+-- STUDENT, not to their organisation, and have never carried a tenant_isolation
+-- policy: student_responses (20260311000005:24), quiz_session_answers
+-- (20260311000005:9, scoped via `session_id IN (SELECT id FROM quiz_sessions
+-- WHERE student_id = auth.uid())`) and flagged_questions (20260323000050:15).
+-- Applying the org-wide policy below to student_responses would let every
+-- member of an organisation read every peer's submitted answers. On the other
+-- two it would not even CREATE — neither carries an organization_id column, so
+-- the predicate raises 42703 — and that failure is itself the signal that this
+-- template does not belong on a per-student table.
 -- No table in public currently carries an unqualified (FOR ALL) tenant policy,
 -- and adding one is a defect on sight — see the two grounds below the block.
 CREATE POLICY "tenant_isolation" ON table_name
@@ -122,8 +134,14 @@ CREATE POLICY "tenant_isolation" ON table_name
     )
   );
 
--- ⚠️ The unqualified form below is FOR ALL — it permits same-tenant INSERT,
---    UPDATE and DELETE, and is an EXCEPTION requiring explicit justification.
+-- ⚠️ The unqualified form below is FOR ALL — it opens the RLS path for
+--    same-tenant INSERT, UPDATE and DELETE, and is an EXCEPTION requiring
+--    explicit justification. RLS only PERMITS: the caller must ALSO hold the
+--    table-level privilege, which is a separate layer and not something a
+--    policy grants. Do not read that as a mitigation here — `authenticated`
+--    was measured on production 2026-08-20 to hold INSERT/UPDATE/DELETE on
+--    organizations, question_banks, courses and lessons, so RLS was the only
+--    thing standing in the way.
 --    Use it ONLY when same-tenant users are genuinely meant to write the table
 --    directly, which NO table in this schema currently does. It is wrong when:
 --      • the table has is_admin()-gated write policies → the OR-ed FOR ALL
@@ -191,8 +209,10 @@ permissive policy for INSERT, UPDATE or DELETE**. Consequence worth stating expl
 because it differs from `questions`: an authenticated **admin** is denied too, since
 `requireAdmin()` returns an RLS-bound client and these four have no `is_admin()` write policy
 to fall back on. Writes to them go through the service-role client. `organizations` keeps its
-own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct — so it remains the
-only one of the five `tenant_isolation` tables whose predicate has no soft-delete filter (it is
+own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct. As of 2026-08-20 it is
+the only table carrying a `tenant_isolation` policy whose predicate has no soft-delete filter;
+that set is open — any migration adding or replacing a policy can change it, so derive it from
+the query in `docs/database.md` §3 rather than trusting this line. (It is
 not the only soft-deletable table read without one — `flagged_questions` filters via the
 `active_flagged_questions` view and an explicit `.is('deleted_at', null)` in
 `_flag-guard.ts:75`, and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
