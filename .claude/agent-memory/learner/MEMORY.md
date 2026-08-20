@@ -161,6 +161,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Plan's call-site census counts FILES as proxy for CALL EXPRESSIONS, overcounts shared callers | 1 | 2026-08-20 | WATCHING (archive row 644) |
 | Promoted rule text not validated against its own stated edge case — CodeRabbit caught the gap after 3 internal cycles | 1 | 2026-08-20 | WATCHING (archive row 645) |
 | Review cycle stopped on 'prose-only findings' grounds; §10 violations shipped into binding files | 1 | 2026-08-20 | WATCHING (archive row 646) |
+| Behavioral-fact correction not swept to callers relying on the fact (distinct from rule-text mirrors) | 1 | 2026-08-20 | WATCHING (count corrected 2→1, promotion withheld, archive row 647) |
+| Diff-scoped post-commit agents all pass while callers of a corrected fact remain stale | 1 | 2026-08-20 | WATCHING (archive row 648) |
+| Empirical measurement correct for tested scenario but scenario excludes the failure case | 1 | 2026-08-20 | WATCHING (archive row 649) |
 
 ## Durable knowledge (cross-agent)
 
