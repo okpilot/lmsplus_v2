@@ -678,13 +678,35 @@ the org scope and a `deleted_at IS NULL` filter in application code (#815, #1166
 
 ### Filtering Soft-Deleted Records
 
-Most RLS `USING` policies on soft-deletable tables include the active filter, with documented
-exceptions: `organizations`, whose predicate keys on `id` and has never carried a `deleted_at`
-conjunct (so a reader must filter explicitly, as `lib/queries/profile.ts` does);
-`flagged_questions`, which filters in application code instead — see the callout below; and
-`quiz_sessions`' student SELECT policy `students_select_sessions` (`20260313000023:14-16`),
-which is `USING (student_id = auth.uid())` alone, the `deleted_at` conjunct being carried only
-by the instructor policy:
+Most RLS `USING` policies on soft-deletable tables include the active filter — but **not all of
+them, and the set of exceptions is not fixed**, so derive it rather than trusting a list here.
+Any migration that adds or replaces a SELECT policy can change it. To get the current answer,
+enumerate the policies whose predicate omits the conjunct:
+
+```sql
+SELECT tablename, policyname, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND cmd IN ('SELECT', 'ALL')
+  AND qual NOT LIKE '%deleted_at IS NULL%'
+ORDER BY tablename, policyname;
+```
+
+Cross-check each hit against the table actually having a `deleted_at` column (§3's matrix below),
+and read the predicate — a `deleted_at IS NULL` inside a subquery may constrain `users` rather
+than the table itself. Known members as of 2026-08-20, as illustrations of the shapes rather
+than a closed set: `organizations` (predicate keys on `id`, never carried the conjunct — a
+reader must filter explicitly, as `lib/queries/profile.ts:67-71` does); `flagged_questions` (all
+three policies are `student_id = auth.uid()` alone — filtered in application code and via the
+`active_flagged_questions` view instead, see the callout below); `internal_exam_codes`
+(`admin_read_org_codes`, `20260429000002:59-69` — its `deleted_at IS NULL` constrains `users`,
+not the code row, and the policy that did carry the table's own filter was dropped by
+`20260521000004:11`); and two tables where one SELECT policy omits the conjunct while a sibling
+carries it, so permissive OR-ing means the looser one wins for callers it matches —
+`quiz_sessions` (`students_select_sessions`, `20260313000023:14-16`) and `exam_configs`
+(`admin_select_exam_configs`, `20260411000001:45-47`).
+
+The example below is a policy that DOES carry the filter:
 
 ```sql
 -- Representative example (question_banks, 20260311000001_initial_schema.sql:318-326,

@@ -107,8 +107,12 @@
 -- tenant_isolation policy whose predicate has no deleted_at conjunct — it
 -- already was, this migration does not create the asymmetry. (It is not the
 -- only soft-deletable table read without an RLS deleted_at filter at all:
--- flagged_questions filters in flag.ts by design, and quiz_sessions' student
--- SELECT policy omits it too.) So a SECURITY INVOKER function reading organizations
+-- flagged_questions filters via the active_flagged_questions view and an
+-- explicit .is('deleted_at', null) in _flag-guard.ts:75, internal_exam_codes'
+-- sole SELECT policy constrains users rather than the code row, and
+-- quiz_sessions' and exam_configs' policy sets each have one SELECT policy that
+-- omits it. docs/database.md §3 carries the query that derives the current set
+-- rather than a list that goes stale.) So a SECURITY INVOKER function reading organizations
 -- CANNOT rely on RLS for soft-delete scoping and must filter explicitly, the way
 -- profile.ts already does.
 --
@@ -119,9 +123,11 @@
 -- the only hit is this comment; a bare count is not stated because the set
 -- grows with every migration), so atomicity rests on the runner. If the runner
 -- does not wrap the file and a statement aborts mid-way, every pair after the
--- abort keeps its old policy and every pair before it has the new one — no
--- table is left policy-less, because each DROP is immediately followed by its
--- CREATE. BOTH user-scoped reads are exposed to that window equally
+-- abort keeps its old policy and every pair before it has the new one. Each
+-- DROP is immediately followed by its CREATE, so the only way to strand a table
+-- with NO policy at all is an abort landing on a CREATE specifically; an abort
+-- on a DROP (the likelier case — these carry no IF EXISTS) leaves that table
+-- untouched. BOTH user-scoped reads are exposed to that window equally
 -- (question_banks is the FIRST pair, organizations the last), so the order does
 -- not privilege one over the other; organizations is last simply because it is
 -- the tenant root, and its read (profile.ts:67) is the one that already

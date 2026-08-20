@@ -193,8 +193,10 @@ because it differs from `questions`: an authenticated **admin** is denied too, s
 to fall back on. Writes to them go through the service-role client. `organizations` keeps its
 own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct — so it remains the
 only one of the five `tenant_isolation` tables whose predicate has no soft-delete filter (it is
-not the only soft-deletable table read without one — `flagged_questions` filters in `flag.ts`,
-and `quiz_sessions`' student SELECT policy omits it), and a SECURITY
+not the only soft-deletable table read without one — `flagged_questions` filters via the
+`active_flagged_questions` view and an explicit `.is('deleted_at', null)` in
+`_flag-guard.ts:75`, and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
+carries the query that derives the current set), and a SECURITY
 INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 
 ### Role-Scoped Policies (where needed)
