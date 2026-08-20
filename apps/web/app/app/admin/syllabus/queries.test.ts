@@ -4,11 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
-const mockCreateServerSupabaseClient = vi.hoisted(() => vi.fn())
-
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: mockCreateServerSupabaseClient,
-}))
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 
@@ -50,7 +45,11 @@ function mockAllFrom(
     .mockReturnValueOnce(makeOrderedChain(topics))
     .mockReturnValueOnce(makeOrderedChain(subtopics))
   mockRpc.mockResolvedValue({ data: countRows, error: null })
-  mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { from: mockFrom, rpc: mockRpc },
+    userId: 'admin-1',
+    organizationId: 'org-1',
+  })
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -164,7 +163,11 @@ describe('getSyllabusTree', () => {
       .mockReturnValueOnce(makeNullOrderedChain())
       .mockReturnValueOnce(makeNullOrderedChain())
     mockRpc.mockResolvedValue({ data: null, error: null })
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom, rpc: mockRpc },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
 
     const tree = await getSyllabusTree()
 
@@ -186,7 +189,11 @@ describe('getSyllabusTree', () => {
         .mockReturnValueOnce(makeOrderedChain([]))
         .mockReturnValueOnce(makeOrderedChain([]))
       mockRpc.mockResolvedValue({ data: [], error: null })
-      mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
+      mockRequireAdmin.mockResolvedValue({
+        supabase: { from: mockFrom, rpc: mockRpc },
+        userId: 'admin-1',
+        organizationId: 'org-1',
+      })
 
       await expect(getSyllabusTree()).rejects.toThrow('Failed to load syllabus tree')
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -267,6 +274,7 @@ describe('getSyllabusTree', () => {
     mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
 
     await expect(getSyllabusTree()).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
-    expect(mockCreateServerSupabaseClient).not.toHaveBeenCalled()
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 })

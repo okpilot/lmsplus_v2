@@ -13,7 +13,7 @@
 |---|-------|---------------|-------|
 | A1 | No Smart Review in sidebar | Desktop: sidebar shows Dashboard, Quiz, Progress, Reports only | YES |
 | A2 | No Smart Review in mobile nav | Resize to mobile: bottom nav shows 4 items, no Review | Can we actually simulate and test a mobile environment? |
-| A3 | /app/review returns 404 | Navigate to http://localhost:3000/app/review — should get Next.js 404 | YES |
+| A3 | /app/review returns 404 | Navigate to http://localhost:3000/app/review — should get the styled not-found page (since #1170; was Next's built-in 404) | YES |
 | A4 | No Smart Review in Reports | Go to Reports — mode labels should show Quiz / Mock Exam only | YES |
 | A5 | No Smart Review in Dashboard | Dashboard quick actions: only "Start Quiz" button, no "Start Review" | YES |
 

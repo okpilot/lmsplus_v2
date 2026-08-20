@@ -80,15 +80,15 @@ export const config = {
 
 ### Admin Route Protection (defense in depth)
 
-Admin routes (`/app/admin/*`) require two independent guards — both must pass.
+Admin routes (`/app/admin` and `/app/admin/*`) require two independent guards — both must pass.
 
 **Layer 1 — Proxy guard (`apps/web/proxy.ts`):**
-Checks `users.role = 'admin'` for any request matching `/app/admin/*`, against a `deleted_at`-filtered read (so a soft-deleted admin does not pass). Redirects a non-admin to `/app/dashboard` (#1167 — it previously returned a bare, unstyled 403 body).
+Checks `users.role = 'admin'` for any request matching `/app/admin` or `/app/admin/*`, against a `deleted_at`-filtered read (so a soft-deleted admin does not pass). Redirects a non-admin to `/app/dashboard` (#1167 — it previously returned a bare, unstyled 403 body).
 
 This stops the request reaching any `/app/admin` route. Note the guarantee for **Server Actions** is relocation, not termination: a 307 preserves method and body, and Next resolves action IDs from a global manifest rather than per-route, so a redirect-followed POST re-issues at the target and Layer 2 is the authoritative gate. (The same POST was already reachable at `/app/dashboard` directly — Layer 1 is path-based — so the attack surface is unchanged.)
 
 **Layer 2 — Server Action guard (`apps/web/lib/auth/require-admin.ts`):**
-`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
+`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (React's request scope is never entered there), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
 **Why both:** The proxy guard prevents UI rendering for non-admins. The Server Action guard ensures admin actions are self-defending even if the proxy is misconfigured or bypassed (e.g., direct API calls). Neither layer trusts the other.
 

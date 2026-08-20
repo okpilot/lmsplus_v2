@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 
 /**
  * Require an authenticated user in a Server Component or Server Action.
- * Redirects to `/auth/login` if the session is missing or invalid.
+ * Redirects to `/` (the login page) if the session is missing or invalid.
  */
 export async function requireAuthUser(): Promise<User> {
   const supabase = await createServerSupabaseClient()
@@ -13,6 +13,6 @@ export async function requireAuthUser(): Promise<User> {
     error: authError,
   } = await supabase.auth.getUser()
 
-  if (authError || !user) redirect('/auth/login')
+  if (authError || !user) redirect('/')
   return user
 }

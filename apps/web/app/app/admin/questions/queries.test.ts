@@ -3,11 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const mockFrom = vi.hoisted(() => vi.fn())
-const mockCreateServerSupabaseClient = vi.hoisted(() => vi.fn())
-
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: mockCreateServerSupabaseClient,
-}))
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 
@@ -74,7 +69,11 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 function mockSupabaseWith(data: unknown[], count = data.length) {
   const chain = makeQueryChain(data, count)
   mockFrom.mockReturnValue(chain)
-  mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { from: mockFrom },
+    userId: 'admin-1',
+    organizationId: 'org-1',
+  })
   return chain
 }
 
@@ -142,7 +141,11 @@ describe('getQuestionsList', () => {
         },
       )
     mockFrom.mockReturnValue(chain)
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
 
     const result = await getQuestionsList({})
 
@@ -405,7 +408,11 @@ describe('getQuestionsList', () => {
         },
       )
     mockFrom.mockReturnValue(chain)
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
 
     const result = await getQuestionsList({})
 
@@ -456,7 +463,11 @@ describe('getQuestionsList', () => {
         },
       )
     mockFrom.mockReturnValue(chain)
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await getQuestionsList({})
@@ -495,7 +506,11 @@ describe('getQuestionsList', () => {
     })
 
     mockFrom.mockReturnValueOnce(countChain).mockReturnValueOnce(pageChain)
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await getQuestionsList({})
@@ -513,6 +528,6 @@ describe('getQuestionsList', () => {
     mockRequireAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT:/app/dashboard'))
 
     await expect(getQuestionsList({})).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
-    expect(mockCreateServerSupabaseClient).not.toHaveBeenCalled()
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 })

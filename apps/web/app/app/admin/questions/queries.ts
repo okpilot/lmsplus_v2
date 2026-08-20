@@ -1,4 +1,3 @@
-import { createServerSupabaseClient } from '@repo/db/server'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
@@ -9,8 +8,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   // Defense in depth, not a hole being closed — RLS `users_select` already excludes
   // soft-deleted rows from the proxy's Layer-1 lookup. Do not drop it as redundant:
   // that redundancy is the point, and every other admin query helper has it.
-  await requireAdmin()
-  const supabase = await createServerSupabaseClient()
+  const { supabase } = await requireAdmin()
 
   const page = filters.page ?? 1
   const searchTerm = filters.search?.trim()

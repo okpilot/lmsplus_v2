@@ -1,4 +1,3 @@
-import { createServerSupabaseClient } from '@repo/db/server'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import type { SyllabusSubject, SyllabusTree } from './types'
 
@@ -9,8 +8,7 @@ type SubtopicRow = { id: string; topic_id: string; code: string; name: string; s
 export async function getSyllabusTree(): Promise<SyllabusTree> {
   // Layer 2 of the two-guard admin model — defense in depth over the proxy's Layer-1
   // check, matching every other admin query helper (docs/security.md).
-  await requireAdmin()
-  const supabase = await createServerSupabaseClient()
+  const { supabase } = await requireAdmin()
 
   const [subjectsRes, topicsRes, subtopicsRes, countsRes] = await Promise.all([
     supabase.from('easa_subjects').select('*').order('sort_order'),
