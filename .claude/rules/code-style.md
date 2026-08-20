@@ -1036,8 +1036,13 @@ The clauses that carry most of the weight:
    recreated-file case is the nastier half: staging the deletion without staging the new file
    passes every grep, because the content is on disk the whole time — and `git diff --staged` alone
    does NOT catch it either: an untracked file is not staged, so it appears in no diff (verified —
-   `git diff --staged --name-status` prints nothing for one). Run `git status --short` ALONGSIDE the
-   staged diff; `??` entries are the half the diff cannot show.
+   `git diff --staged --name-status` prints nothing for one). Run
+   `git status --short --untracked-files=all` ALONGSIDE the staged diff; `??` entries are the
+   half the diff cannot show. The explicit flag is load-bearing: a repo or user config setting
+   `status.showUntrackedFiles=no` drops every `??` line from the bare form while tracked entries
+   still print (verified — the output is a SHORTENED list, not an empty one; clause 4 always runs
+   with a tracked edit present, so a populated `git status --short` is no evidence that untracked
+   files are absent). That fails open in exactly the case this clause exists to catch.
 
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
