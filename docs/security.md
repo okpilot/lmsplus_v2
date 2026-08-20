@@ -115,9 +115,13 @@ ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 -- organization_id whose rows every member of the org may legitimately read,
 -- or, for the tenant root organizations itself, keyed on its own id (it has
 -- no organization_id column). FOR SELECT is the DEFAULT.
--- NOT a universal template. The per-student tables scope reads to the CALLING
--- STUDENT, not to their organisation, and have never carried a tenant_isolation
--- policy: student_responses (20260311000005:24), quiz_session_answers
+-- NOT a universal template. The per-student tables have never carried a
+-- tenant_isolation policy, and two of the three scope reads to the CALLING
+-- STUDENT rather than the organisation. student_responses is the exception and
+-- the cautionary case: it has TWO permissive SELECT policies, and the second,
+-- instructors_read_students (20260311000001:393), DOES key on organization_id
+-- — which is the #540 premise, and why §3's multiple-permissive rule exists.
+-- The three: student_responses (20260311000005:24), quiz_session_answers
 -- (20260311000005:9, scoped via `session_id IN (SELECT id FROM quiz_sessions
 -- WHERE student_id = auth.uid())`) and flagged_questions (20260323000050:15).
 -- Applying the org-wide policy below to student_responses would let every

@@ -691,9 +691,12 @@ STUDENT_PROGRESS (materialized/computed view — per student per subject)
 └── updated_at
 
 RLS POLICIES (applied to ORG-SCOPED tables — see docs/security.md §3):
-  - Org-scoped queries filtered by organization_id; per-student tables
-    (student_responses, quiz_session_answers, flagged_questions) scope by
-    the calling student, and two of those carry no organization_id at all
+  - Org-scoped queries filtered by organization_id. The per-student tables
+    (student_responses, quiz_session_answers, flagged_questions) have never
+    carried a tenant_isolation policy; quiz_session_answers and
+    flagged_questions carry no organization_id at all. student_responses is
+    NOT purely per-student: it has TWO permissive SELECT policies, and
+    instructors_read_students DOES key on organization_id — the #540 premise
   - Students can only see their own responses and progress
   - Instructors can see all student data within their organization
   - Admins have full access within their organization
@@ -770,12 +773,18 @@ RLS POLICIES (applied to ORG-SCOPED tables — see docs/security.md §3):
 ### Multi-Tenant Model
 
 ```
-Org-scoped queries include: WHERE organization_id = auth.org_id()
+Org-scoped queries include:
+  WHERE organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
 
-Supabase RLS policy (applied to ORG-SCOPED tables only — per-student tables
-such as student_responses, quiz_session_answers and flagged_questions scope
-by the calling student instead, and two of those carry no organization_id
-column at all; see docs/security.md §3):
+(There is no auth.org_id() helper in this schema — the org is resolved through
+the users table, as the policy below does.)
+
+Supabase RLS policy (applied to ORG-SCOPED tables only — the per-student tables
+student_responses, quiz_session_answers and flagged_questions have never carried
+one, and two of them have no organization_id column at all. Note
+student_responses is not purely per-student: instructors_read_students, one of
+its two permissive SELECT policies, keys on organization_id; see
+docs/security.md §3):
   CREATE POLICY "tenant_isolation" ON table_name
     FOR SELECT
     USING (organization_id = (

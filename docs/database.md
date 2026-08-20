@@ -688,9 +688,18 @@ SELECT tablename, policyname, cmd, qual
 FROM pg_policies
 WHERE schemaname = 'public'
   AND cmd IN ('SELECT', 'ALL')
-  AND qual NOT LIKE '%(deleted_at IS NULL)%'
+  AND COALESCE(qual, '') NOT LIKE '%(deleted_at IS NULL)%'
 ORDER BY tablename, policyname;
 ```
+
+The `COALESCE` is load-bearing too: `pg_policies.qual` is NULL when a policy omits
+`USING`, and `NULL NOT LIKE …` evaluates to NULL, not TRUE — so the row would be
+silently EXCLUDED from a query whose whole purpose is to surface policies that lack
+the filter, the unsafe direction. No `SELECT`/`ALL` policy has a NULL `qual` today
+(measured 2026-08-20: all 11 NULL-`qual` policies on production are `INSERT`, which
+the `cmd` filter already excludes), so this guards the future case — a `FOR ALL`
+policy carrying only `WITH CHECK`, which is maximally permissive on reads and is
+exactly what must not vanish from this list.
 
 The parentheses are load-bearing. PostgreSQL renders a top-level own-column conjunct bare, as
 `(deleted_at IS NULL)`, and any other table's as an aliased `u.deleted_at IS NULL`. Matching the
