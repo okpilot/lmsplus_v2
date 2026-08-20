@@ -1167,9 +1167,11 @@ confirmed by observation rather than inference.
    dropped clause was what blocked user-scoped soft-delete UPDATEs on three of the four.
 6. **`organizations`' predicate asymmetry is preserved, SKIPPED with reason.** It keys on `id` with
    no `deleted_at` conjunct. Byte-identity is #1175's acceptance criterion and adding the filter
-   would be a read-behaviour change. It therefore remains the only tenant-scoped table whose sole
-   SELECT policy has no soft-delete filter — it already was — so a SECURITY INVOKER reader must
-   filter explicitly, as `lib/queries/profile.ts` already does.
+   would be a read-behaviour change. It therefore remains the only one of the five
+   `tenant_isolation` tables whose predicate has no soft-delete filter — it already was — so a
+   SECURITY INVOKER reader must filter explicitly, as `lib/queries/profile.ts` already does. It is
+   not the only org-scoped table whose sole SELECT policy lacks one: `internal_exam_codes` is the
+   same shape. `docs/database.md` §3 carries the query that derives the current set.
 
 **Rationale**: the exposure was real but narrower than "any write". Measured per verb: UPDATE was
 reachable on all four (including `UPDATE organizations SET deleted_at = now()`, since that table's

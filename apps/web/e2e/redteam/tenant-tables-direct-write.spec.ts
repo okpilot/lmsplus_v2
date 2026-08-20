@@ -362,9 +362,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     expect((data ?? []).length).toBeGreaterThan(0)
   })
 
-  test('the service-role client can still write every tenant table', async () => {
-    // Without this, every denial above would also pass on a database where the
-    // tables were unreachable for an unrelated reason.
+  test('the service-role client can still write a tenant table', async () => {
+    // Without this, every denial arm below would also pass on a database where
+    // these tables were unreachable for an unrelated reason. One table is enough
+    // for that purpose: service_role holds BYPASSRLS, so reachability is a
+    // property of the connection, not of which table it touches. The four READ
+    // controls above are the ones that cover all four tables, because a read
+    // regression IS per-table (each has its own USING predicate).
     const marker = `${MARKER} service-role control ${Date.now()}`
     const { data: course, error: insertError } = await adminClient
       .from('courses')
