@@ -18,8 +18,9 @@ for burndown work.
 - [x] File #1234 to carry #360's one real remainder (admin syllabus E2E spec)
 - [x] Close 6 as won't-do (#450, #111, #891, #1037, #359, #1208), reasons recorded
 - [x] Create `ops` + `product-decision` labels; apply to 12 non-engineering issues
-- [x] Result: 134 → 111 open at run end; the engineering queue is that minus the `ops` and
-      `product-decision` labels (see the derivation under "Remaining waves" — 101 as of 2026-08-19). (The bullets above name SUBSETS of the
+- [x] Result: 134 → 111 open at run end (19:58Z). The engineering queue is a SEPARATE measurement
+      taken later, not a subtraction from 111: 101 as of 2026-08-20T05:30Z, derived under
+      "Remaining waves" from 113 open at that moment. (The bullets above name SUBSETS of the
       31 closures, not all of them — 18 verified-dead + 6 won't-do + #185, the rest being
       duplicates and already-fixed items closed without a named bucket. The 134 → 111 is a
       RUN-END snapshot and reconciles as: 134 open at 00:00Z, +6 filed before the run began
@@ -200,11 +201,12 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
 
 (Issue counts move daily, so none is quoted here. Derive the engineering queue as open issues
 minus the `ops` and `product-decision` labels, which mark work no PR can close:
-`gh issue list --state open --limit 300 --json number,labels`. Measured 2026-08-19: 113 open,
+`gh issue list --state open --limit 300 --json number,labels`. Measured 2026-08-20T05:30Z: 113 open,
 8 `ops`, 4 `product-decision` → 101.)
 
-(41 is the count of the PRs enumerated BELOW. PR 6 is this branch, tracked in its own section
-above, and is not "remaining". There is no PR 7 and no W2 — a numbering gap, not a dropped wave.)
+(As of 2026-08-19, the list below contains 41 PRs, and its numbering skips PR 7 and W2 — a gap,
+not a dropped wave. PR 6 is this branch, tracked in its own section above, and is not "remaining".
+The plan is mutable: re-count from the list rather than trusting this line.)
 
 Ordering and contents in the artifact above. Not started.
 
