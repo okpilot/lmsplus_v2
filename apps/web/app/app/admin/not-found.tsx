@@ -4,9 +4,9 @@ import Link from 'next/link'
  * 404 boundary for the admin segment.
  *
  * Unlike the root boundary this renders INSIDE the app shell, and it is what
- * `notFound()` resolves to for the admin pages that call it —
- * `dashboard/students/[id]` and `dashboard/sessions/[id]`. Without this file
- * those calls fall back to the root boundary, which carries no shell and whose
+ * `notFound()` resolves to for any route segment under `/app/admin` that calls it
+ * (derive the current set with `grep -rn "notFound()" apps/web/app/app/admin`). Without this
+ * file those calls fall back to the root boundary, which carries no shell and whose
  * escape link sends an admin to the STUDENT dashboard.
  *
  * It does NOT cover mistyped admin urls: an unmatched path always resolves to the

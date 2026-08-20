@@ -1034,7 +1034,10 @@ The clauses that carry most of the weight:
    branch losing that coverage entirely while every grep still found it; and a review agent's
    memory delta was left unstaged and so missed the commit it belonged to. Note the deleted-and-
    recreated-file case is the nastier half: staging the deletion without staging the new file
-   passes every grep, because the content is on disk the whole time.
+   passes every grep, because the content is on disk the whole time — and `git diff --staged` alone
+   does NOT catch it either: an untracked file is not staged, so it appears in no diff (verified —
+   `git diff --staged --name-status` prints nothing for one). Run `git status --short` ALONGSIDE the
+   staged diff; `??` entries are the half the diff cannot show.
 
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
