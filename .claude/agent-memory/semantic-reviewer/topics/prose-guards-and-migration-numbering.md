@@ -244,3 +244,27 @@ on both halves, checked against installed source:
 - Same-object check: the flight server takes
   `React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE` (:6292-6293), which is the
   object `cache()` reads.
+
+### 21st + 22nd false-claim instances — `676984fb` (2026-08-20, `fix/admin-auth-cache-and-notfound`)
+
+Both created by the commit whose stated purpose was *correcting two false attributions*. It fixed
+the body of each block and left a neighbour in the same file standing:
+
+- **`.claude/rules/code-style.md` footer** — still reads "Learner count=2 — `57c3b452` and
+  `d8d32b1f` each shipped stale prose while the corrected text sat unstaged". `676984fb`'s own
+  message says of that pair: *"on checking NEITHER pair was right"*, and the commit rewrote §10
+  clause 4's body (~40 lines above) to cite the two verifiable staging instances instead. The
+  commit touched this file (13 lines) and did not carry the correction to the footer.
+  Learner `tracker-archive` row 640 agrees with the body, not the footer.
+- **`.claude/agent-memory/red-team/topics/attack-surface.md:644`** — the "WHAT THESE COMMITS ARE"
+  bullet still lists "proxy `isAdminRoute` extended to the bare path" among `b67beccf`'s functional
+  changes. Line 651, in the same block, is the CORRECTION denying exactly that. Verified:
+  `git show b67beccf -- apps/web/proxy.ts` is a comment rewrite only; `git log -S` traces the
+  exact-match arm to `2c224db4`. The corrected bullet's own heading also still reads
+  "**PROXY `isAdminRoute` EXTENDED TO BARE PATH**".
+
+**Durable lesson.** A commit whose purpose is "fix a false attribution" is the single highest-risk
+site for the next false attribution — 13 of 22 instances in this row were created by an
+accuracy fix. Re-read the WHOLE FILE (footers and headings included), not the corrected claim;
+`git grep` for the retired token is the cheap mechanical half, and a footer/heading is exactly what
+a claim-shaped grep misses because it paraphrases rather than repeats.
