@@ -115,7 +115,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | §10 GRANT/REVOKE chain tracing stopped at function body | 1 | 2026-08-10 | WATCHING (archive row 541) |
 | Rule/skill asserts "effectively absolute" while cited | 1 | 2026-08-10 | WATCHING (archive row 542) |
 | Prod-capable script copies behavioral semantics from | 1 | 2026-08-11 | WATCHING (archive row 539) |
-| CR/reviewer suggestion adopted verbatim without checking | 2 | 2026-08-19 | RULE CANDIDATE (2) (archive row 601) |
+| CR/reviewer suggestion adopted verbatim without checking | 3 | 2026-08-20 | PROMOTED → agent-coderabbit-local.md pitfall #9 (archive row 601) |
 | Sibling-scope sweep keyed on RPC/function-name rather | 1 | 2026-08-11 | WATCHING (archive row 544) |
 | Stale self-certified line-count claim in plan revision | 1 | 2026-08-11 | WATCHING (archive row 545) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (archive row 602) |
@@ -127,7 +127,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 5 | 2026-08-20 | RULE CANDIDATE (5) (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 8 | 2026-08-20 | RULE CANDIDATE (8) → propose §10 "grep old phrase across all types" addition (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -153,6 +153,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Open-set member enumeration in durable rules/doc file | 2 | 2026-08-19 | PROMOTED → code-style (archive row 615) |
 | Measurement quoted next to a command that cannot produce it | 1 | 2026-08-19 | WATCHING (archive row 597) |
 | Canonical amended, mirror left behind — in a commit that edits the mirror anyway | 1 | 2026-08-19 | WATCHING (archive row 616) |
+| Mirror sweep scoped by file extension rather than by claim phrase — misses .ts/.spec-workflow occurrences | 3 | 2026-08-20 | RULE CANDIDATE (3) → propose agent-workflow.md §Rule-Mirror-Sync addition (archive row 637) |
+| Correct advice with invented rationale survives §10 review (advice correct → false WHY unchecked) | 1 | 2026-08-20 | WATCHING (archive row 638) |
+| Post-cycle agent-memory delta written but not committed before push — caught only by pre-push sweep | 1 | 2026-08-20 | WATCHING (archive row 639) |
 | Derivation query replacing an open-set enumeration is unverified before publish (LIKE/NOT LIKE false negative) | 1 | 2026-08-20 | WATCHING (archive row 634) |
 | Plan-critic round reverses its own prior round's misread; mirror-edit generalized a conditional carve-out past its precondition | 1 | 2026-08-20 | WATCHING (archive row 635) |
 | Red-team spec positive controls pass via fixture-order coupling, not construction — no mutation gate for Playwright specs | 1 | 2026-08-20 | WATCHING (archive row 636) |
