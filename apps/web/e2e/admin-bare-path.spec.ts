@@ -15,7 +15,13 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 // bounces that today with the page absent, so it would pass with the fix reverted.
 // admin-students.spec.ts § Access Control covers the property — but via
 // /app/admin/students, i.e. proxy.ts's `startsWith('/app/admin/')` branch. The
-// `pathname === '/app/admin'` branch has no student-facing assertion at any tier;
+// `pathname === '/app/admin'` branch is not asserted student-side HERE: every test in
+// this file uses the default admin context and none opens its own. Note the file-level
+// `storageState` is NOT what prevents it — `admin-students.spec.ts` declares the same
+// admin state and still reaches a student in its § Access Control, via a
+// `newContext({ storageState: undefined })` plus an in-test login. Whether some OTHER
+// spec asserts this branch is deliberately not claimed here; derive it by grepping for
+// specs that navigate an admin path from a non-admin session.
 // Layer 2 (`page.tsx`'s own requireAdmin()) bounces a non-admin there regardless,
 // which is why red-team rated the gap LOW rather than a hole.
 test.describe('Admin bare-path landing', () => {
