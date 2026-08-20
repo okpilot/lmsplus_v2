@@ -112,8 +112,9 @@ ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
 -- Tenant isolation policy — for ORG-SCOPED tables only: those carrying an
--- organization_id whose rows every member of the org may legitimately read.
--- FOR SELECT is the DEFAULT.
+-- organization_id whose rows every member of the org may legitimately read,
+-- or, for the tenant root organizations itself, keyed on its own id (it has
+-- no organization_id column). FOR SELECT is the DEFAULT.
 -- NOT a universal template. The per-student tables scope reads to the CALLING
 -- STUDENT, not to their organisation, and have never carried a tenant_isolation
 -- policy: student_responses (20260311000005:24), quiz_session_answers

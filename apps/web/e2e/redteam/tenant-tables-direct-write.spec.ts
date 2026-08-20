@@ -31,7 +31,8 @@
  *     (organization_id) (mig 20260327000062:11) is PER ORG: the INSERT arm runs
  *     against org B, which the setup keeps bank-free, so WITH CHECK passes
  *     pre-fix with no 23505 behind it. That holds on a freshly reset database;
- *     the beforeAll note states the one case where it does not. The
+ *     the beforeAll note states the one case where it does not, and the
+ *     mutation check is anchored elsewhere so it does not matter. The
  *     UPDATE/DELETE arms use org A's own childless bank, so DELETE is not
  *     shadowed by questions.bank_id.
  *   - organizations UPDATE — genuinely flips.
@@ -50,9 +51,11 @@
  * the new one. That scenario is deliberately NOT the one this spec ships: its
  * INSERT arm runs against bank-free org B, where the same INSERT SUCCEEDED
  * pre-fix, which is what makes that arm a true flip rather than a shape change
- * — on a freshly reset database, which is what the mutation-check procedure
- * uses. See the beforeAll note for the one case that degrades it to a shape
- * flip, and why the mutation check is anchored on courses/lessons regardless.
+ * — on a freshly reset database. See the beforeAll note for the one case that
+ * degrades it to a shape flip. The mutation check does NOT reset: it reverts
+ * the four policies in the live local DB, so it is anchored on the
+ * courses/lessons arms, whose tables carry no UNIQUE constraint and so cannot
+ * degrade. attack-surface.md records the ordering trap if you do reset.
  *
  * Assertion shapes, and a deliberate DIVERGENCE from the Vector EX model spec.
  *   - PRIMARY proof for every UPDATE/DELETE arm is a before/after read through
@@ -164,6 +167,25 @@ async function upsertSpecOrg(
 }
 
 test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => {
+  // Declaration order is load-bearing here — the positive controls must run
+  // before any mutating arm (see the header). Today that is guaranteed by
+  // playwright.config.ts (`workers: 1`, `fullyParallel: false`), which is
+  // PROJECT-WIDE config a future change could flip. `default` pins in-order
+  // execution locally even under a parallel parent, which is the whole of what
+  // this suite needs.
+  //
+  // NOT `serial`, deliberately: serial ALSO installs a skip cascade — "if one
+  // of the tests fails, all subsequent tests are skipped" (playwright
+  // types/test.d.ts:3638). That would destroy the mutation check this spec is
+  // built around. Reverting the four policies is supposed to yield 15 red and
+  // 5 green; under serial it yields 5 passed, 1 failed and 14 SKIPPED, so the
+  // engineered clean split becomes unobservable. It would also hide 14 arms
+  // behind the first regression in ordinary CI — exactly when a red-team spec
+  // is doing its job. internal-exam-lifecycle.spec.ts:32 uses serial because
+  // its arms genuinely share exam-code state; these arms are independent and
+  // must report independently.
+  test.describe.configure({ mode: 'default' })
+
   let adminClient: ReturnType<typeof getAdminClient>
   let studentA: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let studentB: Awaited<ReturnType<typeof createAuthenticatedClient>>

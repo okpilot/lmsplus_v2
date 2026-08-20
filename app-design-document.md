@@ -690,8 +690,10 @@ STUDENT_PROGRESS (materialized/computed view — per student per subject)
 ├── last_activity_at (timestamp)
 └── updated_at
 
-RLS POLICIES (applied to every table):
-  - All queries filtered by organization_id
+RLS POLICIES (applied to ORG-SCOPED tables — see docs/security.md §3):
+  - Org-scoped queries filtered by organization_id; per-student tables
+    (student_responses, quiz_session_answers, flagged_questions) scope by
+    the calling student, and two of those carry no organization_id at all
   - Students can only see their own responses and progress
   - Instructors can see all student data within their organization
   - Admins have full access within their organization
@@ -768,9 +770,12 @@ RLS POLICIES (applied to every table):
 ### Multi-Tenant Model
 
 ```
-Every query includes: WHERE organization_id = auth.org_id()
+Org-scoped queries include: WHERE organization_id = auth.org_id()
 
-Supabase RLS policy (applied to every table):
+Supabase RLS policy (applied to ORG-SCOPED tables only — per-student tables
+such as student_responses, quiz_session_answers and flagged_questions scope
+by the calling student instead, and two of those carry no organization_id
+column at all; see docs/security.md §3):
   CREATE POLICY "tenant_isolation" ON table_name
     FOR SELECT
     USING (organization_id = (

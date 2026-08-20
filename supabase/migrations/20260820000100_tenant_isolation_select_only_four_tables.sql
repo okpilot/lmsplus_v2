@@ -5,7 +5,10 @@
 -- DEFECT. A CREATE POLICY with no FOR clause is FOR ALL: it governs SELECT,
 -- INSERT, UPDATE and DELETE alike. All four tables were created that way in
 -- 20260311000001_initial_schema.sql (organizations :283, question_banks :318,
--- courses :340, lessons :351) and none has been touched since. All three
+-- courses :340, lessons :351) and none of those four POLICIES has been
+-- redefined since. The TABLES have been altered — 20260327000062 adds
+-- question_banks' UNIQUE (organization_id), cited again below — so read this
+-- as a claim about the policies, not about the tables. All three
 -- supersession forms were traced: supabase/migrations/ contains no ALTER POLICY
 -- STATEMENT (grep the phrase and the only hit is this comment), no later bare
 -- CREATE POLICY on any of the four, and the only PRE-EXISTING DROP POLICY ...
