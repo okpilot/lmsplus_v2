@@ -163,8 +163,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Review cycle stopped on 'prose-only findings' grounds; §10 violations shipped into binding files | 1 | 2026-08-20 | WATCHING (archive row 646) |
 | Behavioral-fact correction not swept to callers relying on the fact (distinct from rule-text mirrors) | 1 | 2026-08-20 | WATCHING (count corrected 2→1, promotion withheld, archive row 647) |
 | Diff-scoped post-commit agents all pass while callers of a corrected fact remain stale | 1 | 2026-08-20 | WATCHING (archive row 648) |
-| Empirical measurement correct for tested scenario but scenario excludes the failure case | 1 | 2026-08-20 | WATCHING (archive row 649) |
-| Pre-edit verification used as post-edit claim (count/absence checked before the edit that invalidates it) | 1 | 2026-08-20 | WATCHING (archive row 650) |
+| Empirical measurement correct for tested scenario but scenario excludes the failure case | 3 | 2026-08-20 | RULE CANDIDATE (3) → code-style.md §10 clause 5; unified w/ row 650 (archive rows 649+650) |
 
 ## Durable knowledge (cross-agent)
 
