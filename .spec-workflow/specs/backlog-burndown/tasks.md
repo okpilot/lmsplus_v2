@@ -248,7 +248,9 @@ Ordering and contents in the artifact above. Not started.
       `20260809000100`'s live policy set on `questions` was confirmed on production
       (`tenant_isolation` = SELECT, admin-gated INSERT/UPDATE, no DELETE policy). Remaining: a
       recorded decision on whether post-deploy catalog verification moves into `db-deploy.yml`.
-      Note the assumed blocker does not exist — db-deploy already builds a direct Postgres
-      `DB_URL` from `SUPABASE_DB_PASSWORD`, so a `pg_policies` check needs no new secret
+      Note the assumed blocker does not exist — db-deploy already builds a SESSION-POOLER
+      `DB_URL` from `SUPABASE_DB_PASSWORD` (pooler, not a direct connection — the workflow's own
+      comment records that direct DB is IPv6-only on Supabase), so a `pg_policies` check needs no
+      new secret
 - [ ] #1204 guarded `--sync-content` run + read-only prod probe before and after
 - [ ] #1182 triage the SonarCloud dashboard; record keep-or-retire
