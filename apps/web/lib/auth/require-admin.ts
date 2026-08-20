@@ -27,11 +27,13 @@ type AdminAuth = {
  * "every call performs a real network round-trip" does not hold as written.
  *
  * Scope, precisely, because this is an authorization gate: the memo lives in a
- * Map allocated per RSC flight request, so it cannot cross requests. Where no
- * React request scope is installed, `cache()` degrades to a plain passthrough
- * with no memo at all — and that includes Server Actions, which run in Next's
- * own async storage rather than React's. So every MUTATION still re-verifies its
- * caller on every call; only the render path is memoized.
+ * Map allocated per RSC flight request, so it cannot cross requests. In a Server
+ * Action there is no resolvable React flight request — Next runs the action body
+ * under its own `workUnitAsyncStorage`, not React's `requestStorage` — so the
+ * cache lookup falls back to a throwaway Map and the body re-executes on every
+ * call. (Not because the dispatcher is absent: it is installed process-globally
+ * and never cleared.) So every MUTATION still re-verifies its caller on every
+ * call; only the render path is memoized.
  */
 export const requireAdmin = cache(async (): Promise<AdminAuth> => {
   const supabase = await createServerSupabaseClient()

@@ -88,7 +88,7 @@ Checks `users.role = 'admin'` for any request matching `/app/admin` or `/app/adm
 This stops the request reaching any `/app/admin` route. Note the guarantee for **Server Actions** is relocation, not termination: a 307 preserves method and body, and Next resolves action IDs from a global manifest rather than per-route, so a redirect-followed POST re-issues at the target and Layer 2 is the authoritative gate. (The same POST was already reachable at `/app/dashboard` directly — Layer 1 is path-based — so the attack surface is unchanged.)
 
 **Layer 2 — Server Action guard (`apps/web/lib/auth/require-admin.ts`):**
-`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (React's request scope is never entered there), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
+`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (no React flight request is resolvable there — Next runs the action under its own async storage), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
 **Why both:** The proxy guard prevents UI rendering for non-admins. The Server Action guard ensures admin actions are self-defending even if the proxy is misconfigured or bypassed (e.g., direct API calls). Neither layer trusts the other.
 
@@ -858,7 +858,7 @@ We store student PII: email address, full name, learning history, exam scores.
 - Immutable append-only table. Stores every consent decision: Terms of Service, Privacy Policy, and Cookie Analytics — with version, acceptance flag, timestamp, IP, and user agent.
 - Direct client inserts blocked by RLS. Writes via `record_consent()` SECURITY DEFINER RPC only.
 - First-login: `/auth/login-complete` calls `check_consent_status()` → if user hasn't accepted current TOS/Privacy versions → redirect to `/consent` page.
-- `/consent` page: three checkboxes (TOS required, Privacy required, Analytics optional). Server Action calls `record_consent()` three times, sets cookie with version tokens, redirects to `/app`.
+- `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice, sets cookie with version tokens, redirects to `/app/dashboard`.
 - Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch on next request → `/consent` redirect (no DB hit in middleware, check is cookie-based).
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
