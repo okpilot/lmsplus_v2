@@ -31,8 +31,8 @@ type AdminAuth = {
  * Action there is no resolvable React flight request — Next runs the action body
  * under its own `workUnitAsyncStorage`, not React's `requestStorage` — so the
  * cache lookup falls back to a throwaway Map and the body re-executes on every
- * call. (Not because the dispatcher is absent: it is installed process-globally
- * and never cleared.) So every MUTATION still re-verifies its caller on every
+ * call. (Not because the dispatcher is absent: it is installed on the first
+ * flight render in the process and never cleared thereafter.) So every MUTATION still re-verifies its caller on every
  * call; only the render path is memoized.
  */
 export const requireAdmin = cache(async (): Promise<AdminAuth> => {

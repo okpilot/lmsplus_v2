@@ -203,3 +203,44 @@ but not the SAME file's DO-NOT-FLAG suppression 9, ~85 lines below, which still 
 `auth.uid()` / `p_student_id` shorthand. Suppressions fail OPEN, so the enforcer's exception ended up
 looser than its own check. Generalises the earlier `.coderabbit.yaml` path-block instances: a mirror
 sweep must cover a check's exception and DO-NOT-FLAG clauses, which sit far from the check text.
+
+### 18th + 19th instances — `57c3b452` (review-follow-up on `b67beccf`, 2026-08-20)
+
+Both created BY the comment-accuracy fix itself, and both had a CORRECT fix sitting unstaged in
+the working tree at commit time (see the "fix left UNCOMMITTED" tracker row).
+
+- `.claude/agent-memory/code-reviewer/MEMORY.md:21` — the row it ADDED reads
+  `admin-students.spec.ts grew 492→553L … (+52L)`. The same commit's message says
+  *"the reported '492 L' was wrong — the file was already 504"*. Measured:
+  `git show b67beccf~1:…` = 504, `b67beccf` = 553, so +49L.
+- `docs/security.md:858` — the commit rewrote line 861 (`/consent` bullet) precisely because
+  analytics consent was dropped, and left line 858 saying the table
+  *"Stores every consent decision: Terms of Service, Privacy Policy, and Cookie Analytics"*.
+  Mig `20260327000058_remove_cookie_analytics.sql` DELETEs those rows and recreates the CHECK as
+  `document_type IN ('terms_of_service','privacy_policy')`; mig `20260606000001` (latest
+  `record_consent`) raises on anything outside that pair. Three lines apart, same bullet list —
+  §10 clause 3, "a partial comment edit is the tell", in its purest form.
+
+**What the two share:** the author edited the sentence they were told about and did not re-read the
+block. The cheap guard is `git show <sha> -- <path>` on the committed hunk plus reading the whole
+enclosing block, not the diff hunk.
+
+### Verified-TRUE claims in the same commit (do not re-flag)
+
+`require-admin.ts:29-36` / `docs/security.md:91` — the Server-Action-no-memo mechanism is CORRECT
+on both halves, checked against installed source:
+- `react@19.2.8` `cjs/react.react-server.development.js:575-578` — `cache()` reads
+  `ReactSharedInternals.A`; falsy ⇒ passthrough, truthy ⇒ `dispatcher.getCacheForType(...)`.
+- `next@16.3.0` `dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-server.node.development.js:6278-6285`
+  — `DefaultAsyncDispatcher.getCacheForType` = `resolveRequest() ? cache.cache : new Map()`, i.e. a
+  THROWAWAY Map when no request resolves. `resolveRequest()` (:1253) = `currentRequest ??
+  requestStorage.getStore()`.
+- `.A` is assigned at `:1122` inside `RequestInstance` and NEVER cleared (only other refs are the
+  :1116-1117 guard) — so the dispatcher is genuinely truthy, confirming the "not because the
+  dispatcher is absent" half. Caveat: it is installed on the FIRST flight Request of the process,
+  not at module load, so on a cold start it can still be null; same conclusion either way.
+- `next/dist/server/app-render/action-handler.js:987` —
+  `workUnitAsyncStorage.run(requestStore, ()=>action.apply(null, args))`, verbatim the doc's claim.
+- Same-object check: the flight server takes
+  `React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE` (:6292-6293), which is the
+  object `cache()` reads.

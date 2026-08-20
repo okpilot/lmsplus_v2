@@ -855,10 +855,10 @@ We store student PII: email address, full name, learning history, exam scores.
 ### Consent Tracking (GDPR Legal Compliance)
 
 **`user_consents` table (migration 057):**
-- Immutable append-only table. Stores every consent decision: Terms of Service, Privacy Policy, and Cookie Analytics — with version, acceptance flag, timestamp, IP, and user agent.
+- Immutable append-only table. Stores every consent decision: Terms of Service and Privacy Policy — with version, acceptance flag, timestamp, IP, and user agent. (Cookie Analytics was removed from the `document_type` CHECK by `20260327000058_remove_cookie_analytics.sql`.)
 - Direct client inserts blocked by RLS. Writes via `record_consent()` SECURITY DEFINER RPC only.
 - First-login: `/auth/login-complete` calls `check_consent_status()` → if user hasn't accepted current TOS/Privacy versions → redirect to `/consent` page.
-- `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice, sets cookie with version tokens, redirects to `/app/dashboard`.
+- `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice and sets the cookie with version tokens; the form then navigates client-side to `/app/dashboard` (`consent-form.tsx` — the action itself does not redirect).
 - Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch on next request → `/consent` redirect (no DB hit in middleware, check is cookie-based).
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
