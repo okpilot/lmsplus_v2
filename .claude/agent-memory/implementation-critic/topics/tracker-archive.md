@@ -290,3 +290,53 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
   Reconstructed open counts: 134 @ 00:00Z, **140 @ 11:11Z**, 111 @ 19:58Z; 31 closed in-window,
   2 filed in-window. The true bridge is 140 − 31 + 2 = 111. The 134 is the MIDNIGHT figure, and the
   eight-issue bridge only closes if the baseline is midnight rather than the run start.
+
+## § archived tracker row detail 2026-08-20 (index compaction)
+
+Older-instance prose moved out of `MEMORY.md` to keep it under the injection budget.
+The rows themselves stay in the tracker with their counts; only the narrative moved here.
+
+### Doc/code comment contradicted by the authority (count 16)
+- **15th:** "six collisions" in a file header vs "four" in the JSDoc 18 lines below — the
+  partial-comment-edit tell. Read the WHOLE block after touching any part of it.
+
+### Same-commit self-contradiction (count 7)
+- **6th (within one file):** a setup comment rewritten hard-DELETE→soft-delete retracted a
+  fixture GUARANTEE that the same file's header (x2) and an inline arm comment still asserted
+  unconditionally, plus 2 sites in a memory file the same diff edited. Retracting a guarantee
+  obliges a grep for every restatement of it.
+- **4th/5th (one pre-push batch):** a run-log "filed" set contradicting `agent-workflow.md` in
+  the same diff; and a LOCAL-clock date in one file while another file in the same diff is
+  corrected local→UTC. A batch that fixes a trap in one file routinely walks into it in another.
+
+### A GUARD/CEILING makes its own claim unreachable (count 3)
+- **1st:** CLAUDE.md's false-claim chain cap keyed on prose "an earlier follow-up" wrote, but the
+  mechanism puts it in the CURRENT fix's prose — the counter cannot increment.
+- **2nd:** `agent-workflow.md` prescribes confirming `author:@me` via `gh api user --jq .login`
+  **against `git log -1 --format=%ae`** — a login (`okpilot`) vs an email; different namespaces,
+  never match.
+
+### Claim-correction introduces a NEW wrong count/label/enumeration (count 14)
+- **11th:** `.md`-only conflated with touches-≥1-`.md` (204 vs 37), plus a derived 151 that no
+  reading can produce.
+- **12th:** a "filed during the same run" set of 8, of which only 2 are in-span. Both 11th and
+  12th are DERIVED figures — re-deriving the base is not enough, the derivation must be run too.
+- **13th:** a skill retracting "RLS policies always check `organization_id`" offered
+  `student_responses` as the counterexample ("its policy scopes by `student_id`") — it has TWO
+  permissive SELECT policies and `instructors_read_students` (mig 001:393, live) DOES key on
+  `organization_id`; and "the other exception" (organizations) misses `users`. Enumerate a
+  table's POLICY SET, not "its policy".
+- **Provenance trap:** a measurement DATE stamped on an unre-derived figure ("measured
+  2026-08-19 against origin/master") converts a false claim into an apparently-verified one —
+  re-run the count BEFORE adding provenance.
+
+### Index mutates mid-review (count 5)
+- **4th:** pinning prevented two FALSE findings (the implementer had already fixed them), not
+  merely stale ones.
+
+### Rule redefined in one surface, siblings stale (count 6)
+- **6th (2026-08-20, `fix/1175-tenant-isolation-select-only`):** a distinct mechanism — the
+  sweep's FILE-TYPE scope, not its phrase. The branch's mirror sweep was `.md`/`.yaml`-only, so
+  three production `.ts` comments naming a dropped `users.tenant_isolation` policy survived it
+  and were caught only by the pre-push PR sweep. Scope a mirror grep by CLAIM across ALL tracked
+  files, never by the extension the rule doc happens to use.
