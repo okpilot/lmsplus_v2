@@ -772,9 +772,15 @@ Every query includes: WHERE organization_id = auth.org_id()
 
 Supabase RLS policy (applied to every table):
   CREATE POLICY "tenant_isolation" ON table_name
+    FOR SELECT
     USING (organization_id = (
       SELECT organization_id FROM users WHERE id = auth.uid()
     ));
+
+  NOTE: the FOR SELECT clause is load-bearing and is NOT optional — an
+  unqualified CREATE POLICY is FOR ALL and would govern INSERT/UPDATE/DELETE
+  too. docs/security.md §3 is the binding reference; no table in public
+  carries an unqualified tenant_isolation policy.
 ```
 
 This means:

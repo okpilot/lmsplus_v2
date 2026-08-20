@@ -678,33 +678,50 @@ the org scope and a `deleted_at IS NULL` filter in application code (#815, #1166
 
 ### Filtering Soft-Deleted Records
 
-All RLS `USING` policies on soft-deletable tables include the active filter:
+Nearly all RLS `USING` policies on soft-deletable tables include the active filter — the one
+exception is `organizations`, whose predicate keys on `id` and has never carried a `deleted_at`
+conjunct, so a reader of that table must filter explicitly (as `lib/queries/profile.ts` does):
 
 ```sql
--- Representative example (question_banks, 20260311000001_initial_schema.sql:318-327).
--- courses (:340) and lessons (:351) carry the identical policy.
-CREATE POLICY "tenant_isolation" ON question_banks
+-- Representative example (question_banks, 20260311000001_initial_schema.sql:318-326,
+-- re-emitted FOR SELECT by 20260820000100). courses (:340) and lessons (:351) carry
+-- the identical policy. The policy is FOR SELECT, so it takes USING only: there is no
+-- WITH CHECK, because these tables have no permissive write policy at all.
+CREATE POLICY tenant_isolation ON public.question_banks
+  FOR SELECT
   USING (
     organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
     AND deleted_at IS NULL          -- ← soft delete filter
-  )
-  WITH CHECK (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
-    AND deleted_at IS NULL
   );
 ```
+
+Note the dropped `WITH CHECK` was **not** inert while it existed: its `AND deleted_at IS NULL`
+is what prevented a user-scoped `UPDATE … SET deleted_at = now()`. It retired together with the
+whole user-scoped write path, which is what makes its removal safe — any future write policy on
+these tables must re-carry that conjunct itself.
 
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
 
-**`questions` is the exception to the policy *shape*, not to the filter.** Its
-`tenant_isolation` policy was narrowed to `FOR SELECT` in
-`20260809000100_questions_tenant_isolation_select_only.sql` so that the `is_admin()` write
-policies (`admin_insert_questions` / `admin_update_questions`, `20260324000054`) are the
-only write path — a `FOR ALL` tenant policy ORs with them and dissolves the role gate. A
-`FOR SELECT` policy takes no `WITH CHECK`, so `questions` has the `USING` half above and
-nothing else; the `deleted_at IS NULL` filter and the org predicate are byte-identical to
-the block above, so soft-delete filtering on reads is unchanged. See `docs/security.md` §3.
+**Every `tenant_isolation` policy is `FOR SELECT` — the filter is unchanged in all cases.**
+No table in `public` carries an unqualified (`FOR ALL`) tenant policy any more. Two independent
+grounds got them there, and the second is not a special case of the first:
+
+- **`questions`** was narrowed by `20260809000100_questions_tenant_isolation_select_only.sql` so
+  that the `is_admin()` write policies (`admin_insert_questions` / `admin_update_questions`,
+  `20260324000054`) are the only write path — a `FOR ALL` tenant policy ORs with them and
+  dissolves the role gate.
+- **`organizations`, `question_banks`, `courses`, `lessons`** were narrowed by
+  `20260820000100_tenant_isolation_select_only_four_tables.sql`. These have no role gate to
+  dissolve: `tenant_isolation` was their *only* policy, so `FOR ALL` was their entire access
+  control. They now have no permissive INSERT/UPDATE/DELETE policy at all, so every write goes
+  service-role — an authenticated **admin** is denied too, since `requireAdmin()` returns an
+  RLS-bound client.
+
+In every case a `FOR SELECT` policy takes no `WITH CHECK`, so each table has the `USING` half
+and nothing else, with the org predicate and (where present) the `deleted_at IS NULL` filter
+byte-identical to what mig 001 declared — so soft-delete filtering on reads is unchanged.
+See `docs/security.md` §3.
 
 **Exception:** `flagged_questions` table filters `deleted_at IS NULL` in application code (flag.ts), not in RLS, to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 
@@ -3070,7 +3087,7 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 The `security-auditor` agent flags:
 - Any new `CREATE TABLE` without `ENABLE ROW LEVEL SECURITY` — or with `ENABLE` but no `FORCE ROW LEVEL SECURITY` — in the same migration
 - Any command the table is INTENDED to permit with no policy covering it, or a policy whose predicate is too broad. NOT a missing clause the command cannot carry (`FOR SELECT`/`FOR DELETE` take `USING` only, `FOR INSERT` takes `WITH CHECK` only), and NOT a merely absent `WITH CHECK` on `FOR ALL`/`FOR UPDATE` — PostgreSQL reuses `USING` as the write check there. The PREDICATE is still judged: a reused `USING` constrains only the columns it names, so a hypothetical `FOR ALL USING (student_id = auth.uid())` session policy with no `WITH CHECK` would leave `score_percentage`/`mode`/`config` writable — flagged as too-broad, not as a missing clause. (Illustrative only: the real `quiz_sessions` is separately defended by the mig `20260605000001` column grant and `trg_quiz_sessions_immutable_columns`.)
-- Conversely, DO flag an unqualified (`FOR ALL`) `tenant_isolation` policy on a table that also has `is_admin()`-gated write policies — permissive policies OR, so it supplies a second, weaker write path and the role gate never binds (`questions`, mig `20260809000100`). See `docs/security.md` §3.
+- Conversely, DO flag an unqualified (`FOR ALL`) `tenant_isolation` policy on ANY table — the invariant is that no table in `public` carries one. Two independent grounds, neither a special case of the other: the table also has `is_admin()`-gated write policies, so permissive policies OR and the unqualified one supplies a second, weaker write path that defeats the role gate (`questions`, mig `20260809000100`); or the table has no intended user-scoped write path, so the unqualified policy IS the entire access control (`organizations`, `question_banks`, `courses`, `lessons`, mig `20260820000100`). See `docs/security.md` §3.
 - Any `DELETE FROM` statement in application code (must be `UPDATE ... SET deleted_at`)
 - Any `SECURITY DEFINER` function without a manual auth check inside
 - Any `SECURITY DEFINER` function without `SET search_path = public`

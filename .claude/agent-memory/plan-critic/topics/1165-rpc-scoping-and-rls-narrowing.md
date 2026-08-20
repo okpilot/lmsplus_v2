@@ -75,9 +75,14 @@ without grepping `prosecdef = false`.** These are SECURITY INVOKER and DO depend
 (documented at `docs/database.md:2583, 2603, 2631, 2651, 2689`).
 
 **(c) Docs that use the narrowed policy as a GENERIC example.**
-`docs/database.md:670-679` uses `questions`' `tenant_isolation` to illustrate soft-delete
-filtering for **every** soft-deletable table. Re-point that example at a table that is
-still `FOR ALL` (`question_banks`, `courses`) — do not edit it in place.
+`docs/database.md` (the soft-delete filtering block in §3) uses a `tenant_isolation` policy to
+illustrate soft-delete filtering for **every** soft-deletable table. **SUPERSEDED 2026-08-20 by
+mig `20260820000100`:** the advice below was to re-point that example at a table still carrying
+`FOR ALL` — namely `question_banks` or `courses`. Those are exactly the tables that migration
+narrowed, and **no table in `public` carries an unqualified `tenant_isolation` any more**, so
+there is nothing left to re-point to. The example was instead rewritten in place to the
+`FOR SELECT` shape. Do not act on the original advice; the general lesson still stands — check
+whether a doc uses the policy you are narrowing as a *generic* example before you narrow it.
 
 **Useful verified semantics for this class of review:**
 - `WITH CHECK` on a `FOR SELECT` policy is a hard error:

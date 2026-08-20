@@ -10,10 +10,15 @@ one — a reused `USING` constrains only the columns it names, leaving every oth
 A command with no permitting policy is denied by default — so on
 an immutable table, a read-only policy set is correct by design, not a gap.
 
-**Carve-out — role-gated tables.** On a table that also carries `is_admin()`-gated write policies,
-`tenant_isolation` MUST be declared `FOR SELECT`. An unqualified `CREATE POLICY` is `FOR ALL`, and
-Postgres ORs permissive policies, so it supplies a second, weaker write path and the role gate never
-binds. Current case: `questions` (mig `20260809000100`). See `docs/security.md` §3.
+**`tenant_isolation` is `FOR SELECT` — two independent grounds.** An unqualified `CREATE POLICY` is
+`FOR ALL`. **(a)** On a table that also carries `is_admin()`-gated write policies, Postgres ORs
+permissive policies, so it supplies a second, weaker write path and the role gate never binds —
+case `questions` (mig `20260809000100`). **(b)** On a table with no intended user-scoped write path,
+there is no role gate to dissolve because the unqualified policy IS the entire access control —
+cases `organizations`, `question_banks`, `courses`, `lessons` (mig `20260820000100`), written
+service-role only, where even an authenticated admin is denied. Do not read (a) as a precondition
+for (b). **Invariant: no table in `public` carries an unqualified `tenant_isolation`.**
+See `docs/security.md` §3.
 
 ```sql
 -- ✅ CORRECT: student_responses is IMMUTABLE — read policy only.

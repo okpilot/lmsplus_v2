@@ -111,42 +111,71 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
--- Tenant isolation policy (apply to EVERY table)
--- ⚠️ The unqualified form below is FOR ALL — it permits same-tenant INSERT, UPDATE
---    and DELETE. Use it ONLY when same-tenant users are actually meant to write.
---    Otherwise declare it FOR SELECT and leave writes with no permitting policy:
---      • table has is_admin()-gated write policies → MUST be FOR SELECT, or the
---        OR-ed FOR ALL supplies a second, weaker write path (see carve-out below)
---      • table is immutable / written only through SECURITY DEFINER RPCs → FOR SELECT
---    When declaring it FOR SELECT, DROP the WITH CHECK clause below — FOR SELECT
---    cannot carry one, and leaving it in place is a syntax error.
+-- Tenant isolation policy (apply to EVERY table). FOR SELECT is the DEFAULT.
+-- No table in public currently carries an unqualified (FOR ALL) tenant policy,
+-- and adding one is a defect on sight — see the two grounds below the block.
 CREATE POLICY "tenant_isolation" ON table_name
+  FOR SELECT
   USING (
     organization_id = (
       SELECT organization_id FROM users WHERE id = auth.uid()
     )
-  )
-  WITH CHECK (
-    organization_id = (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    )
   );
+
+-- ⚠️ The unqualified form below is FOR ALL — it permits same-tenant INSERT,
+--    UPDATE and DELETE, and is an EXCEPTION requiring explicit justification.
+--    Use it ONLY when same-tenant users are genuinely meant to write the table
+--    directly, which NO table in this schema currently does. It is wrong when:
+--      • the table has is_admin()-gated write policies → the OR-ed FOR ALL
+--        supplies a second, weaker write path and the role gate never binds
+--      • the table has no intended user-scoped write path — including one that
+--        is immutable or written only through SECURITY DEFINER RPCs or the
+--        service-role client → the FOR ALL policy IS the whole access control
+--    A FOR SELECT policy cannot carry WITH CHECK; leaving one in is a syntax
+--    error. Note the dropped WITH CHECK is often NOT inert — where it carried
+--    `AND deleted_at IS NULL` it was what blocked a user-scoped soft-delete
+--    UPDATE, so any future write policy must re-carry that conjunct itself.
+-- CREATE POLICY "tenant_isolation" ON table_name
+--   USING (
+--     organization_id = (
+--       SELECT organization_id FROM users WHERE id = auth.uid()
+--     )
+--   )
+--   WITH CHECK (
+--     organization_id = (
+--       SELECT organization_id FROM users WHERE id = auth.uid()
+--     )
+--   );
 ```
 
-**Carve-out — tables that also have role-gated write policies.** A `CREATE POLICY` with no
-`FOR` clause is `FOR ALL`: it governs SELECT, INSERT, UPDATE and DELETE. Postgres ORs
-permissive policies together, so on a table that *also* carries `is_admin()`-gated write
-policies, the unqualified tenant policy supplies a second, weaker write path and the role
-gate never binds — any in-org authenticated user satisfies same-org + `deleted_at IS NULL`.
-On such a table `tenant_isolation` must be declared **`FOR SELECT`**, which leaves the
-role-gated policies as the only write path. A `FOR SELECT` policy takes `USING` only, so
-its absent `WITH CHECK` is correct under the per-command rule above, not a gap.
+**`tenant_isolation` is `FOR SELECT`. Two independent grounds, and one invariant.** A
+`CREATE POLICY` with no `FOR` clause is `FOR ALL`: it governs SELECT, INSERT, UPDATE and
+DELETE. That is wrong on this schema for either of two reasons, and the reasons do not
+overlap — do not treat the first as the precondition for the second:
 
-`public.questions` is the current case. Its `tenant_isolation` policy was re-emitted as
-`FOR SELECT` with a byte-identical `USING` predicate in
-`supabase/migrations/20260809000100_questions_tenant_isolation_select_only.sql` (it had
-carried mig 001's unqualified form since `20260311000001_initial_schema.sql`). Resulting
-policy set:
+- **(a) The table also has role-gated write policies.** Postgres ORs permissive policies
+  together, so the unqualified tenant policy supplies a second, weaker write path and the
+  role gate never binds — any in-org authenticated user satisfies same-org +
+  `deleted_at IS NULL`. Declaring `tenant_isolation` `FOR SELECT` leaves the role-gated
+  policies as the only write path. Case: `public.questions`
+  (`20260809000100_questions_tenant_isolation_select_only.sql`).
+- **(b) The table has no intended user-scoped write path at all.** There is no role gate to
+  dissolve, because the unqualified policy *is* the entire access control and write access is
+  scoped only by org membership. Declaring it `FOR SELECT` leaves INSERT/UPDATE/DELETE with no
+  permitting policy, denied by default, matching rule 6. Cases: `organizations`,
+  `question_banks`, `courses`, `lessons`
+  (`20260820000100_tenant_isolation_select_only_four_tables.sql`).
+
+A `FOR SELECT` policy takes `USING` only, so its absent `WITH CHECK` is correct under the
+per-command rule above, not a gap.
+
+**Invariant: no table in `public` carries an unqualified `tenant_isolation` policy.** Six were
+created that way in `20260311000001_initial_schema.sql`; `users` was re-emitted as
+`users_select` / `users_update_own` (`20260311000004`, `20260312000012`), `questions` under
+ground (a), and the remaining four under ground (b). A new unqualified tenant policy is a
+defect on sight — see the template above, which now leads with the `FOR SELECT` form.
+
+Resulting policy set for `questions` (ground (a)):
 
 | Command | Policy |
 |---------|--------|
@@ -155,12 +184,15 @@ policy set:
 | UPDATE | `admin_update_questions` — `is_admin()` AND caller-org (`20260324000054`) |
 | DELETE | none — hard DELETE is blocked at the RLS layer, matching rule 6 |
 
-Sibling tables (`organizations`, `question_banks`, `courses`, `lessons`) still carry
-`tenant_isolation` in the same unqualified (`FOR ALL`) form — the shape is what is shared, not
-the predicate. This *carve-out* does not apply to them — they have no role-gated write
-policy for an unqualified tenant policy to override — but that is **not** a clean bill of
-health, and they should not be treated as reviewed-and-fine. They are a separate open item,
-out of scope here, tracked privately in `GHSA-hjp9-x868-7wgw`.
+Resulting policy set for each of `organizations`, `question_banks`, `courses`, `lessons`
+(ground (b)): SELECT via `tenant_isolation` with a byte-identical predicate, and **no
+permissive policy for INSERT, UPDATE or DELETE**. Consequence worth stating explicitly,
+because it differs from `questions`: an authenticated **admin** is denied too, since
+`requireAdmin()` returns an RLS-bound client and these four have no `is_admin()` write policy
+to fall back on. Writes to them go through the service-role client. `organizations` keeps its
+own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct — so it remains the
+only tenant-scoped table whose sole SELECT policy has no soft-delete filter, and a SECURITY
+INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 
 ### Role-Scoped Policies (where needed)
 
