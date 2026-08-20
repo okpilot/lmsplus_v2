@@ -33,7 +33,9 @@ Admin issues code (existing) → IssuedCodePanel shows code + "Send via email" b
   not available server-side, so treat unset as a misconfiguration and still send an absolute-shaped URL.
 - `apps/web/app/app/admin/internal-exams/email-queries.ts` —
   `getInternalExamCodeForEmail(codeId)`. Uses `adminClient` (mirrors `queries.ts` — cross-row
-  `users` reads unreliable under tenant_isolation RLS), scoped `.eq('organization_id', orgId).is('deleted_at', null)`,
+  `users` reads are impossible under `users_select`, which keys on `id = auth.uid()`; `users` has
+  no `tenant_isolation` policy, that one having been dropped for recursion in migs
+  `20260311000004`/`20260312000012`), scoped `.eq('organization_id', orgId).is('deleted_at', null)`,
   joins `users!student_id(full_name,email)` + `easa_subjects!subject_id(name)` (FK-hint `!` form per
   code-style §5 — mirror `queries.ts:161 listExamSubjects`, NOT the bare `easa_subjects(name)` at
   queries.ts:69). On error: `console.error` + `return null`

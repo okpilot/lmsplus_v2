@@ -28,10 +28,22 @@ the NEXT line — grep with `-A2` and filter for the table.
 - **Consequence:** a user-scoped client sees only its OWN `users` row, so every cross-row read or
   PostgREST `users` embed must use the service-role `adminClient`. RLS applies to embedded
   resources too — a non-visible embed comes back `null`, not an error.
+- **The failure is DETERMINISTIC, and the "PostgreSQL's planner is unreliable" framing was itself
+  the false claim.** A USING predicate is a filter: a plan choice cannot change which rows pass it,
+  and RLS plan-ordering rules (leakproof quals) govern side-channel leakage, not row visibility.
+  Peer rows fail `id = auth.uid()` every time; `auth.uid()` NULL yields NULL → still zero. The old
+  `tenant_isolation` did not misbehave subtly either — it raised 42P17 outright. So "returns no rows
+  every time, not intermittently" is VERIFIED TRUE (2026-08-20) and is a correction, not a
+  hedge-turned-false-certainty. Do not re-raise it as over-claiming.
 - Corroborated independently by
   `apps/web/app/app/admin/students/actions/toggle-student-status.integration.test.ts:16-18`, and by
   the three `apps/web/app/app/admin/internal-exams/` comments corrected on
   `fix/1175-tenant-isolation-select-only`. **Do not re-flag those three comments.**
+- **The SOURCE those comments mirrored is `docs/database.md:839`** ("Admin cross-row reads on
+  `users` (binding pattern)"), corrected in the same branch's final commit. Its five listed call
+  sites all verified on `adminClient` 2026-08-20 — note `internal-exams/queries.ts` reaches it
+  INDIRECTLY via `offsetAdminClient` (`_offset-query.ts:36`, a cast of `adminClient`), so a grep for
+  `adminClient` in that file returns nothing and reads as a violation. Trace the client alias.
 - Writes are blocked three layers deep, not just by RLS: mig `20260606000006` REVOKEs blanket
   UPDATE from `authenticated` and re-grants only `UPDATE (full_name)`; `users_update_own` matches
   zero rows for an admin targeting a student; `trg_protect_users_sensitive_columns`
