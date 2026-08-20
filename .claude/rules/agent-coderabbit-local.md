@@ -16,7 +16,7 @@ Do NOT run after every commit — too slow (2-5 min per round), no value on smal
 
 ## Apply-vs-Defer
 
-The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Defer-budget per PR is 0-2; 3+ is a red flag.
+The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Two budgets bind, both checked before push: VOLUME (0-2 deferrals per PR; 3+ does not fail automatically but means re-triaging every survivor and naming them in the push summary) and RATIO (if this PR filed anything at all and filed at least as many issues as it closes, counting every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all — `filed > 0 AND filed >= closed` — re-triage or claim the first-illumination exemption on its test).
 
 ## Verify Before Acting — MANDATORY GATE
 
@@ -146,6 +146,13 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
    - 2026-07-13 — CR-**local** CLI on `bcaf1c0e`: hallucinated a duplicate declaration.
    - 2026-08-07 — **cloud** CR on PR #1124: claimed `let resolveFlags` was declared twice in one scope in `use-session-bootstrap.test.ts`. Only 3 references exist in the file, all inside one `it()` block, one declaration. It was labelled 🔴 Critical — the PR's ONLY Critical — while `tsc` and the full suite were green on that exact head, which a real block-scoped redeclaration cannot be.
 
+   **The mirror image is also on record: CR asserting the ABSENCE of a guard that exists.** On
+   `content/vfr-rt-part3` CR-local round 3 claimed the header's "`--prune` … refused outright when
+   `--force-remote` is passed" had "no guard testing that pair". `import-vfr-rt-content.ts:145` is
+   exactly `if (REPLACE && FORCE_REMOTE) { … process.exit(1) }`. Applying the suggestion would have
+   replaced a TRUE statement with a vaguer one. So the claim-shape table's "absence is proof" cuts
+   both ways: when CR says something is MISSING, grep for it before believing the absence.
+
    Sharp lesson from PR #1124: severity was **not predictive** of correctness — the single Critical was fabricated while both Majors and the one Minor were real and worth applying. This extends #1–7's "read source, don't trust labels" guidance with a distinct and cheaper disproof: the described construct may be entirely absent.
 
 9. **A CR suggestion that sets a DISPOSITION is the highest-risk class to adopt verbatim — diff it against 2–3 existing implementations of the same operation before applying.** A *disposition* is the behavioural policy a fix encodes: return-on-error strategy (reject the whole payload vs skip the bad element), fallback value, validation posture, retry-vs-fail. CR sees only the diff, never the surrounding convention, so it proposes a locally-plausible policy that can invert the codebase's. This is distinct from #7 (suggestion contradicts a documented *rule*) — here there is often no written rule at all, only an established pattern in sibling code, so a rules grep comes back clean and the divergence passes review.
@@ -156,4 +163,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-08-18 (added § Verify Before Acting — MANDATORY GATE: a CR finding is a hypothesis about the code, and the claim-shape table says which assertions must be confirmed against source before ANY edit. Written after two findings in one round on `content/vfr-rt-part3` proved factually false while carrying correct paths and line numbers; mirrored into `.claude/commands/crlocal.md` and `.claude/commands/coderabbit.md`. Prior: 2026-08-16 (extended Pitfall #7 — the contradicting decision may live in the edited file's own comment block, not a rule file, and CSS layout/sizing suggestions must be MEASURED rather than reasoned about; learner count=4, PR #1201. Prior: 2026-08-11 Pitfall #9 — a CR suggestion that sets a DISPOSITION must be diffed against 2-3 existing implementations before adopting; count=3, PR #1185. Prior: 2026-08-08 Pitfall #8 — fabricated syntax/type-error findings, count=2, #1124.))*
+*Last updated: 2026-08-19 (Apply-vs-Defer restatement carries both budgets — volume and ratio — not just the 0-2 count, #1232; Pitfall #8 extended to CR asserting the ABSENCE of a guard that exists — `import-vfr-rt-content.ts:145`, #1231. Prior: 2026-08-18 § Verify Before Acting.)*

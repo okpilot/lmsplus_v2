@@ -245,3 +245,48 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
 | New app-layer integration test reuses a REAL seeded reference code | 2026-08-09 | 1 | 2026-08-09 | WATCHING. `seedReferenceData` upserts `onConflict: 'code'` — use a unique suffix. † |
 | A new authoring guard justified by a RUNTIME/UI mechanism the component contradicts | 2026-08-17 | 1 | 2026-08-17 | WATCHING. §10 beyond SQL. Read the renderer before writing why a content rule exists. † |
 | Content-file `authoring_notes` asserts a corpus invariant the corpus violates | 2026-08-17 | 1 | 2026-08-17 | WATCHING. Measure every countable claim against the JSON. † |
+
+## Tracker row detail moved out of MEMORY.md 2026-08-19 (budget)
+
+- FULL PRIOR ROW (line 22):
+
+  | Doc **or code comment** describes behavior the authority (migration body, RLS POLICY, CHECK constraint, or CONTENT CORPUS) contradicts | 2026-06-06 | 15 | 2026-08-19 | PROMOTED → code-style §10. **A "why this exists" docblock is a claim like any other — trace it; a comment that JUSTIFIES a gap is the highest-value claim to falsify.** **15th: a header enumerated "six collisions" while the function JSDoc 18 lines below still said "four", and both under-described what the code now captures — the partial-comment-edit tell, in the same file.** 14th: a docblock argued a tolerated gap was safe; a 3-line probe produced the false EXEMPT. 10th–13th (RLS blamed on a BYPASSRLS client; a wrong issue number PROPAGATED from an old comment; a doc path naming a dir holding no such file; "the line above it" off by one): instance detail in † commit-notes. |
+
+- FULL PRIOR ROW (line 29):
+
+  | Claim-correction commit introduces a NEW wrong count/label/ENUMERATION | 2026-08-15 | 9 | 2026-08-19 | RULE CANDIDATE. Re-derive the SET; **de-quantify** rather than patch the numeral. 9th: "all 14 mirrors" in a spec log, where the mirror table has 9 rows and its own paragraph says it "deliberately carries NO total". 6th: a rewritten WATCH list silently NARROWED — re-derive by `wc -l`, never edit down. **7th: "the two causes the dedup-read check names" — it names THREE, 175 lines up in the SAME file. Open the cited comment; don't recall it.** **8th: "bails on both" closing a caveat that enumerates THREE constructs — count the list you just wrote.** † |
+- FULL PRIOR CONTENT (MEMORY.md line 37):
+
+  - **`apps/web/scripts/**` is type-checked by `tsconfig.scripts.json` (#1219)** — chained into `check-types`, gating lefthook pre-commit AND the CI **`type-check`** job (NOT lint). `strict` + `noUncheckedIndexedAccess`, all 30 script files. Caveat: 13 of 17 script `createClient(...)` sites are UNTYPED → `Database` = `any`, so the schema-contract half is vacuous there.
+
+- FULL PRIOR CONTENT (MEMORY.md line 39):
+
+  - **Verify a staged commit in isolation when the tree carries WIP:** `T=$(git write-tree); C=$(git commit-tree $T -p HEAD -m tmp); git worktree add --detach <scratch> $C`, symlink `node_modules` in, run the gate, `git worktree remove --force`. A working-tree run does NOT prove the committed tree is green.
+
+## Row detail moved out of MEMORY.md 2026-08-19 (pre-push batch for PR #1235)
+
+### Index MUTATES mid-review — full instance list
+1. Staged tree lacked a fix the worktree had.
+2. `git show :<path>` returned two DIFFERENT bodies 4 min apart (implementer re-staged mid-round).
+3. Oracle rebuild: index moved 17:54:28→17:56:48 mid-round; `n.text` became a RAW SLICE and
+   `isTypeOnly` was added, invalidating a whole probe battery run against the earlier blob.
+4. Pre-push batch: index moved 00:44:38→00:45:36; `agent-memory.md` gained a capitalisation fix AND
+   lost a duplicated rationale clause. Two findings I had drafted against the stale blob were
+   already fixed — pinning prevented two FALSE findings, not merely stale ones.
+   Later mtime moves (00:45:36→00:51:23) carried NO content change: `git status` rewrites the index
+   to refresh its stat cache. Compare blob SHAs, never mtimes alone.
+
+### Claim-correction introduces a NEW wrong count — instances 11–12 (pre-push batch)
+- `docs/decisions.md`: "204 of those 300 were `.md`-only". Measured over `git log -300 origin/master`:
+  204 = commits touching **at least one** `.md`; `.md`-ONLY = **37**; commits qualifying for the
+  docs-only exemption = **17**. The derived "151 of those 204 qualify" is impossible under every
+  reading tried (all-.md-exempt-ignoring-other-paths = 104; any-exempt-.md = 182; all-.md-under-docs
+  = 30). "Three quarters of the class" is 17/37 = 46%, or 8.3% of 204.
+  The batch also added "(measured 2026-08-19 against `origin/master`)" — provenance stamped on a
+  figure nobody re-derived, which is what made the error look settled.
+- `.claude/run-log.md`: "eight issues — #1227 through #1234 — were filed during the same run".
+  Creation times UTC: #1227 02:36, #1228 02:37, #1229 02:38, #1230 02:54, #1231 03:38, #1232 10:14,
+  #1233 11:14, #1234 11:49. The row's own span is 11:11→19:58 UTC, so only #1233/#1234 qualify.
+  Reconstructed open counts: 134 @ 00:00Z, **140 @ 11:11Z**, 111 @ 19:58Z; 31 closed in-window,
+  2 filed in-window. The true bridge is 140 − 31 + 2 = 111. The 134 is the MIDNIGHT figure, and the
+  eight-issue bridge only closes if the baseline is midnight rather than the run start.

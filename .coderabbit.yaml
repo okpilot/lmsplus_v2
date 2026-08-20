@@ -196,6 +196,11 @@ reviews:
           the policy — so a DROP/CREATE-only search reports a stale predicate as current.
         - A claim propagated from another doc rather than re-derived from the code. A doc is
           evidence of what someone believed, never of what the code does.
+        - An ENUMERATION of an OPEN set in a comment or docblock — "the three callers", "both
+          consumers", "the tables that lack deleted_at" — where the set can gain a member after
+          the commit. State the derivation instead (how to find them), or mark the line as an
+          as-of measurement or an explicit illustration. code-style.md §10 clause 2. A CLOSED set,
+          one the code itself defines, is fine.
         - A PARTIAL comment edit — the strongest tell. When a change moves or alters code, the
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
@@ -214,7 +219,16 @@ reviews:
     # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
     # either costs nothing; the set is "binding docs plus a little", not the pure set.
-    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md}"
+    # This path list is the BINDING-DOCUMENT subset of agent-workflow.md § Rule-Mirror Sync, not
+    # the whole table: package.json is a mirror row too, reviewed INDIRECTLY — CLAUDE.md, which IS
+    # in this list, carries the pnpm.overrides audit instructions that apply to it. No
+    # path_instructions block matches package.json itself.
+    # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
+    # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
+    # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
+    # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
+    # revised in flight, so reviewing them is churn.
+    - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/requirements.md,.spec-workflow/specs/**/design.md}"
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
@@ -227,9 +241,26 @@ reviews:
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
-          explain — including counts of files, rules, specs or commits described elsewhere.
+          explain, or which contradicts a list in the same block. The defect is INTERNAL
+          INCONSISTENCY, not staleness.
+          Do NOT flag a standalone inventory count (how many red-team specs, E2E specs or
+          integration tests exist) for having drifted from the current file count: docs/decisions.md
+          Decision 58 deliberately accepts that drift, because chasing it cost more review rounds
+          than a stale number ever cost a reader who can run `ls`.
+        - An ENUMERATION of an OPEN set — one that can gain a member after the commit (files in
+          a directory, tables carrying a policy, issues filed on a branch, call sites matching a
+          pattern). Naming its current members, or counting them, is a claim that goes silently
+          false; the text must state the DERIVATION instead (a command, a query, a pointer to the
+          authoritative list), or mark the line as an as-of measurement or an explicit
+          illustration. code-style.md §10 clause 2. A CLOSED set — one the rule itself defines,
+          or a schema fact — is fine. This is distinct from the inventory-count drift above:
+          that is about not CHASING a stale number, this is about not WRITING one.
         - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
           restatement must either carry the current mechanics or be reduced to a pointer.
+        - A LITERAL COUNT of the post-commit exemptions, in digits OR in words. "the two
+          exemptions", "both are defined by", "claimed neither exemption" are all counts: they go
+          wrong the moment an exemption is added or removed, and this section has already gone
+          stale that way. Exemptions are named, never counted.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
@@ -302,12 +333,19 @@ reviews:
           session-derived columns. The outer auth guard does not cover these independent
           subqueries. Flag any INSERT INTO audit_events subquery missing AND deleted_at IS NULL.
         - Multi-policy RLS table reads: when a SECURITY INVOKER/DEFINER function reads a
-          table with more than one permissive SELECT policy (student_responses, quiz_sessions,
-          exam_configs, audit_events) and returns the caller's OWN rows, it must scope
-          explicitly with WHERE <owner_col> = auth.uid() (or an auth.uid() = p_student_id
-          identity guard). Postgres ORs permissive policies, so RLS alone over-scopes to the
-          broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
-          Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
+          table with more than one permissive SELECT policy and returns the caller's OWN rows,
+          it must scope the SELECT explicitly: WHERE <owner_col> = auth.uid(), or
+          WHERE <owner_col> = p_student_id PAIRED WITH an auth.uid() = p_student_id identity
+          guard. The identity guard alone only validates the parameter and does not scope the
+          read. Postgres ORs permissive policies, so RLS
+          alone over-scopes to the broader instructor/admin policy. Admin/org-wide RPCs behind
+          is_admin() are exempt. Flag any per-caller RPC reading SUCH a table without one of
+          the two scoping forms above — do not limit the check to a fixed list. The set is
+          derived from pg_policies (cmd IN ('SELECT','ALL'), permissive, GROUP BY tablename
+          HAVING count(*) > 1) and grows with any migration adding a second read policy;
+          docs/security.md §3 carries the current members, which as of 2026-05-26 were
+          student_responses, quiz_sessions, exam_configs and audit_events. Note cmd 'ALL' is
+          the unqualified CREATE POLICY form and permits SELECT too.
         - SECURITY DEFINER soft-delete SELECT filter: every SELECT inside a SECURITY DEFINER
           function must filter AND deleted_at IS NULL on soft-deletable tables. These functions
           are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
@@ -470,10 +508,16 @@ reviews:
           student_responses, quiz_session_answers, flagged_questions,
           question_comments. Hard DELETE risks 23503 violations and breaks
           docs/security.md rule 6. EXCEPTION — hard-delete-by-design tables with
-          no `deleted_at` column and no FK children (currently `quiz_drafts`) must
-          use `.delete()`, and cleanup/count queries must NOT add
-          `.is('deleted_at', null)` (the column does not exist; the cap trigger
-          counts unfiltered). Soft-deleting such a table errors at runtime.
+          a table DOCUMENTED as hard-delete-by-design in
+          docs/database.md §3 (quiz_drafts, exam_config_distributions,
+          question_comments) must
+          use `.delete()`. Where such a table also LACKS a `deleted_at` column
+          (quiz_drafts, exam_config_distributions), cleanup/count queries must
+          NOT add `.is('deleted_at', null)` — the column does not exist, so the
+          filter errors at runtime, and quiz_drafts' cap trigger counts
+          unfiltered. Note question_comments HAS the column and is still
+          hard-delete by policy: a missing column is a schema fact, never on
+          its own an authorization to hard-delete. §3 is the authority.
         - Cleanup helpers must chain `.select('id')` and gate logging on
           `data.length > 0` per code-style.md §5 (zero-row no-op rule). Silent
           on filter-only tests; observable when something actually changed.
@@ -571,13 +615,18 @@ reviews:
       - mode: "warning"
         name: "soft-delete-only"
         instructions: |
-          Flag any hard DELETE in application code or migrations on soft-delete tables:
-          organizations, users, question_banks, questions, courses, lessons, quiz_sessions,
-          flagged_questions, exam_configs, internal_exam_codes (derived from
-          packages/db/src/types.ts + docs/database.md §3 — update when a migration
-          adds/drops deleted_at). Must use UPDATE SET deleted_at = now() instead.
-          Hard-delete-by-design exceptions (docs/database.md §3): quiz_drafts,
-          exam_config_distributions, question_comments.
+          Flag any hard DELETE in application code or migrations on a soft-delete table;
+          it must use UPDATE SET deleted_at = now() instead.
+          Derive the set, do not trust a list: a table is soft-delete when it has a
+          deleted_at column in packages/db/src/types.ts AND docs/database.md §3 does not
+          record it as a hard-delete exception. Re-derive when a migration adds or drops
+          deleted_at. As of 2026-08-19 (UTC) the set was organizations, users, question_banks,
+          questions, courses, lessons, quiz_sessions, flagged_questions, exam_configs,
+          internal_exam_codes.
+          Hard-delete-by-design (docs/database.md §3): quiz_drafts,
+          exam_config_distributions, question_comments — the last of these DOES have a
+          deleted_at column, so it is absent from the set above by policy, not by oversight;
+          the column is an unused safety net and §3 records the exception.
 
   # ── Tools ──────────────────────────────────────────────────────────────
 

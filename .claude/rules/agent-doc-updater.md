@@ -51,13 +51,20 @@ When a doc commit adds a **structural** cross-reference to an existing section �
 2. Scan summary tables, matrices, and indexes that mention the target subject (e.g., the `## RPC Summary` row for the function, or schema matrices that list the table).
 3. Flag any claim that contradicts the latest migration or current code as DRIFT (severity: ISSUE; escalate to CRITICAL if it contradicts a rule in `docs/security.md` or `.claude/rules/security.md`).
 
-### Repeated numeric-literal counts (e.g. red-team spec count)
+### Repeated numeric-literal counts — DROPPED 2026-08-19 (#1222)
 
-When a commit adds a red-team Playwright spec (`apps/web/e2e/redteam/**/*.spec.ts`), the suite's spec-count appears as a **numeric literal in multiple current-state surfaces** and routinely goes stale in some but not all. Grep ALL occurrences of the count literal across `.spec-workflow/steering/tech.md` (it appears 3×: Testing section, Security & Compliance section, Decision 27) AND `docs/decisions.md` (Decision 27) so every current-state occurrence is corrected together. **Respect the steering boundary** (*What the agent does NOT do*, below): the doc-updater does NOT edit `tech.md` directly — it **flags every stale `tech.md` occurrence as DRIFT** and the orchestrator/approval flow applies the edit. `docs/decisions.md` is not a steering doc, so the doc-updater updates it directly per normal doc sync. **Exclude historical milestone records** — a phase-completion entry (e.g. `docs/plan.md` "Phase 5B-6 COMPLETE — N specs as delivered") documents the count at a point in time and must NOT be rewritten. The separate E2E suite count (`tech.md` "Playwright (N specs …)") is a different suite — out of scope for a red-team spec addition.
+This sub-rule obliged doc-updater to chase a stale count literal across `tech.md` ×3 + `decisions.md`
+(red-team spec count) and `docs/plan.md` (integration-test count). **It is dropped.** A stale count
+in a steering doc misleads nobody who can run `ls`, while chasing it cost real review rounds and
+fixup commits — the "counts — is nonsense" complaint that sourced #1222.
 
-**Why:** promoted at count=2 (PR #779-family `18→37` stale across tech.md ×3 + decisions.md, after a 2026-05-07 `9-spec` instance). The structural-cross-reference scope above does not catch grep-able repeated numeric literals; this sub-rule does.
+Deliberate consequence: those literals WILL drift and stay drifted. That is accepted. Do NOT flag a
+stale INVENTORY count as DRIFT, and do NOT re-derive one "while you are in there".
 
-The same sub-rule applies to the **integration-test count literal in `docs/plan.md`** (current-phase header + "Integration tests:" line): when a commit adds or removes tests under `packages/db/src/__integration__/`, grep `docs/plan.md` for the current-phase count literal and correct every current-state occurrence together (historical phase-completion entries stay untouched). Promoted at count=2+ on the #697 Phase A branch (115→118, 118→121, 121→125, 125→127 — each bump caught post-commit by the doc-updater instead of landing with the test commit). At count=3+ (2026-06-10) the primary duty shifted to the COMMITTER: update the plan.md count in the same commit that adds or removes integration tests; the doc-updater check remains as the safety net.
+**The exemption is staleness only, and only for inventory counts.** A count that is INTERNALLY
+inconsistent is still a finding: an "N + M" whose terms no longer sum to the headline they explain,
+or a total that contradicts a list in the same block. That is the `code-style.md` §10 defect and it
+is unaffected by this drop — `.coderabbit.yaml` draws the same line. See `docs/decisions.md`.
 
 ### `lefthook.yml` / `ci.yml` change ⇒ audit `CLAUDE.md` §QA-pipeline
 
@@ -86,4 +93,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-08-08 (broadened the migration/RPC/error-string/file-path citation NEVER bullet to cover commit SHAs cited as a change's causal source; 4th precedent added, 2026-08-07 batch-2 `pnpm.overrides` false-attribution. Prior: 2026-07-11 NEVER bullet — no DRIFT re-litigation.)*
+*Last updated: 2026-08-19 (repeated-numeric-literal sub-rules DROPPED — see docs/decisions.md Decision 58, #1222. Prior: 2026-08-08.)*

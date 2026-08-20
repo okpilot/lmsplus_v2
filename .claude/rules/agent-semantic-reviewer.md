@@ -11,7 +11,7 @@ Deep logic and security review at CodeRabbit depth. Catches what lint can't: log
 |-------|---------|--------|
 | CRITICAL | Exploitable security gap or data loss bug | Stop everything. Fix immediately. Re-run reviewer on the fix. |
 | ISSUE | Real bug or gap, even if not triggerable today | Fix now. Same session. No deferral. No "safe today" rationalization. |
-| SUGGESTION | Improvement, not a current gap | Fix if under 10 lines. Otherwise triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER to a GitHub Issue (with the reviewer's full rationale) only when all three defer conditions hold (≥30 LOC, separate concern, needs a design decision). |
+| SUGGESTION | Improvement, not a current gap | Fix if under 10 lines. Otherwise triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER to a GitHub Issue (with the reviewer's full rationale) only when all three defer conditions hold (≥30 LOC, separate concern, needs a design decision) AND the PR still clears both defer budgets — volume and filed-vs-closed ratio. |
 | GOOD | Positive pattern worth noting | Acknowledge in summary. No action needed. |
 
 ## Handling Results
@@ -48,4 +48,4 @@ Deep logic and security review at CodeRabbit depth. Catches what lint can't: log
 
 ---
 
-*Last updated: 2026-06-26 (added cross-surface answer-oracle check for shared-question-pool key RPCs — learner count=2, feat/study-mode-mc `ea1a455a`)*
+*Last updated: 2026-08-19 (SUGGESTION-row defer criteria now also require clearing both defer budgets, #1232. Prior: 2026-06-26 — added cross-surface answer-oracle check for shared-question-pool key RPCs — learner count=2, feat/study-mode-mc `ea1a455a`)*

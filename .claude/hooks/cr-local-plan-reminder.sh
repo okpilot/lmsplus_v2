@@ -54,9 +54,11 @@ flow before reading the next user message:
      to actually read the code, not a reflex-fix.
   4. EXECUTE the plan. Apply, type-check, run the affected tests, commit.
   5. RUN POST-COMMIT REVIEW AGENTS in parallel: code-reviewer,
-     semantic-reviewer, doc-updater, test-writer (mandatory) plus red-team
-     if security-sensitive paths changed, plus coderabbit-sync if rules
-     files changed. Then learner.
+     semantic-reviewer, doc-updater, test-writer (mandatory unless a
+     NAMED exemption in CLAUDE.md applies). Then learner — it reads the
+     cycle's findings, so it runs BEFORE the conditionals, and is skipped
+     entirely on a reduced cycle. Then red-team if security-sensitive
+     paths changed, then coderabbit-sync if rules files changed.
   6. RE-RUN `coderabbit review` for the next round.
 
 Do NOT skip step 3 (plan) or step 5 (review agents). Both have been

@@ -125,3 +125,81 @@ extract both bodies and `difflib` them rather than reading either. That is what 
 prose claim into finding #1 in one command. Enumerate the chain with a `grep -lE '(CREATE OR REPLACE|CREATE|DROP) FUNCTION[^;]*<name>'`
 over `supabase/migrations/*.sql` sorted by timestamp first — mig 153 supersedes via DROP+CREATE, so a
 `CREATE OR REPLACE`-only grep finds the wrong parent.
+
+## Comment/docblock false-claim row — full detail (relocated from MEMORY.md 2026-08-19)
+
+Tracker row: "Comment/docblock names a rule, symbol or file location a LATER commit retired,
+relocated or renumbered." First seen 2026-08-15, count 15, last 2026-08-19 (`7a02f45a`).
+Structurally invisible per-commit — apply on the PR-level sweep.
+
+**The sweep obligation (what §10 lacks, and the reason this is a PROMOTE candidate):** grep the OLD
+token tree-wide, not just touched files; re-read edited comments end-to-end; re-verify any "verbatim
+from mig X" claim by actual diff.
+
+**A comment-accuracy fix is the highest-risk site for a new one — 7 of 15 instances were created BY
+such a commit.**
+
+- 2026-08-16 PR-sweep added 6, four of them created or left standing by `070dca8f`, the
+  comment-accuracy FIX commit itself (incl. migs 158/159/160 "verbatim … only the comparison
+  changed", falsified by guards that same commit added).
+- 12th (`b28cc604`, post-merge audit): a NEW file's docblock (`apps/web/scripts/mc-content.ts`)
+  argued its gate from stored MC option order, which BOTH delivery RPCs shuffle (`ORDER BY random()`,
+  migs `20260702000300` / `20260623000600`).
+- 13th + 14th (`6cf8e1fc`, both in the CR-local fix commit itself), two NEW sub-mechanisms:
+  - (13) a comment asserting a mechanism "was pinned by nothing" while an EXISTING test in the SAME
+    file pins it — `mc-content.test.ts`'s new fixture claimed substring-vs-`===` was unpinned;
+    mutating `includes`→`===` reddens TWO tests, incl. the corpus sweep on exactly the PMC-03 case
+    the comment cites as its own evidence, and the sweep's own comment 20 lines above already says
+    so. **Run the mutation over the WHOLE file and read what else went red before claiming "pinned
+    by nothing".**
+  - (14) a comment naming a WRITE-path Zod schema as the READ-path enforcer —
+    `seed-quiz-setup-eval.ts` cites `draft-schema.ts` rejecting `currentIndex >= questionIds.length`
+    to claim a short draft is "unloadable"; `SaveDraftInput`'s only consumer is `saveDraft`, and NO
+    read path bounds-checks `current_index` (`rowToDraftData` passes it through; `loadDraftForResume`
+    never selects it; the real `>=` guard in `quiz-session-active-validation.ts` validates
+    **localStorage**, not the DB row). **Before citing a validator as the thing that rejects X, grep
+    its consumers and confirm it runs on the path you named.**
+- 15th (`7a02f45a`, the `code-style.md` §10 open-set-clause PROMOTION commit itself), two false
+  counts in prose it newly wrote:
+  - "the mirror stayed fail-open for **three** commits" (`agent-workflow.md § Rule-Mirror Sync`, and
+    again in the learner tracker row) — `git log --oneline 79384dce..c9b4db03` lists 6 commits, i.e.
+    5 intervening, 6 spanning. Three is defensible ONLY as the count of non-docs-only commits in
+    the range (e3ce7511, e5a3009c, b1280606) — but the text carried no such qualifier, and the
+    unqualified reading gives 6.
+  - "the no-soft-delete tables that lacked the `deleted_at` column **as of 2026-06-20**"
+    (`code-style.md § Soft-Delete Filter Requires the Column to Exist`) — the 7-table form of that
+    list landed in `12b553d2` on 2026-06-21 and the current 10-table form in `e12ed809` on
+    2026-07-12; there is no 2026-06-20 measurement. The ten NAMES are correct today (verified against
+    the live schema: exactly those ten `public` base tables lack `deleted_at`), so only the date is
+    false.
+
+Detail on the six rows added by the 2026-08-16 PR-level sweep: see § PR-level sweep 2026-08-16 above.
+
+## Row detail relocated from MEMORY.md (2026-08-19, budget compaction)
+
+### Local-clock (+0200) date stamped while UTC is still the PRIOR day
+`e65f01f4` re-dated `.coderabbit.yaml` and one `commit-review-log.md` row local→UTC, declared the
+defect a promotion candidate, then ADDED six `2026-08-19` stamps (4 impl-critic tracker `Last Seen`
+cells, 2 topic-file relocation headers) for work committed 2026-08-19 23:06Z; a 7th landed in
+`attack-surface.md` via `a046d103`. Every `.claude/rules/*.md` footer in the same commit correctly
+reads 2026-08-19. Remedy: derive every dated stamp from `TZ=UTC git log -1 --date=iso-local
+--format=%ad` (note plain `%ad` prints the commit's OWN +0200 offset and is NOT a UTC read), never
+from the shell clock — the machine is +0200, so every commit after 22:00Z is a trap.
+
+### Authoring gate argued from STORED order on a SHUFFLED delivery surface
+`mc-content.ts` key-balance + leading-run docblocks (`b28cc604`). On the STUDENT paths
+(`answer-options.tsx`, `options-list.tsx`) letter and marker derive from the same array so they
+cannot disagree — but the ADMIN editor `option-editor.tsx` IS the exception: a fixed a/b/c/d slot
+grid matched against the SLOT letter, so a gapped run marks the wrong row and saving rewrites the
+key from the slot (#1223). Fix landed in `c5d5a98b` (PR #1225): the WHY LEADING RUN block now cites
+the admin-editor slot-grid mis-render (#1223) + the `questions_mc_correct_option_id_check` DB CHECK,
+not student-visible order. Before accepting any "guessable / the student sees X" rationale on MC
+options, ordering items or diagram labels, check whether the delivering RPC shuffles that array —
+three of them do. Such a gate may still be worth keeping; restate the WHY, do not delete it.
+
+### Enforcer-mirror incompleteness — the exception/suppression clause is the miss (`9ab38454`)
+The rule-11 "an identity guard is not an owner filter" edit reached `security-auditor.md` check 18
+but not the SAME file's DO-NOT-FLAG suppression 9, ~85 lines below, which still leads with the bare
+`auth.uid()` / `p_student_id` shorthand. Suppressions fail OPEN, so the enforcer's exception ended up
+looser than its own check. Generalises the earlier `.coderabbit.yaml` path-block instances: a mirror
+sweep must cover a check's exception and DO-NOT-FLAG clauses, which sit far from the check text.

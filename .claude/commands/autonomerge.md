@@ -12,7 +12,7 @@ Complete the described work autonomously through the full pipeline, open the PR,
 
 ## The pipeline
 
-Run the **identical pipeline as `/automerge`** — every stage in its `## The pipeline` and `## Pre-push gate` sections (Explore → root cause → interview → spec → plan + validate → plan-critic → execute → implementation-critic → commit with all hooks → post-commit agents [+ red-team / coderabbit-sync when triggered] → validate findings → fix + re-review → learner → Apply-vs-Defer discipline → PR-level semantic sweep → `/crlocal` → `/fullpush` → push to a feature branch → open the PR).
+Run the **identical pipeline as `/automerge`** — every stage in its `## The pipeline` and `## Pre-push gate` sections (Explore → root cause → interview → spec → plan + validate → plan-critic → approval (invoking `/autonomerge` is the approval to BUILD and PUSH, and nothing more — this command never merges, and with no active goal the orchestrator still asks) → execute → implementation-critic → commit with all hooks → post-commit agents → validate findings → fix + re-review → learner → [red-team / coderabbit-sync when triggered] → Apply-vs-Defer discipline → PR-level semantic sweep → `/crlocal` → `/fullpush` → push to a feature branch → open the PR).
 
 All the same rules bind: never push to `master`, never `--no-verify`, never amend after a hook failure, implementation-critic never skips, no in-flight findings at push, default APPLY / DEFER-with-issue / SKIP-with-reason.
 

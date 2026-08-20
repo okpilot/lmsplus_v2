@@ -32,7 +32,7 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 - Flag file size violations where all over-limit lines are pre-existing (no `+` lines in the diff hunk). Only flag size violations introduced or worsened by the commit.
 
 ## Known Suppressions
-The agent definition (`.claude/agents/code-reviewer.md`) has 8 built-in suppressions. These are intentional — do not flag them:
+The agent definition (`.claude/agents/code-reviewer.md`) carries a `## DO NOT (explicit suppressions)` list. It is the authority and it grows; the summary below is a reading aid, not a census. These are intentional — do not flag them:
 - Hydration guard `useEffect` (not data fetching)
 - 4-param infrastructure utilities (documented JSDoc exception)
 - Duplicate types under 3 instances
@@ -44,4 +44,4 @@ The agent definition (`.claude/agents/code-reviewer.md`) has 8 built-in suppress
 
 ---
 
-*Last updated: 2026-07-06 (added suppression #8 — React render/return bodies 30–35 lines, pure JSX composition; count 7→8, #1074)*
+*Last updated: 2026-08-19 (the suppression COUNT is gone — the agent definition's own list is the authority and it grows, so a number here is one more thing to keep in sync; `code-style.md` §10 open-set clause, learner count=2. Prior: 2026-07-06 — added the React render/return-body suppression, 30–35 lines of pure JSX composition, #1074)*
