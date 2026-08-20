@@ -87,10 +87,20 @@
  * fail for the RIGHT reason. Ordering them first keeps the mutation-check
  * result clean: every red is a denial arm, every green is a control.
  *
- * Admin arm. An authenticated ADMIN is denied too. requireAdmin() returns an
+ * Admin arms. An authenticated ADMIN is denied too. requireAdmin() returns an
  * RLS-bound client and these four have no is_admin() write policy to fall back
  * on — the disanalogy with `questions`. That consequence is deliberate, so it
  * is pinned as a tested contract rather than left as prose.
+ *
+ * Two arms, deliberately REPRESENTATIVE rather than exhaustive, and the reason
+ * is structural: after the migration NONE of the four tables has a permissive
+ * write policy of any kind, so admin denial is one absence, not twelve
+ * independent behaviours. The 13 student arms above are what establish that the
+ * gate closes per table and per verb; these two establish only the orthogonal
+ * fact that ROLE does not change the answer. They therefore vary both axes —
+ * different table AND different verb (courses/INSERT, organizations/UPDATE) —
+ * rather than restating one cell four times. Do not read the pair as coverage
+ * of 4 tables × 3 verbs for admins; it is not, and does not need to be.
  *
  * Hermeticity (code-style.md §7). Every row attacked is one this spec created,
  * in an org this spec owns. Nothing here touches egmont-aviation or
@@ -633,7 +643,7 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     expect(after?.id).toBe(orgAId)
   })
 
-  // ------------------------------------------------------------- admin arm
+  // ------------------------------------------------------------ admin arms
 
   test('an authenticated admin cannot create a course through the RLS-bound client', async () => {
     // Deliberate consequence, pinned as a contract: unlike `questions`, these
@@ -654,5 +664,29 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
       .eq('title', marker)
     expect(readError).toBeNull()
     expect(created ?? []).toHaveLength(0)
+  })
+
+  test('an authenticated admin cannot retire an organisation through the RLS-bound client', async () => {
+    // Second admin arm, varying BOTH axes from the one above (different table,
+    // different verb) — see the header note on why the pair is representative
+    // rather than exhaustive. This is also the sharpest pre-fix primitive: the
+    // organizations WITH CHECK keyed on `id` alone, so a soft-delete UPDATE
+    // satisfied it. An admin is denied it now for the same reason a student is:
+    // there is no permissive UPDATE policy at all.
+    const { data: updated, error: updateError } = await adminUserA
+      .from('organizations')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', orgAId)
+      .select('id')
+    expect(updateError).toBeNull()
+    expect(updated ?? []).toHaveLength(0)
+
+    const { data: after, error: afterError } = await adminClient
+      .from('organizations')
+      .select('deleted_at')
+      .eq('id', orgAId)
+      .single()
+    expect(afterError).toBeNull()
+    expect(after?.deleted_at).toBeNull()
   })
 })
