@@ -1035,8 +1035,12 @@ The clauses that carry most of the weight:
    memory delta was left unstaged and so missed the commit it belonged to. Note the deleted-and-
    recreated-file case is the nastier half: staging the deletion without staging the new file
    passes every grep, because the content is on disk the whole time — and `git diff --staged` alone
-   does NOT catch it either: an untracked file is not staged, so it appears in no diff (verified —
-   `git diff --staged --name-status` prints nothing for one). Run
+   does NOT catch it either: an untracked file is not staged, so it never appears in the staged diff
+   (verified — in that scenario `git diff --staged --name-status` prints `D <old path>` for the old
+   file and NO LINE AT ALL for the replacement: it shows the staged DELETION and so looks like a
+   complete answer, while saying nothing about whether the replacement was staged. The claim is the
+   absence of a line for the REPLACEMENT, not the absence of other lines: any other staged file
+   prints its own line, so "the diff is empty" is not the test and never was). Run
    `git status --short --untracked-files=all` ALONGSIDE the staged diff; `??` entries are the
    half the diff cannot show. The explicit flag is load-bearing: a repo or user config setting
    `status.showUntrackedFiles=no` drops every `??` line from the bare form while tracked entries
