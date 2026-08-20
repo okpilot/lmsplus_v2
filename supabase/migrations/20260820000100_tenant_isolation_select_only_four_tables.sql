@@ -8,9 +8,10 @@
 -- courses :340, lessons :351) and none has been touched since. All three
 -- supersession forms were traced: supabase/migrations/ contains no ALTER POLICY
 -- STATEMENT (grep the phrase and the only hit is this comment), no later bare
--- CREATE POLICY on any of the four, and the only DROP POLICY ...
+-- CREATE POLICY on any of the four, and the only PRE-EXISTING DROP POLICY ...
 -- tenant_isolation statements target users (20260311000004:6,
--- 20260312000012:11) and questions (20260809000100:124).
+-- 20260312000012:11) and questions (20260809000100:124) — this file adds four
+-- more below, so read that enumeration as "before this migration".
 --
 -- Unlike questions, these four carry NO OTHER POLICY AT ALL. questions had
 -- is_admin()-gated write policies that the OR-ed FOR ALL policy dissolved;
@@ -90,8 +91,10 @@
 -- .is('deleted_at', null) itself) and
 -- apps/web/app/app/admin/questions/actions/insert-question.ts:21
 -- (question_banks). courses and lessons have zero PRODUCTION call sites — the
--- only reference to either in the tree is this commit's own red-team spec,
--- apps/web/e2e/redteam/tenant-tables-direct-write.spec.ts. No
+-- only .from('courses')/.from('lessons') call site anywhere in the tree is this
+-- commit's own red-team spec, apps/web/e2e/redteam/
+-- tenant-tables-direct-write.spec.ts (both tables are of course still modelled
+-- in packages/db/src/types.ts and created by mig 001). No
 -- migration reads or writes these tables, there is no trigger on any of them,
 -- no SECURITY INVOKER function references them, and all 13 child FKs are
 -- NO ACTION, so nothing cascades a write into them.
@@ -100,9 +103,12 @@
 -- rather than organization_id and carries no deleted_at conjunct. Byte-identical
 -- reproduction is the acceptance criterion of #1175, and adding the filter would
 -- be a read-behaviour change. Consequence a future author must know:
--- organizations REMAINS the only tenant-scoped table whose sole SELECT policy
--- has no soft-delete conjunct — it already was one, this migration does not
--- create the asymmetry — so a SECURITY INVOKER function reading organizations
+-- organizations REMAINS the only one of the five tables carrying a
+-- tenant_isolation policy whose predicate has no deleted_at conjunct — it
+-- already was, this migration does not create the asymmetry. (It is not the
+-- only soft-deletable table read without an RLS deleted_at filter at all:
+-- flagged_questions filters in flag.ts by design, and quiz_sessions' student
+-- SELECT policy omits it too.) So a SECURITY INVOKER function reading organizations
 -- CANNOT rely on RLS for soft-delete scoping and must filter explicitly, the way
 -- profile.ts already does.
 --
@@ -111,10 +117,15 @@
 -- reason is different. No migration in this repo issues an explicit
 -- BEGIN;/COMMIT; (verify with `grep -l 'BEGIN;' supabase/migrations/*.sql` —
 -- the only hit is this comment; a bare count is not stated because the set
--- grows with every migration), so atomicity rests on the runner — and if the
--- runner does not wrap the file and an earlier statement aborts it, the only
--- live read path (profile.ts:67) is left untouched on the old policy rather
--- than stranded mid-conversion. Do NOT add a bare BEGIN; here: it diverges from
+-- grows with every migration), so atomicity rests on the runner. If the runner
+-- does not wrap the file and a statement aborts mid-way, every pair after the
+-- abort keeps its old policy and every pair before it has the new one — no
+-- table is left policy-less, because each DROP is immediately followed by its
+-- CREATE. BOTH user-scoped reads are exposed to that window equally
+-- (question_banks is the FIRST pair, organizations the last), so the order does
+-- not privilege one over the other; organizations is last simply because it is
+-- the tenant root, and its read (profile.ts:67) is the one that already
+-- degrades gracefully. Do NOT add a bare BEGIN; here: it diverges from
 -- 20260809000100 and risks a nested-transaction warning.
 --
 -- After this migration, no table in the public schema carries an unqualified

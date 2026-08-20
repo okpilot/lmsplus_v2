@@ -678,9 +678,13 @@ the org scope and a `deleted_at IS NULL` filter in application code (#815, #1166
 
 ### Filtering Soft-Deleted Records
 
-Nearly all RLS `USING` policies on soft-deletable tables include the active filter — the one
-exception is `organizations`, whose predicate keys on `id` and has never carried a `deleted_at`
-conjunct, so a reader of that table must filter explicitly (as `lib/queries/profile.ts` does):
+Most RLS `USING` policies on soft-deletable tables include the active filter, with documented
+exceptions: `organizations`, whose predicate keys on `id` and has never carried a `deleted_at`
+conjunct (so a reader must filter explicitly, as `lib/queries/profile.ts` does);
+`flagged_questions`, which filters in application code instead — see the callout below; and
+`quiz_sessions`' student SELECT policy `students_select_sessions` (`20260313000023:14-16`),
+which is `USING (student_id = auth.uid())` alone, the `deleted_at` conjunct being carried only
+by the instructor policy:
 
 ```sql
 -- Representative example (question_banks, 20260311000001_initial_schema.sql:318-326,

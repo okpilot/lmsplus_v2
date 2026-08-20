@@ -171,8 +171,9 @@ per-command rule above, not a gap.
 
 **Invariant: no table in `public` carries an unqualified `tenant_isolation` policy.** Six were
 created that way in `20260311000001_initial_schema.sql`; `users` was re-emitted as
-`users_select` / `users_update_own` (`20260311000004`, `20260312000012`), `questions` under
-ground (a), and the remaining four under ground (b). A new unqualified tenant policy is a
+`users_select` (`20260311000004`, `20260312000012`, which are also what dropped its
+`tenant_isolation`) and later gained `users_update_own` (`20260326000056`), `questions` was
+narrowed under ground (a), and the remaining four under ground (b). A new unqualified tenant policy is a
 defect on sight — see the template above, which now leads with the `FOR SELECT` form.
 
 Resulting policy set for `questions` (ground (a)):
@@ -191,7 +192,9 @@ because it differs from `questions`: an authenticated **admin** is denied too, s
 `requireAdmin()` returns an RLS-bound client and these four have no `is_admin()` write policy
 to fall back on. Writes to them go through the service-role client. `organizations` keeps its
 own predicate asymmetry — it keys on `id` with no `deleted_at` conjunct — so it remains the
-only tenant-scoped table whose sole SELECT policy has no soft-delete filter, and a SECURITY
+only one of the five `tenant_isolation` tables whose predicate has no soft-delete filter (it is
+not the only soft-deletable table read without one — `flagged_questions` filters in `flag.ts`,
+and `quiz_sessions`' student SELECT policy omits it), and a SECURITY
 INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 
 ### Role-Scoped Policies (where needed)

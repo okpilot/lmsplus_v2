@@ -135,11 +135,12 @@ async function upsertSpecOrg(
 ): Promise<string> {
   const { data, error } = await admin
     .from('organizations')
-    // `settings: {}` is load-bearing, not tidiness: the organizations UPDATE arm
+    // `settings: {}` keeps the fixture pristine: the organizations UPDATE arm
     // attacks that column, so after any run where the migration was ABSENT the
-    // forged payload would still be there. Without this reset the arm's
-    // before/after service-role comparison — its PRIMARY proof — would compare
-    // the forged value against itself and pass regardless.
+    // forged payload would otherwise persist into the next run. Non-vacuity does
+    // NOT depend on this reset — the arm reads `before` fresh at test time and
+    // writes a per-run unique value, so a successful write always changes the
+    // comparison. This is hygiene on a spec-owned row, not the guard.
     .upsert({ name, slug, settings: {}, deleted_at: null }, { onConflict: 'slug' })
     .select('id')
     .single()
