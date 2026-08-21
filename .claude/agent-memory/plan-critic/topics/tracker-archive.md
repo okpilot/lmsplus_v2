@@ -96,3 +96,30 @@ Verbatim. Re-promote into `MEMORY.md` if the pattern recurs.
 | Cross-org non-vacuity: assert BOTH that the victim org HAS the resource and the attacker org does not. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
 | Red-team scaffolds needing multiple caller roles must enumerate every required client fixture. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-14 | 1 | 2026-06-14 | WATCHING |
 | RETURNS TABLE extension requires DROP+CREATE, not CREATE OR REPLACE. ([details](topics/vfr-rt-question-type-clone-plans.md)). | 2026-06-20 | 1 | 2026-06-20 | WATCHING |
+
+## Relocated tracker rows — 2026-08-20 (cold count=1, last seen 2026-08-15 … 2026-08-19)
+
+| Pattern | First Seen | Count | Last Seen | Status |
+|---|---|---|---|---|
+| Rule-restatement plans that enumerate "Files to change" by LINE NUMBER miss occurrences of the same phrase at unlisted lines in the same file — the SAME-WORD-DIFFERENT-LINE gap. `CLAUDE.md:183` "claimed neither exemption" missed while `:547` in agent-workflow.md listed. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| A wording-constraint that says "replace every COUNT" without naming grammatical count synonyms ("both", "neither") leaves implementers fixing numerals and skipping pronouns — the synonym must be named explicitly. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| Plans that explicitly say "leave historical entry X alone" in docs/decisions.md satisfy themselves by ruling out an OLD entry while the AC requires a NEW one — the two are different rows. | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| A reduced-cycle justification claims "agent X has nothing to assess" when it DOES (code-reviewer checks actual line counts, not stripped counts; comment additions can breach §1 size limits). | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| A DERIVED-value redesign specifies the derivation for ONE input domain (text) and leaves the other (floats/coords) unspecified — in the module the plan itself calls "the single owner of the contract". ([details](topics/derived-content-ids-20260817.md#1)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| Deriving an id from a VISUAL/cosmetic constant turns style edits into breaking data changes; the Risk row covers the normalizer, never the INPUTS. ([details](topics/derived-content-ids-20260817.md#2)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| "Existing tests name specific <values>" — grep the literals; they already derived them, and the REAL work (an assertion made unfalsifiable by the new alphabet) went unbudgeted. ([details](topics/derived-content-ids-20260817.md#3)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| An extract-for-line-budget item moves a `console.warn` and never greps the test asserting that exact STRING; the cited precedent's prefix shape differs, so "mirrors X" rewrites it. ([details](topics/derived-content-ids-20260817.md#4)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| A root-guard rewrite copied from a sibling adds an EXTRA clause a later check already rejects — dead clause AND a vacuous new test for it. ([details](topics/derived-content-ids-20260817.md#4)). | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
+| FILE-OWNERSHIP table built from stream GLOBS: an item whose file is outside its OWN step's row is silently unassigned. ([details](topics/typo-tolerance-split-20260815.md#9)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Contract-RETIREMENT items enumerate code-side statements and miss `docs/` prose — grep the CLAIM repo-wide. ([details](topics/typo-tolerance-split-20260815.md#10)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Multi-STREAM plans partition by FEATURE AREA, not by FILE — build the file→stream map. ([details](topics/typo-tolerance-split-20260815.md#8)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Renumber PRESERVE set enumerated from citations NAMING the object, missing same-number citations reached otherwise — grep the NUMBER. ([details](topics/typo-tolerance-split-20260815.md#8)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| "Zero-deferral" plans hide unfinished work in a SUGGESTION-disposition TABLE — simulate each APPLY row. ([details](topics/typo-tolerance-split-20260815.md#7)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| A mechanical refactor sold as a BUG's mechanism — count the corpus rows it actually changes. ([details](topics/typo-tolerance-split-20260815.md#7)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| A new corpus/lint GATE with no cleanup of the artifact it guards — fails on first run. ([details](topics/typo-tolerance-split-20260815.md#7)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| A doc COUNT literal fixed in one stream, invalidated by a later one — order the count fix last. ([details](topics/typo-tolerance-split-20260815.md#7)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Over-broad THRESHOLD patched with a denylist — simulate over the real corpus; the TIER may be the bug. ([details](topics/typo-tolerance-split-20260815.md#1)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Sibling GRANT cited as precedent and widened unread; "no GRANT" ≠ "not exposed" (PUBLIC EXECUTE default). ([details](topics/typo-tolerance-split-20260815.md#2)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Migration-SPLIT "verbatim" via body-diff misses REVOKE/GRANT/COMMENT; risk is PARTIAL APPLICATION, not ordering. ([details](topics/typo-tolerance-split-20260815.md#4)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| Prod-write script keys rows on a NON-UNIQUE tuple vs the UNIQUE index; also cited a nonexistent column. ([details](topics/typo-tolerance-split-20260815.md#5)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |
+| `extensions.levenshtein` with no length guard — ERRORs >255 chars while Zod caps at 500; execution-only. ([details](topics/typo-tolerance-split-20260815.md#3)). | 2026-08-15 | 1 | 2026-08-15 | WATCHING |

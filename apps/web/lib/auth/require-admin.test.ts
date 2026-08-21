@@ -61,24 +61,24 @@ describe('requireAdmin', () => {
     expect(isMock).toHaveBeenCalledWith('deleted_at', null)
   })
 
-  it('redirects to /auth/login when not authenticated', async () => {
+  it('redirects to the login page when not authenticated', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'No session' },
     })
 
-    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
-    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
-  it('redirects to /auth/login when user has no session', async () => {
+  it('redirects to the login page when the user has no session', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: null,
     })
 
-    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
-    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
   it('redirects to /app/dashboard when user is not admin', async () => {

@@ -1025,6 +1025,29 @@ The clauses that carry most of the weight:
    (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
    block.
 
+4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
+   `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
+   returns clean the moment the correct text exists on disk — it cannot tell you whether that text
+   is in the commit. Promoted at learner count=2 on `fix/admin-auth-cache-and-notfound`, both
+   instances verifiable in that branch's history: an e2e spec was extracted to a NEW file while its
+   tests were removed from the old one, and the new file sat untracked — one `git add` from the
+   branch losing that coverage entirely while every grep still found it; and a review agent's
+   memory delta was left unstaged and so missed the commit it belonged to. Note the deleted-and-
+   recreated-file case is the nastier half: staging the deletion without staging the new file
+   passes every grep, because the content is on disk the whole time — and `git diff --staged` alone
+   does NOT catch it either: an untracked file is not staged, so it never appears in the staged diff
+   (verified — in that scenario `git diff --staged --name-status` prints `D <old path>` for the old
+   file and NO LINE AT ALL for the replacement: it shows the staged DELETION and so looks like a
+   complete answer, while saying nothing about whether the replacement was staged. The claim is the
+   absence of a line for the REPLACEMENT, not the absence of other lines: any other staged file
+   prints its own line, so "the diff is empty" is not the test and never was). Run
+   `git status --short --untracked-files=all` ALONGSIDE the staged diff; `??` entries are the
+   half the diff cannot show. The explicit flag is load-bearing: a repo or user config setting
+   `status.showUntrackedFiles=no` drops every `??` line from the bare form while tracked entries
+   still print (verified — the output is a SHORTENED list, not an empty one; clause 4 always runs
+   with a tracked edit present, so a populated `git status --short` is no evidence that untracked
+   files are absent). That fails open in exactly the case this clause exists to catch.
+
 
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules already in `.claude/rules/agent-critic.md`, `.claude/rules/agent-semantic-reviewer.md`, `.claude/rules/agent-red-team.md`, and the agent definitions `.claude/agents/plan-critic.md` and `.claude/agents/implementation-critic.md` (the last two exist only under `.claude/agents/`) — those tell reviewers to trace the `CREATE OR REPLACE FUNCTION` chain before *flagging*; this rule tells authors to trace it before *asserting*.
 
@@ -1053,4 +1076,4 @@ Promoted at count=3 (implementation-critic's own tracker reached this independen
 
 ---
 
-*Last updated: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.))*
+*Last updated: 2026-08-20 (§10 gained clause 4 — "Verify the fix is STAGED, not merely written": `git grep` reads the WORKING TREE, so it returns clean the moment the correct text exists on disk and says nothing about what is in the commit. Learner count=2, on the two staging instances clause 4's body and tracker-archive row 640 both name: an e2e spec extracted to a NEW file that sat untracked while its tests were removed from the original, and a review agent's memory delta left unstaged and missing the commit it belonged to. (An earlier draft cited `57c3b452`/`d8d32b1f`; those describe the PARTIAL-EDIT pattern of clause 3, not the staging one.) Prior: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)))*

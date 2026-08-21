@@ -118,10 +118,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
     // (#1167). The gate itself is unchanged — a non-admin still never reaches an
     // /app/admin route — only what they see when blocked.
     //
-    // Target is `/app/dashboard`, NOT `/app`: there is no `app/app/page.tsx` and
-    // no custom `not-found.tsx`, so `/app` is a built-in 404 — bouncing there
-    // would just trade a bare 403 for a bare 404. `/app/dashboard` is the same
-    // destination the authenticated-root redirect below uses.
+    // Target is `/app/dashboard`, NOT `/app`: since #1170 `/app` is itself only a
+    // redirect to `/app/dashboard`, so bouncing there would add a hop to reach the
+    // same place. (Before #1170 it was worse — `/app` had no page at all and
+    // rendered a bare 404.) `/app/dashboard` is the same destination the
+    // authenticated-root redirect below uses.
     //
     // No redirect loop: /app/dashboard is not an admin route, and the consent
     // gate above has already run for this request.

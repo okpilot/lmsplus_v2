@@ -39,24 +39,24 @@ describe('requireAuthUser', () => {
     expect(result).toEqual(fakeUser)
   })
 
-  it('redirects to /auth/login when getUser returns an auth error', async () => {
+  it('redirects to the login page when getUser returns an auth error', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'invalid token' },
     })
 
-    await expect(requireAuthUser()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
-    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
+    await expect(requireAuthUser()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
-  it('redirects to /auth/login when getUser returns null user with no error', async () => {
+  it('redirects to the login page when getUser returns null user with no error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
 
-    await expect(requireAuthUser()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
-    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
+    await expect(requireAuthUser()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
-  it('redirects to /auth/login exactly once per unauthenticated call', async () => {
+  it('redirects to the login page exactly once per unauthenticated call', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
 
     await expect(requireAuthUser()).rejects.toThrow()

@@ -97,7 +97,11 @@ After answering the checklist:
     # unstaged or untracked mirror edit is invisible to it and silently bypasses the 7b docs gate.
     # Capture separately: a command substitution that FAILS yields an empty string, and `set -e`
     # does not fire inside `[[ ... ]]` — so an errored `git status` would read as "clean" and pass.
-    STATUS=$(git status --porcelain) || { echo 'git status failed — ABORT'; exit 1; }
+    # `--untracked-files=all` is load-bearing, not decoration: `--porcelain` honours
+    # `status.showUntrackedFiles`, so a repo or user setting it to `no` drops every `??` line and an
+    # untracked mirror edit leaves $STATUS empty — the gate then PASSES on exactly the case this
+    # comment says it fails closed on (code-style.md §10 clause 4, same mechanism).
+    STATUS=$(git status --porcelain --untracked-files=all) || { echo 'git status failed — ABORT'; exit 1; }
     if [[ -n "$STATUS" ]]; then
       echo 'Uncommitted changes — commit docs, rules and mirrors before pushing. ABORT'; exit 1
     fi

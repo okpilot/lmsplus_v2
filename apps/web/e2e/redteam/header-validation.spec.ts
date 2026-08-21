@@ -17,8 +17,8 @@
  * returns. This test verifies that branch is exercised.
  *
  * Updated (#1167): the branch used to emit a bare `403 Forbidden` body; it now
- * bounces to /app/dashboard (NOT /app — there is no app/app/page.tsx, so /app
- * is a built-in 404). The authorization decision is unchanged — a non-admin still never
+ * bounces to /app/dashboard (NOT /app — which since #1170 is itself only a
+ * redirect to /app/dashboard, so it would add a hop). The authorization decision is unchanged — a non-admin still never
  * reaches the route — so this spec still guards the same vector, now asserting
  * the redirect exit instead of the 403 exit. Both exits are synthetic
  * (hand-built NextResponse), so both must carry the headers.
@@ -37,7 +37,7 @@ import { expect, test } from '@playwright/test'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // Two response classes carry different CSPs:
-// - Routed responses (`/`, `/auth/login`): full CSP from next.config.ts —
+// - Routed responses (`/`, `/auth/forgot-password`): full CSP from next.config.ts —
 //   default-src 'self', supabase.co connect-src, etc.
 // - Edge-Middleware redirects (`/app/dashboard` for unauth users): minimal
 //   hardened CSP set by proxy.ts — default-src 'none'; frame-ancestors 'none'.
@@ -45,7 +45,10 @@ import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/s
 const PATHS = [
   { name: 'root', path: '/', responseClass: 'routed' },
   { name: 'dashboard (unauth → redirect)', path: '/app/dashboard', responseClass: 'redirect' },
-  { name: 'login', path: '/auth/login', responseClass: 'routed' },
+  // Was `/auth/login`, which is not a route at all — there is no `login/` directory
+  // under `app/auth/` — so that entry exercised a 404 rather than the routed auth
+  // page it named. `/` is the real login page, already covered above as `root`.
+  { name: 'forgot password', path: '/auth/forgot-password', responseClass: 'routed' },
 ] as const
 
 const EXACT_HEADERS = [
@@ -108,6 +111,12 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
       // redirects from middleware (e.g. unauth /app/* → /).
       const response = await request.fetch(path, { maxRedirects: 0 })
       expect(response.status(), `unexpected response for ${path}`).toBeLessThan(500)
+      // A Next 404 is <500 AND still receives the next.config.ts `/(.*)` headers,
+      // so status alone cannot tell a routed page from a missing one — which is how
+      // the old `/auth/login` entry passed for months while pointing at no route.
+      if (responseClass === 'routed') {
+        expect(response.status(), `${path} is not a routed page`).toBe(200)
+      }
 
       assertSecurityHeaders(response.headers(), path, responseClass)
     })
