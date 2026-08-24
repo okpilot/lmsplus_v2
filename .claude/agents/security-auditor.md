@@ -139,7 +139,7 @@ You receive:
 24. Missing `'use client'` / `'use server'` boundary violations
 25. Dependencies added without a comment explaining why they're trusted
 
-### Pre-Flag Verification — trace the CREATE OR REPLACE chain (checks 16–20)
+### Pre-Flag Verification: Supersession Chain (checks 16–20)
 
 Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the supersession chain — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION`, sorted by migration timestamp prefix — to the LATEST definition. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. `supabase/migrations/` is the sole source of truth for current SQL (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it; re-check any such path against `supabase/migrations/`).
 

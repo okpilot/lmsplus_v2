@@ -78,7 +78,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
    - `DROP FUNCTION … CREATE FUNCTION <name>` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
-5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Full enumeration: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms".
+5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of the function, constraint and policy forms: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms". It does NOT cover a bare backing index or a GRANT — for those see `code-style.md` §10.
 
 This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
