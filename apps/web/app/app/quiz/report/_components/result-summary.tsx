@@ -30,11 +30,12 @@ type Props = Readonly<{ summary: QuizReportSummary }>
  * than its denominator on real exams. `answeredItems === 0` renders an em dash rather than
  * "0 / 0" — the timer-expiry path zeroes the counts and inserts no answer rows at all.
  *
- * `skipped` is clamped at 0: the admin session route still derives `answeredQuestions` from
- * a raw answer-ROW count (`admin-quiz-report.ts`, "KNOWN LIMITATION (#991)"), which
- * overshoots `totalQuestions` on non-MC sessions — reproduced locally as "SKIPPED -2" on a
- * 3-question dialog session, and the same code path serves production. The clamp keeps this
- * component honest until that query is fixed.
+ * `skipped` renders an em dash when `answeredQuestions` exceeds `totalQuestions`: the admin
+ * session route still derives `answeredQuestions` from a raw answer-ROW count
+ * (`admin-quiz-report.ts`, "KNOWN LIMITATION (#991)"), which overshoots `totalQuestions` on
+ * non-MC sessions — reproduced locally as "SKIPPED -2" on a 3-question dialog session, and
+ * the same code path serves production. An em dash rather than a clamped 0, because 0 reads
+ * as authoritative while being wrong in the direction that flatters the student.
  */
 function deriveStats(summary: QuizReportSummary): {
   correctFraction: string
