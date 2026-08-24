@@ -1044,22 +1044,30 @@ The clauses that carry most of the weight:
    in both the decisions footer AND `docs/plan.md`. Reading the block caught NONE of them — by
    construction, since every instance was in a different file, a different section, or a separate
    comment block. A repo-wide FIXED-STRING grep caught them. So the mechanical step is:
-   after correcting any claim, run `git grep -nF -- '<retracted phrase>'` (or
-   `grep -RFn -- '<retracted phrase>' .`) and confirm zero hits describe current behaviour.
-   Cheap, and it is the only thing that has actually worked. **`-F` and the path are both
-   load-bearing, and both fail OPEN.** Without `-F` the phrase is a REGEX, so any retracted
-   wording containing `(`, `*`, `[`, `.` or `?` silently matches nothing — verified: with
-   `count(*)::int` on disk, `grep -rn "count(*)::int" .` returns no match while `grep -RFn`
-   finds it. Without a path argument `grep -rn` does NOT read stdin — GNU grep falls back to
-   the CURRENT WORKING DIRECTORY when given `-r`/`-R` — so it silently narrows the sweep to
-   wherever you happened to invoke it, which is repo-wide only if you were at the repo root.
-   (An earlier draft of this clause claimed it reads stdin. That was measured with a pattern
-   that ALSO contained regex metacharacters, so the empty result came from the missing `-F`
-   and was attributed to the wrong cause — a confounded test inside the rule about
-   unverified claims. Corrected by implementation-critic.) Either way the check can report
-   the clean result it exists to disprove, which
-   is the same fail-open shape §10 clause 4 documents for reading the working tree instead of
-   the index. `git grep` is preferred: it is repo-scoped by default and cannot lose the path.
+   after correcting any claim, run `git grep -nF -- '<retracted phrase>' -- :/` from anywhere
+   in the repo (or `grep -RFn -- '<retracted phrase>' .` from the repo root) and confirm zero
+   hits describe current behaviour. Cheap, and it is the only thing that has actually worked.
+
+   **Both `-F` and an explicit repo-wide path are load-bearing, and both fail OPEN.** Measured
+   on this repo, 2026-08-24:
+   - Without `-F` the phrase is a REGEX. With `count(*)::int` on disk,
+     `grep -rn "count(*)::int" .` returns 0 hits; `grep -RFn` returns them.
+   - Without an explicit path, BOTH tools narrow to the CURRENT DIRECTORY subtree — they do
+     not read stdin and they do not search the repo. `git grep -nF -- "Rule-Mirror Sync"`
+     returns many hits from the repo root and **exactly zero** from `apps/web/`, same
+     toplevel — the zero is the load-bearing half, and no count is quoted because this very
+     paragraph contains the phrase and would date it (clause 2). `git grep`
+     is NOT repo-scoped by default; `-- :/` is what makes it so. (`--full-tree` is a
+     `git ls-tree` option and is rejected by `git grep`.)
+
+   Either way the sweep reports the clean result it exists to disprove — the same fail-open
+   shape clause 4 documents for reading the working tree instead of the index.
+
+   This clause has now shipped THREE false claims in three drafts: `grep -rn` reads stdin
+   (it does not), `git grep` is repo-scoped by default (it is not), and `--full-tree` scopes
+   it (no such option). Each draft was written to fix the previous one's error, inside the
+   rule about unverified claims. Every assertion above is a pasted measurement; if you edit
+   this clause, re-measure rather than reason, and change one claim at a time.
 
 4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
    `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
