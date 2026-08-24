@@ -113,11 +113,13 @@ describe('ReportCard', () => {
 
   it('skips questions that were never answered', () => {
     // totalQuestions=3, answeredQuestions=2 → Skipped = 1. A swap to answeredItems (3)
-    // would render 0.
+    // would render 0. The stat appears once per layout (desktop + mobile); both must agree.
     render(<ReportCard {...defaultProps} />)
-    const skippedLabel = screen.getByText('Skipped')
-    const skippedValue = skippedLabel.parentElement?.querySelector('p:last-child')
-    expect(skippedValue?.textContent).toBe('1')
+    const skippedLabels = screen.getAllByText('Skipped')
+    expect(skippedLabels).toHaveLength(2)
+    for (const label of skippedLabels) {
+      expect(label.parentElement?.querySelector('p:last-child')?.textContent).toBe('1')
+    }
   })
 
   it('renders all question rows', () => {
