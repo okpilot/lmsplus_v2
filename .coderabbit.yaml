@@ -205,6 +205,12 @@ reviews:
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
           or a count left stale by lines the same commit added, are the canonical instances.
+        - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
+          not sufficient — after correcting any claim, the retracted phrase must be grepped
+          repo-wide and every surviving hit confirmed not to describe current behaviour.
+          code-style.md §10 clause 3, promoted at learner count=4: a block-read caught none of
+          four instances (each in a different file, section or comment block) and the grep
+          caught all four.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
           explain. A correct total under an incomplete explanation invites the next reader to
           "correct" it back to a wrong one.
@@ -240,6 +246,10 @@ reviews:
         - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
+        - A corrected claim whose OLD wording survives in a non-adjacent doc, comment or rule
+          file. After correcting any claim in these binding surfaces, the retracted phrase must
+          be grepped repo-wide and every hit confirmed not to describe current behaviour — a
+          block-read cannot find a restatement it does not contain. code-style.md §10 clause 3.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
           explain, or which contradicts a list in the same block. The defect is INTERNAL
           INCONSISTENCY, not staleness.
@@ -416,10 +426,18 @@ reviews:
           is a non-unique index, and require a functional/integration test that executes the
           function. (code-style.md §5; mig 085 record_consent #386.)
         - Deferred-validation SQL in plpgsql, general case: the same apply-vs-execution gap
-          covers EXECUTE format(...) and regex literals (POSIX bracket-class shorthand like
+          covers EXECUTE format(...), regex literals (POSIX bracket-class shorthand like
           '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
-          mig 101, 2026-06-10). Flag any migration changing a plpgsql body containing these
-          constructs that lacks a functional/integration test executing the function.
+          mig 101, 2026-06-10), an unqualified column shadowed by a same-named RETURNS TABLE OUT
+          parameter (42702 — always alias the source table: FROM users u WHERE u.id = auth.uid();
+          code-style.md §5 (c)), NULL propagating through a helper call into a NOT NULL column
+          (23502 — coalesce at the call site, and check whether sibling callers already do;
+          code-style.md §5 (d)), and an aggregate feeding a RETURNS TABLE column whose cast was
+          dropped (count(*)::int -> count(DISTINCT x) widens the column to bigint and raises
+          42804 on the first call; keep the cast — mutation-confirmed 2026-08-24 on
+          list_my_internal_exam_history, code-style.md §5 failure mode (e)). Flag any migration
+          changing a plpgsql body containing these constructs that lacks a
+          functional/integration test executing the function.
           (code-style.md §5 "Validate at Execution, Not Apply".)
 
     # Tests — behavioral naming + navigation mock URL assertions
