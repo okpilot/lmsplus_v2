@@ -1,6 +1,6 @@
 # Agent Rules — critic (plan-critic + implementation-critic)
 
-> Model: **sonnet — always, no exception** (see § Model tier) | Trigger: pre-commit (plan + implementation) | Blocking: on CRITICAL/ISSUE
+> Model: **Sonnet — both critics, always; review work never drops to Haiku** (the repo-wide tier rule — Sonnet for every subagent, Haiku for mechanical checks, Opus for the orchestrator only — is in § Model tier) | Trigger: pre-commit (plan + implementation) | Blocking: on CRITICAL/ISSUE
 
 ## Purpose
 Pre-commit quality gates that catch plan-level and implementation-level errors before they reach `git commit`. Plan-critic reviews validated plans against the codebase. Implementation-critic reviews staged changes against the approved plan. Together they reduce the volume of post-commit findings by catching mistakes earlier.
@@ -9,14 +9,14 @@ Pre-commit quality gates that catch plan-level and implementation-level errors b
 
 Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels are introduced for critic handling.
 
-## Multi-Round Review Discipline (plan-critic + post-commit reviewers)
+## Multi-Round Review Discipline (post-commit reviewers)
 
-> Rationale: LLM review is probabilistic — one clean pass is one sample, not proof. This ports the `agent-coderabbit-local.md` non-determinism discipline to internal review. Applies to **plan-critic** and the post-commit **semantic-reviewer** / **code-reviewer**. It does NOT apply to **implementation-critic** (see exemption below).
+> Rationale: LLM review is probabilistic — one clean pass is one sample, not proof. This ports the `agent-coderabbit-local.md` non-determinism discipline to internal review. Applies to the post-commit **semantic-reviewer** / **code-reviewer**. It does NOT apply to **implementation-critic** (see the exemption below), and as of 2026-08-24 it no longer applies to **plan-critic** either, which runs ONCE — see § Model tier, "Never run critic ROUNDS on plan PROSE".
 
 - **Coverage rounds vs stability rounds.** A *coverage round* runs critics with distinct lenses in parallel to surface findings broadly (breadth). A *stability round* re-runs the SAME critic configuration against the SAME (unchanged) artifact to test for variance (depth). **Only stability rounds count toward the clean-floor** — diverse-lens coverage rounds find different things; they do not prove any one lens is stable.
 - **Minimum consecutive-clean floor (stability rounds).** The gate is NOT satisfied by one clean round:
-  - **N = 2** consecutive clean stability rounds for a normal multi-file plan.
-  - **N = 3** when the plan/diff touches a security path — the canonical trigger set from `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), determined from the plan's file list (plan reviews) or `git diff origin/master...HEAD --name-only` plus staged changes (diff reviews). Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`") — an unresolvable base must ABORT, never be read as "no paths matched".
+  - **N = 2** consecutive clean stability rounds for a normal multi-file diff.
+  - **N = 3** when the diff touches a security path — the canonical trigger set from `agent-workflow.md § Red-Team Agent Trigger` (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), determined from `git diff origin/master...HEAD --name-only` plus staged changes. Fetch and verify the base first (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`") — an unresolvable base must ABORT, never be read as "no paths matched".
   - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply). Stylistic-only and skip-with-reason findings do NOT break a clean round.
 - **Reset on finding; not on skip.** Any round with an APPLY finding resets the consecutive-clean counter to 0 (fix, then resume counting). A validated skip-with-reason (false positive / contradicts the codebase pattern) does NOT reset — otherwise the validate-first discipline (`agent-workflow.md § Finding Validation`) is structurally penalized.
 - **Wording-refinement findings are bounded to ONE round (#1222) — but a FALSE claim is not a
@@ -51,8 +51,9 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
     the round history and drops the repeat.
 
   Applies to plan-critic and implementation-critic as well as the post-commit reviewers — though
-  implementation-critic takes the CLASSIFICATION only, never the clean-round floor, from which it
-  stays exempt for the reasons below (its artifact mutates on every fix). Mirrors
+  BOTH critics take the CLASSIFICATION only, never the clean-round floor: implementation-critic is
+  exempt for the reasons below (its artifact mutates on every fix), and plan-critic runs once, so
+  neither has a floor for a refinement to hold open. Mirrors
   the post-commit stop rule in `CLAUDE.md § Post-commit review`. Rationale: an LLM reviewer returns
   non-empty on almost any prose, so the loop ends by rule or not at all. On this branch a single
   hook file drew four §10 wording findings across three critic rounds while the defects that
@@ -60,7 +61,7 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 - **Ceiling / diminishing returns.** Cap at **4 total rounds**. If the floor is unmet at the ceiling, STOP and **escalate to the user** with the residual findings — do not loop. This replaces "orchestrator resolves directly" for the ceiling case: when the orchestrator cannot converge the critics, the user decides.
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (the `git diff --staged`) MUTATES on every fix, so "consecutive clean on the same artifact" is undefined; and it has no skip condition, so a floor would force ≥2 passes on every trivial commit. It keeps its existing **2-round revision maximum + orchestrator takeover** (below).
 - **Learner counting.** A finding that recurs across rounds of the SAME gate on the SAME artifact counts as ONE occurrence for the learner's frequency tracker (which promotes at 2+ across *different* commits, per `agent-learner.md`) — the orchestrator deduplicates within-run recurrences before reporting to the learner.
-- **Scope / cost.** plan-critic already skips <10-line single-file changes (its cost control). Post-commit reviewer multi-round applies only when the diff touches the security-path trigger set above; otherwise a single post-commit pass stands. Coverage rounds may run in parallel to bound wall-clock.
+- **Scope / cost.** Post-commit reviewer multi-round applies only when the diff touches the security-path trigger set above; otherwise a single post-commit pass stands. Coverage rounds may run in parallel to bound wall-clock. (plan-critic's cost control is separate and no longer lives in this section: it runs once, and skips <10-line single-file changes altogether.)
 - **Model tier — EVERY subagent runs Sonnet (or Haiku for mechanical checks). Opus is the
   orchestrator, and only the orchestrator. No security-path exception.** Superseded 2026-08-24
   (user directive: *"let's really think about Opus as the orchestrator and rest sonnet. cost is
@@ -98,19 +99,19 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 ### DO
 - Run plan-critic on every multi-file plan, after validation and before user approval.
 - Fix all ISSUE and CRITICAL findings before proceeding to execution (plan-critic) or commit (implementation-critic).
-- Run plan-critic under the **Multi-Round Review Discipline** (above): coverage rounds surface findings, then require N consecutive clean stability rounds (2 normal / 3 security-path), ceiling 4, then escalate to the user. (Supersedes the former single-revision-round cap.)
+- Run plan-critic **ONCE** per plan — no coverage rounds, no consecutive-clean floor, no ceiling. Fix its APPLY-worthy findings and proceed. If a finding is severe enough that the plan must be redrafted, the redraft is a NEW plan and gets its own single run. (2026-08-24: supersedes the consecutive-clean floor, which now governs the post-commit reviewers only. A plan is prose, and rounds on prose do not converge — § Model tier.)
 - Respect the 2-round revision cap for implementation-critic. After 2 rounds between critic and implementer without convergence, the orchestrator takes over.
 - Treat SUGGESTION findings as non-blocking — note them in the summary but do not gate on them.
 - Validate critic findings before acting on them, same as with semantic-reviewer (see Finding Validation in `agent-workflow.md`).
-- For plan-critic CRITICAL findings, the orchestrator resolves directly — do not send back for a revision round.
+- For plan-critic CRITICAL findings, the orchestrator resolves directly — with a single run there is no revision round to send them back to.
 - Report critic findings to the user in the agent findings summary (agent / severity / count / status) alongside post-commit agent results.
 - Run implementation-critic on staged changes even for small single-file edits — only plan-critic is skipped for trivial changes.
 - Trace `CREATE OR REPLACE FUNCTION` chain to the latest definition before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md`, `semantic-reviewer.md`, and `implementation-critic.md`.
 
 ### NEVER
 - Skip implementation-critic, even for small changes. Plan-critic may be skipped for single-file changes under 10 lines, but implementation-critic always runs.
-- Exceed the round ceiling — **4 total rounds for plan-critic** (then escalate to the user, per the Multi-Round Review Discipline), **2 revision rounds for implementation-critic** (then the orchestrator takes over). Infinite loops waste time and context.
-- Count a coverage round (diverse lenses) toward the plan-critic consecutive-clean floor — only same-configuration stability rounds count.
+- Re-run plan-critic on the same plan to chase a clean round — it runs ONCE. For implementation-critic, exceed **2 revision rounds** (then the orchestrator takes over). Infinite loops waste time and context.
+- Count a coverage round (diverse lenses) toward a post-commit reviewer's consecutive-clean floor — only same-configuration stability rounds count.
 - Apply the consecutive-clean floor to implementation-critic — it is exempt (moving artifact + no skip condition).
 - Let critics modify code or plans directly. Critics report findings; the orchestrator or implementing agent makes changes.
 - Replace post-commit agents with pre-commit critics. Critics are additive — they reduce but do not eliminate the need for post-commit review.
@@ -120,4 +121,4 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 
 ---
 
-*Last updated: 2026-08-24 (Model tier: EVERY subagent runs Sonnet/Haiku and Opus is the orchestrator only, no security-path exception — the carve-out was over-applied to every lens on every round; plus never run critic rounds on plan PROSE, cap coverage at 2 lenses, and prefer executable verification, since the tier is only a 1.67x lever while fan-out was ~67%. Prior: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and do not break the clean-round floor — the same effect as a validated skip-with-reason, but NOT classified as one, since that term is reserved for findings wrong on the merits — and must record the one-line basis on which the prose is TRUE, from FALSE claims about a guard/count/invariant, which are never bounded (the CHAIN is capped in `CLAUDE.md § Post-commit review`, at 3 follow-up commits then escalate) — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*
+*Last updated: 2026-08-24 (plan-critic is OUT of the Multi-Round Review Discipline — it runs ONCE, per § Model tier's "Never run critic ROUNDS on plan PROSE"; the section heading, its scope sentence, the refinement-classification sentence, the DO bullet and two NEVER bullets all still demanded a consecutive-clean floor and a 4-round ceiling for it, and the mirrors in `agent-workflow.md`, `.claude/agents/plan-critic.md`, `.claude/commands/automerge.md` and `.claude/commands/wrapup.md` said the same. The floor now governs the post-commit reviewers only. The L3 model summary also read "sonnet — always, no exception" while § Model tier carves out Haiku for mechanical checks and Opus for the orchestrator; it now states what is true of the two critics and points at § Model tier for the repo-wide rule. Both were found by cloud CodeRabbit on PR #1242; the full mirror set was enumerated by the plan-critic agent. Model tier: EVERY subagent runs Sonnet/Haiku and Opus is the orchestrator only, no security-path exception — the carve-out was over-applied to every lens on every round; plus never run critic rounds on plan PROSE, cap coverage at 2 lenses, and prefer executable verification, since the tier is only a 1.67x lever while fan-out was ~67%. Prior: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and do not break the clean-round floor — the same effect as a validated skip-with-reason, but NOT classified as one, since that term is reserved for findings wrong on the merits — and must record the one-line basis on which the prose is TRUE, from FALSE claims about a guard/count/invariant, which are never bounded (the CHAIN is capped in `CLAUDE.md § Post-commit review`, at 3 follow-up commits then escalate) — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*
