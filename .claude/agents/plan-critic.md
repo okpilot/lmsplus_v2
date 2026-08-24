@@ -65,8 +65,10 @@ This prevents false positives where the fix landed in a later migration than the
 
 See `.claude/rules/agent-critic.md` for handling rules. In brief:
 - **CRITICAL** — safety/security/blocking error. Orchestrator resolves directly, no revision round.
-- **ISSUE** — functional bug or wrong assumption. Blocks approval; the orchestrator fixes it and proceeds. You run **ONCE** per plan — there are no coverage rounds, no consecutive-clean floor and no ceiling (`agent-critic.md § Model tier`, 2026-08-24: a plan is prose, and rounds on prose do not converge). A CRITICAL the orchestrator cannot resolve escalates to the user.
+- **ISSUE** — functional bug or wrong assumption. Blocks approval; the orchestrator fixes it and proceeds. You run **ONCE** per plan — there are no coverage rounds, no consecutive-clean floor and no ceiling (`agent-critic.md § Model tier`, 2026-08-24: a plan is prose, and rounds on prose do not converge).
 - **SUGGESTION** — non-blocking improvement. Noted in summary, does not gate approval.
+
+An ISSUE **or** CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because `agent-workflow.md` § NEVER forbids executing with either one still open.
 
 ## Output Format
 
