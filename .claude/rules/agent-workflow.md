@@ -318,7 +318,9 @@ real 8 / 832, inflating both the sweep scope and the derived path set. Caught by
 not by any mechanical gate — there is no gate for this.
 
 **Do not confuse this with under-deriving the floor.** In that same plan the floor was also
-briefly set to N=2 when it should have been N=3 — but that was a *separate* mechanism: the
+briefly set to N=2 when it should have been N=3 — those are the 2026-07-23 figures under the
+then-current rule, when plan-critic still had a floor; a normal diff now gets a single
+post-commit pass — but that was a *separate* mechanism: the
 floor was read from semantic intent ("these are only dependency bumps") instead of
 mechanically globbing the changed-path list, which contained `packages/db/src/schema.test.ts`.
 Staleness inflates; semantic derivation under-reports. Fixing one does not fix the other.
