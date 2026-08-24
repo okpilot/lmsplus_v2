@@ -46,7 +46,7 @@ function Stat({
 type StatsProps = Readonly<{
   summary: QuizReportSummary
   correctFraction: string
-  skipped: number
+  skipped: string | number
   dateStr: string
 }>
 

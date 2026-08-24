@@ -82,8 +82,14 @@ export async function getAdminQuizReportSummary(
     // should be COUNT(DISTINCT question_id), not the row count. MC sessions (the only
     // non-dormant producer today) are correct on both: one row per question ⇒ rows ===
     // questions === items.
-    answeredQuestions: answeredCount ?? session.total_questions,
-    answeredItems: answeredCount ?? session.total_questions,
+    // On a null count, fall back to 0, NOT to total_questions. total_questions is
+    // QUESTION-level, so feeding it to answeredItems reinstates the exact item/question
+    // scale mix Decision 60 removed — the report would silently render
+    // correctCount / total_questions again and could exceed 1. 0 routes answeredItems to
+    // the em dash and answeredQuestions to "all skipped", both of which read as a failed
+    // count rather than as a fabricated one.
+    answeredQuestions: answeredCount ?? 0,
+    answeredItems: answeredCount ?? 0,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,

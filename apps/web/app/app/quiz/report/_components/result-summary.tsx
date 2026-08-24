@@ -38,13 +38,20 @@ type Props = Readonly<{ summary: QuizReportSummary }>
  */
 function deriveStats(summary: QuizReportSummary): {
   correctFraction: string
-  skipped: number
+  skipped: string | number
   dateStr: string
 } {
   return {
     correctFraction:
       summary.answeredItems === 0 ? '—' : `${summary.correctCount} / ${summary.answeredItems}`,
-    skipped: Math.max(0, summary.totalQuestions - summary.answeredQuestions),
+    // When answeredQuestions exceeds totalQuestions the inputs are incoherent (see the
+    // admin-route note above). Render an em dash rather than clamping to 0: a 0 reads as
+    // authoritative and is silently wrong in the direction that flatters the student,
+    // whereas "—" says the number is not known. Same idiom as correctFraction.
+    skipped:
+      summary.answeredQuestions > summary.totalQuestions
+        ? '—'
+        : summary.totalQuestions - summary.answeredQuestions,
     dateStr: summary.endedAt ?? summary.startedAt,
   }
 }

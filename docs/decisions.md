@@ -1219,24 +1219,47 @@ production render was observed, and this entry does not claim one.
 3. **`Skipped` now renders for exams too, and in the mobile layout** (which never had it; its grid
    goes `grid-cols-3` → `grid-cols-2`, a 2x2). This is not cosmetic: the old exam denominator
    `totalQuestions` was what carried the "out of the whole paper" signal. Moving to `answeredItems`
-   removes it, so `Skipped` is what now lets a reader reconcile the fraction with the score ring.
+   removes it, so `Skipped` is what now ties the fraction back to the PAPER SIZE. Be precise about
+   what that does and does not buy: `Skipped` + the fraction reconstructs the score ring only when
+   every question contributes exactly one item. It does NOT in general — `batch_submit_quiz` scores
+   `sum(LEAST(correct_rows / total_blanks, 1.0))`, so a question with 3 of 5 blanks right adds 0.6
+   to the ring but 3 to the fraction, and `submit_vfr_rt_exam_answers` scores `(p1+p2+p3)/3`, a mean
+   of three per-part percentages that no triple of (correct items, answered items, skipped
+   questions) can reconstruct.
    Without the mobile cell, mobile would ship a fraction with no reconciler — strictly worse than
    before for an MC exam.
-4. **`Skipped` is clamped at zero** (`Math.max(0, totalQuestions − answeredQuestions)`). The admin
+4. **`Skipped` renders an em dash when its inputs are incoherent** (`answeredQuestions >
+   totalQuestions`). An earlier draft clamped to 0; that was rejected on review because a 0 reads as
+   authoritative while being wrong in the direction that flatters the student, whereas "—" states
+   that the number is not known. The admin
    session route feeds `answeredQuestions` a raw answer-ROW count (`admin-quiz-report.ts`, whose own
    comment admits it — #991), so a non-MC session overshoots the question total and a live repro of
    that page showed **"SKIPPED -2"** (local repro). The clamp keeps the component honest; fixing the query to
    `COUNT(DISTINCT question_id)` is separate scope.
 
-**Rationale for clamping rather than trusting the caller**: `ResultSummary` is shared across two
-routes with two different summary builders. A presentational component that renders a
+**Rationale for not trusting the caller**: `ResultSummary` is shared across FOUR routes with two
+different summary builders — the student report (`report-card.tsx`), the admin session report
+(`admin-report-card.tsx`), and both internal-exam reports
+(`app/app/admin/internal-exams/report/page.tsx`, `app/app/internal-exam/report/page.tsx`). The last
+two are exam-mode-only, so both the denominator switch and the newly-appearing `Skipped` cell land
+there; `internal_exam` permits partial submits, which is exactly where fraction and ring diverge. A presentational component that renders a
 count cannot assert its inputs are coherent, and a negative "Skipped" is a worse failure than a
 zero — it reads as a data-corruption bug to the admin looking at it.
 
-**Scope**: `apps/web/app/app/quiz/report/_components/result-summary.tsx` (+ its tests and the
-`report-card.test.tsx` assertion that read the now-duplicated `Skipped` label). No migration, no
-query change, no RPC change — `correct_count` and `total_questions` keep their existing semantics;
-only the presentation stops mixing them.
+**Scope**: `apps/web/app/app/quiz/report/_components/result-summary.tsx`, the NEW
+`result-summary-stats.tsx` (82 lines: `Stat`, `DesktopStats`, `MobileStats` and both formatters,
+extracted in the same commit per `code-style.md` §1), their tests, and the `report-card.test.tsx`
+assertion that read the now-duplicated `Skipped` label. One query line also changed:
+`admin-quiz-report.ts`'s null-count fallback went from `?? session.total_questions` to `?? 0`,
+because falling back to a QUESTION-level value reinstated the very scale mix this decision removes.
+No migration and no RPC change — `correct_count` and `total_questions` keep their semantics; only
+the presentation stops mixing them.
+
+**Known divergence until #990 lands**: two list surfaces still render
+`correctCount / totalQuestions` and both link straight to a report this decision changed —
+`admin/dashboard/students/[id]/_components/clickable-session-row.tsx` and
+`admin/internal-exams/_components/attempts-table.tsx`. Until they are fixed an admin can see
+"29 / 25" in a list and "29 / 29" one click later. That is a deliberate split, not an oversight.
 
 
 *Last updated: 2026-08-24 — Decision 60: the report "Correct" fraction is item/item in every mode (`correctCount / answeredItems`, em dash when nothing was answered) — the exam branch divided an ITEM-level `correct_count` by a QUESTION-level `total_questions` and rendered "29 / 25" on live VFR RT exams; `Skipped` now renders for exams and in the mobile layout (2x2) because it is what carries the paper-size signal the old denominator used to, and is clamped at zero against the admin route's raw answer-ROW `answeredQuestions` (#991). Prior: 2026-08-20 — Decision 59: EVERY `tenant_isolation` policy is `FOR SELECT` (the policy exists only on org-scoped tables; it is not added to every table), on either of two INDEPENDENT grounds (role-gated writes, or no intended user-scoped write path) — supersedes Decision 53 points 2 and 4; `organizations`/`question_banks`/`courses`/`lessons` narrowed in mig `20260820000100`, closing GHSA-hjp9-x868-7wgw §2, with the exposure verified against production for the first time since the access token was rotated (#1183); invariant recorded that no table in `public` carries an unqualified `tenant_isolation` (#1175). Prior: 2026-08-19 — Decision 58: post-commit proportionality — the repeated-numeric-literal sub-rules are DROPPED (doc-updater no longer chases a stale count across tech.md/decisions.md/plan.md; those literals will drift and stay drifted), and NO no-executable-change exemption is added — an oracle was built and reverted after measuring that it would have fired on 1 of the last 300 commits (#1222, #1232, #1231, #1164). Prior: 2026-08-18 — Decision 57: the authoring gate R3 stays exact-match while the grader is typo-tolerant; the divergence is recorded rather than closed, because a simulated tolerant R3 newly fails zero of the 50 shipped questions and porting would reverse `normalize-answer.ts`'s own instruction and add a second untested SQL↔TS parity contract (#1194). Prior: 2026-08-15 — Decisions 55 & 56: Part 2 blanks pinned by dialogue not a scene line (authoring rule R7); grading tolerates typos but never digits (`answer_matches`, mig 158; graders repointed across migs 158–160). Prior: 2026-08-11 — Decision 54: VFR RT content lives in the org's existing question bank; the licence/course model stays deferred. Prior: 2026-08-09 — Decision 53: `tenant_isolation` must be `FOR SELECT` on any table that also has role-gated write policies (unqualified = `FOR ALL`, and permissive policies OR together, so the `is_admin()` gate never binds); `questions` narrowed in mig `20260809000100`, DELETE left with no permissive policy; carve-out mirrored into `docs/security.md` §3, `.claude/rules/security.md` rule 2 and `.coderabbit.yaml` | Earlier 2026-07-03 — Decision 49 amended: save-for-later drafts now close their practice sessions on save + resume mints fresh sessions (#1085) | Earlier 2026-07-02 — Decision 52: `diagram_label` question type — inline SVG component registry keyed by `image_ref` (not a static image), distractor labels allowed, 9-zone RWY 27/09 LH pattern seed, general `diagram_config` schema; per-zone answer rows reusing the Decision-51 model; INVERTED self-defence vs `ordering` (distinct zone_id/label_id is the integrity key, partial submission + unused labels explicitly allowed); migs 150–156 (VFR RT Phase 6) | Earlier 2026-06-30 — Decision 51: `ordering` question type stores PER-SLOT answer rows (dialog_fill-clone) for partial credit, deviating from spec N7's single-JSON-row; mig-144 trigger widening; `_grade_record_ordering` REVOKE-gated per-slot helper (mig 147); get_quiz_questions shuffled delivery (mig 145); batch_submit_quiz ordering dispatch + partial-credit rollup (mig 148) (VFR RT Phase 5) | Earlier 2026-06-30 — Decision 50: dnd-kit (core/sortable/utilities) for drag-and-drop question types (ordering, diagram_label); sensors [Pointer, Touch(delay250/tol5), Keyboard] for iPad (VFR RT Phase 5) | Earlier 2026-06-29 — Decision 49: single active quiz_sessions row per account across all modes (#1011) — global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row + `endDiscovery` + `ActivePracticeBanner` recovery; Decision 48 amended (Discovery now a real ephemeral `mode='discovery'` DB row, still non-resumable + nothing-scored). | Earlier 2026-06-27 — Decision 48 reworked: Discovery reuses the real quiz runner via an ephemeral pre-marked sessionStorage handoff (navigate to `/app/quiz/session`, correct option pre-marked, explanation behind its tab, Exit not Finish, nothing persisted; persisted `ActiveSession` typed resumable-only). | Earlier 2026-06-26 — Decision 48 UI label: Study Mode surfaced as Discovery (first/default segment of New Quiz ModeToggle; internal identifiers remain `study`) | Decision 48: Study Mode `get_study_questions` RPC returns MC answers on-demand (deliberate exposure; exam-integrity enforced by the active-exam-session guard — raises `active_exam_session` mid-exam, red-team EO6) | Earlier 2026-06-21 — Decision 47: batch_submit_quiz per-type dispatch via internal helpers gated by REVOKE EXECUTE FROM PUBLIC, anon, authenticated (single authz boundary in the dispatcher) + DISTINCT-question partial-credit scoring matching the exam (VFR RT Phase 2.3) | Earlier 2026-06-21 — Decision 46: app-layer DB integration test tier (`apps/web/vitest.integration.config.ts`, real-DB under RLS) + mechanical schema-contract guards (soft-delete column guard, test-helpers import ban) + HARD new-query-site integration-test policy (#925) | Earlier 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
