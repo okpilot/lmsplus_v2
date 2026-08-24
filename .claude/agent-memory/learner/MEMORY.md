@@ -73,7 +73,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (archive row 600) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (archive row 602) |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
-| Fix commit correcting §10 violations introduces fresh §10 | 15 | 2026-08-24 | RULE CANDIDATE (15) → propose §10 "whole-block re-read after every edit" (archive row 604). POSITIVE SIGNAL: `cd479557` broke the streak — first clean commit, citations verified pre-commit not post-hoc. |
+| Fix commit correcting §10 violations introduces fresh §10 | 18 | 2026-08-24 | RULE CANDIDATE (18) → propose §10 "whole-block re-read after every edit" (archive row 604). POSITIVE SIGNAL: `cd479557` AND `a5745ab5`/`a5fed09e` both clean — 2 data points now, citations verified pre-commit not post-hoc. |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 606) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 608) |
@@ -91,8 +91,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Empirical measurement correct for tested scenario but scenario excludes the failure case | 3 | 2026-08-20 | RULE CANDIDATE (3) → code-style.md §10 clause 5; unified w/ row 650 (archive rows 649+650) |
 | Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | Commit message cites a config/rule file's lines to justify a decision, but cited lines are scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (archive row 652) |
-| Mirror-sync phrase-grep misses a mirror restated in NUMBERS not matching words — distinct from extension-scoping (row 637) | 1 | 2026-08-24 | WATCHING (archive row 653) |
+| Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
 | Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
+| Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 6 | 2026-08-24 | RULE CANDIDATE (6) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
+| Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
+| CLAUDE.md docs-only exemption omits `.spec-workflow/specs/*/tasks.md` (pure status prose, same class as the two named paths) | 1 | 2026-08-24 | WATCHING (archive row 657) |
+| code-style.md §10 clause 3's `grep -rn` fails open on a retracted phrase with a regex metacharacter (verified: `count(*)::int`) | 1 | 2026-08-24 | WATCHING — one-char tooling fix (`-F`), independent of frequency threshold (archive row 658) |
 
 ## Durable knowledge (cross-agent)
 
@@ -102,7 +106,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 - Wording-refinement bound proven: `387a29ac` bounded every refinement finding raised in one round; chain cap fired at `1c22b201` and again on fix/1175-tenant-isolation-select-only (3rd data point, 2026-08-20) — escalated to the user per agent-critic.md and applied without a 4th cycle. All terminate by rule, not by convergence.
 - Empirical measurement discipline working: grep-over-checkout identified RSC flight payload, not DOM (reversed a design decision); A/B instrumentation found 4→1 and 5→1 body executions (disproved issue's network-dedup rationale); running local red-team specs against origin/master under identical DB state proved failures were environmental not code regressions (PR #1238). Cheap wrong method consistently agreed with expected answer — measure before concluding.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
-- Row 604 first clean cycle: `cd479557` shipped with zero false claims after two straight instances (`32ed663d`, `39887952`) — orchestrator verified citations pre-commit instead of relying on review to catch them. One data point, not resolved yet — watch for whether it holds.
+- Row 604 clean cycles: `cd479557` (first, after `32ed663d`/`39887952`) and `a5745ab5`/`a5fed09e` (a false infrastructure claim caught and fully repaired inside its own review unit, no residue) — two data points, orchestrator verifying citations pre-commit. Not resolved: row 604's count still climbed to 18 on OTHER commits in the same window (`8202799f`, `3d06fae6`) — the mitigation holds per-commit, not per-branch.
+- PR #1242 headline (row 655): 6 stale/contradictory rules-file claims, none caught by any internal agent — all 6 caught only by CR-local's whole-diff read or an orchestrator fact-check. The common shape: claim and referent sit in different sections, different files, or are an arithmetic property, so a hunk/section-anchored reviewer structurally cannot see the contradiction. Rows 651-654 (same branch, earlier commits) are the same dysfunction class, different sub-mechanisms.
 
 ## Topic pointers
 
