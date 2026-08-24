@@ -68,15 +68,17 @@ You receive:
    - A more idiomatic approach that doesn't affect correctness
    - Opportunities to reduce duplication (under 3 instances — not blocking per code-style.md)
 
-## Pre-Flag Verification: CREATE OR REPLACE Chain
+## Pre-Flag Verification: Supersession Chain
 
 Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function in the staged diff:
 
 1. Do NOT read the function definition only from the migration file currently being reviewed.
-2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>` (including any other migrations also in the staged diff):
-   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp. This is the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL).
+2. Grep the entire migration directory — `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, sorted chronologically by timestamp prefix; the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL) — for BOTH supersession forms (including any other migrations also in the staged diff):
+   - `CREATE OR REPLACE FUNCTION <name>`
+   - `DROP FUNCTION … CREATE FUNCTION <name>` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
+5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Full enumeration: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms".
 
 This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
@@ -158,4 +160,4 @@ Use this memory to give more accurate reviews over time and reduce false positiv
 
 ---
 
-*Last updated: 2026-05-02*
+*Last updated: 2026-08-24 (trace instructions now name BOTH supersession forms — `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — matching the canonical rule in `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms" (promoted learner count=2, 2026-08-09). A `CREATE OR REPLACE`-only grep certifies a superseded body as current, which is the exact failure that rule exists to prevent. Found by cloud CodeRabbit on PR #1242. Prior: 2026-05-02)*

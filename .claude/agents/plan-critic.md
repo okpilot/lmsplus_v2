@@ -49,15 +49,17 @@ You receive:
    - Plan adds a new RPC without `auth.uid()` check or `SET search_path`
    - Plan changes input validation without updating Zod schemas
 
-## Pre-Flag Verification: CREATE OR REPLACE Chain
+## Pre-Flag Verification: Supersession Chain
 
 Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function:
 
 1. Do NOT read the function definition only from files in the current diff.
-2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>`:
-   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp. This is the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL).
+2. Grep the entire migration directory — `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, sorted chronologically by timestamp prefix; the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL) — for BOTH supersession forms:
+   - `CREATE OR REPLACE FUNCTION <name>`
+   - `DROP FUNCTION … CREATE FUNCTION <name>` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
+5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Full enumeration: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms".
 
 This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
