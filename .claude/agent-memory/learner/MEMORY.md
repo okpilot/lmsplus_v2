@@ -73,7 +73,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (archive row 600) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (archive row 602) |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation — grep-verify counts (archive row 547). |
-| Fix commit correcting §10 violations introduces fresh §10 | 15 | 2026-08-24 | RULE CANDIDATE (15) → propose §10 "whole-block re-read after every edit" addition (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 15 | 2026-08-24 | RULE CANDIDATE (15) → propose §10 "whole-block re-read after every edit" (archive row 604). POSITIVE SIGNAL: `cd479557` broke the streak — first clean commit, citations verified pre-commit not post-hoc. |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 606) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 608) |
@@ -92,6 +92,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | Commit message cites a config/rule file's lines to justify a decision, but cited lines are scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (archive row 652) |
 | Mirror-sync phrase-grep misses a mirror restated in NUMBERS not matching words — distinct from extension-scoping (row 637) | 1 | 2026-08-24 | WATCHING (archive row 653) |
+| Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
 
 ## Durable knowledge (cross-agent)
 
@@ -101,6 +102,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 - Wording-refinement bound proven: `387a29ac` bounded every refinement finding raised in one round; chain cap fired at `1c22b201` and again on fix/1175-tenant-isolation-select-only (3rd data point, 2026-08-20) — escalated to the user per agent-critic.md and applied without a 4th cycle. All terminate by rule, not by convergence.
 - Empirical measurement discipline working: grep-over-checkout identified RSC flight payload, not DOM (reversed a design decision); A/B instrumentation found 4→1 and 5→1 body executions (disproved issue's network-dedup rationale); running local red-team specs against origin/master under identical DB state proved failures were environmental not code regressions (PR #1238). Cheap wrong method consistently agreed with expected answer — measure before concluding.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
+- Row 604 first clean cycle: `cd479557` shipped with zero false claims after two straight instances (`32ed663d`, `39887952`) — orchestrator verified citations pre-commit instead of relying on review to catch them. One data point, not resolved yet — watch for whether it holds.
 
 ## Topic pointers
 
