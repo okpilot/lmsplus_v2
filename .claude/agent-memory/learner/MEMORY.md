@@ -124,7 +124,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 18 | 2026-08-24 | RULE CANDIDATE (18) → propose §10 "whole-block re-read after every edit" (archive row 604). POSITIVE SIGNAL: `cd479557` AND `a5745ab5`/`a5fed09e` both clean — 2 data points now, citations verified pre-commit not post-hoc. |
+| Fix commit correcting §10 violations introduces fresh §10 | 18 | 2026-08-24 | RULE CANDIDATE (18) → propose §10 "whole-block re-read after every edit" (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -132,12 +132,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Promoted rule (§1 same-commit-extraction, count=8) not | 1 | 2026-08-17 | WATCHING (archive row 559). |
 | Review-follow-up exemption misapplied — commit pushed | 1 | 2026-08-17 | WATCHING (archive row 560). |
 | Orchestrator copies a critic finding LABEL into a comment | 1 | 2026-08-17 | WATCHING (archive row 607) |
-| Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
-| Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
+| Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562) |
+| Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 608) |
 | §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4) (archive row 609) |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 610) |
-| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). Tool-fixed: assertMcKeyBalance in test suite + importer. |
+| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566) |
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4) (archive row 611) |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2) (archive row 632) |
 | Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING (archive row 633) |
@@ -172,16 +172,14 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
-| Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 6 | 2026-08-24 | RULE CANDIDATE (6) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
+| Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 7 | 2026-08-24 | RULE CANDIDATE (7) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
 | Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
 
 ## Durable knowledge (cross-agent)
 
 - Promotion threshold = **2 distinct mechanisms**, different commits (not same-file repeats). Schedule Sweep-On-Rule-Promotion on every promotion. Tracker > rule-file parenthetical counts.
 - Biggest recurring defect: **partial fix to a sibling-file group** (count 19) — grep siblings before committing.
-- First evidence CR mirror adds value beyond local agents: `b1280606` (chore/backlog-flow-control) caught by a `.coderabbit.yaml` rule the branch's own author added in `a0e01943`, 12 commits earlier. The mirror is not redundant. (The "3 commits" in b1280606's own message is wrong — re-derived here, per code-style.md §10 clause 1.)
-- Wording-refinement bound proven: `387a29ac` bounded every refinement finding raised in one round; chain cap fired at `1c22b201` and again on fix/1175-tenant-isolation-select-only (3rd data point, 2026-08-20) — escalated to the user per agent-critic.md and applied without a 4th cycle. All terminate by rule, not by convergence.
-- Empirical measurement discipline working: grep-over-checkout identified RSC flight payload, not DOM (reversed a design decision); A/B instrumentation found 4→1 and 5→1 body executions (disproved issue's network-dedup rationale); running local red-team specs against origin/master under identical DB state proved failures were environmental not code regressions (PR #1238). Cheap wrong method consistently agreed with expected answer — measure before concluding.
+- CR mirror value, wording-refinement bound, empirical-measurement discipline, row 604 clean cycles, PR #1242 row-655 headline (7 instances) — all detailed in `topics/cross-agent-lessons.md` "Relocated from MEMORY.md" section.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
 
 ## Topic pointers
@@ -191,5 +189,3 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 - [query-helper-throw-boundary](topics/query-helper-throw-boundary.md) — Server Actions must catch now-throwing query helpers at the client boundary.
 - [paginated-fetch-page-error-testing](topics/paginated-fetch-page-error-testing.md) — two valid test forms for caller-level page-error recovery; promoted to code-style.md §7 (PR #699).
 - [postgres-security-invoker-rls-pattern](topics/postgres-security-invoker-rls-pattern.md) — SECURITY INVOKER functions on RLS-protected tables return `error: null + data: []` on unauth calls; impl-critic FP suppression pattern.
-- Row 604 clean cycles: `cd479557` (first, after `32ed663d`/`39887952`) and `a5745ab5`/`a5fed09e` (a false infrastructure claim caught and fully repaired inside its own review unit, no residue) — two data points, orchestrator verifying citations pre-commit. Not resolved: row 604's count still climbed to 18 on OTHER commits in the same window (`8202799f`, `3d06fae6`) — the mitigation holds per-commit, not per-branch.
-- PR #1242 headline (row 655): 6 stale/contradictory rules-file claims, none caught by any internal agent — all 6 caught only by CR-local's whole-diff read or an orchestrator fact-check. The common shape: claim and referent sit in different sections, different files, or are an arithmetic property, so a hunk/section-anchored reviewer structurally cannot see the contradiction. Rows 651-654 (same branch, earlier commits) are the same dysfunction class, different sub-mechanisms.
