@@ -124,7 +124,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 18 | 2026-08-24 | RULE CANDIDATE (18) → propose §10 "whole-block re-read after every edit" (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 21 | 2026-08-24 | RULE CANDIDATE (21) → propose §10 "whole-block re-read after every edit" (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -173,8 +173,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
 | Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 10 | 2026-08-24 | RULE CANDIDATE (10) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
-| Mirror sweep for one rule change under-executed 3x running, each miss caught by a different reviewer despite §Rule-Mirror-Sync naming the cause | 1 | 2026-08-24 | WATCHING (archive row 660) |
-| Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's stated PATH/criterion test | 1 | 2026-08-24 | WATCHING (archive row 661) |
+| Mirror sweep for one rule change under-executed 3x running, each miss caught by a different reviewer despite §Rule-Mirror-Sync naming the cause | 2 | 2026-08-24 | RULE CANDIDATE (2) — 2nd: verification grep scoped to `.claude/rules/*.md` only after edits to `.claude/agents/*.md`, missing 2 sites (archive row 660) |
+| Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's stated PATH/criterion test | 3 | 2026-08-24 | RULE CANDIDATE (3) — now 2 agent types (test-writer, semantic-reviewer) (archive row 661) |
+| Reviewer's own proposed remedy/verification query is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (archive row 662) |
 | Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
 | Reviewers "confirm" a claim by grepping only the phrases the claim itself cites — convergence across 3 agents ≠ corroboration, none read the block end-to-end | 1 | 2026-08-24 | WATCHING (archive row 659) |
 
