@@ -1199,7 +1199,7 @@ Training Phase 4): the exam summary header used to render `correctCount / totalQ
 
 **Problem**: `quiz_sessions.correct_count` is written **item-level** (or zero) by every writer that
 touches it — derive the set with `grep -rn "correct_count *=" supabase/migrations/`, tracing each
-function to its latest definition; the three highest-traffic are: `batch_submit_quiz` sums per-blank
+function to its latest definition; examples include: `batch_submit_quiz` sums per-blank
 `correct_rows`
 (`supabase/migrations/20260702000600_batch_submit_quiz_diagram_label.sql`),
 `submit_vfr_rt_exam_answers` (`20260815000300`) and `complete_overdue_exam_session`
