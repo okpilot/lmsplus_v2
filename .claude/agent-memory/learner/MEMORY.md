@@ -172,14 +172,15 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
-| Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 7 | 2026-08-24 | RULE CANDIDATE (7) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
+| Rules-file claim true in its own hunk, false against a different section/mirror/arithmetic — section-anchored internal review can't see it, only whole-diff CR-local/orchestrator fact-check does | 9 | 2026-08-24 | RULE CANDIDATE (9) → propose agent-workflow.md §Rule-Mirror-Sync: mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
 | Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
+| Reviewers "confirm" a claim by grepping only the phrases the claim itself cites — convergence across 3 agents ≠ corroboration, none read the block end-to-end | 1 | 2026-08-24 | WATCHING (archive row 659) |
 
 ## Durable knowledge (cross-agent)
 
 - Promotion threshold = **2 distinct mechanisms**, different commits (not same-file repeats). Schedule Sweep-On-Rule-Promotion on every promotion. Tracker > rule-file parenthetical counts.
 - Biggest recurring defect: **partial fix to a sibling-file group** (count 19) — grep siblings before committing.
-- CR mirror value, wording-refinement bound, empirical-measurement discipline, row 604 clean cycles, PR #1242 row-655 headline (7 instances) — all detailed in `topics/cross-agent-lessons.md` "Relocated from MEMORY.md" section.
+- CR mirror value, wording-refinement bound, empirical-measurement discipline, row 604 clean cycles, PR #1242 row-655 headline (9 instances) — all detailed in `topics/cross-agent-lessons.md` "Relocated from MEMORY.md" section.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
 
 ## Topic pointers
