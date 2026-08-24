@@ -58,7 +58,7 @@ Run through each item. Report pass/fail with brief notes.
 - **Fix-commit re-review** — when production code was fixed from agent findings, did we re-run agents on the fix commit?
 - **Pre-push PR sweep** — for branches with 2+ commits, did we `git fetch origin` (and abort on failure) then run `git diff origin/master...HEAD` semantic review before pushing? A stale base silently distorts the sweep scope.
 - **Pre-commit critics** — did plan-critic and implementation-critic run before each commit? Any skipped without justification? (Plan-critic can skip for single-file <10 lines; implementation-critic never skips)
-- **Critic revision caps** — did plan-critic run once per plan, with its findings resolved (it has no round floor since 2026-08-24)? Any implementation-critic findings that took more than 2 rounds?
+- **Critic revision caps** — did plan-critic run once per plan, with its ISSUE/CRITICAL findings resolved and every SUGGESTION given a disposition (it has no round floor since 2026-08-24; SUGGESTIONs are non-blocking per `agent-critic.md` § DO)? Any implementation-critic findings that took more than 2 rounds?
 - **Agent scope violations** — did any agent act outside its scope? (test-writer editing prod code, doc-updater making arch decisions)
 
 **Spec workflow:**
