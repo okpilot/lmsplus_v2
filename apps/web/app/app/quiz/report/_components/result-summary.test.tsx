@@ -73,19 +73,53 @@ describe('ResultSummary', () => {
       )
       expect(screen.getAllByText('9 / 12').length).toBeGreaterThan(0)
     })
+
+    it('divides correct items by answered items on an exam, not by the question count', () => {
+      // A 25-question VFR RT exam is 29 ITEMS (short_answer + dialog blanks + MC). correct_count
+      // is written item-level by every writer, so the exam denominator must be answeredItems —
+      // dividing by totalQuestions rendered "24 / 25"-style fractions that can exceed 1 in
+      // production ("29 / 25"). Both operands are pinned and differ, so the assertion cannot be
+      // satisfied by an accidental {answeredItems}/{answeredItems} or {correctCount}/{correctCount}.
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            mode: 'vfr_rt_exam',
+            correctCount: 24,
+            answeredItems: 29,
+            totalQuestions: 25,
+            answeredQuestions: 10,
+            passed: true,
+          })}
+        />,
+      )
+      // Desktop and mobile layouts both render it.
+      expect(screen.getAllByText('24 / 29')).toHaveLength(2)
+      expect(screen.queryAllByText('24 / 25')).toHaveLength(0)
+    })
+
+    it('shows an em dash instead of a fraction when nothing was answered', () => {
+      render(
+        <ResultSummary
+          summary={makeSummary({ mode: 'vfr_rt_exam', correctCount: 0, answeredItems: 0 })}
+        />,
+      )
+      expect(screen.queryAllByText('0 / 0')).toHaveLength(0)
+      // One em dash per layout for the Correct stat (endedAt is set, so Time is a real duration).
+      expect(screen.getAllByText('—')).toHaveLength(2)
+    })
   })
 
   describe('skipped questions', () => {
     it('shows zero skipped when all questions were answered', () => {
       render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredQuestions: 10 })} />)
-      // skipped = 10 - 10 = 0
-      expect(screen.getByText('0')).toBeInTheDocument()
+      // skipped = 10 - 10 = 0, rendered once per layout (desktop + mobile)
+      expect(screen.getAllByText('0')).toHaveLength(2)
     })
 
     it('shows the number of unanswered questions as skipped', () => {
       render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredQuestions: 7 })} />)
-      // skipped = 10 - 7 = 3
-      expect(screen.getByText('3')).toBeInTheDocument()
+      // skipped = 10 - 7 = 3, rendered once per layout (desktop + mobile)
+      expect(screen.getAllByText('3')).toHaveLength(2)
     })
 
     it('counts skipped at the question level even when items exceed questions', () => {
@@ -95,7 +129,42 @@ describe('ResultSummary', () => {
           summary={makeSummary({ totalQuestions: 10, answeredQuestions: 8, answeredItems: 15 })}
         />,
       )
-      expect(screen.getByText('2')).toBeInTheDocument()
+      expect(screen.getAllByText('2')).toHaveLength(2)
+    })
+
+    it('shows skipped on an exam session too, so the item fraction can be reconciled', () => {
+      // The exam denominator is now item-level, which no longer carries the paper size —
+      // Skipped is what lets a reader tie "24 / 29" back to a 25-question paper.
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            mode: 'vfr_rt_exam',
+            totalQuestions: 25,
+            answeredQuestions: 10,
+            answeredItems: 29,
+            correctCount: 24,
+            passed: true,
+          })}
+        />,
+      )
+      // skipped = 25 - 10 = 15, once per layout
+      expect(screen.getAllByText('15')).toHaveLength(2)
+    })
+
+    it('shows an em dash instead of a skipped count when answered exceeds the question total', () => {
+      // The admin session route feeds answeredQuestions a raw answer-ROW count (#991), so a
+      // non-MC session overshoots totalQuestions; reproduced locally as "SKIPPED -2". A
+      // clamped 0 would read as authoritative while being wrong in the direction that
+      // flatters the student, so the unknown value is shown as an em dash instead.
+      render(
+        <ResultSummary
+          summary={makeSummary({ totalQuestions: 8, answeredQuestions: 10, answeredItems: 10 })}
+        />,
+      )
+      expect(screen.queryAllByText('-2')).toHaveLength(0)
+      expect(screen.queryAllByText('0')).toHaveLength(0)
+      // One per layout for Skipped; the Correct fraction is a real "6 / 10" here.
+      expect(screen.getAllByText('—')).toHaveLength(2)
     })
   })
 
