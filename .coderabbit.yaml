@@ -437,7 +437,12 @@ reviews:
           42804 on the first call; keep the cast — mutation-confirmed 2026-08-24 on
           list_my_internal_exam_history, code-style.md §5 failure mode (e)). Flag any migration
           changing a plpgsql body containing these constructs that lacks a
-          functional/integration test executing the function.
+          functional/integration test executing the function — and do not limit the check to
+          that fixed list. The set is OPEN and derived, not enumerated: any plpgsql body whose
+          SQL is validated at EXECUTION rather than at CREATE qualifies, and the constructs
+          named above are illustrations, not a checklist. code-style.md §5 carries the current
+          illustrations, which as of 2026-08-24 were ON CONFLICT inference targets, EXECUTE
+          format(...), POSIX bracket-class regex literals, (c) 42702, (d) 23502 and (e) 42804.
           (code-style.md §5 "Validate at Execution, Not Apply".)
 
     # Tests — behavioral naming + navigation mock URL assertions
