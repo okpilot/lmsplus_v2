@@ -1234,9 +1234,12 @@ production render was observed, and this entry does not claim one.
    that the number is not known. The admin
    session route feeds `answeredQuestions` a raw answer-ROW count (`admin-quiz-report.ts`, whose own
    comment admits it — #991), so a non-MC session overshoots the question total and a live repro of
-   that page showed **"SKIPPED -2"** (local repro). The em dash keeps the component honest without
-   asserting a number it does not have; fixing the query to `COUNT(DISTINCT question_id)` is
-   separate scope.
+   that page showed **"SKIPPED -2"** (local repro). The em dash is a PARTIAL guard, not a fix — be precise
+   about its limit: it only fires when rows EXCEED `totalQuestions`. When a non-MC session's row
+   count happens to land at or below the question total (3 questions answered across 6 rows in a
+   10-question session), no guard fires and `Skipped` renders 4 where the truth is 7 — silently
+   wrong, and still #991. Fixing the query to `COUNT(DISTINCT question_id)` is PR 3b's scope; this
+   change only removes the absurd rendering (a negative), not the underlying wrong number.
 
 **Rationale for not trusting the caller**: `ResultSummary` is shared across several routes with two
 different summary builders. Derive the current set with
@@ -1258,8 +1261,10 @@ because falling back to a QUESTION-level value reinstated the very scale mix thi
 No migration and no RPC change — `correct_count` and `total_questions` keep their semantics; only
 the presentation stops mixing them.
 
-**Known divergence until #990 lands**: two list surfaces still render
-`correctCount / totalQuestions` and both link straight to a report this decision changed —
+**Known divergence until #990 lands**: as of 2026-08-24, list surfaces still rendering
+`correctCount / totalQuestions` — derive the current set with
+`grep -rn "correctCount}/{.*totalQuestions\|{correct}/{total}" apps/web/app --include="*.tsx"` —
+were these two, both of which link straight to a report this decision changed:
 `admin/dashboard/students/[id]/_components/clickable-session-row.tsx` and
 `admin/internal-exams/_components/attempts-table.tsx`. Until they are fixed an admin can see
 "29 / 25" in a list and "29 / 29" one click later. That is a deliberate split, not an oversight.

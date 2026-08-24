@@ -35,7 +35,10 @@ type Props = Readonly<{ summary: QuizReportSummary }>
  * (`admin-quiz-report.ts`, "KNOWN LIMITATION (#991)"), which overshoots `totalQuestions` on
  * non-MC sessions — reproduced locally as "SKIPPED -2" on a 3-question dialog session, and
  * the same code path serves production. An em dash rather than a clamped 0, because 0 reads
- * as authoritative while being wrong in the direction that flatters the student.
+ * as authoritative while being wrong in the direction that flatters the student. NOTE this is a
+ * PARTIAL guard: it only fires when the row count EXCEEDS `totalQuestions`. A non-MC session
+ * whose rows land at or below the question total still renders a silently wrong `skipped` —
+ * that is #991 itself, fixed by giving the query a COUNT(DISTINCT question_id).
  */
 function deriveStats(summary: QuizReportSummary): {
   correctFraction: string
