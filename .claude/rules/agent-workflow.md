@@ -571,25 +571,63 @@ No in-flight findings at push time.
 - Skip a finding to avoid the work. Skip is reserved for "wrong on the merits."
 - Push with in-flight findings (no terminal state assigned).
 
-## PR Batching — Combine Issues Aggressively (MANDATORY for multi-issue runs)
+## PR Batching — Split by Risk Surface; Combine Only Like-for-Like (MANDATORY)
 
-> **The full pipeline cost is PER-PR, not per-issue.** impl-critic + the 4–5 post-commit agents + PR-level semantic sweep + multi-round CR-local each run once per PR, at 1–15 min per subagent. A one-issue PR pays that entire fixed cost for a single change. Ten one-issue PRs = 10× the overhead; one PR of ten issues = 1×.
+> **Two costs pull in opposite directions, and the old rule only counted one of them.**
+> The pipeline cost is PER-PR: impl-critic, the post-commit agents, the PR-level sweep and the
+> CR-local rounds each run once per PR, so ten one-issue PRs pay that fixed cost ten times. But the
+> REVIEW cost is per RISK SURFACE, and it is not linear — past a certain diff, rounds stop
+> converging and each one surfaces new criticals in sections an earlier round already passed.
+> An extra PR costs a BOUNDED, predictable ~30 min of CI plus one cloud review. A non-convergent
+> review loop costs an UNBOUNDED amount. Optimise against the unbounded one.
 
-When a run spans multiple issues (`/automerge`, `/autonomerge`, any batch), the orchestrator's FIRST planning act is to group the issue list into the **fewest coherent PRs** — never one-per-issue.
+**Default: SPLIT.** Group work into the fewest PRs that each carry **one merge gate and one risk
+surface** — not the fewest PRs overall. Superseded 2026-08-24 (user directive): the prior default,
+"combine aggressively / fewest coherent PRs", keyed on ISSUE COUNT, which is the wrong variable.
 
-### How to group
-- **By nature:** all test-only red-team/integration specs together; all mechanical/rule/config chores together; related production changes together.
-- **Target ~3–8 issues per PR** when they are test-only or mechanical. Do all edits across the combined issues FIRST (parallel subagents on non-overlapping file sets), then run the pipeline ONCE on the whole branch.
-- **Split only for a real merge-gate reason:** a production change needing manual eval must not ride with auto-mergeable test-only work; a migration PR stays separate (auto-deploys on merge); a change that must land independently for rollback safety.
+### Hard split triggers — each forces its own PR
+- **A migration.** It auto-deploys to the production database on merge, so it is user-gated anyway.
+- **A security path** (the `§ Red-Team Agent Trigger` set). It raises the plan-critic floor to N=3
+  and the CR-local floor to M=3; do not make unrelated work pay those rounds.
+- **A change that supersedes an issue's stated acceptance criteria.** That needs its own argument in
+  its own PR body, where a reviewer can find it.
+- **A shared component whose change fans out to several surfaces.** The blast radius, not the diff
+  size, is what reviewers must hold in their heads at once.
 
-### Batch the fixups too
-Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one commit per finding. Each fixup commit re-triggers the review cycle, so per-finding commits multiply the cost the batching is meant to avoid.
+### Still COMBINE when all of these hold
+Mechanical or test-only work, over **disjoint** files, sharing **no** migration, with **no** member
+on a security path. This is the case the original rule was written for and it remains correct:
+do all edits first (parallel subagents on non-overlapping file sets), then run the pipeline ONCE.
 
+### The non-convergence signal
+If a review round surfaces a NEW critical in a section an earlier round already reviewed, the diff
+is too large. **Split — do not run another round.** Worked example, 2026-08-24 (W1 PR 3): a PR
+scoped to two issues also pulled in a discovered production defect, a second RPC redefinition and a
+sibling sweep, reaching ~20 production files and two migrations. Three plan-critic rounds each
+returned fresh CRITICALs; the N=3 security-path floor became unreachable inside the 4-round ceiling.
+Splitting it three ways — the live defect (no migration, N=2), the admin-report query + both
+migrations, and the list-surface sweep — gave each piece a reviewable surface.
 
-### Anti-pattern (what this rule exists to stop)
-One issue → one branch → full pipeline → merge → repeat. It makes a multi-issue run crawl. If you catch yourself opening a PR that closes a single issue during a batch run, stop and ask what else belongs on that branch. (User directive 2026-07-02, mid-`/automerge` batch: "why the fuck one test in the whole PR? combine combine combine.")
+### Splitting is SEQUENCING, not deferring
+This is what keeps the rule compatible with a NO-DEFERRALS directive
+(`.spec-workflow/specs/backlog-burndown/tasks.md`, and § Apply-vs-Defer Discipline above). Nothing
+is handed to an issue; the pieces are built in order, in the same run. A split is only a deferral if
+a piece is left unbuilt — say so explicitly in the PR body when that happens.
 
----
+### Batch the fixups too (UNCHANGED by the split default)
+Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one
+commit per finding. Each fixup commit re-triggers the review cycle. This governs commits WITHIN a
+PR and is unaffected by how work is divided ACROSS PRs; `agent-coderabbit-local.md` and
+`.claude/commands/crlocal.md` both cite this section for exactly this rule.
+
+### Anti-patterns — there are TWO, in opposite directions
+1. **One issue → one branch → full pipeline → merge → repeat.** Makes a multi-issue mechanical run
+   crawl. (User directive 2026-07-02, mid-`/automerge`: "why the fuck one test in the whole PR?
+   combine combine combine.")
+2. **Everything the work touches → one branch.** Produces a diff whose review does not converge, and
+   whose migration drags unrelated code through a prod-deploy gate. (User directive 2026-08-24,
+   after the W1 PR 3 split: "maybe this shall be our standing practice? we had a rule to combine a
+   lot of issues. but it is okay not to do this anymore.")
 
 ## Push Batching — a push is NOT free (MANDATORY)
 
@@ -810,6 +848,18 @@ migration header. Note this is also how the bug that cycle FIXED was introduced:
 role-gated policies without accounting for the pre-existing `FOR ALL` policy. The codebase's
 append-only, mutation-by-supersession shape produces this error in whoever reads it.
 
+### Prefer executable verification over analysis
+
+Write prompts that say **"execute / grep / diff and report the output"**, not "analyse and assess".
+This is the single biggest quality-per-token lever, and it is what makes Sonnet subagents safe
+(`agent-critic.md § Model tier`). Measured on `fix/report-item-scale` and its sibling migration
+work, 2026-08-24: the highest-value findings of the whole run — a `42804` cast error and a `42702`
+column ambiguity, BOTH invisible to a clean `supabase db reset` — came from EXECUTING the function.
+A mock-shape break, a `deleted_at` subset argument, and a false causation claim all came from
+READING a specific file or `git show`. Only a minority needed a model to notice that a claim
+overreached. Executable verification is cheaper AND more reliable than inference; reserve
+inference-shaped asks for the cases that genuinely need judgement.
+
 ### Litmus test
 Before dispatching any subagent, ask: **"Could this agent execute end-to-end without a follow-up question?"** If no, add the missing context to the prompt.
 
@@ -840,4 +890,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-19 (§ Rule-Mirror Sync gained "write the mirror from the canonical TEXT, then diff it clause by clause", learner count=2 — `6d4aa646`, `387a29ac` — with a second paragraph for the opposite direction, the canonical amended while its mirror is left behind (`79384dce`, which edited both files and carried the fail-closed clause to only one); and the defer-budget worked example no longer records what the enumeration command returns "today", since any such figure goes false within the hour. Prior, same day: defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue the branch author created after the merge-base (author-scoped, as the command's `author:@me` already encoded; purpose-agnostic — "whatever its origin") and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, `--limit 200` on the enumeration command because `gh` defaults to 30 and exits 0 truncated (under-counting `filed` PASSES a check that should fail), the first-illumination evidence test scoped so only its first three steps are pasted output while step 4 is openly a judgment call, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.))*
+*Last updated: 2026-08-24 (§ PR Batching now defaults to SPLIT by risk surface and merge gate — the prior "combine aggressively" default keyed on ISSUE COUNT, the wrong variable, and produced a diff whose review did not converge; both anti-patterns are now recorded, in opposite directions. § Delegation Protocol gained "prefer executable verification over analysis". Prior: 2026-08-19 (§ Rule-Mirror Sync gained "write the mirror from the canonical TEXT, then diff it clause by clause", learner count=2 — `6d4aa646`, `387a29ac` — with a second paragraph for the opposite direction, the canonical amended while its mirror is left behind (`79384dce`, which edited both files and carried the fail-closed clause to only one); and the defer-budget worked example no longer records what the enumeration command returns "today", since any such figure goes false within the hour. Prior, same day: defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue the branch author created after the merge-base (author-scoped, as the command's `author:@me` already encoded; purpose-agnostic — "whatever its origin") and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, `--limit 200` on the enumeration command because `gh` defaults to 30 and exits 0 truncated (under-counting `filed` PASSES a check that should fail), the first-illumination evidence test scoped so only its first three steps are pasted output while step 4 is openly a judgment call, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.))*

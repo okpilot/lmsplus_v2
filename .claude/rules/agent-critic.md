@@ -1,6 +1,6 @@
 # Agent Rules — critic (plan-critic + implementation-critic)
 
-> Model: sonnet by default; **Opus** for security-path / high-stakes gates + the final stability round (see Multi-Round Review Discipline § Model tier) | Trigger: pre-commit (plan + implementation) | Blocking: on CRITICAL/ISSUE
+> Model: **sonnet — always, no exception** (see § Model tier) | Trigger: pre-commit (plan + implementation) | Blocking: on CRITICAL/ISSUE
 
 ## Purpose
 Pre-commit quality gates that catch plan-level and implementation-level errors before they reach `git commit`. Plan-critic reviews validated plans against the codebase. Implementation-critic reviews staged changes against the approved plan. Together they reduce the volume of post-commit findings by catching mistakes earlier.
@@ -61,10 +61,37 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (the `git diff --staged`) MUTATES on every fix, so "consecutive clean on the same artifact" is undefined; and it has no skip condition, so a floor would force ≥2 passes on every trivial commit. It keeps its existing **2-round revision maximum + orchestrator takeover** (below).
 - **Learner counting.** A finding that recurs across rounds of the SAME gate on the SAME artifact counts as ONE occurrence for the learner's frequency tracker (which promotes at 2+ across *different* commits, per `agent-learner.md`) — the orchestrator deduplicates within-run recurrences before reporting to the learner.
 - **Scope / cost.** plan-critic already skips <10-line single-file changes (its cost control). Post-commit reviewer multi-round applies only when the diff touches the security-path trigger set above; otherwise a single post-commit pass stands. Coverage rounds may run in parallel to bound wall-clock.
-- **Model tier (couple model strength to stakes — the second lever against non-determinism).** More rounds add cheap *samples*; a stronger model gives *better* samples. Use both:
-  - **Sonnet** (default) — mechanical implementation, routine post-commit review, coverage rounds on normal diffs.
-  - **Opus** — critics (plan-critic, implementation-critic, semantic-reviewer) when the diff touches the **security-path trigger set** (the canonical set in `agent-workflow.md § Red-Team Agent Trigger`: `supabase/migrations/**`, `packages/db/src/**`, quiz actions, auth, `proxy.ts`, `security.md`) OR the work is high-stakes (the user flags it, or it introduces a new architectural pattern), AND for the **final stability round** of any gate (the decision round needs confidence, not breadth). Set via the Agent tool's `model: 'opus'` override per invocation.
-  - Precedent: code-reviewer was bumped haiku→sonnet after haiku threw false positives — same reasoning, one tier up. The mechanical *implementer* stays on Sonnet; the *reviewer of its output* goes to Opus on high-stakes gates.
+- **Model tier — EVERY subagent runs Sonnet (or Haiku for mechanical checks). Opus is the
+  orchestrator, and only the orchestrator. No security-path exception.** Superseded 2026-08-24
+  (user directive: *"let's really think about Opus as the orchestrator and rest sonnet. cost is
+  getting out of hand."*). The prior rule allowed Opus for security-path critics and the final
+  stability round; that carve-out is precisely what failed, because a per-dispatch judgment call
+  gets over-applied — on the run that prompted this, it was applied to every lens on every round.
+  A rule with no exception is one that actually gets followed. Where a security diff needs
+  Opus-grade scrutiny, the ORCHESTRATOR does that read itself: it already holds the context, so it
+  costs one pass instead of re-loading a fresh ~200k-token context into a subagent.
+  - **The tier was never the main cost lever — fan-out was.** Measured 2026-08-24 from the live
+    model table: Opus 5 is $5/$25 per MTok against Sonnet 5's $3/$15 list, i.e. **1.67x**, not the
+    5-10x commonly assumed. That run spent ~3.5M subagent tokens across ~12 Opus subagents at
+    ~200-270k each. Dropping the tier saves ~40%; running 3 critics instead of 9 saves ~67%.
+  - **Never run critic ROUNDS on plan PROSE.** plan-critic runs ONCE, and only for multi-file or
+    security work. On the run above, implementation-critic reading a real diff produced more real
+    defects per token than nine plan-critics reading a planning document. The findings that
+    mattered came from critics reading CODE.
+  - **Cap coverage rounds at 2 lenses**, not 3. Three lenses overlapped heavily and largely
+    re-derived each other.
+  - **Prefer "execute / grep / diff and report the output" over "analyse and assess"** in subagent
+    prompts. This is what makes cheap subagents safe: on that run the highest-value findings — a
+    `42804` cast error and a `42702` ambiguity, both invisible to a clean `supabase db reset` —
+    came from EXECUTING the function, not from model strength. Executable verification is both
+    cheaper and more reliable than inference. See `agent-workflow.md § Delegation Protocol`.
+  - **The backstop that makes this safe** is already required: the orchestrator validates every
+    finding before acting (`agent-workflow.md § Finding Validation`), and it is the Opus. On that
+    run the orchestrator caught several SUBAGENT errors that way — a doc-updater citation that did
+    not say what it claimed, a critic reasoning from a design that had been superseded, and one of
+    its own misreads.
+  - Precedent retained: code-reviewer was bumped haiku→sonnet after haiku threw false positives.
+    Sonnet is the floor for review work; Haiku stays for mechanical checks (doc-updater).
 
 ## Handling Results
 
@@ -93,4 +120,4 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 
 ---
 
-*Last updated: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and do not break the clean-round floor — the same effect as a validated skip-with-reason, but NOT classified as one, since that term is reserved for findings wrong on the merits — and must record the one-line basis on which the prose is TRUE, from FALSE claims about a guard/count/invariant, which are never bounded (the CHAIN is capped in `CLAUDE.md § Post-commit review`, at 3 follow-up commits then escalate) — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*
+*Last updated: 2026-08-24 (Model tier: EVERY subagent runs Sonnet/Haiku and Opus is the orchestrator only, no security-path exception — the carve-out was over-applied to every lens on every round; plus never run critic rounds on plan PROSE, cap coverage at 2 lenses, and prefer executable verification, since the tier is only a 1.67x lever while fan-out was ~67%. Prior: 2026-08-19 (the ONE-round bound splits wording REFINEMENTS, which are bounded and do not break the clean-round floor — the same effect as a validated skip-with-reason, but NOT classified as one, since that term is reserved for findings wrong on the merits — and must record the one-line basis on which the prose is TRUE, from FALSE claims about a guard/count/invariant, which are never bounded (the CHAIN is capped in `CLAUDE.md § Post-commit review`, at 3 follow-up commits then escalate) — the bound is an orchestrator duty, since a fresh critic has no round history; #1222 AC#4. Prior: 2026-07-23 security-path floor reads `origin/master...HEAD`.)*

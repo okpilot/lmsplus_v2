@@ -436,6 +436,16 @@ Critically, when the `INSERT ... ON CONFLICT` lives inside a **plpgsql function 
 Two more execution-only failure modes in the same deferred-validation class — each passed `db reset` + `tsc` + Biome + both Opus impl-critics + semantic-reviewer, and was caught ONLY by an integration test that executed the function (VFR RT Phase 2, #697; the #925 integration tier):
 
 - **(c) Unqualified column name shadowed by a same-named `RETURNS TABLE` OUT parameter → `42702 column reference "<col>" is ambiguous`** (at execution, not at `CREATE`). A `WHERE id = ...` inside a function whose `RETURNS TABLE (id ...)` declares `id` is ambiguous between the OUT variable and the table column. **Always alias the source table in helper reads:** `FROM users u WHERE u.id = auth.uid()` — never `WHERE id = auth.uid()`. (mig 118 `get_quiz_questions`; the sibling `get_vfr_rt_exam_questions` already aliased, which is why it never hit this.)
+- **(e) An aggregate whose type is widened by dropping a cast, against a `RETURNS TABLE` column →
+  `42804 structure of query does not match function result type / Returned type bigint does not
+  match expected type integer`** (at execution, not at `CREATE`). `count(*)::int AS answered_count`
+  feeding a `RETURNS TABLE (answered_count int)` is correct; rewrite the expression and drop the
+  `::int` — e.g. changing `count(*)` to `count(DISTINCT x)` — and the column becomes `bigint`, any
+  `COALESCE` over it becomes `bigint`, and `RETURN QUERY` raises on the first call while
+  `supabase db reset` stays green. **Keep the cast when you touch an aggregate feeding a
+  `RETURNS TABLE` column.** Observed and mutation-confirmed 2026-08-24 on
+  `list_my_internal_exam_history` (`20260521000003:18,51,66`): removing the cast produced exactly
+  this error at execution.
 - **(d) NULL propagating through a helper call into a NOT NULL column → `23502`.** `v := helper_fn(nullable_input)` where `helper_fn` may return NULL (e.g. `normalize_answer(NULL)`) and `v` — or a boolean derived from it like `(v <> '' AND …)`, which is NULL when `v` is NULL — lands in a NOT NULL column (`is_correct`). **Coalesce at the call site:** `coalesce(helper_fn(input), '<default>')`. Check sibling callers in the same migration family — if they already coalesce, the new one must too. (mig 120 batch_submit helper; the sibling grader mig 119 already coalesced.)
 
 Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`, same columns + predicate) — `pg_index.indimmediate` is what encodes non-deferrability, and a `DEFERRABLE` unique constraint passes an `indisunique`-only check while still being unusable as an arbiter. If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085). **Precedent:** mig 085 originally shipped `ON CONFLICT (...) WHERE accepted = true` against the non-unique `idx_user_consents_lookup`; it applied clean but threw `42P10` on first call (caught by semantic-reviewer, #386).
@@ -1025,6 +1035,18 @@ The clauses that carry most of the weight:
    (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
    block.
 
+   **Reading the block is NOT sufficient — grep the retracted phrase repo-wide before committing.**
+   Promoted at learner count=4 (2026-08-24, `fix/report-item-scale`), where the same corrected claim
+   survived in a non-adjacent location four separate times: a JSDoc was fixed while the test comment
+   four lines down still said "on production"; `docs/decisions.md`'s body was fixed while the FILE
+   FOOTER still said "clamped at zero"; a Decision body was fixed while its own JSDoc four lines
+   away still said "clamped at 0"; and after all three, CR-local found the first claim still standing
+   in both the decisions footer AND `docs/plan.md`. Reading the block caught NONE of them — by
+   construction, since every instance was in a different file, a different section, or a separate
+   comment block. A `grep -rn "<retracted phrase>"` caught them. So the mechanical step is:
+   after correcting any claim, grep the OLD wording across the repo and confirm zero hits describe
+   current behaviour. Cheap, and it is the only thing that has actually worked.
+
 4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
    `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
    returns clean the moment the correct text exists on disk — it cannot tell you whether that text
@@ -1076,4 +1098,4 @@ Promoted at count=3 (implementation-critic's own tracker reached this independen
 
 ---
 
-*Last updated: 2026-08-20 (§10 gained clause 4 — "Verify the fix is STAGED, not merely written": `git grep` reads the WORKING TREE, so it returns clean the moment the correct text exists on disk and says nothing about what is in the commit. Learner count=2, on the two staging instances clause 4's body and tracker-archive row 640 both name: an e2e spec extracted to a NEW file that sat untracked while its tests were removed from the original, and a review agent's memory delta left unstaged and missing the commit it belonged to. (An earlier draft cited `57c3b452`/`d8d32b1f`; those describe the PARTIAL-EDIT pattern of clause 3, not the staging one.) Prior: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)))*
+*Last updated: 2026-08-24 (§10 clause 3 now requires a repo-wide GREP of the retracted phrase, not just re-reading the block — learner count=4, where the block-read caught none of four instances and the grep caught all. Prior: 2026-08-20 (§10 gained clause 4 — "Verify the fix is STAGED, not merely written": `git grep` reads the WORKING TREE, so it returns clean the moment the correct text exists on disk and says nothing about what is in the commit. Learner count=2, on the two staging instances clause 4's body and tracker-archive row 640 both name: an e2e spec extracted to a NEW file that sat untracked while its tests were removed from the original, and a review agent's memory delta left unstaged and missing the commit it belonged to. (An earlier draft cited `57c3b452`/`d8d32b1f`; those describe the PARTIAL-EDIT pattern of clause 3, not the staging one.) Prior: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.)))*
