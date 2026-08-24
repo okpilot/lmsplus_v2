@@ -124,7 +124,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 21 | 2026-08-24 | RULE CANDIDATE (21) → propose §10 "whole-block re-read after every edit" (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 22 | 2026-08-24 | RULE CANDIDATE (22) → propose §10 "whole-block re-read after every edit" (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -167,18 +167,20 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Corrected claim partially retracted — old wording persists in non-adjacent location | 3 | 2026-08-24 | RULE CANDIDATE (3) → §10 clause 3: grep retracted phrase repo-wide, not only re-read block (c0343ecf/360c00a7/b4ba410c). |
 | Null-fallback (`??`) silently reinstates the defect the PR was removing | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | CLAUDE.md docs-only exemption omits `.spec-workflow/specs/*/tasks.md` (pure status prose, same class as the two named paths) | 1 | 2026-08-24 | WATCHING (archive row 657) |
-| code-style.md §10 clause 3's `grep -rn` fails open on a retracted phrase with a regex metacharacter (verified: `count(*)::int`) | 1 | 2026-08-24 | WATCHING — one-char tooling fix (`-F`), independent of frequency threshold (archive row 658) |
+| code-style.md §10 clause 3's `grep -rn` fails open on a retracted phrase with a regex metacharacter (verified: `count(*)::int`) | 1 | 2026-08-24 | RESOLVED — fixed by `40c626e6` (archive row 658) |
 | Commit message cites a config/rule file's lines to justify a decision, but cited lines are scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (archive row 652) |
 | Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
 | Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
 | Rules-file claim true in its hunk, false vs another section/mirror/arithmetic — only whole-diff fact-check catches it | 10 | 2026-08-24 | RULE CANDIDATE (10) → mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
 | Mirror sweep for one rule change under-executed 3x running, each miss caught by a different reviewer despite §Rule-Mirror-Sync naming the cause | 3 | 2026-08-24 | RULE CANDIDATE (3) — 3rd: correct sweep output NAMED the missed site, fix under-applied it anyway; needs a hit-by-hit checklist, not a better grep (archive row 660) |
-| doc-updater fabricates a specific citation ("footer cites X") to support a verdict that is itself correct — evidence invented, conclusion true | 2 | 2026-08-24 | RULE CANDIDATE (2) — recurred despite being named in the next dispatch prompt (contrast row 661, where naming worked); needs quote-exact-text-read, not a reminder (archive row 663) |
+| Subagent asserts a verification it did not perform — evidence invented, conclusion mostly true | 3 | 2026-08-24 | RULE CANDIDATE (3) — recurs despite being named in the dispatch prompt (contrast row 661, where naming worked); 3rd is cross-agent; needs quote-exact-text-read (archive row 663) |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's stated PATH/criterion test | 3 | 2026-08-24 | RULE CANDIDATE (3) — now 2 agent types (test-writer, semantic-reviewer) (archive row 661) |
 | Reviewer's own proposed remedy/verification query is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (archive row 662) |
 | Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
 | Reviewers "confirm" a claim by grepping only the phrases the claim itself cites — convergence across 3 agents ≠ corroboration, none read the block end-to-end | 1 | 2026-08-24 | WATCHING (archive row 659) |
+| Agent applies severity (CRITICAL) explicitly ruled out by dispatch prompt — incomplete evidence ≠ false claim (doc-updater, footer) | 1 | 2026-08-24 | WATCHING (archive row 664) |
+| Confounded measurement: two variables changed simultaneously (regex metachar + stdin redirect) → wrong conclusion shipped as rule | 1 | 2026-08-24 | WATCHING (archive row 665) |
 
 ## Durable knowledge (cross-agent)
 
