@@ -845,9 +845,12 @@ CONSTRAINTS said what was forbidden without saying why the habit fires.
 
 ### For any task that locates a DB object's current definition, name BOTH supersession forms
 
-> "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>` AND `DROP FUNCTION … CREATE FUNCTION <fn>`,
-> sorted by migration timestamp prefix — a later migration may redefine via DROP+CREATE, which a
-> `CREATE OR REPLACE`-only grep silently misses. Same for `ALTER TABLE … DROP CONSTRAINT` +
+> "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>(<arg types>)` AND `DROP FUNCTION … CREATE
+> FUNCTION <fn>(<arg types>)`, sorted by migration timestamp prefix — a later migration may
+> redefine via DROP+CREATE, which a `CREATE OR REPLACE`-only grep silently misses. Match the
+> SIGNATURE and not just the name: an overloaded function has a different body per argument
+> list, so a name-only search can land on an overload that is not the one under review, or on
+> one that no longer exists. Same for `ALTER TABLE … DROP CONSTRAINT` +
 > `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY` — plus `ALTER POLICY <name> ON
 > <table>`, which replaces `TO` / `USING` / `WITH CHECK` in place without recreating the policy,
 > so a DROP/CREATE-only grep reports a stale predicate as current."
