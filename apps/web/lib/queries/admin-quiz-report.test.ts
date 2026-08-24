@@ -235,11 +235,16 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.scorePercentage).toBe(0)
   })
 
-  it('falls back to total_questions answered items when count is null', async () => {
+  it('reports zero answered items when the count is null rather than the question total', async () => {
+    // A null count must NOT fall back to total_questions: that is a QUESTION-level value, and
+    // feeding it to answeredItems makes the report divide an item-level correct_count by a
+    // question count again — the scale mix Decision 60 removed. 0 routes the report to an em
+    // dash instead, which reads as a failed count rather than a fabricated one.
     mockFromSequence({ data: completedSession }, { count: null, data: null }, { data: null })
     const result = await getAdminQuizReportSummary('sess-1')
-    expect(result!.answeredItems).toBe(completedSession.total_questions)
-    expect(result!.answeredQuestions).toBe(completedSession.total_questions)
+    expect(result!.answeredItems).toBe(0)
+    expect(result!.answeredQuestions).toBe(0)
+    expect(result!.answeredItems).not.toBe(completedSession.total_questions)
   })
 
   it('returns null when the answered-count query returns an error', async () => {
