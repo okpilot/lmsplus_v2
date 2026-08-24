@@ -75,7 +75,7 @@ You receive:
 ### 8. Server Action Error-Token Map Completeness
 - When a Server Action calls a SECURITY DEFINER RPC and maps RPC errors to user messages (a `mapRpcError`/`ERROR_MESSAGES` token list), verify **every** `RAISE EXCEPTION '<code>'` in the RPC body has a matching `<code>` entry in the action's map.
 - Unmapped tokens fall through to the generic fallback — not a security leak, but a UX/triage gap (a real path reads identically to a DB timeout).
-- Trace the RPC's LATEST body — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — for the full RAISE set. (See `.claude/rules/agent-semantic-reviewer.md`; promoted count=3.)
+- Trace the RPC's LATEST body — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — for the full RAISE set, matching the function's SIGNATURE and not just its name. (See `.claude/rules/agent-semantic-reviewer.md`; promoted count=3.)
 
 ### 9. Sibling-Validator Constraint Parity
 - When any one validator in a multi-layer family (grader + save-draft schema + draft-load/replay validator, or sibling Zod schemas guarding the same data shape) tightens a constraint (text bound, array cap, dedup, `length > 0` presence check), audit ALL sibling validators in that family for the same constraint in the same review.
@@ -107,8 +107,10 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 
 1. Do NOT read the function definition only from files in the current diff.
 2. Grep the entire migration directory — `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, sorted chronologically by timestamp prefix; the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL) — for BOTH supersession forms:
-   - `CREATE OR REPLACE FUNCTION <name>`
-   - `DROP FUNCTION … CREATE FUNCTION <name>` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
+   - `CREATE OR REPLACE FUNCTION <name>(<arg types>)`
+   - `DROP FUNCTION … CREATE FUNCTION <name>(<arg types>)` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
+
+   Match the **signature**, not just the name: an overloaded function has a different body per argument list, so a name-only search can land on an overload that is not the one being reviewed — or on one that no longer exists (`code-style.md` §10).
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of the function, constraint and policy forms: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms". It does NOT cover a bare backing index or a GRANT — for those see `code-style.md` §10.

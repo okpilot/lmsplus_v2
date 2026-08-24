@@ -110,7 +110,7 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 - For plan-critic CRITICAL findings, the orchestrator resolves directly — with a single run there is no revision round to send them back to. An ISSUE **or** CRITICAL it cannot resolve escalates to the user instead; `agent-workflow.md` § NEVER forbids executing with either one still open, so neither has a proceed-anyway path.
 - Report critic findings to the user in the agent findings summary (agent / severity / count / status) alongside post-commit agent results.
 - Run implementation-critic on staged changes even for small single-file edits — only plan-critic is skipped for trivial changes.
-- Trace the supersession chain — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — to the latest definition before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md`, `semantic-reviewer.md`, and `implementation-critic.md`.
+- Trace the supersession chain — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — to the latest definition FOR THE MATCHING SIGNATURE (an overloaded function has a different body per argument list) before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md`, `semantic-reviewer.md`, and `implementation-critic.md`.
 
 ### NEVER
 - Skip implementation-critic, even for small changes. Plan-critic may be skipped for single-file changes under 10 lines, but implementation-critic always runs.

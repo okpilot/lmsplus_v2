@@ -74,8 +74,10 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 
 1. Do NOT read the function definition only from the migration file currently being reviewed.
 2. Grep the entire migration directory — `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, sorted chronologically by timestamp prefix; the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL) — for BOTH supersession forms (including any other migrations also in the staged diff):
-   - `CREATE OR REPLACE FUNCTION <name>`
-   - `DROP FUNCTION … CREATE FUNCTION <name>` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
+   - `CREATE OR REPLACE FUNCTION <name>(<arg types>)`
+   - `DROP FUNCTION … CREATE FUNCTION <name>(<arg types>)` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
+
+   Match the **signature**, not just the name: an overloaded function has a different body per argument list, so a name-only search can land on an overload that is not the one being reviewed — or on one that no longer exists (`code-style.md` §10).
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; `ALTER POLICY` in particular replaces a predicate in place, so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of the function, constraint and policy forms: `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms". It does NOT cover a bare backing index or a GRANT — for those see `code-style.md` §10.

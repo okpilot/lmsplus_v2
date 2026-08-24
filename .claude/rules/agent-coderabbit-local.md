@@ -31,7 +31,7 @@ the finding arrives pre-argued, so it reads as already-checked.
 
 | Claim shape | Required check |
 |---|---|
-| "function X does / does not do Y" | Trace to the LATEST definition — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION`, sorted by timestamp prefix. Never the first match. |
+| "function X does / does not do Y" | Trace to the LATEST definition — BOTH `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION`, sorted by timestamp prefix, and for the MATCHING SIGNATURE — an overloaded function has a different body per argument list. Never the first match. |
 | "file X writes / reads column Y" | `grep` the column in that file. Absence is proof; do not infer from the filename. |
 | "constraint / index / policy Z enforces W" | Read the constraint body. Which constraint carries a rule is frequently NOT the one its name suggests. |
 | "this is a type error" / "this is a syntax error" | Run a **scoped** type-check that actually INCLUDES the file (see `agent-workflow.md § Plan Validation`). A green `tsc` from a config that excludes the path proves nothing. |
