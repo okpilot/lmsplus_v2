@@ -36,7 +36,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE (archive row 623) |
 | Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE. |
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE. |
-| plpgsql body contains deferred-validation SQL (clean apply ≠ execution correctness) | 4 | 2026-06-21 | RULE CANDIDATE (4). |
+| plpgsql body contains deferred-validation SQL (clean apply ≠ execution correctness) | 5 | 2026-08-24 | RULE CANDIDATE (5). |
 | Semantic reviewer stale-baseline false positive (wrong predecessor migration) | 2 | 2026-06-06 | RULE CANDIDATE. |
 | Stale local Supabase volume / in-place migration edit causing local e2e failures | 2 | 2026-06-10 | RULE CANDIDATE. |
 | Haiku code-reviewer false positives on Playwright E2E spec complexity | 2 | 2026-06-05 | RULE CANDIDATE. |
@@ -124,7 +124,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 14 | 2026-08-20 | RULE CANDIDATE (14) → propose §10 "whole-block re-read after every edit" addition (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 15 | 2026-08-24 | RULE CANDIDATE (15) → propose §10 "whole-block re-read after every edit" addition (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -164,6 +164,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Behavioral-fact correction not swept to callers relying on the fact (distinct from rule-text mirrors) | 1 | 2026-08-20 | WATCHING (count corrected 2→1, promotion withheld, archive row 647) |
 | Diff-scoped post-commit agents all pass while callers of a corrected fact remain stale | 1 | 2026-08-20 | WATCHING (archive row 648) |
 | Empirical measurement correct for tested scenario but scenario excludes the failure case | 3 | 2026-08-20 | RULE CANDIDATE (3) → code-style.md §10 clause 5; unified w/ row 650 (archive rows 649+650) |
+| Corrected claim partially retracted — old wording persists in non-adjacent location (different file/section/nearby block) | 3 | 2026-08-24 | RULE CANDIDATE (3) → enhance §10 clause 3: grep for retracted phrase across repo, not only re-read block (fix/report-item-scale c0343ecf/360c00a7/b4ba410c). |
+| Null-fallback (`??`) silently reinstates the defect the PR was removing | 1 | 2026-08-24 | WATCHING (archive row 651) |
 
 ## Durable knowledge (cross-agent)
 
