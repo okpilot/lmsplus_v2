@@ -1214,7 +1214,12 @@ production render was observed, and this entry does not claim one.
 
 **Decision**:
 1. **One expression, no mode branch** — `correctCount / answeredItems` in both the desktop and the
-   mobile layout. Both operands are item-level, so the fraction can no longer exceed 1.
+   mobile layout. Both operands are item-level, so this removes the question/item scale mismatch.
+   Be precise about the upper bound, because item-level UNITS do not establish it on their own and
+   `ResultSummary` performs no cardinality check: the fraction stays at most 1 only while upstream
+   writers preserve `correctCount <= answeredItems`. They do today — every writer counts
+   `is_correct` over the same `quiz_session_answers` rows the denominator counts, so the numerator
+   is a subset by construction — but that is a property of the writers, not of this expression.
 2. **`answeredItems === 0` renders an em dash**, not `0 / 0`.
 3. **`Skipped` now renders for exams too, and in the mobile layout** (which never had it; its grid
    goes `grid-cols-3` → `grid-cols-2`, a 2x2). This is not cosmetic: the old exam denominator
