@@ -52,7 +52,8 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
     - `.claude/rules/*.md` — the rule text itself.
     - **The mirror set for that rule — every row of the table in `agent-workflow.md § Rule-Mirror Sync`, including the executable `.claude/hooks/*.sh` mirrors and `package.json`.** A rule lives in more than one place and the copies
       do not auto-track: `docs/security.md`, `.claude/rules/*.md`, `.coderabbit.yaml`,
-      `.claude/agents/*.md`, `.claude/commands/*.md`, `.claude/skills/*.md`, `package.json`, AND any other binding
+      `.claude/agents/*.md`, `.claude/commands/*.md`, `.claude/skills/**/*.md` (RECURSIVE — a nested
+      skill is still a mirror), `package.json`, AND any other binding
       doc that re-states the mechanics rather than pointing at them — notably `docs/database.md`,
       whose §7 describes what the security-auditor flags. That last one is a CLASS, not a path — no
       doc-shaped grep reaches it; find it by asking "what else asserts this claim?".

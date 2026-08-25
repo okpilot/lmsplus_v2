@@ -728,23 +728,19 @@ good-faith sweep, so the remedy is a terminal check, not more diligence.
    NOT change — an anchor containing your new wording is the same fail-open:
 
    ```bash
-   CLAUSE='<distinctive fixed substring from the clause opening, untouched by your edit>'
-   git grep -lFz -- "$CLAUSE" -- :/ | while IFS= read -r -d '' f; do
-     block=$(awk -v c="$CLAUSE" 'index($0,c){p=1} p{print} p&&/^$/{exit}' "$f")
-     [ -n "$block" ] || { echo "ANCHOR MISSING  $f" >&2; continue; }
-     printf '%s  %s\n' "$(printf '%s' "$block" | sha256sum | cut -c1-12)" "$f"
-   done
+   node .claude/hooks/check-mirror-sync.mjs '<distinctive substring from the clause opening>'
    ```
 
-   It hashes the whole PARAGRAPH from the anchor to the next blank line, not the anchor line alone.
-   That distinction is load-bearing and was wrong in the first version of this rule: hashing only the
-   lines that MATCH the anchor leaves a multi-line clause unprotected, because an edit to any later
-   line of the block changes nothing the hash sees. The `-z` / `read -r -d ''` pairing matters for the
-   same reason: an unquoted `for f in $(git grep -l ...)` word-splits a path containing a space into
-   fragments, none of which open, so the real file is never hashed and never flagged — the list simply
-   comes back all-matching. A verification tool that omits a file silently is worse than one that errors. Demonstrated on a two-file fixture whose second
-   lines differ — the line-only form printed the SAME digest for both, the block form printed
-   different ones. Found by CR-local; four internal agents had passed the broken version.
+   Identical digests on every line = in sync; it exits non-zero on divergence, on a file it could
+   not check, and on an anchor that matches nothing. **It is a script and not a snippet here on
+   purpose.** The bash version this replaced shipped FIVE distinct fail-opens, each found by a
+   different review round and none by the round before it: it hashed only the anchor LINE (a change
+   below it was invisible); `for f in $(git grep -l …)` word-split a path containing a space so the
+   file was never read and never flagged; `awk -v` applied C-escape processing so an anchor holding
+   a backslash matched nothing; a missing anchor only warned and continued; and a repeated anchor
+   silently compared the first block. Every one made it report "in sync" without having checked.
+   Prose cannot be tested — `check-mirror-sync.test.mjs` pins all five, and each guard is
+   mutation-checked. Do not re-inline it.
 
    Identical checksums on every line = in sync; any divergent one is an unswept copy. `-F` and the
    explicit `-- :/` are load-bearing and both fail OPEN — `code-style.md` §10 clause 3 measures why.
