@@ -241,7 +241,14 @@ reviews:
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
-          re-derived from the LATEST migration for the matching signature. Cite the migration.
+          re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
+          form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +
+          CREATE FUNCTION; ALTER FUNCTION, which changes SET search_path / SECURITY DEFINER in
+          place without reissuing the body; DROP TRIGGER + CREATE TRIGGER; DROP POLICY + CREATE
+          POLICY plus ALTER POLICY, which replaces TO / USING / WITH CHECK in place; and
+          ALTER TABLE DROP/ADD CONSTRAINT, DROP INDEX, CREATE [UNIQUE] INDEX. For a COLUMN, scan
+          every ALTER TABLE chronologically — one match proves it existed once, never its state at
+          HEAD. Cite the migration.
         - A claim PROPAGATED from another doc rather than from the code. A doc is evidence of what
           someone believed, never of what the code does — this is the sharpest instance on record
           (a docs/database.md grant line nearly widened a live GRANT to anon).
