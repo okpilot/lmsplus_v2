@@ -62,6 +62,12 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       false CRITICALs. **Grep is a first pass, not the sweep**: a phrase-grep cannot find a
       paraphrase, so when a change retires a *claim*, read the affected section and its mirrors
       end-to-end once.
+      **A sweep is done when it passes the completeness checks in `agent-workflow.md § Rule-Mirror
+      Sync` ("Sweep completeness"), not when you have run it:** walk every reported hit to APPLIED or
+      SKIPPED-with-reason, and checksum the clause across every file carrying it, since a
+      byte-identical copy in N files is one artifact and a phrase-grep for your NEW wording matches
+      only the file you already fixed. Read them there, with the two instance classes they do NOT
+      cover — do not work from a paraphrase here.
       **This file is itself a `.claude/commands/*.md` mirror** — its own list omitted
       `.claude/commands/`, then `.claude/skills/*.md`, then `docs/database.md` across PR #1174's
       rounds 3, 4 and 5, which is exactly the drift the rule exists to catch. Each round fixed the
