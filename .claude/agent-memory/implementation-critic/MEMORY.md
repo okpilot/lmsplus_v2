@@ -44,7 +44,7 @@
 - **`asserts x is T` does not narrow a property access on a cast expression.** Bind `(q as DiagramItem).diagram` to a `const` first, or the second use stays `unknown`.
 - **Never accept a tree→string equivalence check without a close-delimiter, a `NodeFlags` mask without re-reading the enum, or "`parseDiagnostics` is empty" as proof.** All three bit the oracle rebuild. Detail: [ast-oracle-facts](topics/ast-oracle-facts.md)
 
-- **CREATE OR REPLACE trace before flagging.** Trace to the LATEST migration definition. Grep BOTH `CREATE OR REPLACE FUNCTION <fn>` AND bare `CREATE FUNCTION <fn>` (DROP+recreate) — a CREATE-OR-REPLACE-only grep returns a superseded file as "latest".
+- **CREATE OR REPLACE trace before flagging.** Trace to the LATEST migration definition. Grep every supersession form (an OPEN set — see `agent-workflow.md`), not just `CREATE OR REPLACE FUNCTION <fn>` — a CREATE-OR-REPLACE-only grep returns a superseded file as "latest".
 - **Migration source of truth: `supabase/migrations/` ONLY.** `packages/db/migrations/` was FROZEN 2026-07-11. Never flag a missing counterpart there; never cite it for current SQL.
 - **Every start RPC auto-clears the caller's active `discovery` row** (migs 137/141/138/139/140, before the single-active guard) — an orphan never strands a user. Reject any comment claiming it "blocks the retry". †
 - **Security §11 (multi-permissive RLS) self-scope is load-bearing.** Per-caller RPCs keep the explicit `<owner> = auth.uid()` predicate — RLS ORs the broader policy. Never suggest removing it. †
