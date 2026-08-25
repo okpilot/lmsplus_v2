@@ -7,12 +7,10 @@ settings:
 overrides:
   undici: '>=7.28.0 <8'
   zod: ^4.4.3
-  next: '>=16.2.11 <17'
   fast-uri: '>=3.1.4 <4'
   postcss: '>=8.5.23 <9'
   esbuild: '>=0.28.1 <0.29'
   hono: '>=4.12.25 <5'
-  brace-expansion: '>=5.0.8 <6'
   js-yaml: '>=4.3.1 <5'
 
 importers:
@@ -90,7 +88,7 @@ importers:
         specifier: ^1.33.0
         version: 1.33.0(react@19.2.8)
       next:
-        specifier: '>=16.2.11 <17'
+        specifier: 16.3.2
         version: 16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-themes:
         specifier: ^0.4.6
@@ -209,7 +207,7 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(vitest@4.1.11)
       next:
-        specifier: '>=16.2.11 <17'
+        specifier: ^16.3.2
         version: 16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       typescript:
         specifier: ^6.0.3
@@ -1750,7 +1748,7 @@ packages:
     resolution: {integrity: sha512-HL6hoEARpdL/NH3uIQ/O9BczP5P3QLSWerQgv8C4/vZl3JPQOWmFsJEN0F8/dU4+OFqlPz3P52InZjaYO3MA+w==}
     engines: {node: '>=18'}
     peerDependencies:
-      next: '>=16.2.11 <17'
+      next: ^13.2.0 || ^14.0 || ^15.0.0-rc.0 || ^16.0.0-0
 
   '@sentry/node-core@10.70.0':
     resolution: {integrity: sha512-oPOEVVNxv5WHtckx2i06Wi9FLWyvOg/1DUeX732jZ4iqT2nupINaMH4nF4f4kSvUThFnxkFSRQxwqOxgzMKhKA==}
@@ -2106,7 +2104,7 @@ packages:
     peerDependencies:
       '@remix-run/react': ^2
       '@sveltejs/kit': ^1 || ^2
-      next: '>=16.2.11 <17'
+      next: '>= 13'
       nuxt: '>= 3'
       react: ^18 || ^19 || ^19.0.0-rc
       svelte: '>= 4'
@@ -2134,7 +2132,7 @@ packages:
     resolution: {integrity: sha512-jwkNcrTeafWxjmWq4AHBaptSqZiJkYU5adLC9QBSqeim0GcqDMgN5Ievh8OG1rJ6W3A4l1oiP7qr9CWxGuzu3w==}
     peerDependencies:
       '@sveltejs/kit': ^1 || ^2
-      next: '>=16.2.11 <17'
+      next: '>= 13'
       nuxt: '>= 3'
       react: ^18 || ^19 || ^19.0.0-rc
       svelte: '>= 4'
