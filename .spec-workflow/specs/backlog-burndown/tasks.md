@@ -200,12 +200,13 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
 ## Remaining waves
 
 (Issue counts move daily, so no UNTIMESTAMPED count is quoted here — the measurement below carries
-its instant precisely so it reads as a reading, not a fact. Derive the engineering queue as open issues
-minus the `ops` and `product-decision` labels, which mark work no PR can close:
+its instant precisely so it reads as a reading, not a fact. Derive the engineering queue as open
+issues minus the UNION of the `ops` and `product-decision` labels — an issue may carry BOTH, so
+subtracting the two counts separately double-counts it. Those labels mark work no PR can close:
 `gh issue list --state open --limit 300 --json number,labels`. If that ever returns exactly 300,
 treat it as TRUNCATED, not as the answer, and raise the bound — `gh` exits 0 on a truncated list, so
-the cap fails OPEN and silently under-counts. Measured 2026-08-20T05:30Z: 113 open,
-8 `ops`, 4 `product-decision` → 101.)
+the cap fails OPEN and silently under-counts. Measured 2026-08-25T11:54Z: 110 open, union 12
+(8 `ops` + 4 `product-decision`, 0 carrying both) → 98.)
 
 (The numbering skips PR 7 and W2 — a gap, not a dropped wave. No total is stated here: it was "41"
 and went stale the first time a PR entry inside a wave was struck through as done, in this same
