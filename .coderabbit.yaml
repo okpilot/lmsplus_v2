@@ -183,7 +183,9 @@ reviews:
         whether a guard can safely be removed. Flag:
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
-          REPLACE and DROP+CREATE, plus ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp
+          REPLACE and DROP+CREATE; ALTER FUNCTION, which changes SET search_path / SECURITY
+          DEFINER in place without reissuing the body; DROP TRIGGER + CREATE TRIGGER; and
+          ALTER TABLE / DROP INDEX / CREATE [UNIQUE] INDEX — all sorted by timestamp
           prefix, to HEAD). Matching the name alone can land on a body that no longer exists:
           get_report_correct_options once had (uuid[]) and (uuid, uuid[]) overloads, both dropped,
           while the live signature is (uuid).
