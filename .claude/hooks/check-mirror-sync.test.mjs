@@ -6,7 +6,7 @@
 // these goes red.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -66,6 +66,26 @@ test('hashes a file whose path contains a space instead of dropping it', () => {
     assert.equal(ok, true)
     assert.ok(rows.map((r) => r.file).includes('sub dir/file with space.md'))
     assert.ok(rows.every((r) => r.digest))
+  })
+})
+
+test('runs end-to-end when its own script path contains a space', () => {
+  // The entry guard at the foot of the hook compares REALPATHS because `import.meta.url`
+  // percent-encodes spaces: with the naive `file://${process.argv[1]}` form the comparison never
+  // matches, so the CLI silently does nothing and exits 0 — a fail-open of exactly the class this
+  // tool exists to catch, and it bit the hook on its first run. Every other test imports the
+  // exported functions directly and so never enters that guard; only a subprocess run does.
+  // This repo's own checkout path contains a space, so the guard is load-bearing on every real run.
+  withRepo((repo, commit) => {
+    const hookDir = join(repo, 'hook dir')
+    mkdirSync(hookDir)
+    const hook = join(hookDir, 'check-mirror-sync.mjs')
+    copyFileSync(new URL('./check-mirror-sync.mjs', import.meta.url), hook)
+    writeFileSync(join(repo, 'a.md'), para('second line'))
+    writeFileSync(join(repo, 'b.md'), para('second line'))
+    commit()
+    const out = execFileSync(process.execPath, [hook, ANCHOR], { cwd: repo, encoding: 'utf8' })
+    assert.match(out, /in sync across 2 file\(s\)/)
   })
 })
 
