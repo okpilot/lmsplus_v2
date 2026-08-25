@@ -12,7 +12,7 @@ being true.
 
 | Item | State |
 |---|---|
-| **PR #1246** | OPEN, 7 commits, pushed. Deps + rules + hook. Needs CI + cloud CR. |
+| **PR #1246** | OPEN. Deps + rules + hook. CI green; cloud CR has run twice, all findings applied. No commit count here on purpose — it grows with every commit on the branch and was already stale once (`7`, when the branch held 11). Derive it: `git rev-list --count origin/master..HEAD`. |
 | **#1245** (dependabot, 20 bumps) | MERGED `77fe140b` |
 | **W1 PR 3b (#991)** | **NOT STARTED** — next product work. Two migrations written but UNTRACKED (see §5) |
 | Corpus amnesty | Investigated, not started. §3–§4 is the plan. |
