@@ -190,7 +190,7 @@ If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAU
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
 **Docs-only exemption:** a commit touching ONLY `docs/**/*.md` (except `docs/security.md`), root
-`*.md` (except `CLAUDE.md`), `.claude/agent-memory/**`, or `.claude/run-log.md` runs doc-updater
+`*.md` (except `CLAUDE.md`), or `.claude/agent-memory/**` runs doc-updater
 only. Any diff touching code, rules, hooks, CI or config gets the full cycle.
 
 **Review-follow-up exemption:** a commit applying ONLY findings from its own parent's post-commit
@@ -229,8 +229,9 @@ Everything else (code review, docs, tests) runs through ME as subagents so findi
 `supabase db push --local` skips migrations already in the ledger, so editing a pushed migration
 in place is a silent no-op and the local DB diverges from the repo. Run `supabase db reset` +
 re-seed before local integration/E2E. CI runs on a fresh container every time, so it always has the
-full migration chain — but only the `migration-test` job runs an explicit `supabase db reset`; the
-integration, E2E, Lighthouse and red-team jobs just `supabase start`.
+full migration chain — but only the `migration-test` job runs an explicit `supabase db reset`. As of
+2026-08-25 the integration, E2E, Lighthouse and red-team jobs just `supabase start`; re-derive with
+`grep -rn 'db reset\|supabase start' .github/workflows/`.
 
 ## Push protocol
 Never push without explicit user approval. For branches with 2+ commits, run a full-diff semantic

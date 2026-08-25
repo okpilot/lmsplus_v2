@@ -147,7 +147,7 @@ ones surface.
    `apps/web/tsconfig.json` excludes the integration tests; `apps/web/e2e/**` is covered by NO
    config, so green proves nothing there; `apps/web/scripts/**` is covered by `tsconfig.scripts.json`
    but not every script passes `<Database>` to `createClient` (derive which do:
-   `grep -rl 'createClient<' apps/web/scripts/`), so structural errors are caught and schema ones
+   `grep -rlE 'createClient<\s*Database' apps/web/scripts/`), so structural errors are caught and schema ones
    are not.
    A green test SUITE proves nothing unless some test actually loads the file.
    **The mirror image is also on record: CR asserting the ABSENCE of a guard that exists.** So

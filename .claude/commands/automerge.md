@@ -41,7 +41,7 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 ## Merge policy — ✅ MERGE WHEN, AND ONLY WHEN, ALL HOLD
 
 > ### ⛔ HARD STOP — migration PRs are NEVER merged autonomously
-> If the PR diff touches `supabase/migrations/**` (the sole migration source of truth — `packages/db/migrations/` is frozen/historical), do NOT merge under this command — merging to master auto-deploys the migration to the **PRODUCTION database** via `db-deploy.yml`. Prepare the PR, verify CI is green, and leave it **OPEN** with an explicit handoff note: the user manually evals and merges. **No LLM judgment call overrides this — not "trivial migration", not "idempotent", not "CI proved it".** Mechanical backstop: `db-deploy.yml` deploys through the GitHub `production` environment, which requires the user's approval before `db push` runs — but the backstop is a safety net, never a substitute for this hard stop. **After writing the handoff note, run `/endrun` and stop — the terminal state for a migration PR under this command (or any `/goal`-driven run) is the open PR + handoff, not a merge. Do not loop waiting for it to become mergeable.**
+> If the PR diff touches `supabase/migrations/**` (the sole migration source of truth — `packages/db/migrations/` is frozen/historical), do NOT merge under this command — merging to master auto-deploys the migration to the **PRODUCTION database** via `db-deploy.yml`. Prepare the PR, verify CI is green, and leave it **OPEN** with an explicit handoff note: the user manually evals and merges. **No LLM judgment call overrides this — not "trivial migration", not "idempotent", not "CI proved it".** Mechanical backstop: `db-deploy.yml` deploys through the GitHub `production` environment, which requires the user's approval before `db push` runs — but the backstop is a safety net, never a substitute for this hard stop. **After writing the handoff note, STOP — the terminal state for a migration PR under this command (or any `/goal`-driven run) is the open PR + handoff, not a merge. Do not loop waiting for it to become mergeable.**
 
 After the PR is open, wait for CI and cloud CodeRabbit, then merge if **every** condition is true:
 
@@ -60,4 +60,3 @@ After the PR is open, wait for CI and cloud CodeRabbit, then merge if **every** 
 - Confirm the issue auto-closed (`Closes #N`); close it manually if needed.
 - Update the board (move to Done; the squash's `Closes #N` usually automates this).
 - Report: merged commit SHA, closed issues, and any deferred follow-up issue numbers.
-- **End the run with `/endrun`** — append the run's row to `.claude/run-log.md`. Mandatory terminal step, not optional; the run is not complete until logged.

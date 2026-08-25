@@ -181,7 +181,7 @@ git commit
     ├─► docs-only commit? ────────────► doc-updater ONLY ──────────┐  (no learner pass)
     │     (docs/**/*.md EXCEPT docs/security.md, root *.md         │
     │      except CLAUDE.md,                                       │
-    │      .claude/agent-memory/**, .claude/run-log.md)            │
+    │      .claude/agent-memory/**)                                │
     │                                                             │
     ├─► review-follow-up commit? ─────► semantic-reviewer ONLY ────┤  (no learner pass)
     │     (ALL must hold: the PARENT ran the FULL cycle and        │
@@ -292,7 +292,7 @@ This is what CodeRabbit sees — our agents must see it too.
 Local `master` only moves when something fast-forwards it, so it is routinely stale — and a stale
 base does not error, it silently DISTORTS the diff. Everything derived from it inherits the
 distortion: the PR-level sweep reviews already-merged code, CR-local spends rounds on out-of-scope
-files, `/endrun` writes an inflated commit count, and the security-path floor is misderived.
+files, and the security-path floor is misderived.
 
 **Staleness is not safe in one direction.** It usually over-reports (older merge-base ⇒ a superset
 of the change), but it can also HIDE a security path: if this branch REVERTS a change that landed
