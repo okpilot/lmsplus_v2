@@ -729,10 +729,22 @@ good-faith sweep, so the remedy is a terminal check, not more diligence.
 
    ```bash
    CLAUSE='<distinctive fixed substring from the clause opening, untouched by your edit>'
-   for f in $(git grep -lF -- "$CLAUSE" -- :/); do
-     printf '%s  %s\n' "$(grep -F -- "$CLAUSE" "$f" | md5sum | cut -c1-12)" "$f"
+   git grep -lFz -- "$CLAUSE" -- :/ | while IFS= read -r -d '' f; do
+     block=$(awk -v c="$CLAUSE" 'index($0,c){p=1} p{print} p&&/^$/{exit}' "$f")
+     [ -n "$block" ] || { echo "ANCHOR MISSING  $f" >&2; continue; }
+     printf '%s  %s\n' "$(printf '%s' "$block" | sha256sum | cut -c1-12)" "$f"
    done
    ```
+
+   It hashes the whole PARAGRAPH from the anchor to the next blank line, not the anchor line alone.
+   That distinction is load-bearing and was wrong in the first version of this rule: hashing only the
+   lines that MATCH the anchor leaves a multi-line clause unprotected, because an edit to any later
+   line of the block changes nothing the hash sees. The `-z` / `read -r -d ''` pairing matters for the
+   same reason: an unquoted `for f in $(git grep -l ...)` word-splits a path containing a space into
+   fragments, none of which open, so the real file is never hashed and never flagged — the list simply
+   comes back all-matching. A verification tool that omits a file silently is worse than one that errors. Demonstrated on a two-file fixture whose second
+   lines differ — the line-only form printed the SAME digest for both, the block form printed
+   different ones. Found by CR-local; four internal agents had passed the broken version.
 
    Identical checksums on every line = in sync; any divergent one is an unswept copy. `-F` and the
    explicit `-- :/` are load-bearing and both fail OPEN — `code-style.md` §10 clause 3 measures why.

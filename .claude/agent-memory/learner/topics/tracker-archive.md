@@ -26,9 +26,17 @@ each self-declare exactly once). It fails in both directions, and it was the for
 shipped with until implementation-critic caught it — which is the same defect class as
 `code-style.md` §10 clause 3's measured commands, in the file documenting it.
 
-**Coverage limit, and it is large:** only rows that carry an explicit `(row N)` are covered at all —
-164 of 634 table rows as of 2026-08-25. A row with no self-declared number is invisible to any such
-command and can only be found by full-text search.
+**Coverage limit, and it is large:** only rows carrying an explicit `(row N)` are covered at all — a
+minority of the table. Derive both figures rather than trusting a number here, which goes stale on the
+next commit that adds a row (it already did, within the branch that wrote it):
+
+```bash
+A=.claude/agent-memory/learner/topics/tracker-archive.md
+echo "self-declared: $(grep -oP '^\|.*?\(row \K[0-9]+' $A | wc -l)  of  $(grep -cP '^\| ' $A)"
+```
+
+A row with no self-declared number is invisible to any such command and can only be found by
+full-text search.
 
 Known consequence, same date: three de-listed `MEMORY.md` rows dated 2026-07-12 cited rows
 504/505/506, which resolve to unrelated 2026-07-31 entries; their real homes are rows **500/501/502**

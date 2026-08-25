@@ -197,15 +197,17 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
   enumeration was correct; the unqualified repo-wide reading is what was false (`admin.ts:13` is a
   third live site). Do not write a worked example implying the scripts count was wrong.
 
-## Remaining waves — 41 PRs
+## Remaining waves
 
 (Issue counts move daily, so none is quoted here. Derive the engineering queue as open issues
 minus the `ops` and `product-decision` labels, which mark work no PR can close:
 `gh issue list --state open --limit 300 --json number,labels`. Measured 2026-08-20T05:30Z: 113 open,
 8 `ops`, 4 `product-decision` → 101.)
 
-(As of 2026-08-19, the list below contains 41 PRs, and its numbering skips PR 7 and W2 — a gap,
-not a dropped wave. PR 6 is this branch, tracked in its own section above, and is not "remaining".
+(The numbering skips PR 7 and W2 — a gap, not a dropped wave. No total is stated here: it was "41"
+and went stale the first time a PR entry inside a wave was struck through as done, in this same
+file — no wave itself is complete. Count the unstruck PR entries below if you
+need it. PR 6 is this branch, tracked in its own section above, and is not "remaining".
 The plan is mutable: re-count from the list rather than trusting this line.)
 
 Ordering and contents in the artifact above. Not started.
