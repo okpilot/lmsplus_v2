@@ -56,9 +56,10 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   orchestrator, and only the orchestrator. No security-path exception.** A per-dispatch judgment call
   gets over-applied; a rule with no exception is one that actually gets followed. Where a security
   diff needs Opus-grade scrutiny, the ORCHESTRATOR reads it itself — it already holds the context.
-  - **Fan-out, not tier, is the cost lever.** Opus 5 is $5/$25 per MTok vs Sonnet 5's $3/$15 —
-    **1.67x**, not the 5-10x commonly assumed. Dropping the tier saves ~40%; running 3 critics
-    instead of 9 saves ~67%.
+  - **Fan-out, not tier, is the cost lever.** As of 2026-08-25: Opus 5 is $5/$25 per MTok, Sonnet 5
+    $3/$15 list ($2/$10 promotional through 2026-08-31) — so **1.67x-2.5x**, not the 5-10x commonly
+    assumed. Dropping the tier saves ~40-60%; running 3 critics instead of 9 saves ~67%. Re-read the
+    current rates before quoting these; the conclusion holds either way.
   - **Never run critic ROUNDS on plan PROSE.** plan-critic runs ONCE per plan, skipped only for
     single-file changes under 10 lines. The findings that matter come from critics reading CODE.
   - **Cap coverage rounds at 2 lenses**, not 3 — three overlap heavily and re-derive each other.

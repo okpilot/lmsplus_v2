@@ -23,7 +23,8 @@ cannot be split across files. Keep the header comment minimal; push rationale to
 The cap targets multi-statement migrations that can be split by concern.
 
 **Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
-include the extraction in the SAME commit. Run `wc -l` on every file you plan to grow during Plan
+include the extraction in the SAME commit. Does NOT apply to a file covered by the exception above:
+an atomic DDL object cannot be split, so there is nothing to extract. Run `wc -l` on every file you plan to grow during Plan
 Validation and budget the split up front.
 
 **The golden rule:** if you need to scroll to understand a file, it's too long.
@@ -321,7 +322,7 @@ const config = (session as unknown as { ids: unknown }).ids
 if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 ```
 
-**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` throws an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression instead of a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use.
+**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` can throw an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression — the cast is erased at compile time, so the failure surfaces wherever the value is later dereferenced rather than as a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use.
 
 ### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
 

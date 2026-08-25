@@ -107,11 +107,14 @@ After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)
 Also audit `package.json` `pnpm.overrides` after any dep bump: drop each pin once its removal
 condition is satisfied, in the same commit. **Verify redundancy — never infer it from the resolved
 version.**
-- Enumerate dependents with `pnpm -r why <pkg>`. The `-r` is required: plain `pnpm why` prints
-  nothing and exits 0 for a workspace-only package, which reads as "no dependents, safe to remove".
+- Enumerate dependents with `pnpm -r why <pkg>` — the `-r` is what covers every workspace package.
+  A root-only `pnpm why` can report nothing while exiting 0, which reads as "no dependents, safe to
+  remove"; do not rely on it.
 - Read the DECLARED range of EVERY dependent
   (`node_modules/.pnpm/<dep>@<ver>*/node_modules/<dep>/package.json` — glob it, pnpm appends peer
-  suffixes). Resolution picks today's newest match; the declared range is what binds tomorrow.
+  suffixes). A SCOPED dependent is flattened in the store directory (`@scope+pkg@<ver>*`) and keeps
+  the slash only in the nested path (`.../node_modules/@scope/pkg/package.json`). Resolution picks
+  today's newest match; the declared range is what binds tomorrow.
 - Re-audit in a scratch worktree after `pnpm install --lockfile-only`. `pnpm audit` reads the
   LOCKFILE, so removing the pin from `package.json` alone leaves the forced resolution in place and
   the audit passes for the wrong reason.
@@ -150,7 +153,7 @@ version.**
 
 ### Workflow — hard stops
 - **NEVER** push without explicit user approval — always ask first
-- **NEVER** skip post-commit agent review — run the four core agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) after every commit, except under a NAMED exemption in § Post-commit review. Commit size is never a criterion
+- **NEVER** skip post-commit agent review — run the four core agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) after every commit, except under a NAMED exemption in § Post-commit review. Commit size ALONE is never an exemption
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
 - **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
@@ -198,9 +201,11 @@ cycle runs semantic-reviewer only. ALL must hold:
 - <= 20 changed lines outside tests, <= 60 inside them;
 - no security path, rules file, migration, or CI/hook/config.
 
-If any condition fails, run the full cycle. Neither reduced path gets a learner pass.
+If any condition fails, run the full cycle. Neither the docs-only nor the review-follow-up path
+gets a learner pass.
 
-Neither exemption is a "small commit" exemption — new scope gets the full cycle even at one line.
+Docs-only and review-follow-up are the only exemptions, and neither is a "small commit" exemption —
+new scope gets the full cycle even at one line.
 
 **Stop rule.** On a review-follow-up, act only on CRITICAL/ISSUE findings naming a runtime defect
 or a FALSE claim in prose (a guard that is not there, a count that does not add up). Log and stop
@@ -210,7 +215,7 @@ applying the previous commit's findings, then escalate to the user with the resi
 remainder; every finding still needs a terminal disposition per `wrapup.md`.
 
 Pre-commit critics (plan-critic, implementation-critic) are additive — they do not replace
-post-commit agents. Never push without all agents reporting clean.
+post-commit agents. Never push until every agent required by the selected path reports clean.
 
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking):
@@ -223,8 +228,9 @@ Everything else (code review, docs, tests) runs through ME as subagents so findi
 ## Local migrations
 `supabase db push --local` skips migrations already in the ledger, so editing a pushed migration
 in place is a silent no-op and the local DB diverges from the repo. Run `supabase db reset` +
-re-seed before local integration/E2E. CI always resets, so CI is the source of truth — "fails only
-locally" usually means a stale local DB, not wrong code.
+re-seed before local integration/E2E. CI runs on a fresh container every time, so it always has the
+full migration chain — but only the `migration-test` job runs an explicit `supabase db reset`; the
+integration, E2E, Lighthouse and red-team jobs just `supabase start`.
 
 ## Push protocol
 Never push without explicit user approval. For branches with 2+ commits, run a full-diff semantic

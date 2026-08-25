@@ -394,7 +394,12 @@ reduce the backlog and needs a written justification.
   `--limit 200` is load-bearing: `gh` defaults to 30 and exits 0 on a truncated list, so a silent
   under-count PASSES a check that should fail. If it returns exactly 200, treat it as truncated and
   raise the bound. `author:@me` is the `gh`-authenticated account, not the commit author — under a
-  different login `filed` under-counts, same fail-open. `--state open`, not `--state all`.
+  different login `filed` under-counts, same fail-open. `--state open`, not `--state all`: the
+  definition counts issues still OPEN at merge, so one filed and closed on the same branch is zero
+  backlog delta and correctly drops out.
+- **Validate the merge-base separately — do not inline it.** A failed `git merge-base` leaves an
+  empty substitution, and `git log -1 --format=%cI` then silently reports HEAD's date, narrowing the
+  window and under-counting `filed`. Capture it, check the exit code, abort on failure, then query.
 
 **First-illumination exemption — the only accepted justification, evidence required, once per area.**
 A PR first to look hard at a neglected area will surface more than it closes. Name the path set and
@@ -409,6 +414,10 @@ paste the output of steps 1-3:
    step 2, same paths as step 1. `--oneline`/`--name-only` cannot answer this: docs-only is a
    property of the WHOLE commit while every command here is pathspec-filtered.
 4. No open issue targeted those paths at branch cut — a judgment call; state which you checked.
+
+Check the exit code of every command above before reading its output. Step 3 pipes `git log` into
+`xargs`, which exits 0 on empty input — so a FAILED `git log` is indistinguishable from the empty
+result that GRANTS the exemption unless you test the log's own status first.
 
 Record it in the PR body as `first-illumination: <path set>`. A later PR into overlapping paths finds
 it via `gh pr list --state merged --search '"first-illumination" in:body'` — a coarse filter that

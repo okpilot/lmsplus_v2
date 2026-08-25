@@ -114,7 +114,8 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 
 ## Common Pitfalls Observed
 
-Patterns CR local caught that our internal agents missed. Update as new ones surface.
+Examples of patterns CR local caught that our internal agents missed — an open list; add as new
+ones surface.
 
 1. **Service-role cleanup discarding `.select('id')` result.** §5 requires logging on
    `data?.length > 0` even where zero rows is valid.
@@ -145,7 +146,9 @@ Patterns CR local caught that our internal agents missed. Update as new ones sur
    whether `tsc` is green on that exact head — but only under a config that INCLUDES the file.
    `apps/web/tsconfig.json` excludes the integration tests; `apps/web/e2e/**` is covered by NO
    config, so green proves nothing there; `apps/web/scripts/**` is covered by `tsconfig.scripts.json`
-   but only two scripts pass `<Database>`, so structural errors are caught and schema ones are not.
+   but not every script passes `<Database>` to `createClient` (derive which do:
+   `grep -rl 'createClient<' apps/web/scripts/`), so structural errors are caught and schema ones
+   are not.
    A green test SUITE proves nothing unless some test actually loads the file.
    **The mirror image is also on record: CR asserting the ABSENCE of a guard that exists.** So
    "absence is proof" cuts both ways — when CR says something is MISSING, grep for it first.

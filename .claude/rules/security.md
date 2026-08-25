@@ -9,8 +9,11 @@
 
 1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never `SELECT *` questions for
    students. The MC key lives in `questions.correct_option_id` (column-REVOKE-gated), kept out of
-   the `options` JSONB by `trg_sanitize_question_options`; students read it post-session only via
-   the `ended_at`-gated report RPCs, admins via `get_question_authoring_fields()`.
+   the `options` JSONB by `trg_sanitize_question_options`. TWO student paths expose it, both
+   deliberate: the `ended_at`-gated report RPCs post-session, and `get_study_questions()` in
+   Study/Discovery mode, which is GRANTed to `authenticated` and returns the key with NO `ended_at`
+   requirement — its integrity guard is the active-exam-session deny rule (rule 13), not
+   post-session gating. Admins read it via `get_question_authoring_fields()`.
 2. **RLS** — every table needs a policy for each command it is INTENDED to permit; a command with no
    permitting policy is denied by default, so a read-only table with only `FOR SELECT` is correct.
    Clauses are PER COMMAND: `SELECT`/`DELETE` take `USING` only; `INSERT` takes `WITH CHECK` only;
