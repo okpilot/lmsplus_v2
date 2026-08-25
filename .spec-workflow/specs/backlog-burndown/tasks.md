@@ -210,7 +210,7 @@ The plan is mutable: re-count from the list rather than trusting this line.)
 
 Ordering and contents in the artifact above. Not started.
 
-- [ ] W1 live defects — PR 1 (#1175, live-exploitable RLS) · PR 2 (#1169+#1170) · PR 3 (#991+#990)
+- [ ] W1 live defects — ~~PR 1 (#1175, live-exploitable RLS)~~ **DONE** (PR #1237, merged `a9767df5` 2026-08-20; db-deploy succeeded and production re-probed: 4 policies, all `cmd=SELECT`) · PR 2 (#1169+#1170) · PR 3 (#991+#990)
       · PR 4 (#1197) · PR 5 (#539)
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
       · PR 11 (#1181+#1184)
@@ -243,7 +243,14 @@ Ordering and contents in the artifact above. Not started.
 
 ## User actions — no PR can do these
 
-- [ ] #1183 rotate the dead prod Supabase Management-API PAT (blocks post-deploy verification of
-      every security migration, including PR 1)
+- [ ] #1183 rotate the dead prod Supabase Management-API PAT — **2 of 3 acceptance criteria now
+      met** (2026-08-20): the token was rotated and a read-only probe returns rows, and
+      `20260809000100`'s live policy set on `questions` was confirmed on production
+      (`tenant_isolation` = SELECT, admin-gated INSERT/UPDATE, no DELETE policy). Remaining: a
+      recorded decision on whether post-deploy catalog verification moves into `db-deploy.yml`.
+      Note the assumed blocker does not exist — db-deploy already builds a SESSION-POOLER
+      `DB_URL` from `SUPABASE_DB_PASSWORD` (pooler, not a direct connection — the workflow's own
+      comment records that direct DB is IPv6-only on Supabase), so a `pg_policies` check needs no
+      new secret
 - [ ] #1204 guarded `--sync-content` run + read-only prod probe before and after
 - [ ] #1182 triage the SonarCloud dashboard; record keep-or-retire

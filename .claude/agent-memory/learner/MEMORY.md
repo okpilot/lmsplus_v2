@@ -124,7 +124,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | plan.md count bumped without reconciling its own N+M | 1 | 2026-08-16 | WATCHING (archive row 552) |
 | Mechanical guard silently not running reads identically | 1 | 2026-08-16 | WATCHING (archive row 553) |
 | Verification tool parse stops at nested brace, reporting | 1 | 2026-08-16 | WATCHING (archive row 554) |
-| Fix commit correcting §10 violations introduces fresh §10 | 15 | 2026-08-24 | RULE CANDIDATE (15) → propose §10 "whole-block re-read after every edit" addition (archive row 604) |
+| Fix commit correcting §10 violations introduces fresh §10 | 22 | 2026-08-24 | RULE CANDIDATE (22) → propose §10 "whole-block re-read after every edit" (archive row 604) |
 | Plan cites correct sibling precedent but implements its | 1 | 2026-08-16 | WATCHING (archive row 556) |
 | Doc-updater transposes two issue numbers, proposes | 1 | 2026-08-16 | WATCHING (archive row 557) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 605) |
@@ -132,12 +132,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Promoted rule (§1 same-commit-extraction, count=8) not | 1 | 2026-08-17 | WATCHING (archive row 559). |
 | Review-follow-up exemption misapplied — commit pushed | 1 | 2026-08-17 | WATCHING (archive row 560). |
 | Orchestrator copies a critic finding LABEL into a comment | 1 | 2026-08-17 | WATCHING (archive row 607) |
-| Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562). branch, without the plan enumerating the others. |
-| Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563). sessionStorage vs module-level cache, caught by semantic-reviewer. |
+| Plan instructs a comment naming ONE cause of a multi-cause | 1 | 2026-08-17 | WATCHING (archive row 562) |
+| Fix clears one of two state stores; comment claims "the" path | 1 | 2026-08-17 | WATCHING (archive row 563) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (archive row 608) |
 | §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4) (archive row 609) |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2) (archive row 610) |
-| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566). Tool-fixed: assertMcKeyBalance in test suite + importer. |
+| MC answer-key corpus balance gap visible only at corpus level | 1 | 2026-08-17 | WATCHING (archive row 566) |
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4) (archive row 611) |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2) (archive row 632) |
 | Verification date from local clock, not UTC (future-dated claim) | 1 | 2026-08-19 | WATCHING (archive row 633) |
@@ -154,7 +154,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Derivation query replacing an open-set enumeration is unverified before publish (LIKE/NOT LIKE false negative) | 1 | 2026-08-20 | WATCHING (archive row 634) |
 | Plan-critic round reverses its own prior round's misread; mirror-edit generalized a conditional carve-out past its precondition | 1 | 2026-08-20 | WATCHING (archive row 635) |
 | Red-team spec positive controls pass via fixture-order coupling, not construction — no mutation gate for Playwright specs | 1 | 2026-08-20 | WATCHING (archive row 636) |
-| §10 fix edits staged partially — correct text in working tree, not in commit; `git grep` returns clean | 2 | 2026-08-20 | RULE CANDIDATE (2) → pre-commit: `git diff --staged` before any §10 fix commit (archive row 640) |
+| §10 fix edits staged partially — correct text in working tree, not in commit; `git grep` returns clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — widened beyond §10: any stage-then-continue-edit sequence; `git show :<path>` caught it this time (archive row 640) |
 | Doc-updater reports 1 stale claim in security doc block; whole-block read by orchestrator finds additional sibling claims | 2 | 2026-08-20 | RULE CANDIDATE (2) → agent-doc-updater.md: whole-block read on any stale claim, not only structural cross-references (archive row 641) |
 | Plan asserts Next.js/framework runtime behavior (middleware matcher, React cache scope) without compilation test | 1 | 2026-08-20 | WATCHING (archive row 642) |
 | Agent confirms CONCLUSION without verifying MECHANISM — wrong mechanism corrected to a different wrong mechanism | 1 | 2026-08-20 | WATCHING (archive row 643) |
@@ -164,16 +164,29 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1 rows: archive row# in s
 | Behavioral-fact correction not swept to callers relying on the fact (distinct from rule-text mirrors) | 1 | 2026-08-20 | WATCHING (count corrected 2→1, promotion withheld, archive row 647) |
 | Diff-scoped post-commit agents all pass while callers of a corrected fact remain stale | 1 | 2026-08-20 | WATCHING (archive row 648) |
 | Empirical measurement correct for tested scenario but scenario excludes the failure case | 3 | 2026-08-20 | RULE CANDIDATE (3) → code-style.md §10 clause 5; unified w/ row 650 (archive rows 649+650) |
-| Corrected claim partially retracted — old wording persists in non-adjacent location (different file/section/nearby block) | 3 | 2026-08-24 | RULE CANDIDATE (3) → enhance §10 clause 3: grep for retracted phrase across repo, not only re-read block (fix/report-item-scale c0343ecf/360c00a7/b4ba410c). |
+| Corrected claim partially retracted — old wording persists in non-adjacent location | 3 | 2026-08-24 | RULE CANDIDATE (3) → §10 clause 3: grep retracted phrase repo-wide, not only re-read block (c0343ecf/360c00a7/b4ba410c). |
 | Null-fallback (`??`) silently reinstates the defect the PR was removing | 1 | 2026-08-24 | WATCHING (archive row 651) |
+| CLAUDE.md docs-only exemption omits `.spec-workflow/specs/*/tasks.md` (pure status prose, same class as the two named paths) | 1 | 2026-08-24 | WATCHING (archive row 657) |
+| code-style.md §10 clause 3's `grep -rn` fails open on a retracted phrase with a regex metacharacter (verified: `count(*)::int`) | 1 | 2026-08-24 | RESOLVED — fixed by `40c626e6` (archive row 658) |
+| Commit message cites a config/rule file's lines to justify a decision, but cited lines are scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (archive row 652) |
+| Explore report accurate for its narrow question is read as answering a broader plan claim (mirror "pointer" vs inline restatement) | 1 | 2026-08-24 | WATCHING (archive row 651) |
+| Mirror-sync grep misses a mirror matched on the wrong axis (numbers not words; content not path) — distinct from extension-scoping (row 637) | 2 | 2026-08-24 | RULE CANDIDATE (2) → propose agent-workflow.md §Rule-Mirror-Sync: grep also by AGENT/RULE NAME and by FILE PATH, not phrase text alone (archive row 653) |
+| Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (archive row 656) |
+| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic — only whole-diff fact-check catches it | 10 | 2026-08-24 | RULE CANDIDATE (10) → mandatory whole-file re-read on any binding-rules-file edit, not hunk-scoped (archive row 655) |
+| Mirror sweep for one rule change under-executed 3x running, each miss caught by a different reviewer despite §Rule-Mirror-Sync naming the cause | 3 | 2026-08-24 | RULE CANDIDATE (3) — 3rd: correct sweep output NAMED the missed site, fix under-applied it anyway; needs a hit-by-hit checklist, not a better grep (archive row 660) |
+| Subagent asserts a verification it did not perform — evidence invented, conclusion mostly true | 3 | 2026-08-24 | RULE CANDIDATE (3) — recurs despite being named in the dispatch prompt (contrast row 661, where naming worked); 3rd is cross-agent; needs quote-exact-text-read (archive row 663) |
+| Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's stated PATH/criterion test | 3 | 2026-08-24 | RULE CANDIDATE (3) — now 2 agent types (test-writer, semantic-reviewer) (archive row 661) |
+| Reviewer's own proposed remedy/verification query is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (archive row 662) |
+| Subagent's own justification for its proposed diff fabricates coverage that diff does not have (coderabbit-sync, 42702/23502→42803) | 1 | 2026-08-24 | WATCHING (archive row 654) |
+| Reviewers "confirm" a claim by grepping only the phrases the claim itself cites — convergence across 3 agents ≠ corroboration, none read the block end-to-end | 1 | 2026-08-24 | WATCHING (archive row 659) |
+| Agent applies severity (CRITICAL) explicitly ruled out by dispatch prompt — incomplete evidence ≠ false claim (doc-updater, footer) | 1 | 2026-08-24 | WATCHING (archive row 664) |
+| Confounded measurement: two variables changed simultaneously (regex metachar + stdin redirect) → wrong conclusion shipped as rule | 1 | 2026-08-24 | WATCHING (archive row 665) |
 
 ## Durable knowledge (cross-agent)
 
 - Promotion threshold = **2 distinct mechanisms**, different commits (not same-file repeats). Schedule Sweep-On-Rule-Promotion on every promotion. Tracker > rule-file parenthetical counts.
 - Biggest recurring defect: **partial fix to a sibling-file group** (count 19) — grep siblings before committing.
-- First evidence CR mirror adds value beyond local agents: `b1280606` (chore/backlog-flow-control) caught by a `.coderabbit.yaml` rule the branch's own author added in `a0e01943`, 12 commits earlier. The mirror is not redundant. (The "3 commits" in b1280606's own message is wrong — re-derived here, per code-style.md §10 clause 1.)
-- Wording-refinement bound proven: `387a29ac` bounded every refinement finding raised in one round; chain cap fired at `1c22b201` and again on fix/1175-tenant-isolation-select-only (3rd data point, 2026-08-20) — escalated to the user per agent-critic.md and applied without a 4th cycle. All terminate by rule, not by convergence.
-- Empirical measurement discipline working: grep-over-checkout identified RSC flight payload, not DOM (reversed a design decision); A/B instrumentation found 4→1 and 5→1 body executions (disproved issue's network-dedup rationale); running local red-team specs against origin/master under identical DB state proved failures were environmental not code regressions (PR #1238). Cheap wrong method consistently agreed with expected answer — measure before concluding.
+- CR mirror value, wording-refinement bound, empirical-measurement discipline, row 604 clean cycles, PR #1242 row-655 headline (9 instances) — all detailed in `topics/cross-agent-lessons.md` "Relocated from MEMORY.md" section.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
 
 ## Topic pointers

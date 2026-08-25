@@ -183,7 +183,9 @@ reviews:
         whether a guard can safely be removed. Flag:
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
-          REPLACE and DROP+CREATE, plus ALTER TABLE / CREATE [UNIQUE] INDEX, sorted by timestamp
+          REPLACE and DROP+CREATE; ALTER FUNCTION, which changes SET search_path / SECURITY
+          DEFINER in place without reissuing the body; DROP TRIGGER + CREATE TRIGGER; and
+          ALTER TABLE / DROP INDEX / CREATE [UNIQUE] INDEX — all sorted by timestamp
           prefix, to HEAD). Matching the name alone can land on a body that no longer exists:
           get_report_correct_options once had (uuid[]) and (uuid, uuid[]) overloads, both dropped,
           while the live signature is (uuid).
@@ -205,6 +207,12 @@ reviews:
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
           or a count left stale by lines the same commit added, are the canonical instances.
+        - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
+          not sufficient — after correcting any claim, the retracted phrase must be grepped
+          repo-wide and every surviving hit confirmed not to describe current behaviour.
+          code-style.md §10 clause 3, promoted at learner count=4: a block-read caught none of
+          four instances (each in a different file, section or comment block) and the grep
+          caught all four.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
           explain. A correct total under an incomplete explanation invites the next reader to
           "correct" it back to a wrong one.
@@ -233,13 +241,24 @@ reviews:
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
-          re-derived from the LATEST migration for the matching signature. Cite the migration.
+          re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
+          form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +
+          CREATE FUNCTION; ALTER FUNCTION, which changes SET search_path / SECURITY DEFINER in
+          place without reissuing the body; DROP TRIGGER + CREATE TRIGGER; DROP POLICY + CREATE
+          POLICY plus ALTER POLICY, which replaces TO / USING / WITH CHECK in place; and
+          ALTER TABLE DROP/ADD CONSTRAINT, DROP INDEX, CREATE [UNIQUE] INDEX. For a COLUMN, scan
+          every ALTER TABLE chronologically — one match proves it existed once, never its state at
+          HEAD. Cite the migration.
         - A claim PROPAGATED from another doc rather than from the code. A doc is evidence of what
           someone believed, never of what the code does — this is the sharpest instance on record
           (a docs/database.md grant line nearly widened a live GRANT to anon).
         - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
+        - A corrected claim whose OLD wording survives in a non-adjacent doc, comment or rule
+          file. After correcting any claim in these binding surfaces, the retracted phrase must
+          be grepped repo-wide and every hit confirmed not to describe current behaviour — a
+          block-read cannot find a restatement it does not contain. code-style.md §10 clause 3.
         - A count, or an "N + M" decomposition, whose terms no longer sum to the headline they
           explain, or which contradicts a list in the same block. The defect is INTERNAL
           INCONSISTENCY, not staleness.
@@ -416,10 +435,23 @@ reviews:
           is a non-unique index, and require a functional/integration test that executes the
           function. (code-style.md §5; mig 085 record_consent #386.)
         - Deferred-validation SQL in plpgsql, general case: the same apply-vs-execution gap
-          covers EXECUTE format(...) and regex literals (POSIX bracket-class shorthand like
+          covers EXECUTE format(...), regex literals (POSIX bracket-class shorthand like
           '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
-          mig 101, 2026-06-10). Flag any migration changing a plpgsql body containing these
-          constructs that lacks a functional/integration test executing the function.
+          mig 101, 2026-06-10), an unqualified column shadowed by a same-named RETURNS TABLE OUT
+          parameter (42702 — always alias the source table: FROM users u WHERE u.id = auth.uid();
+          code-style.md §5 (c)), NULL propagating through a helper call into a NOT NULL column
+          (23502 — coalesce at the call site, and check whether sibling callers already do;
+          code-style.md §5 (d)), and an aggregate feeding a RETURNS TABLE column whose cast was
+          dropped (count(*)::int -> count(DISTINCT x) widens the column to bigint and raises
+          42804 on the first call; keep the cast — mutation-confirmed 2026-08-24 on
+          list_my_internal_exam_history, code-style.md §5 failure mode (e)). Flag any migration
+          changing a plpgsql body containing these constructs that lacks a
+          functional/integration test executing the function — and do not limit the check to
+          that fixed list. The set is OPEN and derived, not enumerated: any plpgsql body whose
+          SQL is validated at EXECUTION rather than at CREATE qualifies, and the constructs
+          named above are illustrations, not a checklist. code-style.md §5 carries the current
+          illustrations, which as of 2026-08-24 were ON CONFLICT inference targets, EXECUTE
+          format(...), POSIX bracket-class regex literals, (c) 42702, (d) 23502 and (e) 42804.
           (code-style.md §5 "Validate at Execution, Not Apply".)
 
     # Tests — behavioral naming + navigation mock URL assertions
