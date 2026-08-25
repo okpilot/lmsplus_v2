@@ -49,15 +49,22 @@ You receive:
    - Plan adds a new RPC without `auth.uid()` check or `SET search_path`
    - Plan changes input validation without updating Zod schemas
 
-## Pre-Flag Verification: CREATE OR REPLACE Chain
+## Pre-Flag Verification: Supersession Chain
 
 Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function:
 
 1. Do NOT read the function definition only from files in the current diff.
-2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>`:
-   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp. This is the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL).
+2. Grep the entire migration directory — `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, sorted chronologically by timestamp prefix; the SOLE source of truth (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it for current SQL) — for EVERY supersession form below:
+   - `CREATE OR REPLACE FUNCTION <name>(<arg types>)`
+   - `DROP FUNCTION … CREATE FUNCTION <name>(<arg types>)` — a later migration may redefine a function this way, which a `CREATE OR REPLACE`-only grep silently misses.
+   - `ALTER FUNCTION <name>(<arg types>) …` — changes function-level ATTRIBUTES in place (`SET search_path`, `SECURITY DEFINER`/`INVOKER`, `OWNER TO`) without touching the body, so a body-only trace reports a stale attribute as current.
+   - `DROP TRIGGER <name> ON <table>` + `CREATE TRIGGER <name> … ON <table>` — when the guard you are about to flag is enforced by a trigger rather than in the body.
+   - When the invariant lives OUTSIDE the function — `ALTER TABLE … DROP CONSTRAINT` / `ADD CONSTRAINT`, `DROP INDEX`, `CREATE [UNIQUE] INDEX` — trace those to their latest state too: an `ON CONFLICT` arbiter or a replay branch is only reachable while its backing index exists.
+
+   Match the **signature**, not just the name: an overloaded function has a different body per argument list, so a name-only search can land on an overload that is not the one being reviewed — or on one that no longer exists (`code-style.md` §10).
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
+5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
 This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
@@ -65,8 +72,10 @@ This prevents false positives where the fix landed in a later migration than the
 
 See `.claude/rules/agent-critic.md` for handling rules. In brief:
 - **CRITICAL** — safety/security/blocking error. Orchestrator resolves directly, no revision round.
-- **ISSUE** — functional bug or wrong assumption. Blocks approval; handled under the Multi-Round Review Discipline (`agent-critic.md § Multi-Round Review Discipline`): coverage rounds (diverse lenses) surface findings → orchestrator fixes APPLY findings → stability rounds until N consecutive clean (N=2 normal, N=3 security-path), ceiling 4 total rounds → then escalate to the user.
+- **ISSUE** — functional bug or wrong assumption. Blocks approval; the orchestrator fixes it and proceeds. You run **ONCE** per plan — there are no coverage rounds, no consecutive-clean floor and no ceiling (`agent-critic.md § Model tier`, 2026-08-24: a plan is prose, and rounds on prose do not converge).
 - **SUGGESTION** — non-blocking improvement. Noted in summary, does not gate approval.
+
+An ISSUE **or** CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because `agent-workflow.md` § NEVER forbids executing with either one still open.
 
 ## Output Format
 
@@ -96,7 +105,7 @@ If no issues found:
 
 ## DO NOT
 
-1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. Rounds follow the Multi-Round Review Discipline (`agent-critic.md § Multi-Round Review Discipline`): coverage rounds → fix APPLY findings → stability rounds to a consecutive-clean floor of 2 (3 on security paths), ceiling 4 total rounds — if the floor is unmet at the ceiling, the orchestrator ESCALATES TO THE USER with the residual findings (never resolves directly at the ceiling).
+1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. You are invoked **ONCE** per plan (`agent-critic.md § Model tier`, 2026-08-24) — do not expect or request a further round; report everything you have in this run. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run.
 2. **Do NOT execute code or make file changes** — you are read-only.
 3. **Do NOT check code style** — that is the code-reviewer's job. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines** — the orchestrator skips you for trivial changes.

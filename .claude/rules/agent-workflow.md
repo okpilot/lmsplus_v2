@@ -34,11 +34,13 @@ Draft plan (files to change, approach, risks)
 Validated plan (includes: affected files, test updates, doc updates, risks)
     │
     ▼
-Plan-critic review — Multi-Round Discipline (skip for single-file < 10 lines)
+Plan-critic review — ONE run (skip for single-file < 10 lines)
     │
-    ├─► coverage rounds (diverse lenses) ─► fix APPLY findings ─► reset clean counter
-    ├─► stability rounds (same config, unchanged plan) ─► need N clean (2 / 3 security-path)
-    └─► ceiling 4 total ─► if floor unmet ─► escalate to user (no further loop)
+    ├─► fix APPLY findings ─► proceed. No rounds: a plan is prose, and rounds on
+    │   prose do not converge (agent-critic.md § Model tier, 2026-08-24)
+    └─► an ISSUE or CRITICAL the orchestrator cannot resolve ─► STOP, hand off
+        to the user (§ "One run, not rounds" below; § NEVER forbids executing
+        with either one open — not CRITICAL alone)
     │
     ▼
 User approves → Execute
@@ -103,7 +105,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (the plan's file list, or `git diff origin/master...HEAD --name-only` for diffs). Fetch and verify the base first (see § "Always diff against `origin/master`, never the bare local `master`" below) — an unresolvable base must ABORT, never be read as "no paths matched". Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
+**One run, not rounds (2026-08-24).** plan-critic runs **ONCE**. Fix its APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply) and proceed; an ISSUE or CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because § NEVER forbids executing with either still open. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run. The **Multi-Round Review Discipline** (`agent-critic.md`) — coverage rounds, the consecutive-clean floor, the 4-round ceiling — governs the post-commit **semantic-reviewer** / **code-reviewer** only, and no longer plan-critic: a plan is prose, an LLM returns non-empty on almost any prose, and the findings that mattered came from critics reading CODE. See `agent-critic.md § Model tier`.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -301,13 +303,15 @@ from that diff inherits the distortion:
 - **`/endrun`** writes an inflated commit count, diff stat, and span permanently into
   `.claude/run-log.md`;
 - the **security-path stability floor** (`agent-critic.md`) is derived from the changed-path
-  set, so an inflated set can raise N=2 to N=3 — costing an extra round. **Staleness is NOT safe
+  set, so an inflated set can engage the N=3 floor where a single post-commit pass would
+  otherwise stand — costing extra rounds. **Staleness is NOT safe
   in one direction only: it can also HIDE a security path.** A stale base is a superset of the
   COMMIT range, not of the CONTENT change — so if this branch REVERTS a change that landed
   upstream after the stale ref, the file is identical at the stale merge-base and at HEAD and
   drops out of the diff entirely. Verified: with `sec.txt` changed A→B upstream and the branch
   reverting B→A, the true base lists `sec.txt` while the stale base lists nothing. The floor
-  then silently reads N=2 and `/fullpush` 7b skips the MANDATORY red-team run — the same
+  then silently reads "no security path" — a single pass, no N=3 — and `/fullpush` 7b skips
+  the MANDATORY red-team run — the same
   fail-open this section forbids below, reached by a different route. Never assume staleness is
   safe in EITHER direction. (Under-deriving the floor also has a separate cause — see below.)
 
@@ -317,7 +321,9 @@ real 8 / 832, inflating both the sweep scope and the derived path set. Caught by
 not by any mechanical gate — there is no gate for this.
 
 **Do not confuse this with under-deriving the floor.** In that same plan the floor was also
-briefly set to N=2 when it should have been N=3 — but that was a *separate* mechanism: the
+briefly set to N=2 when it should have been N=3 — those are the 2026-07-23 figures under the
+then-current rule, when plan-critic still had a floor; a normal diff now gets a single
+post-commit pass — but that was a *separate* mechanism: the
 floor was read from semantic intent ("these are only dependency bumps") instead of
 mechanically globbing the changed-path list, which contained `packages/db/src/schema.test.ts`.
 Staleness inflates; semantic derivation under-reports. Fixing one does not fix the other.
@@ -355,7 +361,7 @@ and must proceed, matching no conditional; only a command that *errored* (non-ze
 the scope is unknown. Conflating the two is itself a bug in both directions: aborting on a valid
 empty diff blocks legitimate work, and proceeding on an errored diff fails OPEN — the mandatory
 red-team run (`/fullpush` step 7b) is skipped and the security-path floor silently drops from
-N=3 to N=2. Resolve and validate the base first, capture the changed-file list once with its
+N=3 to a single pass. Resolve and validate the base first, capture the changed-file list once with its
 exit code checked, and branch on the exit code — never on whether the list is empty.
 
 If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
@@ -571,25 +577,68 @@ No in-flight findings at push time.
 - Skip a finding to avoid the work. Skip is reserved for "wrong on the merits."
 - Push with in-flight findings (no terminal state assigned).
 
-## PR Batching — Combine Issues Aggressively (MANDATORY for multi-issue runs)
+## PR Batching — Split by Risk Surface; Combine Only Like-for-Like (MANDATORY)
 
-> **The full pipeline cost is PER-PR, not per-issue.** impl-critic + the 4–5 post-commit agents + PR-level semantic sweep + multi-round CR-local each run once per PR, at 1–15 min per subagent. A one-issue PR pays that entire fixed cost for a single change. Ten one-issue PRs = 10× the overhead; one PR of ten issues = 1×.
+> **Two costs pull in opposite directions, and the old rule only counted one of them.**
+> The pipeline cost is PER-PR: impl-critic, the post-commit agents, the PR-level sweep and the
+> CR-local rounds each run once per PR, so ten one-issue PRs pay that fixed cost ten times. But the
+> REVIEW cost is per RISK SURFACE, and it is not linear — past a certain diff, rounds stop
+> converging and each one surfaces new criticals in sections an earlier round already passed.
+> An extra PR costs a BOUNDED, predictable ~30 min of CI plus one cloud review. A non-convergent
+> review loop costs an UNBOUNDED amount. Optimise against the unbounded one.
 
-When a run spans multiple issues (`/automerge`, `/autonomerge`, any batch), the orchestrator's FIRST planning act is to group the issue list into the **fewest coherent PRs** — never one-per-issue.
+**Default: SPLIT.** Group work into the fewest PRs that each carry **one merge gate and one risk
+surface** — not the fewest PRs overall. Superseded 2026-08-24 (user directive): the prior default,
+"combine aggressively / fewest coherent PRs", keyed on ISSUE COUNT, which is the wrong variable.
 
-### How to group
-- **By nature:** all test-only red-team/integration specs together; all mechanical/rule/config chores together; related production changes together.
-- **Target ~3–8 issues per PR** when they are test-only or mechanical. Do all edits across the combined issues FIRST (parallel subagents on non-overlapping file sets), then run the pipeline ONCE on the whole branch.
-- **Split only for a real merge-gate reason:** a production change needing manual eval must not ride with auto-mergeable test-only work; a migration PR stays separate (auto-deploys on merge); a change that must land independently for rollback safety.
+### Hard split triggers — each forces its own PR
+- **Migration work.** It auto-deploys to the production database on merge, so it is user-gated anyway.
+  The gate is per-PR, not per-file: migrations that deploy together may share one PR — what must not
+  ride along is the NON-migration work, which would otherwise be held behind a prod-deploy approval.
+- **A security path** (the `§ Red-Team Agent Trigger` set). It raises the post-commit reviewer floor
+  to N=3 and the CR-local floor to M=3, and it makes the red-team run mandatory; do not make
+  unrelated work pay those rounds.
+- **A change that supersedes an issue's stated acceptance criteria.** That needs its own argument in
+  its own PR body, where a reviewer can find it.
+- **A shared component whose change fans out to several surfaces.** The blast radius, not the diff
+  size, is what reviewers must hold in their heads at once.
 
-### Batch the fixups too
-Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one commit per finding. Each fixup commit re-triggers the review cycle, so per-finding commits multiply the cost the batching is meant to avoid.
+### Still COMBINE when all of these hold
+Mechanical or test-only work, over **disjoint** files, sharing **no** migration, with **no** member
+on a security path. This is the case the original rule was written for and it remains correct:
+do all edits first (parallel subagents on non-overlapping file sets), then run the pipeline ONCE.
 
+### The non-convergence signal
+If a review round surfaces a NEW critical in a section an earlier round already reviewed, the diff
+is too large. **Split — do not run another round.** Worked example, 2026-08-24 (W1 PR 3): a PR
+scoped to two issues also pulled in a discovered production defect, a second RPC redefinition and a
+sibling sweep, reaching ~20 production files and two migrations. Three plan-critic rounds each
+returned fresh CRITICALs; under the then-current rule plan-critic still had an N=3 security-path
+floor, and it became unreachable inside the 4-round ceiling. (That floor is exactly what the
+2026-08-24 single-run change removed for plan-critic — this example is the evidence behind it.)
+Splitting it three ways — the live defect (no migration, N=2), the admin-report query + both
+migrations, and the list-surface sweep — gave each piece a reviewable surface.
 
-### Anti-pattern (what this rule exists to stop)
-One issue → one branch → full pipeline → merge → repeat. It makes a multi-issue run crawl. If you catch yourself opening a PR that closes a single issue during a batch run, stop and ask what else belongs on that branch. (User directive 2026-07-02, mid-`/automerge` batch: "why the fuck one test in the whole PR? combine combine combine.")
+### Splitting is SEQUENCING, not deferring
+This is what keeps the rule compatible with a NO-DEFERRALS directive
+(`.spec-workflow/specs/backlog-burndown/tasks.md`, and § Apply-vs-Defer Discipline above). Nothing
+is handed to an issue; the pieces are built in order, in the same run. A split is only a deferral if
+a piece is left unbuilt — say so explicitly in the PR body when that happens.
 
----
+### Batch the fixups too (UNCHANGED by the split default)
+Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one
+commit per finding. Each fixup commit re-triggers the review cycle. This governs commits WITHIN a
+PR and is unaffected by how work is divided ACROSS PRs; `agent-coderabbit-local.md` and
+`.claude/commands/crlocal.md` both cite this section for exactly this rule.
+
+### Anti-patterns — there are TWO, in opposite directions
+1. **One issue → one branch → full pipeline → merge → repeat.** Makes a multi-issue mechanical run
+   crawl. (User directive 2026-07-02, mid-`/automerge`: "why the fuck one test in the whole PR?
+   combine combine combine.")
+2. **Everything the work touches → one branch.** Produces a diff whose review does not converge, and
+   whose migration drags unrelated code through a prod-deploy gate. (User directive 2026-08-24,
+   after the W1 PR 3 split: "maybe this shall be our standing practice? we had a rule to combine a
+   lot of issues. but it is okay not to do this anymore.")
 
 ## Push Batching — a push is NOT free (MANDATORY)
 
@@ -794,12 +843,20 @@ therefore local presence must be genuine evidence. Backwards, and it produced a 
 available source. The same gap explains a review-only agent writing to its memory file: the
 CONSTRAINTS said what was forbidden without saying why the habit fires.
 
-### For any task that locates a DB object's current definition, name BOTH supersession forms
+### For any task that locates a DB object's current definition, name EVERY supersession form
 
-> "Trace BOTH `CREATE OR REPLACE FUNCTION <fn>` AND `DROP FUNCTION … CREATE FUNCTION <fn>`,
-> sorted by migration timestamp prefix — a later migration may redefine via DROP+CREATE, which a
-> `CREATE OR REPLACE`-only grep silently misses. Same for `ALTER TABLE … DROP CONSTRAINT` +
-> `ADD CONSTRAINT`, and for `DROP POLICY` + `CREATE POLICY` — plus `ALTER POLICY <name> ON
+> "Trace EVERY form, not just the two function ones — `CREATE OR REPLACE FUNCTION <fn>(<arg types>)` AND `DROP FUNCTION … CREATE
+> FUNCTION <fn>(<arg types>)`, sorted by migration timestamp prefix — a later migration may
+> redefine via DROP+CREATE, which a `CREATE OR REPLACE`-only grep silently misses. Match the
+> SIGNATURE and not just the name: an overloaded function has a different body per argument
+> list, so a name-only search can land on an overload that is not the one under review, or on
+> one that no longer exists. Same for `ALTER TABLE … DROP CONSTRAINT` +
+> `ADD CONSTRAINT`, for `DROP INDEX` + `CREATE [UNIQUE] INDEX` (an `ON CONFLICT` arbiter or a
+> replay branch is only reachable while its backing index exists), for `DROP TRIGGER <name> ON
+> <table>` + `CREATE TRIGGER <name> … ON <table>` when the guard lives in a trigger rather than
+> the body, for `ALTER FUNCTION <fn>(<arg types>)`, which changes `SET search_path` /
+> `SECURITY DEFINER` in place while leaving the body untouched, and for `DROP POLICY` +
+> `CREATE POLICY` — plus `ALTER POLICY <name> ON
 > <table>`, which replaces `TO` / `USING` / `WITH CHECK` in place without recreating the policy,
 > so a DROP/CREATE-only grep reports a stale predicate as current."
 
@@ -809,6 +866,21 @@ constraint re-emitted twice since, and the orchestrator made the same error twic
 migration header. Note this is also how the bug that cycle FIXED was introduced: a human added
 role-gated policies without accounting for the pre-existing `FOR ALL` policy. The codebase's
 append-only, mutation-by-supersession shape produces this error in whoever reads it.
+
+### Prefer executable verification over analysis
+
+Write prompts that say **"execute / grep / diff and report the output"**, not "analyse and assess"
+— within what the target agent's own definition permits. plan-critic is read-only
+(`.claude/agents/plan-critic.md` § DO NOT: "Do NOT execute code or make file changes"), so its
+verification asks stay at grep / `git show` / `git diff`; only an agent allowed to run code gets
+asked to run it. This is the single biggest quality-per-token lever, and it is what makes Sonnet subagents safe
+(`agent-critic.md § Model tier`). Measured on `fix/report-item-scale` and its sibling migration
+work, 2026-08-24: the highest-value findings of the whole run — a `42804` cast error and a `42702`
+column ambiguity, BOTH invisible to a clean `supabase db reset` — came from EXECUTING the function.
+A mock-shape break, a `deleted_at` subset argument, and a false causation claim all came from
+READING a specific file or `git show`. Only a minority needed a model to notice that a claim
+overreached. Executable verification is cheaper AND more reliable than inference; reserve
+inference-shaped asks for the cases that genuinely need judgment.
 
 ### Litmus test
 Before dispatching any subagent, ask: **"Could this agent execute end-to-end without a follow-up question?"** If no, add the missing context to the prompt.
@@ -840,4 +912,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-19 (§ Rule-Mirror Sync gained "write the mirror from the canonical TEXT, then diff it clause by clause", learner count=2 — `6d4aa646`, `387a29ac` — with a second paragraph for the opposite direction, the canonical amended while its mirror is left behind (`79384dce`, which edited both files and carried the fail-closed clause to only one); and the defer-budget worked example no longer records what the enumeration command returns "today", since any such figure goes false within the hour. Prior, same day: defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue the branch author created after the merge-base (author-scoped, as the command's `author:@me` already encoded; purpose-agnostic — "whatever its origin") and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, `--limit 200` on the enumeration command because `gh` defaults to 30 and exits 0 truncated (under-counting `filed` PASSES a check that should fail), the first-illumination evidence test scoped so only its first three steps are pasted output while step 4 is openly a judgment call, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.))*
+*Last updated: 2026-08-25 (tracing guidance now names `ALTER FUNCTION <fn>(<arg types>)` — which replaces `SET search_path` / `SECURITY DEFINER` in place without reissuing the body — plus `DROP TRIGGER` + `CREATE TRIGGER`, and `DROP INDEX` / `CREATE [UNIQUE] INDEX` when the invariant lives outside the function. The "BOTH supersession forms" quantifier is retired: the list is now open, so it is de-quantified rather than recounted, per `code-style.md` §10 clause 2. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-24 (the plan-critic escalation path now covers an unresolved ISSUE as well as an unresolved CRITICAL. § NEVER forbids executing with EITHER open, but both the diagram arm and § "One run, not rounds" named only CRITICAL — so an unresolved ISSUE had no exit at all: not proceedable, and no stated handoff. Found by cloud CodeRabbit on PR #1242, against `4e96c64d`, which had added the CRITICAL arm earlier in the same run — the same half-fix shape twice. Prior, same day: the plan-critic pipeline diagram now shows the unresolved-CRITICAL branch — it read "fix APPLY findings -> proceed" with no escalation, while § "One run, not rounds" requires handing an unresolvable CRITICAL to the user and § NEVER forbids executing with one open. Found by cloud CodeRabbit on PR #1242. Prior, same day: the three live `N=2` references now read "a single post-commit pass" — `agent-critic.md`'s N=2 row was plan-critic's floor and retired with it; the dated-incident mentions at the staleness section and the PR-batching worked example are left untouched as historical records. § Prefer executable verification is bounded by the target agent's own definition, plan-critic being read-only. Found by CR-local round 1 on PR #1242. Prior, same day: plan-critic runs ONCE — the pipeline diagram, the "Review rounds" paragraph and the security-path split trigger all still described a coverage/stability/ceiling loop for it after `agent-critic.md § Model tier` retired that loop in the same PR; the floor now governs the post-commit reviewers only. The migration hard-split trigger says "migration WORK", since its rationale is the per-PR prod-deploy gate and migrations deploying together may share a PR — the worked example's three-way split is what actually happened and was NOT rewritten to invent a fourth piece. `judgement`→`judgment`. Found by cloud CodeRabbit on PR #1242. § PR Batching now defaults to SPLIT by risk surface and merge gate — the prior "combine aggressively" default keyed on ISSUE COUNT, the wrong variable, and produced a diff whose review did not converge; both anti-patterns are now recorded, in opposite directions. § Delegation Protocol gained "prefer executable verification over analysis". Prior: 2026-08-19 (§ Rule-Mirror Sync gained "write the mirror from the canonical TEXT, then diff it clause by clause", learner count=2 — `6d4aa646`, `387a29ac` — with a second paragraph for the opposite direction, the canonical amended while its mirror is left behind (`79384dce`, which edited both files and carried the fail-closed clause to only one); and the defer-budget worked example no longer records what the enumeration command returns "today", since any such figure goes false within the hour. Prior, same day: defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue the branch author created after the merge-base (author-scoped, as the command's `author:@me` already encoded; purpose-agnostic — "whatever its origin") and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, `--limit 200` on the enumeration command because `gh` defaults to 30 and exits 0 truncated (under-counting `filed` PASSES a check that should fail), the first-illumination evidence test scoped so only its first three steps are pasted output while step 4 is openly a judgment call, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)))*
