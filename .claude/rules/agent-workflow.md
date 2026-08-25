@@ -289,85 +289,41 @@ This is what CodeRabbit sees — our agents must see it too.
 
 ## Always diff against `origin/master`, never the bare local `master`
 
-Every diff base in this repo's tooling is `origin/master`, not `master`. The local `master`
-ref only moves when something explicitly fast-forwards it, so it is routinely stale — and a
-stale base does not error, it silently **distorts** the diff. A local `master` that lags
-`origin/master` yields an older merge-base, so `master...HEAD` usually reports a **superset** of
-the real change: already-merged files appear as if this branch wrote them. Everything derived
-from that diff inherits the distortion:
+Local `master` only moves when something fast-forwards it, so it is routinely stale — and a stale
+base does not error, it silently DISTORTS the diff. Everything derived from it inherits the
+distortion: the PR-level sweep reviews already-merged code, CR-local spends rounds on out-of-scope
+files, `/endrun` writes an inflated commit count, and the security-path floor is misderived.
 
-- the **PR-level sweep** above reviews already-merged code, wasting a round and producing
-  findings on code this PR never wrote;
-- **CR-local** (`agent-coderabbit-local.md`) reviews against the wrong base, spending rounds
-  on out-of-scope files;
-- **`/endrun`** writes an inflated commit count, diff stat, and span permanently into
-  `.claude/run-log.md`;
-- the **security-path stability floor** (`agent-critic.md`) is derived from the changed-path
-  set, so an inflated set can engage the N=3 floor where a single post-commit pass would
-  otherwise stand — costing extra rounds. **Staleness is NOT safe
-  in one direction only: it can also HIDE a security path.** A stale base is a superset of the
-  COMMIT range, not of the CONTENT change — so if this branch REVERTS a change that landed
-  upstream after the stale ref, the file is identical at the stale merge-base and at HEAD and
-  drops out of the diff entirely. Verified: with `sec.txt` changed A→B upstream and the branch
-  reverting B→A, the true base lists `sec.txt` while the stale base lists nothing. The floor
-  then silently reads "no security path" — a single pass, no N=3 — and `/fullpush` 7b skips
-  the MANDATORY red-team run — the same
-  fail-open this section forbids below, reached by a different route. Never assume staleness is
-  safe in EITHER direction. (Under-deriving the floor also has a separate cause — see below.)
+**Staleness is not safe in one direction.** It usually over-reports (older merge-base ⇒ a superset
+of the change), but it can also HIDE a security path: if this branch REVERTS a change that landed
+upstream after the stale ref, the file is identical at both ends and drops out of the diff entirely.
+The floor then reads "no security path" and `/fullpush` 7b skips the MANDATORY red-team run.
 
-Promoted at learner count=2 (issue #1134). Second occurrence, 2026-07-23: local `master` sat 2
-commits behind `origin/master`, so `master...HEAD` read 18 files / 1492 lines instead of the
-real 8 / 832, inflating both the sweep scope and the derived path set. Caught by plan-critic,
-not by any mechanical gate — there is no gate for this.
+**Pick the right range form — they are NOT interchangeable.** Three-dot `origin/master...HEAD` for
+any DIFF (compares against the merge-base = the PR's own scope). Two-dot `origin/master..HEAD` only
+for COMMIT ENUMERATION (`git log`, `git rev-list --count`). Both still need a freshly fetched base.
 
-**Do not confuse this with under-deriving the floor.** In that same plan the floor was also
-briefly set to N=2 when it should have been N=3 — those are the 2026-07-23 figures under the
-then-current rule, when plan-critic still had a floor; a normal diff now gets a single
-post-commit pass — but that was a *separate* mechanism: the
-floor was read from semantic intent ("these are only dependency bumps") instead of
-mechanically globbing the changed-path list, which contained `packages/db/src/schema.test.ts`.
-Staleness inflates; semantic derivation under-reports. Fixing one does not fix the other.
+**`git fetch origin` first, every time.** `origin/master` is itself a local ref that only advances
+on fetch.
 
-**Do NOT "solve" this by fast-forwarding local `master` as a pre-step.** `git fetch origin
-master:master` is *refused* whenever `master` is checked out in ANY worktree (this repo runs
-several, and `/automerge` leaves the main checkout on `master` after every merge), and it is
-also refused on a non-fast-forward when local `master` carries un-merged commits. Use
-`origin/master` in the revision expression instead — it carries no worktree hazard and never
-requires moving a local branch.
+**Fail closed on an unresolvable base — or a failed fetch.** A failed fetch usually leaves
+`origin/master` RESOLVABLE at its old value, so a resolvable-ref check alone does not catch it.
+**Abort on a non-zero EXIT CODE from fetch, base resolution, or the diff — NOT on an empty result.**
+A successful diff returning zero paths is a legitimate no-op and must proceed; only an errored
+command means the scope is unknown. Conflating the two fails in both directions, and the
+proceed-on-error half fails OPEN.
 
-**Pick the right range form; they are NOT interchangeable.** Use **three-dot** `origin/master...HEAD`
-for any *diff* — it compares HEAD against the merge-base, which is the PR's own scope. Two-dot
-`git diff origin/master..HEAD` compares the two TIPS, so once master advances past the fork point it
-also reports upstream changes this branch never made. Use **two-dot** `origin/master..HEAD` only for
-*commit enumeration* (`git log`, `git rev-list --count`), where it correctly means "commits reachable
-from HEAD but not from the base". `/endrun` relies on exactly this split.
+**Do NOT "solve" this by fast-forwarding local `master`.** `git fetch origin master:master` is
+refused whenever `master` is checked out in ANY worktree (this repo runs several) and on a
+non-fast-forward. Use `origin/master` in the revision expression instead.
 
-**Both forms still need a freshly fetched, verified base.** A ref that has fallen BEHIND the fork
-point inflates both (three-dot moves the merge-base back; two-dot starts admitting commits this
-branch never authored). Do not rely on either form being self-protecting — fetch, then verify.
+If a third-party tool genuinely requires a local branch name, run `git fetch origin master`, ABORT
+if it fails, compare `git rev-parse master origin/master`, and **hard-stop if they differ or either
+fails to resolve** — do not merely report the mismatch and proceed.
 
-**`git fetch origin` first — every time, not just for third-party tools.** `origin/master` is
-itself a local ref that only advances on fetch, so it goes stale exactly like `master` does,
-just more slowly. A stale `origin/master` reintroduces the same inflation (older merge-base ⇒
-already-merged paths in the diff). Fetch is cheap and has no worktree hazard — unlike moving
-local `master`, which is what you must never do.
-
-**Fail closed on an unresolvable base — or a failed fetch.** If `git fetch origin` itself fails,
-`origin/master` usually stays RESOLVABLE at its old value, so a resolvable-ref check alone does not
-catch it: treat a failed fetch as a hard stop in its own right. **Abort on a non-zero EXIT CODE
-from fetch, base resolution, or the diff command — NOT on an empty result.** A successful
-`git diff` that returns zero paths is a legitimate no-op (the branch changed nothing matching)
-and must proceed, matching no conditional; only a command that *errored* (non-zero exit) means
-the scope is unknown. Conflating the two is itself a bug in both directions: aborting on a valid
-empty diff blocks legitimate work, and proceeding on an errored diff fails OPEN — the mandatory
-red-team run (`/fullpush` step 7b) is skipped and the security-path floor silently drops from
-N=3 to a single pass. Resolve and validate the base first, capture the changed-file list once with its
-exit code checked, and branch on the exit code — never on whether the list is empty.
-
-If a third-party tool genuinely requires a local branch name, run `git fetch origin master`
-first and ABORT if it fails; then compare `git rev-parse master origin/master` and **hard-stop
-if they differ or either fails to resolve** — do not merely report the mismatch and proceed.
-Only invoke the tool once the base is proven current. Never let it run against an unverified base.
+**Do not confuse this with under-deriving the floor.** Staleness inflates; deriving the floor from
+semantic intent ("these are only dependency bumps") instead of mechanically globbing the changed-path
+list under-reports. Fixing one does not fix the other.
 
 ## Finding Validation (MANDATORY before fixing)
 
@@ -418,126 +374,47 @@ If any of those is false, apply.
 
 ### Defer-budget per PR — TWO checks, both binding
 
-They measure different things and neither subsumes the other: **volume** catches a PR that defers a
-lot, **ratio** catches a PR that hands back as much as it takes. A PR passes only if it clears both.
+Volume catches a PR that defers a lot; ratio catches one that hands back as much as it takes.
+Neither subsumes the other — a PR passes only if it clears both.
 
-**Check 1 — volume (per-PR count of deferrals).**
+**Check 1 — volume.** 0 deferrals is the goal; 1-2 is acceptable when each meets the three-condition
+test; 3+ is a red flag — re-triage every survivor and name them in the push summary.
 
-- **0 deferrals** is the goal.
-- **1-2 deferrals** is acceptable when each one genuinely meets the three-condition test above.
-- **3+ deferrals** is a red flag — recheck triage. The PR scope was probably wrong (either too narrow → expand and apply some, or too broad → split). Re-evaluate every deferral before filing. 3+ does not fail the check automatically, but each survivor must be re-triaged and named in the push summary — the same written justification Check 2 demands.
+**Check 2 — ratio.** Compare once, before push. If **filed > 0 AND filed >= closed**, the PR did not
+reduce the backlog and needs a written justification.
 
-**Check 2 — ratio (issues filed vs issues closed).** The per-item three-condition test is not a
-budget at all: each condition is evaluated per finding, so a PR can pass every individual test and
-still file as many issues as it closes. That is not a hypothetical. PR #1225 closed 7 (#1188, #1191,
-#1194, #1198, #1200, #1219, #1221) and its merge commit records 7 deferrals (#1224, #1226–#1231) —
-net ZERO, with every deferral individually justified. Its PR body's `## Deferred` section names two
-(#1223, #1224), one of which the merge commit does not; the union of those two ARTIFACT lists is
-**8 filed against 7 closed**. Run the command below **at that PR's push** and the answer is **9** — `#1232`
-counts, created after its merge-base and still open — which is the figure the rule now prescribes.
-The command has no upper time bound, so it is only meaningful run BEFORE the PR merges: re-run
-it against #1225 later and the answer only climbs, sweeping in every issue every later branch
-filed, this one included. Do NOT record what it returns "today": the figure this paragraph used to
-carry was correct when written and false within the hour, once another issue was filed. That is
-why the comparison is made once, before push, and not reconstructed afterwards, and the one
-`fullpush.md`'s worked example uses. The artifact figure is not wrong; it
-is a different question, and that is the whole point of pinning one source of truth. It also blew straight past Check 1's "3+ is a red flag" — which is what a single
-merged budget hid, and why the two checks are stated separately now.
-
-That divergence — 2, 6, 7 or 8 filed across just the artifacts named above (#1232's own title says 6), against 9 by the command run at that PR's push
-— is itself the reason this
-check needs a single source of truth:
-
-- **"Filed" means every issue the branch author created after the merge-base, whatever its origin** —
-  a deferral of this PR's own findings, a split of an older issue, a leftover from a previous PR's
-  review. The check measures BACKLOG DELTA, so how an issue came to exist does not matter; if it is
-  new and open when this PR merges, it counts. Two scopes, deliberately different, and only one of
-  them is filtered: WHO is (the `author:@me` in the command below is not incidental — "on this
-  branch" means created by its author, not by anyone who happened to file during the same window),
-  WHY is not (deferral, split, leftover all count alike). (Two of this branch's own: #1233, carrying
-  PR #1225's leftover critic findings, and #1234, split out of #360 — neither is a deferral of this
-  PR, both count anyway. Read those as ILLUSTRATIONS of the origin kinds, never as the branch's
-  list: the set is whatever the command returns at push time, and it kept growing while this
-  paragraph was being written — #1236 was filed 39 minutes before the commit that moved these very
-  lines, which is how the enumeration came to say "both" when three qualified.)
-- **The PR body's `## Deferred` section is the authoritative list**, and it is MANDATORY on any PR
-  that files an issue: it must name every one, including the non-deferral kinds above. A commit
-  message's deferral list is a convenience copy, never the record. On a FIRST push there is no PR
-  yet — the authoritative list is then the `## Deferred` section of the body being drafted for that
-  push, and the check runs against the draft. On a later push, if body and reality disagree, the
-  body is what you fix, before pushing.
-- To enumerate rather than recall, pass the merge-base TIMESTAMP, not its date. A bare DATE is
-  day-granular, so a branch cut on the same day a sibling PR filed its issues sweeps those in;
-  GitHub honours a full ISO timestamp, which is what makes the fix work. Measured on this branch
-  2026-08-19: 9 rows by date, 3 by timestamp — and both figures moved during the branch, which is
-  why the measurement carries a date rather than standing as a fact.
-  `git fetch origin` first (ABORT if it fails — a stale `origin/master` yields an older merge-base and
-  over-reports, the very failure this fixes), then:
+- **"Filed"** = every issue the branch author created after the merge-base, whatever its origin
+  (deferral, split, leftover — all count; the check measures BACKLOG DELTA). The PR body's
+  `## Deferred` section is the authoritative list and is MANDATORY on any PR that files an issue.
+  On a first push, run the check against the draft body.
+- **"Closed"** = the issues this PR's `Closes #N` / `Fixes #N` will actually close.
+- Enumerate with the merge-base TIMESTAMP, not its date (a bare date is day-granular and over-reports).
+  `git fetch origin` first, ABORT if it fails, then:
   `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
-  `--limit 200` is not decoration: `gh issue list` defaults to **30** and exits 0 on a truncated
-  list, so a branch past that silently under-counts `filed`, which makes `filed >= closed` false and
-  PASSES a check that should fail. Same fail-open shape as the empty-log hazard below, in a command
-  that looks like it cannot fail. If it ever returns exactly 200, treat that as truncated, not as
-  the answer, and raise the bound — a cap only closes the hole while the result stays under it.
-  `author:@me` resolves to the **`gh`-authenticated account**, not to the branch's commit author.
-  They are the same here, and the rule assumes it; if you ever run this under a different `gh`
-  login than the one that filed the issues, `filed` under-counts and the check passes when it
-  should fail — the same fail-open shape as the truncation above. If in doubt compare like with
-  like — `gh api user --jq .login` against the login that actually filed them
-  (`gh issue list --state open --limit 1 --json author --jq '.[0].author.login'`); a login and a
-  git author email are different namespaces and never match textually, so do not "confirm" it
-  against `git log --format=%ae`.
-  `--state open`, not `--state all`: the definition counts issues still open at merge, and an issue
-  filed and closed on the same branch is zero backlog delta. (No figure is quoted here on purpose —
-  on this branch both forms return the same count, so the flag makes no observable difference and a
-  measurement would be justifying the change with a number that cannot show it.)
-  Cross-check the result against the `## Deferred` section. An unenumerable "filed" is what left
-  #1225 readable as anywhere from 2 to 8.
-- **"Closed" means the issues this PR's `Closes #N` / `Fixes #N` keywords will actually close.**
-- Compare once, before push. If **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog
-  and needs a written justification naming what made this batch exceptional — not three separate
-  per-item justifications. **First-illumination below is the only accepted basis** — and its first three steps are an evidence test, not a narrative: you paste command output. Step 4 is openly a judgment call, and classifying step 3's output as substantive-or-not takes a sentence too; what is disqualified is a justification made ONLY of argument, with no pasted output behind it; anything
-  else means re-triage. This is deliberately narrower than "write something down", so that the
-  mirrors, which offer exactly those two paths, are not narrower than the rule they mirror. A PR that files nothing passes this check whatever it closes.
-- **First-illumination exemption — evidence required, once per area.** A PR that is the first to
-  look hard at a neglected area will legitimately surface more than it closes. Self-assertion is not
-  enough: without evidence this exemption swallows the rule, and PR #1225 itself would be the first
-  to walk through it — its stated purpose ("a post-merge audit of #1220", one of whose findings is
-  that `apps/web/scripts/**` was excluded from both tsconfigs) reads as textbook first-illumination.
-  To claim it, name the path set, paste the output of every command below, and answer the last:
-  1. `git log --oneline -- <paths>` — must be **NON-empty**. Fail-closed half one: it proves the
-     PATHSPEC resolves to something real.
-  2. `git log --since=6.months.ago --oneline | head -1` — repo-wide, NO pathspec — must be
-     **NON-empty**. Fail-closed half two: it proves the DATE EXPRESSION parsed. Both halves are
-     needed and neither covers the other, because step 3's empty result is the PASS condition, so
-     anything that makes a log spuriously empty silently GRANTS the exemption. Git will not tell
-     you: `git log --since=zzz.months` and `--since=sixmonths` each return 0 lines, exit 0, no
-     diagnostic — so the usual "abort on a non-zero exit code" guard cannot catch either. Measured
-     on this repo 2026-08-19: `--since=6.months.ago` returns 694 commits repo-wide, both malformed
-     spellings return 0. Step 1 alone does not catch a bad date (a valid pathspec still lists its
-     history); step 2 alone does not catch a bad pathspec.
-  3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'`
-     — must list no **substantive** commit, meaning any commit that is not docs-only or
-     agent-memory-only. Use the SAME date expression as step 2 and the SAME path set as step 1, or
-     you validated inputs this step does not use. Note `--oneline` alone CANNOT answer this: it
-     prints only hash and subject, and "docs-only" is a property of the WHOLE commit while every
-     command here is pathspec-filtered — so `--name-only` does not fix it either. `git show --stat`
-     per commit is what shows the full file set, including paths outside `<paths>`.
-  4. No open issue targeted those paths when the branch was cut. Issues carry no path metadata, so
-     this one is a judgment call, not a command — state which issues you checked and why none
-     qualifies, rather than asserting the conclusion.
+  `--limit 200` is load-bearing: `gh` defaults to 30 and exits 0 on a truncated list, so a silent
+  under-count PASSES a check that should fail. If it returns exactly 200, treat it as truncated and
+  raise the bound. `author:@me` is the `gh`-authenticated account, not the commit author — under a
+  different login `filed` under-counts, same fail-open. `--state open`, not `--state all`.
 
-  Record the claim in the PR body as a line reading `first-illumination: <path set>`. That line is
-  the whole once-per-area mechanism — a later PR into overlapping paths runs
-  `gh pr list --state merged --search '"first-illumination" in:body'` and OPENS the hits, looking for
-  an actual `first-illumination: <paths>` claim line over overlapping paths. The query alone cannot
-  discriminate: GitHub's tokenizer discards a trailing colon inside a quoted phrase, so
-  `'"first-illumination:" in:body'` behaves identically (verified — `'"Closes:" in:body'` and
-  `'"Closes" in:body'` return the same PRs, none of which contain `Closes:`). It is a coarse filter
-  that still needs a human read; any PR merely discussing the exemption will match. There is no registry beyond that query, and
-  "overlapping" is deliberately not formalised; treat a shared directory as the same area.
-- Otherwise, re-triage: the fix is usually to APPLY two or three of the deferrals, not to argue for
-  them. Re-loading that context later costs more than finishing it now.
+**First-illumination exemption — the only accepted justification, evidence required, once per area.**
+A PR first to look hard at a neglected area will surface more than it closes. Name the path set and
+paste the output of steps 1-3:
+1. `git log --oneline -- <paths>` — must be NON-empty (proves the pathspec resolves).
+2. `git log --since=6.months.ago --oneline | head -1` — repo-wide, no pathspec — must be NON-empty
+   (proves the date expression parsed). Both halves are needed: step 3's EMPTY result is the pass
+   condition, so anything that makes a log spuriously empty silently GRANTS the exemption, and git
+   exits 0 with no diagnostic on a malformed `--since`.
+3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'`
+   — must list no substantive commit (not docs-only or agent-memory-only). Same date expression as
+   step 2, same paths as step 1. `--oneline`/`--name-only` cannot answer this: docs-only is a
+   property of the WHOLE commit while every command here is pathspec-filtered.
+4. No open issue targeted those paths at branch cut — a judgment call; state which you checked.
+
+Record it in the PR body as `first-illumination: <path set>`. A later PR into overlapping paths finds
+it via `gh pr list --state merged --search '"first-illumination" in:body'` — a coarse filter that
+still needs a human read. Treat a shared directory as the same area.
+
+Otherwise re-triage: the fix is usually to APPLY two or three deferrals, not to argue for them.
 
 ### What every deferred issue must include (no silent backlog growth)
 
@@ -677,114 +554,66 @@ same coin: get them in the FIRST push so there is no second one. "Docs land pre-
 push twice" fail together — a doc update discovered after the push is exactly what tempts the
 second pipeline run.
 
-
-
 ---
 
 ## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
 
-When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement **in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline rules (review-round discipline, pre-commit gate lists, trigger sets); a rule change that skips them leaves an agent following the superseded text the next time that command, subagent or skill runs.
+When a commit modifies a rule in `.claude/rules/*.md` or `CLAUDE.md`, update every stale restatement
+**in the same commit**. Command, agent-definition and skill files routinely paraphrase pipeline
+rules; a rule change that skips them leaves an agent following superseded text.
 
-**The mirror set is the table below — enumerate it from the table, never from memory, and never from a count.** Most rows are fixed paths, including single files (`docs/security.md`, `.coderabbit.yaml`, `package.json`) that are easy to drop if you glob only the directories, and executable ones (`.claude/hooks/*.sh`) that every doc-shaped grep misses. The last row is open-ended and is the one that keeps being missed.
-
-This paragraph deliberately carries NO total. It used to say "these seven" with a "six fixed plus the seventh" decomposition, and the count went stale the moment a row was added — the same failure this whole section exists to prevent. A number here is one more mirror to keep in sync.
+**Enumerate the mirror set from this table, never from memory or a count.**
 
 | Mirror | Why it holds inline text |
 |---|---|
 | `docs/security.md` | the binding reference |
 | `.claude/rules/*.md` | `security.md` is the auto-injected quick summary |
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
-| `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate — a stale checklist there emits false CRITICALs |
+| `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/**/*.md` (recursive — a nested skill is still a mirror, and `.coderabbit.yaml` already globs it recursively) | skills are loaded as write-time guidance. NOTE: this row is often EMPTY — enumerate `.claude/skills/**/*.md` at sweep time rather than assuming, since a future pipeline skill would join it; note `fullpush`/`wrapup` are **command** files, not skills. Do not assume a hit here means you have swept the set |
-| `.claude/hooks/*.sh` | **executable mirrors** — inspect every matching hook at sweep time for emitted pipeline guidance; some PRINT the agent list at commit time, so a stale one instructs the orchestrator directly. Not `.md`, so every doc-shaped grep misses them. As of 2026-08-19 that meant `post-commit-reminder.sh` and `cr-local-plan-reminder.sh` |
-| `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about; a rule change there is unverifiable without reading it |
-| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | not a rule file, so no enumeration reaches it; `docs/database.md` §7 *describes what the security-auditor flags*, and `CLAUDE.md § Key docs` makes it binding. This row is a CLASS, not a path — enumerate it by asking "what else asserts this claim?", never by grepping the fixed paths above |
+| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; often EMPTY — enumerate at sweep time |
+| `.claude/hooks/*.sh` | **executable mirrors** — some PRINT the agent list at commit time. Not `.md`, so doc-shaped greps miss them |
+| `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
+| any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |
 
-How to apply: **grep is a FIRST PASS, not the sweep.** Grep every fixed path in the table for the rule's distinctive phrases — including `.claude/hooks/*.sh`, whose `echo` lines a doc-shaped glob skips — then find the open-ended row by READING, not grepping, since it has no path to glob — both the OLD wording being replaced and the rule's key terms. But a phrase-grep cannot find a *paraphrase*, so it reports false-clean: when a change retires a **claim** rather than a string, also read the affected section and its mirrors end-to-end once. Precedent (PR #1174): grepping "read AND write policies" found 3 hits and looked clean; four further review rounds surfaced the same claim as `USING + WITH CHECK`, `USING without WITH CHECK`, `UPDATE requires BOTH`, and `policies blocking UPDATE and DELETE`. A restatement that merely *points* to the rule file needs no edit; one that *re-states* the mechanics must be updated or reduced to a pointer.
+**Grep is a FIRST PASS, not the sweep.** Grep every fixed path for the rule's distinctive phrases —
+old wording and new. But a phrase-grep cannot find a PARAPHRASE, so it reports false-clean: when a
+change retires a CLAIM rather than a string, read the affected section and its mirrors end-to-end.
+A restatement that merely POINTS at the rule needs no edit; one that RE-STATES the mechanics does.
 
-**Write the mirror from the canonical TEXT, then diff it clause by clause — never from memory of what you just decided.** A mirror written from recollection reliably drops the qualifier that makes the rule fail CLOSED, which is the half nobody misses until it matters. Promoted at learner count=2 — `6d4aa646` (`>` drifted from `≥`, and a guard that never reached its enforcement point) and `387a29ac` (a worked example still computing under the retired definition). Read both texts side by side and check every clause has a counterpart, or has been deliberately dropped for scope.
+**Write the mirror from the canonical TEXT, then diff it clause by clause** — never from memory of
+what you just decided. A mirror written from recollection reliably drops the qualifier that makes
+the rule fail CLOSED. The same gap opens from the other end: amending the canonical and leaving the
+mirror behind, even in a commit that edits the mirror anyway. Re-read every mirror when the
+canonical changes.
 
-**The same gap opens from the other end: amending the CANONICAL and leaving the mirror behind — in a commit that edits the mirror anyway.** `79384dce` added "if it ever returns exactly 200, treat that as truncated" to the rule here, and touched `.claude/commands/fullpush.md` in that same commit for an unrelated line, without carrying the clause across; the mirror then accepted a silently truncated list for five commits until cloud CodeRabbit caught it and `c9b4db03` closed it. Writing the mirror from the canonical text cannot prevent this one — only re-reading the mirror when the canonical changes can, which is what the table at the top of this section is for. Two directions, one outcome: the enforcement surface ends up weaker than the rule.
-
-**Sweep completeness — a sweep is done when it passes these checks, not when you have run it.** The
-paragraphs above say WHERE to look and to read for paraphrases. They do not say when you are
-FINISHED, and that is the gap the record shows: on one branch a mirror sweep came up short
-repeatedly, each time by a different mechanism, with this very section open in front of the
-orchestrator. Once the missed hit was sitting in the sweep's OWN printed output. Every one was a
-good-faith sweep, so the remedy is a terminal check, not more diligence.
+**Sweep completeness — a sweep is done when it passes these checks, not when you have run it.**
 
 1. **Walk every reported hit to a terminal disposition — APPLIED or SKIPPED-with-reason — before
-   committing.** A sweep whose OUTPUT is correct is not a sweep that was ACTED ON. Precedent
-   `056155ab`: the grep was correctly scoped and printed `agent-coderabbit-local.md:124` alongside
-   `:34` in its own output; the fix edited `:34`, left `:124`, and the commit message then asserted
-   the sweep had been exhaustive. No better grep prevents this one — the hit was already on screen.
-   Only enumerating the hits does.
+   committing.** A correct sweep OUTPUT is not a sweep that was ACTED ON; the missed hit has been
+   printed on screen next to the fixed one. No better grep prevents this — only enumerating hits.
 
 2. **Checksum the clause across every file that carries it — a verbatim copy in N files is ONE
-   artifact.** This is the case a phrase-grep cannot reach: when the mirror is byte-identical rather
-   than a paraphrase, grepping the NEW wording matches exactly the file you just edited and reports
-   clean. Anchor on a distinctive substring from the clause's OPENING, taken from text your edit does
-   NOT change — an anchor containing your new wording is the same fail-open:
+   artifact.** A phrase-grep for the NEW wording matches only the file you just edited and reports
+   clean. Anchor on a distinctive substring from the clause's OPENING, taken from text your edit
+   does NOT change:
 
    ```bash
    node .claude/hooks/check-mirror-sync.mjs '<distinctive substring from the clause opening>'
    ```
 
-   Identical digests on every line = in sync; it exits non-zero on divergence, on a file it could
-   not check, and on an anchor that matches nothing. **It is a script and not a snippet here on
-   purpose.** The bash version this replaced shipped FIVE distinct fail-opens, each found by a
-   different review round and none by the round before it: it hashed only the anchor LINE (a change
-   below it was invisible); `for f in $(git grep -l …)` word-split a path containing a space so the
-   file was never read and never flagged; `awk -v` applied C-escape processing so an anchor holding
-   a backslash matched nothing; a missing anchor only warned and continued; and a repeated anchor
-   silently compared the first block. Every one made it report "in sync" without having checked.
-   Prose cannot be tested — `check-mirror-sync.test.mjs` pins all five, and each guard is
-   mutation-checked. Do not re-inline it.
+   Identical digests on every line = in sync. It exits non-zero on divergence, on a file it could
+   not check, and on an anchor matching nothing. It is a tested script and not an inlined snippet on
+   purpose — the bash version it replaced shipped five distinct fail-opens, each pinned by
+   `check-mirror-sync.test.mjs`. Do not re-inline it.
 
-   Identical checksums on every line = in sync; any divergent one is an unswept copy. `-F` and the
-   explicit `-- :/` are load-bearing and both fail OPEN — `code-style.md` §10 clause 3 measures why.
-   Verified 2026-08-25 by replaying the defect: at `bf2b6672` that clause checksums `714eec4f` in
-   `.claude/agents/plan-critic.md` against `3e0bfa5f` in both `implementation-critic.md` and
-   `semantic-reviewer.md` — it added `DROP POLICY` + `CREATE POLICY` to one of three byte-identical
-   copies and no sweep was attempted at all. One command, at commit time, prints the divergence.
+**Not covered: paraphrase-blindness.** Neither check helps when the grep matched zero hits and the
+copies are not byte-identical. That is an OPEN problem; the "grep is a FIRST PASS" paragraph is all
+there is.
 
-**What these two checks do NOT cover — stated so nobody reads the list as complete.** Tracker row 660
-records THREE genuine instances after the retraction below — it recorded four, and `4938192b` turned
-out not to exhibit this mechanism at all. These checks address two of the three.
-
-- `dccf7d3b` — a phrase-grep missed a PARAPHRASE, and it took three sequential passes and three
-  different catchers to converge. Neither check helps: check 1 has nothing to walk when the grep
-  matched zero hits, and check 2 only compares copies that are byte-identical. The only guidance for
-  this is the "grep is a FIRST PASS" paragraph above — which already existed at the time and did not
-  prevent it. **Paraphrase-blindness is an OPEN problem here**, not a solved one; the tracker's own
-  candidate remedy (grep the claim's key NOUNS — agent name, rule name, section title — rather than
-  its phrasing) is untested and is deliberately not promoted on that basis.
-- `4938192b` — re-derived from the commit rather than from the tracker row, which describes it
-  wrongly. It edited FOUR files under `.claude/agents/`, and `security-auditor.md:144` and
-  `semantic-reviewer.md:78` were fixed BY it, not missed by it. What it actually left behind was
-  `security-auditor.md`'s section HEADING, still reading "trace the CREATE OR REPLACE chain" two
-  lines above the body it had just widened, plus a 2-of-4 enumeration in `code-style.md` — fixed in
-  `2b37bf8e` and flagged by code-reviewer, doc-updater and semantic-reviewer together. Those are
-  `code-style.md` §10 clause 3 (a partial comment edit) and clause 2 (enumerating an open set), both
-  already promoted. It needs no new check, and the row's claim that a hand-scoped path glob caused it
-  does not survive `git show`.
-
-That re-derivation is itself the point: the first draft of this subsection proposed a THIRD check
-built on the tracker row's account of `4938192b`, and plan-critic falsified it from the commit. A
-tracker row is evidence of what an agent concluded, never of what the code did — `code-style.md` §10
-clause 1, and it very nearly shipped inside the rule about sweep discipline.
-
-Promoted at learner count=3 (tracker row 660, reconciled from 4 at promotion — `4938192b` was
-retracted, not merely re-explained, so the count field was recomputed and not just the prose, per
-`agent-memory.md` § Tracker state machine): `056155ab` (check 1), `bf2b6672` (check 2), `dccf7d3b`
-still OPEN. Three clears the 2-occurrence promotion bar in `agent-learner.md` on its own.
-
-**The enumeration itself is the recurring defect.** On PR #1174 this list was wrong three rounds running: it omitted `.claude/commands/` (round 3 — its own directory), then `.claude/skills/*.md` (round 4), then `docs/database.md` (round 5, found by implementation-critic, and the reason the open-ended row exists). Each time the fix corrected the instance and left the count. Treat "the list is complete" as the claim most likely to be false, and when a sweep finds a surface the table does not name, widen the TABLE in the same commit — not just the file.
-
-Promoted at count=2 (2026-07-11 pipeline audit #1110): `plan-critic.md` carried the superseded 1-revision-round discipline (C1), and `automerge.md`/`wrapup.md` carried the same class of stale restatement caught by batch-3 reviewers — two distinct commits' worth of drift, each requiring a fixup cycle that a same-commit grep would have prevented. Scope widened to .claude/agents/ same-day (CR-local): the C1 instance WAS an agent-definition file (plan-critic.md), so agent defs are in the same drift class.
-
----
+**The enumeration itself is the recurring defect.** Treat "the list is complete" as the claim most
+likely to be false. When a sweep finds a surface the table does not name, widen the TABLE in the
+same commit — not just the file.
 
 ## Orchestrator Role
 
@@ -933,13 +762,6 @@ CONSTRAINTS said what was forbidden without saying why the habit fires.
 > <table>`, which replaces `TO` / `USING` / `WITH CHECK` in place without recreating the policy,
 > so a DROP/CREATE-only grep reports a stale predicate as current."
 
-Promoted at learner count=2 (2026-08-09). In one cycle an Explore agent reported a superseded
-migration as latest, a subagent flagged a table whose policy had been dropped twice, a spec cited a
-constraint re-emitted twice since, and the orchestrator made the same error twice in its own
-migration header. Note this is also how the bug that cycle FIXED was introduced: a human added
-role-gated policies without accounting for the pre-existing `FOR ALL` policy. The codebase's
-append-only, mutation-by-supersession shape produces this error in whoever reads it.
-
 ### Prefer executable verification over analysis
 
 Write prompts that say **"execute / grep / diff and report the output"**, not "analyse and assess"
@@ -985,4 +807,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-08-25 (§ Rule-Mirror Sync's "Sweep completeness" opener is de-quantified — it said the sweep "came up short four times" three paragraphs above its own reconciliation to THREE, and claimed "each caught by a different reviewer" when tracker row 660's instance-3 text names no catcher at all for `056155ab`: the missed hit was in the sweep's own printed output. Both found by semantic-reviewer on `ee0045b7` — the third partial-edit of this shape in one run, in the commit that reconciled the count. Prior, same day: § Rule-Mirror Sync gained "Sweep completeness", promoted at learner count=3 (tracker row 660, reconciled DOWN from 4 in the same commit — retracting `4938192b` removes an instance, and `agent-memory.md` requires the count field be recomputed rather than the narrative alone; 3 still clears the 2-occurrence bar): walk every reported hit to APPLIED or SKIPPED-with-reason, since a correct sweep OUTPUT is not a sweep that was ACTED ON (`056155ab`, where the missed hit was printed on screen next to the fixed one); and checksum the clause across every file carrying it, because a byte-identical copy in N files is ONE artifact and a phrase-grep for the NEW wording matches only the file already fixed (`bf2b6672`, verified by replay — `714eec4f` in `plan-critic.md` against `3e0bfa5f` in the other two). The subsection states which of the row's instances it does NOT cover, rather than implying it covers them all: paraphrase-blindness (`dccf7d3b`) stays OPEN, and `4938192b` needs no check because its real residue was a stale heading plus an open-set enumeration, already governed by `code-style.md` §10 clauses 3 and 2. A first draft proposed a third check built on the tracker row's account of `4938192b`; plan-critic falsified it from `git show` — the row says the commit missed `security-auditor.md:144` and `semantic-reviewer.md:78`, and the commit in fact FIXED both. §10 clause 1 inside the rule about sweep discipline. `.claude/commands/fullpush.md` carries a POINTER, not a copy — `wrapup.md` already warns that working from a copy of this table is how the `.claude/hooks/*.sh` and `package.json` rows came to be missed. Prior, same day: tracing guidance now names `ALTER FUNCTION <fn>(<arg types>)` — which replaces `SET search_path` / `SECURITY DEFINER` in place without reissuing the body — plus `DROP TRIGGER` + `CREATE TRIGGER`, and `DROP INDEX` / `CREATE [UNIQUE] INDEX` when the invariant lives outside the function. The "BOTH supersession forms" quantifier is retired: the list is now open, so it is de-quantified rather than recounted, per `code-style.md` §10 clause 2. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-24 (the plan-critic escalation path now covers an unresolved ISSUE as well as an unresolved CRITICAL. § NEVER forbids executing with EITHER open, but both the diagram arm and § "One run, not rounds" named only CRITICAL — so an unresolved ISSUE had no exit at all: not proceedable, and no stated handoff. Found by cloud CodeRabbit on PR #1242, against `4e96c64d`, which had added the CRITICAL arm earlier in the same run — the same half-fix shape twice. Prior, same day: the plan-critic pipeline diagram now shows the unresolved-CRITICAL branch — it read "fix APPLY findings -> proceed" with no escalation, while § "One run, not rounds" requires handing an unresolvable CRITICAL to the user and § NEVER forbids executing with one open. Found by cloud CodeRabbit on PR #1242. Prior, same day: the three live `N=2` references now read "a single post-commit pass" — `agent-critic.md`'s N=2 row was plan-critic's floor and retired with it; the dated-incident mentions at the staleness section and the PR-batching worked example are left untouched as historical records. § Prefer executable verification is bounded by the target agent's own definition, plan-critic being read-only. Found by CR-local round 1 on PR #1242. Prior, same day: plan-critic runs ONCE — the pipeline diagram, the "Review rounds" paragraph and the security-path split trigger all still described a coverage/stability/ceiling loop for it after `agent-critic.md § Model tier` retired that loop in the same PR; the floor now governs the post-commit reviewers only. The migration hard-split trigger says "migration WORK", since its rationale is the per-PR prod-deploy gate and migrations deploying together may share a PR — the worked example's three-way split is what actually happened and was NOT rewritten to invent a fourth piece. `judgement`→`judgment`. Found by cloud CodeRabbit on PR #1242. § PR Batching now defaults to SPLIT by risk surface and merge gate — the prior "combine aggressively" default keyed on ISSUE COUNT, the wrong variable, and produced a diff whose review did not converge; both anti-patterns are now recorded, in opposite directions. § Delegation Protocol gained "prefer executable verification over analysis". Prior: 2026-08-19 (§ Rule-Mirror Sync gained "write the mirror from the canonical TEXT, then diff it clause by clause", learner count=2 — `6d4aa646`, `387a29ac` — with a second paragraph for the opposite direction, the canonical amended while its mirror is left behind (`79384dce`, which edited both files and carried the fail-closed clause to only one); and the defer-budget worked example no longer records what the enumeration command returns "today", since any such figure goes false within the hour. Prior, same day: defer budget is now TWO checks — volume and filed-vs-closed ratio — with "filed" defined once as every issue the branch author created after the merge-base (author-scoped, as the command's `author:@me` already encoded; purpose-agnostic — "whatever its origin") and listed in the PR body's mandatory `## Deferred` section — the draft body on a first push, since the check runs before the PR exists — enumerated by passing the merge-base TIMESTAMP, since a bare date is day-granular and over-reports while GitHub honours a full ISO timestamp, a `filed > 0` guard so 0/0 does not fire, `--limit 200` on the enumeration command because `gh` defaults to 30 and exits 0 truncated (under-counting `filed` PASSES a check that should fail), the first-illumination evidence test scoped so only its first three steps are pasted output while step 4 is openly a judgment call, first-illumination named as the ONLY accepted justification so the mirrors are not narrower than the rule, its step 3 switched from `--oneline` (which prints no file list, and cannot decide a whole-commit property under a pathspec) to a per-commit `git show --stat`, and an evidence test on the first-illumination exemption whose git half fails CLOSED on BOTH counts — an empty `--since` log is the pass condition, so a non-empty unfiltered log proves the pathspec and a non-empty repo-wide `--since` proves the date expression parsed, neither covering the other, #1232; the post-commit DO bullet names the four core agents again (de-counting the EXEMPTIONS had wrongly de-counted the AGENT SET); Finding Validation gained "a critic told me X" as a claim class to verify, #1231; the mirror table gained `.claude/hooks/*.sh` and `package.json` and lost its stale total. Prior: 2026-08-15.)))*
+*Last updated: 2026-08-25*

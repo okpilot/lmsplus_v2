@@ -17,9 +17,14 @@
 | Hook (`use*.ts`) | 80 lines | Split or extract logic to util |
 | SQL migration file | 300 lines | Split into multiple migrations |
 
-**Exception — single unsplittable DDL object.** The 300-line migration cap targets *multi-statement* migrations that can be split by concern. A migration whose entire content is **one** `CREATE OR REPLACE FUNCTION` (or another single, atomic DDL object) may exceed 300 lines: a plpgsql function body cannot be split across migration files, and our single-function SECURITY DEFINER RPC redefinitions sit right at or over the cap (e.g. `submit_vfr_rt_exam_answers` mig 129 = 330, `batch_submit_quiz` mig 130 = 329, mig 124 = 313; the base bodies migs 100/113/121 are ~300). Keep the *header* comment minimal and push long rationale to the commit message / `docs/database.md`, but do not split or strip the function body to satisfy the cap. The reviewer (and CodeRabbit, via `.coderabbit.yaml`) treats a single-function redefinition over 300 lines as this documented exception, not a violation. (Promoted from the learner tracker at count=5; CR-requested formalization, #980.)
+**Exception — single unsplittable DDL object.** A migration whose entire content is ONE
+`CREATE OR REPLACE FUNCTION` (or another atomic DDL object) may exceed 300 lines — a plpgsql body
+cannot be split across files. Keep the header comment minimal; push rationale to the commit message.
+The cap targets multi-statement migrations that can be split by concern.
 
-**Same-commit extraction (plan for it, don't defer it).** When a change adds lines to a file that is already at or over its size cap — or within ~10 lines of it — include the required extraction in the **same commit**, not a follow-up. During Plan Validation (impact analysis), run `wc -l` on every file you plan to grow; if any is at/over cap or within ~10 lines, budget the split into the plan up front. A feature commit that worsens a pre-existing over-cap file forces a post-commit BLOCKING + a separate fix commit — wasted cycles the planning check prevents. (Promoted from the learner tracker at count=8; recurring across the file-size violation history, e.g. `quiz-config-form.tsx` 151→169 and `types.ts` 246→252 on the Discovery relocation, fixed by extracting `DiscoveryModePanel`/`StartButton`/`session-types.ts`.)
+**Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
+include the extraction in the SAME commit. Run `wc -l` on every file you plan to grow during Plan
+Validation and budget the split up front.
 
 **The golden rule:** if you need to scroll to understand a file, it's too long.
 
@@ -268,7 +273,7 @@ function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... 
 
 This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
 
-**Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027). (Promoted at user direction after recurring S6759 findings, #1027.)
+**Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027).
 
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
@@ -316,7 +321,7 @@ const config = (session as unknown as { ids: unknown }).ids
 if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 ```
 
-**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` throws an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression instead of a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use. (Promoted count=4 — #818 red-team helper, #845, PR #927 [squash `fb2921c6`], PR #930 [squash `f4c76c83`]. The pre-existing offender sweep across the `packages/db` integration suite is tracked in #938.)
+**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` throws an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression instead of a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use.
 
 ### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
 
@@ -330,7 +335,7 @@ if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map
 if (Array.isArray(a.blankAnswers)) row.blanks = a.blankAnswers.map(...)
 ```
 
-When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position. **Precedent:** `quiz-submit-fanout.ts` `fanOutAnswer` — the `blankAnswers` branch shipped with the bare length-check in VFR RT Phase 2 (`75ea1de8`) and was cloud-CR-caught [Major] and fixed in Phase 6 (`2e8aaf7b`, #1059); the `order` branch had the same anti-pattern during Phase 5 development (fixed pre-squash, landed correct in `0168f7dc`). The `mapping` (diagram_label) branch was created correctly from the start and is the reference shape to copy. The learner tracker logged this at count=3 (`order`/`mapping`/`blankAnswers`), but git history shows only two branches were ever actually wrong — `order` and `blankAnswers` — so the ≥2 promotion threshold is met on those two real offenders (`mapping` was counted but was never defective) (#1061). Promotion sweep found the sole matching dispatcher already fully compliant — zero remaining offenders.
+When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position.
 
 ### Soft-Delete Filter Requires the Column to Exist
 
@@ -433,22 +438,18 @@ A replay/idempotency branch is only *reachable* when its arbiter above actually 
 
 Critically, when the `INSERT ... ON CONFLICT` lives inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**. So `supabase db reset` applies the migration 100% clean, and `pg_get_functiondef(...) ILIKE '%on conflict%'` confirms the clause is present, yet the function throws `42P10` the first time it actually runs. Clean apply + structural grep is therefore **insufficient** for any migration that changes a plpgsql body containing `ON CONFLICT`, `EXECUTE format(...)`, regex literals (POSIX `[][...]` bracket-class shorthand is invalid in Postgres ARE — applies clean, throws `2201B` on first call; caught in mig 101, 2026-06-10), or other deferred-validation SQL — you must **execute the function** (a functional SQL test or the relevant red-team / integration spec) before trusting it.
 
-Further execution-only failure modes in the same deferred-validation class. **The set is OPEN and the cases below are ILLUSTRATIONS, not a checklist to match against** — derive membership from the paragraph above instead: any plpgsql body whose SQL is validated at EXECUTION rather than at `CREATE`. That is why the remedy is always *execute the function*, never *check it against this list*, and why the list carries no count (§10 clause 2). Each case below passed `db reset` + `tsc` + Biome + both Opus impl-critics + semantic-reviewer, and was caught ONLY by an integration test that executed the function (VFR RT Phase 2, #697; the #925 integration tier):
+Other execution-only failure modes in this class — ILLUSTRATIONS, not a checklist. Derive
+membership from the paragraph above: any plpgsql body whose SQL is validated at EXECUTION. The
+remedy is always *execute the function*, never *match it against this list*.
 
-- **(c) Unqualified column name shadowed by a same-named `RETURNS TABLE` OUT parameter → `42702 column reference "<col>" is ambiguous`** (at execution, not at `CREATE`). A `WHERE id = ...` inside a function whose `RETURNS TABLE (id ...)` declares `id` is ambiguous between the OUT variable and the table column. **Always alias the source table in helper reads:** `FROM users u WHERE u.id = auth.uid()` — never `WHERE id = auth.uid()`. (mig 118 `get_quiz_questions`; the sibling `get_vfr_rt_exam_questions` already aliased, which is why it never hit this.)
-- **(e) An aggregate whose type is widened by dropping a cast, against a `RETURNS TABLE` column →
-  `42804 structure of query does not match function result type / Returned type bigint does not
-  match expected type integer`** (at execution, not at `CREATE`). `count(*)::int AS answered_count`
-  feeding a `RETURNS TABLE (answered_count int)` is correct; rewrite the expression and drop the
-  `::int` — e.g. changing `count(*)` to `count(DISTINCT x)` — and the column becomes `bigint`, any
-  `COALESCE` over it becomes `bigint`, and `RETURN QUERY` raises on the first call while
-  `supabase db reset` stays green. **Keep the cast when you touch an aggregate feeding a
-  `RETURNS TABLE` column.** Observed and mutation-confirmed 2026-08-24 on
-  `list_my_internal_exam_history` (`20260521000003:18,51,66`): removing the cast produced exactly
-  this error at execution.
-- **(d) NULL propagating through a helper call into a NOT NULL column → `23502`.** `v := helper_fn(nullable_input)` where `helper_fn` may return NULL (e.g. `normalize_answer(NULL)`) and `v` — or a boolean derived from it like `(v <> '' AND …)`, which is NULL when `v` is NULL — lands in a NOT NULL column (`is_correct`). **Coalesce at the call site:** `coalesce(helper_fn(input), '<default>')`. Check sibling callers in the same migration family — if they already coalesce, the new one must too. (mig 120 batch_submit helper; the sibling grader mig 119 already coalesced.)
+- **`42702` ambiguous column** — an unqualified column shadowed by a same-named `RETURNS TABLE` OUT
+  parameter. Always alias the source table: `FROM users u WHERE u.id = auth.uid()`.
+- **`42804` result-type mismatch** — dropping a `::int` cast on an aggregate feeding a
+  `RETURNS TABLE (col int)` widens it to `bigint`. Keep the cast when touching such an aggregate.
+- **`23502` NOT NULL** — NULL propagating through a helper (`normalize_answer(NULL)`) into a NOT NULL
+  column. Coalesce at the call site; check whether sibling callers already do.
 
-Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`, same columns + predicate) — `pg_index.indimmediate` is what encodes non-deferrability, and a `DEFERRABLE` unique constraint passes an `indisunique`-only check while still being unusable as an arbiter. If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085). **Precedent:** mig 085 originally shipped `ON CONFLICT (...) WHERE accepted = true` against the non-unique `idx_user_consents_lookup`; it applied clean but threw `42P10` on first call (caught by semantic-reviewer, #386).
+Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`, same columns + predicate) — `pg_index.indimmediate` is what encodes non-deferrability, and a `DEFERRABLE` unique constraint passes an `indisunique`-only check while still being unusable as an arbiter. If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085).
 
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
 The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
@@ -478,11 +479,11 @@ const totalCount = Number(rows[0]?.total_count ?? 0)
 scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage)
 ```
 
-Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number. **Precedent:** `quiz.ts` (total_time_ms), `profile.ts` (avg_score), `dashboard-stats.ts` (subject_count), `reports.ts` (total_count, answered_count, score_percentage).
+Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number.
 
 ### Sanitize Error Messages Returned to Callers
 
-Every `if (error)` block in a Server Action — or in any exported function or library/SDK wrapper that returns a result type with an `error` field — must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly through an exported result type — internal error strings from **any** source (Postgres, Resend, Stripe, or any third-party SDK) can expose internal implementation details; log the raw error server-side and return a generic domain string. (Promoted count=2 — Supabase 2026-03-12, Resend #901.)
+Every `if (error)` block in a Server Action — or in any exported function or library/SDK wrapper that returns a result type with an `error` field — must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly through an exported result type — internal error strings from **any** source (Postgres, Resend, Stripe, or any third-party SDK) can expose internal implementation details; log the raw error server-side and return a generic domain string.
 
 ```ts
 // ❌ WRONG — raw DB error leaked to client
@@ -507,8 +508,6 @@ return `<text x="10" y="20">${question.prompt}</text>`
 // copy the inline pattern from an existing builder (seed-quiz-setup-eval.ts or email/templates/internal-exam-code.ts).
 return `<text x="10" y="20">${esc(question.prompt)}</text>`
 ```
-
-(Promoted count=2 — SVG seed `esc()` #890, email template `esc()` #901.)
 
 ### Log Every Error Path, Including Rollbacks
 Every error path — including compensating (rollback) paths — must emit `console.error` before returning. Secondary error paths are not exempt from observability. If a rollback fails silently, the system enters an inconsistent state with no server-side signal.
@@ -789,8 +788,6 @@ it('routes to results page after exam timer expires and auto-submits', () => {
 })
 ```
 
-Reason: PR #523 had isolated `isExam` toggle tests but no test connecting "user starts exam → timer expires → user lands on report" — so the wrong-redirect bug was invisible.
-
 ### Refresh / Reload Test for Stateful UI (from 2026-04-27)
 
 Any UI flow that holds client-side state across renders (in-memory answer buffer, multi-step form state, persistent timer) requires a test simulating **page reload mid-flow**.
@@ -808,8 +805,6 @@ it('recovers in-progress exam from server session when localStorage is empty', (
   expect(screen.getByRole('timer')).toBeInTheDocument()
 })
 ```
-
-Reason: PR #523's exam refresh-resume bug shipped because no test reloaded the page mid-exam — the localStorage gap was invisible.
 
 ### E2E Spec Hermiticity (from 2026-04-30)
 
@@ -844,8 +839,6 @@ test.describe('Admin Student Management — Create', () => {
 })
 ```
 
-Reason: issue #587 — `admin-questions.spec.ts`'s bulk-Deactivate test flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*.spec.ts`, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 internal-exam specs timed out in CI. Promoted to a rule at count=2 (`admin-students.spec.ts` was already hermetic; `admin-questions.spec.ts` is the second).
-
 ### Multi-Step Cleanup Needs a Per-Step Error Accumulator (from 2026-06-14)
 
 Any `afterEach`/`afterAll` (or shared cleanup helper) with **2 or more distinct cleanup steps** — separate DB mutations or restore operations — must isolate each step in its own `try/catch` and accumulate errors, instead of `await`-ing them sequentially with no isolation. A bare throw in step N (a failed delete, an RLS rejection surfaced via `{ error }`) otherwise skips steps N+1…M, leaking their rows into the next spec — the exact cross-spec coupling the hermiticity rule above prevents.
@@ -862,8 +855,6 @@ The required shape (canonical example: `rpc-void-internal-exam-code.spec.ts`):
 
 Complements (does not duplicate) the Biome `noUnsafeFinally` rule — that bans `throw` inside `finally`; this rule governs the cross-step isolation structure. **Single-step cleanups** (one mutation, or one shared-helper call that internally isolates) are exempt.
 
-Promoted at count=2 — `64339b28` (a `throw` inside an `afterEach` finally) + `4f918ded` (`rpc-cross-tenant.spec.ts` afterAll: sequential cleanup blocks with no per-block isolation; a throw in block 1 risked the CL3 seeded session leaking into downstream specs). See issue #794.
-
 ### Paginated Fetch Needs a Caller-Level Page-Error Test (from 2026-06-01)
 
 Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper) must have a co-located test asserting that a **page-fetch error after a successful count** propagates correctly. Set it up one of two ways depending on how the suite mocks the helper:
@@ -873,8 +864,6 @@ Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper)
 Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract).
 
 `fetchAllRows` discards partial pages on a page error and returns `{ data: [], error }`, so the failure mode this guards against is a **silently-truncated result that looks complete** (e.g. a GDPR export section missing rows with no signal). A test that only mocks the count error is insufficient — the page-error path is the one that regresses silently.
-
-Promoted at count=2 (PR #681 GDPR pagination + #668 instance #7 `listOrgStudents`/`getComments`).
 
 ### Red-Team Isolation/Negative Assertions Must Be Non-Vacuous (from 2026-06-04)
 
@@ -892,8 +881,6 @@ expect(rows.length).toBeGreaterThan(0)
 expect(rows.map((r) => r.id)).not.toContain(victimUserId)
 ```
 
-Promoted at count=3 (#314 RLS-isolation on unseeded tables; #372 state-flip without pre-flip check; PR-B BZ1 `get_admin_dashboard_students` cross-org).
-
 ### Red-Team RPC Specs Must Assert the Full Output Contract (from 2026-06-04)
 
 A red-team spec exercising an RPC's **success or idempotent-replay** path must assert the RPC's documented **return payload**, not merely that it executed without error:
@@ -901,8 +888,6 @@ A red-team spec exercising an RPC's **success or idempotent-replay** path must a
 1. **Output shape** — assert the returned fields (names + values) match the documented contract (e.g. `score_percentage`, `passed`, `total_questions`, `answered_count`), not just `error === null`.
 2. **Idempotent / re-read paths** — seed **≥2 distinct fixture values** (e.g. one passing `75/true` AND one sub-pass `50/false`) so a regression that hardcodes a single return value fails at least one case. A single seed can't distinguish "re-reads from the DB" from "returns a hardcoded constant that happens to match".
 3. **Numeric fields** — assert numeric fields are within expected bounds, and for zero-case scenarios (e.g. a session with no answers) assert exact equality to zero, since BIGINT/NUMERIC wire values can regress silently.
-
-Promoted at count=2 (PR #736 `complete_overdue_exam_session` + PR #737 `complete_empty_exam_session` AQ idempotency, both under-asserted then tightened in review).
 
 ### New Supabase Query Sites Require an Integration Test (HARD — from #925)
 
@@ -914,8 +899,6 @@ In app-layer integration tests, verify every negative / isolation assertion is a
 1. **RLS already enforces the exclusion the helper re-filters** → the helper's own filter is untestable via the restricted (student) client; the assertion passes regardless of the helper's logic. Use a service-role client to assert the helper's own filtering.
 2. **Shared `beforeAll` seeding makes count-isolation one-sided** → "org A sees 3 rows, not 6" adds no signal over the ordinary functional test when both orgs are seeded before any test runs. Assert from BOTH the actor and the victim perspective.
 3. **A DISTINCT-aggregate caps the observed value below a bound** → a secondary bound-check (e.g. `.not.toBe(5)`) may be unreachable; verify the leaked value is distinguishable from the expected before asserting.
-
-(Promoted count=2, cross-commit within #925 Phase 1 — PR #927 [squash `fb2921c6`]; per-mechanism breakdown in the learner `tracker-archive.md` 2026-06-20 entry. The integration-tier analog of §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous." Sweep of the #925 integration files at promotion found them clean.)
 
 ### A Test Must Fail If Its Mechanism Is Removed (general, from 2026-08-15)
 
@@ -989,135 +972,44 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-## 10. Comment Accuracy (write-side) — DB/RPC Claims and Beyond
+## 10. Comment Accuracy — any claim, not just SQL
 
-**Scope note (broadened 2026-08-15, learner count=10).** This section was written for DB/RPC claims
-and its tracing guidance below is still specific to them. The DEFECT, however, is general: a comment
-or doc that asserts behaviour the code does not have. One branch produced the nine instances below
-on surfaces this section never named (the learner tracker stood at 10 when this was written and is
-higher now; a tracker count and an enumerated list are different things and need not match — but a
-number stated *next to* a list must match that list, which is the defect in the last item here) —
-a migration GRANT comment, a `docs/database.md` grant claim, a
-fuzzy-match threshold, a cross-function "called by" claim, a CSS credit left behind by the same
-commit's own extraction, a RAISE-site count invalidated by two added RAISEs, a rules paragraph
-miscounting the commits it was written about, an importer JSDoc promising a rollback invariant the
-code cannot honour, and a docblock citing retired validator rules. Apply the rule to any claim,
-not only to SQL.
+A comment or doc that asserts behaviour the code does not have. A wrong comment is worse than none —
+it is what the next reader trusts when deciding whether a guard can safely be removed.
 
-The clauses that carry most of the weight:
+1. **Never propagate a claim from another doc — re-derive it from the code.** A doc is evidence of
+   what someone believed, never of what the code does.
 
-1. **Never propagate a claim forward from another doc — re-derive it from the code.** The sharpest
-   instance: a plan read `docs/database.md`'s "grants mirror `normalize_answer` — anon,
-   authenticated, service_role", and nearly codified it into SQL, widening a live GRANT to `anon`.
-   The doc was wrong (the real precedent is `authenticated` only) and the doc line *was itself the
-   finding being fixed*. A doc is evidence of what someone believed, never of what the code does.
+2. **Never enumerate an OPEN set — state how to derive it.** A set that can gain a member (files in
+   a directory, tables carrying a policy, sites matching a pattern) gets a DERIVATION: a command, a
+   query, a pointer to the authoritative list. Name members only as explicit ILLUSTRATIONS or with
+   an as-of date. CLOSED sets are fine.
 
-2. **Never enumerate an OPEN set — state how to derive it.** A set that can gain a member after
-   the commit (files in a directory, tables carrying a policy, issues filed on a branch, sites
-   matching a pattern) must be described by its DERIVATION — a command, a query, a pointer to the
-   authoritative list — not by naming its current members or counting them. Such a claim is true
-   when written and silently false later, and nothing re-checks it. Name members only as explicit
-   ILLUSTRATIONS, or with an as-of date that marks the line as a measurement rather than a fact.
-   A CLOSED set is fine: "the four core post-commit agents" is defined by the rule that names it,
-   and a schema fact stays true until a migration changes it. Promoted at learner count=2
-   (`e3ce7511`, a mirror-table row counting a directory that grows when a skill is added;
-   `c9b4db03`, a worked example naming two qualifying issues when a third had been filed 38m47s
-   earlier — fixed by `45aadaf0`). The promotion sweep replaced every such enumeration in the rules, docs and
-   config files that commit touched — one of them already false — including the matching entry in
-   `.claude/agents/security-auditor.md`, the BLOCKING pre-push gate, per `agent-learner.md`'s
-   Downstream-enforcer sync. One known offender was deliberately left:
-   `.spec-workflow/steering/tech.md`'s static-header count, because steering docs are edited only
-   through the spec-workflow approval flow (`agent-doc-updater.md`), not by an agent sweep.
+3. **A partial comment edit is the tell.** If you edit any part of a comment block, read the whole
+   block — then grep the retracted phrase repo-wide:
+   `git grep -nF -- '<retracted phrase>' -- :/` (or `grep -RFn -- '<phrase>' .` from the root).
+   Both `-F` and the explicit repo-wide path are load-bearing and both fail OPEN: without `-F` the
+   phrase is a regex; without `-- :/` `git grep` searches only the current subtree. Reading the
+   block alone has never caught a non-adjacent instance.
 
-3. **A partial comment edit is the tell.** When a change moves code, the comment describing it moves
-   too — all of it. One commit updated the later paragraphs of a CSS comment for an extraction and
-   left the header crediting the old file; another added two RAISEs and left "14 distinct tokens
-   (19 raise sites)" a few lines above. If you edit any part of a comment block, read the whole
-   block.
+4. **Verify the fix is STAGED, not merely written.** `git grep` reads the working tree, so it goes
+   clean the moment the text is on disk. Run `git diff --staged` AND
+   `git status --short --untracked-files=all` — an untracked replacement file never appears in the
+   staged diff, and the explicit flag is needed because `status.showUntrackedFiles=no` silently
+   drops every `??` line.
 
-   **Reading the block is NOT sufficient — grep the retracted phrase repo-wide before committing.**
-   Promoted at learner count=4 (2026-08-24, `fix/report-item-scale`), where the same corrected claim
-   survived in a non-adjacent location four separate times: a JSDoc was fixed while the test comment
-   four lines down still said "on production"; `docs/decisions.md`'s body was fixed while the FILE
-   FOOTER still said "clamped at zero"; a Decision body was fixed while its own JSDoc four lines
-   away still said "clamped at 0"; and after all three, CR-local found the first claim still standing
-   in both the decisions footer AND `docs/plan.md`. Reading the block caught NONE of them — by
-   construction, since every instance was in a different file, a different section, or a separate
-   comment block. A repo-wide FIXED-STRING grep caught them. So the mechanical step is:
-   after correcting any claim, run `git grep -nF -- '<retracted phrase>' -- :/` from anywhere
-   in the repo (or `grep -RFn -- '<retracted phrase>' .` from the repo root) and confirm zero
-   hits describe current behaviour. Cheap, and it is the only thing that has actually worked.
+Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
+object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
+supersession forms are an OPEN set — enumerated in `agent-workflow.md § "name EVERY supersession
+form"` — and reach beyond the function body: `ALTER FUNCTION` replaces `search_path` /
+`SECURITY DEFINER` in place, `ALTER POLICY` replaces `USING` / `WITH CHECK` in place, and triggers,
+CHECK/UNIQUE constraints, backing indexes and GRANTs can each carry the guard being asserted. A
+replay branch is only reachable while its arbiter constraint exists (§5). Call out idempotent-replay
+branches whenever a returned id is later used as a scoped-mutation or teardown target.
 
-   **Both `-F` and an explicit repo-wide path are load-bearing, and both fail OPEN.** Measured
-   on this repo, 2026-08-24:
-   - Without `-F` the phrase is a REGEX. With `count(*)::int` on disk,
-     `grep -rn "count(*)::int" .` returns 0 hits; `grep -RFn` returns them.
-   - Without an explicit path, BOTH tools narrow to the CURRENT DIRECTORY subtree — they do
-     not read stdin and they do not search the repo. `git grep -nF -- "Rule-Mirror Sync"`
-     returns many hits from the repo root and **exactly zero** from `apps/web/`, same
-     toplevel — the zero is the load-bearing half, and no count is quoted because this very
-     paragraph contains the phrase and would date it (clause 2). `git grep`
-     is NOT repo-scoped by default; `-- :/` is what makes it so. (`--full-tree` is a
-     `git ls-tree` option and is rejected by `git grep`.)
-
-   Either way the sweep reports the clean result it exists to disprove — the same fail-open
-   shape clause 4 documents for reading the working tree instead of the index.
-
-   This clause has now shipped THREE false claims in three drafts: `grep -rn` reads stdin
-   (it does not), `git grep` is repo-scoped by default (it is not), and `--full-tree` scopes
-   it (no such option). Each draft was written to fix the previous one's error, inside the
-   rule about unverified claims. Every assertion above is a pasted measurement; if you edit
-   this clause, re-measure rather than reason, and change one claim at a time.
-
-4. **Verify the fix is STAGED, not merely written.** After a comment-accuracy fix, run
-   `git diff --staged` on the file before committing. `git grep` reads the WORKING TREE, so it
-   returns clean the moment the correct text exists on disk — it cannot tell you whether that text
-   is in the commit. Promoted at learner count=2 on `fix/admin-auth-cache-and-notfound`, both
-   instances verifiable in that branch's history: an e2e spec was extracted to a NEW file while its
-   tests were removed from the old one, and the new file sat untracked — one `git add` from the
-   branch losing that coverage entirely while every grep still found it; and a review agent's
-   memory delta was left unstaged and so missed the commit it belonged to. Note the deleted-and-
-   recreated-file case is the nastier half: staging the deletion without staging the new file
-   passes every grep, because the content is on disk the whole time — and `git diff --staged` alone
-   does NOT catch it either: an untracked file is not staged, so it never appears in the staged diff
-   (verified — in that scenario `git diff --staged --name-status` prints `D <old path>` for the old
-   file and NO LINE AT ALL for the replacement: it shows the staged DELETION and so looks like a
-   complete answer, while saying nothing about whether the replacement was staged. The claim is the
-   absence of a line for the REPLACEMENT, not the absence of other lines: any other staged file
-   prints its own line, so "the diff is empty" is not the test and never was). Run
-   `git status --short --untracked-files=all` ALONGSIDE the staged diff; `??` entries are the
-   half the diff cannot show. The explicit flag is load-bearing: a repo or user config setting
-   `status.showUntrackedFiles=no` drops every `??` line from the bare form while tracked entries
-   still print (verified — the output is a SHORTENED list, not an empty one; clause 4 always runs
-   with a tracked edit present, so a populated `git status --short` is no evidence that untracked
-   files are absent). That fails open in exactly the case this clause exists to catch.
-
-
-This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules — every `.claude/rules/agent-*.md` and `.claude/agents/*.md` that tells a reviewer to trace the supersession chain before *flagging*; this rule tells authors to trace it before *asserting*. That set is OPEN, and no single grep enumerates it: some members carry a `## Pre-Flag Verification` heading, others only a one-line trace bullet that never uses the phrase — so read both directories rather than trusting any list written here (clause 2 above).
-
-Before writing any comment or JSDoc that asserts DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, verify it against the LATEST migration body by tracing the redefinition chain **for the matching signature** — not only `CREATE OR REPLACE FUNCTION`, but also `DROP FUNCTION` followed by a fresh `CREATE FUNCTION`, which is how a signature change is made and which a `CREATE OR REPLACE`-only grep silently misses (19 of the 227 migrations in this repo used `DROP FUNCTION` when this was measured — both numbers only grow; the point is that the form exists, not how often — and `get_report_correct_options` once existed in two overloads, `(uuid[])` and `(uuid, uuid[])`, both removed by `20260316225054_drop_insecure_report_overloads.sql` while the live signature is `(uuid)` — so matching the name alone can land you on a body that is not merely older but no longer exists). Trace that chain plus the functions it calls and any RLS policy, trigger, CHECK constraint, UNIQUE or exclusion constraint (and its backing index, including partial ones), or GRANT that determines the behaviour being asserted, whenever the claim rests on those. **A FUNCTION also supersedes by `ALTER FUNCTION <fn>(<arg types>)`**, which replaces `SET search_path` / `SECURITY DEFINER` in place without reissuing the body — so a body-only trace certifies a stale attribute as current; and a TRIGGER supersedes by `DROP TRIGGER <name> ON <table>` + `CREATE TRIGGER <name> … ON <table>`. **A POLICY supersedes by two forms, and this enumeration was incomplete without both:** `DROP POLICY` + `CREATE POLICY`, and `ALTER POLICY <name> ON <table>`, which replaces `TO` / `USING` / `WITH CHECK` **in place** without recreating the policy — so a DROP/CREATE-only search reports a stale predicate as current. (Already stated in `agent-workflow.md § Delegation Protocol`; added here because §10 is what a comment-accuracy claim cites, and citing §10 for a form it did not list is itself the propagated-claim defect this section names.) A guard can live outside the function body, so tracing only the function chain can certify a comment that a policy or trigger contradicts. The UNIQUE/exclusion case is not hypothetical: a replay branch is only *reachable* if its backing constraint exists — see §5 "`ON CONFLICT` Requires a UNIQUE Inference Target" for which constraint class arbitrates which form. The claim about replay behaviour rests on that constraint as much as on the function body — trace `ALTER TABLE` / `CREATE [UNIQUE] INDEX` forward to HEAD, mirroring the review-side enumeration in `.claude/rules/agent-semantic-reviewer.md` and the Pre-Flag Verification section of `.claude/agents/semantic-reviewer.md`. Explicitly call out idempotent-replay branches whenever a returned id is later used as the target of a scoped mutation or teardown. A wrong comment is worse than no comment — it is what the next reader trusts when deciding whether a guard can safely be removed.
-
-```ts
-// ❌ WRONG — asserts the id is always this request's own row, without tracing the
-// unique_violation replay branch that can return a concurrent winner's row id instead
-/** Returns the id of THIS request's row. */
-export async function startStudySession(...) { ... }
-
-// ✅ CORRECT — traced the latest migration body, names the replay case explicitly
-/**
- * Returns the started session's id. On a concurrent identical-payload race, mig 137's
- * unique_violation branch returns the WINNING request's row id, not necessarily this
- * request's own — callers that use the id as a scoped-mutation/teardown target must
- * account for that.
- */
-export async function startStudySession(...) { ... }
-```
-
-Promoted at count=3 (implementation-critic's own tracker reached this independently, corroborated the same cycle by a distinct semantic-reviewer finding of the same root cause):
-- `study-start-handlers.ts` JSDoc claimed an orphaned discovery row blocks the retry. Migs 137/141/138/139 soft-delete the caller's active discovery rows *before* their single-active guard, so the row is already gone when the guard runs. Mig 140 (`start_vfr_rt_exam_session`) reaches neither on a resume: its idempotent-resume `RETURN` precedes both the cleanup and the guard, so that path skips them entirely — the row survives, but nothing checks it. Either way an orphaned discovery row never blocks the retry, so the claim was inverted. (Note the two mechanisms differ — "unconditionally cleared before the guard" is true of four of the five, not all five.)
-- `study.ts` claimed the returned id is "THIS request's row". Falsified by mig 137's `unique_violation` replay branch, which returns a concurrent winner's row id on a payload match — and that id is then used as a soft-delete target (issue #1152).
-- mig 137's own comment (L115-119) names the hazard but guards the wrong case: it protects the different-payload path while calling the identical-payload path "safely share". Sharing is safe for reads, not for a delete keyed on the id.
+This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules in
+`.claude/rules/agent-*.md` and `.claude/agents/*.md`.
 
 ---
 
-*Last updated: 2026-08-25 (tracing guidance now names `ALTER FUNCTION <fn>(<arg types>)` — which replaces `SET search_path` / `SECURITY DEFINER` in place without reissuing the body — plus `DROP TRIGGER` + `CREATE TRIGGER`, and `DROP INDEX` / `CREATE [UNIQUE] INDEX` when the invariant lives outside the function. The "BOTH supersession forms" quantifier is retired: the list is now open, so it is de-quantified rather than recounted, per `code-style.md` §10 clause 2. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-24 (trace instructions now name BOTH supersession forms — `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — matching the canonical rule in `agent-workflow.md` § "For any task that locates a DB object's current definition, name BOTH supersession forms" (promoted learner count=2, 2026-08-09). A `CREATE OR REPLACE`-only grep certifies a superseded body as current, which is the exact failure that rule exists to prevent. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-24 (§5's deferred-validation list now states its DERIVATION and marks its cases as ILLUSTRATIONS. Removing the count was not enough: §10 clause 2 requires an open set be described by how membership is derived, and an unmarked member list stays stale-prone whatever its count says. Found by CR-local round 5 on PR #1242. The `.coderabbit.yaml` mirror DID need a matching change — this entry first claimed it did not, which was false in the half that matters: its heading reads "general case", but its operative instruction flagged only "these constructs", so a sixth failure mode in this class would not have been caught. It now carries the non-limitation clause, the derivation and an as-of line, matching the sibling RLS bullet at `.coderabbit.yaml:370-374` that had the pattern right all along. Found by semantic-reviewer, reading the mirror block end-to-end rather than grepping the two phrases the false claim quoted. Prior, same day: §5's deferred-validation list no longer carries a count. It read "Two more execution-only failure modes" over a list of two; this PR added the `42804` aggregate-cast case and left the count at two. The count is not bumped to three — the list is an OPEN set and §10 clause 2, promoted in THIS FILE on 2026-08-19, says to derive such a set rather than count it. Five days later the same file violated it. Found by CR-local round 2 on PR #1242. Prior, same day: §10 clause 3 now requires a repo-wide GREP of the retracted phrase, not just re-reading the block — learner count=4, where the block-read caught none of four instances and the grep caught all. Prior: 2026-08-20 (§10 gained clause 4 — "Verify the fix is STAGED, not merely written": `git grep` reads the WORKING TREE, so it returns clean the moment the correct text exists on disk and says nothing about what is in the commit. Learner count=2, on the two staging instances clause 4's body and tracker-archive row 640 both name: an e2e spec extracted to a NEW file that sat untracked while its tests were removed from the original, and a review agent's memory delta left unstaged and missing the commit it belonged to. (An earlier draft cited `57c3b452`/`d8d32b1f`; those describe the PARTIAL-EDIT pattern of clause 3, not the staging one.) Prior: 2026-08-19 (§10 gained "Never enumerate an OPEN set — state how to derive it", learner count=2 — `e3ce7511` counted a directory that grows when a skill is added, `c9b4db03` named two qualifying issues when a third had been filed; the promotion sweep replaced every such enumeration in the files it touched, one of them already false. Prior: 2026-08-15 (§10 broadened from DB/RPC claims to comment accuracy generally, with the don't-propagate-a-doc-claim and partial-comment-edit clauses, learner count=10; §7 gained "A Test Must Fail If Its Mechanism Is Removed", learner count=4. Prior: 2026-08-08 — added the §5 `ON CONFLICT` arbiter-class table as the single source of truth and reduced §10's restatement of it to a pointer; added §10 — comment accuracy for DB/RPC claims, write-side companion to the review-side Pre-Flag Verification rules; count=3, #1152. Prior: 2026-07-06 §3 React render-body exception.))))))*
+*Last updated: 2026-08-25*

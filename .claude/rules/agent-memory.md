@@ -108,4 +108,4 @@ Any future protected matrix follows the same shape: keep it as a named topic fil
 
 ---
 
-*Last updated: 2026-08-19 (the tracker-shape sentence no longer enumerates which agents use which shape — it named five and was FALSE for red-team, which uses the same form, and for implementation-critic, which abbreviates the headers; read the tracker's own header row instead. `code-style.md` §10 open-set clause, learner count=2. Prior: 2026-07-11 — added "Memory deltas are committed, never stashed", pipeline-audit remediation, epic #1116 / issue #1112).*
+*Last updated: 2026-08-19*

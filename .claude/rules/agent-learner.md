@@ -48,4 +48,4 @@ This is the enforcer analogue of the call-site sweep: both close the "rule promo
 
 ---
 
-*Last updated: 2026-08-19 (the full-cycle definition names the four core agents — de-counting the EXEMPTIONS must not de-count the AGENT SET; count-free cycle phrasing — exemptions are named, never counted. Prior: 2026-08-11 — a reduced-cycle commit gets no learner pass, there being no full-cycle finding set to synthesise; PR #1185. Prior: 2026-04-28.)*
+*Last updated: 2026-08-19*
