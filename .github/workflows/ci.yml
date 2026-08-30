@@ -60,6 +60,9 @@ jobs:
       - name: Test-title impl-leakage guard — unit test
         run: node --test .claude/hooks/check-test-title-leakage.test.mjs
 
+      - name: Mirror-sync checker unit tests
+        run: node --test .claude/hooks/check-mirror-sync.test.mjs
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

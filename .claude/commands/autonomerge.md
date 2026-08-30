@@ -35,6 +35,5 @@ After the PR is open, **do everything `/automerge` does to reach a mergeable sta
    - **Manual-eval required? yes/no** — if the PR adds user-facing behavior a human should click through before merge, say so and name what to verify (the user is merging blind otherwise).
    - Deferred follow-up issue numbers.
    - One line: *"Ready for your merge — run `/automerge` to have me merge it, or merge it yourself."*
-4. **End the run with `/endrun`** — append the run's row to `.claude/run-log.md`. Mandatory terminal step, not optional; the run is not complete until logged.
 
 Do NOT run `gh pr merge`, do NOT squash, do NOT delete the branch, do NOT reset local master. Those are the user's call (or `/automerge`'s). If the user later merges, a subsequent session handles the local-master sync.

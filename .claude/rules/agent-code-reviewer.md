@@ -44,4 +44,4 @@ The agent definition (`.claude/agents/code-reviewer.md`) carries a `## DO NOT (e
 
 ---
 
-*Last updated: 2026-08-19 (the suppression COUNT is gone — the agent definition's own list is the authority and it grows, so a number here is one more thing to keep in sync; `code-style.md` §10 open-set clause, learner count=2. Prior: 2026-07-06 — added the React render/return-body suppression, 30–35 lines of pure JSX composition, #1074)*
+*Last updated: 2026-08-19*

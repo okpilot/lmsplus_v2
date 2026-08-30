@@ -50,4 +50,4 @@ If the test-writer creates a test that fails because the production code has a b
 
 ---
 
-*Last updated: 2026-08-19 (mutation-check is now the test-writer's terminal duty, not a reviewer's catch — code-style.md §7, #1231. Prior: 2026-03-12.)*
+*Last updated: 2026-08-19*

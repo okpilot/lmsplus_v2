@@ -114,53 +114,53 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 
 ## Common Pitfalls Observed
 
-These are the patterns CR local caught that our internal agents missed (#1–5 first surfaced on PR #108, 2026-05-07). Update this list as new ones surface.
+Examples of patterns CR local caught that our internal agents missed — an open list; add as new
+ones surface.
 
-1. **Service-role cleanup discarding `.select('id')` result.** code-style.md §5 explicitly requires logging on `data?.length > 0` even for cleanup-context where zero rows is valid. Internal agents read `.select('id')` is present and stop there.
-2. **Cast `as unknown as T` without runtime guard.** code-style.md §5 requires pairing the cast with `Array.isArray`/`typeof` checks. Internal agents accept the cast as type assertion.
-3. **Silent failure paths on cleanup.** `await admin.from(...).update(...).eq(...)` without `{ error }` destructure in afterEach blocks. Same pattern as the §5 mutation rule but in test infrastructure.
-4. **`.clear()` of in-memory ID set unreachable on cleanup throw.** Need try/finally so state resets on both success and error paths, otherwise next afterEach masks its own state.
-5. **Helper functions defined inside `for`-loop iteration.** Closures over loop-scoped vars + harder to scan. Move out, accept as parameter.
-6. **CR-local flags a Postgres guard/branch as "missing" without tracing the supersession chain (EVERY supersession form — an OPEN set enumerated in `agent-workflow.md`, not merely the two function-body ones).** CR reads one migration in isolation and never traces forward to where the guard was added or last redefined. Before accepting any such finding, trace the chain to the LATEST definition FOR THE MATCHING SIGNATURE — an overloaded function has a different body per argument list, so a name-only search can land on the wrong overload or one that no longer exists — (the same "Pre-Flag Verification" rule our internal agents follow in `agent-critic.md` / `semantic-reviewer.md` / `implementation-critic.md` / `plan-critic.md` — but CR-local is external and does not apply it, so the orchestrator must). Also: the old two-dir migration mirror (`packages/db/NNN_*` ≡ `supabase/timestamp_*`) is **DEAD — `packages/db/migrations/` was frozen 2026-07-11** (it stopped mirroring, and some files were edited post-deploy, showing false history; see its README). `supabase/migrations/` is the sole source of truth, and docs use the supabase timestamp convention. When CR cites a `packages/db/migrations/` path, answer by re-checking the claim against `supabase/migrations/` — never against the frozen dir. Both validated as false positives on PR #750 (`start_exam_session` guard claimed missing; the AJ red-team-vector migration ref claimed "should be 044").
-7. **CR-local — or cloud CR — proposes a fix that CONTRADICTS a documented project rule/decision — verify the rule before applying.** This is the inverse of #1–5: not a real gap CR caught, but a wrong suggestion to REJECT (skip-with-reason). The recurring instances: CR suggested adding `correct_count` at question-level (contradicts the row-level-only scoring decision) ×2; CR suggested switching a dependent cleanup step from a gated `if (errors.length === 0)` to "always attempt both teardowns" (contradicts `code-style.md §7` — the dependent-step gate prevents a failed prerequisite from running a later step that deletes an FK parent of the earlier step's rows, masking the real error or triggering a 23503 cascade). KEEP the `errors.length === 0` gate when the later step is FK-dependent; add only sentinel-presence guards (`if (refs)`) for the mid-`beforeAll`-failure case. Before applying ANY CR suggestion that removes a guard or relocates a value, check it against `code-style.md` / `security.md` / the relevant `agent-*.md` decision. (Promoted count=3, 2026-06-24 — VFR RT Phase 4 §7 cleanup-gate instance + 2 prior `correct_count`-placement instances. Broadened to cloud CR at count=5, 2026-07-03 (the learner tracker's authoritative count — a 4th instance, a test-assertion-contradiction, landed after the 2026-06-24 promotion; this cloud-CR case is the 5th): the discipline applies equally to cloud-CodeRabbit findings triaged via `/replycoderabbit`, not only CR-local CLI rounds — the first CLOUD-CR instance was a suggested array-index React `key` that violates Biome `noArrayIndexKey`, correctly skipped [#1061].)
+1. **Service-role cleanup discarding `.select('id')` result.** §5 requires logging on
+   `data?.length > 0` even where zero rows is valid.
+2. **Cast `as unknown as T` without runtime guard.** §5 requires pairing with `Array.isArray`/`typeof`.
+3. **Silent failure paths on cleanup.** `.update(...)` without `{ error }` destructure in afterEach.
+4. **`.clear()` of an in-memory ID set unreachable on cleanup throw.** Needs try/finally.
+5. **Helper functions defined inside a `for`-loop iteration.** Hoist out, pass as parameter.
 
+6. **CR flags a Postgres guard as "missing" without tracing the supersession chain** (EVERY form —
+   an OPEN set enumerated in `agent-workflow.md`). CR reads one migration in isolation. Trace to the
+   LATEST definition FOR THE MATCHING SIGNATURE before accepting. Also: `packages/db/migrations/` is
+   **FROZEN since 2026-07-11** and carries false history — when CR cites a path there, re-check the
+   claim against `supabase/migrations/`, the sole source of truth.
+
+7. **CR proposes a fix that CONTRADICTS a documented project rule or decision — verify before
+   applying.** Check against `code-style.md` / `security.md` / the relevant `agent-*.md` before
+   applying ANY suggestion that removes a guard or relocates a value. Applies equally to cloud CR.
    **The contradicting decision is not always in a rule file — read the code's own comment block.**
-   6th instance, 2026-08-16 (PR #1201), and the first where the binding constraint lived INSIDE the
-   edited file. CR asked for `min-width: min(15ch, 100%)` in place of `min-width: 15ch` in
-   `apps/web/app/globals.css`; the comment block 15 lines above that declaration already warned
-   against weakening the floor and explained why. No rule file governs it, so a rules grep came back
-   clean and the suggestion read as unconstrained — it was applied, and collapsed the dialog_fill
-   input from 116.8px to **19.0px at 600/360/180px columns alike**, because the containing block is
-   a shrink-to-fit `inline-flex` span, so the percentage resolves against the input's own content
-   width rather than the column. Caught post-commit by semantic-reviewer and reverted. Two additions
-   to the discipline:
-   - **Read the surrounding comment block of the code being changed, not only the rule files.** An
-     in-file comment that names the hazard IS a documented decision for the purposes of this pitfall.
-     A clean rules grep is not evidence that a change is unconstrained.
-   - **For any CSS layout/sizing suggestion, MEASURE — do not reason about the cascade.** A minimal
-     HTML repro of the production wrapper structure, served over localhost and measured with
-     `getBoundingClientRect`, settled this in two minutes. Reasoning alone had cleared the change,
-     and twice: the suggestion was applied, and its justifying comment asserted the opposite of what
-     the browser does. Note `file://` URLs are refused by the browser tooling — serve the repro.
-8. **CodeRabbit can fabricate a finding describing a code construct that does not exist in the source** — a duplicate declaration, a phantom import, a non-existent call site — at ANY severity label and from EITHER delivery mechanism (CR-local CLI or cloud CR). Before acting on any finding that asserts a **syntax or type error**, grep for the construct and check whether the type-checker and the RELEVANT tests are already green on that exact head: a green `tsc` disproves a claimed redeclaration or type error, which is a faster and more certain disproof than reasoning about the code — but only for a project configuration that actually INCLUDES the reported file. The same scoping caveat applies to test evidence, and more weakly: a green suite is only supporting evidence, and only if some test actually imports or exercises the reported file. A suite that never loads the file is green no matter what the file contains, so "the tests pass" alone disproves nothing — `tsc` under a config that includes the file is the load-bearing check. This repo splits them: `apps/web/tsconfig.json` excludes the integration tests that `apps/web/tsconfig.integration.json` covers. `apps/web/e2e/**` is covered by NO config, so for a file under it a green `tsc` proves nothing at all. `apps/web/scripts/**` WAS in that category and no longer is: `apps/web/tsconfig.scripts.json` (#1219) covers it and is chained into `pnpm check-types`, so a green run there is now real evidence — but a NARROW one, because only two scripts pass `<Database>` to `createClient`, so a wrong column name still compiles everywhere else. Structural errors are caught; schema ones are not, so confirm the file is in scope of the config you ran before treating green as a disproof. Promoted at count=2, different commits AND different mechanisms:
-   - 2026-07-13 — CR-**local** CLI on `bcaf1c0e`: hallucinated a duplicate declaration.
-   - 2026-08-07 — **cloud** CR on PR #1124: claimed `let resolveFlags` was declared twice in one scope in `use-session-bootstrap.test.ts`. Only 3 references exist in the file, all inside one `it()` block, one declaration. It was labelled 🔴 Critical — the PR's ONLY Critical — while `tsc` and the full suite were green on that exact head, which a real block-scoped redeclaration cannot be.
+   An in-file comment naming the hazard IS a documented decision; a clean rules grep is not evidence
+   that a change is unconstrained. **For any CSS layout/sizing suggestion, MEASURE — do not reason
+   about the cascade.** Serve a minimal repro over localhost and use `getBoundingClientRect`
+   (`file://` is refused by the browser tooling). Reasoning alone cleared a change that collapsed an
+   input from 116.8px to 19.0px.
 
-   **The mirror image is also on record: CR asserting the ABSENCE of a guard that exists.** On
-   `content/vfr-rt-part3` CR-local round 3 claimed the header's "`--prune` … refused outright when
-   `--force-remote` is passed" had "no guard testing that pair". `import-vfr-rt-content.ts:145` is
-   exactly `if (REPLACE && FORCE_REMOTE) { … process.exit(1) }`. Applying the suggestion would have
-   replaced a TRUE statement with a vaguer one. So the claim-shape table's "absence is proof" cuts
-   both ways: when CR says something is MISSING, grep for it before believing the absence.
+8. **CR can fabricate a finding describing a construct that does not exist** — a duplicate
+   declaration, a phantom import, a non-existent call site — at ANY severity, from either delivery
+   mechanism. Before acting on a claimed SYNTAX or TYPE error, grep for the construct and check
+   whether `tsc` is green on that exact head — but only under a config that INCLUDES the file.
+   `apps/web/tsconfig.json` excludes the integration tests; `apps/web/e2e/**` is covered by NO
+   config, so green proves nothing there; `apps/web/scripts/**` is covered by `tsconfig.scripts.json`
+   but not every script passes `<Database>` to `createClient` (derive which do:
+   `grep -rlE 'createClient<\s*Database' apps/web/scripts/`), so structural errors are caught and schema ones
+   are not.
+   A green test SUITE proves nothing unless some test actually loads the file.
+   **The mirror image is also on record: CR asserting the ABSENCE of a guard that exists.** So
+   "absence is proof" cuts both ways — when CR says something is MISSING, grep for it first.
+   Severity is NOT predictive: on PR #1124 the single Critical was fabricated while both Majors and
+   the Minor were real.
 
-   Sharp lesson from PR #1124: severity was **not predictive** of correctness — the single Critical was fabricated while both Majors and the one Minor were real and worth applying. This extends #1–7's "read source, don't trust labels" guidance with a distinct and cheaper disproof: the described construct may be entirely absent.
-
-9. **A CR suggestion that sets a DISPOSITION is the highest-risk class to adopt verbatim — diff it against 2–3 existing implementations of the same operation before applying.** A *disposition* is the behavioural policy a fix encodes: return-on-error strategy (reject the whole payload vs skip the bad element), fallback value, validation posture, retry-vs-fail. CR sees only the diff, never the surrounding convention, so it proposes a locally-plausible policy that can invert the codebase's. This is distinct from #7 (suggestion contradicts a documented *rule*) — here there is often no written rule at all, only an established pattern in sibling code, so a rules grep comes back clean and the divergence passes review.
-
-   Procedure: find the 2–3 nearest implementations of the same operation (same data shape, same consumer kind — not merely the same file), read what they DO on the bad-input path, and if the suggestion differs, apply the codebase's disposition and record the divergence in the CR reply. Getting the guard's *shape* right while inverting its *behaviour* still reads as "matches existing pattern" in a plan, which is how it survives validation.
-
-   Promoted at count=3 (2026-08-11, PR #1185, learner tracker). Latest instance: CR proposed "return `[]` if any row is invalid" for a per-row guard on `get_question_counts`. All three existing per-row guards — `app/app/quiz/actions/lookup.ts:150-151`, `lib/queries/study-queries.ts:91-96`, `lib/queries/quiz-session-queries.ts:48-51` — skip the bad row and keep the rest. Adopting CR's version would have blanked the entire subject/topic/subtopic picker on one drifted row, because every consumer ends in `.filter(s => s.questionCount > 0)`. Two plan-critic rounds passed before a critic caught it; the plan had already cited those three siblings as its prior art while implementing the opposite behaviour.
-
----
-
-*Last updated: 2026-08-25 (the retired "BOTH supersession forms" quantifier is gone from the operative trace instruction here, and the § title quoted in this footer now matches the canonical heading. Cloud CodeRabbit found the quantifier standing in two files after the de-quantification commit; the repo-wide fixed-string grep (`code-style.md` §10 clause 3) found it in six, this one among them — the partial-edit tell that clause names. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-24 (trace instructions now name BOTH supersession forms — `CREATE OR REPLACE FUNCTION` and `DROP FUNCTION` + `CREATE FUNCTION` — matching the canonical rule in `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form" (promoted learner count=2, 2026-08-09). A `CREATE OR REPLACE`-only grep certifies a superseded body as current, which is the exact failure that rule exists to prevent. Found by cloud CodeRabbit on PR #1242. Prior: 2026-08-19 (Apply-vs-Defer restatement carries both budgets — volume and ratio — not just the 0-2 count, #1232; Pitfall #8 extended to CR asserting the ABSENCE of a guard that exists — `import-vfr-rt-content.ts:145`, #1231. Prior: 2026-08-18 § Verify Before Acting.)))*
+9. **A CR suggestion that sets a DISPOSITION is the highest-risk class to adopt verbatim — diff it
+   against 2-3 existing implementations first.** A *disposition* is the behavioural policy a fix
+   encodes: return-on-error strategy, fallback value, validation posture, retry-vs-fail. CR sees
+   only the diff, never the convention, so it proposes a locally-plausible policy that can invert
+   the codebase's. Distinct from #7: there is often no written rule at all, only a sibling pattern,
+   so a rules grep comes back clean. Find the 2-3 nearest implementations of the same operation
+   (same data shape, same consumer kind), read what they DO on the bad-input path, and apply the
+   codebase's disposition — recording the divergence in the CR reply. Getting the guard's SHAPE
+   right while inverting its BEHAVIOUR still reads as "matches existing pattern" in a plan.

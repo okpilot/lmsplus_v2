@@ -48,4 +48,4 @@ The auditor's enumerated checklist (`.claude/agents/security-auditor.md`) is a h
 
 ---
 
-*Last updated: 2026-08-16 (timeout raised 120s → 300s via `AUDIT_TIMEOUT_SECS`; the NEVER bullet no longer presumes an oversized diff is the cause. Prior: 2026-07-08 — added downstream-sync note + auditor checks for docs/security.md soft-delete-in-RPC / audit-subquery / multiple-permissive / single-active / sibling-parity rules).*
+*Last updated: 2026-08-16*

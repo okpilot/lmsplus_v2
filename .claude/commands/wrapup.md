@@ -91,4 +91,3 @@ Present to user:
 
 ### 7. Log the run
 
-- Invoke `/endrun` to append this session's row to `.claude/run-log.md`. Mandatory terminal step, not optional — the wrap-up is not complete until the run is logged.

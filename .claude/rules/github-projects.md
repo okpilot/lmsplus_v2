@@ -61,7 +61,6 @@ Consequence: `P0 - Critical` exists in two places — as a board field value and
 
 ### When committing a fix for an issue
 
-
 - Use `Closes #N` or `Fixes #N` in the commit message — GitHub auto-closes the issue and the board automation moves it to Done.
 - If the commit doesn't fully resolve the issue, don't use closing keywords.
 
@@ -121,4 +120,4 @@ Size field:     PVTSSF_lAHOB7qFm84BRy8izg_hNXU
 
 ---
 
-*Last updated: 2026-08-19 (label table completed with the GitHub defaults, `wontfix` among them — `agent-workflow.md` tells you to use it; board-field-vs-label distinction added after `exempt-issue-labels` was found listing a `P0 - Critical` label that did not exist; stale-bot skip list documented.)*
+*Last updated: 2026-08-19*

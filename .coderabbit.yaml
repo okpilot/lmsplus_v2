@@ -439,12 +439,12 @@ reviews:
           '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
           mig 101, 2026-06-10), an unqualified column shadowed by a same-named RETURNS TABLE OUT
           parameter (42702 — always alias the source table: FROM users u WHERE u.id = auth.uid();
-          code-style.md §5 (c)), NULL propagating through a helper call into a NOT NULL column
+          code-style.md §5, the 42702 case), NULL propagating through a helper call into a NOT NULL column
           (23502 — coalesce at the call site, and check whether sibling callers already do;
-          code-style.md §5 (d)), and an aggregate feeding a RETURNS TABLE column whose cast was
+          code-style.md §5, the 23502 case), and an aggregate feeding a RETURNS TABLE column whose cast was
           dropped (count(*)::int -> count(DISTINCT x) widens the column to bigint and raises
           42804 on the first call; keep the cast — mutation-confirmed 2026-08-24 on
-          list_my_internal_exam_history, code-style.md §5 failure mode (e)). Flag any migration
+          list_my_internal_exam_history, code-style.md §5, the 42804 case). Flag any migration
           changing a plpgsql body containing these constructs that lacks a
           functional/integration test executing the function — and do not limit the check to
           that fixed list. The set is OPEN and derived, not enumerated: any plpgsql body whose

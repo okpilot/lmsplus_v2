@@ -7,23 +7,64 @@
 
 ## Critical rules (memorise these)
 
-1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never SELECT * questions for students. The MC key is column-REVOKE-gated (mig 111, #823): stored in `questions.correct_option_id` (NULL for non-MC), kept out of the `options` JSONB by `trg_sanitize_question_options`; students read it post-session only via the report RPCs (mig 114/113, `ended_at`-gated), admins via `get_question_authoring_fields()`.
-2. **RLS** — every table needs a policy for each command it is INTENDED to permit; a command with no permitting policy is denied by default, so an immutable/read-only table with only a `FOR SELECT` policy is correct by design. Which clause applies is PER COMMAND: `SELECT` and `DELETE` take `USING` only; `INSERT` takes `WITH CHECK` only; `UPDATE` and `FOR ALL` accept both — and omitting `WITH CHECK` on those two is SAFE, since PostgreSQL reuses `USING`, so the write check then equals `USING`. `WITH CHECK` is genuinely required only when the write predicate must DIFFER from the read one. Demanding both on every policy is wrong and will flag correct code — but a reused `USING` constrains only the columns it names, so an over-broad predicate still leaves every other column writable. **Absent clause: never a finding. Too-broad predicate: always one.** **`tenant_isolation` is `FOR SELECT` — two independent grounds, do not treat the first as a precondition for the second.** An unqualified policy is `FOR ALL`. **(a)** On a table that ALSO has role-gated write policies (`is_admin()` etc.), Postgres ORs permissive policies together, so the unqualified policy supplies a second, weaker write path and the role gate never binds — case `questions` (`20260809000100`, writes gated solely by `admin_insert_questions`/`admin_update_questions`). **(b)** On a table with NO intended user-scoped write path, there is no role gate to dissolve because the unqualified policy IS the entire access control — cases `organizations`, `question_banks`, `courses`, `lessons` (`20260820000100`), where all writes go service-role and an authenticated **admin is denied too**, `requireAdmin()` being RLS-bound. Either way DELETE has no permissive policy, so hard DELETE is blocked at the RLS layer per rule 6. A `FOR SELECT` policy takes `USING` only and correctly has no `WITH CHECK` — but note that a dropped `WITH CHECK` carrying `AND deleted_at IS NULL` was NOT inert: it blocked user-scoped soft-delete UPDATEs, so a future write policy must re-carry it. **Invariant: no table in `public` carries an unqualified `tenant_isolation`** — a new one is a defect on sight. See `docs/security.md` §3.
-3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never in client components.
-4. **Zod validation** — every Server Action and API route must parse input with Zod before using it.
-5. **Audit log** — `audit_events` is append-only. No PERMITTING UPDATE or DELETE policy. Ever. (The `audit_no_update` / `audit_no_delete` `USING (false)` policies match zero rows; the denial rests on the absence of a permitting policy, not on them. See `docs/security.md` §3.)
+1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never `SELECT *` questions for
+   students. The MC key lives in `questions.correct_option_id` (column-REVOKE-gated), kept out of
+   the `options` JSONB by `trg_sanitize_question_options`. TWO student paths expose it, both
+   deliberate: the `ended_at`-gated report RPCs post-session, and `get_study_questions()` in
+   Study/Discovery mode, which is GRANTed to `authenticated` and returns the key with NO `ended_at`
+   requirement — its integrity guard is the active-exam-session deny rule (rule 13), not
+   post-session gating. Admins read it via `get_question_authoring_fields()`.
+2. **RLS** — every table needs a policy for each command it is INTENDED to permit; a command with no
+   permitting policy is denied by default, so a read-only table with only `FOR SELECT` is correct.
+   Clauses are PER COMMAND: `SELECT`/`DELETE` take `USING` only; `INSERT` takes `WITH CHECK` only;
+   `UPDATE`/`FOR ALL` accept both — and omitting `WITH CHECK` there is SAFE, PostgreSQL reuses
+   `USING`. **Absent clause: never a finding. Too-broad predicate: always one** — a reused `USING`
+   constrains only the columns it names, leaving every other column writable.
+   An unqualified policy is `FOR ALL`. **Invariant: no table in `public` carries an unqualified
+   `tenant_isolation`** — a new one is a defect on sight, on two independent grounds: **(a)** on a
+   table with role-gated writes, permissive policies OR together so the unqualified one supplies a
+   weaker write path and the role gate never binds; **(b)** on a table with no intended user-scoped
+   write path, the unqualified policy IS the entire access control. See `docs/security.md` §3.
+3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never client-side.
+4. **Zod validation** — every Server Action and API route parses input with Zod before using it.
+5. **Audit log** — `audit_events` is append-only. No PERMITTING UPDATE or DELETE policy. Ever.
 6. **Soft delete** — never hard DELETE. Always `UPDATE SET deleted_at = now()`.
-7. **Auth check in RPCs** — all SECURITY DEFINER functions must call `auth.uid()` manually and raise if null.
-8. **Secrets** — never commit `.env*` files. Pre-commit hook blocks them.
-9. **Soft-delete in RPCs** — every SELECT inside a SECURITY DEFINER function must include `AND deleted_at IS NULL` on soft-deletable tables. These RPCs are owned by `postgres`, which holds `BYPASSRLS`, so RLS is not evaluated and soft-delete filters must be manual (SECURITY DEFINER *alone* does not bypass RLS). **Narrow exception:** SELECTs fetching records by IDs stored in an immutable, write-once column may omit the filter — see `docs/security.md` §15 for the authoritative current list (ten functions across three groups: the `config.question_ids` graders, the VFR-RT pair, and the `quiz_session_answers.question_id` report RPCs). Do not treat this quick-summary as the list; §15 is. Any new instance must cite the immutable column at the call site — see `docs/security.md` §15 and `docs/database.md` §3.
-
-10. **Audit-event INSERT subqueries** — Every `INSERT INTO audit_events (...)` SQL block in a SECURITY DEFINER function must filter `deleted_at IS NULL` on any user/session/question/membership FK lookup used to populate `actor_id`, `actor_role`, or session-derived columns. The outer auth/ownership guards may already enforce this for the calling student, but the audit-row subqueries are independent SELECTs. First seen: issue #550 (`batch_submit_quiz`). Replicated: `complete_empty_exam_session` (cross-referenced 2026-04-27). Pattern hit count=3 — promoted from watch to hard rule.
-
-11. **Multiple permissive RLS SELECT policies** — Postgres ORs permissive policies together. If a table has more than one permissive SELECT policy, a per-caller RPC reading it must scope the SELECT explicitly — `WHERE <owner_col> = auth.uid()`, or `WHERE <owner_col> = p_student_id` TOGETHER WITH an `auth.uid() = p_student_id` identity guard. The identity guard alone is not enough: it validates the parameter, leaving a query keyed on some other identifier free to read another owner's rows — RLS alone over-scopes to the broader (instructor/admin) policy. Admin/org-wide RPCs behind `is_admin()` are exempt. Which tables those are is a live set that grows with any migration adding a second permissive SELECT policy — `docs/security.md` §3 carries the current list, and the authority is the DB itself: `SELECT tablename FROM pg_policies WHERE schemaname='public' AND cmd IN ('SELECT','ALL') AND permissive='PERMISSIVE' GROUP BY tablename HAVING count(*) > 1` — `ALL` is the unqualified form (rule 2) and permits SELECT too, so a `cmd='SELECT'`-only query fails OPEN on exactly the tables rule 2 warns about. Do not treat any prose list, here or there, as the answer. First seen: #540 / red-team BW3 (`get_student_mastery_stats`, 2026-05-26). See `docs/security.md` §3.
-
-12. **Sibling SECURITY DEFINER RPC guard-set consistency** — When rewriting or extending any SECURITY DEFINER RPC, compare its guard set against ALL sibling RPCs in the same feature family BEFORE committing. The guard classes: `auth.uid()` null-check (rule 7); mode/whitelist guard; soft-delete filter on every SELECT (rule 9); **active-user / soft-deleted-caller gate** (`PERFORM 1 FROM users WHERE id = <uid> AND deleted_at IS NULL; IF NOT FOUND THEN RAISE`); ownership/identity scope (rule 11); org/config-membership; audit-subquery soft-delete (rule 10); `SET search_path = public`. A guard present in any sibling and absent in the target is a **gap, not an intentional difference** — unless the difference is justified (admin/org-wide RPCs behind `is_admin()` are exempt from per-caller ownership scoping; a function reading no soft-deletable table needs no soft-delete filter; a function with no `audit_events` INSERT has no audit-subquery concern). When introducing a NEW guard class into one family member, audit every other member for the same guard **in the same commit**. Promoted count=3 (two 2026-03-14 sibling-guard misses + `check_quiz_answer` shipped as a verbatim copy of its weaker older body in PR #856, missing 3 guards `submit_quiz_answer` already had). The promotion sweep found 4 legacy read-RPCs missing the active-user gate — see #883 and `docs/security.md` §11c.
-
-13. **Single-active-session invariant** — at most ONE active (`ended_at IS NULL AND deleted_at IS NULL`) `quiz_sessions` row per student, across all modes (#1011, mig 136: global partial unique index `uq_one_active_session_per_student` + each start RPC raising `another_session_active`; Discovery is now a real ephemeral `mode='discovery'` row, mig 137). This is the STRUCTURAL complement to rule 1 / the §4 answer-oracle guards: an answer-revealing Discovery/practice session cannot START while a graded exam on the shared MC pool is live, so it cannot coexist with one. See `docs/security.md` §11d.
+7. **Auth check in RPCs** — every SECURITY DEFINER function calls `auth.uid()` and raises if null.
+8. **Secrets** — never commit `.env*`. Pre-commit hook blocks them.
+9. **Soft-delete in RPCs** — every SELECT inside a SECURITY DEFINER function includes
+   `AND deleted_at IS NULL` on soft-deletable tables. These RPCs are owned by `postgres`
+   (`BYPASSRLS`), so RLS is not evaluated and the filter must be manual. **Narrow exception:**
+   SELECTs fetching records by IDs stored in an immutable, write-once column may omit it —
+   `docs/security.md` §15 is the authoritative list, not this summary. Any new instance must cite
+   the immutable column at the call site.
+10. **Audit-event INSERT subqueries** — every `INSERT INTO audit_events` block in a SECURITY DEFINER
+    function filters `deleted_at IS NULL` on any user/session/question/membership FK lookup feeding
+    `actor_id`, `actor_role`, or session-derived columns. The outer guards do not cover these: the
+    audit-row subqueries are independent SELECTs.
+11. **Multiple permissive RLS SELECT policies** — permissive policies OR together. If a table has
+    more than one permissive SELECT policy, a per-caller RPC reading it must scope explicitly:
+    `WHERE <owner_col> = auth.uid()`, or `WHERE <owner_col> = p_student_id` TOGETHER WITH an
+    `auth.uid() = p_student_id` identity guard. The identity guard alone is not enough — it validates
+    the parameter, leaving a query keyed on another identifier free to read another owner's rows.
+    Admin/org-wide RPCs behind `is_admin()` are exempt. The table set is live; the authority is the
+    DB: `SELECT tablename FROM pg_policies WHERE schemaname='public' AND cmd IN ('SELECT','ALL')
+    AND permissive='PERMISSIVE' GROUP BY tablename HAVING count(*) > 1` — `ALL` is the unqualified
+    form and permits SELECT, so a `cmd='SELECT'`-only query fails OPEN. Trust no prose list.
+12. **Sibling SECURITY DEFINER RPC guard-set consistency** — before committing, compare the RPC's
+    guard set against ALL siblings in its feature family. Guard classes: `auth.uid()` null-check
+    (7); mode/whitelist guard; soft-delete filter (9); **active-user gate**
+    (`PERFORM 1 FROM users WHERE id = <uid> AND deleted_at IS NULL; IF NOT FOUND THEN RAISE`);
+    ownership scope (11); org/config membership; audit-subquery soft-delete (10);
+    `SET search_path = public`. A guard present in a sibling and absent here is a **gap, not an
+    intentional difference**, unless justified (`is_admin()` RPCs are exempt from per-caller
+    scoping; a function reading no soft-deletable table needs no filter; no `audit_events` INSERT
+    means no audit-subquery concern). Introducing a NEW guard class into one member means auditing
+    every other member **in the same commit**.
+13. **Single-active-session invariant** — at most ONE active
+    (`ended_at IS NULL AND deleted_at IS NULL`) `quiz_sessions` row per student, across all modes:
+    a global partial unique index plus each start RPC raising `another_session_active`. Structural
+    complement to rule 1 — an answer-revealing practice session cannot START while a graded exam on
+    the shared MC pool is live. See `docs/security.md` §11d.
 
 ## When the security-auditor agent runs
 On every `git push` via Lefthook pre-push hook.
