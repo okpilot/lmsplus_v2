@@ -1236,10 +1236,11 @@ production render was observed, and this entry does not claim one.
 4. **`Skipped` renders an em dash when its inputs are incoherent** (`answeredQuestions >
    totalQuestions`). An earlier draft clamped to 0; that was rejected on review because a 0 reads as
    authoritative while being wrong in the direction that flatters the student, whereas "—" states
-   that the number is not known. The admin
-   session route feeds `answeredQuestions` a raw answer-ROW count (`admin-quiz-report.ts`, whose own
-   comment admits it — #991), so a non-MC session overshoots the question total and a live repro of
-   that page showed **"SKIPPED -2"** (local repro). The em dash is a PARTIAL guard, not a fix — be precise
+   that the number is not known. At the time this decision
+   was written the admin session route FED `answeredQuestions` a raw answer-ROW count
+   (`admin-quiz-report.ts`, whose own comment admitted it — #991), so a non-MC session overshot the
+   question total and a live repro of that page showed **"SKIPPED -2"** (local repro). #991 has since
+   fixed that; see the end of this item. The em dash is a PARTIAL guard, not a fix — be precise
    about its limit: it only fires when rows EXCEED `totalQuestions`. When a non-MC session's row
    count happens to land at or below the question total (3 questions answered across 6 rows in a
    10-question session), no guard fires and `Skipped` renders 4 where the truth is 7 — silently
