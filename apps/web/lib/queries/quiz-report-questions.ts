@@ -52,9 +52,9 @@ export async function getQuizReportQuestions(opts: {
   // the session's DISTINCT question_ids in display order (answered_at — the order
   // the report has always used), slice that list to the page window, then fetch
   // ALL answer rows for those questions. totalCount = distinct question count.
-  // Page through ALL answer rows: EVERY non-MC type stores one row per blank/slot/zone
-  // (dialog_fill blanks, ordering slots, diagram_label zones — 50 max each) and a session
-  // can hold up to 500 questions, exceeding PostgREST's 1000-row cap. A single
+  // Page through ALL answer rows: the multi-row non-MC types (dialog_fill blanks, ordering
+  // slots, diagram_label zones — 50 max each) store one row per blank/slot/zone, and a
+  // session can hold up to 500 questions, exceeding PostgREST's 1000-row cap. A single
   // .select() would silently truncate, dropping question_ids from the order/total.
   const { data: orderRows, error: orderError } = await fetchAllRows<{ question_id: string }>(
     () =>

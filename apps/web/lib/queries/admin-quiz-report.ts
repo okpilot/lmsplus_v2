@@ -49,9 +49,9 @@ export async function getAdminQuizReportSummary(
   // Derive two counts from the session's answer rows (mirrors quiz-report.ts):
   //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
   //  - answeredQuestions = distinct questions answered (denominator for Skipped)
-  // EVERY non-MC type stores one row per blank/slot/zone (dialog_fill blanks, ordering
-  // slots, diagram_label zones — 50 max each), so a 500-question quick_quiz can exceed
-  // PostgREST's 1000-row cap — page through so the counts never silently truncate.
+  // The multi-row non-MC types store one row per blank/slot/zone (dialog_fill blanks,
+  // ordering slots, diagram_label zones — 50 max each), so a 500-question quick_quiz can
+  // exceed PostgREST's 1000-row cap — page through so the counts never silently truncate.
   const { data: answerRows, error: answerRowsError } = await fetchSessionAnswerRows<{
     question_id: string
   }>({ sessionId, select: 'question_id', orderColumns: ['id'] })
@@ -125,9 +125,9 @@ export async function getAdminQuizReportQuestions(opts: {
   // the session's DISTINCT question_ids in display order (answered_at — the order
   // the report has always used), slice that list to the page window, then fetch
   // ALL answer rows for those questions. totalCount = distinct question count.
-  // Page through ALL answer rows: EVERY non-MC type stores one row per blank/slot/zone
-  // (dialog_fill, ordering, diagram_label — 50 max each), so 500 questions can exceed
-  // PostgREST's 1000-row cap; a single .select() would truncate, dropping question_ids.
+  // Page through ALL answer rows: the multi-row non-MC types (dialog_fill, ordering,
+  // diagram_label — 50 max each) store one row per blank/slot/zone, so 500 questions can
+  // exceed PostgREST's 1000-row cap; a single .select() would truncate, dropping question_ids.
   const { data: orderRows, error: orderError } = await fetchSessionAnswerRows<{
     question_id: string
   }>({ sessionId, select: 'question_id, answered_at', orderColumns: ['answered_at', 'id'] })

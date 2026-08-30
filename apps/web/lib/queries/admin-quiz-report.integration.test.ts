@@ -118,7 +118,11 @@ describe('getAdminQuizReportSummary / getAdminQuizReportQuestions — non-MC adm
       .select('id')
       .single()
     if (bankErr) throw new Error(`seed bank: ${bankErr.message}`)
-    bankId = (bank as { id: string }).id
+    const seededBankId = (bank as { id: string } | null)?.id
+    if (typeof seededBankId !== 'string' || seededBankId.length === 0) {
+      throw new Error('seed bank: no id')
+    }
+    bankId = seededBankId
 
     const base = {
       organization_id: orgId,

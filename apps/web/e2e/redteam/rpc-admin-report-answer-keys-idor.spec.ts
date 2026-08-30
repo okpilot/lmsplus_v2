@@ -115,6 +115,22 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
       )
     }
 
+    // Crash-resilient pre-sweep of orphaned FK fixture SESSIONS from a prior aborted run.
+    // Sessions carry no queryable question_number marker, so they need their own sweep,
+    // keyed on the e2e_marker key seeded into `config` below (code-style.md §7).
+    const { data: sweptS, error: sweepSErr } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('config->>e2e_marker', E2E_REDTEAM_FK_MARKER)
+      .is('deleted_at', null)
+      .select('id')
+    if (sweepSErr) throw new Error(`FK fixture session pre-sweep failed: ${sweepSErr.message}`)
+    if ((sweptS?.length ?? 0) > 0) {
+      console.log(
+        `[admin-report-answer-keys-idor] pre-swept ${sweptS?.length} orphaned FK fixture session(s)`,
+      )
+    }
+
     const seed = await seedRedTeamUsers()
     orgAId = seed.orgId
     orgAStudentId = seed.victimUserId
@@ -213,7 +229,10 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
         student_id: orgAStudentId,
         mode: 'quick_quiz',
         subject_id: subjectId,
-        config: { question_ids: [shortAnswerQuestionId, dialogFillQuestionId] },
+        config: {
+          question_ids: [shortAnswerQuestionId, dialogFillQuestionId],
+          e2e_marker: E2E_REDTEAM_FK_MARKER,
+        },
         total_questions: 2,
         started_at: new Date(Date.now() - 60_000).toISOString(),
         ended_at: new Date().toISOString(),
@@ -259,7 +278,7 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
         student_id: orgBStudentId,
         mode: 'quick_quiz',
         subject_id: subjectId,
-        config: { question_ids: [] },
+        config: { question_ids: [], e2e_marker: E2E_REDTEAM_FK_MARKER },
         total_questions: 1,
         started_at: new Date(Date.now() - 60_000).toISOString(),
         ended_at: new Date().toISOString(),

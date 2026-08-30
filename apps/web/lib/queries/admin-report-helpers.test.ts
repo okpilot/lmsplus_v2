@@ -380,9 +380,14 @@ describe('fetchAdminReportAnswerKeyMap', () => {
     expect(result.data.size).toBe(0)
   })
 
+  it('returns an empty map when the RPC returns zero rows for an all-MC session', async () => {
+    const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
+    const result = await fetchAdminReportAnswerKeyMap(fakeAuthClient(mockRpc), 'sess-1')
+    expect(result).toEqual({ data: new Map(), error: null })
+  })
+
   it('returns an empty map without erroring when the RPC yields a non-array result', async () => {
-    // e.g. an all-MC session (internal_exam) — zero non-MC keys, not an error, and
-    // a malformed non-array payload must not propagate past the runtime guard.
+    // A malformed non-array payload must not propagate past the runtime guard.
     const mockRpc = vi.fn().mockResolvedValue({ data: {}, error: null })
     const result = await fetchAdminReportAnswerKeyMap(fakeAuthClient(mockRpc), 'sess-1')
     expect(result).toEqual({ data: new Map(), error: null })

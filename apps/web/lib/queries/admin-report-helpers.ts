@@ -104,8 +104,9 @@ export async function fetchPageAnswerRows(
  * answer key — `correct` is stripped at the DB write layer (#823), so the raw
  * `correct` boolean never reaches this query or buildReportQuestions. The
  * report's correct option comes from get_admin_report_correct_options
- * (correctOptionId). This is admin-only code (requireAdmin + is_admin RPC) and
- * the caller has already verified the session is complete (ended_at guard).
+ * (correctOptionId). This is admin-only code (requireAdmin + is_admin RPC).
+ * PRECONDITION: callers MUST verify `ended_at IS NOT NULL` on the session
+ * before calling this — this function does not check session completion.
  * Omits deleted_at intentionally — historical record for completed sessions.
  */
 export async function fetchPageQuestions(
