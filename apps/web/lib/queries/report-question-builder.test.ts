@@ -66,11 +66,12 @@ describe('buildReportQuestions', () => {
     })
   })
 
-  it('defaults to the MC variant when the question has no type (admin feed)', () => {
+  it('defaults to the MC variant when the question has no type', () => {
     const answers: AnswerRow[] = [
       { question_id: 'q1', selected_option_id: 'o1', is_correct: true, response_time_ms: 1000 },
     ]
-    // No question_type field on the question row — the admin MC-only feed omits it.
+    // No question_type field on the question row — defensive fallback; no current
+    // caller omits this column (the admin feed fetches question_type as of #991).
     const questionMap = new Map<string, QuestionRow>([
       [
         'q1',

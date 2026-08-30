@@ -36,7 +36,8 @@ export type OrderingSlotResult = {
 // Discriminated union on `questionType`. Consumers MUST narrow on it before
 // touching any type-specific field (MC `options`, short_answer `responseText`,
 // dialog_fill `blanks`). The MC variant is the default the builder emits when a
-// row carries no question_type (the admin MC-only feed relies on this).
+// row carries no question_type — a defensive fallback with no current caller
+// relying on it.
 export type QuizReportQuestion =
   | (QuizReportQuestionCommon & {
       questionType: 'multiple_choice'

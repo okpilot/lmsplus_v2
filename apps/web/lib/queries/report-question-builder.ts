@@ -27,8 +27,9 @@ export type QuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   question_image_url: string | null
-  // Discriminator (mig 094, on `questions`). Null/absent on the admin MC-only
-  // feed (which omits the column) → defaulted to 'multiple_choice'.
+  // Discriminator (mig 094, on `questions`). Defensive-only: no current caller
+  // omits this column, but a future or external caller that does gets
+  // 'multiple_choice' rather than an undiscriminated row.
   question_type?: string | null
 }
 
@@ -71,9 +72,9 @@ function groupAnswersByQuestion(answers: AnswerRow[]): {
  *  - dialog_fill: N rows (one per blank) collapsed into a single entry with
  *    a per-blank results array sorted by blank_index ascending.
  *
- * A row with no question_type defaults to 'multiple_choice' (the admin MC-only
- * feed relies on this). Questions with zero answer rows do not appear — by
- * design; the summary's Skipped count conveys them.
+ * A row with no question_type defaults to 'multiple_choice' — a defensive
+ * fallback with no current caller relying on it. Questions with zero answer
+ * rows do not appear — by design; the summary's Skipped count conveys them.
  */
 export function buildReportQuestions(
   answers: AnswerRow[],
@@ -86,8 +87,8 @@ export function buildReportQuestions(
   return order.map((questionId) => {
     const rows = grouped.get(questionId) ?? []
     const question = questionMap.get(questionId)
-    // Discriminate on the question's type (mig 094). The admin MC-only feed
-    // omits the column, so absent → 'multiple_choice'.
+    // Discriminate on the question's type (mig 094). Defensive fallback: no
+    // current caller omits the column, so absent → 'multiple_choice'.
     const type = question?.question_type ?? 'multiple_choice'
 
     const common: QuizReportQuestionCommon = {

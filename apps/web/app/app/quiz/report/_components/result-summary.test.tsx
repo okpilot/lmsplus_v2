@@ -152,10 +152,10 @@ describe('ResultSummary', () => {
     })
 
     it('shows an em dash instead of a skipped count when answered exceeds the question total', () => {
-      // The admin session route feeds answeredQuestions a raw answer-ROW count (#991), so a
-      // non-MC session overshoots totalQuestions; reproduced locally as "SKIPPED -2". A
-      // clamped 0 would read as authoritative while being wrong in the direction that
-      // flatters the student, so the unknown value is shown as an em dash instead.
+      // If a caller ever passes an answeredQuestions greater than totalQuestions, the inputs
+      // are incoherent. A clamped 0 would read as authoritative while being wrong in the
+      // direction that flatters the student, so the unknown value is shown as an em dash
+      // instead.
       render(
         <ResultSummary
           summary={makeSummary({ totalQuestions: 8, answeredQuestions: 10, answeredItems: 10 })}
