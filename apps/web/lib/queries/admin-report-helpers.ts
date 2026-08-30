@@ -12,11 +12,11 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
  * Fetch a quiz_sessions row scoped to the admin's organization, soft-delete
- * filtered. Both admin report entry points (`getAdminQuizReportSummary` and
- * `getAdminQuizReportQuestions`) run this exact shape before doing anything
- * else, differing only in the selected columns and the caller's log prefix —
- * the `ended_at` completed-session guard stays with each caller, since the two
- * differ in what they return on a not-found/not-completed session.
+ * filtered. Every admin report entry point runs this exact shape before doing
+ * anything else, differing only in the selected columns and the caller's log
+ * prefix (derive the current set: grep this function's name). The `ended_at`
+ * completed-session guard stays with each caller, since callers differ in what
+ * they return on a not-found/not-completed session.
  */
 export async function fetchAdminSessionForReport<T>(opts: {
   sessionId: string
@@ -44,9 +44,9 @@ export async function fetchAdminSessionForReport<T>(opts: {
  * A dialog_fill question stores one row per blank, and a session can hold up to
  * 500 questions (quick_quiz cap) x up to 50 blanks — exceeding PostgREST's
  * 1000-row cap. A single .select() would silently truncate, so this pages
- * through fetchAllRows. `select`/`orderColumns` let the two call sites
- * (answered-item counts vs answered-order resolution) share the paging logic
- * while asking for different columns and sort keys.
+ * through fetchAllRows. `select`/`orderColumns` are parameters precisely so callers
+ * needing different columns or sort keys share one paging implementation rather
+ * than copying it.
  */
 export async function fetchSessionAnswerRows<T extends { question_id: string }>(opts: {
   sessionId: string
