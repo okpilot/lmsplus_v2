@@ -122,6 +122,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Confounded measurement: two variables changed at once → wrong conclusion shipped as rule | 1 | 2026-08-24 | WATCHING (archive row 665) |
 | Scripted/regex bulk edit strips a file-level invariant (trailing newline) no content check inspects | 1 | 2026-08-25 | WATCHING (archive row 666) |
 | A tracker row's own narrative built into a rule draft without re-deriving from source — §10 clause 1 held | 1 | 2026-08-25 | WATCHING (archive row 667) — POSITIVE, pre-ship catch. |
+| Mocked-Supabase test assertion vacuous about a chain-builder ARGUMENT (mock returns queued fixture regardless of `.select()`/`.in()` input) | 2 | 2026-08-30 | RULE CANDIDATE (2, one PR/two commits) → code-style.md §7 (archive row 668) |
+| Migration self-assigns the next `-- Migration N:` ordinal from a numbering convention that is abandoned/undecodable, not merely unverified | 1 | 2026-08-30 | WATCHING (archive row 669) |
+| File brought to EXACTLY its size cap by an extraction, then a same-commit comment fix silently re-crosses it | 2 | 2026-08-30 | RULE CANDIDATE (2, 2nd instance of row 451) → agent-code-reviewer.md (archive row 670) |
+| New `fetchAllRows` call site shipped without the already-promoted code-style.md §7 page-error test | 1 | 2026-08-30 | WATCHING (archive row 671) |
+| Red-team vector enumerating sibling answer-key-returning RPCs not extended when a new sibling RPC is added | 1 | 2026-08-30 | WATCHING (archive row 672) |
+| Concurrent subagents dispatched onto the same file — one's restore step reverts a sibling's un-related edit | 1 | 2026-08-30 | WATCHING (archive row 673) |
 
 ## Durable knowledge (cross-agent)
 
@@ -131,6 +137,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - POSITIVE (`bf2b6672`): §10 clause 3 grep, run proactively, caught 4 sites CR never named — mechanical checks beat review rounds.
 - OPEN AMBIGUITY (2026-08-25): unwritten "2nd-branch" gate applied inconsistently (519/655 held it, 660 didn't). Proposal: `topics/cross-agent-lessons.md`.
 - FP catalog + full rule-promotion record + more lessons → `topics/cross-agent-lessons.md`.
+- POSITIVE (fix/991-admin-non-mc-report, `d2d3bdb3`): two ALREADY-PROMOTED gates fired correctly and caught the drift before it landed — §10 (migration comment overclaimed "cannot be aimed at an in-progress session" beyond the target session) and the doc-updater hallucination rule (proposed replacement text claimed a SQL `COUNT(DISTINCT...)` when the fix is a TS `Set`). Both caught pre-push in the same cycle; archive rows 639/582 counts incremented, no new rule needed.
 
 ## Topic pointers
 
