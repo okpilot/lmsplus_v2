@@ -833,9 +833,13 @@ describe('getAdminQuizReportQuestions', () => {
       {
         question_id: 'q5',
         selected_option_id: null,
+        // is_correct stays true while the response DIFFERS from the canonical: the
+        // builder must pass the DB's grading through, never recompute it by comparing
+        // responseText to canonicalAnswer. The differing strings are also what make the
+        // canonicalAnswer assertion below non-vacuous (code-style.md §7).
         is_correct: true,
         response_time_ms: 1500,
-        response_text: 'mayday mayday mayday',
+        response_text: 'pan pan pan',
       },
     ]
     const saQuestion = {
@@ -873,7 +877,7 @@ describe('getAdminQuizReportQuestions', () => {
     if (!result.ok) return
     expect(result.questions[0]?.questionType).not.toBe('multiple_choice')
     const q = asShortAnswer(result.questions[0])
-    expect(q.responseText).toBe('mayday mayday mayday')
+    expect(q.responseText).toBe('pan pan pan')
     expect(q.canonicalAnswer).toBe('mayday mayday mayday')
     expect(q.isCorrect).toBe(true)
   })
