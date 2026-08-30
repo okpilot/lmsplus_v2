@@ -48,12 +48,14 @@
 -- That is the narrower claim, and it is all this check establishes. It does NOT establish
 -- that the CALLER holds no live exam: nothing bars an admin account from starting its own
 -- session, so an admin mid-exam could read a different, already-completed org session that
--- shares content. What closes that is the trust tier, not this check — the body is gated on
--- is_admin(), and docs/security.md rule 12 exempts is_admin() RPCs from per-caller scoping,
--- because the answer-oracle rule targets STUDENT self-service RPCs (check_quiz_answer,
--- get_study_questions). Same posture as the MC sibling get_admin_report_correct_options,
--- which has had this shape since 20260619000400. Do not cite the ended_at check as proof of
--- a stronger property than it has.
+-- shares content. What closes that is the trust tier, not this check: the body is gated on
+-- is_admin(), and the answer-oracle guard (§4 item 6) targets STUDENT self-service RPCs that a
+-- student can reach mid-exam (check_quiz_answer, get_study_questions) — an admin-gated report
+-- RPC is a different trust tier. Do NOT cite §11c / rule 12 here: that exempts is_admin() RPCs
+-- from per-caller OWNERSHIP scoping, which is a different guard class from the active-exam
+-- guard, and conflating the two makes the justification look stronger than it is. Same posture
+-- as the MC sibling get_admin_report_correct_options since 20260619000400. Do not cite the
+-- ended_at check as proof of a stronger property than it has.
 CREATE OR REPLACE FUNCTION get_admin_report_answer_keys(p_session_id uuid)
 RETURNS TABLE (question_id uuid, question_type text, blank_index int, answer_key text)
 LANGUAGE plpgsql

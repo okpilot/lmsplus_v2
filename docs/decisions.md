@@ -1243,8 +1243,12 @@ production render was observed, and this entry does not claim one.
    about its limit: it only fires when rows EXCEED `totalQuestions`. When a non-MC session's row
    count happens to land at or below the question total (3 questions answered across 6 rows in a
    10-question session), no guard fires and `Skipped` renders 4 where the truth is 7 — silently
-   wrong, and still #991. Fixing the query to `COUNT(DISTINCT question_id)` is PR 3b's scope; this
-   change only removes the absurd rendering (a negative), not the underlying wrong number.
+   wrong, and still #991. That underlying wrong number was PR 3b's scope, and #991 is now FIXED:
+   the admin route derives a true distinct-question count. Note the mechanism is NOT the SQL
+   `COUNT(DISTINCT question_id)` anticipated here — `getAdminQuizReportSummary` pages the answer
+   rows and takes a `Set` over `question_id` in the query helper. Decision 60's own change only
+   removed the absurd rendering (a negative); the em-dash guard is retained as defence for any
+   caller that passes inconsistent values.
 
 **Rationale for not trusting the caller**: `ResultSummary` is shared across several routes with two
 different summary builders. Derive the current set with
