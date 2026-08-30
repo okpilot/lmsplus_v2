@@ -24,8 +24,13 @@
  *   the deleted_at filter from is_admin() but leaves the re-select intact, the
  *   RPC raises 'user not found' (get_question_authoring_fields) /
  *   'Caller has no organization' (get_admin_report_correct_options and
- *   get_admin_report_answer_keys — the latter's guard block is a verbatim copy of
- *   the former's, per its own migration header comment) instead.
+ *   get_admin_report_answer_keys) instead. Those two guard blocks are
+ *   EXECUTABLE-identical: same RAISE tokens in the same order, their only textual
+ *   difference being one explanatory comment.
+ *
+ *   That is derived by diffing the migration BODIES (20260824000100 against
+ *   20260619000400), not read off either file's header comment — a header comment
+ *   is evidence of what an author believed, never of what the body does.
  *
  *   Both outcomes are correct rejections. Each regex covers both layers so the
  *   test pins the defence without coupling to which layer fires — a regression
@@ -208,8 +213,9 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     )
 
     // get_admin_report_answer_keys: same dummy session_id, reused — its guard chain
-    // (is_admin -> org lookup -> session-exists check) is a verbatim copy of
-    // get_admin_report_correct_options's (mig 20260824000100 header comment), so it
+    // (is_admin -> org lookup -> session-exists check) is executable-identical to
+    // get_admin_report_correct_options's — derived by diffing migration BODIES
+    // 20260824000100 and 20260619000400, not from a header comment — so it
     // also reaches the post-admin-gate session-lookup token for an ACTIVE admin.
     // This proves the JWT + admin gate are genuinely valid without needing a real
     // completed non-MC session (which, for an all-MC session, would return 0 rows —
@@ -301,8 +307,9 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     // get_admin_report_answer_keys must reject — and return NO answer key.
     //   Primary  — is_admin() filters deleted_at IS NULL → RAISE 'forbidden'
     //   Backstop — active-user org re-select (v_org_id IS NULL) → RAISE 'Caller has no organization'
-    // (Guard block is a verbatim copy of get_admin_report_correct_options's — see mig
-    // 20260824000100 header comment — so the same two tokens apply here too.)
+    // (Executable-identical guard block to get_admin_report_correct_options — derived by
+    // diffing migration BODIES 20260824000100 and 20260619000400, not by trusting either
+    // header comment — so the same two tokens apply here too.)
     expect(answerKeysResult?.error).not.toBeNull()
     expect(answerKeysResult?.error?.message ?? '').toMatch(/forbidden|caller has no organization/i)
     // On a RAISE, PostgREST returns null data — no {question_id, question_type,
