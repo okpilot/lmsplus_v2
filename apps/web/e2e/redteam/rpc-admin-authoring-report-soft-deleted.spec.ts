@@ -2,12 +2,14 @@
  * Red Team Spec: soft-deleted admin — admin answer-key read RPCs (Vector EJ)
  *
  * Proves the defense-in-depth property that a soft-deleted admin holding a
- * still-valid JWT is REJECTED (with no answer-key payload) when calling the two
+ * still-valid JWT is REJECTED (with no answer-key payload) when calling the three
  * admin-only SECURITY DEFINER read RPCs that return answer-key data:
- *   - get_question_authoring_fields   (mig 116) — returns correct_option_id et al.
+ *   - get_question_authoring_fields    (mig 116) — returns correct_option_id et al.
  *   - get_admin_report_correct_options (mig 114) — returns {question_id, correct_option_id}
+ *   - get_admin_report_answer_keys     (mig 20260824000100) — returns {question_id,
+ *     question_type, blank_index, answer_key} for non-MC question types
  *
- * Both RPCs are answer-key delivery paths, so a soft-deleted admin bypassing the
+ * All three RPCs are answer-key delivery paths, so a soft-deleted admin bypassing the
  * gate would be a CRITICAL answer-key leak — hence this coverage is P1.
  *
  * Two-layer defense (why the rejection regexes carry two tokens each):
@@ -16,12 +18,14 @@
  *   soft-deleted admin fails `NOT is_admin()` and the RPC raises 'forbidden'.
  *   This is the PRIMARY defense and the one exercised today.
  *
- *   Layer 2 — active-user re-select in each RPC body: both RPCs derive the
+ *   Layer 2 — active-user re-select in each RPC body: all three RPCs derive the
  *   caller's org via `... FROM users WHERE id = auth.uid() AND deleted_at IS NULL`
  *   as an independent backstop after is_admin(). If a future regression removes
  *   the deleted_at filter from is_admin() but leaves the re-select intact, the
  *   RPC raises 'user not found' (get_question_authoring_fields) /
- *   'Caller has no organization' (get_admin_report_correct_options) instead.
+ *   'Caller has no organization' (get_admin_report_correct_options and
+ *   get_admin_report_answer_keys — the latter's guard block is a verbatim copy of
+ *   the former's, per its own migration header comment) instead.
  *
  *   Both outcomes are correct rejections. Each regex covers both layers so the
  *   test pins the defence without coupling to which layer fires — a regression
@@ -30,11 +34,17 @@
  * Non-vacuity: before soft-deleting, each RPC is called with the ACTIVE admin
  * client and asserted to pass the admin gate — get_question_authoring_fields
  * returns exactly 1 row for a real same-org question; get_admin_report_correct_options
- * reaches the post-admin-gate session-lookup token. This proves the JWT + admin
- * role are genuinely valid before soft-delete.
+ * and get_admin_report_answer_keys each reach their post-admin-gate session-lookup
+ * token via the same dummy session id (their guard chains are identical up to that
+ * point — auth -> is_admin -> org lookup -> session-exists). Reaching the
+ * session-lookup failure, rather than an admin/org rejection, is what proves the JWT
+ * + admin role are genuinely valid before soft-delete. (A real completed-session
+ * positive control is deliberately avoided for get_admin_report_answer_keys: it
+ * returns zero rows for an all-MC-question session, which would be indistinguishable
+ * from a rejection and so would not be a meaningful non-vacuity check.)
  *
- * No-side-effect: both RPCs are READ-only (neither body contains INSERT INTO
- * audit_events), so the EI audit-count check would be vacuous here. The
+ * No-side-effect: all three RPCs are READ-only (none of their bodies contain INSERT
+ * INTO audit_events), so the EI audit-count check would be vacuous here. The
  * load-bearing "no leak" proof is that `data` is null on every rejection.
  */
 
@@ -163,7 +173,7 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     }
   })
 
-  test('soft-deleted admin JWT is rejected by get_question_authoring_fields and get_admin_report_correct_options with no answer-key leak (Vector EJ)', async () => {
+  test('soft-deleted admin JWT is rejected by get_question_authoring_fields, get_admin_report_correct_options, and get_admin_report_answer_keys with no answer-key leak (Vector EJ)', async () => {
     // ── Step 1: Positive controls (non-vacuity) ─────────────────────────────
     //
     // Call each RPC with the ACTIVE (not yet soft-deleted) admin client and
@@ -197,6 +207,22 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
       /session not found|not in caller org|not completed/i,
     )
 
+    // get_admin_report_answer_keys: same dummy session_id, reused — its guard chain
+    // (is_admin -> org lookup -> session-exists check) is a verbatim copy of
+    // get_admin_report_correct_options's (mig 20260824000100 header comment), so it
+    // also reaches the post-admin-gate session-lookup token for an ACTIVE admin.
+    // This proves the JWT + admin gate are genuinely valid without needing a real
+    // completed non-MC session (which, for an all-MC session, would return 0 rows —
+    // indistinguishable from a rejection and so not a meaningful positive control).
+    const { error: preAnswerKeysError } = await softDelAdminClient.rpc(
+      'get_admin_report_answer_keys',
+      { p_session_id: dummySessionId },
+    )
+    expect(preAnswerKeysError).not.toBeNull()
+    expect(preAnswerKeysError?.message ?? '').toMatch(
+      /session not found|not in caller org|not completed/i,
+    )
+
     // ── Step 2: Soft-delete the admin + post-delete rejection calls ──────────
     //
     // Use a finally block to guarantee restoration even if a rejection assertion
@@ -204,6 +230,7 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     let restoreError: string | null = null
     let authResult: { data: unknown; error: { message: string } | null } | null = null
     let reportResult: { data: unknown; error: { message: string } | null } | null = null
+    let answerKeysResult: { data: unknown; error: { message: string } | null } | null = null
 
     try {
       const { data: delData, error: delErr } = await admin
@@ -228,6 +255,11 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
         p_session_id: dummySessionId,
       })
       reportResult = { data: report.data, error: report.error }
+
+      const answerKeys = await softDelAdminClient.rpc('get_admin_report_answer_keys', {
+        p_session_id: dummySessionId,
+      })
+      answerKeysResult = { data: answerKeys.data, error: answerKeys.error }
     } finally {
       // Restore the admin so afterAll's cascade delete runs cleanly and a repeat
       // run finds a clean state. Capture the error — never throw inside finally
@@ -265,6 +297,17 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     expect(reportResult?.error?.message ?? '').toMatch(/forbidden|caller has no organization/i)
     // On a RAISE, PostgREST returns null data — no {question_id, correct_option_id} leaked.
     expect(reportResult?.data).toBeNull()
+
+    // get_admin_report_answer_keys must reject — and return NO answer key.
+    //   Primary  — is_admin() filters deleted_at IS NULL → RAISE 'forbidden'
+    //   Backstop — active-user org re-select (v_org_id IS NULL) → RAISE 'Caller has no organization'
+    // (Guard block is a verbatim copy of get_admin_report_correct_options's — see mig
+    // 20260824000100 header comment — so the same two tokens apply here too.)
+    expect(answerKeysResult?.error).not.toBeNull()
+    expect(answerKeysResult?.error?.message ?? '').toMatch(/forbidden|caller has no organization/i)
+    // On a RAISE, PostgREST returns null data — no {question_id, question_type,
+    // blank_index, answer_key} rows leaked for short_answer/dialog_fill/ordering/diagram_label.
+    expect(answerKeysResult?.data).toBeNull()
 
     // ── Step 4: Infra check last ────────────────────────────────────────────
     // The throwaway admin was restored (deleted_at cleared) in the finally above,

@@ -48,6 +48,12 @@ function asOrdering(q: QuizReportQuestion | undefined) {
   }
   return q
 }
+function asDiagramLabel(q: QuizReportQuestion | undefined) {
+  if (q?.questionType !== 'diagram_label') {
+    throw new Error('expected a diagram_label report question')
+  }
+  return q
+}
 
 // ---- Helpers -----------------------------------------------------------------
 
@@ -69,8 +75,15 @@ function makeAdminContext(overrides: Partial<{ organizationId: string }> = {}) {
  * `onSelect` (optional) is invoked with the exact args passed to `.select(...)` on this
  * chain — used to assert the select STRING itself, since the mock is otherwise blind to
  * which columns a query asked for (only the queued fixture drives what comes back).
+ * `onIn` (optional) is the same capture for `.in(...)` — used to assert the exact id list a
+ * page-boundary query filtered on, since the mock otherwise returns whichever fixture was
+ * queued regardless of which ids were actually requested.
  */
-function buildChain(returnValue: unknown, onSelect?: (args: unknown[]) => void) {
+function buildChain(
+  returnValue: unknown,
+  onSelect?: (args: unknown[]) => void,
+  onIn?: (args: unknown[]) => void,
+) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -85,6 +98,12 @@ function buildChain(returnValue: unknown, onSelect?: (args: unknown[]) => void) 
           return terminalProxy
         }
       }
+      if (prop === 'in') {
+        return (...args: unknown[]) => {
+          onIn?.(args)
+          return terminalProxy
+        }
+      }
       return (..._args: unknown[]) => terminalProxy
     },
   })
@@ -92,21 +111,31 @@ function buildChain(returnValue: unknown, onSelect?: (args: unknown[]) => void) 
 }
 
 /**
- * Queues one buildChain() response per adminClient.from() call, in order. Returns an
- * array of the args passed to `.select(...)` on each chain, indexed by call order — so a
- * test can assert on the select STRING of a specific `.from()` call (e.g. the questions
- * query), not just on the fixture it was handed back.
+ * Queues one buildChain() response per adminClient.from() call, in order. Returns the args
+ * passed to `.select(...)` and `.in(...)` on each chain, indexed by call order — so a test can
+ * assert on the select STRING or the filtered id LIST of a specific `.from()` call (e.g. the
+ * questions query), not just on the fixture it was handed back.
  */
-function mockFromSequence(...responses: unknown[]): unknown[][] {
+function mockFromSequence(...responses: unknown[]): {
+  selectArgsByCall: unknown[][]
+  inArgsByCall: unknown[][]
+} {
   let call = 0
   const selectArgsByCall: unknown[][] = []
+  const inArgsByCall: unknown[][] = []
   mockAdminFrom.mockImplementation(() => {
     const idx = call++
-    return buildChain(responses[idx] ?? { data: null }, (args) => {
-      selectArgsByCall[idx] = args
-    })
+    return buildChain(
+      responses[idx] ?? { data: null },
+      (args) => {
+        selectArgsByCall[idx] = args
+      },
+      (args) => {
+        inArgsByCall[idx] = args
+      },
+    )
   })
-  return selectArgsByCall
+  return { selectArgsByCall, inArgsByCall }
 }
 
 // ---- Fixtures ---------------------------------------------------------------
@@ -349,6 +378,23 @@ describe('getAdminQuizReportSummary', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null when the answer-rows page fetch fails after a successful count', async () => {
+    // code-style.md "Paginated Fetch Needs a Caller-Level Page-Error Test": fetchAllRows
+    // discards partial pages on a page-level error, so a caller that failed to check the
+    // returned `error` would treat this as a legitimate empty result (0 answered) instead of
+    // a failure — a silently-truncated summary. The count succeeds (non-zero) so the loop
+    // actually reaches the page fetch, which then fails.
+    mockFromSequence(
+      { data: completedSession },
+      { count: 4, data: null },
+      { data: null, error: { message: 'answer rows page fetch failed' } },
+    )
+    const result = await getAdminQuizReportSummary('sess-1')
+    expect(result).toBeNull()
+    // Only the session, count, and failed page query fired — no users/subject lookup after.
+    expect(mockAdminFrom).toHaveBeenCalledTimes(3)
+  })
+
   it('coerces string wire value for score_percentage to number', async () => {
     // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
     const sessionWithStringScore = { ...completedSession, score_percentage: '73.33' }
@@ -421,6 +467,25 @@ describe('getAdminQuizReportQuestions', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('returns error when the order-rows page fetch fails after a successful count', async () => {
+    // code-style.md "Paginated Fetch Needs a Caller-Level Page-Error Test": the count query
+    // (5 distinct questions) succeeds, so fetchAllRows proceeds to the page fetch, which then
+    // fails. fetchAllRows discards the partial page and returns `{ data: [], error }` — an
+    // uncaught regression here would read as "0 distinct questions" (ok:true, empty) instead
+    // of surfacing the failure, silently truncating the report.
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: 5, data: null },
+      { data: null, error: { message: 'order rows page fetch failed' } },
+    )
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toBe('Failed to load questions')
+    // Only the session guard, count, and failed page query fired — no answers/questions fetch.
+    expect(mockAdminFrom).toHaveBeenCalledTimes(3)
+  })
+
   it('returns ok:true with empty questions when no answers exist', async () => {
     // count: 0 → fetchAllRows never issues a page fetch (total=0), so no order-rows entry
     // is needed here.
@@ -490,6 +555,72 @@ describe('getAdminQuizReportQuestions', () => {
     if (!result.ok) return
     expect(result.questions).toHaveLength(2)
     expect(result.totalCount).toBe(2)
+  })
+
+  it('filters the answers and questions queries to all PAGE_SIZE ids when the session has exactly PAGE_SIZE questions', async () => {
+    // Boundary: pageQuestionIds = orderedQuestionIds.slice(0, PAGE_SIZE). With total === PAGE_SIZE
+    // this must filter on every question id, not drop the last one or spill onto a page 2.
+    // Asserts the actual `.in(...)` id LIST, not just the returned report length — the mocked
+    // client returns whichever fixture is queued regardless of what `.in()` was called with, so
+    // a length-only assertion here cannot distinguish correct slicing from a broken one; only
+    // capturing the real `.in()` argument pins the slice boundary itself.
+    const tenOrderRows = Array.from({ length: PAGE_SIZE }, (_, i) => ({ question_id: `q${i + 1}` }))
+    const allTenIds = tenOrderRows.map((r) => r.question_id)
+    const { inArgsByCall } = mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: PAGE_SIZE, data: null },
+      { data: tenOrderRows, error: null },
+      // Non-empty: an empty answers array short-circuits the function before the questions
+      // query ever fires (`if (!answers.length) return ...`), which would make inArgsByCall[4]
+      // undefined regardless of the slice mechanism under test.
+      {
+        data: [
+          { question_id: 'q1', selected_option_id: null, is_correct: true, response_time_ms: 0 },
+        ],
+      },
+      { data: [] },
+    )
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+
+    // Call order: session(0), order-rows count(1), order-rows page(2), answers(3), questions(4).
+    expect(inArgsByCall[3]).toEqual(['question_id', allTenIds])
+    expect(inArgsByCall[4]).toEqual(['id', allTenIds])
+  })
+
+  it('filters the answers and questions queries to only the overflow id on the second page when the session has one more than PAGE_SIZE questions', async () => {
+    // Boundary: with total = PAGE_SIZE + 1, page 2's slice is
+    // orderedQuestionIds.slice(PAGE_SIZE, 2*PAGE_SIZE), which must filter on exactly the 11th
+    // question id. An off-by-one in `from` (e.g. page*PAGE_SIZE) would slice past the array and
+    // filter on zero ids instead of one; an off-by-one the other way would filter on two.
+    const elevenOrderRows = Array.from({ length: PAGE_SIZE + 1 }, (_, i) => ({
+      question_id: `q${i + 1}`,
+    }))
+    const { inArgsByCall } = mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: PAGE_SIZE + 1, data: null },
+      { data: elevenOrderRows, error: null },
+      // Non-empty for the same reason as the page-1 boundary test above.
+      {
+        data: [
+          { question_id: 'q11', selected_option_id: null, is_correct: true, response_time_ms: 0 },
+        ],
+      },
+      { data: [] },
+    )
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 2 })
+
+    // Call order: session(0), order-rows count(1), order-rows page(2), answers(3), questions(4).
+    expect(inArgsByCall[3]).toEqual(['question_id', ['q11']])
+    expect(inArgsByCall[4]).toEqual(['id', ['q11']])
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.totalCount).toBe(PAGE_SIZE + 1)
   })
 
   it('maps question fields correctly for a correct answer', async () => {
@@ -754,7 +885,7 @@ describe('getAdminQuizReportQuestions', () => {
     // for question_type — it only proves the builder consumes a type it was handed. Dropping
     // `question_type` from the real select is #991's central defect and is otherwise
     // invisible to every other assertion in this suite.
-    const selectArgsByCall = mockFromSequence(
+    const { selectArgsByCall } = mockFromSequence(
       { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
       { count: 2, data: null },
       { data: orderRowsQ1Q2, error: null },
@@ -777,7 +908,7 @@ describe('getAdminQuizReportQuestions', () => {
     // builder handled the fields it was given, not that the query asked for them. Dropping
     // either column from the real select silently produces null response_text/blank_index
     // for every non-MC answer, which no other test in this suite would catch.
-    const selectArgsByCall = mockFromSequence(
+    const { selectArgsByCall } = mockFromSequence(
       { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
       { count: 2, data: null },
       { data: orderRowsQ1Q2, error: null },
@@ -945,5 +1076,78 @@ describe('getAdminQuizReportQuestions', () => {
     expect(ordering.correctCount).toBe(1)
     // The canonical for the wrong slot comes from the answer-keys RPC, not the response.
     expect(ordering.slots.find((s) => s.position === 1)?.canonicalText).toBe('Trim')
+  })
+
+  it('surfaces per-zone correct labels for a diagram_label question from the answer-keys RPC', async () => {
+    // diagram_label rides the SAME get_admin_report_answer_keys RPC as short_answer/dialog_fill/
+    // ordering, but only the ordering branch had an end-to-end test at this query-function
+    // level (quiz-report-helpers.test.ts covers buildAnswerKeyMap's diagram_label branch in
+    // isolation, and report-diagram-label-helpers.test.ts covers buildDiagram in isolation —
+    // neither proves admin-quiz-report.ts threads the RPC result through correctly).
+    const diagramAnswers = [
+      {
+        question_id: 'q8',
+        selected_option_id: null,
+        is_correct: true,
+        response_time_ms: 3000,
+        response_text: 'Upwind',
+        blank_index: 0,
+      },
+      {
+        question_id: 'q8',
+        selected_option_id: null,
+        is_correct: false,
+        response_time_ms: 3000,
+        response_text: 'Base',
+        blank_index: 1,
+      },
+    ]
+    const diagramQuestion = {
+      id: 'q8',
+      question_text: 'Label the traffic pattern legs',
+      question_number: '092-04-001',
+      question_type: 'diagram_label',
+      options: [],
+      explanation_text: null,
+      explanation_image_url: null,
+      question_image_url: null,
+    }
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
+      { count: 1, data: null },
+      { data: [{ question_id: 'q8' }], error: null },
+      { data: diagramAnswers },
+      { data: [diagramQuestion] },
+    )
+    // No MC questions on this page — correct-options RPC returns no rows.
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
+    mockAuthRpc.mockResolvedValueOnce({
+      data: [
+        {
+          question_id: 'q8',
+          question_type: 'diagram_label',
+          blank_index: 0,
+          answer_key: 'Upwind',
+        },
+        {
+          question_id: 'q8',
+          question_type: 'diagram_label',
+          blank_index: 1,
+          answer_key: 'Crosswind',
+        },
+      ],
+      error: null,
+    })
+
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const diagram = asDiagramLabel(result.questions[0])
+    expect(diagram.zones).toHaveLength(2)
+    expect(diagram.totalZones).toBe(2)
+    expect(diagram.correctCount).toBe(1)
+    expect(diagram.isCorrect).toBe(false)
+    // The correct label for the wrongly-placed zone comes from the answer-keys RPC, not the response.
+    expect(diagram.zones.find((z) => z.blankIndex === 1)?.correctLabel).toBe('Crosswind')
   })
 })

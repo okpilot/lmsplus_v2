@@ -44,7 +44,16 @@
 -- No active-exam deny-by-default guard (the answer-oracle rule, docs/security.md §4 item 6):
 -- that guard exists for RPCs that accept caller-supplied question ids and can therefore be
 -- pointed at a live exam. This RPC takes only p_session_id and requires
--- `ended_at IS NOT NULL`, so it cannot be aimed at an in-progress session at all.
+-- `ended_at IS NOT NULL`, so it cannot be aimed at an in-progress TARGET session.
+-- That is the narrower claim, and it is all this check establishes. It does NOT establish
+-- that the CALLER holds no live exam: nothing bars an admin account from starting its own
+-- session, so an admin mid-exam could read a different, already-completed org session that
+-- shares content. What closes that is the trust tier, not this check — the body is gated on
+-- is_admin(), and docs/security.md rule 12 exempts is_admin() RPCs from per-caller scoping,
+-- because the answer-oracle rule targets STUDENT self-service RPCs (check_quiz_answer,
+-- get_study_questions). Same posture as the MC sibling get_admin_report_correct_options,
+-- which has had this shape since 20260619000400. Do not cite the ended_at check as proof of
+-- a stronger property than it has.
 CREATE OR REPLACE FUNCTION get_admin_report_answer_keys(p_session_id uuid)
 RETURNS TABLE (question_id uuid, question_type text, blank_index int, answer_key text)
 LANGUAGE plpgsql

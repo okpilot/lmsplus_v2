@@ -1865,7 +1865,7 @@ $$;
 
 #### `get_admin_report_correct_options` — admin variant (org-scoped)
 
-Same return shape as `get_report_correct_options` but scoped by organization instead of student. Allows admins to view correct answers for any completed session in their org.
+Same return shape as `get_report_correct_options` but scoped by organization instead of student. Returns the **MC** key (`correct_option_id`) only, for any completed session in the caller's org — non-MC answer keys are delivered by the sibling `get_admin_report_answer_keys` (above), added in migration `20260824000100`.
 
 **Security:** Validates `auth.uid()`, `is_admin()`, org membership, session completion (`ended_at IS NOT NULL`), and soft-delete status. Added in migration `20260406000005` + `20260406000006`.
 
