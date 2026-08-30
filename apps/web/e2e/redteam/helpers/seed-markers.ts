@@ -44,5 +44,7 @@ export const E2E_REDTEAM_TW_ADMIN_A_EMAIL = 'redteam-tenantwrite-admin-a@lmsplus
 export const E2E_REDTEAM_TW_PASSWORD = 'redteam-tenantwrite-2026!'
 // rpc-admin-report-answer-keys-idor spec (Vector FK, #991 review follow-up): marks the
 // throwaway non-MC (short_answer/dialog_fill) fixture questions it inserts into egmont
-// so cleanup/maintenance can target them by question_number/question_text.
+// so cleanup/maintenance can target them by question_number/question_text. ALSO written
+// into that spec's fixture quiz_sessions as `config.e2e_marker` — sessions carry no
+// question_number, so the pre-sweep reaches them on that JSON key instead. Sweep BOTH.
 export const E2E_REDTEAM_FK_MARKER = '[E2E_REDTEAM_FK]'

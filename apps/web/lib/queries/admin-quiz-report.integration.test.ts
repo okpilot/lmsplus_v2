@@ -53,6 +53,10 @@ let shortAnswerId: string
 let dialogFillId: string
 
 const SA_CANONICAL = 'mayday mayday mayday'
+// Deliberately DIFFERENT from the canonical: if both were the same string, asserting
+// canonicalAnswer could not distinguish a value read from get_admin_report_answer_keys
+// from one read off the student's own answer row (code-style.md §7 fallback-coincidence).
+const SA_WRONG = 'pan pan pan'
 const DF_B0 = 'cleared'
 const DF_B1 = 'runway two seven'
 const DF_B2 = 'wind calm'
@@ -172,7 +176,7 @@ describe('getAdminQuizReportSummary / getAdminQuizReportQuestions — non-MC adm
     const { error: batchErr } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: [
-        { question_id: shortAnswerId, response_text: SA_CANONICAL, response_time_ms: 4000 },
+        { question_id: shortAnswerId, response_text: SA_WRONG, response_time_ms: 4000 },
         { question_id: dialogFillId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
         { question_id: dialogFillId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
         {
@@ -249,9 +253,9 @@ describe('getAdminQuizReportSummary / getAdminQuizReportQuestions — non-MC adm
     // Non-vacuous per #991: before the fix, question_type was never fetched by the admin
     // feed, so every question defaulted to 'multiple_choice' and this narrowing would throw.
     if (sa?.questionType !== 'short_answer') throw new Error('expected short_answer variant')
-    expect(sa.responseText).toBe(SA_CANONICAL)
+    expect(sa.responseText).toBe(SA_WRONG)
     expect(sa.canonicalAnswer).toBe(SA_CANONICAL)
-    expect(sa.isCorrect).toBe(true)
+    expect(sa.isCorrect).toBe(false)
   })
 
   it('collapses the dialog question to one entry with per-blank canonicals for the admin report', async () => {
