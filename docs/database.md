@@ -1881,7 +1881,7 @@ Type-aware non-MC answer-key delivery for the admin session report: the ADMIN, o
 
 **Security:** Validates `auth.uid()`, `is_admin()`, then resolves the caller's `organization_id` via a `users` lookup folding the active-user gate (`deleted_at IS NULL` — a soft-deleted admin resolves no row, so `v_org_id` stays NULL and the call raises). Verifies the session exists, belongs to the caller's org, and is completed (`ended_at IS NOT NULL AND deleted_at IS NULL`). The `questions` JOIN takes the same §15 carve-out as `get_report_answer_keys` — no `q.deleted_at IS NULL` filter, because the reachable question set is bounded by the immutable, write-once `quiz_session_answers.question_id`, not by the questions table's own soft-delete state — so a question soft-deleted after it was answered still reveals its key in the historical admin report. No active-exam-session deny-by-default guard: the RPC takes only `p_session_id` and requires `ended_at IS NOT NULL`, so it cannot be aimed at an in-progress session.
 
-**Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`.
+**Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`. Read through `fetchAllRpcRows` (`lib/supabase-rpc.ts`) — see the paging note under `get_report_answer_keys` below; the same per-element cardinality applies.
 
 #### `get_report_answer_keys` — non-MC answer keys for reports
 
@@ -1897,6 +1897,8 @@ Type-aware sibling of `get_report_correct_options`: delivers the correct answers
 **Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`, `diagram_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
 
 **Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
+
+**Paging (client contract):** rows are per-element, not per-question, so one session can exceed PostgREST's `max_rows` (1000) — 500 questions × up to 50 blanks/slots/zones. Callers must not read this RPC unpaged; both callers go through `fetchAllRpcRows` (`lib/supabase-rpc.ts`), which re-fetches ordered by `(question_id, blank_index)` when an unpaged read returns exactly the cap. Same truncation class as umbrella #668.
 
 #### `check_quiz_answer` — verify answer + return explanation
 

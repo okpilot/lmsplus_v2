@@ -1078,6 +1078,7 @@ describe('getAdminQuizReportQuestions', () => {
     expect(ordering.slots).toHaveLength(2)
     expect(ordering.totalItems).toBe(2)
     expect(ordering.correctCount).toBe(1)
+    expect(ordering.isCorrect).toBe(false)
     // The canonical for the wrong slot comes from the answer-keys RPC, not the response.
     expect(ordering.slots.find((s) => s.position === 1)?.canonicalText).toBe('Trim')
   })

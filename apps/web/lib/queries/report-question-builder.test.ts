@@ -70,7 +70,6 @@ describe('buildReportQuestions', () => {
     const answers: AnswerRow[] = [
       { question_id: 'q1', selected_option_id: 'o1', is_correct: true, response_time_ms: 1000 },
     ]
-    // No question_type field on the question row.
     const questionMap = new Map<string, QuestionRow>([
       [
         'q1',

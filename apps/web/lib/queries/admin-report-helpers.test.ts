@@ -85,6 +85,49 @@ function fakeAuthClient(mockRpc: ReturnType<typeof vi.fn>) {
   return { rpc: mockRpc } as unknown as Parameters<typeof fetchAdminReportCorrectOptionsMap>[0]
 }
 
+/**
+ * A chainable RPC mock for exercising fetchAllRpcRows's discard-and-page fallback
+ * through fetchAdminReportAnswerKeyMap. The plain two-arg `.rpc(fn, args)` call
+ * behaves as both an awaitable (the unpaged first call) AND a chain via
+ * `.order().range()` (the paged calls); `.rpc(fn, args, opts)` (three args) is the
+ * separate count-only call. Mirrors the pattern in supabase-rpc.test.ts.
+ */
+function fakeChainableAuthClient(opts: {
+  firstCall: { data: unknown; error?: { message: string } | null }
+  count?: { count: number | null; error?: { message: string } | null }
+  pages?: { data: unknown; error?: { message: string } | null }[]
+}) {
+  let rangeCallIndex = 0
+  function makeChain(): {
+    then: (resolve: (v: unknown) => void, reject?: (e: unknown) => void) => Promise<unknown>
+    order: (col: string, o: unknown) => unknown
+    range: (from: number, to: number) => Promise<{ data: unknown; error: unknown }>
+  } {
+    const chain = {
+      // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+      then: (resolve: (v: unknown) => void, reject?: (e: unknown) => void) =>
+        Promise.resolve({ data: opts.firstCall.data, error: opts.firstCall.error ?? null }).then(
+          resolve,
+          reject,
+        ),
+      order: () => chain,
+      range: async () => {
+        const page = opts.pages?.[rangeCallIndex] ?? { data: [], error: null }
+        rangeCallIndex++
+        return { data: page.data, error: page.error ?? null }
+      },
+    }
+    return chain
+  }
+  const rpcFn = vi.fn(
+    (_fn: string, _args: Record<string, unknown>, rpcOpts?: { count: 'exact'; head: true }) => {
+      if (rpcOpts) return Promise.resolve(opts.count ?? { count: 0, error: null })
+      return makeChain()
+    },
+  )
+  return { rpc: rpcFn } as unknown as Parameters<typeof fetchAdminReportAnswerKeyMap>[0]
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
 })
@@ -391,5 +434,27 @@ describe('fetchAdminReportAnswerKeyMap', () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: {}, error: null })
     const result = await fetchAdminReportAnswerKeyMap(fakeAuthClient(mockRpc), 'sess-1')
     expect(result).toEqual({ data: new Map(), error: null })
+  })
+
+  it('discards an at-cap first RPC result and surfaces the error from the paged re-fetch', async () => {
+    // The first (unpaged) call returns exactly 1000 rows — indistinguishable from a
+    // truncated result — so fetchAllRpcRows discards it and falls back to counting +
+    // paging. The page fetch itself then fails; that failure must reach the caller.
+    const staleFirstCall = Array.from({ length: 1000 }, (_, i) => ({
+      question_id: `stale-${i}`,
+      question_type: 'short_answer',
+      blank_index: null,
+      answer_key: 'x',
+    }))
+    const client = fakeChainableAuthClient({
+      firstCall: { data: staleFirstCall, error: null },
+      count: { count: 1200, error: null },
+      pages: [{ data: null, error: { message: 'answer keys page fetch failed' } }],
+    })
+    const result = await fetchAdminReportAnswerKeyMap(client, 'sess-1')
+    expect(result).toEqual({
+      data: new Map(),
+      error: { message: 'answer keys page fetch failed' },
+    })
   })
 })

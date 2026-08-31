@@ -1,7 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
-import { rpc } from '@/lib/supabase-rpc'
+import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import { type AnswerKeyRow, buildAnswerKeyMap } from './quiz-report-helpers'
 import type { AnswerKeyEntry, AnswerRow, QuestionRow } from './report-question-builder'
 
@@ -154,22 +154,23 @@ export async function fetchAdminReportCorrectOptionsMap(
  * canonicals, ordering per-slot canonicals, diagram_label per-zone canonicals)
  * via get_admin_report_answer_keys (migration 20260824000100). Returns zero rows
  * for all-MC sessions (e.g. internal_exam) — not an error. Not yet in the
- * generated database types, so this routes through the rpc<T>() wrapper — it
- * invokes `.rpc` on the client directly, preserving the `this`-binding (see
- * lib/supabase-rpc.ts). TODO: drop the explicit type arg once packages/db types
- * are regenerated. Runs on the auth client — adminClient has no auth.uid() context.
+ * generated database types, so this routes through the fetchAllRpcRows<T>()
+ * wrapper — it invokes `.rpc` on the client directly, preserving the
+ * `this`-binding (see lib/supabase-rpc.ts), and pages past PostgREST's 1000-row
+ * cap (a session can hold up to 500 questions x 50 blanks/slots/zones). TODO:
+ * drop the explicit type arg once packages/db types are regenerated. Runs on the
+ * auth client — adminClient has no auth.uid() context.
  */
 export async function fetchAdminReportAnswerKeyMap(
   supabase: SupabaseClient,
   sessionId: string,
 ): Promise<{ data: Map<string, AnswerKeyEntry>; error: { message: string } | null }> {
-  const { data: keyData, error: keyError } = await rpc<AnswerKeyRow[]>(
+  const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows<AnswerKeyRow>({
     supabase,
-    'get_admin_report_answer_keys',
-    { p_session_id: sessionId },
-  )
+    fn: 'get_admin_report_answer_keys',
+    args: { p_session_id: sessionId },
+    orderColumns: ['question_id', 'blank_index'],
+  })
   if (keyError) return { data: new Map(), error: keyError }
-  // Runtime guard (code-style §5): only treat an array as rows.
-  const answerKeyRows = Array.isArray(keyData) ? keyData : []
   return { data: buildAnswerKeyMap(answerKeyRows), error: null }
 }

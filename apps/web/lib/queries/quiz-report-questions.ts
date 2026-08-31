@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows } from '@/lib/supabase-paginate'
-import { rpc } from '@/lib/supabase-rpc'
+import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
 import {
@@ -145,23 +145,23 @@ export async function getQuizReportQuestions(opts: {
     correctRows.map((row) => [row.question_id, row.correct_option_id]),
   )
 
-  // Non-MC answer keys (short_answer canonical, dialog_fill per-blank canonicals).
-  // Returns zero rows for all-MC sessions (e.g. internal_exam) — not an error.
-  // get_report_answer_keys (mig 133) isn't in the generated database types yet, so
-  // route through the rpc<T>() wrapper — it invokes `.rpc` on the client directly,
-  // preserving the `this`-binding (see lib/supabase-rpc.ts). TODO: drop the explicit
-  // type arg once packages/db types are regenerated.
-  const { data: keyData, error: keyError } = await rpc<AnswerKeyRow[]>(
+  // Non-MC answer keys (short_answer canonical, dialog_fill per-blank, ordering
+  // per-slot, diagram_label per-zone). Zero rows for an all-MC session (e.g.
+  // internal_exam) — not an error. fetchAllRpcRows pages past PostgREST's
+  // 1000-row cap, which one session can exceed at 500 questions x 50
+  // blanks/slots/zones; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
+  // (mig 133) isn't in the generated types yet, hence the explicit type arg —
+  // TODO: drop it once packages/db types are regenerated.
+  const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows<AnswerKeyRow>({
     supabase,
-    'get_report_answer_keys',
-    { p_session_id: sessionId },
-  )
+    fn: 'get_report_answer_keys',
+    args: { p_session_id: sessionId },
+    orderColumns: ['question_id', 'blank_index'],
+  })
   if (keyError) {
     console.error('[getQuizReportQuestions] Answer-keys RPC error:', keyError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
-  // Runtime guard (code-style §5): only treat an array as rows.
-  const answerKeyRows = Array.isArray(keyData) ? keyData : []
   const answerKeyMap = buildAnswerKeyMap(answerKeyRows)
 
   const reportQuestions = buildReportQuestions(answers, questionMap, correctMap, answerKeyMap)

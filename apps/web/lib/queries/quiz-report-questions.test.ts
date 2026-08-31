@@ -623,6 +623,33 @@ describe('getQuizReportQuestions', () => {
     expect(dialog.blanks[1]?.canonical).toBe('climb')
   })
 
+  it('returns an error when the answer-keys page fetch fails after an at-cap first result', async () => {
+    // get_report_answer_keys returns exactly 1000 rows on the first (unpaged) call —
+    // indistinguishable from a truncated result — so fetchAllRpcRows discards it and
+    // falls back to fetchAllRows (mocked at the module boundary here). That fallback
+    // then fails; the failure must propagate out of getQuizReportQuestions.
+    const staleKeys = Array.from({ length: 1000 }, (_, i) => ({
+      question_id: `stale-${i}`,
+      question_type: 'dialog_fill',
+      blank_index: 0,
+      answer_key: 'x',
+    }))
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: answersData },
+      { data: questionsData },
+    )
+    mockFetchAllRows.mockResolvedValueOnce({ data: orderRows, error: null }) // order-rows page
+    mockRpcByName({ correct: { data: correctOptionsData }, keys: { data: staleKeys } })
+    mockFetchAllRows.mockResolvedValueOnce({
+      data: [],
+      error: { message: 'answer keys page fetch failed' },
+    }) // fetchAllRpcRows's internal paged re-fetch, triggered by the at-cap keys result
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
+  })
+
   it('returns an error when the order-rows page fetch fails', async () => {
     mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
     mockFetchAllRows.mockResolvedValueOnce({
