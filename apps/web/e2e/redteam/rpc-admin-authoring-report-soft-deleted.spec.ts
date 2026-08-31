@@ -51,12 +51,33 @@
  * No-side-effect: all three RPCs are READ-only (none of their bodies contain INSERT
  * INTO audit_events), so the EI audit-count check would be vacuous here. The
  * load-bearing "no leak" proof is that `data` is null on every rejection.
+ *
+ * Vector FL5 (#1249 attack-surface matrix, guard-layer gap class): no E2E spec
+ * reached get_question_authoring_fields by ROLE. This file's own Vector EJ test above
+ * DOES reach `NOT is_admin()`, but only through the `deleted_at IS NULL` predicate
+ * INSIDE is_admin(), never through the `role = 'admin'` half (its own docblock names
+ * this as the PRIMARY layer). Vector DT (server-action-unauthenticated.spec.ts)
+ * covers the `auth.uid() IS NULL` layer.
+ *
+ * The role half is NOT untested repo-wide — two Vitest integration tests already
+ * assert 'forbidden' for a student caller
+ * (packages/db/src/__integration__/rpc-get-question-authoring-fields.integration.test.ts
+ * and rpc-vfr-rt-submit.integration.test.ts), and the matrix's Vector DT row records
+ * that as COVERED AT INTEGRATION LAYER. What was missing is the E2E tier, which is
+ * where this RPC family carries its other guard coverage. A regression dropping the
+ * role half would leak correct_option_id / canonical_answer / accepted_synonyms /
+ * dialog_template / blanks_config to any authenticated student for any same-org
+ * question; the integration tier would catch it, the E2E tier would not. FL5 closes
+ * that tier gap by
+ * calling get_question_authoring_fields as a genuine, live, non-soft-deleted student
+ * in the target org — mirroring FL3/FL4 in rpc-admin-report-answer-keys-idor.spec.ts,
+ * this RPC's sibling in the same guard-layer-gap class.
  */
 
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { seedRedTeamUsers } from './helpers/seed-users'
+import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // Dedicated throwaway admin — NOT the shared redteam-admin@lmsplus.local.
 // Soft-deleting the shared admin would cascade forbidden failures across every
@@ -70,6 +91,7 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
   let admin: ReturnType<typeof getAdminClient>
   let softDelAdminId: string
   let softDelAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let attackerStudentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgId: string
   let realQuestionId: string
 
@@ -165,6 +187,11 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
       SOFTDEL_ADMIN_EMAIL,
       SOFTDEL_ADMIN_PASSWORD,
     )
+
+    // FL5: the shared ATTACKER fixture — a live, non-soft-deleted, non-admin
+    // ('student') user in the SAME org as realQuestionId (seedRedTeamUsers seeds it
+    // into orgId) — proves the rejection below is role-gated, not org-gated.
+    attackerStudentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
   })
 
   test.afterAll(async () => {
@@ -321,5 +348,24 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     // so afterAll's cascade delete runs cleanly and a repeat run finds a clean
     // state. Asserted last so a restore failure never masks the security proof.
     expect(restoreError).toBeNull()
+  })
+
+  test('FL5: a plain student caller in the same org cannot read admin authoring fields', async () => {
+    // realQuestionId is a real, active, same-org, non-deleted question — already
+    // proven non-vacuous by the Vector EJ test's own positive control above
+    // (the active admin client reads exactly 1 row of genuine answer-key data
+    // for this same id before that test's soft-delete). Reusing it here means a
+    // rejection can only be explained by the role gate, not by a fake/absent id.
+    const { data, error } = await attackerStudentClient.rpc('get_question_authoring_fields', {
+      p_question_id: realQuestionId,
+    })
+    // Primary guard: is_admin() false (role='student') -> RAISE 'forbidden'.
+    // Never assert error != null alone (code-style.md §7) — a misspelled RPC name
+    // would satisfy that equally; the exact token pins the guard that actually fired.
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/forbidden/i)
+    // On a RAISE, PostgREST returns null data — no canonical_answer /
+    // accepted_synonyms / dialog_template / blanks_config / correct_option_id leaked.
+    expect(data).toBeNull()
   })
 })

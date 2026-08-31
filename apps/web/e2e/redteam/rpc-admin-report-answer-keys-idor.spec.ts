@@ -47,11 +47,14 @@
  *
  * Vector FL (#1249, red-team attack-surface matrix): the two guard layers
  * BEFORE the org check — `auth.uid() IS NULL` and `NOT is_admin()` — had no
- * spec anywhere. FK's positive controls always authenticate as a genuine
- * admin; the soft-deleted-admin spec (Vector EJ) exercises only the
- * active-user org re-select backstop. A regression dropping or
- * short-circuiting `is_admin()` would leak MC and non-MC answer keys to ANY
- * authenticated student for ANY completed session in their org. Both new
+ * spec reaching them by ROLE. FK's positive controls always authenticate as a
+ * genuine admin. The soft-deleted-admin spec (Vector EJ) DOES reach
+ * `NOT is_admin()` — that is its primary layer, per its own docblock — but it
+ * gets there through the `deleted_at IS NULL` predicate INSIDE is_admin(),
+ * never through the `role = 'admin'` half. So a regression that dropped or
+ * short-circuited the role half alone would leak MC and non-MC answer keys to
+ * ANY authenticated student for ANY completed session in their org, and every
+ * pre-existing spec would still have passed. Both new
  * cases target org-A's own fixture session (the genuinely leak-able
  * short_answer + dialog_fill payload from the positive controls above), not
  * org-B's — this is an authn/role gate, not the org-scoping IDOR that FK1/FK2
