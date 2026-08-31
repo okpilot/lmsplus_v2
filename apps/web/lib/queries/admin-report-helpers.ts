@@ -43,7 +43,7 @@ export async function fetchAdminSessionForReport<T>(opts: {
  * Page through ALL quiz_session_answers rows for a session, on adminClient.
  * A dialog_fill question stores one row per blank, and a session can hold up to
  * 500 questions (quick_quiz cap) x up to 50 blanks — exceeding PostgREST's
- * 1000-row cap. A single .select() would silently truncate, so this pages
+ * max_rows cap. A single .select() would silently truncate, so this pages
  * through fetchAllRows. `select`/`orderColumns` are parameters precisely so callers
  * needing different columns or sort keys share one paging implementation rather
  * than copying it.
@@ -156,7 +156,7 @@ export async function fetchAdminReportCorrectOptionsMap(
  * for all-MC sessions (e.g. internal_exam) — not an error. Not yet in the
  * generated database types, so this routes through the fetchAllRpcRows<T>()
  * wrapper — it invokes `.rpc` on the client directly, preserving the
- * `this`-binding (see lib/supabase-rpc.ts), and pages past PostgREST's 1000-row
+ * `this`-binding (see lib/supabase-rpc.ts), and pages past PostgREST's max_rows
  * cap (a session can hold up to 500 questions x 50 blanks/slots/zones). TODO:
  * drop the explicit type arg once packages/db types are regenerated. Runs on the
  * auth client — adminClient has no auth.uid() context.

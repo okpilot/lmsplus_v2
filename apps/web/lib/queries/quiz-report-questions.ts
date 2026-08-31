@@ -148,7 +148,7 @@ export async function getQuizReportQuestions(opts: {
   // Non-MC answer keys (short_answer canonical, dialog_fill per-blank, ordering
   // per-slot, diagram_label per-zone). Zero rows for an all-MC session (e.g.
   // internal_exam) — not an error. fetchAllRpcRows pages past PostgREST's
-  // 1000-row cap, which one session can exceed at 500 questions x 50
+  // max_rows cap, which one session can exceed at 500 questions x 50
   // blanks/slots/zones; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
   // (mig 133) isn't in the generated types yet, hence the explicit type arg —
   // TODO: drop it once packages/db types are regenerated.
