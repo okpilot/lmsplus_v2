@@ -209,3 +209,75 @@ Across both rounds and all 4 core agents, ZERO code defects — every finding wa
   dedicated rules PR, not this cycle — adding an evidence/execution field to `semantic-reviewer.md`
   and `code-reviewer.md` for any finding that asserts RUNTIME behavior (as opposed to a static
   structural check like a line count or an import).
+
+## Commit `34e26c48` (Vector FL red-team leg: `a920f7f4` → `e6dd50b2` → `34e26c48`) — 2026-08-31 learner pass
+
+Same session as `59005823` above, different branch/artifact (red-team attack-surface matrix, not
+`fetchAllRows`). Three implementation-critic rounds, four findings, ALL prose — zero code defects.
+Every fix was mutation-checked before commit (message swapped to the sibling guard's string reddens
+exactly the intended test), so the CODE this leg shipped is independently verified; only the
+DOCUMENTATION describing it needed repeated correction.
+
+- **Row 604 (+1 → 25):** round 1 found the matrix's Vector EJ claim ("exercises the active-user
+  org re-select backstop") false — `is_admin()` raises first, so the backstop is unreachable for
+  that caller — and traced the error to `a920f7f4`'s own matrix content, copied verbatim into a
+  spec header by `e6dd50b2`. Round 2, after the orchestrator's own correction of that row, found a
+  SECOND clause in the SAME row still present-tense ("no `forbidden` assertion... exists") after
+  the first clause had been fixed — the identical partial-edit shape as row 604's `59005823`
+  instance (one `@returns` sentence wrong four times running), now on a reference DOCUMENT (the
+  attack-surface matrix) rather than a docstring. Both rounds are the same commit/correction family
+  (the SAME matrix row, two consecutive critic rounds), so counted as ONE increment, per the
+  PR #1247 / `59005823` precedent (same-family sub-instances = +1, not one each).
+  **On whether the remedy needs strengthening:** no. `code-style.md` §10 clause 3 already says
+  "if you edit any part of a comment block, read the whole block" — round 2's finding is exactly
+  what a whole-block re-read would have caught, and the fix commit's own message says so explicitly
+  ("The matrix FL row is updated end to end... rather than the one sentence that was flagged, which
+  is the partial-edit failure code-style.md section 10 names"). The text is adequate; row 604 at 25
+  is an ENFORCEMENT-DEPTH count, not a rule-text gap — the same conclusion as every prior entry in
+  this row's history. No further text change proposed.
+- **Row 679 (new, WATCHING count=1) — a commit's own message and its own file content assert
+  CONTRADICTING claims about the same fact, and the file version (not the message) is what
+  propagates:** `a920f7f4` is a memory-recording commit. Its commit MESSAGE never asserts the
+  EJ-backstop claim at all — it correctly frames EJ as failing on `deleted_at`, "not on role."
+  Its FILE content (the attack-surface matrix row it wrote in the same commit) asserts the
+  backstop claim, which is false. `e6dd50b2` read the file, not the message, and copied the false
+  claim into a new spec header; `34e26c48` had to trace back through git history to find that the
+  correct version existed all along, one artifact over. Distinct from row 655 ("claim true in its
+  hunk, false vs another section/mirror/arithmetic") — that family is section-vs-section or
+  file-vs-file within committed CONTENT; this is file-content-vs-COMMIT-MESSAGE, where the more
+  ephemeral artifact (the message, never diffed by any post-commit agent) turned out to hold the
+  correct fact and the durable one (the file, the only thing anyone re-reads later) was wrong. No
+  existing row matches this axis. Single instance — log and watch. If it recurs: the checkable
+  remedy is cheap (before trusting a just-written reference-doc claim, `git log -1 --format=%B` the
+  commit that wrote it and diff the two accounts), but count=1 does not warrant proposing it yet.
+- **Row 680 (new, WATCHING count=1) — a coverage-gap enumeration scoped to ONE test tier concludes
+  "no coverage exists," missing a sibling tier:** test-writer's first pass on
+  `get_question_authoring_fields` checked only E2E/red-team specs, found none reaching the RPC by
+  role, and drafted a docblock claiming the gap was total ("no spec anywhere"). Two Vitest
+  integration tests already asserted `forbidden` for a student caller — the real gap was E2E-tier
+  only. Caught before commit; the docblock that shipped says so explicitly rather than claiming a
+  total gap. **Distinct mechanism from row 678** (Explore-agent arithmetic: a wrong COUNT from
+  mis-tallying files) — this is a wrong CONCLUSION from an incomplete SEARCH SCOPE (one test tier
+  instead of all tiers that could carry the assertion), not a counting error. Also distinct from
+  row 605 (sibling-parity gaps found by diffing `it()` titles between two STRUCTURALLY IDENTICAL
+  test files) — this is one RPC's coverage split across TWO DIFFERENT TEST SUITES/TIERS (Vitest
+  integration vs. Playwright E2E), not two sibling files of the same kind. Same broad family as
+  both (an agent's enumeration trusted without checking whether its search surface was complete),
+  but a third sub-mechanism. Single instance — log and watch. If it recurs: propose that any
+  "no coverage exists" / "no spec anywhere" claim about an RPC or function must state which tiers
+  were checked (unit / integration / E2E) before asserting totality, mirroring the discipline
+  `agent-semantic-reviewer.md` already requires for RPC error-token maps ("trace the reachable
+  CALL GRAPH, not only the RPC body").
+- **Cost-distribution note (spans both legs this session, `59005823` and `34e26c48`):** across BOTH
+  legs, every implementation-critic/reviewer finding was prose; zero were code defects, and every
+  shipped code change was independently mutation-checked. The honest reading is not "prose review
+  is overhead" — both legs' prose findings were FALSE CLAIMS in durable reference material (a
+  docstring in `59005823`; a security-relevant attack-surface matrix in `34e26c48`), which
+  `agent-critic.md`'s refinement/false-claim split already says are never bounded out, whatever
+  round they land on. Three critic rounds to land a security-doc correction is the classification
+  working as designed, not a signal to shorten the loop. The distribution instead sharpens WHERE
+  the two review modes each pay off: mutation-testing and direct execution reliably confirm CODE
+  correctness (this leg's own mutation checks are the evidence), while catching a wrong CLAIM about
+  what the code does still requires a reader tracing the object to its latest definition — no
+  mechanical check here would have caught either the EJ-backstop inversion or the tier-scoped
+  "no coverage" claim, since both required reading a specific commit/RPC body, not running one.

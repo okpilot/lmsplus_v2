@@ -71,7 +71,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (row 600) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (row 602) |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) (row 547) |
-| Fix commit correcting §10 violations introduces fresh §10 | 24 | 2026-08-31 | RULE CANDIDATE (24) — text exists (§10 cl.3); gap is enforcement (row 604, detail in topic file) |
+| Fix commit correcting §10 violations introduces fresh §10 | 25 | 2026-08-31 | RULE CANDIDATE (25) — text exists (§10 cl.3); gap is enforcement (row 604, detail in topic file) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (row 605) |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) (row 606) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (row 608) |
@@ -135,6 +135,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Agent's own memory tracker row cites a stale file-state fact (line count) an earlier commit already changed | 1 | 2026-08-31 | WATCHING (row 676) |
 | Quantified claim true when written, stale after a same-commit amend, unre-verified | 1 | 2026-08-31 | WATCHING (row 677, detail in topic file) |
 | Explore-agent arithmetic/count error propagated unverified into plan/commit/report | 1 | 2026-08-31 | WATCHING (row 678, detail in topic file) |
+| A commit's own message and its own file content assert contradicting claims; the file version propagates | 1 | 2026-08-31 | WATCHING (row 679, detail in topic file) |
+| Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, detail in topic file) |
 
 ## Durable knowledge (cross-agent)
 
@@ -143,7 +145,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - POSITIVE (`bf2b6672`): §10 clause 3 grep, run proactively, caught 4 sites CR never named — mechanical checks beat review rounds.
 - OPEN AMBIGUITY (2026-08-25): unwritten "2nd-branch" gate applied inconsistently (519/655/604 held it, 660 didn't).
 - POSITIVE (fix/991, `d2d3bdb3`, `d4837e6a`): already-promoted gates (§10, doc-updater hallucination) caught drift pre-push with no new rule needed — detail in topic file.
-- Not an escalation + execute-vs-infer PROPOSAL (not applied, 2026-08-31, `59005823`, rows 604/677/678) — detail in topic file.
+- Not an escalation + execute-vs-infer PROPOSAL (not applied, 2026-08-31, `59005823` + `34e26c48`, rows 604/677/678/679/680) — both legs this session were 100% prose findings on zero code defects, every shipped code change independently mutation-checked; the false claims caught were in durable reference docs (a docstring; the attack-surface matrix), which `agent-critic.md`'s false-claim class already exempts from round-bounding — this is the classification working as designed, not overhead. Detail in topic file.
 
 ## Topic pointers
 
