@@ -7,7 +7,17 @@ const { mockFrom } = vi.hoisted(() => ({
 }))
 
 const { mockFetchAllRows } = vi.hoisted(() => ({ mockFetchAllRows: vi.fn() }))
-vi.mock('@/lib/supabase-paginate', () => ({ fetchAllRows: mockFetchAllRows }))
+// Spread the real module: Vitest THROWS on a mock that omits an export a consumer
+// DEREFERENCES ("No \"POSTGREST_MAX_ROWS\" export is defined on the ... mock") — it does
+// not silently yield undefined. Load-bearing here, unlike in quiz-report.test.ts: this
+// file's graph reaches supabase-paginate through fetchAllRpcRows (supabase-rpc.ts) AND
+// through quiz-report-questions.ts's own toPageResult call, both on executed paths, so a
+// bare { fetchAllRows } mock fails a large share of this file. No count stated on purpose
+// — it moves whenever a call site is added (it was 13 at 47524d9c, 14 after aec5dd24).
+vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/supabase-paginate')>()),
+  fetchAllRows: mockFetchAllRows,
+}))
 
 const mockGetUser = vi.fn().mockResolvedValue({
   data: { user: { id: 'user-1' } },
@@ -503,7 +513,7 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(5)
   })
 
-  it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
+  it('fails the report when the correct-options RPC returns a non-array payload', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
       { data: [answersData[0]] },
@@ -522,13 +532,12 @@ describe('getQuizReportQuestions', () => {
       },
     )
     mockFetchAllRows.mockResolvedValueOnce({ data: [{ question_id: 'q1' }], error: null })
-    // RPC returns null (non-array) — the Array.isArray guard must treat this as []
+    // A null payload is a shape violation, not an empty result: coercing it to [] would
+    // render every MC question with no correct answer under a successful report.
     mockRpcByName({ correct: { data: null, error: null } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(asMc(result.questions[0]).correctOptionId).toBe('')
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
   })
 
   it('collapses a multi-blank dialog question into one entry and counts it once toward the total', async () => {
@@ -621,6 +630,33 @@ describe('getQuizReportQuestions', () => {
     expect(dialog.isCorrect).toBe(false)
     // Per-blank canonical surfaces for the wrong blank.
     expect(dialog.blanks[1]?.canonical).toBe('climb')
+  })
+
+  it('returns an error when the answer-keys page fetch fails after an at-cap first result', async () => {
+    // get_report_answer_keys returns exactly 1000 rows on the first (unpaged) call —
+    // indistinguishable from a truncated result — so fetchAllRpcRows discards it and
+    // falls back to fetchAllRows (mocked at the module boundary here). That fallback
+    // then fails; the failure must propagate out of getQuizReportQuestions.
+    const staleKeys = Array.from({ length: 1000 }, (_, i) => ({
+      question_id: `stale-${i}`,
+      question_type: 'dialog_fill',
+      blank_index: 0,
+      answer_key: 'x',
+    }))
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { data: answersData },
+      { data: questionsData },
+    )
+    mockFetchAllRows.mockResolvedValueOnce({ data: orderRows, error: null }) // order-rows page
+    mockRpcByName({ correct: { data: correctOptionsData }, keys: { data: staleKeys } })
+    mockFetchAllRows.mockResolvedValueOnce({
+      data: [],
+      error: { message: 'answer keys page fetch failed' },
+    }) // fetchAllRpcRows's internal paged re-fetch, triggered by the at-cap keys result
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
   })
 
   it('returns an error when the order-rows page fetch fails', async () => {

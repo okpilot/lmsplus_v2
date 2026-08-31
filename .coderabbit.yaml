@@ -395,7 +395,8 @@ reviews:
           (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
           same frozen config.question_ids, with IDs derived server-side from the caller-owned
           session row, never from client input; (c) get_report_correct_options,
-          get_admin_report_correct_options, and get_report_answer_keys reading questions via
+          get_admin_report_correct_options, get_report_answer_keys, and
+          get_admin_report_answer_keys reading questions via
           quiz_session_answers.question_id — a write-once FK on the immutable, append-only
           quiz_session_answers table. The write-once guarantee is enforced by
           trg_quiz_sessions_immutable_columns (mig 079). Any new carve-out

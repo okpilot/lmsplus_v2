@@ -1,10 +1,20 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import {
+  fetchAdminReportAnswerKeyMap,
+  fetchAdminReportCorrectOptionsMap,
+  fetchAdminSessionForReport,
+  fetchPageAnswerRows,
+  fetchPageQuestions,
+  fetchSessionAnswerRows,
+} from './admin-report-helpers'
 import { PAGE_SIZE, type QuizReportQuestionsResult } from './quiz-report'
+import { buildDistinctQuestionOrder } from './quiz-report-helpers'
 import type { AdminQuizReportSummary } from './quiz-report-types'
-import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
+import { buildReportQuestions, type QuestionRow } from './report-question-builder'
 import { resolveSubjectInfo } from './resolve-subject-info'
 
+type AdminSessionGuard = { id: string; ended_at: string | null }
 type AdminSessionRow = {
   id: string
   mode: string
@@ -24,34 +34,33 @@ export async function getAdminQuizReportSummary(
 ): Promise<AdminQuizReportSummary | null> {
   const { organizationId } = await requireAdmin()
 
-  const { data: sessionData, error: sessionError } = await adminClient
-    .from('quiz_sessions')
-    .select(
+  const { data: session, error: sessionError } = await fetchAdminSessionForReport<AdminSessionRow>({
+    sessionId,
+    organizationId,
+    select:
       'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, student_id, passed, time_limit_seconds',
-    )
-    .eq('id', sessionId)
-    .eq('organization_id', organizationId)
-    .is('deleted_at', null)
-    .maybeSingle()
+    logPrefix: '[getAdminQuizReportSummary]',
+  })
+  if (sessionError) return null
+  // Not found, or not yet completed — prevents mid-session answer exposure
+  if (!session?.ended_at) return null
 
-  if (sessionError) {
-    console.error('[getAdminQuizReportSummary] Session query error:', sessionError.message)
+  // Session org-membership verified above — sessionId is safe to use unscoped.
+  // Derive two counts from the session's answer rows (mirrors quiz-report.ts):
+  //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
+  //  - answeredQuestions = distinct questions answered (denominator for Skipped)
+  // The multi-row non-MC types store one row per blank/slot/zone (dialog_fill blanks,
+  // ordering slots, diagram_label zones), so a 500-question quick_quiz can exceed
+  // PostgREST's max_rows cap — page through so the counts never silently truncate.
+  const { data: answerRows, error: answerRowsError } = await fetchSessionAnswerRows<{
+    question_id: string
+  }>({ sessionId, select: 'question_id', orderColumns: ['id'] })
+  if (answerRowsError) {
+    console.error('[getAdminQuizReportSummary] Answer rows query error:', answerRowsError.message)
     return null
   }
-  const session = sessionData as AdminSessionRow | null
-  if (!session) return null
-  // Only serve reports for completed sessions — prevents mid-session answer exposure
-  if (!session.ended_at) return null
-
-  // Session org-membership verified above — sessionId is safe to use unscoped
-  const { count: answeredCount, error: countError } = await adminClient
-    .from('quiz_session_answers')
-    .select('question_id', { count: 'exact', head: true })
-    .eq('session_id', sessionId)
-  if (countError) {
-    console.error('[getAdminQuizReportSummary] Count query error:', countError.message)
-    return null
-  }
+  const answeredItems = answerRows.length
+  const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 
   const { subjectName, subjectCode } = await resolveSubjectInfo(
     adminClient,
@@ -75,13 +84,8 @@ export async function getAdminQuizReportSummary(
     subjectName,
     subjectCode,
     totalQuestions: session.total_questions,
-    // KNOWN LIMITATION (#991): answeredCount is the raw answer-ROW count, so on a non-MC
-    // session answeredItems is right (rows === items) but answeredQuestions is WRONG — it
-    // should be COUNT(DISTINCT question_id). MC sessions are right on both.
-    // Null count falls back to 0, never to total_questions: that is QUESTION-level and
-    // would reinstate the item/question scale mix — see docs/decisions.md Decision 60.
-    answeredQuestions: answeredCount ?? 0,
-    answeredItems: answeredCount ?? 0,
+    answeredQuestions,
+    answeredItems,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,
@@ -104,33 +108,35 @@ export async function getAdminQuizReportQuestions(opts: {
   const { supabase, organizationId } = await requireAdmin()
 
   // Verify session belongs to org and is completed — prevents mid-session answer exposure
-  const { data: sessionData, error: sessionError } = await adminClient
-    .from('quiz_sessions')
-    .select('id, ended_at')
-    .eq('id', sessionId)
-    .eq('organization_id', organizationId)
-    .is('deleted_at', null)
-    .maybeSingle()
+  const { data: session, error: sessionError } =
+    await fetchAdminSessionForReport<AdminSessionGuard>({
+      sessionId,
+      organizationId,
+      select: 'id, ended_at',
+      logPrefix: '[getAdminQuizReportQuestions]',
+    })
+  if (sessionError) return { ok: false, error: 'Failed to load questions' }
+  // Not found, or not yet completed — prevents mid-session answer exposure
+  if (!session?.ended_at) return { ok: false, error: 'Failed to load questions' }
 
-  if (sessionError) {
-    console.error('[getAdminQuizReportQuestions] Session query error:', sessionError.message)
+  // Paginate by QUESTION, not by answer row. A dialog_fill question has N answer
+  // rows (one per blank); a .range() over rows would split a question across page
+  // boundaries and emit a duplicate questionId on two pages. So we first resolve
+  // the session's DISTINCT question_ids in display order (answered_at — the order
+  // the report has always used), slice that list to the page window, then fetch
+  // ALL answer rows for those questions. totalCount = distinct question count.
+  // Page through ALL answer rows: the multi-row non-MC types (dialog_fill, ordering,
+  // diagram_label) store one row per blank/slot/zone, so 500 questions can exceed
+  // PostgREST's max_rows cap; a single .select() would truncate, dropping question_ids.
+  const { data: orderRows, error: orderError } = await fetchSessionAnswerRows<{
+    question_id: string
+  }>({ sessionId, select: 'question_id, answered_at', orderColumns: ['answered_at', 'id'] })
+  if (orderError) {
+    console.error('[getAdminQuizReportQuestions] Order query error:', orderError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
-  const session = sessionData as { id: string; ended_at: string | null } | null
-  if (!session) return { ok: false, error: 'Failed to load questions' }
-  if (!session.ended_at) return { ok: false, error: 'Failed to load questions' }
-
-  const { count: totalCount, error: countError } = await adminClient
-    .from('quiz_session_answers')
-    .select('question_id', { count: 'exact', head: true })
-    .eq('session_id', sessionId)
-
-  if (countError) {
-    console.error('[getAdminQuizReportQuestions] Count query error:', countError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  const total = totalCount ?? 0
+  const orderedQuestionIds = buildDistinctQuestionOrder(orderRows)
+  const total = orderedQuestionIds.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   // page < 1 would make `from` negative and slice the tail — reject it like an
@@ -141,79 +147,54 @@ export async function getAdminQuizReportQuestions(opts: {
   }
 
   const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const pageQuestionIds = orderedQuestionIds.slice(from, from + PAGE_SIZE)
 
-  // KNOWN LIMITATION (#991): row-based .range() pagination is correct ONLY for MC
-  // sessions (one answer row per question). The generic admin session route CAN reach
-  // non-MC sessions, where a dialog_fill question's per-blank rows straddle a page
-  // boundary and duplicate the questionId across pages. Proper fix = mirror the student
-  // path's distinct-question pagination (quiz-report-questions.ts) AND add an admin
-  // answer-keys RPC. Unreachable today: the non-MC producer (/app/vfr-rt) is dormant.
-  const { data: answersData, error: answersError } = await adminClient
-    .from('quiz_session_answers')
-    .select('question_id, selected_option_id, is_correct, response_time_ms')
-    .eq('session_id', sessionId)
-    .order('answered_at', { ascending: true })
-    .order('id')
-    .range(from, to)
-
+  const { data: answers, error: answersError } = await fetchPageAnswerRows(
+    sessionId,
+    pageQuestionIds,
+  )
   if (answersError) {
     console.error('[getAdminQuizReportQuestions] Answers query error:', answersError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const answers = Array.isArray(answersData) ? (answersData as AnswerRow[]) : []
-
   if (!answers.length) {
     return { ok: true, questions: [], totalCount: total }
   }
 
-  const questionIds = answers.map((a) => a.question_id)
-
-  // options no longer carries the answer key — `correct` is stripped at the DB
-  // write layer (#823), so the raw `correct` boolean never reaches this query or
-  // buildReportQuestions. The report's correct option comes from
-  // get_admin_report_correct_options (correctOptionId). This is admin-only code
-  // (requireAdmin + is_admin RPC) and the session is verified complete (ended_at guard).
-  // Omits deleted_at intentionally — historical record for completed sessions.
-  const { data: questionsData, error: questionsError } = await adminClient
-    .from('questions')
-    .select(
-      'id, question_text, question_number, options, explanation_text, explanation_image_url, question_image_url',
-    )
-    .in('id', questionIds)
-
+  const { data: questions, error: questionsError } = await fetchPageQuestions(pageQuestionIds)
   if (questionsError) {
     console.error('[getAdminQuizReportQuestions] Questions query error:', questionsError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
-  const questionMap = new Map<string, QuestionRow>()
-  for (const q of questions) {
-    questionMap.set(q.id, q)
-  }
+  const questionMap = new Map<string, QuestionRow>(questions.map((q) => [q.id, q]))
 
   // Use supabase (auth client) for RPC — adminClient has no auth.uid() context
-  const { data: correctData, error: rpcError } = await supabase.rpc(
-    'get_admin_report_correct_options',
-    { p_session_id: sessionId },
+  const { data: correctMap, error: correctMapError } = await fetchAdminReportCorrectOptionsMap(
+    supabase,
+    sessionId,
   )
-  if (rpcError) {
-    console.error('[getAdminQuizReportQuestions] RPC error:', rpcError.message)
+  if (correctMapError) {
+    console.error('[getAdminQuizReportQuestions] RPC error:', correctMapError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
-  const correctRows = Array.isArray(correctData)
-    ? (correctData as { question_id: string; correct_option_id: string }[])
-    : []
-  const correctMap = new Map<string, string>()
-  for (const row of correctRows) {
-    correctMap.set(row.question_id, row.correct_option_id)
+
+  // Non-MC answer keys (short_answer canonical, dialog_fill per-blank canonicals, ordering
+  // per-slot canonicals, diagram_label per-zone canonicals). Use supabase (auth client) for
+  // RPC — adminClient has no auth.uid() context.
+  const { data: answerKeyMap, error: answerKeyMapError } = await fetchAdminReportAnswerKeyMap(
+    supabase,
+    sessionId,
+  )
+  if (answerKeyMapError) {
+    console.error('[getAdminQuizReportQuestions] Answer-keys RPC error:', answerKeyMapError.message)
+    return { ok: false, error: 'Failed to load questions' }
   }
 
   return {
     ok: true,
-    questions: buildReportQuestions(answers, questionMap, correctMap),
+    questions: buildReportQuestions(answers, questionMap, correctMap, answerKeyMap),
     totalCount: total,
   }
 }

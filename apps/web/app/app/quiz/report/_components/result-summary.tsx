@@ -30,15 +30,13 @@ type Props = Readonly<{ summary: QuizReportSummary }>
  * than its denominator on real exams. `answeredItems === 0` renders an em dash rather than
  * "0 / 0" — the timer-expiry path zeroes the counts and inserts no answer rows at all.
  *
- * `skipped` renders an em dash when `answeredQuestions` exceeds `totalQuestions`: the admin
- * session route still derives `answeredQuestions` from a raw answer-ROW count
- * (`admin-quiz-report.ts`, "KNOWN LIMITATION (#991)"), which overshoots `totalQuestions` on
- * non-MC sessions — reproduced locally as "SKIPPED -2" on a 3-question dialog session, and
- * the same code path serves production. An em dash rather than a clamped 0, because 0 reads
- * as authoritative while being wrong in the direction that flatters the student. NOTE this is a
- * PARTIAL guard: it only fires when the row count EXCEEDS `totalQuestions`. A non-MC session
- * whose rows land at or below the question total still renders a silently wrong `skipped` —
- * that is #991 itself, fixed by giving the query a COUNT(DISTINCT question_id).
+ * `skipped` renders an em dash whenever `answeredQuestions` exceeds `totalQuestions` — a
+ * defensive guard against incoherent inputs, wherever they originate: a distinct-question
+ * count should never exceed the session's total, so if it does, the numbers are not
+ * trustworthy. An em dash rather than a clamped 0, because 0 reads as authoritative while
+ * being wrong in the direction that flatters the student. NOTE this guard only fires when the
+ * row count EXCEEDS `totalQuestions` — a caller whose count lands at or below the question
+ * total is not caught here and must supply a correct distinct-question count itself.
  */
 function deriveStats(summary: QuizReportSummary): {
   correctFraction: string
@@ -49,7 +47,7 @@ function deriveStats(summary: QuizReportSummary): {
     correctFraction:
       summary.answeredItems === 0 ? '—' : `${summary.correctCount} / ${summary.answeredItems}`,
     // When answeredQuestions exceeds totalQuestions the inputs are incoherent (see the
-    // admin-route note above). Render an em dash rather than clamping to 0: a 0 reads as
+    // note above). Render an em dash rather than clamping to 0: a 0 reads as
     // authoritative and is silently wrong in the direction that flatters the student,
     // whereas "—" says the number is not known. Same idiom as correctFraction.
     skipped:

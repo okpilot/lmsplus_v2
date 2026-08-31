@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { toPageResult } from '@/lib/supabase-paginate'
 
 export type SessionReport = {
   id: string
@@ -84,7 +85,12 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
     return { ok: false, error: 'Failed to load reports' }
   }
 
-  const allRows = Array.isArray(data) ? (data as RpcRow[]) : []
+  const parsed = toPageResult<RpcRow>(data, null, 'get_session_reports')
+  if (parsed.error) {
+    console.error('[getSessionReports]', parsed.error.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+  const allRows = parsed.data ?? []
 
   if (allRows.length === 0) {
     // The RPC returned no rows for this offset — gate the probe on allRows (pre-filter), the
@@ -129,7 +135,12 @@ async function probeOutOfRangeTotal(
     console.error('[getSessionReports] Probe RPC error:', error.message)
     return { ok: false, error: 'Failed to load reports' }
   }
-  const probeRows = Array.isArray(data) ? (data as RpcRow[]) : []
+  const parsed = toPageResult<RpcRow>(data, null, 'get_session_reports probe')
+  if (parsed.error) {
+    console.error('[getSessionReports]', parsed.error.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+  const probeRows = parsed.data ?? []
   return { ok: true, sessions: [], totalCount: Number(probeRows[0]?.total_count ?? 0) }
 }
 

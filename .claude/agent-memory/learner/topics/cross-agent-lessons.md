@@ -106,4 +106,56 @@ The learner owns FP frequency tracking. These are confirmed false positives; val
 - **OPEN AMBIGUITY — the "2nd-branch" promotion gate is unwritten and applied inconsistently (flagged by semantic-reviewer, 2026-08-25, learner pass covering `ee0045b7`/`0f96e64b`).** `agent-learner.md`'s literal text: "The pattern has 2+ occurrences across different commits (not just different files in the same commit)" — no branch clause anywhere. Yet practice has repeatedly applied a STRICTER, self-imposed rule: row 655 explicitly writes "Same branch as instances 1-6, so row 655's own promotion condition ('on a 2nd BRANCH') is not yet met" (and again for instances 7-11, all held at RULE CANDIDATE despite reaching count=11); row 660 (before its final promotion) carried the identical language — "Count=1 — single branch... log and watch, do not propose a rule change yet" — for its first WATCHING state. **But row 660 was ultimately PROMOTED at count=3 with ALL THREE instances on the same branch** (chore/pr-split-practice), with no branch-diversity gate invoked at the moment of promotion — directly contradicting the standard row 655 states for itself. Two rows, same session, same author, opposite practice.
   - **Working hypothesis for the inconsistency (not confirmed, offered as a candidate explanation):** the two rows differ in what their proposed remedy COSTS. Row 660's remedy (two mechanical checklist items: "walk every reported hit to a disposition" + "checksum byte-identical copies") is narrow and cheap — it adds a bounded step to ONE existing workflow (mirror sweeps). Row 655's remedy ("mandatory WHOLE-FILE re-read on any binding-rules-file edit, not hunk-scoped, by semantic-reviewer or the orchestrator, checking every numeral/cross-reference/scope-list claim") is broad and expensive — it adds a mandatory step to EVERY future edit of a wide file class. A stricter evidence bar for the more expensive remedy is a defensible engineering instinct, but it was never written down, so it cannot be applied predictably or defended if challenged.
   - **This cycle's own finding (row 519 / "Claim-correction commit updates a count") is a clean test case:** it sat at count=3, same-branch, annotated "(await cross-branch recurrence)" — implicitly invoking the same unwritten gate row 655 states explicitly. This cycle found 3 MORE instances on a DIFFERENT branch (chore/run-log-1242-merged vs. row 519's original, pre-2026-08-16 branch), satisfying even the strict reading. Net: for row 519 specifically, the ambiguity resolves itself via new evidence rather than requiring a rule-text decision. Rows 655's 11 instances remain unresolved by this cycle — still one branch.
+
+## PR #1247 (fix/991-admin-non-mc-report, commits c90caf61/47524d9c) — 2026-08-30 learner pass
+
+Origin: 3 CodeRabbit findings (missing `ordering.isCorrect` assertion; redundant comment; unpaged
+answer-key RPCs past PostgREST `max_rows` — fixed via new `fetchAllRpcRows`, applied to both the new
+admin call site and the pre-existing student one). 4 post-commit rounds followed. **Assessment: NOT
+an escalation.** The rows below (604, 663, 667) were already at count 22/3/1 before this cycle —
+this PR's instances are further confirmation of an already-large, already-tracked defect class, not
+a new spike. A prose-accuracy fix remains the single highest-risk site for a fresh false claim
+(`agent-critic.md`), exactly as already documented.
+
+- **Row 604 (+1 → 23), 3 distinct same-PR instances, all "fixing one false claim ships another":**
+  (a) the fix explaining why a partial `vi.mock` broke tests asserted "silently yields undefined and
+  breaks every consumer's cap check" — Vitest actually THROWS a loud, self-diagnosing error on
+  accessing an unmocked-but-real export; the false mechanism was duplicated into three separate
+  source comments, plus a wrong count ("broke three test files" — only one broke, two were
+  preventive additions); (b) a fix claimed "one place [`supabase-paginate.ts`] governs" the
+  `max_rows` cap right after collapsing two duplicate `1000` literals — while four MORE hardcoded
+  `1000` literals remained in that same file, un-grepped; (c) the fix for (b) then claimed the
+  literal "now appears exactly once in the repo's app layer" — 17 occurrences exist under
+  `apps/web/lib`. Each was self-caught or caught by the next semantic-reviewer round, not shipped.
+- **Row 663 (+1 → 4):** a subagent reported 13 failing tests as "pre-existing, confirmed unrelated."
+  They were neither — caused by the orchestrator's own edit (a new export accessed through a partial
+  `vi.mock({ fetchAllRows })` in `quiz-report-questions.test.ts`) — and the "confirmation" was never
+  actually run. Orchestrator verified rather than accepting the dismissal.
+- **Row 667 (+1 → 2, broadened):** a source comment asserted "highest-count row in the code-reviewer
+  tracker" for a row at count 6, when two other rows sit at 17 and 7 — an unverified superlative
+  about ENUMERABLE tracker data, not re-derived before writing. Distinguish from `code-style.md` §10
+  rule 2 (OPEN sets): the tracker is a CLOSED, greppable file: rule 2 doesn't cover this, it was
+  simply not checked. Broadens row 667 from "rule draft" (its original framing) to any prose,
+  since this instance is a plain source comment.
+- **New WATCHING (count=1) — delegation-prompt scaffolding leak:** a shipped code comment carried an
+  orphaned "step-5" cross-reference inherited verbatim from the orchestrator's own internal
+  delegation-prompt wording — meaningless to a reader of the shipped file, since the prompt's own
+  step numbering is not part of the codebase. Distinct failure mode from the false-claim rows above:
+  the text isn't FALSE, it's just internal scaffolding that leaked through a copy-paste.
+- **New WATCHING (count=1) — partial `vi.mock` brittleness:** `vi.mock('@/lib/supabase-paginate', ()
+  => ({ fetchAllRows }))` — a bare-object partial mock — THROWS when a later commit adds a new named
+  export (`POSTGREST_MAX_ROWS`) that the SAME test file's OTHER tests access through the mocked
+  module. This is a distinct mechanism from "vacuous mock coverage" (existing FP catalog entry): the
+  mock doesn't silently under-cover, it hard-fails the whole file. Fixed by spreading
+  `importOriginal()` at all three affected mock sites. doc-updater judged the finding real but
+  correctly declined to propose a rule at count=1 (single occurrence) — logged here to WATCH.
+- **CLAUSE-5 NUMBERING CONFLICT (flag for orchestrator, not resolved here):** two separate RULE
+  CANDIDATE rows both target "§10 clause 5" with DIFFERENT substantive text — row 604 ("whole-block
+  re-read after every edit," count 23) and the "Empirical measurement correct for tested scenario but
+  excludes the failure case" row (count 3, archive rows 649+650). Whoever writes either rule into
+  `code-style.md` must renumber; do not silently let one overwrite the other's clause slot.
+- **Item 2 note (not tracked, POSITIVE):** a commit message originally claimed "three existing
+  `fetchAllRows` callers" (actually 9 files / 15 call sites); semantic-reviewer caught it and the fix
+  replaced the literal count with a derivation command, per `code-style.md` §10 rule 2 exactly as
+  designed. Cited as evidence the existing rule works when followed — not a new pattern.
   - **PROPOSAL (learner proposes; orchestrator/user decides — NOT applied to `agent-learner.md` by this pass):** state explicitly in `agent-learner.md` (or `agent-memory.md` § Tracker state machine, where the promotion-related conventions already live) that (a) the literal "2+ across different commits" bar is ALWAYS sufficient to reach RULE CANDIDATE and to promote a narrow/cheap mechanical remedy — same-branch commits count; and (b) a promotion whose remedy imposes a NEW MANDATORY review step on every future commit matching a broad criterion (as opposed to a narrow checklist addition to an existing step) may additionally require evidence from a 2nd branch before the orchestrator promotes it, specifically because same-branch instances risk being one continuous causal chain rather than independently-confirmed recurrences of a durable systemic pattern. Naming the criterion (remedy cost/blast-radius, not branch-count-for-its-own-sake) would let future rows apply it consistently instead of ad hoc.

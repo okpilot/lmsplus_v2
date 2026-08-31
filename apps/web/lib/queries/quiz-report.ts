@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows } from '@/lib/supabase-paginate'
+import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 import type { QuizReportSummary } from './quiz-report-types'
 import { resolveSubjectInfo } from './resolve-subject-info'
@@ -36,7 +36,7 @@ export type OrderingSlotResult = {
 // Discriminated union on `questionType`. Consumers MUST narrow on it before
 // touching any type-specific field (MC `options`, short_answer `responseText`,
 // dialog_fill `blanks`). The MC variant is the default the builder emits when a
-// row carries no question_type (the admin MC-only feed relies on this).
+// row carries no question_type. Defensive default; it makes no claim about callers.
 export type QuizReportQuestion =
   | (QuizReportQuestionCommon & {
       questionType: 'multiple_choice'
@@ -126,22 +126,25 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   // Derive two counts from the session's answer rows:
   //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
   //  - answeredQuestions = distinct questions answered (denominator for Skipped)
-  // dialog_fill stores one row per blank and a session can hold up to 500 questions
-  // (quick_quiz cap) × up to 50 blanks, so this can exceed PostgREST's 1000-row cap —
-  // page through with fetchAllRows so the counts never silently truncate.
+  // The multi-row non-MC types store one row per blank/slot/zone — dialog_fill blanks,
+  // ordering slots, diagram_label zones — and a session can hold up to 500 questions
+  // (quick_quiz cap), so this can exceed PostgREST's max_rows
+  // cap — page through with fetchAllRows so the counts never silently truncate.
   const { data: answerRows, error: answerRowsError } = await fetchAllRows<{ question_id: string }>(
     () =>
       supabase
         .from('quiz_session_answers')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId),
-    (from, to) =>
-      supabase
+    async (from, to) => {
+      const { data, error } = await supabase
         .from('quiz_session_answers')
         .select('question_id')
         .eq('session_id', sessionId)
         .order('id', { ascending: true })
-        .range(from, to),
+        .range(from, to)
+      return toPageResult<{ question_id: string }>(data, error, 'quiz_session_answers')
+    },
   )
   if (answerRowsError) {
     console.error('[getQuizReportSummary] Answer rows query error:', answerRowsError.message)
