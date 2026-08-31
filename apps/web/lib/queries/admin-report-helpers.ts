@@ -1,6 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows } from '@/lib/supabase-paginate'
+import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import { type AnswerKeyRow, buildAnswerKeyMap } from './quiz-report-helpers'
 import type { AnswerKeyEntry, AnswerRow, QuestionRow } from './report-question-builder'
@@ -70,14 +70,14 @@ export async function fetchSessionAnswerRows<T extends { question_id: string }>(
       }
       // A non-literal `select` string defeats Supabase's column-typed select() overload
       // (it can't verify columns at compile time), so the resolved row type collapses to
-      // an opaque error-marker type. Cast at the boundary. Deliberately NOT paired with an
-      // Array.isArray guard, unlike fetchAllRpcRows' page closure (lib/supabase-rpc.ts),
-      // which returns a controlled error on a non-array payload: this is a TABLE query,
-      // and `.range()` on one only ever yields an array or null, so the case that guard
-      // covers is unreachable here. An RPC can resolve a scalar or object, which is why
-      // the asymmetry is intentional rather than an omission.
+      // an opaque error-marker type. toPageResult casts at that boundary AND rejects a
+      // non-array payload. A table query cannot resolve a scalar or object the way an RPC
+      // can, but it CAN resolve null — and null is the harmful case, not a benign one:
+      // every page fetched here lies within [0, total), so a null page is a count/page
+      // disagreement, and fetchAllRows' `if (data) all.push(...data)` would skip it and
+      // return a short list that reads as complete.
       const { data, error } = await query.range(from, to)
-      return { data: data as unknown as T[] | null, error }
+      return toPageResult<T>(data, error, 'quiz_session_answers')
     },
   )
 }

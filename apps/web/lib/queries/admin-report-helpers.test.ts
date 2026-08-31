@@ -233,6 +233,23 @@ describe('fetchSessionAnswerRows', () => {
     expect(result).toEqual({ data: [], error: { message: 'count failed' } })
   })
 
+  it('surfaces an error when the count reports rows but a page resolves null', async () => {
+    // The count already reported 2 rows, so this page lies within [0, total). A null
+    // payload is therefore a count/page disagreement, not an empty page — and without a
+    // guard fetchAllRows' `if (data) all.push(...data)` would skip it and return a short
+    // list that reads as complete.
+    mockFromSequence({ count: 2, error: null }, { data: null, error: null })
+    const result = await fetchSessionAnswerRows({
+      sessionId: 'sess-1',
+      select: 'question_id',
+      orderColumns: ['id'],
+    })
+    expect(result).toEqual({
+      data: [],
+      error: { message: 'quiz_session_answers: expected an array, got null' },
+    })
+  })
+
   it('discards a partial page and surfaces the error when the page fetch fails', async () => {
     mockFromSequence(
       { count: 2, error: null },

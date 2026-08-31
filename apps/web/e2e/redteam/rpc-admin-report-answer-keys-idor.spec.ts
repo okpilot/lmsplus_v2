@@ -7,7 +7,8 @@
  * 20260824000100, new this branch) for non-MC question types (short_answer,
  * dialog_fill, ordering, diagram_label) and get_admin_report_correct_options
  * (mig 20260406000005, latest body 20260619000400) for the MC key. Both share
- * a BYTE-IDENTICAL guard block (verified by reading both migration bodies):
+ * an EXECUTABLE-IDENTICAL guard block (verified by diffing both migration bodies:
+ * every statement matches; only an explanatory comment differs):
  * auth.uid() null-check -> is_admin() -> org lookup (folded active-user gate
  * via `deleted_at IS NULL`) -> `IF NOT EXISTS (SELECT 1 FROM quiz_sessions
  * WHERE id = p_session_id AND organization_id = v_org_id AND ended_at IS NOT
@@ -42,7 +43,7 @@
  *    completed' (exact RAISE string, mig 20260824000100).
  *  - FK2: the org-B admin calls get_admin_report_correct_options with org-A's
  *    session id (IDOR) -> the same exact RAISE string (mig 20260619000400
- *    L112, byte-identical guard block).
+ *    L112, executable-identical guard block).
  */
 
 import { expect, test } from '@playwright/test'
