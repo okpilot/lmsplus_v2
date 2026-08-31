@@ -62,14 +62,16 @@ export async function getQuizReportQuestions(opts: {
         .from('quiz_session_answers')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId),
-    (from, to) =>
-      supabase
+    async (from, to) => {
+      const { data, error } = await supabase
         .from('quiz_session_answers')
         .select('question_id, answered_at')
         .eq('session_id', sessionId)
         .order('answered_at', { ascending: true })
         .order('id')
-        .range(from, to),
+        .range(from, to)
+      return toPageResult<{ question_id: string }>(data, error, 'quiz_session_answers')
+    },
   )
   if (orderError) {
     console.error('[getQuizReportQuestions] Order query error:', orderError.message)

@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows } from '@/lib/supabase-paginate'
+import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 import type { QuizReportSummary } from './quiz-report-types'
 import { resolveSubjectInfo } from './resolve-subject-info'
@@ -136,13 +136,15 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
         .from('quiz_session_answers')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId),
-    (from, to) =>
-      supabase
+    async (from, to) => {
+      const { data, error } = await supabase
         .from('quiz_session_answers')
         .select('question_id')
         .eq('session_id', sessionId)
         .order('id', { ascending: true })
-        .range(from, to),
+        .range(from, to)
+      return toPageResult<{ question_id: string }>(data, error, 'quiz_session_answers')
+    },
   )
   if (answerRowsError) {
     console.error('[getQuizReportSummary] Answer rows query error:', answerRowsError.message)

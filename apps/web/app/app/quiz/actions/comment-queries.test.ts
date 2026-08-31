@@ -83,6 +83,23 @@ describe('fetchQuestionComments', () => {
     expect(result).toEqual({ data: [], error: { message: 'boom' } })
   })
 
+  it('surfaces an error when the count reports rows but a page resolves null', async () => {
+    // The count already reported 3 rows, so this page lies within [0, total). A null
+    // payload with no error is a count/page disagreement, not an empty page — and
+    // unguarded, fetchAllRows' `if (data) all.push(...data)` would skip it and return a
+    // truncated thread that reads as complete.
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: null, error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({
+      data: [],
+      error: { message: 'question_comments: expected an array, got null' },
+    })
+  })
+
   it('surfaces a page-level error after the count succeeds', async () => {
     // count succeeds with a non-zero total, then the first page query errors
     mockFrom

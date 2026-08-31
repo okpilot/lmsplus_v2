@@ -47,6 +47,15 @@ export async function fetchAdminSessionForReport<T>(opts: {
  * through fetchAllRows. `select`/`orderColumns` are parameters precisely so callers
  * needing different columns or sort keys share one paging implementation rather
  * than copying it.
+ *
+ * The page closure returns through toPageResult for two reasons. A non-literal
+ * `select` string defeats Supabase's column-typed select() overload, so the resolved
+ * row type collapses to an opaque error-marker type and needs a cast at that boundary.
+ * And a table query, while it cannot resolve a scalar or object the way an RPC can,
+ * CAN resolve null — the harmful case, not a benign one: every page fetched here lies
+ * within [0, total), so a null page is a count/page disagreement, and fetchAllRows'
+ * `if (data) all.push(...data)` would skip it and return a short list that reads as
+ * complete.
  */
 export async function fetchSessionAnswerRows<T extends { question_id: string }>(opts: {
   sessionId: string
@@ -68,14 +77,7 @@ export async function fetchSessionAnswerRows<T extends { question_id: string }>(
       for (const column of orderColumns) {
         query = query.order(column, { ascending: true })
       }
-      // A non-literal `select` string defeats Supabase's column-typed select() overload
-      // (it can't verify columns at compile time), so the resolved row type collapses to
-      // an opaque error-marker type. toPageResult casts at that boundary AND rejects a
-      // non-array payload. A table query cannot resolve a scalar or object the way an RPC
-      // can, but it CAN resolve null — and null is the harmful case, not a benign one:
-      // every page fetched here lies within [0, total), so a null page is a count/page
-      // disagreement, and fetchAllRows' `if (data) all.push(...data)` would skip it and
-      // return a short list that reads as complete.
+      // Cast + non-array rejection; see this function's JSDoc for why both are needed.
       const { data, error } = await query.range(from, to)
       return toPageResult<T>(data, error, 'quiz_session_answers')
     },
