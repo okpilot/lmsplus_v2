@@ -128,6 +128,27 @@ describe('listOrgStudents', () => {
       }
     })
 
+    it('throws when a page resolves a null payload after the count succeeds', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        // The count already reported 5 rows, so this page lies within [0, total). A null
+        // payload with no error is a count/page disagreement, not an empty page —
+        // fetchAllRows rejects it rather than silently truncating the student list.
+        mockAdminFrom
+          .mockReturnValueOnce(buildChain(null, null, 5))
+          .mockReturnValueOnce(buildChain(null, null, null))
+
+        await expect(listOrgStudents()).rejects.toThrow('Failed to load students')
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listOrgStudents] DB error:',
+          expect.stringContaining('expected an array, got null'),
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
     it('rejects when the caller is not an admin', async () => {
       mockRequireAdmin.mockRejectedValue(new Error('Forbidden'))
 

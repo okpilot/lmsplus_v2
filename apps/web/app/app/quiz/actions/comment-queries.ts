@@ -20,8 +20,9 @@ export function fetchQuestionComments(supabase: SupabaseClient<Database>, questi
       // Guard the page, as the sibling pagers do (lib/supabase-rpc.ts,
       // lib/queries/admin-report-helpers.ts): a page resolving { data: null, error: null }
       // lies inside [0, total) because the count already reported rows there, so it is a
-      // count/page disagreement — and fetchAllRows' `if (data) all.push(...data)` would
-      // skip it, truncating the thread into a comment list that reads as complete.
+      // count/page disagreement. fetchAllRows now rejects a null page itself, but this
+      // wrap still earns its keep — the error names `question_comments`, where the
+      // pager's own message can only report the page range.
       const { data, error } = await supabase
         .from('question_comments')
         .select(COMMENT_SELECT)

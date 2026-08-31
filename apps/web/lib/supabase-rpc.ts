@@ -45,11 +45,13 @@ type ChainableRpcFn = {
 /**
  * Count-only probe for the paged fallback.
  *
- * A null count (a count-only response with no parseable Content-Range) must never reach
- * fetchAllRows, which coerces it to 0. This probe runs ONLY because the first unpaged call
- * came back at the cap, so "0 rows" there would skip the paging loop and discard a full
- * page as a successful empty result. An error is returned as-is, so a real count-query
- * failure surfaces its own message rather than being relabelled as a missing count.
+ * A null count (a count-only response with no parseable Content-Range) is never a
+ * legitimate "0 rows" — fetchAllRows itself now rejects a null count too, so this check
+ * is defence in depth rather than the only guard. It still earns its keep: this probe runs
+ * ONLY because the first unpaged call came back at the cap, and its error names the RPC
+ * (`${fn}: count query returned no exact count`), where fetchAllRows can only report its own
+ * generic message. An error is returned as-is, so a real count-query failure surfaces its
+ * own message rather than being relabelled as a missing count.
  */
 async function fetchExactCount(
   client: ChainableRpcFn,

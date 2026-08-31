@@ -125,15 +125,46 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(2)
   })
 
-  it('treats a null count as zero', async () => {
+  it('returns an error without paging when the count query reports no exact total', async () => {
     const getCount = vi.fn().mockResolvedValue({ count: null, error: null })
     const getPage = vi.fn()
 
     const result = await fetchAllRows(getCount, getPage)
 
     expect(result.data).toEqual([])
-    expect(result.error).toBeNull()
+    expect(result.error).toEqual({
+      message: 'fetchAllRows: count query returned no exact count',
+    })
     expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('discards accumulated rows and returns an error when a page resolves a null payload', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 4, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [2, 3]: expected an array, got null',
+    })
+    expect(getPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns an error instead of throwing when a page resolves a non-array payload', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: { unexpected: 'shape' }, error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected an array, got object',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
   })
 
   it.each([0, -1, 1001])(
