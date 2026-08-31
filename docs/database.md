@@ -1898,7 +1898,7 @@ Type-aware sibling of `get_report_correct_options`: delivers the correct answers
 
 **Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
 
-**Paging (client contract):** rows are per-element, not per-question, so one session can exceed PostgREST's `max_rows` (1000) — 500 questions × up to 50 blanks/slots/zones. Callers must not read this RPC unpaged; both callers go through `fetchAllRpcRows` (`lib/supabase-rpc.ts`), which re-fetches ordered by `(question_id, blank_index)` when an unpaged read returns exactly the cap. Same truncation class as umbrella #668.
+**Paging (client contract):** rows are per-element, not per-question, so one session can exceed PostgREST's `max_rows` cap — 500 questions × up to 50 blanks/slots/zones. The cap is `POSTGREST_MAX_ROWS` (`apps/web/lib/supabase-paginate.ts`), which tracks `max_rows` in `supabase/config.toml`; read it there rather than trusting a number quoted here. Callers must not read this RPC unpaged; both callers go through `fetchAllRpcRows` (`lib/supabase-rpc.ts`), which re-fetches ordered by `(question_id, blank_index)` when an unpaged read returns exactly the cap. Same truncation class as umbrella #668.
 
 #### `check_quiz_answer` — verify answer + return explanation
 

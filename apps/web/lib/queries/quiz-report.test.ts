@@ -7,7 +7,14 @@ const { mockFrom } = vi.hoisted(() => ({
 }))
 
 const { mockFetchAllRows } = vi.hoisted(() => ({ mockFetchAllRows: vi.fn() }))
-vi.mock('@/lib/supabase-paginate', () => ({ fetchAllRows: mockFetchAllRows }))
+// Spread the real module: Vitest THROWS on a mock that omits an export a consumer
+// touches — it does not silently yield undefined. Preventive here: the module under
+// test reads no other export from supabase-paginate today, so a bare { fetchAllRows }
+// mock still passes. The spread keeps that true if its graph later reaches one.
+vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/supabase-paginate')>()),
+  fetchAllRows: mockFetchAllRows,
+}))
 
 const mockGetUser = vi.fn().mockResolvedValue({
   data: { user: { id: 'user-1' } },

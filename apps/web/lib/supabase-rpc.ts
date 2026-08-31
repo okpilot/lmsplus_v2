@@ -1,5 +1,5 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows } from '@/lib/supabase-paginate'
+import { fetchAllRows, POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type RpcFn = (
@@ -19,10 +19,6 @@ export async function rpc<TResult>(
   const { data, error } = await (supabase as unknown as { rpc: RpcFn }).rpc(fn, args)
   return { data: data as TResult | null, error }
 }
-
-// PostgREST's hard cap on a single response (`max_rows` in supabase/config.toml). An unpaged
-// RPC call returning exactly this many rows is indistinguishable from a truncated one.
-const MAX_ROWS = 1000
 
 // Wider than RpcFn above: the paged path needs `.rpc()` to also accept a third
 // `{ count, head }` options argument (for the count-only call) and to return a chainable
@@ -48,19 +44,19 @@ type ChainableRpcFn = {
 
 /**
  * Fetch ALL rows from a set-returning RPC that would otherwise silently truncate at
- * PostgREST's `max_rows` cap (1000) — e.g. an answer-key RPC returning one row per
+ * PostgREST's `max_rows` cap (`POSTGREST_MAX_ROWS`) — e.g. an answer-key RPC returning one row per
  * blank/slot/zone across a whole session.
  *
  * Unlike every other `fetchAllRows` caller, this tries ONE unpaged call first instead of
  * always counting-then-paging: the overwhelmingly common case is well under the cap, and
  * a single call keeps the first request's `(fn, args)` shape identical to the pre-paging
  * call site (existing tests assert on it directly). Only when that call returns EXACTLY
- * `MAX_ROWS` rows — indistinguishable from a truncated result — do we fall back to
+ * `POSTGREST_MAX_ROWS` rows — indistinguishable from a truncated result — do we fall back to
  * counting + paging via `fetchAllRows`.
  *
- * The exactly-`MAX_ROWS` result is DISCARDED rather than reused as page 0: the first call
+ * The exactly-`POSTGREST_MAX_ROWS` result is DISCARDED rather than reused as page 0: the first call
  * carries no `ORDER BY`, so splicing its rows with ordered, ranged pages could duplicate or
- * drop rows. A legitimate exactly-1000-row result therefore costs one wasteful but CORRECT
+ * drop rows. A legitimate exactly-at-cap result therefore costs one wasteful but CORRECT
  * extra round trip — an acceptable trade for keeping the common path a single request.
  */
 export async function fetchAllRpcRows<T>(opts: {
@@ -73,7 +69,7 @@ export async function fetchAllRpcRows<T>(opts: {
   const { data, error } = await rpc<T[]>(supabase, fn, args)
   if (error) return { data: [], error }
   const rows = Array.isArray(data) ? data : []
-  if (rows.length < MAX_ROWS) return { data: rows, error: null }
+  if (rows.length < POSTGREST_MAX_ROWS) return { data: rows, error: null }
 
   const client = supabase as unknown as ChainableRpcFn
   return fetchAllRows<T>(

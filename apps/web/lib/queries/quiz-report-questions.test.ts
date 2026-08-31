@@ -7,7 +7,14 @@ const { mockFrom } = vi.hoisted(() => ({
 }))
 
 const { mockFetchAllRows } = vi.hoisted(() => ({ mockFetchAllRows: vi.fn() }))
-vi.mock('@/lib/supabase-paginate', () => ({ fetchAllRows: mockFetchAllRows }))
+// Spread the real module: Vitest THROWS on a mock that omits an export a consumer
+// touches ("No \"POSTGREST_MAX_ROWS\" export is defined on the ... mock") — it does not
+// silently yield undefined. This file's graph reaches that constant through
+// fetchAllRpcRows (supabase-rpc.ts), so a bare { fetchAllRows } mock fails 13 tests here.
+vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/supabase-paginate')>()),
+  fetchAllRows: mockFetchAllRows,
+}))
 
 const mockGetUser = vi.fn().mockResolvedValue({
   data: { user: { id: 'user-1' } },
