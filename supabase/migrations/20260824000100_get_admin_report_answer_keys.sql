@@ -103,6 +103,9 @@ BEGIN
     NULL::int         AS blank_index,
     q.canonical_answer AS answer_key
   FROM quiz_session_answers sa
+  -- §15 carve-out: no q.deleted_at filter. The immutable, write-once column relied on is
+  -- quiz_session_answers.question_id (append-only table), so the reachable question set is
+  -- bounded by what was answered in this completed in-org session. See docs/database.md §3.
   JOIN questions q ON q.id = sa.question_id
   WHERE sa.session_id = p_session_id
     AND q.question_type = 'short_answer'
@@ -116,6 +119,9 @@ BEGIN
     (b->>'index')::int AS blank_index,
     b->>'canonical' AS answer_key
   FROM quiz_session_answers sa
+  -- §15 carve-out: no q.deleted_at filter. The immutable, write-once column relied on is
+  -- quiz_session_answers.question_id (append-only table), so the reachable question set is
+  -- bounded by what was answered in this completed in-org session. See docs/database.md §3.
   JOIN questions q ON q.id = sa.question_id
   CROSS JOIN LATERAL jsonb_array_elements(q.blanks_config) AS b
   WHERE sa.session_id = p_session_id
@@ -130,6 +136,9 @@ BEGIN
     (ord.idx - 1)::int AS blank_index,
     ord.elem->>'text' AS answer_key
   FROM quiz_session_answers sa
+  -- §15 carve-out: no q.deleted_at filter. The immutable, write-once column relied on is
+  -- quiz_session_answers.question_id (append-only table), so the reachable question set is
+  -- bounded by what was answered in this completed in-org session. See docs/database.md §3.
   JOIN questions q ON q.id = sa.question_id
   CROSS JOIN LATERAL jsonb_array_elements(q.ordering_items) WITH ORDINALITY AS ord(elem, idx)
   WHERE sa.session_id = p_session_id
@@ -157,6 +166,9 @@ BEGIN
       LIMIT 1
     ) AS answer_key
   FROM quiz_session_answers sa
+  -- §15 carve-out: no q.deleted_at filter. The immutable, write-once column relied on is
+  -- quiz_session_answers.question_id (append-only table), so the reachable question set is
+  -- bounded by what was answered in this completed in-org session. See docs/database.md §3.
   JOIN questions q ON q.id = sa.question_id
   CROSS JOIN LATERAL jsonb_array_elements(q.diagram_config->'zones') WITH ORDINALITY AS ord(elem, idx)
   WHERE sa.session_id = p_session_id

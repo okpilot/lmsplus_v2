@@ -80,7 +80,17 @@ export async function fetchAllRpcRows<T>(opts: {
 
   const client = supabase as unknown as ChainableRpcFn
   return fetchAllRows<T>(
-    () => client.rpc(fn, args, { count: 'exact', head: true }),
+    async () => {
+      // A null count from a count-only response (no parseable Content-Range) would be
+      // coerced to 0 by fetchAllRows, and we only reach here BECAUSE the first call came
+      // back at the cap — so "0 rows" would discard a full page and read as success.
+      const { count, error } = await client.rpc(fn, args, { count: 'exact', head: true })
+      if (error) return { count: null, error }
+      if (count === null) {
+        return { count: null, error: { message: `${fn}: count query returned no exact count` } }
+      }
+      return { count, error: null }
+    },
     async (from, to) => {
       let query: RpcChain = client.rpc(fn, args)
       for (const column of orderColumns) {

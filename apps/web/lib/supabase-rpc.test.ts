@@ -211,6 +211,28 @@ describe('fetchAllRpcRows', () => {
     })
   })
 
+  it('returns an error naming the RPC when the count-only call yields no exact count', async () => {
+    // We only reach the count call BECAUSE the first call came back at the cap, so a null
+    // count is never a legitimate "0 rows" — fetchAllRows would coerce it to 0, skip the
+    // loop entirely, and discard a full page of rows as a successful empty result.
+    const staleFirstCall = fixture('stale', 1000)
+    const client = createChainableRpcClient({
+      firstCall: { data: staleFirstCall, error: null },
+      count: { count: null, error: null },
+      pages: [{ data: fixture('page', 3), error: null }],
+    })
+    const result = await fetchAllRpcRows<{ id: string }>({
+      supabase: client as unknown as never,
+      fn: FN,
+      args: ARGS,
+      orderColumns: ORDER_COLUMNS,
+    })
+    expect(result).toEqual({
+      data: [],
+      error: { message: `${FN}: count query returned no exact count` },
+    })
+  })
+
   it('returns an error naming the RPC when the first call yields a non-array payload', async () => {
     const client = createChainableRpcClient({
       firstCall: { data: { unexpected: 'shape' }, error: null },

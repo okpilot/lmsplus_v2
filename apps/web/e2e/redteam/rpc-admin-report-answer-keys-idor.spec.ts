@@ -172,8 +172,9 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     const createdBy = fkRow.created_by as string
 
     // Insert one short_answer + one dialog_fill question via the service-role
-    // client (bypasses the REVOKE-gated answer-key columns + the
-    // questions_question_type_columns_check, mig 094).
+    // client, which bypasses the REVOKE-gated answer-key columns. It does NOT bypass
+    // questions_question_type_columns_check (mig 094) — Postgres evaluates a CHECK
+    // constraint for every role — so these rows still satisfy it.
     const baseQuestion = {
       organization_id: orgAId,
       bank_id: bankId,

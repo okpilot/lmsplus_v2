@@ -8,9 +8,11 @@ const { mockFrom } = vi.hoisted(() => ({
 
 const { mockFetchAllRows } = vi.hoisted(() => ({ mockFetchAllRows: vi.fn() }))
 // Spread the real module: Vitest THROWS on a mock that omits an export a consumer
-// touches — it does not silently yield undefined. Preventive here: the module under
-// test reads no other export from supabase-paginate today, so a bare { fetchAllRows }
-// mock still passes. The spread keeps that true if its graph later reaches one.
+// DEREFERENCES — it does not silently yield undefined. Precautionary here, not
+// load-bearing: quiz-report.ts does import toPageResult, but its only call site sits
+// inside the fetchAllRows page callback, which never runs while fetchAllRows itself is
+// mocked — so a bare { fetchAllRows } mock still passes today (measured). The spread
+// keeps toPageResult real if that path is ever exercised directly.
 vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/supabase-paginate')>()),
   fetchAllRows: mockFetchAllRows,

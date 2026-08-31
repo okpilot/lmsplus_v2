@@ -147,14 +147,13 @@ export async function fetchAdminReportCorrectOptionsMap(
   // answers. A set-returning RPC serializes an empty result as [], so anything else is
   // a contract breach worth surfacing. (No paging here — one row per MC question, and
   // the session question cap keeps that under max_rows.)
-  if (!Array.isArray(correctData)) {
-    const got = correctData === null ? 'null' : typeof correctData
-    return {
-      data: new Map(),
-      error: { message: `get_admin_report_correct_options: expected an array, got ${got}` },
-    }
-  }
-  const correctRows = correctData as { question_id: string; correct_option_id: string }[]
+  const parsed = toPageResult<{ question_id: string; correct_option_id: string }>(
+    correctData,
+    null,
+    'get_admin_report_correct_options',
+  )
+  if (parsed.error) return { data: new Map(), error: parsed.error }
+  const correctRows = parsed.data ?? []
   const correctMap = new Map<string, string>()
   for (const row of correctRows) {
     correctMap.set(row.question_id, row.correct_option_id)
