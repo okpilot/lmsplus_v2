@@ -388,8 +388,8 @@ reviews:
           soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
           even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Narrow carve-out: SELECTs fetching records by IDs
-          stored in an immutable, write-once column may omit the filter. Current documented cases
-          (docs/security.md §15): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
+          stored in an immutable, write-once column may omit the filter. Examples include
+          (docs/security.md §15 is the authoritative list, not this enumeration): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
           check_non_mc_answer, and submit_vfr_rt_exam_answers reading
           questions via quiz_sessions.config.question_ids (written once at session start);
           (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
