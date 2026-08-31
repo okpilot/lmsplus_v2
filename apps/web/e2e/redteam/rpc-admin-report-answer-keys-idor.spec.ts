@@ -44,25 +44,53 @@
  *  - FK2: the org-B admin calls get_admin_report_correct_options with org-A's
  *    session id (IDOR) -> the same exact RAISE string (mig 20260619000400
  *    L112, executable-identical guard block).
+ *
+ * Vector FL (#1249, red-team attack-surface matrix): the two guard layers
+ * BEFORE the org check — `auth.uid() IS NULL` and `NOT is_admin()` — had no
+ * spec anywhere. FK's positive controls always authenticate as a genuine
+ * admin; the soft-deleted-admin spec (Vector EJ) exercises only the
+ * active-user org re-select backstop. A regression dropping or
+ * short-circuiting `is_admin()` would leak MC and non-MC answer keys to ANY
+ * authenticated student for ANY completed session in their org. Both new
+ * cases target org-A's own fixture session (the genuinely leak-able
+ * short_answer + dialog_fill payload from the positive controls above), not
+ * org-B's — this is an authn/role gate, not the org-scoping IDOR that FK1/FK2
+ * cover, so there is no cross-org element to it.
+ *  - FL1/FL2: an unauthenticated (anon-key) caller -> 'Not authenticated'.
+ *  - FL3/FL4: a plain student in org-A (the ATTACKER fixture user, same org
+ *    as the target session — proving rejection is role-gated, not
+ *    org-gated) -> 'forbidden'.
  */
 
 import { expect, test } from '@playwright/test'
+import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_FK_MARKER } from './helpers/seed-markers'
 import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
   createCrossOrgUser,
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamUsers,
 } from './helpers/seed-users'
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+
 const ANSWER_KEYS_RPC = 'get_admin_report_answer_keys'
 const CORRECT_OPTIONS_RPC = 'get_admin_report_correct_options'
 // Exact RAISE string shared byte-for-byte by both RPCs (verified by reading
 // both migration bodies — see the file header comment).
 const ORG_GUARD_MESSAGE = /session not found, not in caller org, or not completed/i
+// FL: the two guard layers before the org check, also shared byte-for-byte
+// by both RPCs (`IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not
+// authenticated'` / `IF NOT public.is_admin() THEN RAISE EXCEPTION
+// 'forbidden'` — read from both migration bodies, same as ORG_GUARD_MESSAGE).
+const UNAUTHENTICATED_MESSAGE = /not authenticated/i
+const FORBIDDEN_MESSAGE = /forbidden/i
 
 const SHORT_ANSWER_QNUM = `${E2E_REDTEAM_FK_MARKER} short-answer`
 const DIALOG_FILL_QNUM = `${E2E_REDTEAM_FK_MARKER} dialog-fill`
@@ -89,6 +117,7 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
   let admin: ReturnType<typeof getAdminClient>
   let orgAAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgBAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let orgAStudentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgAId: string
   let orgBId: string
   let orgAStudentId: string
@@ -144,6 +173,11 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
 
     const orgBStudent = await createCrossOrgUser()
     orgBStudentId = orgBStudent.userId
+
+    // FL3/FL4: a plain (non-admin) student in org-A — the SAME org as the
+    // target fixture session — so the rejection below is provably role-gated
+    // (is_admin() false), not org-gated (which FK1/FK2 already cover).
+    orgAStudentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     // easa_subjects is shared reference data (no organization_id column — see
     // rpc-cross-tenant-reports.spec.ts / seed-quiz.ts), so the same subjectId
@@ -415,6 +449,44 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     })
     expect(error).not.toBeNull()
     expect(error?.message ?? '').toMatch(ORG_GUARD_MESSAGE)
+    expect(data).toBeNull()
+  })
+
+  test('FL1: an unauthenticated caller cannot read non-MC answer keys', async () => {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+    const { data, error } = await anon.rpc(ANSWER_KEYS_RPC, { p_session_id: orgASessionId })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(UNAUTHENTICATED_MESSAGE)
+    expect(data).toBeNull()
+  })
+
+  test('FL2: an unauthenticated caller cannot read correct-option keys', async () => {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+    const { data, error } = await anon.rpc(CORRECT_OPTIONS_RPC, { p_session_id: orgASessionId })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(UNAUTHENTICATED_MESSAGE)
+    expect(data).toBeNull()
+  })
+
+  test('FL3: a plain student caller in the same org cannot read non-MC answer keys', async () => {
+    const { data, error } = await orgAStudentClient.rpc(ANSWER_KEYS_RPC, {
+      p_session_id: orgASessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(FORBIDDEN_MESSAGE)
+    expect(data).toBeNull()
+  })
+
+  test('FL4: a plain student caller in the same org cannot read correct-option keys', async () => {
+    const { data, error } = await orgAStudentClient.rpc(CORRECT_OPTIONS_RPC, {
+      p_session_id: orgASessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(FORBIDDEN_MESSAGE)
     expect(data).toBeNull()
   })
 })
