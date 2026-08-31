@@ -127,8 +127,8 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
   //  - answeredQuestions = distinct questions answered (denominator for Skipped)
   // The multi-row non-MC types store one row per blank/slot/zone — dialog_fill blanks,
-  // ordering slots (MAX_ORDER_ITEMS 50), diagram_label zones (MAX_ZONES 50) — and a session
-  // can hold up to 500 questions (quick_quiz cap), so this can exceed PostgREST's 1000-row
+  // ordering slots, diagram_label zones — and a session can hold up to 500 questions
+  // (quick_quiz cap), so this can exceed PostgREST's max_rows
   // cap — page through with fetchAllRows so the counts never silently truncate.
   const { data: answerRows, error: answerRowsError } = await fetchAllRows<{ question_id: string }>(
     () =>

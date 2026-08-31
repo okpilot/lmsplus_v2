@@ -53,8 +53,8 @@ export async function getQuizReportQuestions(opts: {
   // the report has always used), slice that list to the page window, then fetch
   // ALL answer rows for those questions. totalCount = distinct question count.
   // Page through ALL answer rows: the multi-row non-MC types (dialog_fill blanks, ordering
-  // slots, diagram_label zones — 50 max each) store one row per blank/slot/zone, and a
-  // session can hold up to 500 questions, exceeding PostgREST's 1000-row cap. A single
+  // slots, diagram_label zones) store one row per blank/slot/zone, and a session can
+  // hold up to 500 questions, exceeding PostgREST's max_rows cap. A single
   // .select() would silently truncate, dropping question_ids from the order/total.
   const { data: orderRows, error: orderError } = await fetchAllRows<{ question_id: string }>(
     () =>
@@ -148,8 +148,8 @@ export async function getQuizReportQuestions(opts: {
   // Non-MC answer keys (short_answer canonical, dialog_fill per-blank, ordering
   // per-slot, diagram_label per-zone). Zero rows for an all-MC session (e.g.
   // internal_exam) — not an error. fetchAllRpcRows pages past PostgREST's
-  // max_rows cap, which one session can exceed at 500 questions x 50
-  // blanks/slots/zones; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
+  // max_rows cap, which one session can exceed at 500 questions each contributing
+  // one row per blank/slot/zone; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
   // (mig 133) isn't in the generated types yet, hence the explicit type arg —
   // TODO: drop it once packages/db types are regenerated.
   const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows<AnswerKeyRow>({

@@ -355,10 +355,14 @@ describe('fetchAdminReportCorrectOptionsMap', () => {
     expect(result.data.size).toBe(0)
   })
 
-  it('returns an empty map without erroring when the RPC yields a non-array result', async () => {
+  it('surfaces an error naming the RPC when it yields a non-array result', async () => {
+    // Coercing this to an empty map would report success while showing no correct answers.
     const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const result = await fetchAdminReportCorrectOptionsMap(fakeAuthClient(mockRpc), 'sess-1')
-    expect(result).toEqual({ data: new Map(), error: null })
+    expect(result).toEqual({
+      data: new Map(),
+      error: { message: 'get_admin_report_correct_options: expected an array, got null' },
+    })
   })
 })
 
@@ -400,11 +404,14 @@ describe('fetchAdminReportAnswerKeyMap', () => {
     expect(result).toEqual({ data: new Map(), error: null })
   })
 
-  it('returns an empty map without erroring when the RPC yields a non-array result', async () => {
-    // A malformed non-array payload must not propagate past the runtime guard.
+  it('surfaces an error naming the RPC when it yields a non-array result', async () => {
+    // Coercing this to an empty map would report success while showing no answer keys.
     const mockRpc = vi.fn().mockResolvedValue({ data: {}, error: null })
     const result = await fetchAdminReportAnswerKeyMap(fakeAuthClient(mockRpc), 'sess-1')
-    expect(result).toEqual({ data: new Map(), error: null })
+    expect(result).toEqual({
+      data: new Map(),
+      error: { message: 'get_admin_report_answer_keys: expected an array, got object' },
+    })
   })
 
   it('discards an at-cap first RPC result and surfaces the error from the paged re-fetch', async () => {

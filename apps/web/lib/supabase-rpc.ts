@@ -1,5 +1,5 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows, POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
+import { fetchAllRows, POSTGREST_MAX_ROWS, toPageResult } from '@/lib/supabase-paginate'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type RpcFn = (
@@ -68,7 +68,14 @@ export async function fetchAllRpcRows<T>(opts: {
   const { supabase, fn, args, orderColumns } = opts
   const { data, error } = await rpc<T[]>(supabase, fn, args)
   if (error) return { data: [], error }
-  const rows = Array.isArray(data) ? data : []
+  // Same disposition as toPageResult, and for the same reason: silently coercing a
+  // non-array to [] hands the caller a SUCCESSFUL report with no answer keys — the
+  // silent-wrong-result class this helper exists to close. A set-returning RPC
+  // serializes an empty result as [], never null or a scalar, so anything else is a
+  // contract breach worth surfacing.
+  const first = toPageResult<T>(data, null, fn)
+  if (first.error) return { data: [], error: first.error }
+  const rows = first.data ?? []
   if (rows.length < POSTGREST_MAX_ROWS) return { data: rows, error: null }
 
   const client = supabase as unknown as ChainableRpcFn
@@ -80,22 +87,7 @@ export async function fetchAllRpcRows<T>(opts: {
         query = query.order(column, { ascending: true, nullsFirst: true })
       }
       const { data: pageData, error: pageError } = await query.range(from, to)
-      if (pageError) return { data: null, error: pageError }
-      // Three-way choice on a non-array payload, and only one is safe. Coercing to
-      // null makes fetchAllRows (`if (data) all.push(...data)`) skip the page and
-      // return a SHORT list that looks complete. Passing it through makes that same
-      // spread throw a raw TypeError from inside the pager. So: surface a controlled
-      // error, which fetchAllRows turns into `{ data: [], error }` for the caller.
-      // An RPC can legitimately resolve a scalar or object, so this IS reachable here
-      // — unlike the table-query sibling in admin-report-helpers.ts, where `.range()`
-      // only ever yields an array or null.
-      if (pageData !== null && !Array.isArray(pageData)) {
-        return {
-          data: null,
-          error: { message: `${fn}: expected an array page, got ${typeof pageData}` },
-        }
-      }
-      return { data: pageData as T[] | null, error: null }
+      return toPageResult<T>(pageData, pageError, fn)
     },
   )
 }

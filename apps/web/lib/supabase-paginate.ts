@@ -10,6 +10,30 @@ type CountResult = { count: number | null; error: { message: string } | null }
 type PageResult<T> = { data: T[] | null; error: { message: string } | null }
 
 /**
+ * Normalise one `.range()` page into fetchAllRows' getPage contract.
+ *
+ * Any page fetched inside the paging loop lies within `[0, total)` — the count call
+ * already reported rows there — so ANY non-array payload is an inconsistency between
+ * the count and the page, `null` included. Erroring is the only safe response:
+ * coercing to null makes fetchAllRows (`if (data) all.push(...data)`) SKIP the page
+ * and return a short list that looks complete, and passing a truthy non-array through
+ * makes that same spread throw a raw TypeError from inside the pager. A genuinely
+ * empty page is `[]`, which passes and contributes no rows.
+ */
+export function toPageResult<T>(
+  pageData: unknown,
+  pageError: { message: string } | null,
+  source: string,
+): PageResult<T> {
+  if (pageError) return { data: null, error: pageError }
+  if (!Array.isArray(pageData)) {
+    const got = pageData === null ? 'null' : typeof pageData
+    return { data: null, error: { message: `${source}: expected an array, got ${got}` } }
+  }
+  return { data: pageData as T[], error: null }
+}
+
+/**
  * Fetch ALL rows for a query that would otherwise truncate at PostgREST's max_rows cap.
  * Counts first (an out-of-range `.range()` returns PostgREST 416, so we must know the total to
  * never request a page past the end), then pages with `.range()` until every row is read.

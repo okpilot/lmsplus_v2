@@ -186,11 +186,32 @@ describe('fetchAllRpcRows', () => {
     })
     expect(result).toEqual({
       data: [],
-      error: { message: `${FN}: expected an array page, got object` },
+      error: { message: `${FN}: expected an array, got object` },
     })
   })
 
-  it('returns no rows without erroring when the first call yields a non-array payload', async () => {
+  it('returns an error naming the RPC when a page payload after an at-cap first call is null', async () => {
+    const staleFirstCall = fixture('stale', 1000)
+    const client = createChainableRpcClient({
+      firstCall: { data: staleFirstCall, error: null },
+      count: { count: 1000, error: null },
+      pages: [{ data: null, error: null }],
+    })
+    const result = await fetchAllRpcRows<{ id: string }>({
+      supabase: client as unknown as never,
+      fn: FN,
+      args: ARGS,
+      orderColumns: ORDER_COLUMNS,
+    })
+    // A page inside the loop lies within [0, total) — the count already reported rows
+    // there — so a null page is a count/page disagreement, not an empty page.
+    expect(result).toEqual({
+      data: [],
+      error: { message: `${FN}: expected an array, got null` },
+    })
+  })
+
+  it('returns an error naming the RPC when the first call yields a non-array payload', async () => {
     const client = createChainableRpcClient({
       firstCall: { data: { unexpected: 'shape' }, error: null },
     })
@@ -200,6 +221,9 @@ describe('fetchAllRpcRows', () => {
       args: ARGS,
       orderColumns: ORDER_COLUMNS,
     })
-    expect(result).toEqual({ data: [], error: null })
+    expect(result).toEqual({
+      data: [],
+      error: { message: `${FN}: expected an array, got object` },
+    })
   })
 })

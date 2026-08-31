@@ -42,7 +42,7 @@ export async function fetchAdminSessionForReport<T>(opts: {
 /**
  * Page through ALL quiz_session_answers rows for a session, on adminClient.
  * A dialog_fill question stores one row per blank, and a session can hold up to
- * 500 questions (quick_quiz cap) x up to 50 blanks — exceeding PostgREST's
+ * 500 questions (quick_quiz cap), so the row count is per-blank — exceeding PostgREST's
  * max_rows cap. A single .select() would silently truncate, so this pages
  * through fetchAllRows. `select`/`orderColumns` are parameters precisely so callers
  * needing different columns or sort keys share one paging implementation rather
@@ -140,9 +140,19 @@ export async function fetchAdminReportCorrectOptionsMap(
     { p_session_id: sessionId },
   )
   if (rpcError) return { data: new Map(), error: rpcError }
-  const correctRows = Array.isArray(correctData)
-    ? (correctData as { question_id: string; correct_option_id: string }[])
-    : []
+  // Same disposition as fetchAllRpcRows: coercing a non-array to [] would hand the
+  // caller an empty map with error: null, i.e. a SUCCESSFUL report showing no correct
+  // answers. A set-returning RPC serializes an empty result as [], so anything else is
+  // a contract breach worth surfacing. (No paging here — one row per MC question, and
+  // the session question cap keeps that under max_rows.)
+  if (!Array.isArray(correctData)) {
+    const got = correctData === null ? 'null' : typeof correctData
+    return {
+      data: new Map(),
+      error: { message: `get_admin_report_correct_options: expected an array, got ${got}` },
+    }
+  }
+  const correctRows = correctData as { question_id: string; correct_option_id: string }[]
   const correctMap = new Map<string, string>()
   for (const row of correctRows) {
     correctMap.set(row.question_id, row.correct_option_id)
@@ -158,7 +168,7 @@ export async function fetchAdminReportCorrectOptionsMap(
  * generated database types, so this routes through the fetchAllRpcRows<T>()
  * wrapper — it invokes `.rpc` on the client directly, preserving the
  * `this`-binding (see lib/supabase-rpc.ts), and pages past PostgREST's max_rows
- * cap (a session can hold up to 500 questions x 50 blanks/slots/zones). TODO:
+ * cap (500 questions per session, each contributing one row per blank/slot/zone). TODO:
  * drop the explicit type arg once packages/db types are regenerated. Runs on the
  * auth client — adminClient has no auth.uid() context.
  */
