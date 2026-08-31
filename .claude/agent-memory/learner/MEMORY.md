@@ -130,11 +130,14 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Concurrent subagents dispatched onto the same file — one's restore step reverts a sibling's un-related edit | 1 | 2026-08-30 | WATCHING (row 673) |
 | Delegation-prompt/scaffolding wording leaks verbatim into a shipped code comment | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
 | Partial `vi.mock` throws when module later gains a new export the mock omits | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
+| Test title pins a silent-fallback/coercion defect as intended behavior, inverted only when the defect is fixed | 2 | 2026-08-31 | RULE CANDIDATE (2) → code-style.md §7 (row 674) |
+| Reviewer asserts a process/pipeline-compliance violation it cannot observe from its inputs (infers orchestrator intent) | 1 | 2026-08-31 | WATCHING — FALSE POSITIVE this instance (row 675) |
+| Agent's own memory tracker row cites a stale file-state fact (line count) an earlier commit already changed | 1 | 2026-08-31 | WATCHING (row 676) |
 
 ## Durable knowledge (cross-agent)
 
 - Promotion threshold = **2 distinct mechanisms**, different commits. Schedule Sweep-On-Rule-Promotion. Tracker > rule-file parenthetical counts.
-- Biggest recurring defect: **partial fix to a sibling-file group** (19) — grep siblings before committing.
+- Biggest recurring defect: **partial fix to a sibling-file group** (20) — grep siblings before committing. `fix/991` non-MC report non-array-coercion fix (c90caf61→fb7333f4→66debf76→aec5dd24) is the latest illustration: three successive commits, each discovering more sites of the SAME defect class via grep-after-fix rather than an upfront class enumeration — the already-promoted CLAUDE.md rule ("grep the same file AND sibling files... before committing") is being followed but not sufficing (row 674).
 - POSITIVE (`bf2b6672`): §10 clause 3 grep, run proactively, caught 4 sites CR never named — mechanical checks beat review rounds.
 - OPEN AMBIGUITY (2026-08-25): unwritten "2nd-branch" gate applied inconsistently (519/655 held it, 660 didn't).
 - POSITIVE (fix/991, `d2d3bdb3`): 2 already-promoted gates (§10, doc-updater hallucination) caught drift pre-push; rows 639/582 incremented, no new rule.
