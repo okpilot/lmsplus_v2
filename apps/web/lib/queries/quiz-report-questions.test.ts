@@ -8,9 +8,12 @@ const { mockFrom } = vi.hoisted(() => ({
 
 const { mockFetchAllRows } = vi.hoisted(() => ({ mockFetchAllRows: vi.fn() }))
 // Spread the real module: Vitest THROWS on a mock that omits an export a consumer
-// touches ("No \"POSTGREST_MAX_ROWS\" export is defined on the ... mock") — it does not
-// silently yield undefined. This file's graph reaches that constant through
-// fetchAllRpcRows (supabase-rpc.ts), so a bare { fetchAllRows } mock fails 13 tests here.
+// DEREFERENCES ("No \"POSTGREST_MAX_ROWS\" export is defined on the ... mock") — it does
+// not silently yield undefined. Load-bearing here, unlike in quiz-report.test.ts: this
+// file's graph reaches supabase-paginate through fetchAllRpcRows (supabase-rpc.ts) AND
+// through quiz-report-questions.ts's own toPageResult call, both on executed paths, so a
+// bare { fetchAllRows } mock fails a large share of this file. No count stated on purpose
+// — it moves whenever a call site is added (it was 13 at 47524d9c, 14 after aec5dd24).
 vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/supabase-paginate')>()),
   fetchAllRows: mockFetchAllRows,

@@ -43,6 +43,28 @@ type ChainableRpcFn = {
 }
 
 /**
+ * Count-only probe for the paged fallback.
+ *
+ * A null count (a count-only response with no parseable Content-Range) must never reach
+ * fetchAllRows, which coerces it to 0. This probe runs ONLY because the first unpaged call
+ * came back at the cap, so "0 rows" there would skip the paging loop and discard a full
+ * page as a successful empty result. An error is returned as-is, so a real count-query
+ * failure surfaces its own message rather than being relabelled as a missing count.
+ */
+async function fetchExactCount(
+  client: ChainableRpcFn,
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<{ count: number | null; error: { message: string } | null }> {
+  const { count, error } = await client.rpc(fn, args, { count: 'exact', head: true })
+  if (error) return { count: null, error }
+  if (count === null) {
+    return { count: null, error: { message: `${fn}: count query returned no exact count` } }
+  }
+  return { count, error: null }
+}
+
+/**
  * Fetch ALL rows from a set-returning RPC that would otherwise silently truncate at
  * PostgREST's `max_rows` cap (`POSTGREST_MAX_ROWS`) — e.g. an answer-key RPC returning one row per
  * blank/slot/zone across a whole session.
@@ -58,6 +80,12 @@ type ChainableRpcFn = {
  * carries no `ORDER BY`, so splicing its rows with ordered, ranged pages could duplicate or
  * drop rows. A legitimate exactly-at-cap result therefore costs one wasteful but CORRECT
  * extra round trip — an acceptable trade for keeping the common path a single request.
+ *
+ * The first call's payload goes through toPageResult for the same reason its pages do:
+ * silently coercing a non-array to [] hands the caller a SUCCESSFUL report with no answer
+ * keys — the silent-wrong-result class this helper exists to close. A set-returning RPC
+ * serializes an empty result as [], never null or a scalar, so anything else is a contract
+ * breach worth surfacing.
  */
 export async function fetchAllRpcRows<T>(opts: {
   supabase: SupabaseClient
@@ -68,11 +96,6 @@ export async function fetchAllRpcRows<T>(opts: {
   const { supabase, fn, args, orderColumns } = opts
   const { data, error } = await rpc<T[]>(supabase, fn, args)
   if (error) return { data: [], error }
-  // Same disposition as toPageResult, and for the same reason: silently coercing a
-  // non-array to [] hands the caller a SUCCESSFUL report with no answer keys — the
-  // silent-wrong-result class this helper exists to close. A set-returning RPC
-  // serializes an empty result as [], never null or a scalar, so anything else is a
-  // contract breach worth surfacing.
   const first = toPageResult<T>(data, null, fn)
   if (first.error) return { data: [], error: first.error }
   const rows = first.data ?? []
@@ -80,17 +103,7 @@ export async function fetchAllRpcRows<T>(opts: {
 
   const client = supabase as unknown as ChainableRpcFn
   return fetchAllRows<T>(
-    async () => {
-      // A null count from a count-only response (no parseable Content-Range) would be
-      // coerced to 0 by fetchAllRows, and we only reach here BECAUSE the first call came
-      // back at the cap — so "0 rows" would discard a full page and read as success.
-      const { count, error } = await client.rpc(fn, args, { count: 'exact', head: true })
-      if (error) return { count: null, error }
-      if (count === null) {
-        return { count: null, error: { message: `${fn}: count query returned no exact count` } }
-      }
-      return { count, error: null }
-    },
+    () => fetchExactCount(client, fn, args),
     async (from, to) => {
       let query: RpcChain = client.rpc(fn, args)
       for (const column of orderColumns) {

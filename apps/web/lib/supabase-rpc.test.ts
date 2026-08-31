@@ -233,6 +233,26 @@ describe('fetchAllRpcRows', () => {
     })
   })
 
+  it('returns the count error without paging when the count-only call fails', async () => {
+    // The count-only call is delegated to fetchExactCount, which inspects `error` before
+    // touching `count` — pin that a real count-query error propagates UNCHANGED rather than
+    // being relabelled by the null-count branch, and that no page fetch is ever started.
+    const staleFirstCall = fixture('stale', 1000)
+    const client = createChainableRpcClient({
+      firstCall: { data: staleFirstCall, error: null },
+      count: { count: null, error: { message: 'count query failed' } },
+      pages: [{ data: fixture('page', 3), error: null }],
+    })
+    const result = await fetchAllRpcRows<{ id: string }>({
+      supabase: client as unknown as never,
+      fn: FN,
+      args: ARGS,
+      orderColumns: ORDER_COLUMNS,
+    })
+    expect(result).toEqual({ data: [], error: { message: 'count query failed' } })
+    expect(client.rangeCalls).toEqual([])
+  })
+
   it('returns an error naming the RPC when the first call yields a non-array payload', async () => {
     const client = createChainableRpcClient({
       firstCall: { data: { unexpected: 'shape' }, error: null },
