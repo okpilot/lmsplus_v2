@@ -70,11 +70,12 @@ export async function fetchSessionAnswerRows<T extends { question_id: string }>(
       }
       // A non-literal `select` string defeats Supabase's column-typed select() overload
       // (it can't verify columns at compile time), so the resolved row type collapses to
-      // an opaque error-marker type. Cast at the boundary. This cast is NOT paired with an
-      // Array.isArray guard, unlike the RPC-result casts below — deliberately: .range()
-      // yields an array or null, and fetchAllRows does `if (data) all.push(...data)`, so a
-      // non-array payload THROWS at the spread. Guarding to null here would instead make
-      // fetchAllRows skip the page silently and return a short list that looks complete.
+      // an opaque error-marker type. Cast at the boundary. Deliberately NOT paired with an
+      // Array.isArray guard, unlike fetchAllRpcRows' page closure (lib/supabase-rpc.ts),
+      // which returns a controlled error on a non-array payload: this is a TABLE query,
+      // and `.range()` on one only ever yields an array or null, so the case that guard
+      // covers is unreachable here. An RPC can resolve a scalar or object, which is why
+      // the asymmetry is intentional rather than an omission.
       const { data, error } = await query.range(from, to)
       return { data: data as unknown as T[] | null, error }
     },

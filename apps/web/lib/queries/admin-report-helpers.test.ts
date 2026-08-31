@@ -66,18 +66,26 @@ function buildChain(returnValue: unknown, captured: CapturedCall) {
  * Queues one buildChain() response per adminClient.from() call, in order, and
  * returns the captured method-args per call — so a test can assert on the exact
  * columns/filters/order a specific `.from()` call issued, not just the fixture
- * it was handed back.
+ * it was handed back. Also captures the table name passed to each `.from()`
+ * call: without this, a regression that repoints a query at the wrong table
+ * (e.g. `student_responses` instead of `quiz_session_answers`) passes every
+ * column/filter assertion below unchanged.
  */
-function mockFromSequence(...responses: unknown[]): CapturedCall[] {
+function mockFromSequence(...responses: unknown[]): {
+  capturedByCall: CapturedCall[]
+  tablesByCall: string[]
+} {
   let call = 0
   const capturedByCall: CapturedCall[] = []
-  mockAdminFrom.mockImplementation(() => {
+  const tablesByCall: string[] = []
+  mockAdminFrom.mockImplementation((table: string) => {
     const idx = call++
     const captured = emptyCapture()
     capturedByCall[idx] = captured
+    tablesByCall[idx] = table
     return buildChain(responses[idx] ?? { data: null }, captured)
   })
-  return capturedByCall
+  return { capturedByCall, tablesByCall }
 }
 
 // A minimal auth-client stand-in exposing only `.rpc`, matching what
@@ -96,7 +104,7 @@ beforeEach(() => {
 
 describe('fetchAdminSessionForReport', () => {
   it('scopes the query to the session id, the org id, and non-deleted rows', async () => {
-    const capturedByCall = mockFromSequence({
+    const { capturedByCall, tablesByCall } = mockFromSequence({
       data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' },
       error: null,
     })
@@ -106,6 +114,7 @@ describe('fetchAdminSessionForReport', () => {
       select: 'id, ended_at',
       logPrefix: '[test]',
     })
+    expect(tablesByCall[0]).toBe('quiz_sessions')
     const captured = capturedByCall[0]
     expect(captured?.select[0]).toEqual(['id, ended_at'])
     expect(captured?.eq).toContainEqual(['id', 'sess-1'])
@@ -157,7 +166,7 @@ describe('fetchAdminSessionForReport', () => {
 describe('fetchSessionAnswerRows', () => {
   it('pages using the caller-supplied select columns and session filter', async () => {
     // Mirrors the summary caller's shape: select='question_id', orderColumns=['id'].
-    const capturedByCall = mockFromSequence(
+    const { capturedByCall, tablesByCall } = mockFromSequence(
       { count: 2, error: null }, // count query
       { data: [{ question_id: 'q1' }, { question_id: 'q2' }], error: null }, // page query
     )
@@ -166,6 +175,7 @@ describe('fetchSessionAnswerRows', () => {
       select: 'question_id',
       orderColumns: ['id'],
     })
+    expect(tablesByCall).toEqual(['quiz_session_answers', 'quiz_session_answers'])
     const pageCapture = capturedByCall[1]
     // Narrow the indexed access (noUncheckedIndexedAccess): a missing page call is a
     // real failure — fetchSessionAnswerRows must issue count THEN page.
@@ -180,7 +190,7 @@ describe('fetchSessionAnswerRows', () => {
     // Mirrors the questions caller's shape: select='question_id, answered_at',
     // orderColumns=['answered_at', 'id'] — proves the options are parameters,
     // not hardcoded to the shape used by the sibling call site above.
-    const capturedByCall = mockFromSequence(
+    const { capturedByCall, tablesByCall } = mockFromSequence(
       { count: 1, error: null },
       { data: [{ question_id: 'q1' }], error: null },
     )
@@ -189,6 +199,7 @@ describe('fetchSessionAnswerRows', () => {
       select: 'question_id, answered_at',
       orderColumns: ['answered_at', 'id'],
     })
+    expect(tablesByCall).toEqual(['quiz_session_answers', 'quiz_session_answers'])
     const pageCapture = capturedByCall[1]
     // Narrow the indexed access (noUncheckedIndexedAccess): a missing page call is a
     // real failure — fetchSessionAnswerRows must issue count THEN page.
@@ -242,8 +253,9 @@ describe('fetchSessionAnswerRows', () => {
 
 describe('fetchPageAnswerRows', () => {
   it('filters to the session and the page question ids, ordered by first-answered', async () => {
-    const capturedByCall = mockFromSequence({ data: [], error: null })
+    const { capturedByCall, tablesByCall } = mockFromSequence({ data: [], error: null })
     await fetchPageAnswerRows('sess-1', ['q1', 'q2'])
+    expect(tablesByCall[0]).toBe('quiz_session_answers')
     const captured = capturedByCall[0]
     const selectArg = captured?.select[0]?.[0]
     expect(typeof selectArg).toBe('string')
@@ -284,8 +296,9 @@ describe('fetchPageAnswerRows', () => {
 
 describe('fetchPageQuestions', () => {
   it('filters to the page question ids and requests the question_type column', async () => {
-    const capturedByCall = mockFromSequence({ data: [], error: null })
+    const { capturedByCall, tablesByCall } = mockFromSequence({ data: [], error: null })
     await fetchPageQuestions(['q1', 'q2'])
+    expect(tablesByCall[0]).toBe('questions')
     const captured = capturedByCall[0]
     const selectArg = captured?.select[0]?.[0]
     expect(typeof selectArg).toBe('string')

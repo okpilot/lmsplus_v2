@@ -79,13 +79,23 @@ export async function fetchAllRpcRows<T>(opts: {
       for (const column of orderColumns) {
         query = query.order(column, { ascending: true, nullsFirst: true })
       }
-      // Not paired with an Array.isArray guard, deliberately — mirrors
-      // fetchSessionAnswerRows (admin-report-helpers.ts): fetchAllRows does
-      // `if (data) all.push(...data)`, so a non-array payload THROWS at the spread.
-      // Guarding to null here would instead make fetchAllRows silently skip the page
-      // and return a short list that looks complete.
       const { data: pageData, error: pageError } = await query.range(from, to)
-      return { data: pageData as T[] | null, error: pageError }
+      if (pageError) return { data: null, error: pageError }
+      // Three-way choice on a non-array payload, and only one is safe. Coercing to
+      // null makes fetchAllRows (`if (data) all.push(...data)`) skip the page and
+      // return a SHORT list that looks complete. Passing it through makes that same
+      // spread throw a raw TypeError from inside the pager. So: surface a controlled
+      // error, which fetchAllRows turns into `{ data: [], error }` for the caller.
+      // An RPC can legitimately resolve a scalar or object, so this IS reachable here
+      // — unlike the table-query sibling in admin-report-helpers.ts, where `.range()`
+      // only ever yields an array or null.
+      if (pageData !== null && !Array.isArray(pageData)) {
+        return {
+          data: null,
+          error: { message: `${fn}: expected an array page, got ${typeof pageData}` },
+        }
+      }
+      return { data: pageData as T[] | null, error: null }
     },
   )
 }

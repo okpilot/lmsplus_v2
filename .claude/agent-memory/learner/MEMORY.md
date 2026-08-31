@@ -139,6 +139,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - OPEN AMBIGUITY (2026-08-25): unwritten "2nd-branch" gate applied inconsistently (519/655 held it, 660 didn't).
 - POSITIVE (fix/991, `d2d3bdb3`): 2 already-promoted gates (§10, doc-updater hallucination) caught drift pre-push; rows 639/582 incremented, no new rule.
 - Not an escalation (2026-08-30): PR #1247's prose-accuracy findings (rows 604/663/667) match an already-high baseline (cross-agent-lessons.md).
+- POSITIVE (fix/991, `d4837e6a`): comment-only 3-line fix, 4/4 agents clean (0 blocking/critical). Its lone semantic-reviewer ISSUE — an incomplete "Deliberately NOT swept" enumeration in the commit MESSAGE, omitting an item from a bucket it names, judged not worth reopening — is row 604's mechanism (fix-for-a-§10-claim commit introducing its own fresh incomplete claim) recurring on its own fix commit; NOT double-counted, row 604 stays at 23.
 
 ## Topic pointers
 
