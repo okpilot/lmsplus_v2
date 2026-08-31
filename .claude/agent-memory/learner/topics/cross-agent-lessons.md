@@ -159,3 +159,53 @@ a new spike. A prose-accuracy fix remains the single highest-risk site for a fre
   replaced the literal count with a derivation command, per `code-style.md` §10 rule 2 exactly as
   designed. Cited as evidence the existing rule works when followed — not a new pattern.
   - **PROPOSAL (learner proposes; orchestrator/user decides — NOT applied to `agent-learner.md` by this pass):** state explicitly in `agent-learner.md` (or `agent-memory.md` § Tracker state machine, where the promotion-related conventions already live) that (a) the literal "2+ across different commits" bar is ALWAYS sufficient to reach RULE CANDIDATE and to promote a narrow/cheap mechanical remedy — same-branch commits count; and (b) a promotion whose remedy imposes a NEW MANDATORY review step on every future commit matching a broad criterion (as opposed to a narrow checklist addition to an existing step) may additionally require evidence from a 2nd branch before the orchestrator promotes it, specifically because same-branch instances risk being one continuous causal chain rather than independently-confirmed recurrences of a durable systemic pattern. Naming the criterion (remedy cost/blast-radius, not branch-count-for-its-own-sake) would let future rows apply it consistently instead of ad hoc.
+- **POSITIVE (fix/991, `d4837e6a`):** comment-only 3-line fix, 4/4 agents clean (0 blocking/critical). Its lone semantic-reviewer ISSUE — an incomplete "Deliberately NOT swept" enumeration in the commit MESSAGE, omitting an item from a bucket it names, judged not worth reopening — is row 604's mechanism (fix-for-a-§10-claim commit introducing its own fresh incomplete claim) recurring on its own fix commit; NOT double-counted, row 604 stayed at 23 pending the next distinct-mechanism instance.
+
+## Commit `59005823` (fix/fetchallrows-null-page-sweep) — 2026-08-31 learner pass
+
+Origin: 2 full reviewer rounds on `fetchAllRows`'s own null-page guard + a `listOrgStudents` fix.
+Across both rounds and all 4 core agents, ZERO code defects — every finding was inaccurate PROSE.
+
+- **Row 604 (+1 → 24), first confirmed 2nd-BRANCH instance:** round 1 (pre-amend `47fed406`)
+  semantic-reviewer caught a false claim in a docstring rewritten WHILE fixing other false claims —
+  the exact "fixing a claim ships a fresh claim" mechanism. Round 2 (post-amend `5dd85e3e`) found two
+  more in the commit message: "six comment blocks corrected" when eight were, and (see row 677
+  below) a stale test-count claim. A SUGGESTION also caught "any other non-array threw a raw
+  TypeError" — false for iterables (a string spreads into characters, a `Set` into elements). All
+  four sub-instances are in the SAME commit/amend family, so counted as ONE increment, per the
+  PR #1247 precedent above (3 distinct same-PR instances = +1). This branch is genuinely distinct
+  from PR #1247's `fix/991-admin-non-mc-report` (cut from its merge commit `e89ead6a`), so it is the
+  first hard evidence for row 604 specifically satisfying the "2nd-branch" gate discussed above —
+  though moot here, since the remedy (§10 clause 3, "read the whole comment block") is ALREADY
+  written; the recurrence is an enforcement-depth gap, not a missing rule, consistent with the
+  "§10 continues recurring post-promotion" meta-lesson above.
+- **Row 677 (new, WATCHING count=1) — quantified claim invalidated by a same-commit AMEND:** the
+  commit message stated "reverting the page routing reddens exactly the two new page tests" — TRUE
+  when written. The commit was then amended to add a third test; the sentence carried forward
+  verbatim and became false. Distinct from row 604 (a fix INTRODUCING a wrong claim from scratch):
+  here the claim was correct at write time and went stale because the ARTIFACT IT DESCRIBES changed
+  under it, unverified before the final push. Also an instance of §10 clause 2 (never enumerate an
+  open set) in a temporal guise — the set of tests that redden under a mutation is open across
+  amends, not just across later commits.
+- **Row 678 (new, WATCHING count=1) — Explore-agent arithmetic error propagated unverified:** an
+  Explore agent miscounted "7 single-function files" (actually 8) during planning; the error
+  propagated unchanged into the plan, the commit message ("15/10" call sites instead of the true
+  "16/11"), and the orchestrator's own report to the user. `agent-workflow.md § Finding Validation`
+  already carries a directly-adjacent rule — "a critic/reviewer told me X → verify X yourself"
+  (precedent `3a50780a`) — but that bullet's example list is about critics repeating an assertion,
+  not an Explore agent's own arithmetic/enumeration output. If this recurs, propose adding "an
+  Explore agent's file/call-site COUNT" as an explicit example in that bullet's claim-class table.
+- **Not an escalation:** this cycle's prose-only distribution matches the already-high baseline set
+  by PR #1247 (rows 604/663/667) — see that section above. Two full rounds × four agents produced
+  no code defects at all, only inaccurate prose, continuing rather than worsening the trend.
+- **PROPOSAL (learner proposes, single-cycle evidence — NOT promoted, do not implement this cycle):**
+  every high-value catch this cycle came from EXECUTING something — semantic-reviewer mutation-
+  tested the fix to find the stale "exactly two tests" claim (row 677); the orchestrator settled the
+  spread-vs-array iterable question with `node -e`; a live PostgREST probe settled an empty-table
+  question. Every miss came from reasoning about prose instead. This reinforces the already-written
+  `agent-workflow.md § Delegation Protocol` "Prefer executable verification over analysis" rule, but
+  sharpens it: only `test-writer`'s own agent definition currently MANDATES execution, and
+  `plan-critic.md` explicitly FORBIDS it (`plan-critic` is read-only by design). Consider — in a
+  dedicated rules PR, not this cycle — adding an evidence/execution field to `semantic-reviewer.md`
+  and `code-reviewer.md` for any finding that asserts RUNTIME behavior (as opposed to a static
+  structural check like a line count or an import).
