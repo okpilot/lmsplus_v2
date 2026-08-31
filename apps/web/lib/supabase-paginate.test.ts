@@ -1,5 +1,46 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fetchAllRows } from './supabase-paginate'
+import { fetchAllRows, toPageResult } from './supabase-paginate'
+
+describe('toPageResult', () => {
+  it('passes through the page error unchanged, ignoring the payload', () => {
+    const result = toPageResult({ unexpected: 'shape' }, { message: 'page boom' }, 'my_source')
+    expect(result).toEqual({ data: null, error: { message: 'page boom' } })
+  })
+
+  it('names the source and reports "null" when the payload is null', () => {
+    const result = toPageResult(null, null, 'my_source')
+    expect(result).toEqual({
+      data: null,
+      error: { message: 'my_source: expected an array, got null' },
+    })
+  })
+
+  it('names the source and reports the type when the payload is a non-array object', () => {
+    const result = toPageResult({ unexpected: 'shape' }, null, 'my_source')
+    expect(result).toEqual({
+      data: null,
+      error: { message: 'my_source: expected an array, got object' },
+    })
+  })
+
+  it('names the source and reports the type when the payload is a scalar', () => {
+    const result = toPageResult('oops', null, 'my_source')
+    expect(result).toEqual({
+      data: null,
+      error: { message: 'my_source: expected an array, got string' },
+    })
+  })
+
+  it('returns an empty array with no error when the payload is an empty array', () => {
+    const result = toPageResult([], null, 'my_source')
+    expect(result).toEqual({ data: [], error: null })
+  })
+
+  it('returns the payload unchanged with no error when it is a populated array', () => {
+    const result = toPageResult([1, 2, 3], null, 'my_source')
+    expect(result).toEqual({ data: [1, 2, 3], error: null })
+  })
+})
 
 describe('fetchAllRows', () => {
   it('returns all rows from a single page when the total fits in one page', async () => {

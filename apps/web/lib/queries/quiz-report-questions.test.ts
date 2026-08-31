@@ -510,7 +510,7 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(5)
   })
 
-  it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
+  it('fails the report when the correct-options RPC returns a non-array payload', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
       { data: [answersData[0]] },
@@ -529,13 +529,12 @@ describe('getQuizReportQuestions', () => {
       },
     )
     mockFetchAllRows.mockResolvedValueOnce({ data: [{ question_id: 'q1' }], error: null })
-    // RPC returns null (non-array) — the Array.isArray guard must treat this as []
+    // A null payload is a shape violation, not an empty result: coercing it to [] would
+    // render every MC question with no correct answer under a successful report.
     mockRpcByName({ correct: { data: null, error: null } })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(asMc(result.questions[0]).correctOptionId).toBe('')
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
   })
 
   it('collapses a multi-blank dialog question into one entry and counts it once toward the total', async () => {

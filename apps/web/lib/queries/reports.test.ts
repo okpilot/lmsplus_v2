@@ -217,10 +217,20 @@ describe('getSessionReports', () => {
     expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
   })
 
-  it('treats non-array RPC data as empty result', async () => {
+  it('fails the list when the reports RPC returns a non-array payload', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const result = await getSessionReports(DEFAULT_OPTS)
-    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+    expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
+  })
+
+  it('fails the list when the out-of-range total probe returns a non-array payload', async () => {
+    // First call: an empty page on page 99 routes into the probe. The probe's own call then
+    // returns null — a shape violation that must not read as a legitimate totalCount of 0.
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
   })
 
   // ---- internal_exam exclusion --------------------------------------------

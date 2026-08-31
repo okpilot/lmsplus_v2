@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import { fetchAllRows } from '@/lib/supabase-paginate'
+import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
@@ -138,9 +138,16 @@ export async function getQuizReportQuestions(opts: {
     console.error('[getQuizReportQuestions] RPC error:', rpcError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
-  const correctRows = Array.isArray(correctData)
-    ? (correctData as { question_id: string; correct_option_id: string }[])
-    : []
+  const correct = toPageResult<{ question_id: string; correct_option_id: string }>(
+    correctData,
+    null,
+    'get_report_correct_options',
+  )
+  if (correct.error) {
+    console.error('[getQuizReportQuestions]', correct.error.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
+  const correctRows = correct.data ?? []
   const correctMap = new Map<string, string>(
     correctRows.map((row) => [row.question_id, row.correct_option_id]),
   )
