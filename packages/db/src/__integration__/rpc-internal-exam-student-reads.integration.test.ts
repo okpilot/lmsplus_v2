@@ -303,8 +303,8 @@ describe('RPC: internal-exam student reads — DISTINCT answered_count + active-
   })
 
   // ── Active-user gate (#883) on both student read RPCs ──────────────────────
-  // Runs last: it soft-deletes the shared student and restores in a finally, so an assertion
-  // failure inside cannot leave a deleted user behind for a later test.
+  // Runs last: it soft-deletes the shared student and restores in the afterEach below, so an
+  // assertion failure inside cannot leave a deleted user behind for a later test.
   describe('active-user gate', () => {
     // Restore in afterEach, not a finally: biome's noUnsafeFinally forbids throwing there
     // (it would overwrite the try body's own failure), and afterEach still runs when the test

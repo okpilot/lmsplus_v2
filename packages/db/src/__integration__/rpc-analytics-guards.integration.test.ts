@@ -17,6 +17,13 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // Both RPCs are GRANTed to `authenticated` (20260312000013 L37, L73), so these paths are
 // reachable by a direct PostgREST rpc() call regardless of what the app layer does with them.
 // get_subject_scores in particular has no production caller today; the grant is the surface.
+//
+// This file also covers two PRE-EXISTING guards this migration did not change, because they
+// were never exercised at any tier either: the RPC-level p_days/p_limit clamp (the app layer in
+// lib/queries/analytics.ts always pre-clamps in TS before calling, so the RPC's own RAISE is
+// reachable only via a direct PostgREST call — same threat model as the grant above) and the
+// `auth.uid() IS DISTINCT FROM p_student_id` identity guard (Decision 24), the primary
+// cross-student access control these two RPCs have.
 
 type SubjectScoreRow = {
   subject_id: string
@@ -49,11 +56,15 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
   let orgId = ''
   let studentId = ''
   let studentClient: SupabaseClient
+  // A second student, used only by the cross-student identity-guard tests below — distinct from
+  // `studentClient` so `p_student_id: studentId` is a genuine OTHER-caller read, not a self-read.
+  let attackerClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   let discardedSessionId = ''
   const userIds: string[] = []
   const suffix = Date.now()
   const studentEmail = `student-analytics-${suffix}@test.local`
+  const attackerEmail = `attacker-analytics-${suffix}@test.local`
 
   beforeAll(async () => {
     orgId = await createTestOrg({
@@ -70,6 +81,16 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
     })
     userIds.push(studentId)
     studentClient = await getAuthenticatedClient({ email: studentEmail, password: PASSWORD })
+
+    const attackerId = await createTestUser({
+      admin,
+      orgId,
+      email: attackerEmail,
+      password: PASSWORD,
+      role: 'student',
+    })
+    userIds.push(attackerId)
+    attackerClient = await getAuthenticatedClient({ email: attackerEmail, password: PASSWORD })
 
     refs = await seedReferenceData({
       admin,
@@ -185,8 +206,8 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
   })
 
   // ── Active-user gate (#883) on both analytics RPCs ─────────────────────────
-  // Runs last: it soft-deletes the shared student and restores in a finally, so an assertion
-  // failure inside cannot leave a deleted user for a later test.
+  // Runs last: it soft-deletes the shared student and restores in the afterEach below, so an
+  // assertion failure inside cannot leave a deleted user for a later test.
   describe('active-user gate', () => {
     // Restore in afterEach, not a finally: biome's noUnsafeFinally forbids throwing there
     // (it would overwrite the try body's own failure), and afterEach still runs when the test
@@ -251,6 +272,78 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
       expect(scores.error).not.toBeNull()
       expect(scores.error?.message ?? '').toContain('user not found or inactive')
       expect(scores.data).toBeNull()
+    })
+  })
+
+  // ── Cross-student identity guard (`auth.uid() IS DISTINCT FROM p_student_id`, Decision 24) ──
+  // Pre-existing on both RPCs, unchanged by this migration, but never exercised at any tier: the
+  // app layer always calls with the caller's own id, so only a direct PostgREST call (or a
+  // regression that starts forwarding a caller-supplied id) reaches this path.
+  describe('cross-student identity guard', () => {
+    it("rejects a caller reading another student's daily activity", async () => {
+      const { data, error } = await attackerClient.rpc('get_daily_activity', {
+        p_student_id: studentId,
+        p_days: 7,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('forbidden')
+      expect(data).toBeNull()
+    })
+
+    it("rejects a caller reading another student's subject scores", async () => {
+      const { data, error } = await attackerClient.rpc('get_subject_scores', {
+        p_student_id: studentId,
+        p_limit: 5,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('forbidden')
+      expect(data).toBeNull()
+    })
+  })
+
+  // ── RPC-level parameter clamp (execution-only; §5 deferred validation) ────────────────────
+  // Pre-existing on both RPCs, unchanged by this migration, but never exercised at any tier: the
+  // app layer (lib/queries/analytics.ts) always pre-clamps in TS before calling the RPC, so this
+  // RAISE is reachable only via a direct PostgREST call.
+  describe('RPC-level parameter clamp', () => {
+    it('rejects a get_daily_activity lookback window below 1 day', async () => {
+      const { data, error } = await studentClient.rpc('get_daily_activity', {
+        p_student_id: studentId,
+        p_days: 0,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('p_days must be between 1 and 365')
+      expect(data).toBeNull()
+    })
+
+    it('rejects a get_daily_activity lookback window above 365 days', async () => {
+      const { data, error } = await studentClient.rpc('get_daily_activity', {
+        p_student_id: studentId,
+        p_days: 366,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('p_days must be between 1 and 365')
+      expect(data).toBeNull()
+    })
+
+    it('rejects a get_subject_scores limit below 1', async () => {
+      const { data, error } = await studentClient.rpc('get_subject_scores', {
+        p_student_id: studentId,
+        p_limit: 0,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('p_limit must be between 1 and 100')
+      expect(data).toBeNull()
+    })
+
+    it('rejects a get_subject_scores limit above 100', async () => {
+      const { data, error } = await studentClient.rpc('get_subject_scores', {
+        p_student_id: studentId,
+        p_limit: 101,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain('p_limit must be between 1 and 100')
+      expect(data).toBeNull()
     })
   })
 })
