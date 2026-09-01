@@ -220,6 +220,23 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(3)
   })
 
+  // The guard is an EQUALITY check, not a floor. Nothing above drives rowCount > expected, so
+  // loosening `===` to `>=` survives the whole suite (mutation-verified). An over-long page is
+  // unreachable through PostgREST .range(), but a getPage that ignores its bounds reaches it —
+  // and that is the caller bug the cardinality check exists to surface.
+  it('returns an error when a page returns more rows than its range holds', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: [1, 2, 3, 4], error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected 3 rows, got 4',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
   // The { data: [], error } contract covers RESOLVED results only. A REJECTED thunk propagates
   // by design: how a transport fault should surface differs by caller chain, so the pager does
   // not decide it. These two pin that, so a later "just catch it" cannot pass unseen.
