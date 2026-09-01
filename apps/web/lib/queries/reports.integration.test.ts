@@ -191,7 +191,16 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(r.sessions.length).toBeGreaterThan(0)
     // Every seeded session answered all `questionIds.length` (3) questions
     // (submitAnswerSequence answers one per question) — one quiz_session_answers row each,
-    // so answeredItems must equal totalQuestions here (MC questions, no multi-item scale).
+    // so answeredItems equals totalQuestions here (MC questions, no multi-item scale).
+    //
+    // PARTIAL VACUITY, stated deliberately (code-style.md §7): because the two are equal on
+    // an MC-only fixture, this assertion CANNOT distinguish an answer-row-derived
+    // answeredItems from one that wrongly read total_questions. What it DOES prove is the
+    // other failure mode, and the one this test exists for: that the RLS-scoped read returns
+    // real rows rather than silently landing on `itemCounts.get(...) ?? 0` — 3 is
+    // distinguishable from 0. The item-vs-question discrimination is proven separately, on a
+    // fixture where the two genuinely diverge: answered-item-counts.integration.test.ts seeds
+    // a 3-blank dialog_fill and asserts 3, which a question-derived count would report as 1.
     for (const session of r.sessions) {
       expect(session.answeredItems).toBe(session.totalQuestions)
       expect(session.answeredItems).toBe(3)
