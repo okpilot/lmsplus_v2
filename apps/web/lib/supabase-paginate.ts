@@ -66,7 +66,7 @@ async function resolveTotal(getCount: () => PromiseLike<CountResult>): Promise<T
  * rows across [from, to], so a successful page returning fewer than that range holds is an
  * inconsistent read, not an empty one. Accepting it returns a truncated set with `error: null`
  * — the silently-complete-looking result (#668/#673) this pager exists to prevent. Fail the
- * read instead; a caller that retries gets a consistent one.
+ * read instead; let the caller decide whether to retry.
  *
  * @returns the error to fail the read with, or `null` when the page is the expected size.
  */
