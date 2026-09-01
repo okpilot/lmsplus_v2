@@ -516,3 +516,51 @@ The SUGGESTION and test-writer's note were the same finding — one occurrence, 
   "re-derive every line-number/count citation from `git diff --staged` immediately before writing
   the commit message, never from an earlier draft of the same change."
 
+## Commit `028553f6` (fix/student-read-rpc-active-user-gates, PR #1257) — 2026-09-01 learner pass
+
+One-line fix: `docs/security.md` L836, "Two exempt classes:" → "Exempt classes include:". Origin: a
+CR inline finding on the same paragraph that, one sentence earlier, tells the reader the class set
+is OPEN and to re-derive rather than trust an enumeration — the literal "Two" directly contradicted
+its own preceding sentence. All 4 core agents clean on the fix commit (impl-critic APPROVED 0
+findings; code-reviewer 0/0; semantic-reviewer 0/0/0 + 1 GOOD; doc-updater no changes; test-writer no
+gaps — prose-only diff).
+
+- **Row 691 (NEW) — doc paragraph states a closed count for a set the SAME paragraph declares OPEN:**
+  distinguish from row 655 (PR #1242), whose defining mechanism is that claim and contradicting
+  referent sit in DIFFERENT sections/files/or are an arithmetic property — specifically what defeats
+  a hunk-scoped reviewer. Here the referent is one sentence away, in the identical paragraph — an
+  easier catch in principle, yet still missed by internal code-reviewer/semantic-reviewer/doc-updater
+  on whichever earlier commit of this PR first wrote the line (the security.md §11c token-family
+  section was introduced/edited across `09df2972` and `46cb6f1c`), and caught only by external CR.
+  The underlying RULE already exists and is correct (`code-style.md` §10 rule 2 — never enumerate an
+  open set, state how to derive) — this is not a gap in the rule text, it is a gap in enforcement
+  DEPTH on doc prose specifically, the same shape as the already-tracked "post-commit gates miss a
+  new site violating a promoted rule" family (row 600, §7) but for §10 rule 2. Single instance — log
+  and watch; do not fold into row 600 (different rule, different section) or row 655 (different
+  defeat mechanism — same-paragraph vs cross-section).
+- **POSITIVE, same commit — rule 2's own exemption applied correctly, twice, on the same thread:** a
+  companion CR finding on the SAME review thread proposed removing the "eight SECURITY INVOKER RPCs"
+  count at L838. That one was correctly SKIPPED-with-reason: rule 2 explicitly permits naming members
+  "with an as-of date," the sentence carries one, and all eight members are named inline (internally
+  consistent, not a bare unqualified count) — plus #1222 already dropped flagging of stale INVENTORY
+  counts generally. So the same rule produced two different correct verdicts on two adjacent
+  sentences in one paragraph: APPLY on the bare "Two" (no as-of date, no derivation instruction, and
+  directly contradicts the preceding sentence) and SKIP on the "eight...as of 2026-09-01" (exempted).
+  Evidence the rule is well-calibrated when both halves of it — the general prohibition and its named
+  exemption — are actually read together, not evidence of a gap needing a rule change.
+- **Row 692 (NEW) — orchestrator triages only the CR review-BODY findings, misses an open inline
+  thread, pushes; the inline finding surfaces only afterward:** distinct from every existing
+  CR-related row (which cover CR fabricating/misreading findings, or the loop's stop conditions) —
+  this is a triage-SCOPE gap: GitHub CR reviews carry findings in two places, the review body summary
+  and per-line inline comment threads, and only the body was read before the push decision. The
+  practical consequence is real: the push went out carrying an in-flight (un-triaged) finding,
+  which is exactly what `agent-workflow.md § Apply-vs-Defer Discipline`'s pre-push gate ("No in-flight
+  findings at push time") forbids. No existing row names "read every inline thread, not just the
+  review body, before treating a CR review as triaged" — `agent-coderabbit-local.md` and
+  `replycoderabbit`/`coderabbit` skill instructions assume thread-level reading but nothing enforces
+  it mechanically. Single instance — log and watch. On 2nd occurrence, propose a checklist line in
+  `agent-workflow.md § Apply-vs-Defer Discipline` or the `coderabbit`/`replycoderabbit` skill: "before
+  treating a GitHub CR review as triaged, enumerate BOTH the review body AND every inline comment
+  thread (`gh api repos/{owner}/{repo}/pulls/{n}/comments` or the Artifact-style `comments` action
+  equivalent) — a review can carry findings in either location independently."
+

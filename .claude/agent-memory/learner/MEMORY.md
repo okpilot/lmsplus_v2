@@ -113,6 +113,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by another reviewer | 1 | 2026-09-01 | WATCHING — skip-quality signal, system self-corrected (row 686) |
 | Fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target assertions in the same test | 1 | 2026-09-01 | WATCHING — caught pre-commit by impl-critic round 1, not a repeat of row 605 (that's sibling FILES; this is sibling TARGETS in one file) (row 689, topic file) |
 | Commit-message verification citation (line number) carried over from an earlier draft, not re-derived after the code moved before commit | 1 | 2026-09-01 | WATCHING — distinct from row 597 (different command invocation, not a stale draft citation) (row 690, topic file) |
+| Doc paragraph states a closed count for a set the SAME paragraph declares OPEN (self-contradiction, not cross-section) | 1 | 2026-09-01 | WATCHING — §10 rule 2 already covers the underlying rule; distinct from row 655 (cross-section/file) because referent is one sentence away. Missed by internal full-cycle review on an earlier commit of this PR, caught only by external CR (row 691, topic file) |
+| Orchestrator triages only the CR review-BODY findings and pushes; an open inline-thread finding surfaces only afterward | 1 | 2026-09-01 | WATCHING — pushed with an in-flight finding, violating the Apply-vs-Defer pre-push gate; no prior row matches this triage-scope gap (row 692, topic file) |
 
 ## Durable knowledge (cross-agent)
 
