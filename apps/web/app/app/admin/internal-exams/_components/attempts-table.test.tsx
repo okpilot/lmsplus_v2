@@ -47,6 +47,9 @@ const baseRow: InternalExamAttemptRow = {
   endedAt: '2026-04-28T10:30:00.000Z',
   totalQuestions: 16,
   correctCount: 14,
+  // Deliberately distinct from both correctCount and totalQuestions so the fraction
+  // assertion below can only pass by reading answeredItems, not by coincidence.
+  answeredItems: 18,
   scorePercentage: 87.5,
   passed: true,
   voidReason: null,
@@ -92,9 +95,14 @@ describe('AttemptsTable', () => {
     expect(screen.queryByLabelText('Failed')).toBeNull()
   })
 
-  it('renders correct/total count', () => {
+  it('renders the correct-count over answered-items fraction', () => {
     render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
-    expect(screen.getByText('14/16')).toBeInTheDocument()
+    expect(screen.getByText('14 / 18')).toBeInTheDocument()
+  })
+
+  it('renders an em dash instead of a fraction when no items were answered', () => {
+    render(<AttemptsTable rows={[{ ...baseRow, answeredItems: 0 }]} totalCount={0} pageSize={25} />)
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
   it('falls back to email when student name is empty', () => {

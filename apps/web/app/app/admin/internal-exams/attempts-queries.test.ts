@@ -29,11 +29,11 @@ function mockAdmin() {
 }
 
 /**
- * Builds a chainable Supabase mock. Every chain method returns the same builder.
- * The builder is thenable — awaiting it resolves to { data, error, count }. The
- * queries run a count query (reads `count`) then a data query (reads `data`);
- * both await the SAME builder, so rows-asserting tests must supply a non-zero
- * `count` or the count-first early-return yields an empty result.
+ * Builds a chainable Supabase mock. Any chain method name returns the same builder
+ * (a Proxy, so it never needs to enumerate the exact PostgREST methods a caller
+ * uses — `attempts-queries.ts` calls `select/eq/is/not/order/range`, and the
+ * `fetchAnsweredItemCounts` helper it calls internally may use others, e.g. `.in()`).
+ * The builder is thenable — awaiting it resolves to { data, error, count }.
  */
 function buildChain(
   data: unknown,
@@ -41,13 +41,49 @@ function buildChain(
   count: number | null = null,
 ): ChainMock {
   const resolved = { data, error, count }
-  const builder: ChainMock = {}
-  for (const fn of ['select', 'eq', 'is', 'not', 'order', 'limit', 'lte', 'gt', 'range']) {
-    builder[fn] = vi.fn().mockReturnValue(builder)
-  }
-  // biome-ignore lint/suspicious/noThenProperty: supabase chain must be thenable to mock awaiting the query builder
-  builder.then = vi.fn((cb: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(cb))
-  return builder
+  const target: ChainMock = {}
+  const builder = new Proxy(target, {
+    get(t, prop: string) {
+      if (prop === 'then') {
+        return vi.fn((cb: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(cb))
+      }
+      if (!(prop in t)) {
+        t[prop] = vi.fn().mockReturnValue(builder)
+      }
+      return t[prop]
+    },
+  })
+  return builder as ChainMock
+}
+
+/**
+ * Wires `mockAdminFrom` to dispatch by table name. `listInternalExamAttempts` queries
+ * `quiz_sessions` twice (count, then rows) through the SAME mocked `@repo/db/admin`
+ * module that its internal call to `fetchAnsweredItemCounts` uses to query
+ * `quiz_session_answers` — a single module-wide `from` mock therefore has to route
+ * each table to its own chain, or the third (`quiz_session_answers`) call silently
+ * consumes a `quiz_sessions` chain meant for the rows query.
+ *
+ * `sessionsChains` is consumed in call order for `quiz_sessions` — the last chain
+ * supplied repeats for any further call, so a single chain (the common case) serves
+ * both the count and the rows query, matching the old `mockReturnValue` behavior.
+ * `answersChain` defaults to an empty result (`answeredItems` = 0) for tests that
+ * don't care about item counts. Its `count` must be `0`, not `null` — `fetchAllRows`
+ * (which `fetchAnsweredItemCounts` pages through) treats a `null` count as a failed
+ * "no exact count" read, not an empty table, and would surface that as an error here.
+ */
+function mockFrom(
+  sessionsChains: ChainMock | ChainMock[],
+  answersChain: ChainMock = buildChain([], null, 0),
+) {
+  const chains = Array.isArray(sessionsChains) ? sessionsChains : [sessionsChains]
+  let callIndex = 0
+  mockAdminFrom.mockImplementation((table: string) => {
+    if (table === 'quiz_session_answers') return answersChain
+    const chain = chains[Math.min(callIndex, chains.length - 1)]
+    callIndex += 1
+    return chain
+  })
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -76,7 +112,7 @@ describe('listInternalExamAttempts', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
+      mockFrom(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -113,7 +149,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: [{ void_reason: 'cheating detected' }],
       }
-      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
+      mockFrom(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -136,11 +172,43 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
+      mockFrom(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
       expect(result.rows[0]!.subjectId).toBeNull()
+    })
+
+    it('derives answeredItems from the number of recorded answer rows, not from the question count', async () => {
+      mockAdmin()
+      const row = {
+        id: 'sess-1',
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: PAST,
+        ended_at: PAST,
+        total_questions: 20,
+        correct_count: 15,
+        score_percentage: 75,
+        passed: true,
+        easa_subjects: { name: 'Meteorology' },
+        users: { full_name: 'Alice', email: 'alice@example.com' },
+        internal_exam_codes: null,
+      }
+      // Three recorded answer rows for sess-1 — deliberately distinct from
+      // total_questions (20) so a regression that falls back to the question count
+      // cannot pass this assertion by coincidence.
+      const answerRows = [
+        { session_id: 'sess-1' },
+        { session_id: 'sess-1' },
+        { session_id: 'sess-1' },
+      ]
+      mockFrom(buildChain([row], null, 1), buildChain(answerRows, null, answerRows.length))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows[0]!.answeredItems).toBe(3)
+      expect(result.rows[0]!.answeredItems).not.toBe(row.total_questions)
     })
   })
 
@@ -165,7 +233,7 @@ describe('listInternalExamAttempts', () => {
     it('scopes the query to a single student when studentId is set', async () => {
       mockAdmin()
       const chain = buildChain([makeRow()], null, 1)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       await listInternalExamAttempts({ studentId: 'stu-2' })
 
@@ -178,7 +246,7 @@ describe('listInternalExamAttempts', () => {
     it('scopes the query to a single subject when subjectId is set', async () => {
       mockAdmin()
       const chain = buildChain([makeRow()], null, 1)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       await listInternalExamAttempts({ subjectId: 'sub-1' })
 
@@ -191,7 +259,7 @@ describe('listInternalExamAttempts', () => {
     it("restricts results to the caller's own organization", async () => {
       mockAdmin()
       const chain = buildChain([makeRow()], null, 1)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       await listInternalExamAttempts({})
 
@@ -225,7 +293,7 @@ describe('listInternalExamAttempts', () => {
     it('returns the total count alongside the first page of rows', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1), makeRow(2)], null, 40)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       const result = await listInternalExamAttempts({ page: 1 })
 
@@ -236,7 +304,7 @@ describe('listInternalExamAttempts', () => {
     it('returns the second page of results when page=2 is set', async () => {
       mockAdmin()
       const chain = buildChain([makeRow(1)], null, 40)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       await listInternalExamAttempts({ page: 2 })
 
@@ -246,7 +314,7 @@ describe('listInternalExamAttempts', () => {
     it('returns an empty page without querying rows when there are no attempts', async () => {
       mockAdmin()
       const chain = buildChain([], null, 0)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       const result = await listInternalExamAttempts()
 
@@ -259,7 +327,7 @@ describe('listInternalExamAttempts', () => {
       mockAdmin()
       // count=40 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
       const chain = buildChain([makeRow(1)], null, 40)
-      mockAdminFrom.mockReturnValue(chain)
+      mockFrom(chain)
 
       const result = await listInternalExamAttempts({ page: 99 })
 
@@ -271,9 +339,7 @@ describe('listInternalExamAttempts', () => {
     it('returns an empty rows array when the rows query yields null data', async () => {
       mockAdmin()
       // Count reports rows exist, but the data query returns null (e.g. transport quirk).
-      mockAdminFrom
-        .mockReturnValueOnce(buildChain([], null, 5))
-        .mockReturnValueOnce(buildChain(null, null, 5))
+      mockFrom([buildChain([], null, 5), buildChain(null, null, 5)])
 
       const result = await listInternalExamAttempts()
 
@@ -287,7 +353,7 @@ describe('listInternalExamAttempts', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts count error' }))
+        mockFrom(buildChain(null, { message: 'attempts count error' }))
 
         await expect(listInternalExamAttempts()).rejects.toThrow(
           'Failed to load internal exam attempts',
@@ -305,9 +371,7 @@ describe('listInternalExamAttempts', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockAdminFrom
-          .mockReturnValueOnce(buildChain([], null, 5))
-          .mockReturnValueOnce(buildChain(null, { message: 'attempts rows error' }))
+        mockFrom([buildChain([], null, 5), buildChain(null, { message: 'attempts rows error' })])
 
         await expect(listInternalExamAttempts()).rejects.toThrow(
           'Failed to load internal exam attempts',
@@ -315,6 +379,41 @@ describe('listInternalExamAttempts', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           '[listInternalExamAttempts] DB error:',
           'attempts rows error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
+    it('throws a sanitized message and logs the raw error when the item-count query fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        const row = {
+          id: 'sess-1',
+          student_id: 'stu-1',
+          subject_id: 'sub-1',
+          started_at: PAST,
+          ended_at: PAST,
+          total_questions: 20,
+          correct_count: 15,
+          score_percentage: 75,
+          passed: true,
+          easa_subjects: null,
+          users: null,
+          internal_exam_codes: null,
+        }
+        mockFrom(
+          buildChain([row], null, 1),
+          buildChain(null, { message: 'item count error' }, null),
+        )
+
+        await expect(listInternalExamAttempts()).rejects.toThrow(
+          'Failed to load internal exam attempts',
+        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamAttempts] item count error:',
+          'item count error',
         )
       } finally {
         consoleErrorSpy.mockRestore()
@@ -348,7 +447,7 @@ describe('listInternalExamAttempts', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
+      mockFrom(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 
@@ -372,7 +471,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: null,
       }
-      mockAdminFrom.mockReturnValue(buildChain([row], null, 1))
+      mockFrom(buildChain([row], null, 1))
 
       const result = await listInternalExamAttempts()
 

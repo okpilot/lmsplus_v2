@@ -104,6 +104,10 @@ type SessionRow = {
   ended_at: string | null
   easa_subjects: { name: string } | null
   easa_topics: { name: string } | null
+  // Test-only: NOT a quiz_sessions column. Drives how many quiz_session_answers rows
+  // makeAnswerRows synthesizes for this session id in mockSessionsQuery — kept on the
+  // fixture so a test can vary it in one place instead of threading a bare number through.
+  answeredItems: number
 }
 
 function makeSessionRow(overrides: Partial<SessionRow> = {}): SessionRow {
@@ -117,8 +121,61 @@ function makeSessionRow(overrides: Partial<SessionRow> = {}): SessionRow {
     ended_at: '2026-04-01T10:45:00Z',
     easa_subjects: { name: 'Meteorology' },
     easa_topics: { name: 'Pressure' },
+    // Deliberately distinct from both correct_count (15) and total_questions (20) so a
+    // regression that derives answeredItems from either can't pass by coincidence.
+    answeredItems: 12,
     ...overrides,
   }
+}
+
+/**
+ * Builds a chainable mock for fetchAnsweredItemCounts's quiz_session_answers query.
+ * fetchAnsweredItemCounts (lib/queries/answered-item-counts.ts) issues TWO calls against
+ * this chain per invocation — a `{count:'exact', head:true}` call awaited directly after
+ * `.select().in()`, and a page call awaited after `.select().in().order().range()` — so the
+ * chain must be a thenable at every link, resolving to a value that satisfies both a
+ * `{ count }` read and a `{ data }` read.
+ */
+function makeAnswerCountsChain(
+  rows: { session_id: string }[],
+  error: { message: string } | null = null,
+) {
+  const result = error
+    ? { data: null, error, count: null }
+    : { data: rows, error: null, count: rows.length }
+
+  const chain: Record<string, unknown> = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (
+      onFulfilled: (value: typeof result) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) => Promise.resolve(result).then(onFulfilled, onRejected),
+  }
+  for (const method of ['select', 'in', 'order', 'range']) {
+    chain[method] = vi.fn().mockReturnValue(chain)
+  }
+  return chain
+}
+
+function makeAnswerRows(sessionId: string, count: number): { session_id: string }[] {
+  return Array.from({ length: count }, () => ({ session_id: sessionId }))
+}
+
+/**
+ * Dispatches adminClient.from() by table name: 'quiz_sessions' returns the caller's
+ * session-page chain, 'quiz_session_answers' returns a chain for fetchAnsweredItemCounts's
+ * item-count lookup (getStudentSessions now queries both tables).
+ */
+function mockSessionsQuery(
+  sessionChain: SessionCountChain,
+  opts: { answerRows?: { session_id: string }[]; answerError?: { message: string } | null } = {},
+) {
+  const { answerRows = [], answerError = null } = opts
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'quiz_sessions') return sessionChain
+    if (table === 'quiz_session_answers') return makeAnswerCountsChain(answerRows, answerError)
+    throw new Error(`Unexpected table queried in test: ${table}`)
+  })
 }
 
 // ---- getStudentDetail -------------------------------------------------------
@@ -220,7 +277,9 @@ describe('getStudentSessions', () => {
 
   it('returns mapped sessions and totalCount', async () => {
     const row = makeSessionRow()
-    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+    mockSessionsQuery(makeSessionChain([row], 1), {
+      answerRows: makeAnswerRows(row.id, row.answeredItems),
+    })
 
     const result = await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -239,14 +298,49 @@ describe('getStudentSessions', () => {
       scorePercentage: 75,
       totalQuestions: 20,
       correctCount: 15,
+      answeredItems: 12,
       startedAt: '2026-04-01T10:00:00Z',
       endedAt: '2026-04-01T10:45:00Z',
     })
   })
 
+  it('derives the answered-item count from answer rows, independent of the question total', async () => {
+    const row = makeSessionRow({ answeredItems: 7 })
+    mockSessionsQuery(makeSessionChain([row], 1), {
+      answerRows: makeAnswerRows(row.id, row.answeredItems),
+    })
+
+    const { sessions } = await getStudentSessions(STUDENT_ID, {
+      range: 'all',
+      page: 1,
+      sort: 'date',
+      dir: 'desc',
+    })
+
+    expect(sessions[0]?.answeredItems).toBe(7)
+    expect(sessions[0]?.answeredItems).not.toBe(sessions[0]?.totalQuestions)
+  })
+
+  it('throws when the answered-item count lookup fails', async () => {
+    const row = makeSessionRow()
+    mockSessionsQuery(makeSessionChain([row], 1), {
+      answerError: { message: 'answers query failed' },
+    })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(
+      getStudentSessions(STUDENT_ID, { range: 'all', page: 1, sort: 'date', dir: 'desc' }),
+    ).rejects.toThrow('Failed to fetch student sessions')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getStudentSessions] Item counts error:',
+      'answers query failed',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('maps null subject and topic joins to null', async () => {
     const row = makeSessionRow({ easa_subjects: null, easa_topics: null })
-    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+    mockSessionsQuery(makeSessionChain([row], 1))
 
     const { sessions } = await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -260,7 +354,7 @@ describe('getStudentSessions', () => {
   })
 
   it('returns empty sessions array and totalCount 0 when no sessions exist', async () => {
-    mockFrom.mockReturnValue(makeSessionChain([], 0))
+    mockSessionsQuery(makeSessionChain([], 0))
 
     const result = await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -273,7 +367,7 @@ describe('getStudentSessions', () => {
   })
 
   it('defaults totalCount to 0 when count is null', async () => {
-    mockFrom.mockReturnValue(makeSessionChain([], null))
+    mockSessionsQuery(makeSessionChain([], null))
 
     const result = await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -287,7 +381,7 @@ describe('getStudentSessions', () => {
 
   it('calls .gte() when a time range filter is active', async () => {
     const chain = makeSessionChain([makeSessionRow()], 1)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: '30d',
@@ -302,7 +396,7 @@ describe('getStudentSessions', () => {
 
   it('does not call .gte() when range is "all"', async () => {
     const chain = makeSessionChain([makeSessionRow()], 1)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -316,7 +410,7 @@ describe('getStudentSessions', () => {
 
   it('passes correct range offset when requesting page 2', async () => {
     const chain = makeSessionChain([], 30)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -331,7 +425,7 @@ describe('getStudentSessions', () => {
 
   it('passes correct range offset for page 1', async () => {
     const chain = makeSessionChain([], 10)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -346,7 +440,7 @@ describe('getStudentSessions', () => {
 
   it('passes ascending order flag when dir is "asc"', async () => {
     const chain = makeSessionChain([], 1)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -362,7 +456,7 @@ describe('getStudentSessions', () => {
 
   it('passes descending order flag when dir is "desc"', async () => {
     const chain = makeSessionChain([], 1)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -378,7 +472,7 @@ describe('getStudentSessions', () => {
 
   it('applies a secondary id tiebreak order to prevent row duplication on tied sort columns', async () => {
     const chain = makeSessionChain([], 1)
-    mockFrom.mockReturnValue(chain)
+    mockSessionsQuery(chain)
 
     await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -394,7 +488,7 @@ describe('getStudentSessions', () => {
   })
 
   it('throws when the query returns an error', async () => {
-    mockFrom.mockReturnValue(makeSessionChain([], null, { message: 'timeout' }))
+    mockSessionsQuery(makeSessionChain([], null, { message: 'timeout' }))
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(
@@ -407,7 +501,7 @@ describe('getStudentSessions', () => {
   it('coerces string wire value for score_percentage to number', async () => {
     // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
     const row = makeSessionRow({ score_percentage: '73.33' as unknown as number })
-    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+    mockSessionsQuery(makeSessionChain([row], 1))
 
     const { sessions } = await getStudentSessions(STUDENT_ID, {
       range: 'all',
@@ -422,7 +516,7 @@ describe('getStudentSessions', () => {
 
   it('preserves null scorePercentage when wire value is null', async () => {
     const row = makeSessionRow({ score_percentage: null })
-    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+    mockSessionsQuery(makeSessionChain([row], 1))
 
     const { sessions } = await getStudentSessions(STUDENT_ID, {
       range: 'all',
