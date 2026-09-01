@@ -167,6 +167,25 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(1)
   })
 
+  // The { data: [], error } contract covers RESOLVED results only. A REJECTED thunk propagates
+  // by design: how a transport fault should surface differs by caller chain, so the pager does
+  // not decide it. These two pin that, so a later "just catch it" cannot pass unseen.
+  it('propagates a rejected count rather than reporting an empty result', async () => {
+    const getCount = vi.fn().mockRejectedValue(new Error('count transport failure'))
+    const getPage = vi.fn()
+
+    await expect(fetchAllRows(getCount, getPage)).rejects.toThrow('count transport failure')
+    expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('propagates a rejected page rather than reporting an empty result', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 2, error: null })
+    const getPage = vi.fn().mockRejectedValue(new Error('page transport failure'))
+
+    await expect(fetchAllRows(getCount, getPage)).rejects.toThrow('page transport failure')
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
   it.each([0, -1, 1001])(
     'rejects an invalid pageSize (%i) without counting or paging',
     async (pageSize) => {

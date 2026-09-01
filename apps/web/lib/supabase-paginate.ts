@@ -68,10 +68,14 @@ async function resolveTotal(getCount: () => PromiseLike<CountResult>): Promise<T
  * @param getCount builds a `.select('*', { count: 'exact', head: true })` query for the total.
  * @param getPage  builds the same filtered query with a deterministic total order + `.range(from, to)`.
  * @param pageSize must be <= `POSTGREST_MAX_ROWS` (PostgREST's hard cap); defaults to it.
- * @returns always resolves with a non-null `data` array; on any error `data` is `[]` and `error`
+ * @returns resolves with a non-null `data` array; on any error `data` is `[]` and `error`
  *   is non-null — callers never need to null-guard `.data`. "Error" covers an invalid pageSize, a
  *   failed count, a count reporting no exact total, a failed page, and a page whose payload is not
- *   an array. Two of those are newly rejected. A count reporting no exact total used to become
+ *   an array. That contract covers RESOLVED results only: if `getCount` or `getPage` REJECTS
+ *   (a transport fault, or a thunk that throws), the rejection PROPAGATES out of this function
+ *   rather than being normalized into `error`. That is deliberate: how a transport fault should
+ *   surface differs by caller chain, so this helper does not decide it.
+ *   Two of those are newly rejected. A count reporting no exact total used to become
  *   `total = 0`, so the loop never ran and an incomplete read came back as a success. A non-array
  *   page met only a bare truthiness check, whose outcome varied by value: falsy was skipped,
  *   quietly shortening the result, while anything truthy was spread — raising a `TypeError` out of
