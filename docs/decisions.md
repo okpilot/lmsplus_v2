@@ -1289,7 +1289,7 @@ which selects `qs.correct_count` and `qs.total_questions` straight off the sessi
 
 Re-derive the set rather than trusting that list, and use the WHITESPACE-TOLERANT form:
 
-```
+```sh
 grep -rEn "correctCount\}\s*/\s*\{.*totalQuestions|\{correct\}\s*/\s*\{total\}" apps/web/app --include="*.tsx"
 ```
 
