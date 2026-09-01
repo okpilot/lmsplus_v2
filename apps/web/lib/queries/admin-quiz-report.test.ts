@@ -354,18 +354,29 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.scorePercentage).toBe(0)
   })
 
-  it('reports zero answered items when the count is null rather than the question total', async () => {
-    // A null count must NOT fall back to total_questions: that is a QUESTION-level value, and
+  it('reports zero answered items when the answer-rows count is exactly zero', async () => {
+    // answeredItems must NOT fall back to total_questions: that is a QUESTION-level value, and
     // feeding it to answeredItems makes the report divide an item-level correct_count by a
-    // question count again — the scale mix Decision 60 removed. 0 routes the report to an em
-    // dash instead, which reads as a failed count rather than a fabricated one.
-    // count: null → fetchAllRows sees total=0 and never issues a page fetch, so only the
+    // question count again — the scale mix Decision 60 removed. answeredItems is answerRows.length
+    // with no ??/|| fallback, so a genuine zero-row count still reports 0, not the session total.
+    // count: 0 → fetchAllRows sees total=0 and never issues a page fetch, so only the
     // session, count, and users queries fire (3 calls, no page entry needed).
-    mockFromSequence({ data: completedSession }, { count: null, data: null }, { data: null })
+    mockFromSequence({ data: completedSession }, { count: 0, data: null }, { data: null })
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result!.answeredItems).toBe(0)
     expect(result!.answeredQuestions).toBe(0)
     expect(result!.answeredItems).not.toBe(completedSession.total_questions)
+  })
+
+  it('returns no report when answer-row data cannot be counted', async () => {
+    // A count that resolves to null (no parseable Content-Range) is now an error inside
+    // fetchAllRows, not a coerced zero — it short-circuits before any page fetch, and before
+    // the subject/users lookups that would otherwise follow a successful (even zero) count.
+    mockFromSequence({ data: completedSession }, { count: null, data: null })
+    const result = await getAdminQuizReportSummary('sess-1')
+    expect(result).toBeNull()
+    // Only the session and count queries fired — no page, subject, or users lookup after.
+    expect(mockAdminFrom).toHaveBeenCalledTimes(2)
   })
 
   it('returns null when the answered-count query returns an error', async () => {

@@ -388,8 +388,8 @@ reviews:
           soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
           even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Narrow carve-out: SELECTs fetching records by IDs
-          stored in an immutable, write-once column may omit the filter. Current documented cases
-          (docs/security.md §15): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
+          stored in an immutable, write-once column may omit the filter. Examples include
+          (docs/security.md §15 is the authoritative list, not this enumeration): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
           check_non_mc_answer, and submit_vfr_rt_exam_answers reading
           questions via quiz_sessions.config.question_ids (written once at session start);
           (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
@@ -521,8 +521,11 @@ reviews:
           error AFTER a successful count propagates. Two setups: (1) real helper with mocked
           queries (count succeeds with a non-zero total, first page returns { data: null, error }), or (2) fetchAllRows
           mocked as a dependency returning { data: [], error }. Assert the caller surfaces the
-          error (returns { data: [], error }, throws, or logs + degrades). Guards against a
-          silently-truncated result that looks complete (e.g. an incomplete GDPR export).
+          error (returns { data: [], error }, throws, or logs + degrades). A page resolving
+          { data: null, error: null } — a null payload with no error — is equally an error
+          now: fetchAllRows rejects it as a count/page disagreement, where it used to pass
+          silently as an empty page. Guards against a silently-truncated result that looks
+          complete (e.g. an incomplete GDPR export).
         - Cast-guard applies in tests too: when casting an RPC or .select() result via
           `as unknown as T` in a test helper or integration test, pair the cast with a runtime
           guard (expect(data).not.toBeNull() then cast, or Array.isArray(...) / typeof) before

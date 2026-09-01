@@ -862,7 +862,7 @@ Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper)
 - **Real helper, mocked queries:** mock the count query to succeed with a non-zero total AND the first page query to return `{ data: null, error }`.
 - **Helper mocked as a dependency:** mock `fetchAllRows` to return its page-error result `{ data: [], error }` (the shape it returns after discarding partial pages).
 
-Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract).
+Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract). A page resolving `{ data: null, error: null }` — a null payload with no `error` — is equally an error now: `fetchAllRows` rejects it as a count/page disagreement, where it used to pass silently as an empty page.
 
 `fetchAllRows` discards partial pages on a page error and returns `{ data: [], error }`, so the failure mode this guards against is a **silently-truncated result that looks complete** (e.g. a GDPR export section missing rows with no signal). A test that only mocks the count error is insufficient — the page-error path is the one that regresses silently.
 

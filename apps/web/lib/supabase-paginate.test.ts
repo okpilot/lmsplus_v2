@@ -125,15 +125,135 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(2)
   })
 
-  it('treats a null count as zero', async () => {
+  it('returns an error without paging when the count query reports no exact total', async () => {
     const getCount = vi.fn().mockResolvedValue({ count: null, error: null })
     const getPage = vi.fn()
 
     const result = await fetchAllRows(getCount, getPage)
 
     expect(result.data).toEqual([])
-    expect(result.error).toBeNull()
+    expect(result.error).toEqual({
+      message: 'fetchAllRows: count query returned no exact count',
+    })
     expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('discards accumulated rows and returns an error when a page resolves a null payload', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 4, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [2, 3]: expected an array, got null',
+    })
+    expect(getPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns an error instead of throwing when a page resolves a non-array payload', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: { unexpected: 'shape' }, error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected an array, got object',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
+  // A page that succeeds but returns fewer rows than its range holds is the same count/page
+  // disagreement as a null page — the count already promised rows there. Both cases must fail
+  // the read rather than return a short set with error: null.
+  it('returns an error when a page returns fewer rows than its range holds', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 4, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: [3], error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [2, 3]: expected 2 rows, got 1',
+    })
+  })
+
+  it('returns an error when a page is empty despite a non-zero count', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: [], error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected 3 rows, got 0',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
+  // No test above covers a remainder page reached AFTER full pages, which is where the range
+  // arithmetic is easiest to get wrong. (The first short-page test also happens to hold
+  // `expected === pageSize`, so on its own it would not distinguish `to - from + 1` from a bug
+  // using the raw `pageSize`; the empty-page test already does, since it leaves pageSize at the
+  // 1000 default against an expected of 3.) Pin the remainder case here.
+  it('returns an error when the final (remainder-sized) page comes up short', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 5, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: [3, 4], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [4, 4]: expected 1 rows, got 0',
+    })
+    expect(getPage).toHaveBeenCalledTimes(3)
+  })
+
+  // The guard is an EQUALITY check, not a floor. Nothing above drives rowCount > expected, so
+  // loosening `===` to `>=` survives the whole suite (mutation-verified). An over-long page is
+  // unreachable through PostgREST .range(), but a getPage that ignores its bounds reaches it —
+  // and that is the caller bug the cardinality check exists to surface.
+  it('returns an error when a page returns more rows than its range holds', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: [1, 2, 3, 4], error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected 3 rows, got 4',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
+  // The { data: [], error } contract covers RESOLVED results only. A REJECTED thunk propagates
+  // by design: how a transport fault should surface differs by caller chain, so the pager does
+  // not decide it. These two pin that, so a later "just catch it" cannot pass unseen.
+  it('propagates a rejected count rather than reporting an empty result', async () => {
+    const getCount = vi.fn().mockRejectedValue(new Error('count transport failure'))
+    const getPage = vi.fn()
+
+    await expect(fetchAllRows(getCount, getPage)).rejects.toThrow('count transport failure')
+    expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('propagates a rejected page rather than reporting an empty result', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 2, error: null })
+    const getPage = vi.fn().mockRejectedValue(new Error('page transport failure'))
+
+    await expect(fetchAllRows(getCount, getPage)).rejects.toThrow('page transport failure')
+    expect(getPage).toHaveBeenCalledTimes(1)
   })
 
   it.each([0, -1, 1001])(

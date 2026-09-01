@@ -235,9 +235,9 @@ describe('fetchSessionAnswerRows', () => {
 
   it('surfaces an error when the count reports rows but a page resolves null', async () => {
     // The count already reported 2 rows, so this page lies within [0, total). A null
-    // payload is therefore a count/page disagreement, not an empty page — and without a
-    // guard fetchAllRows' `if (data) all.push(...data)` would skip it and return a short
-    // list that reads as complete.
+    // payload is therefore a count/page disagreement, not an empty page. fetchAllRows
+    // itself now rejects a null page, but the caller's own toPageResult wrap fires first
+    // here, naming the table in the error rather than the pager's page-range message.
     mockFromSequence({ count: 2, error: null }, { data: null, error: null })
     const result = await fetchSessionAnswerRows({
       sessionId: 'sess-1',

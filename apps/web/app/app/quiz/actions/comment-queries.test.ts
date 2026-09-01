@@ -85,9 +85,9 @@ describe('fetchQuestionComments', () => {
 
   it('surfaces an error when the count reports rows but a page resolves null', async () => {
     // The count already reported 3 rows, so this page lies within [0, total). A null
-    // payload with no error is a count/page disagreement, not an empty page — and
-    // unguarded, fetchAllRows' `if (data) all.push(...data)` would skip it and return a
-    // truncated thread that reads as complete.
+    // payload with no error is a count/page disagreement, not an empty page. fetchAllRows
+    // now rejects a null page itself, but the caller's own toPageResult wrap fires first
+    // here, naming the table rather than the pager's page-range message.
     mockFrom
       .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
       .mockReturnValueOnce(buildChain({ count: null, data: null, error: null }))

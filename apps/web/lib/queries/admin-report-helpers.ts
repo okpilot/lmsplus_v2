@@ -53,9 +53,10 @@ export async function fetchAdminSessionForReport<T>(opts: {
  * row type collapses to an opaque error-marker type and needs a cast at that boundary.
  * And a table query, while it cannot resolve a scalar or object the way an RPC can,
  * CAN resolve null — the harmful case, not a benign one: every page fetched here lies
- * within [0, total), so a null page is a count/page disagreement, and fetchAllRows'
- * `if (data) all.push(...data)` would skip it and return a short list that reads as
- * complete.
+ * within [0, total), so a null page is a count/page disagreement. fetchAllRows now
+ * rejects a null page itself, but wrapping it here still earns its keep: the error
+ * names this table (`quiz_session_answers: expected an array, got null`), where the
+ * pager's own message can only report the page range.
  */
 export async function fetchSessionAnswerRows<T extends { question_id: string }>(opts: {
   sessionId: string

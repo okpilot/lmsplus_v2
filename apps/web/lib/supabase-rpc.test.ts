@@ -212,9 +212,10 @@ describe('fetchAllRpcRows', () => {
   })
 
   it('returns an error naming the RPC when the count-only call yields no exact count', async () => {
-    // We only reach the count call BECAUSE the first call came back at the cap, so a null
-    // count is never a legitimate "0 rows" — fetchAllRows would coerce it to 0, skip the
-    // loop entirely, and discard a full page of rows as a successful empty result.
+    // We only reach the count call BECAUSE the first call came back at the cap, so
+    // a null count is never a legitimate "0 rows" — fetchExactCount rejects it here,
+    // naming the RPC. An exact count of 0 IS legitimate and is not rejected.
+    // fetchAllRows now rejects a null count too, so this is defence in depth, not the only guard.
     const staleFirstCall = fixture('stale', 1000)
     const client = createChainableRpcClient({
       firstCall: { data: staleFirstCall, error: null },
