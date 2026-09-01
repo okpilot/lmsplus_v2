@@ -335,9 +335,15 @@ describe('RPC: internal-exam student reads — DISTINCT answered_count + active-
       ).toBeGreaterThan(0)
       const beforeCodes = await studentClient.rpc('list_my_active_internal_exam_codes')
       expect(beforeCodes.error).toBeNull()
-      expect(
-        requireRpcRows<CodeRow>(beforeCodes.data, 'list_my_active_internal_exam_codes').length,
-      ).toBeGreaterThan(0)
+      const codeRows = requireRpcRows<CodeRow>(
+        beforeCodes.data,
+        'list_my_active_internal_exam_codes',
+      )
+      expect(codeRows.length).toBeGreaterThan(0)
+      // #577: the plaintext code never leaves the issuance RPC. This migration's header claims
+      // that omission is preserved; without this assertion a later CREATE OR REPLACE that
+      // re-added the column to the RETURNS TABLE would ship green.
+      for (const r of codeRows) expect(r).not.toHaveProperty('code')
 
       const { data: deleted, error: delErr } = await admin
         .from('users')
