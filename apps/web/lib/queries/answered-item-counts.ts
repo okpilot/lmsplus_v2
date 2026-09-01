@@ -51,6 +51,43 @@ export type AnswerCountClient = { from: (table: string) => AnswerCountChain }
  * student request path. There is deliberately no default parameter — an implicit
  * service-role fallback on a helper reachable from a student path is a footgun.
  */
+/**
+ * The count half of the paged read. Its `.in()` filter MUST stay identical to
+ * `pageAnswerRows`' — `fetchAllRows` pages `[0, count)`, so a filter on one side
+ * only makes it request ranges the other side cannot fill, which surfaces as a
+ * count/page cardinality error rather than a wrong number.
+ */
+function countAnswerRows(
+  client: AnswerCountClient,
+  sessionIds: string[],
+): PromiseLike<{ count: number | null; error: { message: string } | null }> {
+  return client
+    .from('quiz_session_answers')
+    .select('*', { count: 'exact', head: true })
+    .in('session_id', sessionIds) as unknown as PromiseLike<{
+    count: number | null
+    error: { message: string } | null
+  }>
+}
+
+/** The page half. Same filter as `countAnswerRows`; `.order('id')` keeps paging deterministic. */
+async function pageAnswerRows(
+  client: AnswerCountClient,
+  sessionIds: string[],
+  range: { from: number; to: number },
+) {
+  const { data, error } = await (client
+    .from('quiz_session_answers')
+    .select('session_id')
+    .in('session_id', sessionIds)
+    .order('id', { ascending: true })
+    .range(range.from, range.to) as unknown as PromiseLike<{
+    data: unknown
+    error: { message: string } | null
+  }>)
+  return toPageResult<SessionIdRow>(data, error, 'quiz_session_answers')
+}
+
 export async function fetchAnsweredItemCounts(
   sessionIds: string[],
   client: AnswerCountClient,
@@ -58,26 +95,8 @@ export async function fetchAnsweredItemCounts(
   if (sessionIds.length === 0) return { data: new Map(), error: null }
 
   const { data: rows, error } = await fetchAllRows<SessionIdRow>(
-    () =>
-      client
-        .from('quiz_session_answers')
-        .select('*', { count: 'exact', head: true })
-        .in('session_id', sessionIds) as unknown as PromiseLike<{
-        count: number | null
-        error: { message: string } | null
-      }>,
-    async (from, to) => {
-      const { data, error } = await (client
-        .from('quiz_session_answers')
-        .select('session_id')
-        .in('session_id', sessionIds)
-        .order('id', { ascending: true })
-        .range(from, to) as unknown as PromiseLike<{
-        data: unknown
-        error: { message: string } | null
-      }>)
-      return toPageResult<SessionIdRow>(data, error, 'quiz_session_answers')
-    },
+    () => countAnswerRows(client, sessionIds),
+    (from, to) => pageAnswerRows(client, sessionIds, { from, to }),
   )
   // Never a partial Map on error — a truncated count would silently under-state a
   // denominator, the exact defect class this helper exists to prevent.

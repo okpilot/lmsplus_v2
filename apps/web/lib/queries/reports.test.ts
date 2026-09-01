@@ -322,6 +322,23 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(1)
   })
 
+  it('excludes internal_exam session ids from the answered-item count lookup', async () => {
+    // fetchAnsweredItemCounts must be called with the internal_exam-FILTERED id list, not the
+    // raw RPC rows — a regression that passed the unfiltered list would ask for an item count
+    // on a session this list never displays.
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-quick', mode: 'quick_quiz' }),
+        makeRpcRow({ id: 'sess-internal', mode: 'internal_exam' }),
+      ],
+      error: null,
+    })
+
+    await getSessionReports(DEFAULT_OPTS)
+
+    expect(mockFetchAnsweredItemCounts).toHaveBeenCalledWith(['sess-quick'], expect.anything())
+  })
+
   it('issues a single RPC call when a non-empty page filters down to no visible rows', async () => {
     // Belt-and-suspenders: if the RPC ever returns only internal_exam rows on page>1 (it
     // excludes them server-side today), allRows is non-empty so this is a FILTERED page, not an
