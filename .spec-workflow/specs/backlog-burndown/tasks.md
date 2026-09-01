@@ -223,11 +223,13 @@ Ordering and contents in the artifact above. Not started.
       (merged `970dabbf`) · ~~3b (#991)~~ **DONE** (PR #1247, merged `e89ead6a` 2026-08-31; mig
       `20260824000100` deployed to production 2026-09-01 after the user approved the held db-deploy run).
       Its sequenced remainder — the `fetchAllRows` root guard — merged as PR #1248 (`44e39361`, closes
-      #1249) · **PR B = IN FLIGHT** (branch `fix/student-read-rpc-active-user-gates`): the second written
+      #1249) · ~~PR B~~ **DONE** (PR #1257, squash-merged `d5bae0c9` 2026-09-01): the second written
       migration, re-scoped. `20260824000200` keeps the internal-exam DISTINCT `answered_count` + gates;
       a new `20260824000300` closes the same class for `get_daily_activity` / `get_subject_scores`, which
-      the #883 sweep also missed and `docs/security.md` recorded as complete. Migration PR ⇒ never
-      auto-merged; user evals and merges · 3c (#990)
+      the #883 sweep also missed and `docs/security.md` recorded as complete. db-deploy run 33554217558
+      is HELD `waiting` on the user's Production approval — neither migration is applied to prod until
+      then. Filed #1258 (8 SECURITY INVOKER RPCs, the same class this PR could not reach) and #1256
+      · 3c (#990)
       · PR 4 (#1197) · PR 5 (#539)
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
       · PR 11 (#1181+#1184)
