@@ -182,6 +182,22 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     // (is_admin() false), not org-gated (which FK1/FK2 already cover).
     orgAStudentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
+    // Pin the precondition FL3/FL4 actually depend on. is_admin() is
+    // `role = 'admin' AND deleted_at IS NULL`, and BOTH halves raise the same
+    // 'forbidden' token — so if this fixture were ever left soft-deleted, FL3/FL4
+    // would still pass while covering only the deleted_at half that Vector EJ
+    // already covers, silently reopening the gap they exist to close. upsertUser
+    // deliberately does not reset deleted_at (see seed-core.ts), so nothing
+    // restores it once set. Assert it rather than assume it.
+    const { data: attackerRow, error: attackerErr } = await admin
+      .from('users')
+      .select('role, deleted_at')
+      .eq('email', ATTACKER_EMAIL)
+      .single()
+    expect(attackerErr).toBeNull()
+    expect(attackerRow?.role).toBe('student')
+    expect(attackerRow?.deleted_at).toBeNull()
+
     // easa_subjects is shared reference data (no organization_id column — see
     // rpc-cross-tenant-reports.spec.ts / seed-quiz.ts), so the same subjectId
     // is a valid FK target for a quiz_sessions row in EITHER org.

@@ -192,6 +192,21 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     // ('student') user in the SAME org as realQuestionId (seedRedTeamUsers seeds it
     // into orgId) — proves the rejection below is role-gated, not org-gated.
     attackerStudentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
+
+    // Pin the precondition FL5 depends on. is_admin() is `role = 'admin' AND
+    // deleted_at IS NULL`, and BOTH halves raise the same 'forbidden' token — so a
+    // soft-deleted attacker would leave FL5 green while covering only the
+    // deleted_at half this file's own EJ tests already cover. That is especially
+    // easy to miss here, where the surrounding suite soft-deletes users on purpose.
+    // upsertUser deliberately does not reset deleted_at (see seed-core.ts).
+    const { data: attackerRow, error: attackerErr } = await admin
+      .from('users')
+      .select('role, deleted_at')
+      .eq('email', ATTACKER_EMAIL)
+      .single()
+    expect(attackerErr).toBeNull()
+    expect(attackerRow?.role).toBe('student')
+    expect(attackerRow?.deleted_at).toBeNull()
   })
 
   test.afterAll(async () => {
