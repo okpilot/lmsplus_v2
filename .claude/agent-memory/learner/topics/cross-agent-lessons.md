@@ -334,3 +334,89 @@ Same Vector FL red-team session as `59005823`/`34e26c48` above. Four core post-c
   "MEMORY.md de-listing sweep" referenced in this file's row-489 entry) is a dedicated maintenance
   task, not something to do inline in a single-commit learner pass; flagging for `/insights` or a
   dedicated memory-maintenance session.
+
+## Commits `80b0aaeb`→`8f6eb599` (fix/student-read-rpc-active-user-gates) — 2026-09-01 learner pass
+
+Branch gates four SECURITY DEFINER student-read RPCs the #883 sweep missed, fixes an
+`answered_count` miscount, and rewrites `docs/security.md` §11c from a closed enumeration into a
+derivation. Four review rounds; every finding across all four was a §10-class false prose claim —
+zero code defects.
+
+- **Row 604 (+1 → 26), 3rd/4th distinct branch, 5 same-branch-family sub-instances counted as ONE
+  increment (PR #1247 / `59005823` / `34e26c48` precedent):**
+  (a) `80b0aaeb` moved a restore from `finally` to `afterEach` (biome `noUnsafeFinally`) but left two
+  duplicate "restores in a finally" comments — fixed in `d1c37135`.
+  (b) `d1c37135` itself appended two new `describe` blocks below a comment reading "Runs last",
+  falsifying it — fixed in `7a5d6791` by restating the mechanism (afterEach restores before any
+  later describe) instead of the now-false position.
+  (c) `d1c37135`'s own `docs/plan.md` edit said "five mutation runs rather than six" while also
+  stating the four gates were mutated in two per-migration PAIRS — arithmetic doesn't reconcile
+  (2 pair-runs + 1 DISTINCT-count run + 1 soft-delete-filter run = four, with red-team as a separate
+  fifth already reported elsewhere and double-counted here) — fixed in `7a5d6791`.
+  (d) `80b0aaeb` edited part of a `docs/database.md` sentence to fold in the two new student-reader
+  RPCs, making "apply `deleted_at IS NULL` filters on every SELECT" overbroad — both readers LEFT
+  JOIN `easa_subjects`, which has no `deleted_at` column, so the per-function detail below the
+  overview already contradicted it — fixed by CR-local round 1, applied in `8f6eb599`.
+  (e) `80b0aaeb` wrote "`get_subject_scores` has no production caller today" in three sites — false
+  at the RPC level: `apps/web/lib/queries/analytics.ts:59` defines a production helper that DOES
+  call it; nothing imports THAT HELPER, which is what actually has no caller — fixed by CR-local
+  round 1, applied in `8f6eb599`.
+  All five are the code-style.md §10 "partial comment edit is the tell" mechanism (clause 3), on a
+  branch whose entire PURPOSE was correcting a §10-class violation (the #883 sweep-record claim
+  below) — the rule text is well-known in-session and still didn't prevent it recurring 5 times in
+  4 rounds. Consistent with every prior row-604 entry: **not a rule-text gap, an enforcement-depth
+  one.** No further text change proposed this pass either — the count is now high enough (26, 4
+  branches) that the orchestrator may want to consider a MECHANICAL self-check (grep the fix
+  commit's own new/changed prose for positional words — "last", "first", "only", "in a finally" —
+  and re-derive any count) run by the AUTHORING agent before finalizing a commit whose stated
+  purpose is fixing a §10 violation, rather than relying on the next review round to catch it. This
+  is a proposal for the orchestrator to weigh, not a promoted rule.
+
+- **Row 688 (NEW) — Rule-promotion sweep recorded closed/complete, later found incomplete, count=2
+  across two different rule promotions:** `docs/security.md` §11c recorded the #883 active-user-gate
+  promotion (`agent-learner.md` § Sweep On Rule Promotion) as having "swept every SECURITY DEFINER
+  RPC by family" — prose closed-enumeration. A mechanical re-derivation in `80b0aaeb` (latest
+  definition per function, SECURITY DEFINER, not `is_admin()`-gated, GRANTed to `authenticated`,
+  checked for a `users` lookup filtered on `deleted_at` whose miss raises) found FOUR more:
+  `list_my_internal_exam_history`, `list_my_active_internal_exam_codes`, `get_daily_activity`,
+  `get_subject_scores`. This is the SAME shape as issue #573 (the audit-actor-subquery-soft-delete
+  promotion via #550 — `start_quiz_session`'s audit subquery was initially missed), already named
+  inline in `agent-learner.md` § Sweep On Rule Promotion as the motivating precedent for the
+  code-sweep + downstream-enforcer-sync requirements that section already carries. Two occurrences
+  now, across two different rule promotions (#550→#573, #883→this), both discovered only by a LATER
+  mechanical re-derivation, not by the sweep's own claimed completeness. **RULE CANDIDATE (2):** the
+  section requires a code sweep and a downstream-enforcer sync, but not a RE-DERIVABLE RECORD of
+  what the sweep covered — a saved query/command (e.g. the criteria `80b0aaeb` used) alongside the
+  prose summary, so the next drift check can mechanically re-run it instead of trusting the prose
+  claim. `80b0aaeb`'s own fix models the remedy: it rewrote §11c from a closed enumeration into a
+  derivation and explicitly bounded it ("covers SECURITY DEFINER only") — the same shape code-style
+  §10 clause 2 already prescribes for comments, now proposed for the Sweep-On-Rule-Promotion
+  process record itself. `80b0aaeb` also names 8 SECURITY INVOKER RPCs with the same exposure
+  through ownership-only RLS as deliberately NOT fixed here — next sweep target, already flagged in
+  §11c per the same discipline.
+
+## Trimmed from MEMORY.md (2026-09-01 compaction, soft-cap nudge at 17.1KB)
+
+Full text preserved here per `agent-memory.md`'s never-lose-data-on-compaction discipline; the live
+table carries a one-line pointer back to this section for each.
+
+- **Row 683 full text (was row 109):** Orchestrator drafts its own unverified "because X"/
+  attribution claim in comment prose (not restating a finding) — RULE CANDIDATE (4, reconciled:
+  2×`8b8ccb54` rounds + 1×`eca41e9a` + 1×`e2768a56` — each a distinct false claim, not a
+  re-mention). Still no new RULE TEXT (code-style.md §10 + Finding Validation already state it
+  twice). DISPOSITION CHANGED: `e2768a56`'s claim ("a caller that retries gets a consistent one" —
+  false, the pager doesn't retry) escaped impl-critic AND the full post-commit cycle (code-reviewer
+  0, semantic-reviewer 0+1 GOOD, doc-updater/test-writer clean) — caught only by cloud CodeRabbit
+  post-push. "Gate is working" (prior disposition) is FALSIFIED for this 4th instance; 3/4 still
+  caught pre-commit. Gap is ENFORCEMENT (semantic-reviewer rated the comment GOOD without checking
+  the retry claim against the pager's source), not missing text. Treating the post-push escape
+  itself as count=1 (first time this class reached cloud CR) — WATCHING for a 2nd escape before
+  proposing a semantic-reviewer checklist item.
+- **Row 687 full text (was row 110):** code-reviewer line-count convention inconsistent across
+  cycles on an unchanged function body (signature+brace in vs excluded) — `fetchAllRows` body
+  reported "115-144 = exactly 30 lines, at cap" one cycle, then "spans 110-145 (36 lines), over the
+  cap" the next, same unchanged 30-line body; the 2nd count includes the signature line + closing
+  brace. Risk: phantom regression in the tracker. Single occurrence — log only; if it recurs,
+  propose agent-code-reviewer.md fix the convention to body-only (open `{` to matching `}`,
+  exclusive).
+
