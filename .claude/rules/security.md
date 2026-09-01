@@ -59,7 +59,15 @@
     intentional difference**, unless justified (`is_admin()` RPCs are exempt from per-caller
     scoping; a function reading no soft-deletable table needs no filter; no `audit_events` INSERT
     means no audit-subquery concern). Introducing a NEW guard class into one member means auditing
-    every other member **in the same commit**.
+    every other member **in the same commit**. The active-user gate's RAISE token spelling splits
+    by family and BOTH are correct — exam-session / report / batch-submit raise the space-separated
+    `'user not found or inactive'`, VFR-RT / quiz-question-serving raise
+    `'user_not_found_or_inactive'`; match the family you are editing. **Scope: SECURITY DEFINER
+    only.** A SECURITY INVOKER function has RLS evaluated for it and needs no manual gate — but only
+    where the RLS predicate itself excludes a deactivated account, and as of 2026-09-01 several
+    stand on ownership-only predicates that never read `users.deleted_at`. That is a separate and
+    still-OPEN exposure, not a finding against those functions. Re-derive the gated set rather than
+    trusting any list; see `docs/security.md` §11c.
 13. **Single-active-session invariant** — at most ONE active
     (`ended_at IS NULL AND deleted_at IS NULL`) `quiz_sessions` row per student, across all modes:
     a global partial unique index plus each start RPC raising `another_session_active`. Structural
