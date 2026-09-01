@@ -8,43 +8,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
-| Test fixture shape mismatch | 2 | 2026-03-13 | RULE CANDIDATE. |
-| Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE (2) → code-style.md §6 |
-| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE. |
-| Silent numeric fallback, no observability logging | 2 | 2026-03-13 | RULE CANDIDATE. |
 | Query missing student_id scope | 2 | 2026-03-15 | RULE CANDIDATE (2) → security.md (on 3rd) |
-| UI event handler missing re-entry guard | 2 | 2026-03-16 | RULE CANDIDATE. |
-| UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE (2) → code-style.md §5 |
 | Error path in existing function untested (count-error branch) | 8 | 2026-08-11 | RULE CANDIDATE (8). |
-| Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE. |
-| Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE. |
-| Supabase SELECT error swallowed in auth helper (distinct from mutation) | 3 | 2026-06-04 | RULE CANDIDATE (row 617) |
-| Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE. |
-| Missing `setSubmitting(true)` before async call in form/button handler | 2 | 2026-04-27 | RULE CANDIDATE (row 618) |
-| Idempotent RPC returns hardcoded values instead of reading DB state | 2 | 2026-04-27 | RULE CANDIDATE. |
-| Code-reviewer flags file outside the commit diff scope | 2 | 2026-04-08 | RULE CANDIDATE (2) → agent-code-reviewer.md FP |
-| Function exceeding 30-line limit in Server Action file | 3 | 2026-04-10 | RULE CANDIDATE (3) → code-style.md §3 |
-| ZodError escaping Server Action via parse() without try/catch or safeParse | 2 | 2026-03-26 | RULE CANDIDATE (row 619) |
-| Hardcoded constant values in tests instead of importing source constants | 3 | 2026-05-29 | RULE CANDIDATE (row 620) |
-| CodeRabbit false-positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE (2) → .coderabbit.yaml |
-| Manual-eval bug invisible to unit tests (dual-source UI only in full app) | 2 | 2026-04-28 | RULE CANDIDATE (row 621) |
 | Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | RULE CANDIDATE (deferred). |
-| Server Action ERROR_MESSAGES not synced with new RPC `RAISE EXCEPTION` literals | 3 | 2026-06-19 | RULE CANDIDATE (3). |
-| Red-team spec-count prose drift across multiple doc surfaces | 7 | 2026-07-03 | RULE CANDIDATE (7) → agent-doc-updater.md |
-| Spec-doc literal counts drifting from distinct-count implementations | 2 | 2026-05-31 | RULE CANDIDATE. |
-| Red-team RLS error-code assertions pinned to 42501 (instead of generic error non-null) | 2 | 2026-06-04 | RULE CANDIDATE (2) (row 622) |
-| CR-local false positives on Postgres CREATE OR REPLACE migration chain | 3 | 2026-06-30 | RULE CANDIDATE (row 623) |
-| Doc residual-vector claims missing DB-level constraint that exists (symmetric drift) | 2 | 2026-06-05 | RULE CANDIDATE. |
-| ON CONFLICT clause with no supporting UNIQUE constraint (dead code or 42P10 at execution) | 2 | 2026-06-06 | RULE CANDIDATE. |
+| Red-team spec-count prose drift across multiple doc surfaces | 7 | 2026-07-03 | RESOLVED — rule DROPPED 2026-08-19 (#1222); doc-updater no longer chases stale inventory counts (agent-doc-updater.md) |
 | plpgsql body contains deferred-validation SQL (clean apply ≠ execution correctness) | 5 | 2026-08-24 | RULE CANDIDATE (5). |
-| Semantic reviewer stale-baseline false positive (wrong predecessor migration) | 2 | 2026-06-06 | RULE CANDIDATE. |
-| Stale local Supabase volume / in-place migration edit causing local e2e failures | 2 | 2026-06-10 | RULE CANDIDATE. |
-| Haiku code-reviewer false positives on Playwright E2E spec complexity | 2 | 2026-06-05 | RULE CANDIDATE. |
-| Query helper promoted to throw on error, but SA caller missing catch boundary | 2 | 2026-06-01 | RULE CANDIDATE. |
-| Red-team spec field-type assertion without nullability check across RPC modes | 2 | 2026-06-06 | RULE CANDIDATE. |
-| Red-team RPC output-contract assertions under-asserted | 4 | 2026-06-13 | RULE CANDIDATE (4) (row 624) |
-| Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap | 2 | 2026-06-06 | RULE CANDIDATE. |
-| Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (3). |
 | Integration-test count in plan.md goes stale on each test-adding commit | 7 | 2026-08-16 | RULE CANDIDATE (7). |
 | Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (2) (row 625) |
 | Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE. |
@@ -137,6 +105,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, detail in topic file) |
 | Orchestrator restates a critic/CR finding's mechanism backwards, unverified | 1 | 2026-09-01 | WATCHING (row 681, detail in topic file) |
 | CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, detail in topic file) |
+| Orchestrator drafts its own unverified "because X" justification clause in comment prose (not restating a finding) | 1 | 2026-09-01 | WATCHING — caught pre-commit by impl-critic across 2 rounds, same artifact, before it could become a row-604 instance (row 683) |
+| Doc-updater flags DRIFT by reading a statement explicitly scoped to one resolved case as a universal contract claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, all 3 findings validated+skipped (row 684) |
 
 ## Durable knowledge (cross-agent)
 
@@ -148,6 +118,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - Not-an-escalation + execute-vs-infer PROPOSAL (2026-08-31, rows 604/677-680) — 100% prose findings, zero code defects; not applied. Detail in topic file.
 - POSITIVE (`84413f28`, row 681): plan-critic caught the orchestrator's own draft PR-comment restating a CR mechanism backwards, pre-commit. Detail in topic file.
 - E2E spec >500L growth (`84413f28`) already self-tracked in code-reviewer/MEMORY.md at RULE CANDIDATE(2) — no duplicate row here.
+- POSITIVE (`8b8ccb54`): impl-critic caught 2 DIFFERENT self-invented false justification clauses across 2 revision rounds on the SAME JSDoc paragraph, pre-commit — semantic-reviewer separately reproduced the §7 mutation check exactly. Row 683 is a NEW shape (orchestrator inventing its own unverified "because" clause, not restating a finding — distinct from row 681) but counts as ONE occurrence (same commit/artifact); not yet promotable.
+- 2026-09-01 compaction: 32 rows dated 2026-03–2026-06 archived out of the live table (verified byte-identical detail already present in tracker-archive.md — zero data loss); one (red-team spec-count drift) transitioned to RESOLVED with its 2026-08-19 #1222 reversal noted, since it wasn't a clean promotion.
 
 ## Topic pointers
 

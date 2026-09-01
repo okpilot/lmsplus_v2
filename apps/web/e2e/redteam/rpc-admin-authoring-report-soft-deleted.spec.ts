@@ -120,6 +120,25 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     if (!questionRow) throw new Error('beforeAll: no active egmont question found')
     realQuestionId = questionRow.id as string
 
+    // Non-vacuity precondition for FL5, pinned in SETUP rather than left to the Vector EJ
+    // test's positive control. A denial assertion must not depend on another TEST having
+    // run: if realQuestionId ever stopped satisfying the predicate the RPC selects on, it
+    // would return no row for ANY caller and FL5's 'forbidden' assertion would pass while
+    // protecting nothing. Mirror that predicate EXACTLY — id + organization_id +
+    // deleted_at IS NULL (mig 20260619000600, the latest definition; there is no status
+    // filter). A stricter check here would fail on a retired-but-not-deleted question that
+    // the RPC still returns, so FL5 would go red for a fixture that is in fact fine.
+    const { data: precondition, error: preconditionErr } = await admin
+      .from('questions')
+      .select('id')
+      .eq('id', realQuestionId)
+      .eq('organization_id', orgId)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (preconditionErr)
+      throw new Error(`beforeAll: question precondition: ${preconditionErr.message}`)
+    expect(precondition?.id).toBe(realQuestionId)
+
     // Create (or realign) the dedicated throwaway admin user.
     const { data: authList, error: listError } = await admin.auth.admin.listUsers()
     if (listError) throw new Error(`beforeAll: listUsers failed: ${listError.message}`)

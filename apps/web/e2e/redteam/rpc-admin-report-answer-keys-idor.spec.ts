@@ -330,6 +330,34 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     ])
     if (answersErr) throw new Error(`beforeAll: org-A answers seed: ${answersErr.message}`)
 
+    // Non-vacuity precondition for FK1/FK2 and FL1-FL4, pinned in SETUP rather than left to
+    // the sibling positive-control tests. Those tests prove the payload is readable, but a
+    // denial assertion must not depend on another TEST having run: remove or skip them and
+    // every denial below would still pass while protecting nothing. Read through the
+    // service-role client, not the RPCs, so the guarantee also covers the anonymous and
+    // student cases, which never touch an admin client.
+    const { data: seededSession, error: seededSessionErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, deleted_at')
+      .eq('id', orgASessionId)
+      .single()
+    if (seededSessionErr)
+      throw new Error(`beforeAll: session precondition: ${seededSessionErr.message}`)
+    expect(seededSession.ended_at).not.toBeNull()
+    expect(seededSession.deleted_at).toBeNull()
+
+    // quiz_session_answers has no deleted_at column (hard-delete-by-design), so no
+    // soft-delete filter here — one would raise 42703 at runtime.
+    const { data: seededAnswers, error: seededAnswersErr } = await admin
+      .from('quiz_session_answers')
+      .select('response_text')
+      .eq('session_id', orgASessionId)
+    if (seededAnswersErr)
+      throw new Error(`beforeAll: answer-key precondition: ${seededAnswersErr.message}`)
+    expect((seededAnswers ?? []).map((r) => r.response_text).sort()).toEqual(
+      [SHORT_ANSWER_CANONICAL, DIALOG_BLANK.canonical].sort(),
+    )
+
     // ── Org-B fixture: a bare completed session in the ATTACKER'S OWN org.
     // No non-MC questions needed here — its only purpose is to prove the
     // org-B admin's own JWT + org resolution reach the session-lookup step.
