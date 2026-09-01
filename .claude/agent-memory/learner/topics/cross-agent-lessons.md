@@ -564,3 +564,40 @@ gaps — prose-only diff).
   thread (`gh api repos/{owner}/{repo}/pulls/{n}/comments` or the Artifact-style `comments` action
   equivalent) — a review can carry findings in either location independently."
 
+
+- **Row 62 (2026-09-02, promoted to RULE CANDIDATE) — JSDoc silently reattaches to the wrong
+  declaration during extraction:** fix/admin-session-item-scale, commit `4c33b2bf`. Hoisting
+  `countAnswerRows`/`pageAnswerRows` out of `fetchAnsweredItemCounts` inserted the new declarations
+  directly ABOVE the exported function, between it and its existing JSDoc block. Doc comments bind
+  to the nearest following declaration, so the block — which carried a security-relevant paragraph
+  ("the caller chooses the client — this is a security-relevant decision") — silently reattached to
+  the new unexported helper (whose parameter order didn't even match the prose), leaving the exported
+  function it was written to warn about completely undocumented. The doc CONTENT was correct
+  throughout; only its POSITION was wrong, which is what makes this a distinct mechanism from the
+  false-claim-in-prose family (row 604/§10) — nothing here was ever untrue, a structural code move
+  just orphaned an accurate comment. Caught by semantic-reviewer the NEXT cycle (`81f41818`), not by
+  code-reviewer, not by any mechanical check, and not by the implementing agent that did the
+  extraction. Single occurrence — WATCHING. On 2nd occurrence (a different extraction/hoist leaves a
+  JSDoc block bound to a newly-inserted declaration instead of its original target): propose an
+  implementation-critic DO — "when a diff hoists a new declaration directly above an existing
+  commented one, verify the original JSDoc block moved WITH its declaration (diff the doc's nearest
+  non-blank line before and after), not just that a JSDoc block exists somewhere above the file
+  region." Could also be partially mechanical: a lint/regex check that a doc comment's immediately
+  following line still parses as the SAME identifier it did pre-diff would catch the shape (not
+  proposed yet — single instance).
+
+- **Row 63 (2026-09-02, WATCHING, positive design instance) — shared query helper generalized to a
+  2nd caller with a different trust tier, client made a required param with no default:**
+  fix/admin-session-item-scale, commit `7c9c9177`. `fetchAnsweredItemCounts` originally hardcoded
+  `import { adminClient } from '@repo/db/admin'` — fine while its only callers were two admin
+  surfaces. Adding a THIRD, student-facing caller (`/app/reports`, RLS-scoped) required a client that
+  is NOT service-role, since `adminClient` would bypass `students_read_answers` RLS entirely on a
+  student request path. The fix made the client a REQUIRED parameter with explicitly no default
+  ("an implicit service-role fallback on a helper reachable from a student path is a footgun") rather
+  than defaulting to the previously-hardcoded service-role client for backward compatibility. This is
+  the correct call made proactively, not a caught defect — no `docs/security.md` rule currently names
+  the general pattern ("a helper callable from more than one trust tier must take its Supabase client
+  as a required parameter, never a default parameter"). Logged as WATCHING rather than promoted
+  because there is no violating instance yet to count — the tracker row exists so that a FUTURE
+  generalization-with-a-default (the failure this branch avoided) has somewhere to land as occurrence
+  2, which would trigger a `docs/security.md` §5 addendum.
