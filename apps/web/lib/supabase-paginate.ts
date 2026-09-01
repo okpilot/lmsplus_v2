@@ -62,6 +62,27 @@ async function resolveTotal(getCount: () => PromiseLike<CountResult>): Promise<T
 }
 
 /**
+ * A SHORT page is the same count/page disagreement as a null one: the count already reported
+ * rows across [from, to], so a successful page returning fewer than that range holds is an
+ * inconsistent read, not an empty one. Accepting it returns a truncated set with `error: null`
+ * — the silently-complete-looking result (#668/#673) this pager exists to prevent. Fail the
+ * read instead; a caller that retries gets a consistent one.
+ *
+ * @returns the error to fail the read with, or `null` when the page is the expected size.
+ */
+function checkPageCardinality(
+  rowCount: number,
+  from: number,
+  to: number,
+): { message: string } | null {
+  const expected = to - from + 1
+  if (rowCount === expected) return null
+  return {
+    message: `fetchAllRows page [${from}, ${to}]: expected ${expected} rows, got ${rowCount}`,
+  }
+}
+
+/**
  * Fetch ALL rows for a query that would otherwise truncate at PostgREST's max_rows cap.
  * Counts first (an out-of-range `.range()` returns PostgREST 416, so we must know the total to
  * never request a page past the end), then pages with `.range()` until every row is read.
@@ -76,7 +97,9 @@ async function resolveTotal(getCount: () => PromiseLike<CountResult>): Promise<T
  *   (a transport fault, or a thunk that throws), the rejection PROPAGATES out of this function
  *   rather than being normalized into `error`. That is deliberate: how a transport fault should
  *   surface differs by caller chain, so this helper does not decide it.
- *   Two of those are newly rejected. A count reporting no exact total used to become
+ *   Three of those are newly rejected. A short page — fewer rows than its range holds — used
+ *   to be spread as-is, quietly truncating the result; it is now the same count/page
+ *   disagreement as a null page. A count reporting no exact total used to become
  *   `total = 0`, so the loop never ran and an incomplete read came back as a success. A non-array
  *   page met only a bare truthiness check, whose outcome varied by value: falsy was skipped,
  *   quietly shortening the result, while anything truthy was spread — raising a `TypeError` out of
@@ -109,26 +132,13 @@ export async function fetchAllRows<T>(
     // toPageResult passes a real page error through unchanged and turns any non-array
     // payload — `null` included — into one, so it covers both rejection paths here.
     const page = toPageResult<T>(data, error, `fetchAllRows page [${from}, ${to}]`)
-    // Discard partial pages on error: a half-fetched set is worse than an empty one —
-    // callers treat an errored read as a failed (empty) section + log it, so returning the
-    // accumulated rows would masquerade as a complete result (e.g. a silently truncated
-    // GDPR export). Completeness is all-or-nothing per read.
+    // Discard partial pages on error: callers treat an errored read as a failed (empty)
+    // section + log it, so returning the accumulated rows would masquerade as a complete
+    // result (e.g. a silently truncated GDPR export). Completeness is all-or-nothing per read.
     if (page.error) return { data: [], error: page.error }
-    // A SHORT page is the same count/page disagreement as a null one: the count already
-    // reported rows across [from, to], so a successful page returning fewer than that range
-    // holds is an inconsistent read, not an empty one. Accepting it returns a truncated set
-    // with error: null — the silently-complete-looking result (#668/#673) this pager exists
-    // to prevent. Fail the read instead; a caller that retries gets a consistent one.
     const rows = page.data ?? []
-    const expected = to - from + 1
-    if (rows.length !== expected) {
-      return {
-        data: [],
-        error: {
-          message: `fetchAllRows page [${from}, ${to}]: expected ${expected} rows, got ${rows.length}`,
-        },
-      }
-    }
+    const shortPage = checkPageCardinality(rows.length, from, to)
+    if (shortPage !== null) return { data: [], error: shortPage }
     all.push(...rows)
   }
   return { data: all, error: null }

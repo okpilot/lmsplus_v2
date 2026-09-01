@@ -198,6 +198,28 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(1)
   })
 
+  // No test above covers a remainder page reached AFTER full pages, which is where the range
+  // arithmetic is easiest to get wrong. (The first short-page test also happens to hold
+  // `expected === pageSize`, so on its own it would not distinguish `to - from + 1` from a bug
+  // using the raw `pageSize`; the empty-page test already does, since it leaves pageSize at the
+  // 1000 default against an expected of 3.) Pin the remainder case here.
+  it('returns an error when the final (remainder-sized) page comes up short', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 5, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: [3, 4], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [4, 4]: expected 1 rows, got 0',
+    })
+    expect(getPage).toHaveBeenCalledTimes(3)
+  })
+
   // The { data: [], error } contract covers RESOLVED results only. A REJECTED thunk propagates
   // by design: how a transport fault should surface differs by caller chain, so the pager does
   // not decide it. These two pin that, so a later "just catch it" cannot pass unseen.

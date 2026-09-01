@@ -15,6 +15,7 @@
 | Test name contradicts its assertion postcondition | 2026-04-05 | 3 | 2026-06-06 | PROMOTED → re-read name vs assertion, fix in same commit |
 | Sibling-parity retry test asserts only END-state, missing a sibling's "clears at start" test | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
 | `toHaveLength(N)` on an array whose CONTENT matters (toUpdate, toInsert) — count-only passes mutants that swap correct entries for wrong ones of equal count | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
+| Two sibling error-path tests both happen to produce the SAME numeric literal from two different formulas (e.g. `pageSize` vs `to-from+1`, both = 2), so neither catches a mutant that swaps one formula for the other — only a fixture where the formulas diverge (the last, remainder-sized page) does | 2026-09-01 | 1 | 2026-09-01 | WATCHING |
 
 ## Durable knowledge
 
