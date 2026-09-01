@@ -18,7 +18,7 @@
  *
  * Guard order in the RPC body is load-bearing for these assertions:
  *   auth.uid() IS NULL          -> 'not authenticated'
- *   auth.uid() <> p_student_id  -> 'forbidden'
+ *   auth.uid() IS DISTINCT FROM p_student_id -> 'forbidden'
  *   users.deleted_at IS NULL    -> 'user not found or inactive'
  * so a caller must pass their OWN id to reach the gate under test.
  *
