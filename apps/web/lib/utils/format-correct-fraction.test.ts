@@ -18,4 +18,10 @@ describe('formatCorrectFraction', () => {
     expect(formatCorrectFraction(9, 9)).toBe('9 / 9')
     expect(formatCorrectFraction(24, 29)).toBe('24 / 29')
   })
+
+  it('renders a zero-correct fraction rather than an em dash when items were answered', () => {
+    // The em-dash guard checks answeredItems === 0, not correctCount === 0 — a fixture where
+    // correctCount is 0 but answeredItems isn't is the only way to tell those two guards apart.
+    expect(formatCorrectFraction(0, 5)).toBe('0 / 5')
+  })
 })

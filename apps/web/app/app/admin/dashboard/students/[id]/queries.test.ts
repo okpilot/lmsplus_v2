@@ -321,6 +321,24 @@ describe('getStudentSessions', () => {
     expect(sessions[0]?.answeredItems).not.toBe(sessions[0]?.totalQuestions)
   })
 
+  it('defaults answeredItems to 0 when the session has no recorded answer rows', async () => {
+    // No answerRows passed — fetchAnsweredItemCounts returns a Map with no entry for
+    // this session id, exercising the `itemCounts.get(row.id) ?? 0` fallback at the
+    // call site (queries.ts), not just the Map contract fetchAnsweredItemCounts itself
+    // already covers in its own unit tests.
+    const row = makeSessionRow({ answeredItems: 0 })
+    mockSessionsQuery(makeSessionChain([row], 1))
+
+    const { sessions } = await getStudentSessions(STUDENT_ID, {
+      range: 'all',
+      page: 1,
+      sort: 'date',
+      dir: 'desc',
+    })
+
+    expect(sessions[0]?.answeredItems).toBe(0)
+  })
+
   it('throws when the answered-item count lookup fails', async () => {
     const row = makeSessionRow()
     mockSessionsQuery(makeSessionChain([row], 1), {

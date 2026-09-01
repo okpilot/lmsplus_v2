@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
 import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
+import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
 
@@ -93,7 +94,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
         )}
       </td>
       <td className="px-4 py-3 tabular-nums">
-        {s.correctCount} / {s.totalQuestions}
+        {formatCorrectFraction(s.correctCount, s.answeredItems)}
       </td>
       <td className="px-4 py-3 text-muted-foreground">
         {formatDurationMinutes(s.durationMinutes)}

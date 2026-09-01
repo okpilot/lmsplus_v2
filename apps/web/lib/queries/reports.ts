@@ -1,4 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
+import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 import { toPageResult } from '@/lib/supabase-paginate'
 
 export type SessionReport = {
@@ -7,6 +9,7 @@ export type SessionReport = {
   subjectName: string | null
   totalQuestions: number
   correctCount: number
+  answeredItems: number
   scorePercentage: number | null
   startedAt: string
   endedAt: string
@@ -109,11 +112,27 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   // No probe here: allRows was non-empty, so this is a filtered page, not an out-of-range one.
   if (rows.length === 0) return { ok: true, sessions: [], totalCount: 0 }
 
+  // The RLS-scoped client, never adminClient — `/app/reports` is a student request path.
+  // `quiz_session_answers`' `students_read_answers` policy (mig 20260311000005) already scopes
+  // this read to the caller's own sessions, so service-role would only bypass its own guard.
+  const { data: itemCounts, error: itemCountsError } = await fetchAnsweredItemCounts(
+    rows.map((r) => r.id),
+    supabase as unknown as AnswerCountClient,
+  )
+  if (itemCountsError) {
+    console.error('[getSessionReports] Item counts error:', itemCountsError.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+
   // total_count comes from the window function — same on every row. It is a BIGINT, which
   // PostgREST serializes as a string, so coerce with Number() before the caller divides by it.
   const totalCount = Number(rows[0]?.total_count ?? 0)
 
-  return { ok: true, sessions: rows.map(mapRpcRow), totalCount }
+  return {
+    ok: true,
+    sessions: rows.map((r) => mapRpcRow(r, itemCounts.get(r.id) ?? 0)),
+    totalCount,
+  }
 }
 
 /**
@@ -144,7 +163,7 @@ async function probeOutOfRangeTotal(
   return { ok: true, sessions: [], totalCount: Number(probeRows[0]?.total_count ?? 0) }
 }
 
-function mapRpcRow(r: RpcRow): SessionReport {
+function mapRpcRow(r: RpcRow, answeredItems: number): SessionReport {
   const start = new Date(r.started_at).getTime()
   const end = new Date(r.ended_at).getTime()
   return {
@@ -153,6 +172,7 @@ function mapRpcRow(r: RpcRow): SessionReport {
     subjectName: r.subject_name ?? null,
     totalQuestions: r.total_questions,
     correctCount: r.correct_count,
+    answeredItems,
     scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage),
     startedAt: r.started_at,
     endedAt: r.ended_at,

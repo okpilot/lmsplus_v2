@@ -210,6 +210,33 @@ describe('listInternalExamAttempts', () => {
       expect(result.rows[0]!.answeredItems).toBe(3)
       expect(result.rows[0]!.answeredItems).not.toBe(row.total_questions)
     })
+
+    it('defaults answeredItems to 0 when the session has no recorded answer rows', async () => {
+      // mockFrom's default answersChain resolves to zero rows, so fetchAnsweredItemCounts
+      // returns a Map with no entry for sess-1 — this exercises the
+      // `itemCounts.get(r.id) ?? 0` fallback at the call site (attempts-queries.ts), which
+      // the "derives answeredItems" test above cannot reach because it always seeds a match.
+      mockAdmin()
+      const row = {
+        id: 'sess-1',
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: PAST,
+        ended_at: PAST,
+        total_questions: 20,
+        correct_count: 15,
+        score_percentage: 75,
+        passed: true,
+        easa_subjects: { name: 'Meteorology' },
+        users: { full_name: 'Alice', email: 'alice@example.com' },
+        internal_exam_codes: null,
+      }
+      mockFrom(buildChain([row], null, 1))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows[0]!.answeredItems).toBe(0)
+    })
   })
 
   describe('filters', () => {

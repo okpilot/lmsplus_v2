@@ -1,5 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
 import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 import { rangeToCutoff } from '../../_lib/range-cutoff'
 import type { SessionSort, StudentDetail, StudentSession, StudentSessionFilters } from '../../types'
@@ -79,6 +80,7 @@ export async function getStudentSessions(
 
   const { data: itemCounts, error: itemCountsError } = await fetchAnsweredItemCounts(
     (data ?? []).map((row) => row.id),
+    adminClient as unknown as AnswerCountClient,
   )
 
   if (itemCountsError) {

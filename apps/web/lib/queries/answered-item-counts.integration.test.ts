@@ -25,6 +25,7 @@ import {
   type ReferenceIds,
   seedReferenceData,
 } from '@/lib/integration-support/harness'
+import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
 import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 
 const admin = getAdminClient()
@@ -251,11 +252,10 @@ describe('fetchAnsweredItemCounts (app-layer integration)', () => {
   })
 
   it('counts answer ROWS per session — a multi-blank question counts once per blank, not once per question', async () => {
-    const result = await fetchAnsweredItemCounts([
-      multiBlankSessionId,
-      singleItemSessionId,
-      emptySessionId,
-    ])
+    const result = await fetchAnsweredItemCounts(
+      [multiBlankSessionId, singleItemSessionId, emptySessionId],
+      admin as unknown as AnswerCountClient,
+    )
     expect(result.error).toBeNull()
     // Would read 1 (the distinct-question count) if this helper collapsed by question
     // instead of counting quiz_session_answers rows — that is the whole point of this test.
@@ -266,7 +266,7 @@ describe('fetchAnsweredItemCounts (app-layer integration)', () => {
   })
 
   it('resolves an empty map for an empty sessionIds list', async () => {
-    const result = await fetchAnsweredItemCounts([])
+    const result = await fetchAnsweredItemCounts([], admin as unknown as AnswerCountClient)
     expect(result).toEqual({ data: new Map(), error: null })
   })
 })
