@@ -155,6 +155,35 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('get_daily_activity rejects unauthenticated callers', async () => {
+    // Both analytics RPCs gained the active-user gate in mig 20260824000300, but their FIRST
+    // guard is the older bare auth.uid() IS NULL check, which no test at any tier exercised.
+    // p_student_id is a required arg; a random uuid is fine because the null-check fires first.
+    const { data, error } = await unauthClient.rpc('get_daily_activity', {
+      p_student_id: '00000000-0000-0000-0000-000000000000',
+      p_days: 7,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_subject_scores rejects unauthenticated callers', async () => {
+    // Sibling of the above. MEASURED 2026-09-01: get_subject_scores's only in-repo caller was
+    // the getSubjectScores helper (apps/web/lib/queries/analytics.ts), which nothing imported —
+    // so no page reached it and its GRANT to `authenticated` was the whole live surface, making
+    // this anon path the first thing an unauthenticated prober would try. Callers are an OPEN
+    // set; re-derive with `grep -rn "get_subject_scores\|getSubjectScores" apps packages`
+    // rather than trusting this line.
+    const { data, error } = await unauthClient.rpc('get_subject_scores', {
+      p_student_id: '00000000-0000-0000-0000-000000000000',
+      p_limit: 5,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   test('record_internal_exam_code_emailed rejects unauthenticated callers (Vector DZ)', async () => {
     // The RPC raises not_authenticated via the auth.uid() IS NULL guard (mig
     // 110) BEFORE any code lookup. An anon-key client has no JWT, so auth.uid()

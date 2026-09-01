@@ -11,6 +11,15 @@
  *        only read path is `list_my_active_internal_exam_codes()` RPC, whose
  *        return signature omits the plaintext `code` column.
  *
+ * Vector FM (HIGH): the active-user gate on the two student read RPCs
+ * (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`),
+ * added by migration 20260824000200. Both previously carried only the
+ * `auth.uid()` null-check, so a student soft-deleted via toggle-student-status
+ * while holding a still-valid JWT kept reading their own codes and history —
+ * deactivation cascades to neither `internal_exam_codes` nor `quiz_sessions`,
+ * so the per-row `student_id` filter still matched. DK proves the RPC is the
+ * only read path; FM proves that path closes when the account does.
+ *
  * Status: Expected to PASS — table has RLS enabled, no INSERT/DELETE/UPDATE
  * policy for the authenticated role, and the student SELECT policy was
  * dropped in favour of the RPC. If any assertion fails it is an RLS gap.
@@ -43,9 +52,12 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
   let victimCodeId: string
   let victimCodeText: string
   let attackerCodeId: string
+  let victimUserId: string
 
   test.beforeAll(async () => {
-    const { attackerUserId, victimUserId, orgId } = await seedRedTeamUsers()
+    const seeded = await seedRedTeamUsers()
+    const { attackerUserId, orgId } = seeded
+    victimUserId = seeded.victimUserId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     admin = getAdminClient()
@@ -272,5 +284,64 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
       .eq('id', victimCodeId)
       .maybeSingle()
     expect(after?.id).toBe(victimCodeId)
+  })
+
+  // --- #883 Vector FM: active-user gate on both student read RPCs (mig 20260824000200) ---
+
+  test.describe('FM: a soft-deleted caller is rejected by both internal-exam student reads', () => {
+    let victimSoftDeleted = false
+
+    // Restore in afterEach, which runs even when the test fails — a stranded soft-deleted
+    // victim would poison every downstream spec that authenticates as them. Asserting
+    // rows-affected keeps a silently-filtered restore from reading as success.
+    test.afterEach(async () => {
+      if (!victimSoftDeleted) return
+      const { data: restored, error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', victimUserId)
+        .select('id')
+      if (restoreErr) throw new Error(`[FM cleanup] restore victim failed: ${restoreErr.message}`)
+      if ((restored?.length ?? 0) === 0)
+        throw new Error('[FM cleanup] restore victim affected 0 rows')
+      victimSoftDeleted = false
+    })
+
+    test('the owner reads their own active codes until soft-deleted, then both RPCs reject', async () => {
+      // Positive control — while active, the victim genuinely reads a code row, so the
+      // rejection below runs against a payload that WOULD have leaked. The history RPC has no
+      // rows for this fixture (no completed internal_exam session is seeded here); its guard
+      // is still non-vacuous because the assertion is on the RAISE, which an empty result set
+      // cannot satisfy. The payload itself is covered at the integration tier, in
+      // packages/db/src/__integration__/rpc-internal-exam-student-reads.integration.test.ts.
+      const beforeCodes = await victimClient.rpc('list_my_active_internal_exam_codes')
+      expect(beforeCodes.error).toBeNull()
+      expect((beforeCodes.data ?? []).length).toBeGreaterThan(0)
+
+      const beforeHistory = await victimClient.rpc('list_my_internal_exam_history')
+      expect(beforeHistory.error).toBeNull()
+
+      // Soft-delete the owner via admin. The JWT minted in beforeAll stays valid — nothing
+      // revokes it — so the in-function gate is the only thing left in the way.
+      const { data: deleted, error: delErr } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', victimUserId)
+        .is('deleted_at', null)
+        .select('id')
+      expect(delErr).toBeNull()
+      expect((deleted ?? []).length).toBeGreaterThan(0)
+      victimSoftDeleted = true
+
+      const codes = await victimClient.rpc('list_my_active_internal_exam_codes')
+      expect(codes.error).not.toBeNull()
+      expect(codes.error?.message ?? '').toMatch(/user not found or inactive/i)
+      expect(codes.data).toBeNull()
+
+      const history = await victimClient.rpc('list_my_internal_exam_history')
+      expect(history.error).not.toBeNull()
+      expect(history.error?.message ?? '').toMatch(/user not found or inactive/i)
+      expect(history.data).toBeNull()
+    })
   })
 })

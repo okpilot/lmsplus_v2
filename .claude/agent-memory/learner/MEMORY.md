@@ -1,10 +1,10 @@
 # Learner Agent Memory
 
-> Cross-agent pattern synthesis + FP tracking. Update IN PLACE — no dated logs; history in git. Terminal-state rows → tracker-archive.md.
+> Cross-agent pattern synthesis + FP tracking. Update IN PLACE — no dated logs; history in git. Terminal rows → tracker-archive.md.
 
 ## Issue Frequency Tracker (active rows; terminal-state → tracker-archive.md)
 
-Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status, full narrative there.
+Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrative there.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
@@ -20,7 +20,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE. |
 | DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE (row 626) |
 | Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE (row 627) |
-| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 5 | 2026-07-02 | RULE CANDIDATE (5). |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 6 | 2026-09-01 | RULE CANDIDATE (6) — now confirmed on an inline `it()`/`test()` callback body too, not just extracted named helpers (rpc-analytics-active-user-gate.spec.ts Vector FN test, 52L, precedent-matched to unflagged Vector FM in rpc-internal-exam-codes.spec.ts). Overdue — proposed clause (topics/cross-agent-lessons.md) needs broadening to name both shapes before promotion. |
 | `vi.spyOn` spy restore hygiene gap (spy leaks across tests on assertion failure) | 2 | 2026-06-20 | RULE CANDIDATE. |
 | CLAUDE.md QA-pipeline section drifts when lefthook.yml changes | 2 | 2026-06-20 | RULE CANDIDATE. |
 | Test-file split drops a test-branch guard or condition during the move | 2 | 2026-06-23 | RULE CANDIDATE. |
@@ -39,7 +39,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (row 600) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (row 602) |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → grep-verify counts (row 547) |
-| Fix commit correcting §10 violations introduces fresh §10 | 25 | 2026-08-31 | RULE CANDIDATE (25) → §10 "whole-block re-read" — text exists (§10 cl.3); gap is enforcement (row 604, detail in topic file) |
+| Fix commit correcting §10 violations introduces fresh §10 | 26 | 2026-09-01 | RULE CANDIDATE (26) → text exists (§10 cl.3); enforcement gap. 4th branch, now 7 same-branch sub-instances on this one (row 604, topic file) |
+| Rule-promotion sweep recorded closed/complete, later found incomplete | 2 | 2026-09-01 | RULE CANDIDATE (2) → agent-learner.md needs a re-derivable RECORD, not prose (row 688, topic file) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (row 605) |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) (row 606) |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE (2) (row 608) |
@@ -105,11 +106,15 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, detail in topic file) |
 | Orchestrator restates a critic/CR finding's mechanism backwards, unverified | 1 | 2026-09-01 | WATCHING (row 681, detail in topic file) |
 | CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, detail in topic file) |
-| Orchestrator drafts its own unverified "because X"/attribution claim in comment prose (not restating a finding) | 4 | 2026-09-01 | RULE CANDIDATE (4, reconciled: 2×`8b8ccb54` rounds + 1×`eca41e9a` + 1×`e2768a56` — each a distinct false claim, not a re-mention). Still no new RULE TEXT (code-style.md §10 + Finding Validation already state it twice). DISPOSITION CHANGED: `e2768a56`'s claim ("a caller that retries gets a consistent one" — false, the pager doesn't retry) escaped impl-critic AND the full post-commit cycle (code-reviewer 0, semantic-reviewer 0+1 GOOD, doc-updater/test-writer clean) — caught only by cloud CodeRabbit post-push. "Gate is working" (prior disposition) is FALSIFIED for this 4th instance; 3/4 still caught pre-commit. Gap is ENFORCEMENT (semantic-reviewer rated the comment GOOD without checking the retry claim against the pager's source), not missing text. Treating the post-push escape itself as count=1 (first time this class reached cloud CR) — WATCHING for a 2nd escape before proposing a semantic-reviewer checklist item (row 683) |
-| code-reviewer line-count convention inconsistent across cycles on an unchanged function body (signature+brace in vs excluded) | 1 | 2026-09-01 | WATCHING — `fetchAllRows` body reported "115-144 = exactly 30 lines, at cap" one cycle, then "spans 110-145 (36 lines), over the cap" the next, same unchanged 30-line body; the 2nd count includes the signature line + closing brace. Risk: phantom regression in the tracker. Single occurrence — log only; if it recurs, propose agent-code-reviewer.md fix the convention to body-only (open `{` to matching `}`, exclusive) (row 687) |
-| Doc-updater flags DRIFT by reading a statement explicitly scoped to one resolved case as a universal contract claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, all 3 findings validated+skipped (row 684) |
-| Two post-commit reviewers give contradictory recommendations on the same artifact (code-reviewer: extract dup; test-writer: not duplicates — different predicates) | 1 | 2026-09-01 | WATCHING — test-writer's finer-grained read validated correct; not an `agent-workflow.md` zero-overlap violation (that governs code-reviewer/semantic-reviewer only, not test-writer) (row 685) |
-| Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by an independent reviewer citing the project's own path instruction | 1 | 2026-09-01 | WATCHING — skip-quality signal; system self-corrected via CR-local round 3, but the initial SKIP was wrong on the merits (row 686) |
+| Orchestrator drafts its own unverified "because X"/attribution claim in comment prose | 4 | 2026-09-01 | RULE CANDIDATE (4) — 3/4 caught pre-commit; 4th escaped impl-critic + full post-commit cycle, caught only by cloud CR post-push. Enforcement gap (row 683, topic file) |
+| code-reviewer line-count convention inconsistent across cycles on an unchanged function body | 1 | 2026-09-01 | WATCHING — same body scored 30 lines then 36; phantom-regression risk (row 687, topic file) |
+| Doc-updater flags DRIFT reading a case-scoped statement as a universal claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, 3 findings validated+skipped (row 684) |
+| Two post-commit reviewers give contradictory recommendations on the same artifact | 1 | 2026-09-01 | WATCHING — test-writer's finer read validated correct, not zero-overlap (row 685) |
+| Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by another reviewer | 1 | 2026-09-01 | WATCHING — skip-quality signal, system self-corrected (row 686) |
+| Fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target assertions in the same test | 1 | 2026-09-01 | WATCHING — caught pre-commit by impl-critic round 1, not a repeat of row 605 (that's sibling FILES; this is sibling TARGETS in one file) (row 689, topic file) |
+| Commit-message verification citation (line number) carried over from an earlier draft, not re-derived after the code moved before commit | 1 | 2026-09-01 | WATCHING — distinct from row 597 (different command invocation, not a stale draft citation) (row 690, topic file) |
+| Doc paragraph states a closed count for a set the SAME paragraph declares OPEN (self-contradiction, not cross-section) | 1 | 2026-09-01 | WATCHING — §10 rule 2 already covers the underlying rule; distinct from row 655 (cross-section/file) because referent is one sentence away. Missed by internal full-cycle review on an earlier commit of this PR, caught only by external CR (row 691, topic file) |
+| Orchestrator triages only the CR review-BODY findings and pushes; an open inline-thread finding surfaces only afterward | 1 | 2026-09-01 | WATCHING — pushed with an in-flight finding, violating the Apply-vs-Defer pre-push gate; no prior row matches this triage-scope gap (row 692, topic file) |
 
 ## Durable knowledge (cross-agent)
 
@@ -120,10 +125,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - POSITIVE (fix/991, `d2d3bdb3`, `d4837e6a`): already-promoted gates (§10, doc-updater hallucination) caught drift pre-push with no new rule needed — detail in topic file.
 - Not-an-escalation + execute-vs-infer PROPOSAL (2026-08-31, rows 604/677-680) — 100% prose findings, zero code defects; not applied. Detail in topic file.
 - POSITIVE (`84413f28`, row 681): plan-critic caught the orchestrator's own draft PR-comment restating a CR mechanism backwards, pre-commit. Detail in topic file.
-- E2E spec >500L growth (`84413f28`) already self-tracked in code-reviewer/MEMORY.md at RULE CANDIDATE(2) — no duplicate row here. `eca41e9a`: `rpc-admin-report-answer-keys-idor.spec.ts` hit 546L, its 3rd consecutive growth (495→511→518→546) — code-reviewer records it as the SAME tracked instance, not a new occurrence; still no duplicate row here.
-- MIXED (`8b8ccb54`+`eca41e9a`+`e2768a56`, row 683, now count=4): impl-critic caught 3/4 self-invented false comment/attribution claims pre-commit (2 rounds on `8b8ccb54`'s JSDoc, 1 on `eca41e9a`'s RPC-predicate attribution), but the 4th (`e2768a56`, "a caller that retries gets a consistent one" — false) passed impl-critic AND the full post-commit 4-agent cycle and shipped; cloud CodeRabbit caught it post-push. The "3rd instance that slips PAST impl-critic" watch condition from the prior pass has now happened — but it slipped past MORE than impl-critic (semantic-reviewer rated the comment GOOD). code-style.md §10 + Finding Validation still state the rule verbatim, so this is not a text gap; it's semantic-reviewer's comment-accuracy check not actually re-deriving the specific claim from source before rating GOOD. No rule/checklist change yet (first post-push escape) — watch for a 2nd.
-- NEW (`eca41e9a`): two independent signals logged at count=1 — (a) code-reviewer and test-writer gave CONTRADICTORY recommendations on the same artifact (extract-duplication vs not-duplicates); test-writer's finer-grained read was validated correct on inspection (rows differ in predicate, not duplicated). (b) a prior-round orchestrator SKIP of a cloud-CR finding was reversed at CR-local round 3 by an independent reviewer citing the project's own path instruction — the system self-corrected, but the initial SKIP verdict was wrong on the merits (rows 685/686).
-- 2026-09-01 compaction: 32 rows dated 2026-03–2026-06 archived out of the live table (verified byte-identical detail already present in tracker-archive.md — zero data loss); one (red-team spec-count drift) transitioned to RESOLVED with its 2026-08-19 #1222 reversal noted, since it wasn't a clean promotion.
+- E2E spec >500L growth tracked in code-reviewer/MEMORY.md (RULE CANDIDATE 2) — no duplicate row here; `eca41e9a` (546L, 3rd growth) is the same tracked instance there.
+- Row 683: 1st post-push escape (semantic-reviewer rated GOOD without re-deriving the claim) — not a text gap, an enforcement one. Detail in topic file.
+- 2026-09-01 compaction (×2): 32 old rows archived (zero data loss, verified); red-team spec-count → RESOLVED (#1222). Rows 683/687/109-113/604/688 detail moved to topic file (soft-cap nudge).
 
 ## Topic pointers
 

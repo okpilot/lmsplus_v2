@@ -871,8 +871,8 @@ verb_noun pattern:
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard; single-active-session guard raises 'another_session_active' if a non-internal-exam active session exists (mig 139, #1011)
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
   record_internal_exam_code_emailed ← write, admin-only: stamp `emailed_at = now()` on the code row + audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110; `emailed_at` column + stamp added in mig 20260629000900 / #905); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
-  list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
-  list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
+  list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004); active-user gate added mig 20260824000200
+  list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579); `answered_count` counts DISTINCT questions and active-user gate added, both mig 20260824000200
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099); single-active-session guard raises 'another_session_active' if a non-vfr_rt_exam active session exists (mig 140, #1011)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840); dialog_fill strip delimiter-hardened (mig 127) behind the mig-125 delimiter CHECK (#951)
   submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank via answer_matches (mig 160 — typo-tolerant, digits exact), compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session detects expiry via audit-event lookup and re-adds expired:true (mig 129, #839); reads from questions.correct_option_id for MC grading (mig 113, #823)
@@ -884,8 +884,8 @@ verb_noun pattern:
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
-  get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
-  get_subject_scores         ← read, analytics: avg scores by subject
+  get_daily_activity         ← read, analytics: daily answer counts (zero-filled); active-user gate added mig 20260824000300
+  get_subject_scores         ← read, analytics: avg scores by subject; active-user gate + `deleted_at IS NULL` on quiz_sessions added mig 20260824000300
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz-subject-queries.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
   get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations, p_has_image {all|only|exclude} on question_image_url presence, and optional p_question_type [NULL = unrestricted; Study Mode passes 'multiple_choice']); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837; has-image #864)
   get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode, p_has_image, and p_question_type); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837; has-image #864; question-type #1003/#1008)
@@ -1649,7 +1649,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 
 #### Internal Exam RPCs (mode `internal_exam`)
 
-Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, carry the active-user gate (security.md rule 12 — the two student readers were the last two members to get it, migration `20260824000200`), and apply `deleted_at IS NULL` filters on every SELECT **of a soft-deletable table** (including `actor_role` audit subqueries) per security.md rules 7, 9, 10. The `easa_subjects` reference join in both student readers carries no such predicate — that table has no `deleted_at` column, as the per-function sections below record.
 
 ##### `issue_internal_exam_code(p_subject_id, p_student_id)`
 
@@ -1720,11 +1720,11 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 
 **Security:** SECURITY DEFINER. Invoked from `sendInternalExamCodeEmail` Server Action (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
 
-##### `list_my_active_internal_exam_codes()` (migration `20260521000002`)
+##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`)
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
-**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`. SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
+**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
 
 **Filters (every SELECT):**
 - `iec.student_id = auth.uid()` — ownership
@@ -1752,11 +1752,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 
 `GRANT EXECUTE ... TO authenticated`. No audit event — pure read.
 
-##### `list_my_internal_exam_history()` (migration `20260521000003`)
+##### `list_my_internal_exam_history()` (migrations `20260521000003`, `20260824000200`)
 
 Student-facing read. Returns the caller's `internal_exam` quiz-session history with a stable per-subject `attempt_number` computed server-side via `row_number() OVER (PARTITION BY subject_id ORDER BY started_at)`. The window function runs over **all** of the caller's sessions before `LIMIT 200` is applied, so the displayed `attempt_number` stays correct even when a subject has more than 200 total attempts. Closes issue #579 (TS-side counter restarted at row 200 because the client only saw a truncated slice).
 
-**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`. SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
+**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200`; same `users u` alias requirement as the sibling above (`id` OUT param, 42702). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
 
 **Filters:**
 - `qs.student_id = auth.uid()` — ownership
@@ -1765,7 +1765,7 @@ Student-facing read. Returns the caller's `internal_exam` quiz-session history w
 
 `easa_subjects` is reference data with no `deleted_at` column, so the LEFT JOIN carries no soft-delete predicate.
 
-**Answered count:** computed via a sibling CTE aggregating `quiz_session_answers` for the windowed session ids. `quiz_session_answers` has no `deleted_at` column (immutable table — see §1 Immutability and §3 carve-outs), so no soft-delete filter applies.
+**Answered count:** computed via a sibling CTE aggregating `quiz_session_answers` for the windowed session ids, as `count(DISTINCT qsa.question_id)::int` since migration `20260824000200`. It counts QUESTIONS, not answer items: that table's uniqueness constraint is `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)` (`20260610000300`), so a non-MC question writes one row per blank/slot/zone and the previous `count(*)` reported an `answered_count` LARGER than the session's own `total_questions` (a three-blank `dialog_fill` in a one-question exam rendered as "Answered 3/1"). The `::int` cast is load-bearing — the `RETURNS TABLE` declares `answered_count int`, so dropping it widens the CTE column to bigint and raises 42804 at execution. `quiz_session_answers` has no `deleted_at` column (immutable table — see §1 Immutability and §3 carve-outs), so no soft-delete filter applies.
 
 Ordered by `started_at DESC`, limited to 200 returned rows (window function ranks all rows first; LIMIT only truncates the display slice).
 
@@ -2317,8 +2317,11 @@ CREATE OR REPLACE FUNCTION get_daily_activity(
 )
 RETURNS TABLE (day DATE, total BIGINT, correct BIGINT, incorrect BIGINT)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
--- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + WHERE clause
+-- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + active-user gate + WHERE clause
+-- Active-user gate: mig 20260824000300 (security.md rule 12) — raises
+--   'user not found or inactive' for a soft-deleted caller holding a live JWT
 -- Validation: p_days must be 1–365, raises exception if outside range
+-- Soft-delete: reads only student_responses, which has no deleted_at column (exempt)
 ```
 
 #### `get_subject_scores` — analytics: average scores by subject
@@ -2335,8 +2338,11 @@ CREATE OR REPLACE FUNCTION get_subject_scores(
 )
 RETURNS TABLE (subject_id UUID, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, session_count BIGINT)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
--- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + WHERE clause
+-- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + active-user gate + WHERE clause
+-- Active-user gate: mig 20260824000300 (security.md rule 12)
 -- Validation: p_limit must be 1–100, raises exception if outside range
+-- Soft-delete: AND qs.deleted_at IS NULL on quiz_sessions (mig 20260824000300, rule 9) —
+--   a discarded session no longer moves the student's average
 ```
 
 #### `is_admin()` — Admin role check helper

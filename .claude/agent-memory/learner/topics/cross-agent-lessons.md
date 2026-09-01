@@ -334,3 +334,233 @@ Same Vector FL red-team session as `59005823`/`34e26c48` above. Four core post-c
   "MEMORY.md de-listing sweep" referenced in this file's row-489 entry) is a dedicated maintenance
   task, not something to do inline in a single-commit learner pass; flagging for `/insights` or a
   dedicated memory-maintenance session.
+
+## Commits `80b0aaeb`→`c7a68d05` (fix/student-read-rpc-active-user-gates) — 2026-09-01 learner pass
+
+Branch gates four SECURITY DEFINER student-read RPCs the #883 sweep missed, fixes an
+`answered_count` miscount, and rewrites `docs/security.md` §11c from a closed enumeration into a
+derivation. Four review rounds; every finding across all four was a §10-class false prose claim —
+zero code defects.
+
+- **Row 604 (+1 → 26), 3rd/4th distinct branch, 5 same-branch-family sub-instances counted as ONE
+  increment (PR #1247 / `59005823` / `34e26c48` precedent):**
+  (a) `80b0aaeb` moved a restore from `finally` to `afterEach` (biome `noUnsafeFinally`) but left two
+  duplicate "restores in a finally" comments — fixed in `d1c37135`.
+  (b) `d1c37135` itself appended two new `describe` blocks below a comment reading "Runs last",
+  falsifying it — fixed in `7a5d6791` by restating the mechanism (afterEach restores before any
+  later describe) instead of the now-false position.
+  (c) `d1c37135`'s own `docs/plan.md` edit said "five mutation runs rather than six" while also
+  stating the four gates were mutated in two per-migration PAIRS — arithmetic doesn't reconcile
+  (2 pair-runs + 1 DISTINCT-count run + 1 soft-delete-filter run = four, with red-team as a separate
+  fifth already reported elsewhere and double-counted here) — fixed in `7a5d6791`.
+  (d) `80b0aaeb` edited part of a `docs/database.md` sentence to fold in the two new student-reader
+  RPCs, making "apply `deleted_at IS NULL` filters on every SELECT" overbroad — both readers LEFT
+  JOIN `easa_subjects`, which has no `deleted_at` column, so the per-function detail below the
+  overview already contradicted it — fixed by CR-local round 1, applied in `8f6eb599`.
+  (e) `80b0aaeb` wrote "`get_subject_scores` has no production caller today" in three sites — false
+  at the RPC level: `apps/web/lib/queries/analytics.ts:59` defines a production helper that DOES
+  call it; nothing imports THAT HELPER, which is what actually has no caller — fixed by CR-local
+  round 1, applied in `8f6eb599`.
+  All five are the code-style.md §10 "partial comment edit is the tell" mechanism (clause 3), on a
+  branch whose entire PURPOSE was correcting a §10-class violation (the #883 sweep-record claim
+  below) — the rule text is well-known in-session and still didn't prevent it recurring 5 times in
+  4 rounds. Consistent with every prior row-604 entry: **not a rule-text gap, an enforcement-depth
+  one.** No further text change proposed this pass either — the count is now high enough (26, 4
+  branches) that the orchestrator may want to consider a MECHANICAL self-check (grep the fix
+  commit's own new/changed prose for positional words — "last", "first", "only", "in a finally" —
+  and re-derive any count) run by the AUTHORING agent before finalizing a commit whose stated
+  purpose is fixing a §10 violation, rather than relying on the next review round to catch it. This
+  is a proposal for the orchestrator to weigh, not a promoted rule.
+
+- **`a0511cd1`→`c7a68d05` — 2 more same-branch §10 sub-instances (6th, 7th; still no new increment to
+  row 604 — same branch, per the established convention), plus a distinct §3 finding and a
+  mechanization assessment the orchestrator specifically asked for:**
+  (f) semantic-reviewer ISSUE, found independently by test-writer too: `a0511cd1`'s
+  `rpc-analytics-active-user-gate.spec.ts` comment claimed both analytics RPC positive-control
+  result sets "may legitimately be empty" — false for `get_daily_activity`, which
+  `generate_series(p_days) LEFT JOIN student_responses` with no joined-column `WHERE` clause makes
+  structurally guaranteed to return exactly `p_days` rows; only its sibling `get_subject_scores`
+  (a real aggregate over possibly-zero sessions) can legitimately be empty. Fixed in `c7a68d05` by
+  splitting the one joint claim into two per-RPC claims and asserting `toHaveLength(7)` on the
+  non-empty one — test-writer's independent finding named that same free assertion. Two reviewers
+  converging on one finding via different lenses is the established reliability signal (line 41
+  above), not overlap — logged, not double-counted.
+  (g) semantic-reviewer SUGGESTION: the PARENT commit's message claimed the `afterEach`
+  rows-affected assert means a failed test "cannot strand the victim" — it prevents a *silent
+  no-op* restore, not stranding (a `throw`n restore still leaves the victim soft-deleted). Same
+  `code-style.md` §10 shape as (a)-(e): a true mechanism restated with an overclaimed guarantee.
+  **Mechanization assessment (asked for this pass):** claims (f)/(g), like (a)-(e), are NOT
+  reducible to a hook, lint rule, or grep-checkable pattern, and this is worth stating plainly
+  rather than proposing another prose clause. §10's whole family requires evaluating a claim
+  against the SPECIFIC referenced code's semantics — whether a specific aggregate query can return
+  zero rows, whether a specific cleanup step's failure mode is "silent" vs. "thrown" — which is
+  domain reasoning about behavior, not a syntactic property of the comment text itself. The one
+  syntactically-detectable shape inside this family, "a claim made about 2+ named entities as one
+  group" (open-set enumeration, clause 2's job), IS partially mechanizable — `check-mirror-sync.mjs`
+  already proves grep-based verification works for byte-identical mirrors — but "both X and Y may
+  be empty" has no textual signature that generalizes: nothing distinguishes it from a hundred
+  true joint claims elsewhere in the codebase without first knowing whether X and Y are actually
+  structurally identical, which is exactly the fact under dispute. A hook keying on surface
+  patterns ("both", "either", a shared adjective across two capitalized/backtick-quoted names)
+  would fire on the majority of TRUE joint claims and miss false ones phrased without those words —
+  false-positive rate too high to be a blocking gate, and a non-blocking checklist item duplicates
+  what semantic-reviewer's own charter already does. Conclusion: no new rule text, no new hook —
+  this stays an enforcement-depth item, consistent with every prior row-604 pass.
+  **Separately, code-reviewer's own WARNING this cycle (long red-team test callback) is now a
+  genuine count=2 across distinct commits** (`rpc-analytics-active-user-gate.spec.ts`'s 52L "the
+  owner reads..." test vs. the unflagged ~34L Vector FM precedent in
+  `rpc-internal-exam-codes.spec.ts:309-343`) — folded into the pre-existing "Single-concern
+  sequential DB-seed/infra helpers" RULE CANDIDATE (MEMORY.md, now count=6) rather than a new row,
+  since the shape (linear positive-control → mutate → negative-probe, no branching, single
+  concern) is identical to the named-helper instances already tracked there; the only difference
+  is the code sits directly in the `it()` callback instead of an extracted function. The pending
+  proposed clause text (tracker-archive.md row 439) currently reads "helpers... are exempt" — it
+  should be broadened to explicitly name `it()`/`test()` callback bodies as a covered shape before
+  promotion, or a future instance in this exact shape will get re-litigated as if it were new.
+  **Fourth (unrelated) item this cycle:** one of the four earlier-triaged CodeRabbit findings on
+  this branch quoted a scope label ("student analytics/history RPCs") that does not exist anywhere
+  in the repo — a fabricated construct, already the exact shape of `agent-coderabbit-local.md`
+  pitfall #8 (PR #1124 precedent). No new tracker entry — an already-documented, already-mitigated
+  pattern; logged here only as further confirming evidence that the "verify before acting" gate is
+  still earning its keep.
+
+- **Row 688 (NEW) — Rule-promotion sweep recorded closed/complete, later found incomplete, count=2
+  across two different rule promotions:** `docs/security.md` §11c recorded the #883 active-user-gate
+  promotion (`agent-learner.md` § Sweep On Rule Promotion) as having "swept every SECURITY DEFINER
+  RPC by family" — prose closed-enumeration. A mechanical re-derivation in `80b0aaeb` (latest
+  definition per function, SECURITY DEFINER, not `is_admin()`-gated, GRANTed to `authenticated`,
+  checked for a `users` lookup filtered on `deleted_at` whose miss raises) found FOUR more:
+  `list_my_internal_exam_history`, `list_my_active_internal_exam_codes`, `get_daily_activity`,
+  `get_subject_scores`. This is the SAME shape as issue #573 (the audit-actor-subquery-soft-delete
+  promotion via #550 — `start_quiz_session`'s audit subquery was initially missed), already named
+  inline in `agent-learner.md` § Sweep On Rule Promotion as the motivating precedent for the
+  code-sweep + downstream-enforcer-sync requirements that section already carries. Two occurrences
+  now, across two different rule promotions (#550→#573, #883→this), both discovered only by a LATER
+  mechanical re-derivation, not by the sweep's own claimed completeness. **RULE CANDIDATE (2):** the
+  section requires a code sweep and a downstream-enforcer sync, but not a RE-DERIVABLE RECORD of
+  what the sweep covered — a saved query/command (e.g. the criteria `80b0aaeb` used) alongside the
+  prose summary, so the next drift check can mechanically re-run it instead of trusting the prose
+  claim. `80b0aaeb`'s own fix models the remedy: it rewrote §11c from a closed enumeration into a
+  derivation and explicitly bounded it ("covers SECURITY DEFINER only") — the same shape code-style
+  §10 clause 2 already prescribes for comments, now proposed for the Sweep-On-Rule-Promotion
+  process record itself. `80b0aaeb` also names 8 SECURITY INVOKER RPCs with the same exposure
+  through ownership-only RLS as deliberately NOT fixed here — next sweep target, already flagged in
+  §11c per the same discipline.
+
+## Trimmed from MEMORY.md (2026-09-01 compaction, soft-cap nudge at 17.1KB)
+
+Full text preserved here per `agent-memory.md`'s never-lose-data-on-compaction discipline; the live
+table carries a one-line pointer back to this section for each.
+
+- **Row 683 full text (was row 109):** Orchestrator drafts its own unverified "because X"/
+  attribution claim in comment prose (not restating a finding) — RULE CANDIDATE (4, reconciled:
+  2×`8b8ccb54` rounds + 1×`eca41e9a` + 1×`e2768a56` — each a distinct false claim, not a
+  re-mention). Still no new RULE TEXT (code-style.md §10 + Finding Validation already state it
+  twice). DISPOSITION CHANGED: `e2768a56`'s claim ("a caller that retries gets a consistent one" —
+  false, the pager doesn't retry) escaped impl-critic AND the full post-commit cycle (code-reviewer
+  0, semantic-reviewer 0+1 GOOD, doc-updater/test-writer clean) — caught only by cloud CodeRabbit
+  post-push. "Gate is working" (prior disposition) is FALSIFIED for this 4th instance; 3/4 still
+  caught pre-commit. Gap is ENFORCEMENT (semantic-reviewer rated the comment GOOD without checking
+  the retry claim against the pager's source), not missing text. Treating the post-push escape
+  itself as count=1 (first time this class reached cloud CR) — WATCHING for a 2nd escape before
+  proposing a semantic-reviewer checklist item.
+- **Row 687 full text (was row 110):** code-reviewer line-count convention inconsistent across
+  cycles on an unchanged function body (signature+brace in vs excluded) — `fetchAllRows` body
+  reported "115-144 = exactly 30 lines, at cap" one cycle, then "spans 110-145 (36 lines), over the
+  cap" the next, same unchanged 30-line body; the 2nd count includes the signature line + closing
+  brace. Risk: phantom regression in the tracker. Single occurrence — log only; if it recurs,
+  propose agent-code-reviewer.md fix the convention to body-only (open `{` to matching `}`,
+  exclusive).
+
+## Commit `88b0da7b` ("test(redteam): per-RPC positive controls for the FN cross-student assertions") — 2026-09-01 learner pass
+
+Full cycle, PR #1257 (fix/student-read-rpc-active-user-gates), applies a CodeRabbit finding that the
+Vector FN cross-student assertion was vacuous. impl-critic caught 1 ISSUE pre-commit (applied);
+semantic-reviewer 0 CRITICAL/0 ISSUE/3 GOOD/1 SUGGESTION; code-reviewer clean; test-writer no gaps.
+The SUGGESTION and test-writer's note were the same finding — one occurrence, not two.
+
+- **Row 689 (NEW) — fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target
+  assertions in the same test file:** the test asserts `forbidden` against TWO RPCs
+  (`get_daily_activity` and `get_subject_scores`, mig `20260824000300`) that carry INDEPENDENT
+  identity guards. The first draft added a positive control for one RPC only; the comment claimed
+  blanket coverage. impl-critic round 1 caught it before commit; round 2 approved with 0 findings.
+  **Distinct from row 605** (sibling-parity gaps found by diffing `it()` titles between two
+  STRUCTURALLY IDENTICAL test FILES) — this is one test FILE whose single assertion block covers
+  MULTIPLE RPC TARGETS, and a fix scoped to one target left the sibling target's assertion equally
+  vacuous. Same broad family as `security.md` rule 12 ("Sibling SECURITY DEFINER RPC guard-set
+  consistency") and the general "partial fix to a sibling group" meta-pattern, but a new
+  sub-mechanism: sibling TARGETS within one shared assertion/test, not sibling files or sibling RPC
+  guard clauses. Caught pre-commit — a near miss, not an escape. Single instance — log and watch.
+  On 2nd occurrence (a different test file, different commit, where a fix for one of several
+  RPC/table targets asserted together leaves a sibling target's assertion vacuous): propose adding
+  to `code-style.md` §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous" — when a single
+  assertion block covers N distinct targets with independently-verifiable guards, the fix (and any
+  positive control) must cover ALL N, not just the one the CR/review finding named.
+
+- **Row 690 (NEW) — commit-message verification citation (line number) carried over from an earlier
+  draft, not re-derived after the code moved before commit:** the commit message cited the mutation
+  test's failure point at L144; the assertion the mutation actually reddens sits at L148 in the
+  committed tree. The line number was correct against an earlier draft of the same file and never
+  re-verified against the final commit — root cause is re-derivation timing, not a missing
+  verification step (the mutation check itself was run correctly; only the line-number citation of
+  it went stale). Fixed by amending the unpushed commit after re-running the mutation. **Distinct
+  from row 597** (a number quoted next to a command was measured from a DIFFERENT invocation with
+  different parameters/time) — here the citation was correct once, then the artifact under citation
+  moved and the citation wasn't refreshed. Also distinct from row 604's family (fix commits whose
+  STATED PURPOSE is correcting a §10 violation introducing a fresh one) — this commit's purpose was
+  adding red-team coverage, not a §10 correction; the stale citation is a plain §10 instance, not
+  that specific meta-pattern, so it does not increment row 604's same-branch counter. Single
+  instance — log and watch. On 2nd occurrence (a different commit whose message cites a line number,
+  count, or other artifact-derived detail that was accurate against an earlier draft but not
+  re-verified against the final committed diff): propose a `code-style.md` §10 sub-clause —
+  "re-derive every line-number/count citation from `git diff --staged` immediately before writing
+  the commit message, never from an earlier draft of the same change."
+
+## Commit `028553f6` (fix/student-read-rpc-active-user-gates, PR #1257) — 2026-09-01 learner pass
+
+One-line fix: `docs/security.md` L836, "Two exempt classes:" → "Exempt classes include:". Origin: a
+CR inline finding on the same paragraph that, one sentence earlier, tells the reader the class set
+is OPEN and to re-derive rather than trust an enumeration — the literal "Two" directly contradicted
+its own preceding sentence. All 4 core agents clean on the fix commit (impl-critic APPROVED 0
+findings; code-reviewer 0/0; semantic-reviewer 0/0/0 + 1 GOOD; doc-updater no changes; test-writer no
+gaps — prose-only diff).
+
+- **Row 691 (NEW) — doc paragraph states a closed count for a set the SAME paragraph declares OPEN:**
+  distinguish from row 655 (PR #1242), whose defining mechanism is that claim and contradicting
+  referent sit in DIFFERENT sections/files/or are an arithmetic property — specifically what defeats
+  a hunk-scoped reviewer. Here the referent is one sentence away, in the identical paragraph — an
+  easier catch in principle, yet still missed by internal code-reviewer/semantic-reviewer/doc-updater
+  on whichever earlier commit of this PR first wrote the line (the security.md §11c token-family
+  section was introduced/edited across `09df2972` and `46cb6f1c`), and caught only by external CR.
+  The underlying RULE already exists and is correct (`code-style.md` §10 rule 2 — never enumerate an
+  open set, state how to derive) — this is not a gap in the rule text, it is a gap in enforcement
+  DEPTH on doc prose specifically, the same shape as the already-tracked "post-commit gates miss a
+  new site violating a promoted rule" family (row 600, §7) but for §10 rule 2. Single instance — log
+  and watch; do not fold into row 600 (different rule, different section) or row 655 (different
+  defeat mechanism — same-paragraph vs cross-section).
+- **POSITIVE, same commit — rule 2's own exemption applied correctly, twice, on the same thread:** a
+  companion CR finding on the SAME review thread proposed removing the "eight SECURITY INVOKER RPCs"
+  count at L838. That one was correctly SKIPPED-with-reason: rule 2 explicitly permits naming members
+  "with an as-of date," the sentence carries one, and all eight members are named inline (internally
+  consistent, not a bare unqualified count) — plus #1222 already dropped flagging of stale INVENTORY
+  counts generally. So the same rule produced two different correct verdicts on two adjacent
+  sentences in one paragraph: APPLY on the bare "Two" (no as-of date, no derivation instruction, and
+  directly contradicts the preceding sentence) and SKIP on the "eight...as of 2026-09-01" (exempted).
+  Evidence the rule is well-calibrated when both halves of it — the general prohibition and its named
+  exemption — are actually read together, not evidence of a gap needing a rule change.
+- **Row 692 (NEW) — orchestrator triages only the CR review-BODY findings, misses an open inline
+  thread, pushes; the inline finding surfaces only afterward:** distinct from every existing
+  CR-related row (which cover CR fabricating/misreading findings, or the loop's stop conditions) —
+  this is a triage-SCOPE gap: GitHub CR reviews carry findings in two places, the review body summary
+  and per-line inline comment threads, and only the body was read before the push decision. The
+  practical consequence is real: the push went out carrying an in-flight (un-triaged) finding,
+  which is exactly what `agent-workflow.md § Apply-vs-Defer Discipline`'s pre-push gate ("No in-flight
+  findings at push time") forbids. No existing row names "read every inline thread, not just the
+  review body, before treating a CR review as triaged" — `agent-coderabbit-local.md` and
+  `replycoderabbit`/`coderabbit` skill instructions assume thread-level reading but nothing enforces
+  it mechanically. Single instance — log and watch. On 2nd occurrence, propose a checklist line in
+  `agent-workflow.md § Apply-vs-Defer Discipline` or the `coderabbit`/`replycoderabbit` skill: "before
+  treating a GitHub CR review as triaged, enumerate BOTH the review body AND every inline comment
+  thread (`gh api repos/{owner}/{repo}/pulls/{n}/comments` or the Artifact-style `comments` action
+  equivalent) — a review can carry findings in either location independently."
+
