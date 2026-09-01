@@ -281,3 +281,56 @@ DOCUMENTATION describing it needed repeated correction.
   what the code does still requires a reader tracing the object to its latest definition — no
   mechanical check here would have caught either the EJ-backstop inversion or the tier-scoped
   "no coverage" claim, since both required reading a specific commit/RPC body, not running one.
+
+## Commit `84413f28` ("fix(review): qualify open-set comments and pin the attacker org") — 2026-09-01 learner pass
+
+Same Vector FL red-team session as `59005823`/`34e26c48` above. Four core post-commit agents clean
+(code-reviewer 1 WARNING, self-tracked; semantic-reviewer 3 GOOD; doc-updater/test-writer clean,
+53/53 green). The notable findings came from the PRE-commit gates.
+
+- **Row 681 (new, WATCHING count=1) — orchestrator restates a critic/CR finding's mechanism
+  backwards, caught pre-commit by plan-critic:** drafting a reply to a CodeRabbit finding, the
+  orchestrator's triage table first restated the finding's mechanism backwards, then — after a
+  correction — its draft PR-comment text asserted a DIFFERENT wrong mechanism: "an off-org attacker
+  would trip the org gate, leaving the test green." The migrations do not implement that ordering —
+  `is_admin()` is org-blind and raises `forbidden` BEFORE any org lookup runs, so no org gate is
+  ever reached for a non-admin caller. This is the SAME underlying `is_admin()`-raises-first fact
+  row 604 already tracked twice in this session's earlier commits (the EJ-backstop matrix claim,
+  `a920f7f4`→`e6dd50b2`→`34e26c48`) — but a THIRD wrong restatement of it, this time in the
+  orchestrator's own drafting process rather than a committed artifact, and this time stopped before
+  it reached a commit or a posted PR comment. Matches the exact risk `agent-workflow.md §
+  Finding Validation` already documents inline ("a critic/reviewer told me X → verify X yourself",
+  precedent `3a50780a`) — that bullet already has one real-world precedent; this is a live
+  recurrence of the same class, corroborating rather than requiring new text. Logged as its own
+  tracker row (rather than folded into row 604) because the CATCHING gate differs: row 604's
+  instances were caught post-commit by a reviewer reading committed content; this one was caught
+  pre-commit, by plan-critic, on a draft that was never staged. Count=1 in the tracker (though
+  effectively the 2nd+ real-world instance of the documented class) — no new rule proposed; the rule
+  already exists. If this recurs as a SHIPPED instance (not caught pre-commit), reconsider whether
+  `agent-workflow.md § Finding Validation`'s existing bullet needs to move from an inline example
+  into a named, mandatory step specifically for CR-mechanism restatements in PR replies.
+- **Row 682 (new, WATCHING count=1) — CodeRabbit misreads a diff line in isolation, missing a
+  qualifier word wrapped from the previous line, and proposes a bad committable suggestion:** on
+  `supabase-rpc.test.ts:216`, CR anchored its finding on a single line, missing that the qualifying
+  word "null" had wrapped from the line immediately above it in the diff view. Its committable
+  suggestion would have introduced a duplicated qualifier had it been applied verbatim. Distinct
+  mechanism from the existing CR-FP rows: row 623 (stale migration-chain tracing), row 599
+  (fabricated repo-history claims) — this is a rendering/context-window artifact (line-wrap) rather
+  than a knowledge or tracing gap. Reinforces `agent-coderabbit-local.md § Verify Before Acting`'s
+  existing mandate to read source before applying any CR finding, rather than requiring new text —
+  applying this one verbatim would have passed that gate's "recompute a count/line" check only if
+  the reviewer also read the un-wrapped source, which the mandate already requires. 3 of 6 cloud-CR
+  findings this cycle were verified FALSE or contrary to codebase pattern; the other two false
+  findings did not introduce a new distinct mechanism (both matched already-tracked CR-FP shapes) so
+  are not logged as separate rows.
+- **Housekeeping:** archived two terminal tracker rows out of the active `MEMORY.md` table this
+  pass — row 658 (RESOLVED, `40c626e6`) and row 660 (PROMOTED → `agent-workflow.md §
+  Rule-Mirror Sync`) — both already carry their full narrative in `tracker-archive.md`; removing
+  them from the injected index is the "terminal-state rows → tracker-archive.md" housekeeping the
+  file's own header calls for, not a deletion (`agent-memory.md`'s never-delete-a-row rule is
+  satisfied by the archive copy). `MEMORY.md` is at 158 lines / ~18.6KB, within the documented
+  200-line/25KB hard cap but above the harness's soft compaction nudge (140 lines/17.1KB) — a full
+  de-listing sweep of the 2026-08-19–08-25 backlog of long single-branch rows (similar to the prior
+  "MEMORY.md de-listing sweep" referenced in this file's row-489 entry) is a dedicated maintenance
+  task, not something to do inline in a single-commit learner pass; flagging for `/insights` or a
+  dedicated memory-maintenance session.

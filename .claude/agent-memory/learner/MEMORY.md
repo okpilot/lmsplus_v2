@@ -106,13 +106,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Corrected claim partially retracted — old wording persists elsewhere | 3 | 2026-08-24 | RULE CANDIDATE (3) → §10 clause 3, repo-wide grep (row 653 family) |
 | Null-fallback (`??`) silently reinstates the defect the PR was removing | 1 | 2026-08-24 | WATCHING (row 651) |
 | CLAUDE.md docs-only exemption omits `.spec-workflow/specs/*/tasks.md` | 1 | 2026-08-24 | WATCHING (row 657) |
-| §10 clause 3's `grep -rn` fails open on a retracted phrase with a regex metachar (`count(*)::int`) | 1 | 2026-08-24 | RESOLVED — `40c626e6` (row 658) |
 | Commit message cites config/rule file lines scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (row 652) |
 | Explore report accurate for its narrow question read as answering a broader plan claim | 1 | 2026-08-24 | WATCHING (row 651) |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) → grep by name/path too (row 653) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (row 656) |
 | Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 11 | 2026-08-25 | RULE CANDIDATE (11) (row 655) |
-| Mirror sweep for one rule change under-executed | 3 | 2026-08-25 | PROMOTED → agent-workflow.md §Rule-Mirror Sync (row 660) |
 | Subagent asserts a verification it did not perform — evidence invented, conclusion mostly true | 4 | 2026-08-30 | RULE CANDIDATE (4) (row 663) |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types (row 661) |
 | Reviewer's own proposed remedy is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (row 662) |
@@ -137,6 +135,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 | Explore-agent arithmetic/count error propagated unverified into plan/commit/report | 1 | 2026-08-31 | WATCHING (row 678, detail in topic file) |
 | A commit's own message and its own file content assert contradicting claims; the file version propagates | 1 | 2026-08-31 | WATCHING (row 679, detail in topic file) |
 | Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, detail in topic file) |
+| Orchestrator restates a critic/CR finding's mechanism backwards, unverified | 1 | 2026-09-01 | WATCHING (row 681, detail in topic file) |
+| CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, detail in topic file) |
 
 ## Durable knowledge (cross-agent)
 
@@ -145,7 +145,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: archive row# in status
 - POSITIVE (`bf2b6672`): §10 clause 3 grep, run proactively, caught 4 sites CR never named — mechanical checks beat review rounds.
 - OPEN AMBIGUITY (2026-08-25): unwritten "2nd-branch" gate applied inconsistently (519/655/604 held it, 660 didn't).
 - POSITIVE (fix/991, `d2d3bdb3`, `d4837e6a`): already-promoted gates (§10, doc-updater hallucination) caught drift pre-push with no new rule needed — detail in topic file.
-- Not an escalation + execute-vs-infer PROPOSAL (not applied, 2026-08-31, `59005823` + `34e26c48`, rows 604/677/678/679/680) — both legs this session were 100% prose findings on zero code defects, every shipped code change independently mutation-checked; the false claims caught were in durable reference docs (a docstring; the attack-surface matrix), which `agent-critic.md`'s false-claim class already exempts from round-bounding — this is the classification working as designed, not overhead. Detail in topic file.
+- Not-an-escalation + execute-vs-infer PROPOSAL (2026-08-31, rows 604/677-680) — 100% prose findings, zero code defects; not applied. Detail in topic file.
+- POSITIVE (`84413f28`, row 681): plan-critic caught the orchestrator's own draft PR-comment restating a CR mechanism backwards, pre-commit. Detail in topic file.
+- E2E spec >500L growth (`84413f28`) already self-tracked in code-reviewer/MEMORY.md at RULE CANDIDATE(2) — no duplicate row here.
 
 ## Topic pointers
 
