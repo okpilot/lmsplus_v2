@@ -111,6 +111,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Doc-updater flags DRIFT reading a case-scoped statement as a universal claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, 3 findings validated+skipped (row 684) |
 | Two post-commit reviewers give contradictory recommendations on the same artifact | 1 | 2026-09-01 | WATCHING — test-writer's finer read validated correct, not zero-overlap (row 685) |
 | Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by another reviewer | 1 | 2026-09-01 | WATCHING — skip-quality signal, system self-corrected (row 686) |
+| Fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target assertions in the same test | 1 | 2026-09-01 | WATCHING — caught pre-commit by impl-critic round 1, not a repeat of row 605 (that's sibling FILES; this is sibling TARGETS in one file) (row 689, topic file) |
+| Commit-message verification citation (line number) carried over from an earlier draft, not re-derived after the code moved before commit | 1 | 2026-09-01 | WATCHING — distinct from row 597 (different command invocation, not a stale draft citation) (row 690, topic file) |
 
 ## Durable knowledge (cross-agent)
 

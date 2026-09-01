@@ -472,3 +472,47 @@ table carries a one-line pointer back to this section for each.
   propose agent-code-reviewer.md fix the convention to body-only (open `{` to matching `}`,
   exclusive).
 
+## Commit `88b0da7b` ("test(redteam): per-RPC positive controls for the FN cross-student assertions") — 2026-09-01 learner pass
+
+Full cycle, PR #1257 (fix/student-read-rpc-active-user-gates), applies a CodeRabbit finding that the
+Vector FN cross-student assertion was vacuous. impl-critic caught 1 ISSUE pre-commit (applied);
+semantic-reviewer 0 CRITICAL/0 ISSUE/3 GOOD/1 SUGGESTION; code-reviewer clean; test-writer no gaps.
+The SUGGESTION and test-writer's note were the same finding — one occurrence, not two.
+
+- **Row 689 (NEW) — fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target
+  assertions in the same test file:** the test asserts `forbidden` against TWO RPCs
+  (`get_daily_activity` and `get_subject_scores`, mig `20260824000300`) that carry INDEPENDENT
+  identity guards. The first draft added a positive control for one RPC only; the comment claimed
+  blanket coverage. impl-critic round 1 caught it before commit; round 2 approved with 0 findings.
+  **Distinct from row 605** (sibling-parity gaps found by diffing `it()` titles between two
+  STRUCTURALLY IDENTICAL test FILES) — this is one test FILE whose single assertion block covers
+  MULTIPLE RPC TARGETS, and a fix scoped to one target left the sibling target's assertion equally
+  vacuous. Same broad family as `security.md` rule 12 ("Sibling SECURITY DEFINER RPC guard-set
+  consistency") and the general "partial fix to a sibling group" meta-pattern, but a new
+  sub-mechanism: sibling TARGETS within one shared assertion/test, not sibling files or sibling RPC
+  guard clauses. Caught pre-commit — a near miss, not an escape. Single instance — log and watch.
+  On 2nd occurrence (a different test file, different commit, where a fix for one of several
+  RPC/table targets asserted together leaves a sibling target's assertion vacuous): propose adding
+  to `code-style.md` §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous" — when a single
+  assertion block covers N distinct targets with independently-verifiable guards, the fix (and any
+  positive control) must cover ALL N, not just the one the CR/review finding named.
+
+- **Row 690 (NEW) — commit-message verification citation (line number) carried over from an earlier
+  draft, not re-derived after the code moved before commit:** the commit message cited the mutation
+  test's failure point at L144; the assertion the mutation actually reddens sits at L148 in the
+  committed tree. The line number was correct against an earlier draft of the same file and never
+  re-verified against the final commit — root cause is re-derivation timing, not a missing
+  verification step (the mutation check itself was run correctly; only the line-number citation of
+  it went stale). Fixed by amending the unpushed commit after re-running the mutation. **Distinct
+  from row 597** (a number quoted next to a command was measured from a DIFFERENT invocation with
+  different parameters/time) — here the citation was correct once, then the artifact under citation
+  moved and the citation wasn't refreshed. Also distinct from row 604's family (fix commits whose
+  STATED PURPOSE is correcting a §10 violation introducing a fresh one) — this commit's purpose was
+  adding red-team coverage, not a §10 correction; the stale citation is a plain §10 instance, not
+  that specific meta-pattern, so it does not increment row 604's same-branch counter. Single
+  instance — log and watch. On 2nd occurrence (a different commit whose message cites a line number,
+  count, or other artifact-derived detail that was accurate against an earlier draft but not
+  re-verified against the final committed diff): propose a `code-style.md` §10 sub-clause —
+  "re-derive every line-number/count citation from `git diff --staged` immediately before writing
+  the commit message, never from an earlier draft of the same change."
+
