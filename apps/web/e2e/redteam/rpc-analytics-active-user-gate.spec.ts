@@ -132,6 +132,32 @@ test.describe('Red Team: analytics student-read RPCs active-user gate', () => {
     // likewise covered only at the integration tier. Asserted here because it sits BEFORE the
     // active-user gate: if it regressed, the gate above would be measuring the wrong boundary.
     test('an active caller cannot read another student analytics', async () => {
+      // Positive controls, and the reason this test is not vacuous: the SAME client must be able
+      // to read its OWN analytics right here. Without them, a guard rewritten to raise 'forbidden'
+      // unconditionally would still satisfy every assertion below — the §7 failure shape where a
+      // second guard reaches the expected result first. ONE PER RPC is required, not one for the
+      // pair: mig 20260824000300 gives each function its own independent identity guard (L68 and
+      // L126), so a control calling only one of them leaves the other half vacuous.
+      //
+      // get_daily_activity zero-fills from generate_series(p_days), so its row count is
+      // structural, not fixture-dependent.
+      const ownActivity = await victimClient.rpc('get_daily_activity', {
+        p_student_id: victimUserId,
+        p_days: 7,
+      })
+      expect(ownActivity.error).toBeNull()
+      expect(ownActivity.data).toHaveLength(7)
+
+      // get_subject_scores aggregates real quiz_sessions rows, so the seeded victim may
+      // legitimately have none — assert the SHAPE, not a count. The RAISE is what is under test,
+      // and an empty set cannot satisfy it.
+      const ownScores = await victimClient.rpc('get_subject_scores', {
+        p_student_id: victimUserId,
+        p_limit: 5,
+      })
+      expect(ownScores.error).toBeNull()
+      expect(Array.isArray(ownScores.data)).toBe(true)
+
       const activity = await victimClient.rpc('get_daily_activity', {
         p_student_id: attackerUserId,
         p_days: 7,
