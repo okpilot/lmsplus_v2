@@ -72,19 +72,24 @@ test.describe('Red Team: analytics student-read RPCs active-user gate', () => {
       // Positive control — while active, both calls must SUCCEED for this caller. That is what
       // makes the rejection below attributable to the gate: a regression that removed the gate
       // would leave these same two calls succeeding after the soft-delete, failing the asserts.
-      // LIMITATION, stated rather than hidden: the seeded victim has no guaranteed responses or
-      // scored sessions, so these result sets may legitimately be EMPTY. The assertion under
-      // test is the RAISE, which an empty result set cannot satisfy. The PAYLOADS are pinned at
-      // the integration tier instead, in
-      // packages/db/src/__integration__/rpc-analytics-guards.integration.test.ts, which seeds
-      // real scored sessions and asserts the averages.
+      //
+      // get_daily_activity is structurally guaranteed to return exactly p_days rows: it selects
+      // from generate_series(p_days) LEFT JOIN student_responses, and its WHERE clause names no
+      // joined column, so no absence of responses can suppress the zero-filled date rows. That
+      // makes the row-count assertion below free and non-vacuous, not fixture-dependent.
       const beforeActivity = await victimClient.rpc('get_daily_activity', {
         p_student_id: victimUserId,
         p_days: 7,
       })
       expect(beforeActivity.error).toBeNull()
-      expect(Array.isArray(beforeActivity.data)).toBe(true)
+      expect(beforeActivity.data).toHaveLength(7)
 
+      // get_subject_scores, unlike its sibling above, aggregates real quiz_sessions rows, and the
+      // seeded victim has no guaranteed scored session — so THIS result set may legitimately be
+      // empty. LIMITATION stated rather than hidden: the assertion under test is the RAISE, which
+      // an empty set cannot satisfy. Its PAYLOAD is pinned at the integration tier instead, in
+      // packages/db/src/__integration__/rpc-analytics-guards.integration.test.ts, which seeds real
+      // scored sessions and asserts the averages.
       const beforeScores = await victimClient.rpc('get_subject_scores', {
         p_student_id: victimUserId,
         p_limit: 5,
