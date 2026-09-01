@@ -167,6 +167,37 @@ describe('fetchAllRows', () => {
     expect(getPage).toHaveBeenCalledTimes(1)
   })
 
+  // A page that succeeds but returns fewer rows than its range holds is the same count/page
+  // disagreement as a null page — the count already promised rows there. Both cases must fail
+  // the read rather than return a short set with error: null.
+  it('returns an error when a page returns fewer rows than its range holds', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 4, error: null })
+    const getPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [1, 2], error: null })
+      .mockResolvedValueOnce({ data: [3], error: null })
+
+    const result = await fetchAllRows(getCount, getPage, 2)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [2, 3]: expected 2 rows, got 1',
+    })
+  })
+
+  it('returns an error when a page is empty despite a non-zero count', async () => {
+    const getCount = vi.fn().mockResolvedValue({ count: 3, error: null })
+    const getPage = vi.fn().mockResolvedValue({ data: [], error: null })
+
+    const result = await fetchAllRows(getCount, getPage)
+
+    expect(result.data).toEqual([])
+    expect(result.error).toEqual({
+      message: 'fetchAllRows page [0, 2]: expected 3 rows, got 0',
+    })
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
   // The { data: [], error } contract covers RESOLVED results only. A REJECTED thunk propagates
   // by design: how a transport fault should surface differs by caller chain, so the pager does
   // not decide it. These two pin that, so a later "just catch it" cannot pass unseen.

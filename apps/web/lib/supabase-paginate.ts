@@ -19,7 +19,8 @@ type PageResult<T> = { data: T[] | null; error: { message: string } | null }
  * fetchAllRows now routes every page through this function, so the rejection happens
  * once whether or not a caller wraps its own getPage. Callers still wrap when they want
  * the error to NAME them — this takes a `source`, while the pager can only report the
- * page range. A genuinely empty page is `[]`, which passes and contributes no rows.
+ * page range. A genuinely empty page is `[]`, which passes THIS function's array check —
+ * fetchAllRows still rejects it if the range it covers expected any rows.
  */
 export function toPageResult<T>(
   pageData: unknown,
@@ -70,8 +71,8 @@ async function resolveTotal(getCount: () => PromiseLike<CountResult>): Promise<T
  * @param pageSize must be <= `POSTGREST_MAX_ROWS` (PostgREST's hard cap); defaults to it.
  * @returns resolves with a non-null `data` array; on any error `data` is `[]` and `error`
  *   is non-null — callers never need to null-guard `.data`. "Error" covers an invalid pageSize, a
- *   failed count, a count reporting no exact total, a failed page, and a page whose payload is not
- *   an array. That contract covers RESOLVED results only: if `getCount` or `getPage` REJECTS
+ *   failed count, a count reporting no exact total, a failed page, a page whose payload is not
+ *   an array, and a page whose row count differs from the range it covers. That contract covers RESOLVED results only: if `getCount` or `getPage` REJECTS
  *   (a transport fault, or a thunk that throws), the rejection PROPAGATES out of this function
  *   rather than being normalized into `error`. That is deliberate: how a transport fault should
  *   surface differs by caller chain, so this helper does not decide it.
@@ -113,7 +114,22 @@ export async function fetchAllRows<T>(
     // accumulated rows would masquerade as a complete result (e.g. a silently truncated
     // GDPR export). Completeness is all-or-nothing per read.
     if (page.error) return { data: [], error: page.error }
-    all.push(...(page.data ?? []))
+    // A SHORT page is the same count/page disagreement as a null one: the count already
+    // reported rows across [from, to], so a successful page returning fewer than that range
+    // holds is an inconsistent read, not an empty one. Accepting it returns a truncated set
+    // with error: null — the silently-complete-looking result (#668/#673) this pager exists
+    // to prevent. Fail the read instead; a caller that retries gets a consistent one.
+    const rows = page.data ?? []
+    const expected = to - from + 1
+    if (rows.length !== expected) {
+      return {
+        data: [],
+        error: {
+          message: `fetchAllRows page [${from}, ${to}]: expected ${expected} rows, got ${rows.length}`,
+        },
+      }
+    }
+    all.push(...rows)
   }
   return { data: all, error: null }
 }
