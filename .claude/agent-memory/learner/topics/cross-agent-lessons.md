@@ -335,7 +335,7 @@ Same Vector FL red-team session as `59005823`/`34e26c48` above. Four core post-c
   task, not something to do inline in a single-commit learner pass; flagging for `/insights` or a
   dedicated memory-maintenance session.
 
-## Commits `80b0aaeb`→`8f6eb599` (fix/student-read-rpc-active-user-gates) — 2026-09-01 learner pass
+## Commits `80b0aaeb`→`c7a68d05` (fix/student-read-rpc-active-user-gates) — 2026-09-01 learner pass
 
 Branch gates four SECURITY DEFINER student-read RPCs the #883 sweep missed, fixes an
 `answered_count` miscount, and rewrites `docs/security.md` §11c from a closed enumeration into a
@@ -371,6 +371,58 @@ zero code defects.
   and re-derive any count) run by the AUTHORING agent before finalizing a commit whose stated
   purpose is fixing a §10 violation, rather than relying on the next review round to catch it. This
   is a proposal for the orchestrator to weigh, not a promoted rule.
+
+- **`a0511cd1`→`c7a68d05` — 2 more same-branch §10 sub-instances (6th, 7th; still no new increment to
+  row 604 — same branch, per the established convention), plus a distinct §3 finding and a
+  mechanization assessment the orchestrator specifically asked for:**
+  (f) semantic-reviewer ISSUE, found independently by test-writer too: `a0511cd1`'s
+  `rpc-analytics-active-user-gate.spec.ts` comment claimed both analytics RPC positive-control
+  result sets "may legitimately be empty" — false for `get_daily_activity`, which
+  `generate_series(p_days) LEFT JOIN student_responses` with no joined-column `WHERE` clause makes
+  structurally guaranteed to return exactly `p_days` rows; only its sibling `get_subject_scores`
+  (a real aggregate over possibly-zero sessions) can legitimately be empty. Fixed in `c7a68d05` by
+  splitting the one joint claim into two per-RPC claims and asserting `toHaveLength(7)` on the
+  non-empty one — test-writer's independent finding named that same free assertion. Two reviewers
+  converging on one finding via different lenses is the established reliability signal (line 41
+  above), not overlap — logged, not double-counted.
+  (g) semantic-reviewer SUGGESTION: the PARENT commit's message claimed the `afterEach`
+  rows-affected assert means a failed test "cannot strand the victim" — it prevents a *silent
+  no-op* restore, not stranding (a `throw`n restore still leaves the victim soft-deleted). Same
+  `code-style.md` §10 shape as (a)-(e): a true mechanism restated with an overclaimed guarantee.
+  **Mechanization assessment (asked for this pass):** claims (f)/(g), like (a)-(e), are NOT
+  reducible to a hook, lint rule, or grep-checkable pattern, and this is worth stating plainly
+  rather than proposing another prose clause. §10's whole family requires evaluating a claim
+  against the SPECIFIC referenced code's semantics — whether a specific aggregate query can return
+  zero rows, whether a specific cleanup step's failure mode is "silent" vs. "thrown" — which is
+  domain reasoning about behavior, not a syntactic property of the comment text itself. The one
+  syntactically-detectable shape inside this family, "a claim made about 2+ named entities as one
+  group" (open-set enumeration, clause 2's job), IS partially mechanizable — `check-mirror-sync.mjs`
+  already proves grep-based verification works for byte-identical mirrors — but "both X and Y may
+  be empty" has no textual signature that generalizes: nothing distinguishes it from a hundred
+  true joint claims elsewhere in the codebase without first knowing whether X and Y are actually
+  structurally identical, which is exactly the fact under dispute. A hook keying on surface
+  patterns ("both", "either", a shared adjective across two capitalized/backtick-quoted names)
+  would fire on the majority of TRUE joint claims and miss false ones phrased without those words —
+  false-positive rate too high to be a blocking gate, and a non-blocking checklist item duplicates
+  what semantic-reviewer's own charter already does. Conclusion: no new rule text, no new hook —
+  this stays an enforcement-depth item, consistent with every prior row-604 pass.
+  **Separately, code-reviewer's own WARNING this cycle (long red-team test callback) is now a
+  genuine count=2 across distinct commits** (`rpc-analytics-active-user-gate.spec.ts`'s 52L "the
+  owner reads..." test vs. the unflagged ~34L Vector FM precedent in
+  `rpc-internal-exam-codes.spec.ts:309-343`) — folded into the pre-existing "Single-concern
+  sequential DB-seed/infra helpers" RULE CANDIDATE (MEMORY.md, now count=6) rather than a new row,
+  since the shape (linear positive-control → mutate → negative-probe, no branching, single
+  concern) is identical to the named-helper instances already tracked there; the only difference
+  is the code sits directly in the `it()` callback instead of an extracted function. The pending
+  proposed clause text (tracker-archive.md row 439) currently reads "helpers... are exempt" — it
+  should be broadened to explicitly name `it()`/`test()` callback bodies as a covered shape before
+  promotion, or a future instance in this exact shape will get re-litigated as if it were new.
+  **Fourth (unrelated) item this cycle:** one of the four earlier-triaged CodeRabbit findings on
+  this branch quoted a scope label ("student analytics/history RPCs") that does not exist anywhere
+  in the repo — a fabricated construct, already the exact shape of `agent-coderabbit-local.md`
+  pitfall #8 (PR #1124 precedent). No new tracker entry — an already-documented, already-mitigated
+  pattern; logged here only as further confirming evidence that the "verify before acting" gate is
+  still earning its keep.
 
 - **Row 688 (NEW) — Rule-promotion sweep recorded closed/complete, later found incomplete, count=2
   across two different rule promotions:** `docs/security.md` §11c recorded the #883 active-user-gate

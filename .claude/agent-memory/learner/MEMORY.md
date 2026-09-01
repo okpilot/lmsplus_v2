@@ -20,7 +20,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE. |
 | DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE (row 626) |
 | Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE (row 627) |
-| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 5 | 2026-07-02 | RULE CANDIDATE (5). |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 6 | 2026-09-01 | RULE CANDIDATE (6) — now confirmed on an inline `it()`/`test()` callback body too, not just extracted named helpers (rpc-analytics-active-user-gate.spec.ts Vector FN test, 52L, precedent-matched to unflagged Vector FM in rpc-internal-exam-codes.spec.ts). Overdue — proposed clause (topics/cross-agent-lessons.md) needs broadening to name both shapes before promotion. |
 | `vi.spyOn` spy restore hygiene gap (spy leaks across tests on assertion failure) | 2 | 2026-06-20 | RULE CANDIDATE. |
 | CLAUDE.md QA-pipeline section drifts when lefthook.yml changes | 2 | 2026-06-20 | RULE CANDIDATE. |
 | Test-file split drops a test-branch guard or condition during the move | 2 | 2026-06-23 | RULE CANDIDATE. |
@@ -39,7 +39,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (row 600) |
 | Proposed verification command silently verifies nothing | 3 | 2026-08-18 | RULE CANDIDATE (3) (row 602) |
 | Plan prose states unverified content-item count that | 2 | 2026-08-16 | RULE CANDIDATE (2) → grep-verify counts (row 547) |
-| Fix commit correcting §10 violations introduces fresh §10 | 26 | 2026-09-01 | RULE CANDIDATE (26) → text exists (§10 cl.3); enforcement gap. 4th branch (row 604, topic file) |
+| Fix commit correcting §10 violations introduces fresh §10 | 26 | 2026-09-01 | RULE CANDIDATE (26) → text exists (§10 cl.3); enforcement gap. 4th branch, now 7 same-branch sub-instances on this one (row 604, topic file) |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 2 | 2026-09-01 | RULE CANDIDATE (2) → agent-learner.md needs a re-derivable RECORD, not prose (row 688, topic file) |
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE (2) (row 605) |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE (2) (row 606) |
