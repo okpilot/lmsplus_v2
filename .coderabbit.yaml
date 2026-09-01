@@ -416,11 +416,13 @@ reviews:
           leaks data/answer-keys to a deactivated account with a live JWT. Justified
           exceptions: is_admin()-gated admin/org-wide RPCs (no per-caller scoping);
           functions reading no soft-deletable table; functions with no audit_events INSERT.
-          The RAISE token spelling splits by RPC family and BOTH are correct — the
-          exam-session / report / batch-submit family raises the space-separated
-          'user not found or inactive', the VFR-RT / quiz-question-serving family raises
-          'user_not_found_or_inactive'. Do NOT flag either spelling as wrong; flag only a
-          MISMATCH with the family the function belongs to. This rule covers SECURITY DEFINER
+          The RAISE token spelling splits by RPC family and BOTH are correct — as of
+          2026-09-01 the exam-session / report / batch-submit family, the internal-exam
+          student reads and the analytics readers all raise the space-separated
+          'user not found or inactive', while the VFR-RT / quiz-question-serving family
+          raises 'user_not_found_or_inactive'. Both families are OPEN and keep gaining
+          members, so treat this as an as-of list, not a census. Do NOT flag either
+          spelling as wrong; flag only a MISMATCH with the family the function belongs to. This rule covers SECURITY DEFINER
           functions only: a SECURITY INVOKER function has RLS evaluated for it and needs no
           manual gate — though as of 2026-09-01 several stand on ownership-only RLS predicates
           that never consult users.deleted_at, which is a separate and still-open exposure, not

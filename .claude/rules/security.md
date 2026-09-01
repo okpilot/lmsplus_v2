@@ -60,10 +60,12 @@
     scoping; a function reading no soft-deletable table needs no filter; no `audit_events` INSERT
     means no audit-subquery concern). Introducing a NEW guard class into one member means auditing
     every other member **in the same commit**. The active-user gate's RAISE token spelling splits
-    by family and BOTH are correct — exam-session / report / batch-submit raise the space-separated
+    by family and BOTH are correct — as of 2026-09-01 exam-session / report / batch-submit plus
+    the internal-exam student reads and analytics readers raise the space-separated
     `'user not found or inactive'`, VFR-RT / quiz-question-serving raise
-    `'user_not_found_or_inactive'`; match the family you are editing. **Scope: SECURITY DEFINER
-    only.** A SECURITY INVOKER function has RLS evaluated for it and needs no manual gate — but only
+    `'user_not_found_or_inactive'`; match the family you are editing. Both families are OPEN —
+    derive membership by grepping the token in `supabase/migrations/`, never from this list.
+    **Scope: SECURITY DEFINER only.** A SECURITY INVOKER function has RLS evaluated for it and needs no manual gate — but only
     where the RLS predicate itself excludes a deactivated account, and as of 2026-09-01 several
     stand on ownership-only predicates that never read `users.deleted_at`. That is a separate and
     still-OPEN exposure, not a finding against those functions. Re-derive the gated set rather than

@@ -169,9 +169,12 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   })
 
   test('get_subject_scores rejects unauthenticated callers', async () => {
-    // Sibling of the above. get_subject_scores has no app-layer consumer at all, so its GRANT
-    // to `authenticated` is the entire live surface — this anon path is the first thing an
-    // unauthenticated prober would try.
+    // Sibling of the above. MEASURED 2026-09-01: get_subject_scores's only in-repo caller was
+    // the getSubjectScores helper (apps/web/lib/queries/analytics.ts), which nothing imported —
+    // so no page reached it and its GRANT to `authenticated` was the whole live surface, making
+    // this anon path the first thing an unauthenticated prober would try. Callers are an OPEN
+    // set; re-derive with `grep -rn "get_subject_scores\|getSubjectScores" apps packages`
+    // rather than trusting this line.
     const { data, error } = await unauthClient.rpc('get_subject_scores', {
       p_student_id: '00000000-0000-0000-0000-000000000000',
       p_limit: 5,
