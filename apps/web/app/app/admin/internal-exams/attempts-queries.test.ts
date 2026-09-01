@@ -80,6 +80,12 @@ function mockFrom(
   let callIndex = 0
   mockAdminFrom.mockImplementation((table: string) => {
     if (table === 'quiz_session_answers') return answersChain
+    // Throw rather than fall through: without this, a query retargeted to ANY other table
+    // would silently receive the quiz_sessions chain and the test would still pass. Mirrors
+    // the sibling dispatcher in students/[id]/queries.test.ts.
+    if (table !== 'quiz_sessions') {
+      throw new Error(`Unexpected table queried in test: ${table}`)
+    }
     const chain = chains[Math.min(callIndex, chains.length - 1)]
     callIndex += 1
     return chain

@@ -24,4 +24,11 @@ describe('formatCorrectFraction', () => {
     // correctCount is 0 but answeredItems isn't is the only way to tell those two guards apart.
     expect(formatCorrectFraction(0, 5)).toBe('0 / 5')
   })
+
+  it('shows an em dash when no items were answered, even if correctCount is positive', () => {
+    // Proves the em-dash guard is answeredItems === 0 alone, not narrowed to also require
+    // correctCount === 0. A regression to `answeredItems === 0 && correctCount === 0` would
+    // render "5 / 0" here instead of an em dash.
+    expect(formatCorrectFraction(5, 0)).toBe('—')
+  })
 })

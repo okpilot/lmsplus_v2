@@ -16,6 +16,7 @@
 | Sibling-parity retry test asserts only END-state, missing a sibling's "clears at start" test | 2026-08-17 | 1 | 2026-08-17 | WATCHING |
 | `toHaveLength(N)` on an array whose CONTENT matters (toUpdate, toInsert) — count-only passes mutants that swap correct entries for wrong ones of equal count | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
 | Two sibling error-path tests both happen to produce the SAME numeric literal from two different formulas (e.g. `pageSize` vs `to-from+1`, both = 2), so neither catches a mutant that swaps one formula for the other — only a fixture where the formulas diverge (the last, remainder-sized page) does | 2026-09-01 | 1 | 2026-09-01 | WATCHING |
+| A guard's "fires on X alone" fixture (e.g. `x === 0` → sentinel) only ever paired X with a second field ALSO at its zero/default value (e.g. `(0, 0)`), so a mutant that AND-tightens the guard to require both fields at default (`x === 0 && y === 0`) goes undetected — need a fixture with X at trigger value and Y at a NON-default value to isolate the single-field guard | 2026-09-02 | 1 | 2026-09-02 | WATCHING |
 
 ## Durable knowledge
 
