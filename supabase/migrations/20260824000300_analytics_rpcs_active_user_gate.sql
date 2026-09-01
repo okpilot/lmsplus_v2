@@ -35,8 +35,9 @@
 --     functions are owned by postgres (BYPASSRLS), so RLS is not evaluated and the filter must
 --     be manual — docs/security.md rule 9. easa_subjects has no deleted_at column, so the JOIN
 --     to it carries no predicate. This CHANGES returned averages for any student with a
---     soft-deleted session; get_subject_scores has no production caller today, so the reachable
---     surface is a direct PostgREST call.
+--     soft-deleted session. get_subject_scores IS called by one production helper
+--     (getSubjectScores, apps/web/lib/queries/analytics.ts) — but nothing imports that helper, so
+--     no page or component reaches the RPC today and the live surface is a direct PostgREST call.
 --
 --     get_daily_activity reads only student_responses, which has no deleted_at column
 --     (immutable table), and correctly needs no such filter.

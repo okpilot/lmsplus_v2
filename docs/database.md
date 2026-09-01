@@ -1649,7 +1649,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 
 #### Internal Exam RPCs (mode `internal_exam`)
 
-Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, carry the active-user gate (security.md rule 12 — the two student readers were the last two members to get it, migration `20260824000200`), and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, carry the active-user gate (security.md rule 12 — the two student readers were the last two members to get it, migration `20260824000200`), and apply `deleted_at IS NULL` filters on every SELECT **of a soft-deletable table** (including `actor_role` audit subqueries) per security.md rules 7, 9, 10. The `easa_subjects` reference join in both student readers carries no such predicate — that table has no `deleted_at` column, as the per-function sections below record.
 
 ##### `issue_internal_exam_code(p_subject_id, p_student_id)`
 

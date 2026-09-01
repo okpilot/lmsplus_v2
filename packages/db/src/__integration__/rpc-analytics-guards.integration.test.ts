@@ -16,7 +16,9 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 //
 // Both RPCs are GRANTed to `authenticated` (20260312000013 L37, L73), so these paths are
 // reachable by a direct PostgREST rpc() call regardless of what the app layer does with them.
-// get_subject_scores in particular has no production caller today; the grant is the surface.
+// get_subject_scores in particular is called by one production helper (getSubjectScores in
+// apps/web/lib/queries/analytics.ts) that nothing imports, so no page reaches it and the grant is
+// the whole live surface.
 //
 // This file also covers two PRE-EXISTING guards this migration did not change, because they
 // were never exercised at any tier either: the RPC-level p_days/p_limit clamp (the app layer in
