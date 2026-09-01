@@ -17,7 +17,7 @@ export function fetchQuestionComments(supabase: SupabaseClient<Database>, questi
         .eq('question_id', questionId)
         .is('deleted_at', null),
     async (from, to) => {
-      // Guard the page, as the sibling pagers do (lib/supabase-rpc.ts,
+      // Guard the page, as the sibling pagers do (e.g. lib/supabase-rpc.ts,
       // lib/queries/admin-report-helpers.ts): a page resolving { data: null, error: null }
       // lies inside [0, total) because the count already reported rows there, so it is a
       // count/page disagreement. fetchAllRows now rejects a null page itself, but this

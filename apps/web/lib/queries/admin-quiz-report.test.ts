@@ -368,7 +368,7 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.answeredItems).not.toBe(completedSession.total_questions)
   })
 
-  it('returns no report when the answer-rows count reports no exact total', async () => {
+  it('returns no report when answer-row data cannot be counted', async () => {
     // A count that resolves to null (no parseable Content-Range) is now an error inside
     // fetchAllRows, not a coerced zero — it short-circuits before any page fetch, and before
     // the subject/users lookups that would otherwise follow a successful (even zero) count.

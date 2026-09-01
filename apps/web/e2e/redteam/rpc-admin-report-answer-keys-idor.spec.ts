@@ -189,14 +189,21 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     // already covers, silently reopening the gap they exist to close. upsertUser
     // deliberately does not reset deleted_at (see seed-core.ts), so nothing
     // restores it once set. Assert it rather than assume it.
+    //
+    // organization_id is pinned for a DIFFERENT reason — not vacuity. is_admin() is
+    // org-blind (`role = 'admin' AND deleted_at IS NULL`, mig 20260429000001) and both
+    // RPCs raise 'forbidden' on it BEFORE the org lookup is reached, so a wrong-org
+    // student is rejected identically. The pin keeps the fixture matching the same-org
+    // scenario FL3/FL4's names claim, which nothing else verifies.
     const { data: attackerRow, error: attackerErr } = await admin
       .from('users')
-      .select('role, deleted_at')
+      .select('organization_id, role, deleted_at')
       .eq('email', ATTACKER_EMAIL)
       .single()
     expect(attackerErr).toBeNull()
     expect(attackerRow?.role).toBe('student')
     expect(attackerRow?.deleted_at).toBeNull()
+    expect(attackerRow?.organization_id).toBe(orgAId)
 
     // easa_subjects is shared reference data (no organization_id column — see
     // rpc-cross-tenant-reports.spec.ts / seed-quiz.ts), so the same subjectId

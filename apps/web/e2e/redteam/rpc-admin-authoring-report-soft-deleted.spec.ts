@@ -59,11 +59,11 @@
  * this as the PRIMARY layer). Vector DT (server-action-unauthenticated.spec.ts)
  * covers the `auth.uid() IS NULL` layer.
  *
- * The role half is NOT untested repo-wide — two Vitest integration tests already
- * assert 'forbidden' for a student caller
- * (packages/db/src/__integration__/rpc-get-question-authoring-fields.integration.test.ts
- * and rpc-vfr-rt-submit.integration.test.ts), and the matrix's Vector DT row records
- * that as COVERED AT INTEGRATION LAYER. What was missing is the E2E tier, which is
+ * The role half is NOT untested repo-wide — the Vitest integration tier already
+ * asserts 'forbidden' for a student caller (derive the current set with
+ * `grep -rln get_question_authoring_fields packages/db/src/__integration__/*.integration.test.ts`;
+ * as of 2026-09-01 that is rpc-get-question-authoring-fields and rpc-vfr-rt-submit),
+ * and the matrix's Vector DT row records that as COVERED AT INTEGRATION LAYER. What was missing is the E2E tier, which is
  * where this RPC family carries its other guard coverage. A regression dropping the
  * role half would leak correct_option_id / canonical_answer / accepted_synonyms /
  * dialog_template / blanks_config to any authenticated student for any same-org
@@ -199,14 +199,22 @@ test.describe('Red Team: soft-deleted admin cannot call admin answer-key RPCs (V
     // deleted_at half this file's own EJ tests already cover. That is especially
     // easy to miss here, where the surrounding suite soft-deletes users on purpose.
     // upsertUser deliberately does not reset deleted_at (see seed-core.ts).
+    //
+    // organization_id is pinned for a DIFFERENT reason — not vacuity. is_admin() is
+    // org-blind (`role = 'admin' AND deleted_at IS NULL`, mig 20260429000001) and
+    // get_question_authoring_fields raises 'forbidden' on it BEFORE the org lookup is
+    // reached (mig 20260619000600), so a wrong-org student is rejected identically.
+    // The pin keeps the fixture matching the same-org scenario this test's name and
+    // the FL5 docblock both claim, which nothing else verifies.
     const { data: attackerRow, error: attackerErr } = await admin
       .from('users')
-      .select('role, deleted_at')
+      .select('organization_id, role, deleted_at')
       .eq('email', ATTACKER_EMAIL)
       .single()
     expect(attackerErr).toBeNull()
     expect(attackerRow?.role).toBe('student')
     expect(attackerRow?.deleted_at).toBeNull()
+    expect(attackerRow?.organization_id).toBe(orgId)
   })
 
   test.afterAll(async () => {
