@@ -220,12 +220,14 @@ Ordering and contents in the artifact above. Not started.
       issues verified CLOSED. CodeRabbit cleared its own CHANGES_REQUESTED to APPROVED once the finding
       was actually fixed and pushed — a dismiss was NOT needed, correcting the belief recorded earlier)
       · PR 3 — SPLIT THREE WAYS by risk surface: ~~3a (#1241, report item/question scale)~~ **DONE**
-      (merged `970dabbf`) · **3b (#991) = NEXT** — admin non-MC session report; its two migrations
-      (`20260824000100_get_admin_report_answer_keys`, `20260824000200_internal_exam_history_distinct_and_gates`)
-      are WRITTEN but still UNTRACKED in the working tree. Scope is WIDER than #991's text: the admin
-      query never selects `question_type`, and `apps/web/lib/queries/report-question-builder.ts:91` defaults a missing type to
-      `multiple_choice`, so a non-MC question renders as an MC card with empty options — mis-TYPED, not
-      just mis-counted. Migration PR ⇒ never auto-merged; user evals and merges · 3c (#990)
+      (merged `970dabbf`) · ~~3b (#991)~~ **DONE** (PR #1247, merged `e89ead6a` 2026-08-31; mig
+      `20260824000100` deployed to production 2026-09-01 after the user approved the held db-deploy run).
+      Its sequenced remainder — the `fetchAllRows` root guard — merged as PR #1248 (`44e39361`, closes
+      #1249) · **PR B = IN FLIGHT** (branch `fix/student-read-rpc-active-user-gates`): the second written
+      migration, re-scoped. `20260824000200` keeps the internal-exam DISTINCT `answered_count` + gates;
+      a new `20260824000300` closes the same class for `get_daily_activity` / `get_subject_scores`, which
+      the #883 sweep also missed and `docs/security.md` recorded as complete. Migration PR ⇒ never
+      auto-merged; user evals and merges · 3c (#990)
       · PR 4 (#1197) · PR 5 (#539)
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
       · PR 11 (#1181+#1184)

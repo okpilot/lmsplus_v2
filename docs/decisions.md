@@ -448,6 +448,12 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
   - Migration 16 replaces `!=` with `IS DISTINCT FROM` in the identity check (layer 2, alongside the `IS NULL` guard from migration 14). In SQL, `NULL != value` evaluates to NULL (not TRUE), silently passing the guard. `IS DISTINCT FROM` treats NULL as a concrete value, closing that gap.
 - Validates at the SQL layer to prevent bypassing app-side guards, ensures consistent behavior across clients
 
+**Enhancement (2026-09-01, migration `20260824000300`):**
+- Both RPCs gain the **active-user gate** (`.claude/rules/security.md` rule 12 / `docs/security.md` §11c): `PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL` → `RAISE 'user not found or inactive'`. Decision 24's two layers checked *who you claim to be*, never *whether that account is still active*, so a student soft-deleted via toggle-student-status kept reading their own analytics for the life of their JWT (~1h) — deactivation cascades to neither `student_responses` nor `quiz_sessions`. The gate sits after the identity guard and before the parameter clamp: an authentication outcome should precede a validation outcome.
+- `get_subject_scores` additionally gains `AND qs.deleted_at IS NULL` on its `quiz_sessions` aggregate (rule 9). SECURITY DEFINER is owned by `postgres` (`BYPASSRLS`), so RLS never ran for it and a discarded session still moved the student's average. This CHANGES returned averages; `get_subject_scores` has no production caller today, so the reachable surface is a direct PostgREST call.
+- Both were missed by the #883 sweep, which `docs/security.md` had recorded as complete. Neither had a test at any tier before this change — coverage is now `packages/db/src/__integration__/rpc-analytics-guards.integration.test.ts`, and both mechanisms are mutation-confirmed there.
+- The defense-in-depth `WHERE auth.uid() = p_student_id` clause this decision requires is **kept** — the new gate is a third layer, not a replacement.
+
 ---
 
 ## Decision 25: Post-session exception for question feedback (2026-03-13, updated 2026-03-16)
