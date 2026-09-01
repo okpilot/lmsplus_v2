@@ -37,8 +37,11 @@
 --     invisible to a clean apply.
 --
 -- Return types are unchanged in both, so CREATE OR REPLACE suffices (no DROP). EXECUTE grants
--- are re-asserted for explicitness. Nothing else in either body is touched — in particular
--- list_my_active_internal_exam_codes still omits the plaintext `code` column by design (#577).
+-- are re-asserted for explicitness. Nothing BEYOND (a) and (b) above is touched: a re-emission
+-- of either function must carry the active-user gate, and list_my_internal_exam_history must
+-- carry `count(DISTINCT qsa.question_id)::int`. In particular
+-- list_my_active_internal_exam_codes still omits the plaintext `code` column by design (#577) —
+-- pinned by the integration test, so a re-emission that re-added it fails rather than ships.
 
 -- list_my_internal_exam_history()
 -- Returns the current student's internal_exam quiz session history. Per-subject
