@@ -206,8 +206,10 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
   })
 
   // ── Active-user gate (#883) on both analytics RPCs ─────────────────────────
-  // Runs last: it soft-deletes the shared student and restores in the afterEach below, so an
-  // assertion failure inside cannot leave a deleted user for a later test.
+  // This describe soft-deletes the shared student. Its own afterEach restores them before any
+  // later describe begins and throws if the restore matched no row, so a failure inside here
+  // cannot strand a deleted user — that holds wherever in the file this block sits, and two more
+  // describes do now follow it.
   describe('active-user gate', () => {
     // Restore in afterEach, not a finally: biome's noUnsafeFinally forbids throwing there
     // (it would overwrite the try body's own failure), and afterEach still runs when the test
