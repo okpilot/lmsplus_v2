@@ -105,16 +105,12 @@ pnpm check-types  # tsc --noEmit all packages
 After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache) to confirm new type definitions do not introduce errors.
 
 After any **Next.js** bump specifically, also run `pnpm --filter @repo/web dev` once and commit
-whatever it rewrites in `apps/web/AGENTS.md` (`next` is not on PATH — it resolves only as the
-workspace-local dependency). That file is TRACKED and the Next.js dev server regenerates it:
-`generate-agent-files.js` compares the installed block byte-for-byte against the version it vendors
-and rewrites on any drift, and it fires only when an AI agent is detected — the normal case here.
-Skipping this leaves a modified tracked file that aborts `/fullpush` step 5b (the gate reads
-`git status --porcelain --untracked-files=all`, so a space-prefixed `M` blocks exactly as `??` does)
-at the least convenient moment — so check `git status` broadly, not just that one path.
-`apps/web/CLAUDE.md` is tracked too but is normally left alone: `writeAgentFiles` returns
-`claudeMd: 'skipped'` WHILE `AGENTS.md` exists and hosts the block. That is a condition, not a
-guarantee — remove `AGENTS.md` and the next branch writes the block into `CLAUDE.md` instead.
+whatever it rewrites (`next` is not on PATH — it resolves only as the workspace-local dependency).
+The dev server regenerates a tracked agent-instruction block, hosted in `apps/web/AGENTS.md` as of
+2026-09-02; `apps/web/CLAUDE.md` is tracked too and takes the block instead if `AGENTS.md` is
+removed. Skipping this leaves a modified tracked file that aborts `/fullpush` step 5b at the least
+convenient moment: the gate reads `git status --porcelain --untracked-files=all`, so a
+space-prefixed `M` blocks exactly as `??` does. Check `git status` broadly, not just one path.
 
 Also audit `package.json` `pnpm.overrides` after any dep bump: drop each pin once its removal
 condition is satisfied, in the same commit. **Verify redundancy — never infer it from the resolved

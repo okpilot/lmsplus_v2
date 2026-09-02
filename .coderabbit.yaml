@@ -207,6 +207,9 @@ reviews:
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
           or a count left stale by lines the same commit added, are the canonical instances.
+          A claim RE-TYPED unchanged inside a reflowed block is a NEW
+          assertion: it arrives on a + line but reads as pre-existing text. Verify it against
+          source rather than treating it as already reviewed.
         - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
           not sufficient — after correcting any claim, the retracted phrase must be grepped
           repo-wide and every surviving hit confirmed not to describe current behaviour.
@@ -255,6 +258,9 @@ reviews:
         - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
+          A claim RE-TYPED unchanged inside a reflowed block is a NEW
+          assertion: it arrives on a + line but reads as pre-existing text. Verify it against
+          source rather than treating it as already reviewed.
         - A corrected claim whose OLD wording survives in a non-adjacent doc, comment or rule
           file. After correcting any claim in these binding surfaces, the retracted phrase must
           be grepped repo-wide and every hit confirmed not to describe current behaviour — a
