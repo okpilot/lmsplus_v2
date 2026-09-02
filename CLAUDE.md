@@ -104,6 +104,15 @@ pnpm check-types  # tsc --noEmit all packages
 
 After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache) to confirm new type definitions do not introduce errors.
 
+After any **Next.js** bump specifically, also run `next dev` once and commit whatever it rewrites in
+`apps/web/AGENTS.md`. That file is TRACKED and `next dev` regenerates it: `generate-agent-files.js`
+compares the installed block byte-for-byte against the version it vendors and rewrites on any drift,
+and it fires only when an AI agent is detected — the normal case here. Skipping this leaves a
+modified tracked file that aborts `/fullpush` step 5b (the gate reads `git status --porcelain`, so
+` M` blocks exactly as `??` does) at the least convenient moment. `apps/web/CLAUDE.md` is tracked
+too but does NOT need this: `writeAgentFiles` returns `claudeMd: 'skipped'` whenever `AGENTS.md`
+exists and hosts the block, and `upsertFile` preserves those markers, so that branch is permanent.
+
 Also audit `package.json` `pnpm.overrides` after any dep bump: drop each pin once its removal
 condition is satisfied, in the same commit. **Verify redundancy — never infer it from the resolved
 version.**

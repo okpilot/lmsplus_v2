@@ -84,10 +84,13 @@ apps/web/.claude/
 #      gets waved through. A gate that always fails protects nothing.
 # Ignoring it, not deleting it: removal of someone else's disabled repo is a separate, explicit
 # cleanup. Glob the date suffix — the name carries whenever it was disabled.
+# Trailing `/` = directory-only. If a future session ever leaves the artifact as a POINTER FILE
+# (as `.git` is under worktrees and submodules) rather than a renamed directory, this will not
+# match — which fails SAFE: the file surfaces as untracked rather than being silently swallowed.
 apps/web/.git.disabled-by-claude-*/
 
 # Branch-deletion logs written by session cleanup. Local bookkeeping, dated, never repo artifacts.
-.claude/deleted-branches-*.txt
+.claude/deleted-branches-????-??-??.txt
 
 # Two per-issue manual-eval seed scripts, ignored BY NAME. Local scratch for #1011 and #907 —
 # never shipped, and they carry hardcoded local credentials. Listed individually rather than as
