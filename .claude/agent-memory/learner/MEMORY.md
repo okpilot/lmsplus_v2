@@ -51,7 +51,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Self-invalidating relative reference in durable rules/doc file | 3 | 2026-08-19 | RULE CANDIDATE (3) (row 612) |
 | Verification gate's pass condition is empty result — fails open on malformed input | 2 | 2026-08-19 | RULE CANDIDATE (2) (row 613) |
 | Mirror sweep scoped by file extension, not claim phrase — misses .ts hits | 3 | 2026-08-20 | RULE CANDIDATE (3) → §Rule-Mirror-Sync (row 637) |
-| Correct advice with invented rationale (correct conclusion shields false WHY from scrutiny) | 2 | 2026-08-20 | RULE CANDIDATE (2) (row 638) |
+| Correct advice with invented rationale (correct conclusion shields false WHY from scrutiny) | 3 | 2026-09-02 | RULE CANDIDATE (3) — 3rd instance is CR itself (b7780606): em-dash test finding, conclusion correct/mechanism fabricated. Proposed: agent-critic.md — verify the stated mechanism independently before accepting a correct conclusion (row 638, topic file) |
 | Post-cycle agent-memory delta written but not committed before push — caught only by pre-push sweep | 3 | 2026-08-20 | RULE CANDIDATE (3) (row 639) |
 | Derivation query replacing an open-set enumeration is unverified before publish (false negative) | 2 | 2026-09-02 | RULE CANDIDATE (2) → code-style.md §10 cl.2 addendum (row 634; 2nd occurrence grep-regex, cross-agent-lessons.md) |
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence (row 640) |
@@ -96,6 +96,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Orchestrator triages only the CR review-BODY findings and pushes; an open inline-thread finding surfaces only afterward | 1 | 2026-09-01 | WATCHING — pushed with an in-flight finding, violating the Apply-vs-Defer gate (row 692, topic file) |
 | Extraction inserts a declaration between a function and its JSDoc, silently reattaching the doc to the wrong declaration | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `4c33b2bf`). |
 | Shared helper generalized to a 2nd caller with a different trust tier — client made a required param, no default (positive instance) | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `7c9c9177`). |
+| CR finding scoped to one file misses an identical defect in an unflagged sibling file | 1 | 2026-09-02 | WATCHING — `b7780606`: CR flagged the page-error-fixture defect (code-style.md §7) only in `queries.test.ts`; `attempts-queries.test.ts` carried the identical defect unflagged. Caught by the orchestrator's own sibling-grep discipline, not by CR. Distinct from row 605 (test-writer sibling coverage) and row 689 (sibling targets in one file) — here the REVIEWER's own scope, not ours, stopped at one file. |
 
 ## Durable knowledge (cross-agent)
 
@@ -111,6 +112,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 - 2026-09-01 compaction (×2): 32 old rows archived (zero data loss, verified); red-team spec-count → RESOLVED (#1222). Rows 683/687/109-113/604/688 detail moved to topic file (soft-cap nudge).
 - 2026-09-02 compaction: 21 count=1 WATCHING rows (2026-08-19→08-24, rows 594-659 range) relocated verbatim to tracker-archive.md's "Live-table snapshot relocated 2026-09-02" section — no state change, zero data loss. Freed room for this cycle's 4 new/updated rows (42, 56 [was 62], 97, 98).
 - POSITIVE (fix/admin-session-item-scale, 2026-09-02): memory-delta discipline held — code-reviewer's own agent-memory compaction shipped IN the fix commit (`7c9c9177`), not a later pre-push sweep (row 639's failure mode did NOT recur here). Test-writer's mutation-verification DO also held: the `allRows`-vs-`rows` filter-parity guard was proven real by reverting it and watching 26 green tests, before shipping the regression test (`4c33b2bf`).
+- POSITIVE (`b7780606`, 2026-09-02): a pure §10 comment-accuracy fix (3 false claims corrected: em-dash mechanism, `}`/`{` adjacency, "requires touch") shipped with ZERO new false claims — doc-updater grepped all 4 retracted phrases repo-wide clean, semantic-reviewer 0/0/0. Third clean §10-fix data point after `cd479557`/`a5745ab5→a5fed09e` (row 604, topic file) — the mitigation (verify claims against source before drafting, not after) keeps holding. Full cycle produced zero fixes end-to-end; both code-reviewer WARNINGs were a self-tracked 500L test-file watch threshold (code-reviewer/MEMORY.md), not a code-style.md violation — correctly validated and skipped.
 
 ## Topic pointers
 
