@@ -995,8 +995,9 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 ## Live-table snapshot relocated 2026-09-02 (batch 4, learner cycle 18757ddf)
 
 > 8 count=1 WATCHING rows (all 2026-09-02) moved here verbatim to bring `../MEMORY.md` back under
-> the 17.1 KB soft-cap after adding this cycle's 3 new rows (doc-updater 7th self-instance, the
-> §10 clause-3/5 promotion record, and the check-mirror-sync.mjs same-file-anchor gap). No state
+> the 17.1 KB soft-cap after adding this cycle's 3 new rows (a claimed doc-updater self-instance —
+> WITHDRAWN in `e40e1969`, the count reconciled 7→6, see row 663; the §10 clause-3/5 promotion
+> record; and the check-mirror-sync.mjs same-file-anchor gap). No state
 > change — every row stays WATCHING; grep here before re-adding a matching pattern. Their own
 > topic-file detail (cross-agent-lessons.md) is unaffected.
 
