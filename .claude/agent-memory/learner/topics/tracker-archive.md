@@ -916,7 +916,7 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 
 ## Live-table snapshot relocated 2026-09-02 (budget curation, learner cycle fix/admin-session-item-scale)
 
-> 21 count=1 WATCHING rows (2026-08-19 through 2026-08-24) moved here verbatim to bring
+> 20 count=1 WATCHING rows (2026-08-19 through 2026-08-24) moved here verbatim to bring
 > `../MEMORY.md` back under the 17.1 KB soft-cap after adding 4 new rows for this branch's
 > findings. No state change — every row stays WATCHING; grep here before re-adding a matching
 > pattern. Their own topic-file detail (cross-agent-lessons.md) is unaffected.
@@ -939,7 +939,6 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 | Behavioral-fact correction not swept to callers relying on the fact | 1 | 2026-08-20 | WATCHING (count 2→1, promotion withheld, row 647) |
 | Diff-scoped post-commit agents all pass while callers of a corrected fact remain stale | 1 | 2026-08-20 | WATCHING (row 648) |
 | Null-fallback (`??`) silently reinstates the defect the PR was removing | 1 | 2026-08-24 | WATCHING (row 651) |
-| CLAUDE.md docs-only exemption omits `.spec-workflow/specs/*/tasks.md` | 2 | 2026-09-02 | RULE CANDIDATE — see live MEMORY.md tracker (row 657) |
 | Commit message cites config/rule file lines scoped narrower than the claim | 1 | 2026-08-24 | WATCHING (row 652) |
 | Explore report accurate for its narrow question read as answering a broader plan claim | 1 | 2026-08-24 | WATCHING (row 651) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (row 656) |
