@@ -42,9 +42,11 @@ When you report that a file "cites", "mentions" or "references" specific content
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
 drift and paraphrases cannot be checked without re-reading the file. This is the mechanical
 agent-facing form of the citation rule in `.claude/rules/agent-doc-updater.md`'s NEVER list
-(never cite a migration, SHA, column or path without reading it) — that file is orchestrator-facing
-and does not reach you, which is why the requirement is restated here. Three recorded instances:
-two had a correct verdict resting on footer text the commit never changed, and a third gave correct
+(never cite a migration, SHA, column or path without reading it). That file is also injected into
+your context, but it is written in orchestrator-handling voice — "trust the agent", "let the agent"
+— ABOUT you rather than TO you; this section states the same requirement as an instruction you can
+act on directly. Three known instances, two of them recorded in the learner tracker (row 663): two
+reports rested a correct verdict on footer text the commit never changed, and a third gave correct
 findings against line numbers that pointed elsewhere.
 
 ## Key files to keep current
