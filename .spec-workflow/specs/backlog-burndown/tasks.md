@@ -244,14 +244,16 @@ Ordering and contents in the artifact above. Not started.
       ⚠️ PR 26 must ALSO drain the learner promotion backlog, which lives ONLY in the TRACKER
       TABLE of `.claude/agent-memory/learner/MEMORY.md`. No issue enumerates those rows; the
       nearest open ones — #1217 (promotion evidence quality) and #1160 (a §10 sweep) — govern HOW
-      a promotion is done, not the drain, and PR 26 already carries both. As of 2026-09-01 the
-      table holds 57 `RULE CANDIDATE` rows, 23 of them at count>=3. The two numbers need SEPARATE
+      a promotion is done, not the drain, and PR 26 already carries both. RE-DERIVE both figures
+      at pickup — the tracker is a LIVE open set and every learner pass moves them (this branch's
+      own `ab737599` took count>=3 from 23 to 24 one commit after `b7780606` recorded it). As of
+      `ab737599` the table holds 57 `RULE CANDIDATE` rows, 24 at count>=3. The two need SEPARATE
       derivations — the count regex sees only the 45 rows carrying a numeric parenthetical, so it
       under-reports the total by the 12 that do not:
       total (57): `grep -c '^|.*RULE CANDIDATE' .claude/agent-memory/learner/MEMORY.md`
       — anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
       picking up a prose bullet that cross-references code-reviewer's tracker.
-      count>=3 (23): `grep -oE 'RULE CANDIDATE \(([0-9]+)\)' .claude/agent-memory/learner/MEMORY.md | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
+      count>=3 (24): `grep -oE 'RULE CANDIDATE \(([0-9]+)\)' .claude/agent-memory/learner/MEMORY.md | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
       Several are long past the count=2 promotion threshold. Each promotion also owes the
       Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget
       the mirror set, not just the rule edit.
