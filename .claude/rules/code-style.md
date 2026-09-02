@@ -992,12 +992,23 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    Both `-F` and the explicit repo-wide path are load-bearing and both fail OPEN: without `-F` the
    phrase is a regex; without `-- :/` `git grep` searches only the current subtree. Reading the
    block alone has never caught a non-adjacent instance.
+   A claim RE-TYPED unchanged inside a reflowed block is a NEW assertion: it arrives on a `+` line
+   but reads as text you already had, so it slips the one review most likely to catch it.
 
 4. **Verify the fix is STAGED, not merely written.** `git grep` reads the working tree, so it goes
    clean the moment the text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` — an untracked replacement file never appears in the
    staged diff, and the explicit flag is needed because `status.showUntrackedFiles=no` silently
    drops every `??` line.
+
+5. **Re-reading a block finds incoherence; only re-deriving finds a claim that is coherent and
+   false.** Clause 3 gets you to READ the block; that is not the same as CHECKING it. While a
+   source file is open to verify one claim, re-derive every claim in the block that THAT file can
+   answer, before closing it — nobody reopens a file for the claim they were not suspicious of.
+   Precedent (2026-09-02, PR #1259): an impl-critic opened `generate-agent-files.js` to disprove
+   one claim in a CLAUDE.md paragraph and left the neighbouring byte-for-byte claim — answered in
+   the immediately preceding function of the same open file — standing through two further commits
+   that each corrected a DIFFERENT false claim in that same paragraph.
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
@@ -1013,4 +1024,4 @@ This is the WRITE-side companion to the review-side "Pre-Flag Verification" rule
 
 ---
 
-*Last updated: 2026-08-25*
+*Last updated: 2026-09-02*

@@ -1,5 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
+import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 import { rangeToCutoff } from '../../_lib/range-cutoff'
 import type { SessionSort, StudentDetail, StudentSession, StudentSessionFilters } from '../../types'
 import { SESSIONS_PAGE_SIZE } from '../../types'
@@ -76,6 +78,16 @@ export async function getStudentSessions(
     throw new Error('Failed to fetch student sessions')
   }
 
+  const { data: itemCounts, error: itemCountsError } = await fetchAnsweredItemCounts(
+    (data ?? []).map((row) => row.id),
+    adminClient as unknown as AnswerCountClient,
+  )
+
+  if (itemCountsError) {
+    console.error('[getStudentSessions] Item counts error:', itemCountsError.message)
+    throw new Error('Failed to fetch student sessions')
+  }
+
   type SessionRow = {
     id: string
     mode: string
@@ -96,6 +108,7 @@ export async function getStudentSessions(
     scorePercentage: row.score_percentage != null ? Number(row.score_percentage) : null,
     totalQuestions: row.total_questions,
     correctCount: row.correct_count,
+    answeredItems: itemCounts.get(row.id) ?? 0,
     startedAt: row.started_at,
     endedAt: row.ended_at,
   }))

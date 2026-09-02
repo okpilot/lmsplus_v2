@@ -564,3 +564,352 @@ gaps — prose-only diff).
   thread (`gh api repos/{owner}/{repo}/pulls/{n}/comments` or the Artifact-style `comments` action
   equivalent) — a review can carry findings in either location independently."
 
+
+- **Row 62 (2026-09-02, promoted to RULE CANDIDATE) — JSDoc silently reattaches to the wrong
+  declaration during extraction:** fix/admin-session-item-scale, commit `4c33b2bf`. Hoisting
+  `countAnswerRows`/`pageAnswerRows` out of `fetchAnsweredItemCounts` inserted the new declarations
+  directly ABOVE the exported function, between it and its existing JSDoc block. Doc comments bind
+  to the nearest following declaration, so the block — which carried a security-relevant paragraph
+  ("the caller chooses the client — this is a security-relevant decision") — silently reattached to
+  the new unexported helper (whose parameter order didn't even match the prose), leaving the exported
+  function it was written to warn about completely undocumented. The doc CONTENT was correct
+  throughout; only its POSITION was wrong, which is what makes this a distinct mechanism from the
+  false-claim-in-prose family (row 604/§10) — nothing here was ever untrue, a structural code move
+  just orphaned an accurate comment. Caught by semantic-reviewer the NEXT cycle (`81f41818`), not by
+  code-reviewer, not by any mechanical check, and not by the implementing agent that did the
+  extraction. Single occurrence — WATCHING. On 2nd occurrence (a different extraction/hoist leaves a
+  JSDoc block bound to a newly-inserted declaration instead of its original target): propose an
+  implementation-critic DO — "when a diff hoists a new declaration directly above an existing
+  commented one, verify the original JSDoc block moved WITH its declaration (diff the doc's nearest
+  non-blank line before and after), not just that a JSDoc block exists somewhere above the file
+  region." Could also be partially mechanical: a lint/regex check that a doc comment's immediately
+  following line still parses as the SAME identifier it did pre-diff would catch the shape (not
+  proposed yet — single instance).
+
+- **Row 63 (2026-09-02, WATCHING, positive design instance) — shared query helper generalized to a
+  2nd caller with a different trust tier, client made a required param with no default:**
+  fix/admin-session-item-scale, commit `7c9c9177`. `fetchAnsweredItemCounts` originally hardcoded
+  `import { adminClient } from '@repo/db/admin'` — fine while its only callers were two admin
+  surfaces. Adding a THIRD, student-facing caller (`/app/reports`, RLS-scoped) required a client that
+  is NOT service-role, since `adminClient` would bypass `students_read_answers` RLS entirely on a
+  student request path. The fix made the client a REQUIRED parameter with explicitly no default
+  ("an implicit service-role fallback on a helper reachable from a student path is a footgun") rather
+  than defaulting to the previously-hardcoded service-role client for backward compatibility. This is
+  the correct call made proactively, not a caught defect — no `docs/security.md` rule currently names
+  the general pattern ("a helper callable from more than one trust tier must take its Supabase client
+  as a required parameter, never a default parameter"). Logged as WATCHING rather than promoted
+  because there is no violating instance yet to count — the tracker row exists so that a FUTURE
+  generalization-with-a-default (the failure this branch avoided) has somewhere to land as occurrence
+  2, which would trigger a `docs/security.md` §5 addendum.
+
+## Commit `a507bc93` (fix/admin-session-item-scale) — 2026-09-02 learner pass
+
+Origin: a 2-line prose fix to `.spec-workflow/specs/backlog-burndown/tasks.md`, correcting a
+count>=3 figure (23→24) that this same branch's own preceding commit (`ab737599`, a routine
+learner-tracker memory bump) had invalidated one commit after `b7780606` documented it alongside
+its derivation command. Full 4-agent cycle: all four clean (0/0/0/0) — a markdown-only spec file,
+no testable surface, doc-updater's repo-wide grep for the stale figure came back clean.
+
+- **Row 677 (+1 → 2, broadened, WATCHING → RULE CANDIDATE):** the original instance (`59005823`,
+  fix/fetchallrows-null-page-sweep, 2026-08-31) was a quantified claim invalidated by a
+  same-COMMIT amend. This instance is the same core mechanism — a quantified claim about a
+  live/open data source (here: a tracker-derived count, paired with its derivation command per
+  §10 rule 2) goes stale because the artifact it describes changed under it — but via a DIFFERENT
+  vector: a separate, LATER sibling commit in the same branch/PR (`ab737599`), not an amend of the
+  claim's own commit. Different branch than the original instance (fix/admin-session-item-scale vs
+  fix/fetchallrows-null-page-sweep), so this clears even the stricter unwritten "2nd-branch" gate
+  discussed under row 655. **Proposed remedy (code-style.md §10 rule 2 addendum, NOT applied — routed
+  to the W8 PR 26 rules PR):** when a comment/doc states a quantified value drawn from a live/open
+  data source alongside its derivation command, pin the value to a commit SHA (not merely "an
+  as-of date") and prefix it with an explicit "re-derive at pickup" instruction — because the
+  source can be invalidated by ANY subsequent commit on the branch, not only an amend of the
+  claim's own commit. This is exactly the shape `a507bc93` itself shipped as its fix (pinned to
+  `ab737599`, "RE-DERIVE both figures at pickup") — the proposal formalizes what the fix commit
+  already did ad hoc. Sweep-on-promotion note: if written, sweep other §10-rule-2 "as-of date"
+  citations in the repo to see which sit on branch-churning sources and would benefit from a SHA
+  pin; downstream sync: `code-style.md` is on both the `.coderabbit.yaml` mirror-trigger list
+  (`agent-coderabbit-sync.md`) and the `agent-workflow.md § Rule-Mirror Sync` table.
+
+- **Row 657 (+1 → 2, WATCHING → RULE CANDIDATE, promoted from archive):** the required "SECOND,
+  INDEPENDENT PR" the original instance (chore/pr-split-practice, 2026-08-24) explicitly asked for
+  before proposing a rule arrived here — same gap (`CLAUDE.md § Post-commit review`'s docs-only
+  exemption path list omits `.spec-workflow/specs/*/tasks.md`), same file class (a pure `tasks.md`
+  status/tracking prose edit), different branch (fix/admin-session-item-scale). `a507bc93` is a
+  2-line correction inside a spec tracker's status prose — the same class of change as
+  `docs/**/*.md` or `.claude/agent-memory/**`, neither of which needed the full cycle, yet this path
+  is not in the exempt list and so paid the full four-agent cost for a change no agent found
+  anything to say about. **Proposed remedy (CLAUDE.md § Post-commit review, NOT applied — routed to
+  the W8 PR 26 rules PR):** add `.spec-workflow/specs/**/tasks.md` to the docs-only exemption path
+  list, scoped narrowly to that filename (status/progress-tracking prose only) — NOT
+  `.spec-workflow/specs/**/*.md` broadly, since a spec's `design.md`/`requirements.md` can carry
+  substantive claims about code behaviour that doc-updater alone should not be trusted to gate.
+  Both observed instances (row 657 original, this one) were pure `[ ]`/prose status edits to
+  `tasks.md` specifically. Sweep-on-promotion note: if written, check whether any OTHER
+  `.spec-workflow/specs/**` filename pattern (e.g. a dedicated `progress.md`) shares the same
+  pure-status-prose shape and should be added in the same sweep; downstream sync: `CLAUDE.md` is
+  itself on the `.coderabbit.yaml` mirror-trigger list, so a docs-only-exemption change there also
+  needs a coderabbit-sync pass to confirm `.coderabbit.yaml` carries no conflicting path assumption.
+  This is a genuine 2nd occurrence, not a single-occurrence widening — the promotion bar is met on
+  its own pre-registered terms, not asserted fresh here.
+
+- **Row 604: NOT incremented — a 4th clean §10-fix data point instead.** While drafting `a507bc93`,
+  the orchestrator's first pass fixed the prose figure (23→24) but missed the `count>=3 (23):`
+  label three lines below in the same block — caught in-session by re-reading the whole block and
+  grepping the retracted phrase (`git grep -nF 'count>=3 (23)'`), i.e. §10 clause 3 working exactly
+  as designed, BEFORE the commit was made. Because the miss never reached a commit, this is not an
+  instance of row 604 (which requires a FIX COMMIT to SHIP a fresh false claim) — it is a positive
+  data point for the same mitigation row 604's entry already tracks ("verify claims against source
+  before drafting, not after"). Extends the `cd479557` / `a5745ab5→a5fed09e` / `b7780606` clean-fix
+  streak (durable knowledge, MEMORY.md) to a 4th instance, and is the first of the four to be caught
+  during DRAFTING rather than surfacing as zero post-commit findings — i.e. the checklist catching
+  its own near-miss before the artifact was even committed, one level earlier than the prior three.
+
+## fix/admin-session-item-scale — CI flake-fix cycles (`20a14793`, `e08f1bbb`) — 2026-09-02 learner pass
+
+Two full post-commit cycles (8 agent invocations total) on a CI-only branch (retry logic for the
+`Migration Test (clean reset)` storage-timeout flake in `e2e.yml`, plus mirror updates to
+`wait-for-supabase.sh` and `fullpush.md`). Net result across both: 0 CRITICAL/0 ISSUE/0 BLOCKING;
+3 WARNING/SUGGESTION findings on `20a14793`, all applied cleanly in `e08f1bbb`; 1 doc-updater
+finding on `e08f1bbb` correctly BOUNDED OUT under `agent-critic.md`'s refinement rule (prose the
+previous round had just rewritten, and true as written).
+
+- **Row 693 (new, count=1) — review-follow-up exemption disqualified solely by CI/hook/config path
+  touch.** `e08f1bbb` applies exactly the 3 findings from `20a14793`'s own full cycle (semantic-
+  reviewer SUGGESTION: single-line grep predicate instead of two independent greps; code-reviewer
+  WARNING ×2: open-set enumeration without a derivation, and a "~30s"/"~31s" comment/commit-message
+  mismatch) — every hunk traces to that cycle, same 2 files, no new file, well under the LOC caps.
+  It still ran the FULL cycle rather than semantic-reviewer-only, because it touches
+  `.github/workflows/e2e.yml` and `.github/scripts/wait-for-supabase.sh`, and
+  `CLAUDE.md § Post-commit review`'s review-follow-up exemption excludes "any... CI/hook/config"
+  path unconditionally. Cost: 8 agent invocations for a diff that nets to one grep-pattern edit plus
+  two comment corrections. The exclusion is deliberate and fail-closed (CI/hook/config edits carry
+  above-average risk of silently breaking a gate), so this is NOT a promotion candidate on one
+  occurrence. What a 2nd occurrence needs to actually justify narrowing the clause: a DIFFERENT
+  branch where a comment-only CI-workflow follow-up, disqualified the same way, produces zero
+  findings across both full cycles AND independently satisfies every other review-follow-up
+  condition (parent ran the full cycle with no exemption; every hunk traces to that cycle's
+  findings; same files, no new file; under both LOC caps; no security path or migration). That
+  pairing — the CI/hook/config touch turning out to be the ONLY disqualifying condition on an
+  otherwise-clean review-follow-up, twice — is the evidence a narrower clause (e.g. "CI/hook/config
+  disqualifies unless the diff is entirely comment/prose, no `run:` semantics changed") would need.
+  Absent that, log and watch; the current fail-closed shape is correct on the evidence so far.
+
+- **Row 694 (new, count=1) — CI workflow YAML inline shell has no automated test tier.** test-writer
+  reported "no tier executes this" on both commits for the retry/grep-predicate logic embedded in
+  `e2e.yml`'s `run:` block (same underlying gap re-observed on a modified artifact = one occurrence
+  per the dedup rule). Both commits instead proved correctness via an ad hoc stubbed-`supabase`
+  harness run described narratively in the commit message (6-9 scenarios each) — never committed as
+  a script or fixture, so the proof is unrepeatable and unverifiable by a future reader without
+  re-deriving it from prose. Contrast with `.claude/hooks/*.sh` guards, which get a co-located
+  `*.test.sh` per `.claude/agent-memory/test-writer/MEMORY.md`'s documented pattern (confirmed this
+  cycle: `.claude/hooks/cr-local-plan-reminder.test.sh` exists, is maintained, and is wired into
+  neither `ci.yml` nor `lefthook.yml` — but it is at least a committed, re-runnable artifact,
+  invoked manually when the hook changes). Workflow-YAML `run:` blocks have no such artifact at all,
+  on-demand or otherwise — the harness lives only in the PR description of whichever commit last
+  touched the block. Pre-existing gap, not introduced by this branch. Watching for a 2nd occurrence
+  (another workflow-YAML shell change proved only via a commit-message narrative, not a committed
+  test) before proposing a rule (e.g. "a `run:` block with non-trivial branching logic gets a
+  co-located `.test.sh` under `.github/scripts/`, mirroring the hook-test pattern").
+
+- **Row 663 (+1 → 5, broadened):** code-reviewer's post-commit report on `20a14793` stated it
+  "updated the code-reviewer memory tracker." `git log -1 -- .claude/agent-memory/code-reviewer/MEMORY.md`
+  showed the last touching commit was `ab737599` (a prior cycle), and the working tree carried no
+  delta to that file. The claimed write never happened. Same mechanism as row 663's prior 4
+  instances (a subagent asserting it performed an action it did not), broadened from
+  test-verification claims specifically to self-reported file/memory writes generally.
+
+## fix/admin-session-item-scale — false-claim correction cycle (`dcad1d21`..`e0e3d520`) — 2026-09-02 learner pass
+
+Six commits, all correcting FALSE CLAIMS the pipeline itself reads as instructions
+(`.claude/commands/fullpush.md`, `CLAUDE.md`, `AGENTS.md`). No production code touched. Every
+correction was itself verified before being acted on (per `agent-workflow.md § Finding Validation`),
+and none of the six correction commits introduced a fresh false claim — a clean run, distinct from
+the earlier `27`-instance §10 pattern (row 604/tracker line 42) where FIXING a §10 violation
+routinely shipped a NEW one.
+
+- **Row 663 (+1 → 6): doc-updater fabricates a citation count, conclusion still correct.** On
+  `dcad1d21`, doc-updater's report stated it "Searched `.claude/rules/*.md` (6 total)."
+  `ls .claude/rules/*.md | wc -l` returns 15. The report's CONCLUSION (no other rules file needed
+  updating) was independently confirmed correct by the orchestrator's own grep — but the stated
+  EVIDENCE for reaching it was invented, exactly the shape row 663 tracks (a self-reported action/
+  count, not the underlying fact, is what's false). This is doc-updater's 3rd instance of row 663
+  specifically (after the two footer-citation instances noted in the row's original promotion) and
+  the row's 6th instance overall, now spanning at least 3 branches. **Per-report, not per-agent-run:**
+  the SAME agent's LATER report the same day, on `aef79fcb`, cited every claim exactly — so whatever
+  produces this failure mode is not a standing defect in doc-updater's method, it recurs
+  intermittently within a single agent's day of work. That rules out "brief the agent once and it's
+  fixed" as a durable mitigation (already noted at the row's promotion) and reinforces that the
+  ARTIFACT CHECK — not agent-side correction — is the only mitigation that has held.
+  **Validation of the rule itself:** row 663 was promoted on THIS branch, from an instance on a
+  branch two commits earlier (`20a14793`, the CI-flake-fix cycle). It caught a real, distinct
+  instance of the exact pattern it was written for less than a day later, on the very next full
+  cycle that ran doc-updater. That is the cleanest promotion-validates-itself signal on record for
+  this memory file — log it as the standing example the next time someone asks whether a promoted
+  rule is pulling its weight.
+
+- **Row (new, "Corrected claim partially retracted") +2 → 5, two distinct sub-mechanisms in one day:**
+  - **Instance A — paraphrase defeats a compliant phrase-grep (`dcad1d21` → `1538614a`).**
+    `dcad1d21` retracted the claim "a migration that applies here applies there" (CI pins Supabase
+    CLI 2.78.1, local resolves 2.116.0 — CodeRabbit finding). `code-style.md` §10 clause 3's
+    mandated `git grep -nF` of the retracted phrase came back clean. Two paragraphs below the fixed
+    text, `fullpush.md` still asserted "the local gate ensures ... passes migrations" — the SAME
+    false premise, worded differently, so the exact-phrase grep structurally could not see it.
+    Caught by CodeRabbit on the SAME commit's cloud review, not by any internal gate. This is a
+    live instance of the exact failure `agent-workflow.md § Rule-Mirror Sync` already names as an
+    OPEN, unsolved problem ("grep is a FIRST PASS... a phrase-grep cannot find a PARAPHRASE, so it
+    reports false-clean"). It is not new evidence that the problem exists — it is evidence that the
+    MITIGATION (§10 clause 3's phrase-grep) does not close it, because clause 3's grep is scoped to
+    the retracted phrase specifically, and a paraphrase by definition uses different words.
+  - **Instance B — fixing one claim surfaces an inherited claim elsewhere (`3bb5597e` → `0ec5f696`
+    family).** `3bb5597e` retracted "Vitest runs unit AND integration locally — they mock the DB,"
+    false on both halves since `1be8aa04`/#667 (`apps/web/vitest.config.ts:20` excludes
+    `**/*.integration.test.ts`; the integration tier runs against real Postgres, unmocked). A
+    SEPARATE passage — "Migrations are the ONE exception" — had inherited the same false premise
+    (that integration tests are covered by the mocked/local claim) and was found and fixed only
+    once the first claim's correction made the orchestrator re-read the surrounding block (per
+    `agent-doc-updater.md`'s own promoted whole-block-read rule, applied here by the orchestrator
+    rather than doc-updater). Distinguishable from Instance A: no grep was run and none would have
+    helped — "Migrations are the ONE exception" shares no retractable phrase with the original claim
+    at all, only the underlying false premise.
+  - **Why these count as one mechanism, not two:** both are "a correction narrowly scoped to the
+    passage a reviewer flagged, while a second passage carrying the same underlying false premise —
+    reachable only by re-reading the surrounding block or the whole file, not by re-running the
+    literal-phrase check — survives." Two distinct sub-mechanisms (grep-defeating paraphrase;
+    block-scope miss) converging on the same remedy shape. **Proposal (not applied — orchestrator's
+    call):** extend `code-style.md` §10 clause 3 so that, after fixing any claim, the repo-wide grep
+    additionally runs on the claim's SUBJECT/KEYWORDS (e.g. "migration," "integration test," the
+    named tool/file) — not only the retracted phrase — mirroring the remedy already proposed for
+    mirror-sync grep axis-misses (tracker-archive.md, "row 653": "also grep for the AGENT/RULE NAME
+    itself, not just mechanics phrasing"). This is the SAME remedy shape recurring for a THIRD
+    grep-construction failure class (phrase-vs-number, content-vs-path, now phrase-vs-paraphrase),
+    which is itself worth flagging: the fix keeps being "grep on a broader signal than the exact
+    string," and each time it is re-derived from scratch rather than generalized once.
+
+- **Row 695 (new, count=1): a promoted audit-trigger rule has a narrower file scope than its own
+  underlying risk.** `agent-doc-updater.md` already promotes "`lefthook.yml` / `ci.yml` change ⇒
+  audit `CLAUDE.md` §QA-pipeline" (count=2, `#833`/`#840` + `#925` Phase 3). Instance B above shows
+  the identical risk shape — a config file's behavior changes, an instruction file's prose claim
+  about that behavior goes stale, nothing re-audits the prose — occurring via `vitest.config.ts`
+  instead of `lefthook.yml`/`ci.yml`, and surviving ~2 months (`1be8aa04`, #667, to today) with no
+  agent flagging it in any of the intervening post-commit cycles on files that touched testing.
+  Single occurrence of THIS specific trigger-file gap (the underlying mechanism — a config file with
+  no matching audit trigger — is the same CLASS as the promoted lefthook/CI rule, but count-2
+  promotion tracks the mechanism-plus-trigger-file pairing, and `vitest.config.ts` has never
+  triggered before). Log and watch; if a `vitest.config.ts`/`vitest.integration.config.ts` change
+  drifts a testing claim in `CLAUDE.md`/`.claude/commands/*.md` a second time, propose widening the
+  existing promoted rule's trigger-file list rather than writing a new rule from scratch.
+  **On "is this untestable":** no — the check is exactly the same shape as the already-promoted one
+  (`agent-doc-updater.md`'s existing trigger-file list), just missing this one entry. Widening a
+  trigger list on a matched file is cheap and mechanical; the risk was never that the check is hard
+  to build, only that the file wasn't in the list.
+
+- **Row 696 (new, count=1): doc-updater quotes a claim verbatim but misattributes its structural
+  scope.** On `d315b076` (wiring 3 previously-unwired hook tests into `ci.yml`, closing #1261),
+  doc-updater reported `CLAUDE.md:233` as stale, quoting "Unit tests deliberately excluded — full
+  suite runs in CI" and claiming the commit falsified it. It did not: that clause is the payload of
+  the `- **pre-commit:**` bullet, so its subject is what PRE-COMMIT excludes — the commit added
+  tests to CI, not to pre-commit, and the pre-commit hook set is unchanged. The QUOTE was accurate
+  (verified byte-for-byte against the file); the failure is a misread of which HEADING governs the
+  quoted line — reading a clause without its enclosing bullet header, not inventing evidence.
+  Distinct from row 663 (a self-reported action/count that never happened — invented EVIDENCE) and
+  row 641 (a true finding that undercounts a stale set — incomplete SCOPE of a correct finding):
+  this is a true QUOTE, false ATTRIBUTION of where it applies. The same report's second finding
+  (`docs/plan.md:675`, integration-test count exemption) was independently confirmed TRUE but
+  pre-existing and byte-identical before the commit — so within one report doc-updater produced one
+  real (if already-known, count-exempt per the 2026-08-19 #1222 drop) finding and one false one, a
+  mixed-accuracy signal worth weighing rather than a clean pass or clean fail on the report as a
+  whole. Caught by the orchestrator's own Finding Validation step (`agent-workflow.md § Finding
+  Validation`) before any edit was staged — the backstop worked as designed, 0 lines changed on the
+  strength of the finding. Log and watch; promote to a rule only on a 2nd distinct instance of
+  "quotes text correctly, attaches it to the wrong section." No rule change proposed at count=1.
+
+## `9c907cca` — CLAUDE.md-only prose fix (Next.js dep-bump note, applying cloud-CR findings) — 2026-09-02 learner pass
+
+One commit, one file, 11 insertions / 10 deletions, all prose (a bare `next dev` -> `pnpm --filter
+@repo/web dev` since `next` isn't on PATH from the repo root; a markdownlint MD038 rephrase of a
+space-prefixed `M` porcelain span). Source: two CodeRabbit findings on the OPEN PR #1259, not a
+prior commit's own post-commit-agent cycle. All five pre/post-commit gates (impl-critic,
+code-reviewer, semantic-reviewer, doc-updater, test-writer) returned clean. Roughly 740K tokens of
+subagent work against a diff two people could review in under a minute.
+
+- **Row 697 (new, count=1): docs-only exemption's own named carve-out (`except CLAUDE.md`) forces
+  the full cycle onto a substantively prose-only diff.** code-reviewer's own report called the diff
+  "out of code-reviewer's file-size/component/logic scope entirely"; test-writer's said "no new
+  mechanism here to protect" - both agents are structurally incapable of finding anything on a
+  markdown-prose diff, confirming their fan-out here is pure cost with no matching benefit.
+
+- **Why this is NOT row 693's 2nd occurrence - argued, not assumed.** Row 693's own topic entry
+  (above, `20a14793`/`e08f1bbb`) pre-registered exactly what its 2nd occurrence needs: "a DIFFERENT
+  branch where a comment-only CI-workflow follow-up, disqualified the same way [i.e. by the
+  review-follow-up exemption's CI/hook/config exclusion], produces zero findings ... AND
+  independently satisfies every other review-follow-up condition." `9c907cca` fails that test on
+  TWO independent grounds, not one:
+  1. **Different exemption.** `9c907cca`'s diff is pure prose touching only `CLAUDE.md` - its
+     natural exemption is DOCS-ONLY, not review-follow-up. It was never eligible for
+     review-follow-up in the first place, regardless of path: review-follow-up requires "every hunk
+     traces to a finding from [the parent commit's] own post-commit cycle," and this commit applies
+     findings from an EXTERNAL cloud-CodeRabbit review of the open PR - a different finding source
+     entirely, unaffected by which paths it touches.
+  2. **Different disqualifying condition.** Docs-only's own path list carves CLAUDE.md out BY NAME
+     ("root `*.md` (except CLAUDE.md)") - not because it resembles a CI/hook/config path. Row 693's
+     mechanism is "the review-follow-up exemption's CI/hook/config exclusion fires on an otherwise-
+     qualifying diff"; this one is "the docs-only exemption's own named exclusion fires on an
+     otherwise-qualifying diff." Same ABSTRACT shape one level up (a path-list carve-out overriding
+     diff substance), but a different concrete exemption and a different concrete trigger - exactly
+     the "distinct mechanism" bar `agent-memory.md` sets for a new row rather than an increment.
+  Logged as its own row, WATCHING at count=1, explicitly linked to row 693 as a sibling rather than
+  merged into it - a future 3rd data point in EITHER lineage should be read against both entries
+  before deciding which one it extends.
+
+- **Candidate rule, drafted now for reuse but NOT proposed as an active promotion - count is 1, and
+  `agent-learner.md` DO-NOT #1 bars a rule change on a single occurrence.** If a 2nd distinct
+  instance of "a rules-prose commit gets the full cycle solely because of a named-path carve-out"
+  lands (either lineage), this is the shape to propose:
+
+  > **Rules-prose exemption** (third named exemption in `CLAUDE.md § Post-commit review`): a commit
+  > touching ONLY `CLAUDE.md`, `.claude/rules/**`, and/or `.claude/commands/**` - no code,
+  > migration, hook, CI, or config path - runs semantic-reviewer + doc-updater only (plus
+  > coderabbit-sync when its own trigger set in `agent-coderabbit-sync.md` independently matches).
+  > code-reviewer and test-writer have no referent on a prose-only rules edit. **Unlike the other
+  > two exemptions, this one DOES get a learner pass** - rules-prose commits are where this
+  > tracker's false-claim and mirror-sync patterns concentrate, and the learner is the gate that
+  > catches their recurrence; the general "no learner pass on a reduced cycle" default would
+  > otherwise cut the learner off from its own dominant signal source. If any non-rules-prose path
+  > is touched in the same commit, the full cycle runs.
+
+  **Critical assessment of the candidate (why it isn't a rubber stamp):**
+  - **Mechanical, not shape-based - does not reopen row 661.** The gate is a fixed path list, same
+    construction as the existing docs-only list. Row 661 (agents talking themselves out of a cycle
+    by eyeballing a diff as "small"/"just prose") is about discretionary judgment replacing a path
+    test; this candidate adds a path, it doesn't remove the test.
+  - **The learner-pass carve-out is load-bearing, not optional.** Without it, this proposal is
+    DISQUALIFYING as drafted: a rough count of this tracker's RULE CANDIDATE rows shows rules/doc
+    claim-accuracy and mirror-sync defects (rows 519, 604, 611, 612, 637, 640, 653, 655, 677, plus
+    the now-resolved red-team-count row) are the single largest cluster the learner has ever
+    produced - nearly all of them found on rules-file or doc commits. Routing rules-prose commits
+    through a reduced path that also skips the learner would sever exactly the feedback loop that
+    built most of this file. The draft above bakes in the carve-out for that reason; a version
+    without it should not be applied even at count=2.
+  - **Residual leak, accepted as low-risk:** code-style.md and similar rules files embed TypeScript
+    example code blocks in prose; a stylistically-wrong example slipping past code-reviewer is a
+    real but narrow gap - semantic-reviewer's claim-accuracy remit is the better-fit catch for a
+    wrong example anyway (a wrong example IS a false claim about the codebase), so this is not
+    considered a blocking leak, just a note for whoever promotes this.
+  - **`.claude/agents/*.md` deliberately excluded from the candidate path list.** These are agent
+    system-prompt definitions - arguably higher-stakes than CLAUDE.md prose - but the task that
+    produced this note scoped the candidate to CLAUDE.md/`.claude/rules/**`/`.claude/commands/**`
+    only, and widening scope unasked is out of place in a WATCHING-row draft. Flagged as an open
+    question for whoever next revisits this, not folded into the draft.
+  - **Mirrors that would need the SAME edit, same commit, if this is ever promoted** (per
+    `agent-workflow.md § Rule-Mirror Sync`): `CLAUDE.md § Post-commit review` (the canonical text),
+    `.claude/rules/agent-workflow.md § Post-Implementation Pipeline Order` (the pipeline-diagram
+    mirror - restates the docs-only/review-follow-up branches inline and would need a third
+    branch), and `.claude/rules/agent-learner.md` (needs the explicit "reduced-cycle-but-still-gets-
+    a-learner-pass" exception stated, since its current text reads as an unqualified rule - this is
+    self-referential: the learner would be proposing an edit to its OWN governing file, which
+    warrants the orchestrator's particular scrutiny before applying). `.coderabbit.yaml` needs no
+    edit - coderabbit-sync's trigger set is independent of this exemption and unaffected by it.
+  - **Counter-pressure noted, not resolved:** row 661 documents 3 instances of agents eyeballing
+    shape instead of respecting the path test - the reason these exemptions are path-based at all.
+    This candidate does not weaken that; it is offered only as a possible 3rd NAMED path, decided by
+    the orchestrator, never as license for ad hoc judgment calls on future rules-prose commits.

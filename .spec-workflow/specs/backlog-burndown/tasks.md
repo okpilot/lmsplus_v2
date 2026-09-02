@@ -223,11 +223,13 @@ Ordering and contents in the artifact above. Not started.
       (merged `970dabbf`) · ~~3b (#991)~~ **DONE** (PR #1247, merged `e89ead6a` 2026-08-31; mig
       `20260824000100` deployed to production 2026-09-01 after the user approved the held db-deploy run).
       Its sequenced remainder — the `fetchAllRows` root guard — merged as PR #1248 (`44e39361`, closes
-      #1249) · **PR B = IN FLIGHT** (branch `fix/student-read-rpc-active-user-gates`): the second written
+      #1249) · ~~PR B~~ **DONE** (PR #1257, squash-merged `d5bae0c9` 2026-09-01): the second written
       migration, re-scoped. `20260824000200` keeps the internal-exam DISTINCT `answered_count` + gates;
       a new `20260824000300` closes the same class for `get_daily_activity` / `get_subject_scores`, which
-      the #883 sweep also missed and `docs/security.md` recorded as complete. Migration PR ⇒ never
-      auto-merged; user evals and merges · 3c (#990)
+      the #883 sweep also missed and `docs/security.md` recorded as complete. db-deploy run 33554217558
+      is HELD `waiting` on the user's Production approval — neither migration is applied to prod until
+      then. Filed #1258 (8 SECURITY INVOKER RPCs, the same class this PR could not reach) and #1256
+      · 3c (#990)
       · PR 4 (#1197) · PR 5 (#539)
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
       · PR 11 (#1181+#1184)
@@ -239,6 +241,22 @@ Ordering and contents in the artifact above. Not started.
 - [ ] W7 security hardening — PR 23 (#1024+#798+#1000) · PR 24 (#760+#813) · PR 25 (#847→#814)
 - [ ] W8 rules/docs/memory — PR 26 (#1160+#1163+#1173+#1176+#1217) · PR 27 (#1114+#1115+#1116)
       · PR 28 (#1104+#988) · PR 29 (#1152)
+      ⚠️ PR 26 must ALSO drain the learner promotion backlog, which lives ONLY in the TRACKER
+      TABLE of `.claude/agent-memory/learner/MEMORY.md`. No issue enumerates those rows; the
+      nearest open ones — #1217 (promotion evidence quality) and #1160 (a §10 sweep) — govern HOW
+      a promotion is done, not the drain, and PR 26 already carries both. RE-DERIVE both figures
+      at pickup — the tracker is a LIVE open set and every learner pass moves them (this branch's
+      own `ab737599` took count>=3 from 23 to 24 one commit after `b7780606` recorded it). As of
+      `ab737599` the table holds 57 `RULE CANDIDATE` rows, 24 at count>=3. The two need SEPARATE
+      derivations — the count regex sees only the 45 rows carrying a numeric parenthetical, so it
+      under-reports the total by the 12 that do not:
+      total (57): `grep -c '^|.*RULE CANDIDATE' .claude/agent-memory/learner/MEMORY.md`
+      — both commands anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
+      picking up a prose bullet that cross-references code-reviewer's tracker.
+      count>=3 (24): `grep '^|' .claude/agent-memory/learner/MEMORY.md | grep -oE 'RULE CANDIDATE \(([0-9]+)\)' | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
+      Several are long past the count=2 promotion threshold. Each promotion also owes the
+      Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget
+      the mirror set, not just the rule edit.
 - [ ] W9 test coverage — PR 30 (#1132+#1168+#1215+#1177) · PR 31 (#1159) · PR 32 (#1226)
       · PR 33 (#926, split first) · PR 34 (#1234)
 - [ ] W10 admin polish — PR 35 (#1223+#854+#888) · PR 36 (#720+#894) · PR 37 (#1033+#1040) · PR 38 (#542)

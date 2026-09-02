@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
 import type { InternalExamAttemptRow } from '../types'
@@ -77,7 +78,6 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
 
 function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
   const router = useRouter()
-  const total = r.totalQuestions ?? 0
   const correct = r.correctCount ?? 0
   const passed = r.passed
   const href = `/app/admin/internal-exams/report?session=${r.sessionId}`
@@ -123,7 +123,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         )}
       </TableCell>
       <TableCell className="text-xs tabular-nums">
-        {correct}/{total}
+        {formatCorrectFraction(correct, r.answeredItems)}
       </TableCell>
     </TableRow>
   )

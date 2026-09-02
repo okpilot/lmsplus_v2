@@ -207,6 +207,14 @@ reviews:
           comment describing it moves too, all of it: if a diff edits any part of a comment block,
           the whole block must be re-read. A header left crediting the old file after an extraction,
           or a count left stale by lines the same commit added, are the canonical instances.
+          A claim RE-TYPED unchanged inside a reflowed block is a NEW
+          assertion: it arrives on a + line but reads as pre-existing text. Verify it against
+          source rather than treating it as already reviewed.
+        - A claim left unverified while the file that answers it was already open. When a source
+          file is opened to verify one claim, every other claim in the same block that THAT file
+          can answer is re-derived before moving on. Re-reading the block does not substitute: a
+          block-read finds claims that contradict each other, never one that is coherent and
+          false. code-style.md §10 clause 5.
         - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
           not sufficient — after correcting any claim, the retracted phrase must be grepped
           repo-wide and every surviving hit confirmed not to describe current behaviour.
@@ -255,6 +263,14 @@ reviews:
         - A PARTIAL edit of a claim block. If a diff edits any part of a paragraph, table row or
           comment block, the WHOLE block must be re-read: a header left crediting the old file
           after an extraction, or a count left stale by lines the same commit added.
+          A claim RE-TYPED unchanged inside a reflowed block is a NEW
+          assertion: it arrives on a + line but reads as pre-existing text. Verify it against
+          source rather than treating it as already reviewed.
+        - A claim left unverified while the file that answers it was already open. When a source
+          file is opened to verify one claim, every other claim in the same block that THAT file
+          can answer is re-derived before moving on. Re-reading the block does not substitute: a
+          block-read finds claims that contradict each other, never one that is coherent and
+          false. code-style.md §10 clause 5.
         - A corrected claim whose OLD wording survives in a non-adjacent doc, comment or rule
           file. After correcting any claim in these binding surfaces, the retracted phrase must
           be grepped repo-wide and every hit confirmed not to describe current behaviour — a
