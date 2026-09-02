@@ -802,3 +802,23 @@ routinely shipped a NEW one.
   (`agent-doc-updater.md`'s existing trigger-file list), just missing this one entry. Widening a
   trigger list on a matched file is cheap and mechanical; the risk was never that the check is hard
   to build, only that the file wasn't in the list.
+
+- **Row 696 (new, count=1): doc-updater quotes a claim verbatim but misattributes its structural
+  scope.** On `d315b076` (wiring 3 previously-unwired hook tests into `ci.yml`, closing #1261),
+  doc-updater reported `CLAUDE.md:233` as stale, quoting "Unit tests deliberately excluded — full
+  suite runs in CI" and claiming the commit falsified it. It did not: that clause is the payload of
+  the `- **pre-commit:**` bullet, so its subject is what PRE-COMMIT excludes — the commit added
+  tests to CI, not to pre-commit, and the pre-commit hook set is unchanged. The QUOTE was accurate
+  (verified byte-for-byte against the file); the failure is a misread of which HEADING governs the
+  quoted line — reading a clause without its enclosing bullet header, not inventing evidence.
+  Distinct from row 663 (a self-reported action/count that never happened — invented EVIDENCE) and
+  row 641 (a true finding that undercounts a stale set — incomplete SCOPE of a correct finding):
+  this is a true QUOTE, false ATTRIBUTION of where it applies. The same report's second finding
+  (`docs/plan.md:675`, integration-test count exemption) was independently confirmed TRUE but
+  pre-existing and byte-identical before the commit — so within one report doc-updater produced one
+  real (if already-known, count-exempt per the 2026-08-19 #1222 drop) finding and one false one, a
+  mixed-accuracy signal worth weighing rather than a clean pass or clean fail on the report as a
+  whole. Caught by the orchestrator's own Finding Validation step (`agent-workflow.md § Finding
+  Validation`) before any edit was staged — the backstop worked as designed, 0 lines changed on the
+  strength of the finding. Log and watch; promote to a rule only on a 2nd distinct instance of
+  "quotes text correctly, attaches it to the wrong section." No rule change proposed at count=1.

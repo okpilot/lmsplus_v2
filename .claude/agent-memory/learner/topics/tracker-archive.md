@@ -975,3 +975,20 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 | CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, topic file) |
 | code-reviewer line-count convention inconsistent across cycles on an unchanged function body | 1 | 2026-09-01 | WATCHING — same body scored 30 then 36; phantom-regression risk (row 687, topic file) |
 | Doc-updater flags DRIFT reading a case-scoped statement as a universal claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, 3 findings validated+skipped (row 684) |
+
+## Live-table snapshot relocated 2026-09-02 (budget curation, learner cycle fix/admin-session-item-scale, batch 3)
+
+> 6 count=1 WATCHING rows (all 2026-09-01) moved here verbatim to bring `../MEMORY.md` back under
+> the 17.1 KB soft-cap after adding the row-696 doc-updater FALSE POSITIVE and the `e0e3d520`/
+> `d315b076` clean-cycle notes for this branch. No state change — every row stays WATCHING; grep
+> here before re-adding a matching pattern. Their own topic-file detail (cross-agent-lessons.md) is
+> unaffected.
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| Two post-commit reviewers give contradictory recommendations on the same artifact | 1 | 2026-09-01 | WATCHING — test-writer's finer read validated correct, not zero-overlap (row 685) |
+| Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by another reviewer | 1 | 2026-09-01 | WATCHING — skip-quality signal, system self-corrected (row 686) |
+| Fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target assertions in the same test | 1 | 2026-09-01 | WATCHING — distinct from row 605 (sibling FILES vs sibling TARGETS in one file) (row 689, topic file) |
+| Commit-message verification citation (line number) carried over from an earlier draft, not re-derived after the code moved before commit | 1 | 2026-09-01 | WATCHING — distinct from row 597 (row 690, topic file) |
+| Doc paragraph states a closed count for a set the SAME paragraph declares OPEN (self-contradiction, not cross-section) | 1 | 2026-09-01 | WATCHING — §10 rule 2 covers this; distinct from row 655 (same-sentence vs cross-section). Missed internally, caught only by external CR (row 691, topic file) |
+| Orchestrator triages only the CR review-BODY findings and pushes; an open inline-thread finding surfaces only afterward | 1 | 2026-09-01 | WATCHING — pushed with an in-flight finding, violating the Apply-vs-Defer gate (row 692, topic file) |
