@@ -5,12 +5,15 @@
 # than surfacing as a test failure. Gates BRING-UP ONLY — it runs before the test
 # runners, so real test/migration failures still fail on the first occurrence.
 #
-# `supabase start` already blocks on Postgres health (config.toml health_timeout), but
-# every job that reaches the API through Kong needs this gate: integration-tests,
-# e2e-tests, redteam, lighthouse — and migration-test, whose `db reset` restarts the
-# storage container and then probes the Storage API. That job points SUPABASE_HEALTH_URL
-# at /storage/v1/status, since the endpoint the CLI itself probes (/storage/v1/bucket)
-# answers 400 without an apikey and so cannot be used with `curl -sf`.
+# `supabase start` already blocks on Postgres health (config.toml health_timeout), but every
+# job that reaches the API through Kong needs this gate — including migration-test, whose
+# `db reset` restarts the storage container and then probes the Storage API. The caller set is
+# OPEN: derive it, do not trust a list here.
+#   grep -rln wait-for-supabase.sh .github/workflows/
+# (As of 2026-09-02 that is e2e.yml — migration-test, integration-tests, e2e-tests — plus
+# redteam.yml and lighthouse.yml.) migration-test overrides SUPABASE_HEALTH_URL to
+# /storage/v1/status, because the endpoint the CLI itself probes (/storage/v1/bucket) answers
+# 400 without an apikey and so can never pass this script's `curl -sf`.
 #
 # Wait-only by design — there is NO stop/start restart path. If Kong is not serving
 # within the budget it is a real failure, not a flake to re-run. (The previous inline
