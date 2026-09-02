@@ -717,3 +717,88 @@ previous round had just rewritten, and true as written).
   delta to that file. The claimed write never happened. Same mechanism as row 663's prior 4
   instances (a subagent asserting it performed an action it did not), broadened from
   test-verification claims specifically to self-reported file/memory writes generally.
+
+## fix/admin-session-item-scale — false-claim correction cycle (`dcad1d21`..`e0e3d520`) — 2026-09-02 learner pass
+
+Six commits, all correcting FALSE CLAIMS the pipeline itself reads as instructions
+(`.claude/commands/fullpush.md`, `CLAUDE.md`, `AGENTS.md`). No production code touched. Every
+correction was itself verified before being acted on (per `agent-workflow.md § Finding Validation`),
+and none of the six correction commits introduced a fresh false claim — a clean run, distinct from
+the earlier `27`-instance §10 pattern (row 604/tracker line 42) where FIXING a §10 violation
+routinely shipped a NEW one.
+
+- **Row 663 (+1 → 6): doc-updater fabricates a citation count, conclusion still correct.** On
+  `dcad1d21`, doc-updater's report stated it "Searched `.claude/rules/*.md` (6 total)."
+  `ls .claude/rules/*.md | wc -l` returns 15. The report's CONCLUSION (no other rules file needed
+  updating) was independently confirmed correct by the orchestrator's own grep — but the stated
+  EVIDENCE for reaching it was invented, exactly the shape row 663 tracks (a self-reported action/
+  count, not the underlying fact, is what's false). This is doc-updater's 3rd instance of row 663
+  specifically (after the two footer-citation instances noted in the row's original promotion) and
+  the row's 6th instance overall, now spanning at least 3 branches. **Per-report, not per-agent-run:**
+  the SAME agent's LATER report the same day, on `aef79fcb`, cited every claim exactly — so whatever
+  produces this failure mode is not a standing defect in doc-updater's method, it recurs
+  intermittently within a single agent's day of work. That rules out "brief the agent once and it's
+  fixed" as a durable mitigation (already noted at the row's promotion) and reinforces that the
+  ARTIFACT CHECK — not agent-side correction — is the only mitigation that has held.
+  **Validation of the rule itself:** row 663 was promoted on THIS branch, from an instance on a
+  branch two commits earlier (`20a14793`, the CI-flake-fix cycle). It caught a real, distinct
+  instance of the exact pattern it was written for less than a day later, on the very next full
+  cycle that ran doc-updater. That is the cleanest promotion-validates-itself signal on record for
+  this memory file — log it as the standing example the next time someone asks whether a promoted
+  rule is pulling its weight.
+
+- **Row (new, "Corrected claim partially retracted") +2 → 5, two distinct sub-mechanisms in one day:**
+  - **Instance A — paraphrase defeats a compliant phrase-grep (`dcad1d21` → `1538614a`).**
+    `dcad1d21` retracted the claim "a migration that applies here applies there" (CI pins Supabase
+    CLI 2.78.1, local resolves 2.116.0 — CodeRabbit finding). `code-style.md` §10 clause 3's
+    mandated `git grep -nF` of the retracted phrase came back clean. Two paragraphs below the fixed
+    text, `fullpush.md` still asserted "the local gate ensures ... passes migrations" — the SAME
+    false premise, worded differently, so the exact-phrase grep structurally could not see it.
+    Caught by CodeRabbit on the SAME commit's cloud review, not by any internal gate. This is a
+    live instance of the exact failure `agent-workflow.md § Rule-Mirror Sync` already names as an
+    OPEN, unsolved problem ("grep is a FIRST PASS... a phrase-grep cannot find a PARAPHRASE, so it
+    reports false-clean"). It is not new evidence that the problem exists — it is evidence that the
+    MITIGATION (§10 clause 3's phrase-grep) does not close it, because clause 3's grep is scoped to
+    the retracted phrase specifically, and a paraphrase by definition uses different words.
+  - **Instance B — fixing one claim surfaces an inherited claim elsewhere (`3bb5597e` → `0ec5f696`
+    family).** `3bb5597e` retracted "Vitest runs unit AND integration locally — they mock the DB,"
+    false on both halves since `1be8aa04`/#667 (`apps/web/vitest.config.ts:20` excludes
+    `**/*.integration.test.ts`; the integration tier runs against real Postgres, unmocked). A
+    SEPARATE passage — "Migrations are the ONE exception" — had inherited the same false premise
+    (that integration tests are covered by the mocked/local claim) and was found and fixed only
+    once the first claim's correction made the orchestrator re-read the surrounding block (per
+    `agent-doc-updater.md`'s own promoted whole-block-read rule, applied here by the orchestrator
+    rather than doc-updater). Distinguishable from Instance A: no grep was run and none would have
+    helped — "Migrations are the ONE exception" shares no retractable phrase with the original claim
+    at all, only the underlying false premise.
+  - **Why these count as one mechanism, not two:** both are "a correction narrowly scoped to the
+    passage a reviewer flagged, while a second passage carrying the same underlying false premise —
+    reachable only by re-reading the surrounding block or the whole file, not by re-running the
+    literal-phrase check — survives." Two distinct sub-mechanisms (grep-defeating paraphrase;
+    block-scope miss) converging on the same remedy shape. **Proposal (not applied — orchestrator's
+    call):** extend `code-style.md` §10 clause 3 so that, after fixing any claim, the repo-wide grep
+    additionally runs on the claim's SUBJECT/KEYWORDS (e.g. "migration," "integration test," the
+    named tool/file) — not only the retracted phrase — mirroring the remedy already proposed for
+    mirror-sync grep axis-misses (tracker-archive.md, "row 653": "also grep for the AGENT/RULE NAME
+    itself, not just mechanics phrasing"). This is the SAME remedy shape recurring for a THIRD
+    grep-construction failure class (phrase-vs-number, content-vs-path, now phrase-vs-paraphrase),
+    which is itself worth flagging: the fix keeps being "grep on a broader signal than the exact
+    string," and each time it is re-derived from scratch rather than generalized once.
+
+- **Row 695 (new, count=1): a promoted audit-trigger rule has a narrower file scope than its own
+  underlying risk.** `agent-doc-updater.md` already promotes "`lefthook.yml` / `ci.yml` change ⇒
+  audit `CLAUDE.md` §QA-pipeline" (count=2, `#833`/`#840` + `#925` Phase 3). Instance B above shows
+  the identical risk shape — a config file's behavior changes, an instruction file's prose claim
+  about that behavior goes stale, nothing re-audits the prose — occurring via `vitest.config.ts`
+  instead of `lefthook.yml`/`ci.yml`, and surviving ~2 months (`1be8aa04`, #667, to today) with no
+  agent flagging it in any of the intervening post-commit cycles on files that touched testing.
+  Single occurrence of THIS specific trigger-file gap (the underlying mechanism — a config file with
+  no matching audit trigger — is the same CLASS as the promoted lefthook/CI rule, but count-2
+  promotion tracks the mechanism-plus-trigger-file pairing, and `vitest.config.ts` has never
+  triggered before). Log and watch; if a `vitest.config.ts`/`vitest.integration.config.ts` change
+  drifts a testing claim in `CLAUDE.md`/`.claude/commands/*.md` a second time, propose widening the
+  existing promoted rule's trigger-file list rather than writing a new rule from scratch.
+  **On "is this untestable":** no — the check is exactly the same shape as the already-promoted one
+  (`agent-doc-updater.md`'s existing trigger-file list), just missing this one entry. Widening a
+  trigger list on a matched file is cheap and mechanical; the risk was never that the check is hard
+  to build, only that the file wasn't in the list.
