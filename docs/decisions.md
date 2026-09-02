@@ -1290,12 +1290,18 @@ which selects `qs.correct_count` and `qs.total_questions` straight off the sessi
 Re-derive the set rather than trusting that list, and use the WHITESPACE-TOLERANT form:
 
 ```sh
-grep -rEn "correctCount\}\s*/\s*\{.*totalQuestions|\{correct\}\s*/\s*\{total\}" apps/web/app --include="*.tsx"
+rg -nUP 'correctCount\s*\}\s*/\s*\{[\s\S]{0,40}?totalQuestions|\{correct\}\s*/\s*\{total\}' apps/web/app -g '*.tsx'
 ```
+
+`-U` is what makes it multiline: `grep` is LINE-oriented, so a `\s*` in a grep pattern cannot span a
+newline and any fraction the formatter wrapped across two JSX lines — `{s.correctCount} /{' '}` then
+`{s.totalQuestions}` — reads as clean. The `{0,40}` bound keeps the lazy gap from pairing an unrelated
+`correctCount` with a `totalQuestions` further down the file.
 
 **The exact-adjacency form this decision shipped on 2026-08-24 —**
 `grep -rn "correctCount}/{.*totalQuestions\|{correct}/{total}"` **— is a FALSE-CLEAN and must not be
-reused.** It requires `}` and `{` to touch, so it silently missed both student-facing sites, which
+reused.** It requires the `/` to touch a brace on BOTH sides — `}` and `{` never touch in that
+expression, the `/` sits between them — so it silently missed both student-facing sites, which
 write `{s.correctCount} / {s.totalQuestions}` with spaces. It exited 1 — reporting the class closed —
 while two instances were live on the route every student reaches from the nav. A derivation command
 is only as good as its tolerance for formatting the author did not happen to use.

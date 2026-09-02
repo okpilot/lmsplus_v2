@@ -241,13 +241,20 @@ Ordering and contents in the artifact above. Not started.
 - [ ] W7 security hardening — PR 23 (#1024+#798+#1000) · PR 24 (#760+#813) · PR 25 (#847→#814)
 - [ ] W8 rules/docs/memory — PR 26 (#1160+#1163+#1173+#1176+#1217) · PR 27 (#1114+#1115+#1116)
       · PR 28 (#1104+#988) · PR 29 (#1152)
-      ⚠️ PR 26 must ALSO drain the learner promotion backlog, which lives ONLY in
-      `.claude/agent-memory/learner/MEMORY.md` and is scheduled by no issue: as of 2026-09-01 it
-      carries 57 `RULE CANDIDATE` rows, 23 at count>=3 (re-derive:
-      `grep -oE 'RULE CANDIDATE \(([0-9]+)\)' .claude/agent-memory/learner/MEMORY.md | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`).
-      Several are long past the count=2 promotion threshold and one is self-labelled Overdue. Each
-      promotion also owes the Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync
-      (`agent-learner.md`), so budget the mirror set, not just the rule edit.
+      ⚠️ PR 26 must ALSO drain the learner promotion backlog, which lives ONLY in the TRACKER
+      TABLE of `.claude/agent-memory/learner/MEMORY.md`. No issue enumerates those rows; the
+      nearest open ones — #1217 (promotion evidence quality) and #1160 (a §10 sweep) — govern HOW
+      a promotion is done, not the drain, and PR 26 already carries both. As of 2026-09-01 the
+      table holds 57 `RULE CANDIDATE` rows, 23 of them at count>=3. The two numbers need SEPARATE
+      derivations — the count regex sees only the 45 rows carrying a numeric parenthetical, so it
+      under-reports the total by the 12 that do not:
+      total (57): `grep -c '^|.*RULE CANDIDATE' .claude/agent-memory/learner/MEMORY.md`
+      — anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
+      picking up a prose bullet that cross-references code-reviewer's tracker.
+      count>=3 (23): `grep -oE 'RULE CANDIDATE \(([0-9]+)\)' .claude/agent-memory/learner/MEMORY.md | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
+      Several are long past the count=2 promotion threshold. Each promotion also owes the
+      Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget
+      the mirror set, not just the rule edit.
 - [ ] W9 test coverage — PR 30 (#1132+#1168+#1215+#1177) · PR 31 (#1159) · PR 32 (#1226)
       · PR 33 (#926, split first) · PR 34 (#1234)
 - [ ] W10 admin polish — PR 35 (#1223+#854+#888) · PR 36 (#720+#894) · PR 37 (#1033+#1040) · PR 38 (#542)

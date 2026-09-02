@@ -129,21 +129,19 @@ function makeSessionRow(overrides: Partial<SessionRow> = {}): SessionRow {
 }
 
 /**
- * Builds a chainable mock for fetchAnsweredItemCounts's quiz_session_answers query.
- * fetchAnsweredItemCounts (lib/queries/answered-item-counts.ts) issues TWO calls against
- * this chain per invocation — a `{count:'exact', head:true}` call awaited directly after
- * `.select().in()`, and a page call awaited after `.select().in().order().range()` — so the
- * chain must be a thenable at every link, resolving to a value that satisfies both a
- * `{ count }` read and a `{ data }` read.
+ * Builds a chainable mock for ONE `.from('quiz_session_answers')` call inside
+ * fetchAnsweredItemCounts. fetchAllRows issues that call TWICE per invocation — once
+ * (synchronously, before either is awaited) for the `{count:'exact', head:true}` count
+ * read, and again — only if that count succeeds and is non-zero — for the `.range()`
+ * page read. `mockSessionsQuery` below constructs a FRESH chain instance per `.from()`
+ * call, so each phase resolves its own fixed `{ data, error, count }` result instead of
+ * sharing one: a count-phase error and a page-phase error are independently reachable.
  */
-function makeAnswerCountsChain(
-  rows: { session_id: string }[],
-  error: { message: string } | null = null,
-) {
-  const result = error
-    ? { data: null, error, count: null }
-    : { data: rows, error: null, count: rows.length }
-
+function makeAnswerCountsChain(result: {
+  data: { session_id: string }[] | null
+  error: { message: string } | null
+  count: number | null
+}) {
   const chain: Record<string, unknown> = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (
@@ -163,17 +161,36 @@ function makeAnswerRows(sessionId: string, count: number): { session_id: string 
 
 /**
  * Dispatches adminClient.from() by table name: 'quiz_sessions' returns the caller's
- * session-page chain, 'quiz_session_answers' returns a chain for fetchAnsweredItemCounts's
- * item-count lookup (getStudentSessions now queries both tables).
+ * session-page chain; 'quiz_session_answers' returns a chain for fetchAnsweredItemCounts's
+ * item-count lookup, which calls `.from('quiz_session_answers')` TWICE — first for its
+ * count read, then (only once that count is non-zero) for its page read. The two calls
+ * are dispatched to independent fixtures: the FIRST carries `answerError` (a count-phase
+ * failure), the SECOND carries `answerPageError` (a page-phase failure reachable only
+ * once the count itself succeeded).
  */
 function mockSessionsQuery(
   sessionChain: SessionCountChain,
-  opts: { answerRows?: { session_id: string }[]; answerError?: { message: string } | null } = {},
+  opts: {
+    answerRows?: { session_id: string }[]
+    answerError?: { message: string } | null
+    answerPageError?: { message: string } | null
+  } = {},
 ) {
-  const { answerRows = [], answerError = null } = opts
+  const { answerRows = [], answerError = null, answerPageError = null } = opts
+  let answerCallIndex = 0
   mockFrom.mockImplementation((table: string) => {
     if (table === 'quiz_sessions') return sessionChain
-    if (table === 'quiz_session_answers') return makeAnswerCountsChain(answerRows, answerError)
+    if (table === 'quiz_session_answers') {
+      const callIndex = answerCallIndex++
+      if (callIndex === 0) {
+        return answerError
+          ? makeAnswerCountsChain({ data: null, error: answerError, count: null })
+          : makeAnswerCountsChain({ data: null, error: null, count: answerRows.length })
+      }
+      return answerPageError
+        ? makeAnswerCountsChain({ data: null, error: answerPageError, count: null })
+        : makeAnswerCountsChain({ data: answerRows, error: null, count: answerRows.length })
+    }
     throw new Error(`Unexpected table queried in test: ${table}`)
   })
 }
@@ -352,6 +369,27 @@ describe('getStudentSessions', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       '[getStudentSessions] Item counts error:',
       'answers query failed',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('throws when the answered-item page fetch fails after a successful count', async () => {
+    // The count already reported 12 rows, so a page-fetch failure after it must not be
+    // masked as a partial/short result — code-style.md §7 "Paginated Fetch Needs a
+    // Caller-Level Page-Error Test": a truncated count must never look complete.
+    const row = makeSessionRow()
+    mockSessionsQuery(makeSessionChain([row], 1), {
+      answerRows: makeAnswerRows(row.id, row.answeredItems),
+      answerPageError: { message: 'answers page fetch failed' },
+    })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(
+      getStudentSessions(STUDENT_ID, { range: 'all', page: 1, sort: 'date', dir: 'desc' }),
+    ).rejects.toThrow('Failed to fetch student sessions')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getStudentSessions] Item counts error:',
+      'answers page fetch failed',
     )
     consoleSpy.mockRestore()
   })

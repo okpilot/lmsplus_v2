@@ -102,6 +102,11 @@ describe('AttemptsTable', () => {
 
   it('renders an em dash instead of a fraction when no items were answered', () => {
     render(<AttemptsTable rows={[{ ...baseRow, answeredItems: 0 }]} totalCount={0} pageSize={25} />)
+    // The em-dash presence check alone is only non-vacuous while no OTHER cell in this row
+    // renders one — every other '—' site (subject, dates, score, passed) is populated in
+    // baseRow. Pin the fraction cell directly so a later fixture change can't quietly make
+    // this pass on a neighbouring dash while the guard is gone.
+    expect(screen.queryByText(/^\d+ \/ \d+$/)).not.toBeInTheDocument()
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 

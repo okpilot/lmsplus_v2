@@ -61,25 +61,37 @@ function buildChain(
  * `quiz_sessions` twice (count, then rows) through the SAME mocked `@repo/db/admin`
  * module that its internal call to `fetchAnsweredItemCounts` uses to query
  * `quiz_session_answers` — a single module-wide `from` mock therefore has to route
- * each table to its own chain, or the third (`quiz_session_answers`) call silently
- * consumes a `quiz_sessions` chain meant for the rows query.
+ * each table to its own chain, or a `quiz_session_answers` call silently consumes a
+ * `quiz_sessions` chain meant for the rows query.
  *
  * `sessionsChains` is consumed in call order for `quiz_sessions` — the last chain
  * supplied repeats for any further call, so a single chain (the common case) serves
  * both the count and the rows query, matching the old `mockReturnValue` behavior.
- * `answersChain` defaults to an empty result (`answeredItems` = 0) for tests that
- * don't care about item counts. Its `count` must be `0`, not `null` — `fetchAllRows`
- * (which `fetchAnsweredItemCounts` pages through) treats a `null` count as a failed
- * "no exact count" read, not an empty table, and would surface that as an error here.
+ *
+ * `fetchAnsweredItemCounts` calls `.from('quiz_session_answers')` TWICE per invocation
+ * — once for its own count read, then (only once that count is non-zero) for its page
+ * read — as two INDEPENDENT chain instances. `answersChains` mirrors `sessionsChains`'s
+ * call-order-array shape so the two phases can diverge: pass a single chain (the
+ * default) to have both phases share one result, or a `[countChain, pageChain]` pair
+ * to give them different outcomes — e.g. a successful count followed by a failing page
+ * read. The single-chain default (`count: 0`) still matters for tests that don't care
+ * about item counts — `fetchAllRows` treats a `null` count as a failed "no exact count"
+ * read, not an empty table, and would surface that as an error here.
  */
 function mockFrom(
   sessionsChains: ChainMock | ChainMock[],
-  answersChain: ChainMock = buildChain([], null, 0),
+  answersChains: ChainMock | ChainMock[] = buildChain([], null, 0),
 ) {
   const chains = Array.isArray(sessionsChains) ? sessionsChains : [sessionsChains]
+  const answerChains = Array.isArray(answersChains) ? answersChains : [answersChains]
   let callIndex = 0
+  let answerCallIndex = 0
   mockAdminFrom.mockImplementation((table: string) => {
-    if (table === 'quiz_session_answers') return answersChain
+    if (table === 'quiz_session_answers') {
+      const chain = answerChains[Math.min(answerCallIndex, answerChains.length - 1)]
+      answerCallIndex += 1
+      return chain
+    }
     // Throw rather than fall through: without this, a query retargeted to ANY other table
     // would silently receive the quiz_sessions chain and the test would still pass. Mirrors
     // the sibling dispatcher in students/[id]/queries.test.ts.
@@ -447,6 +459,44 @@ describe('listInternalExamAttempts', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           '[listInternalExamAttempts] item count error:',
           'item count error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
+    it('throws when the item-count page fetch fails after a successful count', async () => {
+      // The item count already reported 1 row, so a page-fetch failure after it must not
+      // be masked as a partial/short result — code-style.md §7 "Paginated Fetch Needs a
+      // Caller-Level Page-Error Test": a truncated count must never look complete.
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        const row = {
+          id: 'sess-1',
+          student_id: 'stu-1',
+          subject_id: 'sub-1',
+          started_at: PAST,
+          ended_at: PAST,
+          total_questions: 20,
+          correct_count: 15,
+          score_percentage: 75,
+          passed: true,
+          easa_subjects: null,
+          users: null,
+          internal_exam_codes: null,
+        }
+        mockFrom(buildChain([row], null, 1), [
+          buildChain(null, null, 1),
+          buildChain(null, { message: 'item page error' }, null),
+        ])
+
+        await expect(listInternalExamAttempts()).rejects.toThrow(
+          'Failed to load internal exam attempts',
+        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamAttempts] item count error:',
+          'item page error',
         )
       } finally {
         consoleErrorSpy.mockRestore()
