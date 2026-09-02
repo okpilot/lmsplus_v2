@@ -822,3 +822,94 @@ routinely shipped a NEW one.
   Validation`) before any edit was staged — the backstop worked as designed, 0 lines changed on the
   strength of the finding. Log and watch; promote to a rule only on a 2nd distinct instance of
   "quotes text correctly, attaches it to the wrong section." No rule change proposed at count=1.
+
+## `9c907cca` — CLAUDE.md-only prose fix (Next.js dep-bump note, applying cloud-CR findings) — 2026-09-02 learner pass
+
+One commit, one file, 11 insertions / 10 deletions, all prose (a bare `next dev` -> `pnpm --filter
+@repo/web dev` since `next` isn't on PATH from the repo root; a markdownlint MD038 rephrase of a
+space-prefixed `M` porcelain span). Source: two CodeRabbit findings on the OPEN PR #1259, not a
+prior commit's own post-commit-agent cycle. All five pre/post-commit gates (impl-critic,
+code-reviewer, semantic-reviewer, doc-updater, test-writer) returned clean. Roughly 740K tokens of
+subagent work against a diff two people could review in under a minute.
+
+- **Row 697 (new, count=1): docs-only exemption's own named carve-out (`except CLAUDE.md`) forces
+  the full cycle onto a substantively prose-only diff.** code-reviewer's own report called the diff
+  "out of code-reviewer's file-size/component/logic scope entirely"; test-writer's said "no new
+  mechanism here to protect" - both agents are structurally incapable of finding anything on a
+  markdown-prose diff, confirming their fan-out here is pure cost with no matching benefit.
+
+- **Why this is NOT row 693's 2nd occurrence - argued, not assumed.** Row 693's own topic entry
+  (above, `20a14793`/`e08f1bbb`) pre-registered exactly what its 2nd occurrence needs: "a DIFFERENT
+  branch where a comment-only CI-workflow follow-up, disqualified the same way [i.e. by the
+  review-follow-up exemption's CI/hook/config exclusion], produces zero findings ... AND
+  independently satisfies every other review-follow-up condition." `9c907cca` fails that test on
+  TWO independent grounds, not one:
+  1. **Different exemption.** `9c907cca`'s diff is pure prose touching only `CLAUDE.md` - its
+     natural exemption is DOCS-ONLY, not review-follow-up. It was never eligible for
+     review-follow-up in the first place, regardless of path: review-follow-up requires "every hunk
+     traces to a finding from [the parent commit's] own post-commit cycle," and this commit applies
+     findings from an EXTERNAL cloud-CodeRabbit review of the open PR - a different finding source
+     entirely, unaffected by which paths it touches.
+  2. **Different disqualifying condition.** Docs-only's own path list carves CLAUDE.md out BY NAME
+     ("root `*.md` (except CLAUDE.md)") - not because it resembles a CI/hook/config path. Row 693's
+     mechanism is "the review-follow-up exemption's CI/hook/config exclusion fires on an otherwise-
+     qualifying diff"; this one is "the docs-only exemption's own named exclusion fires on an
+     otherwise-qualifying diff." Same ABSTRACT shape one level up (a path-list carve-out overriding
+     diff substance), but a different concrete exemption and a different concrete trigger - exactly
+     the "distinct mechanism" bar `agent-memory.md` sets for a new row rather than an increment.
+  Logged as its own row, WATCHING at count=1, explicitly linked to row 693 as a sibling rather than
+  merged into it - a future 3rd data point in EITHER lineage should be read against both entries
+  before deciding which one it extends.
+
+- **Candidate rule, drafted now for reuse but NOT proposed as an active promotion - count is 1, and
+  `agent-learner.md` DO-NOT #1 bars a rule change on a single occurrence.** If a 2nd distinct
+  instance of "a rules-prose commit gets the full cycle solely because of a named-path carve-out"
+  lands (either lineage), this is the shape to propose:
+
+  > **Rules-prose exemption** (third named exemption in `CLAUDE.md § Post-commit review`): a commit
+  > touching ONLY `CLAUDE.md`, `.claude/rules/**`, and/or `.claude/commands/**` - no code,
+  > migration, hook, CI, or config path - runs semantic-reviewer + doc-updater only (plus
+  > coderabbit-sync when its own trigger set in `agent-coderabbit-sync.md` independently matches).
+  > code-reviewer and test-writer have no referent on a prose-only rules edit. **Unlike the other
+  > two exemptions, this one DOES get a learner pass** - rules-prose commits are where this
+  > tracker's false-claim and mirror-sync patterns concentrate, and the learner is the gate that
+  > catches their recurrence; the general "no learner pass on a reduced cycle" default would
+  > otherwise cut the learner off from its own dominant signal source. If any non-rules-prose path
+  > is touched in the same commit, the full cycle runs.
+
+  **Critical assessment of the candidate (why it isn't a rubber stamp):**
+  - **Mechanical, not shape-based - does not reopen row 661.** The gate is a fixed path list, same
+    construction as the existing docs-only list. Row 661 (agents talking themselves out of a cycle
+    by eyeballing a diff as "small"/"just prose") is about discretionary judgment replacing a path
+    test; this candidate adds a path, it doesn't remove the test.
+  - **The learner-pass carve-out is load-bearing, not optional.** Without it, this proposal is
+    DISQUALIFYING as drafted: a rough count of this tracker's RULE CANDIDATE rows shows rules/doc
+    claim-accuracy and mirror-sync defects (rows 519, 604, 611, 612, 637, 640, 653, 655, 677, plus
+    the now-resolved red-team-count row) are the single largest cluster the learner has ever
+    produced - nearly all of them found on rules-file or doc commits. Routing rules-prose commits
+    through a reduced path that also skips the learner would sever exactly the feedback loop that
+    built most of this file. The draft above bakes in the carve-out for that reason; a version
+    without it should not be applied even at count=2.
+  - **Residual leak, accepted as low-risk:** code-style.md and similar rules files embed TypeScript
+    example code blocks in prose; a stylistically-wrong example slipping past code-reviewer is a
+    real but narrow gap - semantic-reviewer's claim-accuracy remit is the better-fit catch for a
+    wrong example anyway (a wrong example IS a false claim about the codebase), so this is not
+    considered a blocking leak, just a note for whoever promotes this.
+  - **`.claude/agents/*.md` deliberately excluded from the candidate path list.** These are agent
+    system-prompt definitions - arguably higher-stakes than CLAUDE.md prose - but the task that
+    produced this note scoped the candidate to CLAUDE.md/`.claude/rules/**`/`.claude/commands/**`
+    only, and widening scope unasked is out of place in a WATCHING-row draft. Flagged as an open
+    question for whoever next revisits this, not folded into the draft.
+  - **Mirrors that would need the SAME edit, same commit, if this is ever promoted** (per
+    `agent-workflow.md § Rule-Mirror Sync`): `CLAUDE.md § Post-commit review` (the canonical text),
+    `.claude/rules/agent-workflow.md § Post-Implementation Pipeline Order` (the pipeline-diagram
+    mirror - restates the docs-only/review-follow-up branches inline and would need a third
+    branch), and `.claude/rules/agent-learner.md` (needs the explicit "reduced-cycle-but-still-gets-
+    a-learner-pass" exception stated, since its current text reads as an unqualified rule - this is
+    self-referential: the learner would be proposing an edit to its OWN governing file, which
+    warrants the orchestrator's particular scrutiny before applying). `.coderabbit.yaml` needs no
+    edit - coderabbit-sync's trigger set is independent of this exemption and unaffected by it.
+  - **Counter-pressure noted, not resolved:** row 661 documents 3 instances of agents eyeballing
+    shape instead of respecting the path test - the reason these exemptions are path-based at all.
+    This candidate does not weaken that; it is offered only as a possible 3rd NAMED path, decided by
+    the orchestrator, never as license for ad hoc judgment calls on future rules-prose commits.

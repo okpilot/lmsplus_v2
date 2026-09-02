@@ -76,6 +76,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | CI workflow YAML inline shell (`run:` blocks) has no automated test tier, unlike `.claude/hooks/*.sh` | 1 | 2026-09-02 | WATCHING (row 694, topic file) |
 | Instruction-file test-execution claim goes stale on `vitest*.config.ts` changes — no audit trigger for that file (unlike lefthook.yml/ci.yml → CLAUDE.md §QA-pipeline) | 1 | 2026-09-02 | WATCHING — ~2 months stale before caught, no 2nd occurrence yet (row 695, topic file) |
 | Doc-updater quotes a claim verbatim but misattributes its structural scope (wrong governing heading) | 1 | 2026-09-02 | WATCHING — `d315b076`: CLAUDE.md:233 quote accurate, attached to wrong bullet (pre-commit vs CI). Distinct from row 663 (invented evidence) and row 641 (undercount). Caught pre-edit by Finding Validation. (row 696, topic file) |
+| Docs-only exemption's own named-path carveout (`except CLAUDE.md`) forces the full cycle onto a substantively prose-only diff | 1 | 2026-09-02 | WATCHING — sibling to row 693, but judged NOT its 2nd occurrence: different exemption (docs-only vs review-follow-up) and different disqualifying condition (named carve-out vs CI/hook/config path). See topic file for the argument and the deferred rule draft (row 697, topic file) |
 
 ## Durable knowledge (cross-agent)
 
@@ -98,6 +99,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 - POSITIVE (`dcad1d21`, 2026-09-02): row 663's rule caught doc-updater fabricating a citation count — 3rd/4th/6th instance of the same pattern within days of promotion. Per-REPORT not per-agent-run (same-day `aef79fcb` cited exactly). 6 false claims corrected in `fullpush.md`/`CLAUDE.md` this cycle, 0 new ones introduced. Detail in topic file.
 - POSITIVE (2026-09-02): `e0e3d520` (last commit of the row-above correction chain) and `d315b076` (CI-wiring 3 hook tests, #1261) both ran 0/0/0/0 across all four agents; test-writer mutation-checked the 3 tests pre-wiring (§7 DO held at CI-wiring level). Same cycle produced the row-696 FALSE POSITIVE (tracker table above). Detail in topic file.
 - 2026-09-02 compaction (3rd, same session, batch 3): relocated 6 count=1 WATCHING rows (all 2026-09-01) to tracker-archive.md to free room for row 696 + this cycle's notes. No state change; RULE CANDIDATE rows untouched.
+- `9c907cca` (2026-09-02): CLAUDE.md-only prose fix (11+/10-, 2 CR findings) ran the FULL cycle, 0/0/0/0 clean. code-reviewer + test-writer both self-reported no referent on the diff — pure overhead, confirming row 697's premise. A 3rd exemption path ("rules-prose": CLAUDE.md + `.claude/rules/**` + `.claude/commands/**` → semantic-reviewer + doc-updater only) is drafted in the topic file for a future 2nd occurrence — it MUST carry an explicit learner-pass carve-out, since rules-prose false-claim/mirror-sync findings are this tracker's dominant category; the default "no learner pass on a reduced cycle" would otherwise blind the learner to its own best signal source.
 
 ## Topic pointers
 
