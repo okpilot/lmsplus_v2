@@ -991,3 +991,22 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 | Commit-message verification citation (line number) carried over from an earlier draft, not re-derived after the code moved before commit | 1 | 2026-09-01 | WATCHING — distinct from row 597 (row 690, topic file) |
 | Doc paragraph states a closed count for a set the SAME paragraph declares OPEN (self-contradiction, not cross-section) | 1 | 2026-09-01 | WATCHING — §10 rule 2 covers this; distinct from row 655 (same-sentence vs cross-section). Missed internally, caught only by external CR (row 691, topic file) |
 | Orchestrator triages only the CR review-BODY findings and pushes; an open inline-thread finding surfaces only afterward | 1 | 2026-09-01 | WATCHING — pushed with an in-flight finding, violating the Apply-vs-Defer gate (row 692, topic file) |
+
+## Live-table snapshot relocated 2026-09-02 (batch 4, learner cycle 18757ddf)
+
+> 8 count=1 WATCHING rows (all 2026-09-02) moved here verbatim to bring `../MEMORY.md` back under
+> the 17.1 KB soft-cap after adding this cycle's 3 new rows (doc-updater 7th self-instance, the
+> §10 clause-3/5 promotion record, and the check-mirror-sync.mjs same-file-anchor gap). No state
+> change — every row stays WATCHING; grep here before re-adding a matching pattern. Their own
+> topic-file detail (cross-agent-lessons.md) is unaffected.
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| Extraction inserts a declaration between a function and its JSDoc, silently reattaching the doc to the wrong declaration | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `4c33b2bf`). |
+| Shared helper generalized to a 2nd caller with a different trust tier — client made a required param, no default (positive instance) | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `7c9c9177`). |
+| CR finding scoped to one file misses an identical defect in an unflagged sibling file | 1 | 2026-09-02 | WATCHING — `b7780606`: CR flagged the page-error-fixture defect (code-style.md §7) only in `queries.test.ts`; `attempts-queries.test.ts` carried the identical defect unflagged. Caught by the orchestrator's own sibling-grep discipline, not by CR. Distinct from row 605 (test-writer sibling coverage) and row 689 (sibling targets in one file) — here the REVIEWER's own scope, not ours, stopped at one file. |
+| Review-follow-up exemption disqualified solely by CI/hook/config path touch despite a substantively review-follow-up diff | 1 | 2026-09-02 | WATCHING — 8 invocations for ~3 net lines (row 693, topic file) |
+| CI workflow YAML inline shell (`run:` blocks) has no automated test tier, unlike `.claude/hooks/*.sh` | 1 | 2026-09-02 | WATCHING (row 694, topic file) |
+| Instruction-file test-execution claim goes stale on `vitest*.config.ts` changes — no audit trigger for that file (unlike lefthook.yml/ci.yml → CLAUDE.md §QA-pipeline) | 1 | 2026-09-02 | WATCHING — ~2 months stale before caught, no 2nd occurrence yet (row 695, topic file) |
+| Doc-updater quotes a claim verbatim but misattributes its structural scope (wrong governing heading) | 1 | 2026-09-02 | WATCHING — `d315b076`: CLAUDE.md:233 quote accurate, attached to wrong bullet (pre-commit vs CI). Distinct from row 663 (invented evidence) and row 641 (undercount). Caught pre-edit by Finding Validation. (row 696, topic file) |
+| Docs-only exemption's own named-path carveout (`except CLAUDE.md`) forces the full cycle onto a substantively prose-only diff | 1 | 2026-09-02 | WATCHING — sibling to row 693, but judged NOT its 2nd occurrence: different exemption (docs-only vs review-follow-up) and different disqualifying condition (named carve-out vs CI/hook/config path). See topic file for the argument and the deferred rule draft (row 697, topic file) |
