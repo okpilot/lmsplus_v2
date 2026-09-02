@@ -944,3 +944,34 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 | Explore report accurate for its narrow question read as answering a broader plan claim | 1 | 2026-08-24 | WATCHING (row 651) |
 | Reviewer's own auto-injected rules-file copy is stale when the reviewed branch is mid-edit on that same file | 1 | 2026-08-24 | WATCHING (row 656) |
 | Reviewers "confirm" a claim by grepping only the phrases it cites — convergence ≠ corroboration | 1 | 2026-08-24 | WATCHING (row 659) |
+
+## Live-table snapshot relocated 2026-09-02 (budget curation, learner cycle fix/admin-session-item-scale, batch 2)
+
+> 20 count=1 WATCHING rows (2026-08-24 through 2026-09-01) moved here verbatim to bring
+> `../MEMORY.md` back under the 17.1 KB soft-cap after adding 3 new rows for this branch's
+> post-commit cycles (20a14793, e08f1bbb). No state change — every row stays WATCHING; grep here
+> before re-adding a matching pattern. Their own topic-file detail (cross-agent-lessons.md) is
+> unaffected. RULE CANDIDATE rows were left in the live table untouched.
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| Reviewer's own proposed remedy is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (row 662) |
+| Subagent's own justification fabricates coverage its diff does not have (coderabbit-sync) | 1 | 2026-08-24 | WATCHING (row 654) |
+| Agent applies severity ruled out by dispatch prompt — incomplete evidence ≠ false claim | 1 | 2026-08-24 | WATCHING (row 664) |
+| Confounded measurement: two variables changed at once → wrong conclusion shipped as rule | 1 | 2026-08-24 | WATCHING (row 665) |
+| Scripted/regex bulk edit strips a file-level invariant (trailing newline) no content check inspects | 1 | 2026-08-25 | WATCHING (row 666) |
+| Migration self-assigns next `-- Migration N:` ordinal from an abandoned/undecodable numbering convention | 1 | 2026-08-30 | WATCHING (row 669) |
+| New `fetchAllRows` call site shipped without the already-promoted code-style.md §7 page-error test | 1 | 2026-08-30 | WATCHING (row 671) |
+| Red-team vector enumerating sibling answer-key-returning RPCs not extended when a new sibling RPC is added | 1 | 2026-08-30 | WATCHING (row 672) |
+| Concurrent subagents dispatched onto the same file — one's restore step reverts a sibling's un-related edit | 1 | 2026-08-30 | WATCHING (row 673) |
+| Delegation-prompt/scaffolding wording leaks verbatim into a shipped code comment | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
+| Partial `vi.mock` throws when module later gains a new export the mock omits | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
+| Reviewer asserts a process/compliance violation it cannot observe from its inputs | 1 | 2026-08-31 | WATCHING — FALSE POSITIVE this instance (row 675) |
+| Agent's own memory tracker row cites a stale file-state fact (line count) an earlier commit already changed | 1 | 2026-08-31 | WATCHING (row 676) |
+| Explore-agent arithmetic/count error propagated unverified into plan/commit/report | 1 | 2026-08-31 | WATCHING (row 678, topic file) |
+| A commit's own message and its own file content assert contradicting claims; the file version propagates | 1 | 2026-08-31 | WATCHING (row 679, topic file) |
+| Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, topic file) |
+| Orchestrator restates a critic/CR finding's mechanism backwards, unverified | 1 | 2026-09-01 | WATCHING (row 681, topic file) |
+| CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, topic file) |
+| code-reviewer line-count convention inconsistent across cycles on an unchanged function body | 1 | 2026-09-01 | WATCHING — same body scored 30 then 36; phantom-regression risk (row 687, topic file) |
+| Doc-updater flags DRIFT reading a case-scoped statement as a universal claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, 3 findings validated+skipped (row 684) |

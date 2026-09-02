@@ -60,35 +60,15 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Corrected claim partially retracted — old wording persists elsewhere | 3 | 2026-08-24 | RULE CANDIDATE (3) → §10 clause 3, repo-wide grep (row 653 family) |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) → grep by name/path too (row 653) |
 | Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 11 | 2026-08-25 | RULE CANDIDATE (11) (row 655) |
-| Subagent asserts a verification it did not perform — evidence invented, conclusion mostly true | 4 | 2026-08-30 | RULE CANDIDATE (4) (row 663) |
+| Subagent asserts a verification/write it did not perform — evidence invented, conclusion mostly true | 5 | 2026-09-02 | RULE CANDIDATE (5) — broadened to file/memory writes, not just test-verification (row 663) |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types (row 661) |
-| Reviewer's own proposed remedy is a hypothesis too — correct diagnosis, wrong-direction fix | 1 | 2026-08-24 | WATCHING (row 662) |
-| Subagent's own justification fabricates coverage its diff does not have (coderabbit-sync) | 1 | 2026-08-24 | WATCHING (row 654) |
-| Agent applies severity ruled out by dispatch prompt — incomplete evidence ≠ false claim | 1 | 2026-08-24 | WATCHING (row 664) |
-| Confounded measurement: two variables changed at once → wrong conclusion shipped as rule | 1 | 2026-08-24 | WATCHING (row 665) |
-| Scripted/regex bulk edit strips a file-level invariant (trailing newline) no content check inspects | 1 | 2026-08-25 | WATCHING (row 666) |
 | Unverified superlative/rank asserted about tracker data without re-deriving | 2 | 2026-08-30 | RULE CANDIDATE (2) (row 667) |
 | Mocked-Supabase test assertion vacuous about a chain-builder ARGUMENT | 2 | 2026-08-30 | RULE CANDIDATE (2) → code-style.md §7 (row 668) |
-| Migration self-assigns next `-- Migration N:` ordinal from an abandoned/undecodable numbering convention | 1 | 2026-08-30 | WATCHING (row 669) |
 | File brought exactly to its size cap, re-crossed by a same-commit fix | 2 | 2026-08-30 | RULE CANDIDATE (2) → agent-code-reviewer.md (row 670) |
-| New `fetchAllRows` call site shipped without the already-promoted code-style.md §7 page-error test | 1 | 2026-08-30 | WATCHING (row 671) |
-| Red-team vector enumerating sibling answer-key-returning RPCs not extended when a new sibling RPC is added | 1 | 2026-08-30 | WATCHING (row 672) |
-| Concurrent subagents dispatched onto the same file — one's restore step reverts a sibling's un-related edit | 1 | 2026-08-30 | WATCHING (row 673) |
-| Delegation-prompt/scaffolding wording leaks verbatim into a shipped code comment | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
-| Partial `vi.mock` throws when module later gains a new export the mock omits | 1 | 2026-08-30 | WATCHING (cross-agent-lessons.md). |
 | Test title pins a silent-fallback/coercion defect as intended, inverted only when fixed | 2 | 2026-08-31 | RULE CANDIDATE (2) → code-style.md §7 (row 674) |
-| Reviewer asserts a process/compliance violation it cannot observe from its inputs | 1 | 2026-08-31 | WATCHING — FALSE POSITIVE this instance (row 675) |
-| Agent's own memory tracker row cites a stale file-state fact (line count) an earlier commit already changed | 1 | 2026-08-31 | WATCHING (row 676) |
 | Quantified claim re a live/open data source goes stale post-write (same-commit amend OR a later same-PR sibling commit) | 2 | 2026-09-02 | RULE CANDIDATE (2) → §10 rule 2 addendum: pin to a commit SHA + "re-derive at pickup", not just an as-of date (row 677, topic file) |
 | CLAUDE.md docs-only exemption path list omits `.spec-workflow/specs/*/tasks.md` | 2 | 2026-09-02 | RULE CANDIDATE (2) → propose adding `.spec-workflow/specs/**/tasks.md` to CLAUDE.md § Post-commit review docs-only list (row 657, topic file) |
-| Explore-agent arithmetic/count error propagated unverified into plan/commit/report | 1 | 2026-08-31 | WATCHING (row 678, topic file) |
-| A commit's own message and its own file content assert contradicting claims; the file version propagates | 1 | 2026-08-31 | WATCHING (row 679, topic file) |
-| Coverage-gap enumeration scoped to one test tier concludes "no coverage exists" | 1 | 2026-08-31 | WATCHING (row 680, topic file) |
-| Orchestrator restates a critic/CR finding's mechanism backwards, unverified | 1 | 2026-09-01 | WATCHING (row 681, topic file) |
-| CodeRabbit misreads a wrapped diff line, proposes a bad committable suggestion | 1 | 2026-09-01 | WATCHING (row 682, topic file) |
 | Orchestrator drafts its own unverified "because X"/attribution claim in comment prose | 4 | 2026-09-01 | RULE CANDIDATE (4) — enforcement gap: 4th escaped impl-critic + full cycle, caught only by cloud CR post-push (row 683, topic file) |
-| code-reviewer line-count convention inconsistent across cycles on an unchanged function body | 1 | 2026-09-01 | WATCHING — same body scored 30 then 36; phantom-regression risk (row 687, topic file) |
-| Doc-updater flags DRIFT reading a case-scoped statement as a universal claim | 1 | 2026-09-01 | WATCHING — FALSE POSITIVE this instance, 3 findings validated+skipped (row 684) |
 | Two post-commit reviewers give contradictory recommendations on the same artifact | 1 | 2026-09-01 | WATCHING — test-writer's finer read validated correct, not zero-overlap (row 685) |
 | Orchestrator SKIP verdict on a CR finding reversed 2+ rounds later by another reviewer | 1 | 2026-09-01 | WATCHING — skip-quality signal, system self-corrected (row 686) |
 | Fix for a vacuous-assertion CR finding covers only one of N sibling RPC/target assertions in the same test | 1 | 2026-09-01 | WATCHING — distinct from row 605 (sibling FILES vs sibling TARGETS in one file) (row 689, topic file) |
@@ -98,6 +78,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 | Extraction inserts a declaration between a function and its JSDoc, silently reattaching the doc to the wrong declaration | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `4c33b2bf`). |
 | Shared helper generalized to a 2nd caller with a different trust tier — client made a required param, no default (positive instance) | 1 | 2026-09-02 | WATCHING (cross-agent-lessons.md — fix/admin-session-item-scale `7c9c9177`). |
 | CR finding scoped to one file misses an identical defect in an unflagged sibling file | 1 | 2026-09-02 | WATCHING — `b7780606`: CR flagged the page-error-fixture defect (code-style.md §7) only in `queries.test.ts`; `attempts-queries.test.ts` carried the identical defect unflagged. Caught by the orchestrator's own sibling-grep discipline, not by CR. Distinct from row 605 (test-writer sibling coverage) and row 689 (sibling targets in one file) — here the REVIEWER's own scope, not ours, stopped at one file. |
+| Review-follow-up exemption disqualified solely by CI/hook/config path touch despite a substantively review-follow-up diff | 1 | 2026-09-02 | WATCHING — 8 invocations for ~3 net lines (row 693, topic file) |
+| CI workflow YAML inline shell (`run:` blocks) has no automated test tier, unlike `.claude/hooks/*.sh` | 1 | 2026-09-02 | WATCHING (row 694, topic file) |
 
 ## Durable knowledge (cross-agent)
 
@@ -115,6 +97,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: row# in status, narrat
 - POSITIVE (fix/admin-session-item-scale, 2026-09-02): memory-delta discipline held — code-reviewer's own agent-memory compaction shipped IN the fix commit (`7c9c9177`), not a later pre-push sweep (row 639's failure mode did NOT recur here). Test-writer's mutation-verification DO also held: the `allRows`-vs-`rows` filter-parity guard was proven real by reverting it and watching 26 green tests, before shipping the regression test (`4c33b2bf`).
 - POSITIVE (`b7780606`, 2026-09-02): a pure §10 comment-accuracy fix (3 false claims corrected: em-dash mechanism, `}`/`{` adjacency, "requires touch") shipped with ZERO new false claims — doc-updater grepped all 4 retracted phrases repo-wide clean, semantic-reviewer 0/0/0. Third clean §10-fix data point after `cd479557`/`a5745ab5→a5fed09e` (row 604, topic file) — the mitigation (verify claims against source before drafting, not after) keeps holding. Full cycle produced zero fixes end-to-end; both code-reviewer WARNINGs were a self-tracked 500L test-file watch threshold (code-reviewer/MEMORY.md), not a code-style.md violation — correctly validated and skipped.
 - POSITIVE (`a507bc93`, 2026-09-02, 4th clean §10-fix data point): a partial-edit miss (fixed the prose figure, missed the `count>=3 (23):` label 3 lines below) was self-caught via §10 clause 3's own "read the whole block, grep the retracted phrase" instruction — BEFORE the commit was made, one level earlier than the prior three (which showed zero POST-commit findings). Not counted toward row 604 (which requires a shipped fresh claim); see cross-agent-lessons.md for detail. Same cycle also promoted rows 677 and 657 to RULE CANDIDATE (2) — see tracker table and topic file.
+- 2026-09-02 compaction (2nd, same session): +3 rows (693, 694; 663 bumped 4→5) for `20a14793`/`e08f1bbb` CI-flake-fix cycles — 0 CRITICAL/ISSUE/BLOCKING throughout both. Relocated 20 count=1 WATCHING rows to tracker-archive.md "batch 2"; RULE CANDIDATE rows untouched. Detail in topic file.
+- NEAR MISS (`20a14793`, row 663 +1→5): code-reviewer reported it "updated the code-reviewer memory tracker" with no matching working-tree delta or commit. Orchestrator repeated the claim once, verified, retracted before it reached the user. Detail in topic file.
 
 ## Topic pointers
 

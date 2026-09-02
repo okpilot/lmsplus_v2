@@ -663,3 +663,57 @@ no testable surface, doc-updater's repo-wide grep for the stale figure came back
   streak (durable knowledge, MEMORY.md) to a 4th instance, and is the first of the four to be caught
   during DRAFTING rather than surfacing as zero post-commit findings — i.e. the checklist catching
   its own near-miss before the artifact was even committed, one level earlier than the prior three.
+
+## fix/admin-session-item-scale — CI flake-fix cycles (`20a14793`, `e08f1bbb`) — 2026-09-02 learner pass
+
+Two full post-commit cycles (8 agent invocations total) on a CI-only branch (retry logic for the
+`Migration Test (clean reset)` storage-timeout flake in `e2e.yml`, plus mirror updates to
+`wait-for-supabase.sh` and `fullpush.md`). Net result across both: 0 CRITICAL/0 ISSUE/0 BLOCKING;
+3 WARNING/SUGGESTION findings on `20a14793`, all applied cleanly in `e08f1bbb`; 1 doc-updater
+finding on `e08f1bbb` correctly BOUNDED OUT under `agent-critic.md`'s refinement rule (prose the
+previous round had just rewritten, and true as written).
+
+- **Row 693 (new, count=1) — review-follow-up exemption disqualified solely by CI/hook/config path
+  touch.** `e08f1bbb` applies exactly the 3 findings from `20a14793`'s own full cycle (semantic-
+  reviewer SUGGESTION: single-line grep predicate instead of two independent greps; code-reviewer
+  WARNING ×2: open-set enumeration without a derivation, and a "~30s"/"~31s" comment/commit-message
+  mismatch) — every hunk traces to that cycle, same 2 files, no new file, well under the LOC caps.
+  It still ran the FULL cycle rather than semantic-reviewer-only, because it touches
+  `.github/workflows/e2e.yml` and `.github/scripts/wait-for-supabase.sh`, and
+  `CLAUDE.md § Post-commit review`'s review-follow-up exemption excludes "any... CI/hook/config"
+  path unconditionally. Cost: 8 agent invocations for a diff that nets to one grep-pattern edit plus
+  two comment corrections. The exclusion is deliberate and fail-closed (CI/hook/config edits carry
+  above-average risk of silently breaking a gate), so this is NOT a promotion candidate on one
+  occurrence. What a 2nd occurrence needs to actually justify narrowing the clause: a DIFFERENT
+  branch where a comment-only CI-workflow follow-up, disqualified the same way, produces zero
+  findings across both full cycles AND independently satisfies every other review-follow-up
+  condition (parent ran the full cycle with no exemption; every hunk traces to that cycle's
+  findings; same files, no new file; under both LOC caps; no security path or migration). That
+  pairing — the CI/hook/config touch turning out to be the ONLY disqualifying condition on an
+  otherwise-clean review-follow-up, twice — is the evidence a narrower clause (e.g. "CI/hook/config
+  disqualifies unless the diff is entirely comment/prose, no `run:` semantics changed") would need.
+  Absent that, log and watch; the current fail-closed shape is correct on the evidence so far.
+
+- **Row 694 (new, count=1) — CI workflow YAML inline shell has no automated test tier.** test-writer
+  reported "no tier executes this" on both commits for the retry/grep-predicate logic embedded in
+  `e2e.yml`'s `run:` block (same underlying gap re-observed on a modified artifact = one occurrence
+  per the dedup rule). Both commits instead proved correctness via an ad hoc stubbed-`supabase`
+  harness run described narratively in the commit message (6-9 scenarios each) — never committed as
+  a script or fixture, so the proof is unrepeatable and unverifiable by a future reader without
+  re-deriving it from prose. Contrast with `.claude/hooks/*.sh` guards, which get a co-located
+  `*.test.sh` per `.claude/agent-memory/test-writer/MEMORY.md`'s documented pattern (confirmed this
+  cycle: `.claude/hooks/cr-local-plan-reminder.test.sh` exists, is maintained, and is wired into
+  neither `ci.yml` nor `lefthook.yml` — but it is at least a committed, re-runnable artifact,
+  invoked manually when the hook changes). Workflow-YAML `run:` blocks have no such artifact at all,
+  on-demand or otherwise — the harness lives only in the PR description of whichever commit last
+  touched the block. Pre-existing gap, not introduced by this branch. Watching for a 2nd occurrence
+  (another workflow-YAML shell change proved only via a commit-message narrative, not a committed
+  test) before proposing a rule (e.g. "a `run:` block with non-trivial branching logic gets a
+  co-located `.test.sh` under `.github/scripts/`, mirroring the hook-test pattern").
+
+- **Row 663 (+1 → 5, broadened):** code-reviewer's post-commit report on `20a14793` stated it
+  "updated the code-reviewer memory tracker." `git log -1 -- .claude/agent-memory/code-reviewer/MEMORY.md`
+  showed the last touching commit was `ab737599` (a prior cycle), and the working tree carried no
+  delta to that file. The claimed write never happened. Same mechanism as row 663's prior 4
+  instances (a subagent asserting it performed an action it did not), broadened from
+  test-verification claims specifically to self-reported file/memory writes generally.
