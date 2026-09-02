@@ -601,3 +601,65 @@ gaps — prose-only diff).
   because there is no violating instance yet to count — the tracker row exists so that a FUTURE
   generalization-with-a-default (the failure this branch avoided) has somewhere to land as occurrence
   2, which would trigger a `docs/security.md` §5 addendum.
+
+## Commit `a507bc93` (fix/admin-session-item-scale) — 2026-09-02 learner pass
+
+Origin: a 2-line prose fix to `.spec-workflow/specs/backlog-burndown/tasks.md`, correcting a
+count>=3 figure (23→24) that this same branch's own preceding commit (`ab737599`, a routine
+learner-tracker memory bump) had invalidated one commit after `b7780606` documented it alongside
+its derivation command. Full 4-agent cycle: all four clean (0/0/0/0) — a markdown-only spec file,
+no testable surface, doc-updater's repo-wide grep for the stale figure came back clean.
+
+- **Row 677 (+1 → 2, broadened, WATCHING → RULE CANDIDATE):** the original instance (`59005823`,
+  fix/fetchallrows-null-page-sweep, 2026-08-31) was a quantified claim invalidated by a
+  same-COMMIT amend. This instance is the same core mechanism — a quantified claim about a
+  live/open data source (here: a tracker-derived count, paired with its derivation command per
+  §10 rule 2) goes stale because the artifact it describes changed under it — but via a DIFFERENT
+  vector: a separate, LATER sibling commit in the same branch/PR (`ab737599`), not an amend of the
+  claim's own commit. Different branch than the original instance (fix/admin-session-item-scale vs
+  fix/fetchallrows-null-page-sweep), so this clears even the stricter unwritten "2nd-branch" gate
+  discussed under row 655. **Proposed remedy (code-style.md §10 rule 2 addendum, NOT applied — routed
+  to the W8 PR 26 rules PR):** when a comment/doc states a quantified value drawn from a live/open
+  data source alongside its derivation command, pin the value to a commit SHA (not merely "an
+  as-of date") and prefix it with an explicit "re-derive at pickup" instruction — because the
+  source can be invalidated by ANY subsequent commit on the branch, not only an amend of the
+  claim's own commit. This is exactly the shape `a507bc93` itself shipped as its fix (pinned to
+  `ab737599`, "RE-DERIVE both figures at pickup") — the proposal formalizes what the fix commit
+  already did ad hoc. Sweep-on-promotion note: if written, sweep other §10-rule-2 "as-of date"
+  citations in the repo to see which sit on branch-churning sources and would benefit from a SHA
+  pin; downstream sync: `code-style.md` is on both the `.coderabbit.yaml` mirror-trigger list
+  (`agent-coderabbit-sync.md`) and the `agent-workflow.md § Rule-Mirror Sync` table.
+
+- **Row 657 (+1 → 2, WATCHING → RULE CANDIDATE, promoted from archive):** the required "SECOND,
+  INDEPENDENT PR" the original instance (chore/pr-split-practice, 2026-08-24) explicitly asked for
+  before proposing a rule arrived here — same gap (`CLAUDE.md § Post-commit review`'s docs-only
+  exemption path list omits `.spec-workflow/specs/*/tasks.md`), same file class (a pure `tasks.md`
+  status/tracking prose edit), different branch (fix/admin-session-item-scale). `a507bc93` is a
+  2-line correction inside a spec tracker's status prose — the same class of change as
+  `docs/**/*.md` or `.claude/agent-memory/**`, neither of which needed the full cycle, yet this path
+  is not in the exempt list and so paid the full four-agent cost for a change no agent found
+  anything to say about. **Proposed remedy (CLAUDE.md § Post-commit review, NOT applied — routed to
+  the W8 PR 26 rules PR):** add `.spec-workflow/specs/**/tasks.md` to the docs-only exemption path
+  list, scoped narrowly to that filename (status/progress-tracking prose only) — NOT
+  `.spec-workflow/specs/**/*.md` broadly, since a spec's `design.md`/`requirements.md` can carry
+  substantive claims about code behaviour that doc-updater alone should not be trusted to gate.
+  Both observed instances (row 657 original, this one) were pure `[ ]`/prose status edits to
+  `tasks.md` specifically. Sweep-on-promotion note: if written, check whether any OTHER
+  `.spec-workflow/specs/**` filename pattern (e.g. a dedicated `progress.md`) shares the same
+  pure-status-prose shape and should be added in the same sweep; downstream sync: `CLAUDE.md` is
+  itself on the `.coderabbit.yaml` mirror-trigger list, so a docs-only-exemption change there also
+  needs a coderabbit-sync pass to confirm `.coderabbit.yaml` carries no conflicting path assumption.
+  This is a genuine 2nd occurrence, not a single-occurrence widening — the promotion bar is met on
+  its own pre-registered terms, not asserted fresh here.
+
+- **Row 604: NOT incremented — a 4th clean §10-fix data point instead.** While drafting `a507bc93`,
+  the orchestrator's first pass fixed the prose figure (23→24) but missed the `count>=3 (23):`
+  label three lines below in the same block — caught in-session by re-reading the whole block and
+  grepping the retracted phrase (`git grep -nF 'count>=3 (23)'`), i.e. §10 clause 3 working exactly
+  as designed, BEFORE the commit was made. Because the miss never reached a commit, this is not an
+  instance of row 604 (which requires a FIX COMMIT to SHIP a fresh false claim) — it is a positive
+  data point for the same mitigation row 604's entry already tracks ("verify claims against source
+  before drafting, not after"). Extends the `cd479557` / `a5745ab5→a5fed09e` / `b7780606` clean-fix
+  streak (durable knowledge, MEMORY.md) to a 4th instance, and is the first of the four to be caught
+  during DRAFTING rather than surfacing as zero post-commit findings — i.e. the checklist catching
+  its own near-miss before the artifact was even committed, one level earlier than the prior three.
