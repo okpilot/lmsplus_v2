@@ -41,8 +41,50 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      # `db reset` applies every migration and THEN restarts the storage container and probes
+      # the Storage API (GET /storage/v1/bucket) to reconcile buckets against config.toml. That
+      # call runs even with --no-seed and even though every [storage.buckets.*] block in
+      # config.toml is commented out, and its client timeout is fixed and short (~30s measured),
+      # so a slow storage restart fails the step AFTER every migration already applied cleanly.
+      # Seen on runs 32246803460 (2026-08-19) and 33608609266 (2026-09-02) with a byte-identical
+      # signature. Only 33608609266 is a clean self-clearing data point — it went green on an
+      # unchanged re-run of the same commit; 32246803460 was never re-run at all (run_attempt 1,
+      # no attempt 2). This job is a REQUIRED check, so each hit blocks a merge by hand.
+      #
+      # Retry ONCE, and only on that exact signature — every other failure exits on the first
+      # attempt, so a genuine migration error still fails fast. A SQL error cannot emit this
+      # string: it is a Go HTTP-client timeout the CLI prints only after the last migration.
+      # The readiness gate is cheap and can only delay (never skip) an attempt, but
+      # /storage/v1/status is a liveness probe while /bucket is DB-backed — how much the gate
+      # actually de-risks the retry is unverified. The retry is the fix; the gate is belt.
+      # /bucket itself is unusable as the probe: it answers 400 without an apikey.
       - name: Reset DB (apply all migrations from scratch)
-        run: supabase db reset --no-seed
+        env:
+          SUPABASE_HEALTH_URL: http://localhost:54321/storage/v1/status
+        run: |
+          # `pipefail` is load-bearing, not decoration: the default `run:` shell is `bash -e {0}`
+          # with NO pipefail, and `tee` almost always exits 0 — so without it the `if` below reads
+          # tee's status and every FAILED reset looks like a success. `-e` is already on, but it
+          # does NOT propagate out of an if/else branch, which is why each branch exits explicitly.
+          set -uo pipefail
+          for attempt in 1 2; do
+            bash .github/scripts/wait-for-supabase.sh
+            if supabase db reset --no-seed 2>&1 | tee /tmp/db-reset.log; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              echo "::error::supabase db reset failed on the retry"
+              exit 1
+            fi
+            if ! grep -q 'storage/v1/bucket' /tmp/db-reset.log \
+               || ! grep -q 'context deadline exceeded' /tmp/db-reset.log; then
+              echo "::error::supabase db reset failed (not the storage-timeout flake) — not retrying"
+              exit 1
+            fi
+            echo "::warning::Storage API probe timed out during db reset — retrying once"
+          done
+          # Unreachable: every path above exits. Fail closed if that ever stops being true.
+          exit 1
 
       - name: Verify all migrations applied
         run: |

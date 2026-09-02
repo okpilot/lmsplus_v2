@@ -251,9 +251,9 @@ Ordering and contents in the artifact above. Not started.
       derivations — the count regex sees only the 45 rows carrying a numeric parenthetical, so it
       under-reports the total by the 12 that do not:
       total (57): `grep -c '^|.*RULE CANDIDATE' .claude/agent-memory/learner/MEMORY.md`
-      — anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
+      — both commands anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
       picking up a prose bullet that cross-references code-reviewer's tracker.
-      count>=3 (24): `grep -oE 'RULE CANDIDATE \(([0-9]+)\)' .claude/agent-memory/learner/MEMORY.md | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
+      count>=3 (24): `grep '^|' .claude/agent-memory/learner/MEMORY.md | grep -oE 'RULE CANDIDATE \(([0-9]+)\)' | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
       Several are long past the count=2 promotion threshold. Each promotion also owes the
       Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget
       the mirror set, not just the rule edit.
