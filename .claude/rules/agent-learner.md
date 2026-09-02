@@ -10,6 +10,10 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 ### DO
 - Run the learner after every full post-commit cycle (all four core agents reported, and any fixes they prompted committed). A clean cycle produces no fix commit and still gets its learner pass — "absence of findings is itself data", per the NEVER list below, so a fix commit is not a precondition. A commit running a reduced cycle under any exemption in `CLAUDE.md § Post-commit review` does NOT get its own learner pass — there is no full-cycle finding set to synthesise, and the branch's next full cycle picks up anything durable.
 - Trust its pattern detection — it tracks frequencies across commits in `.claude/agent-memory/learner/MEMORY.md`.
+  That trust covers its JUDGMENT, not its report that it WROTE something. A claimed memory or
+  archive edit is a self-reported action: verify the artifact per `agent-workflow.md § Finding
+  Validation`. Row 663 instance 3 is this exact case — the learner reported "Archive entry
+  updated with Instance 22 narrative" while the archive's count field stayed at 21.
 - Apply rule changes the learner proposes if the pattern has 2+ occurrences AND the change is specific and actionable.
 - Note when the learner reports a pattern did NOT recur — that's a positive signal the fix worked.
 - Let the learner update its own memory file with new patterns and lessons.
@@ -48,4 +52,4 @@ This is the enforcer analogue of the call-site sweep: both close the "rule promo
 
 ---
 
-*Last updated: 2026-08-19*
+*Last updated: 2026-09-02*
