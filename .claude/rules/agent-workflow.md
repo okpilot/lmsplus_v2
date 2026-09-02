@@ -341,6 +341,20 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        is a third. The enumeration was scoped to *scripts* and correct there; the unqualified
        repo-wide restatement was not, and it is now permanent in the history.
      - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
+     - *"I ran / verified / updated / wrote X"* — an agent reporting its OWN ACTION, not a fact
+       about the code → inspect the ARTIFACT that action would have left: `git status --porcelain`,
+       `git diff`, `git log -1 -- <path>`, read the file, or re-run the check. **Scope: claims you
+       are about to ACT ON or RELAY to the user — not every sentence of every report.** A report's
+       conclusion is often right while its stated evidence is invented, so checking the verdict is
+       not checking the claim. Learner row 663, count=5 across three branches: two doc-updater
+       reports cited footer text their commit never changed; a learner report claimed an archive
+       entry updated while its count field stayed behind; a subagent called 13 failing tests
+       "pre-existing, confirmed unrelated" without running the confirmation; and on `20a14793`
+       code-reviewer reported updating its own memory tracker when `git log -1 --` showed the last
+       touch was `ab737599` and the tree carried no delta. Naming the prior failure in the dispatch
+       prompt did NOT prevent recurrence (once for doc-updater, once for the learner) — the remedy
+       is the artifact check, not a reminder. Where the claimed action is a VERIFICATION of a code
+       fact this overlaps the bullet above: re-derive the fact there, inspect the artifact here.
 2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
 3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
 4. **If the fix changes the plan** — Re-validate the changed parts before implementing.
