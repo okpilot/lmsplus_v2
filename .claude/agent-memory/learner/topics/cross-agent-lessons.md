@@ -734,7 +734,10 @@ routinely shipped a NEW one.
   EVIDENCE for reaching it was invented, exactly the shape row 663 tracks (a self-reported action/
   count, not the underlying fact, is what's false). This is doc-updater's 3rd instance of row 663
   specifically (after the two footer-citation instances noted in the row's original promotion) and
-  the row's 6th instance overall, now spanning at least 3 branches. **Per-report, not per-agent-run:**
+  the row's 6th instance overall on this branch's lineage — 7th after the 2026-09-06 rebase
+  reconciliation, which found `chore/promote-agent-selfreport-rule` had independently taken the
+  row 5→6 from a different instance (see that branch's section below) — now spanning at least 3
+  branches. **Per-report, not per-agent-run:**
   the SAME agent's LATER report the same day, on `aef79fcb`, cited every claim exactly — so whatever
   produces this failure mode is not a standing defect in doc-updater's method, it recurs
   intermittently within a single agent's day of work. That rules out "brief the agent once and it's
@@ -913,3 +916,69 @@ subagent work against a diff two people could review in under a minute.
     shape instead of respecting the path test - the reason these exemptions are path-based at all.
     This candidate does not weaken that; it is offered only as a possible 3rd NAMED path, decided by
     the orchestrator, never as license for ad hoc judgment calls on future rules-prose commits.
+
+## Commits `b177a3d2`→`c787b0d2`→`27bb0c78` (chore/promote-agent-selfreport-rule) — 2026-09-02 learner pass
+
+Row 663 reached count=5 and was PROMOTED in `b177a3d2` (`agent-workflow.md § Finding Validation`
+gained a 6th claim-shape bullet naming self-reported-action claims; `agent-doc-updater.md` gained an
+exact-substring citation requirement). The two follow-up commits applying post-commit findings on
+that promotion then produced FOUR more instances of the row's own pattern — three shipped/drafted by
+the orchestrator, one by doc-updater — plus one genuinely new mechanical fact about how promotions
+reach dispatched agents at all. Full per-instance detail lives in `tracker-archive.md` (row 604
+6th-branch entry, row 663 Instance 4) — this section is the session-level synthesis.
+
+**The four recurrences, by stage:**
+1. `b177a3d2` draft plan: described row 663 instances 1-3 as "test-verification claims" — wrong,
+   they are citation fabrications — imported from this file's own summary line without checking the
+   archived source (tracker-archive.md:902). Caught by plan-critic pre-commit, never shipped.
+2. `c787b0d2` draft: a new `.claude/agents/doc-updater.md` section claimed to restate "the DO-NOT
+   rule above" — no such rule exists in that file. Caught by implementation-critic pre-commit, never
+   shipped (`git log -p --all -S"DO-NOT rule above"` confirms the phrase is in no commit).
+3. `c787b0d2` SHIPPED: the same section claimed `.claude/rules/agent-doc-updater.md` "is
+   orchestrator-facing and does not reach you" — FALSE. `agent-workflow.md:819` already said
+   dispatched agents take CONSTRAINTS from rules-file content. Caught post-commit by
+   semantic-reviewer, fixed in `27bb0c78`.
+4. `c787b0d2` SHIPPED: the same section said "Three recorded instances" of the citation-fabrication
+   pattern when the tracker recorded two. Caught post-commit by semantic-reviewer, fixed in
+   `27bb0c78`.
+5. (row-663 shape itself, not row 604) `c787b0d2`'s own post-commit doc-updater report cited stale
+   rules-file footers at `:746`/`:32`; the true locations are `:833`/`:110`. Correct verdict
+   (footers were stale), fabricated line numbers — row 663's exact shape, recurring inside the same
+   session that promoted a rule against it. Logged as row 663 Instance 4, count 5→6 at the time —
+   reconciled to 7 on 2026-09-06 when this branch was rebased onto the squash-merged `12e79f5d`:
+   master had independently taken the row 5→6 from doc-updater's fabricated "(6 total)" count on
+   `dcad1d21`, which is not an ancestor of this branch's base `20763be0`, so the two +1s are
+   independent rather than the same event counted twice.
+
+Instances 1-2 are a genuine POSITIVE signal (pre-commit critics caught both before they reached a
+commit). Instances 3-4-5 are the negative one: a rule promoted this session did not prevent its own
+pattern from recurring three more times in the immediate aftermath, twice reaching a commit.
+
+**NEW MECHANICAL DISCOVERY — rules-file injection is a session-start snapshot, same as agent-def
+`memory:` frontmatter.** While correcting instance 3 above, `27bb0c78`'s own confirming probe
+(dispatching a live doc-updater with zero tools) found the agent quoted
+`.claude/rules/agent-doc-updater.md`'s Purpose section verbatim from its context — proving rules
+files DO reach a dispatched agent, contrary to the claim being corrected. But the SAME probe found
+the bullet added to that file earlier in `b177a3d2`, in the SAME session, was absent from the quote.
+`agent-memory.md § How native subagent memory works` already documents this exact behaviour for
+agent DEFINITION files ("Agent defs snapshot at session start. Adding/removing `memory:` only takes
+effect after a Claude Code restart") but says nothing about `.claude/rules/*.md` — this cycle found
+the identical snapshot mechanism applies there too.
+
+**Implication for every future rule promotion:** a rule written mid-session is inert for every agent
+dispatched in that same session. Any "the fix worked, the agent's behaviour improved" observation
+made before a restart is confounded by the DISPATCH PROMPT (which can restate the new rule inline),
+not the file edit — and cannot be cited as evidence the promotion itself took hold. Concretely here:
+doc-updater's improved citation behaviour this cycle came from the dispatch prompt naming the
+requirement, not from either the `agent-workflow.md` or `.claude/agents/doc-updater.md` edit —
+`27bb0c78`'s own commit message says so explicitly, correcting its predecessor's implied claim to
+the contrary. This also sharpens WHY the Sweep-On-Rule-Promotion obligation in `agent-learner.md`
+exists and why it must run AT promotion, not after: a promoted rule cannot even suppress its own
+pattern within the promoting session, let alone in pre-existing call sites, until a restart.
+
+**Proposed addendum (not applied — outside this agent's edit scope):** extend
+`agent-memory.md § How native subagent memory works` to state that `.claude/rules/*.md` (and by the
+same CLAUDE.md-aggregation mechanism, `CLAUDE.md` itself) are ALSO session-start snapshots for a
+dispatched agent, not just the agent-def `memory:` frontmatter — and that validating a promotion's
+effect requires either a fresh session or an explicit dispatch-prompt restatement to be ruled out as
+the actual cause of any observed improvement.
