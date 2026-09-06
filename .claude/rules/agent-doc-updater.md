@@ -27,11 +27,12 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - When a report claims a file "cites", "mentions" or "references" specific content, paste the EXACT
   substring rather than paraphrasing it. This makes the NEVER-list rule below — never cite a
   migration, SHA, column or path without reading it — checkable by the orchestrator without
-  re-reading the file, instead of resting on trust. THREE of learner row 663's instances are
-  doc-updater reports that mis-cited a file: two cited footer text the commit never changed, and the
-  third read the right footers but gave their line numbers wrong. In the second the dispatch prompt
-  had already named the first. Re-derive the row's total from the tracker
-  rather than quoting a figure here — every learner pass moves it.
+  re-reading the file, instead of resting on trust. Several of learner row 663's instances are
+  doc-updater reports that mis-cited a file, in two shapes — ILLUSTRATIONS, not a census: citing
+  footer text the commit never changed, and reading the right footers but giving their line numbers
+  wrong. In at least one the dispatch prompt had already named the prior instance, which is why the
+  remedy is the artifact check and not the reminder. Re-derive the current set and total from the
+  tracker rather than quoting a figure here — every learner pass moves it.
 
 ### NEVER
 - Let the agent make architecture decisions — it documents decisions, it doesn't make them.

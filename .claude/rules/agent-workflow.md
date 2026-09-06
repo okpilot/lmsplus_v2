@@ -346,7 +346,9 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        `git diff`, `git log -1 -- <path>`, read the file, or re-run the check. **Scope: claims you
        are about to ACT ON or RELAY to the user — not every sentence of every report.** A report's
        conclusion is often right while its stated evidence is invented, so checking the verdict is
-       not checking the claim. Learner row 663 (count 7 as of 2026-09-06; re-derive, it moves): two doc-updater
+       not checking the claim. Learner row 663 — derive its current count from the tracker table in
+       `.claude/agent-memory/learner/MEMORY.md`, never from a figure quoted here; the instances below
+       are ILLUSTRATIONS, not a census: two doc-updater
        reports cited footer text their commit never changed; a learner report claimed an archive
        entry updated while its count field stayed behind; a subagent called 13 failing tests
        "pre-existing, confirmed unrelated" without running the confirmation; and on `20a14793`

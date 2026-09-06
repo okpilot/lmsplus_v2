@@ -982,3 +982,36 @@ same CLAUDE.md-aggregation mechanism, `CLAUDE.md` itself) are ALSO session-start
 dispatched agent, not just the agent-def `memory:` frontmatter — and that validating a promotion's
 effect requires either a fresh session or an explicit dispatch-prompt restatement to be ruled out as
 the actual cause of any observed improvement.
+
+### Row 663 instances 8-10 detail (2026-09-06, chore/promote-agent-selfreport-rule, post-rebase)
+
+Full instance breakdown lives in `tracker-archive.md` row 663. Summary of the two lessons pulled
+out of that arc:
+
+- **CORROBORATION of `agent-workflow.md § Finding Validation`:** 3 successive doc-updater dispatch
+  prompts each named the PRIOR misattribution(s) in escalating detail — the 3rd quoted the exact
+  paths and grep counts from the 2nd and demanded the agent name only files it had actually opened.
+  It recurred anyway (instance 10). The reminder caught 0 of 3; the orchestrator's own post-hoc
+  artifact check (grep the cited file for the cited string) caught 3 of 3. The lesson is not "warn
+  the agent harder" — it is "check the agent's OUTPUT against source before trusting it," which is
+  exactly what `§ Finding Validation` already prescribes for reviewer findings. This is the same
+  prescription applied to doc-updater's OWN reports, not just to critics reviewing other agents.
+- **PROPOSED remedy (not applied — orchestrator to decide):** all 3 misattributions confuse the
+  SAME two similarly-named files, `.claude/agents/doc-updater.md` and
+  `.claude/rules/agent-doc-updater.md`, while every VERDICT stayed correct — this is not general
+  doc-updater unreliability (a HAIKU-tier agent), it is a narrow cross-file-citation failure mode.
+  Two shapes of fix, either or both: (a) restructure the dispatch/task so doc-updater is never asked
+  to cite content across BOTH of two near-identically-named files in the same pass — split the
+  citation-check into two single-file passes; (b) route any multi-file citation-verification subtask
+  specifically off Haiku onto a Sonnet-tier check, since the verdicts (which don't require holding
+  two filenames at once) were fine on Haiku throughout.
+- **CORRECTED cost claim:** an initial framing of this run as "3 full post-commit cycles on the same
+  2 lines of prose" over-counts. Of the 4 commits touching the `rules/agent-doc-updater.md` clause in
+  question (`d2b1950c`, `90bc52c6`, `e69c45b3`, `c95d1cb1`), only `90bc52c6` and `e69c45b3` triggered
+  a FULL cycle — both touch a `.claude/rules/*.md` file, which bars both the docs-only and
+  review-follow-up reduced paths. `d2b1950c` (docs/decisions.md only) and `c95d1cb1`
+  (`.claude/agent-memory/**` only) correctly qualified for the docs-only exemption per
+  `CLAUDE.md § Post-commit review`. So: 2 full cycles + 2 reduced cycles, not 3 full cycles — still
+  real overhead spent iterating the same clause, and still evidence for the drafted-but-unadopted 3rd
+  exemption path (see the `e0e3d520`/`d315b076`/`9c907cca` positive note above), but the "3 full
+  cycles" framing itself would have been an unverified claim if shipped as stated.
