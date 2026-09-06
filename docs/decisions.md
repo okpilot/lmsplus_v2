@@ -1366,8 +1366,10 @@ renames to M; they are the same number, and the rename is part of the fix.) On P
 nothing about the code: across two rounds and four agents there were ZERO code defects, and every
 finding was inaccurate prose.
 
-**Decision.** Adopt the mechanic CR-local has always used (`agent-coderabbit-local.md § Stop
-Conditions`, chosen 2026-06-23): an APPLY finding **extends the loop by one round** instead of
+**Decision.** Adopt the mechanic CR-local settled on (`agent-coderabbit-local.md § Stop
+Conditions`). CR-local is precedent rather than a counter-example: it shipped the same resetting
+counter on 2026-06-18 (`ddf5f647`) and replaced it with extend-by-one on 2026-06-23 (`765914d7`),
+for the same reason. This decision applies a fix already proven in this repo: an APPLY finding **extends the loop by one round** instead of
 resetting a counter. Stop on the first round at or after the minimum M with no APPLY-worthy
 findings. Both gates now share one mechanic, and "consecutive-clean floor" is renamed
 "minimum-rounds-met + last-round-clean" everywhere it is stated.

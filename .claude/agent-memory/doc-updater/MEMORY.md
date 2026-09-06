@@ -92,3 +92,11 @@ When a commit clarifies async behavior of agents or redefines "cycle complete" (
 3. Verify the learner's input sources are documented (four core agents + CR-local on fixup commits).
 4. Check `.spec-workflow/steering/tech.md` — if it claims "4 post-commit agents run sequentially" or similar, flag as DRIFT; if it says "4 post-commit agents" without claiming synchronicity, no update needed.
 5. No decision entry needed — this is infrastructure clarification, not a new decision.
+
+### Decision section with renamed concept + deprecation mirrors (e.g. Decision 61)
+When a decision documents a renamed concept that is also mirrored in rule files / agent definitions:
+1. Verify all mirrors were updated in the same commit: grep the commit diff for the old term (e.g. "consecutive-clean") across `.claude/rules/*.md`, `.claude/agents/*.md`, `.claude/commands/*.md`.
+2. For historical/explanatory residue: the old term survives ONLY in passages explaining the history, never as a current rule statement. Verify each survivor is in a section marked "Why this is not" or "Until [date]" or similar.
+3. Cross-check: verify the new term (e.g. "minimum-rounds") appears in all the places the old term was removed.
+4. Validate the factual claims in Decision X by reading the referenced source files (not paraphrasing).
+5. Footnote: commit messages claiming "N instances survive" should be spot-checked — count them post-commit to verify. Minor discrepancies (N vs N+1) in commit prose don't affect doc accuracy if all instances are indeed in historical contexts.

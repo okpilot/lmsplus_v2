@@ -6,6 +6,11 @@
 
 ## Positive-pattern log
 
+### pipeline-async-and-review-gates commit 3 (Decision 61 + #1254 EVIDENCE) (2026-09-06)
+
+APPROVED. 15 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 2 suggestions (non-blocking).
+Verified: (a) `agent-coderabbit-local.md` uses extend-by-one mechanic (line 84, confirmed by grep). (b) Decision 61 arithmetic correct: under reset-to-zero with N=3 and 4-ceiling, a finding on round 1 leaves rounds 2-4 — exactly 3 — and any second finding makes 3 consecutive clean rounds impossible; the unreachability claim holds. (c) `plan-critic.md` still has "Do NOT execute code or make file changes" — no execution requirement added. (d) All "consecutive-clean floor" survivors are historical references; no surviving current-claim use outside agent-memory. (e) `implementation-critic.md` DO NOT #4 allows targeted execution while forbidding only the full test suite — no conflict with EVIDENCE requirement. (f) Decision 61 footer is a single `*Last updated:` line; prior chain intact; all four listed mirrors (`agent-critic.md`, `agent-workflow.md`, `.claude/agents/plan-critic.md`, `.claude/commands/crlocal.md`) were actually updated. (g) `learner.md § Inputs` says "ONLY" for CR-local counting; `agent-learner.md § DO` describes the mechanism. Both CLAUDE.md citations correct. Suggestions: Decision 61 Problem section uses N=3 (old notation) while footer uses M=3 (new notation) — add clarification that N was the old variable; the expanded NEVER-list parenthetical in agent-workflow.md makes "that is one collision" referent ambiguous.
+
 ### pipeline-async-and-review-gates fixup (2026-09-06)
 
 CLEAN. 7 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.

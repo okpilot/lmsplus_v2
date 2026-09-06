@@ -37,9 +37,11 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   unbroken clean rounds, so ANY later finding — or any coverage round, which consumes the ceiling
   without advancing the counter — makes the floor unreachable and forces an escalation that says
   nothing about the code. That is what happened on PR #1248 (#1255), where across two rounds and
-  four agents there were ZERO code defects and every finding was inaccurate prose. CR-local has
-  always used extend-by-one (`agent-coderabbit-local.md § Stop Conditions`) and never had the
-  defect; the two gates now share one mechanic. The mechanical security-path derivation is
+  four agents there were ZERO code defects and every finding was inaccurate prose. CR-local is
+  PRECEDENT, not a counter-example: it shipped the SAME resetting counter on 2026-06-18
+  (`ddf5f647`: "Any round carrying an APPLY verdict resets the consecutive-clean counter to zero")
+  and replaced it with extend-by-one five days later (`765914d7`, 2026-06-23). We are applying a fix
+  that already proved itself here, not inventing one. The two gates now share one mechanic. The mechanical security-path derivation is
   UNCHANGED — this fixes the arithmetic, not the trigger, and deliberately does NOT add a
   comment-only-diff exception (`agent-workflow.md` forbids deriving the floor from judgement).
 - **Wording-refinement findings are bounded to ONE round — but a FALSE claim is not a wording
