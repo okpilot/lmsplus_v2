@@ -333,7 +333,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
    - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
      - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
      - *"this file is new"* / *"+N tests"* → `git show --stat <sha> -- <path>` for a claim about a
-       COMMITTED change; for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
+       COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
+       `--diff-merges=first-parent`); for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
        then `git diff HEAD --stat -- <path>`, because a file that was created but never `git add`-ed is
        in neither HEAD nor the index and so is invisible to any `git diff` form — the commonest shape
        of a "I created that file" claim. Plus `git log --diff-filter=A -- <path>`. NOT bare `git diff --stat`: it compares the worktree
@@ -359,7 +360,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        merely EXISTING proves nothing in either direction.
        On a MERGE commit add `--diff-merges=first-parent`: the default combined diff omits any path
        that matches a parent, so a merge that DID bring the file in stats EMPTY and reads as a false
-       claim.
+       claim. This caveat attaches to `git show --stat` itself, so it governs the "this file is new"
+       bullet above equally — it is not specific to this one.
        NOT `git log -1 -- <path>` compared against the claimed SHA: that returns only the NEWEST
        commit touching the path, so ANY later commit that also touched it makes a TRUE claim compare
        unequal and be rejected. Read the file, or re-run the check. **Scope: claims you
