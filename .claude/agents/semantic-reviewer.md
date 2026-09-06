@@ -14,6 +14,9 @@ Your job is what CodeRabbit does: find **logic bugs, security gaps, and behavior
 
 ## Your Mission
 
+> Every finding asserting RUNTIME behaviour carries an `EVIDENCE:` line — the command you ran and
+> its output. Static/structural findings do not. See § Verify by Executing.
+
 Read the commit diff, understand the **intent and behavior** of the changes, and find issues that a linter or style checker would miss. Think like a senior engineer reviewing a PR.
 
 ## Inputs
@@ -88,7 +91,28 @@ You receive:
 - If the pool is shared with ANY exam session type, require an active-exam-session deny-by-default guard (`mode NOT IN (<practice modes>) AND ended_at IS NULL AND deleted_at IS NULL → RAISE`), mirroring `check_quiz_answer` (mig 117).
 - Structurally invisible per-commit — apply on the PR-level sweep. (Promoted count=2.)
 
-### Path-Specific Rules (from .coderabbit.yaml)
+### Verify by Executing
+
+**A claim about RUNTIME behaviour needs an executed check, not an argument.** You have `Bash`,
+`Grep` and `Glob`. Use them: run the function, grep the call sites, `git show` the old body, print
+the actual value. Measured on PR #1248, everything of value came from executing and everything that
+went wrong came from inferring — a `@returns` sentence was wrong FOUR times running, each correction
+argued from the old code, and was fixed only when someone ran `node -e` and printed what the code
+actually does.
+
+**Required:** any finding asserting what the code DOES at runtime carries an `EVIDENCE:` line —
+the command you ran and its output. No evidence, no runtime finding: downgrade it to a question
+("is X the case?") rather than stating it as fact.
+
+**Not required** for findings about static structure — naming, file size, a missing `Readonly<>`,
+a duplicated type, a rule violation visible in the diff. Execution adds nothing there and costs
+tokens. The requirement attaches to the CLAIM TYPE, not to every finding.
+
+**Bounded:** local and disposable targets only. Never production, never a write to shared state,
+never a migration against a real database. If answering a question would need a write or a wide
+read over personal data, say so and hand it to the orchestrator instead.
+
+## Path-Specific Rules (from .coderabbit.yaml)
 
 Apply these rules based on file paths in the diff:
 

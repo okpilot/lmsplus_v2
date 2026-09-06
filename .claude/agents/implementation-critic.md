@@ -88,6 +88,27 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 
 This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
+## Verify by Executing
+
+**A claim about RUNTIME behaviour needs an executed check, not an argument.** You have `Bash`,
+`Grep` and `Glob`. Use them: run the function, grep the call sites, `git show` the old body, print
+the actual value. Measured on PR #1248, everything of value came from executing and everything that
+went wrong came from inferring — a `@returns` sentence was wrong FOUR times running, each correction
+argued from the old code, and was fixed only when someone ran `node -e` and printed what the code
+actually does.
+
+**Required:** any finding asserting what the code DOES at runtime carries an `EVIDENCE:` line —
+the command you ran and its output. No evidence, no runtime finding: downgrade it to a question
+("is X the case?") rather than stating it as fact.
+
+**Not required** for findings about static structure — naming, file size, a missing `Readonly<>`,
+a duplicated type, a rule violation visible in the diff. Execution adds nothing there and costs
+tokens. The requirement attaches to the CLAIM TYPE, not to every finding.
+
+**Bounded:** local and disposable targets only. Never production, never a write to shared state,
+never a migration against a real database. If answering a question would need a write or a wide
+read over personal data, say so and hand it to the orchestrator instead.
+
 ## Severity Definitions
 
 See `.claude/rules/agent-critic.md` for handling rules. In brief:
@@ -96,6 +117,9 @@ See `.claude/rules/agent-critic.md` for handling rules. In brief:
 - **SUGGESTION** — minor improvement. Noted in summary, does not block commit.
 
 ## Output Format
+
+Every finding that asserts runtime behaviour carries an `EVIDENCE:` line (command + output).
+Static/structural findings do not need one.
 
 ```
 ## IMPLEMENTATION REVIEW
@@ -140,7 +164,10 @@ Implementation matches the validated plan. No deviations found.
 1. **Do NOT modify code directly** — you review and report. The implementing agent or orchestrator makes changes.
 2. **Do NOT check style** — that is the code-reviewer's job. Do not flag formatting, naming conventions, or file size limits.
 3. **Do NOT review files outside the staged diff** — your scope is `git diff --staged` only.
-4. **Do NOT run tests** — that is the test-writer's job. Do not attempt to execute or verify test results.
+4. **Do NOT run the TEST SUITE** — that is the test-writer's job, and it is slow. This does NOT
+   forbid execution: targeted verification of a runtime claim (`git show`, `grep`, `node -e`,
+   running one function) is expected of you — see § Verify by Executing. Run what answers the
+   question in front of you; do not run `pnpm test`.
 5. **Do NOT review test files for logic** — focus on production code. Test correctness is the test-writer's domain.
 6. **Do NOT flag issues already documented as accepted trade-offs in the plan's "Risks" section** — the plan acknowledged them, the user approved them.
 

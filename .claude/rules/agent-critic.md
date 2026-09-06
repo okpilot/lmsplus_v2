@@ -16,15 +16,32 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 
 - **Coverage vs stability rounds.** A *coverage round* runs critics with distinct lenses in parallel
   (breadth). A *stability round* re-runs the SAME configuration against the SAME unchanged artifact
-  (depth). **Only stability rounds count toward the clean-floor.**
-- **Consecutive-clean floor.** On a normal diff the gate does not engage at all — **a single
-  post-commit pass** stands, no floor. **N = 3** consecutive clean stability rounds when the diff
+  (depth). **Only stability rounds count toward the minimum M.**
+- **Minimum-rounds-met + last-round-clean floor** (aligned with CR-local's rule, 2026-09-06 —
+  see § "Why this is not a consecutive-clean counter"). On a normal diff the gate does not engage at
+  all — **a single post-commit pass** stands, no floor. **M = 3** stability rounds minimum, then stop
+  on the first round at or after M with no APPLY-worthy findings, when the diff
   touches a security path (the canonical set in `agent-workflow.md § Red-Team Agent Trigger`),
   determined from `git diff origin/master...HEAD --name-only` plus staged changes. Fetch and verify
   the base first; an unresolvable base must ABORT, never read as "no paths matched".
 - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply).
-- **Reset on finding; not on skip.** An APPLY finding resets the counter to 0. A validated
-  skip-with-reason does NOT — otherwise validate-first discipline is structurally penalized.
+- **Extend on finding; not on skip.** An APPLY finding does NOT reset anything — it **extends the
+  loop by one round**: fix it, then run one more round to confirm the fix surfaced nothing new.
+  Rounds count cumulatively toward M. You simply cannot stop *on* a round that still carries an
+  APPLY verdict, and cannot stop *before* round M. A validated skip-with-reason neither extends nor
+  blocks — otherwise validate-first discipline is structurally penalized.
+
+  **Why this is not a consecutive-clean counter.** Until 2026-09-06 an APPLY finding reset a
+  consecutive-clean counter to 0, and the ceiling below capped the run at 4 rounds. Those two are
+  arithmetically incompatible: a finding on round 1 leaves exactly rounds 2-4 to produce three
+  unbroken clean rounds, so ANY later finding — or any coverage round, which consumes the ceiling
+  without advancing the counter — makes the floor unreachable and forces an escalation that says
+  nothing about the code. That is what happened on PR #1248 (#1255), where across two rounds and
+  four agents there were ZERO code defects and every finding was inaccurate prose. CR-local has
+  always used extend-by-one (`agent-coderabbit-local.md § Stop Conditions`) and never had the
+  defect; the two gates now share one mechanic. The mechanical security-path derivation is
+  UNCHANGED — this fixes the arithmetic, not the trigger, and deliberately does NOT add a
+  comment-only-diff exception (`agent-workflow.md` forbids deriving the floor from judgement).
 - **Wording-refinement findings are bounded to ONE round — but a FALSE claim is not a wording
   finding.** Split the class before applying the bound:
   - **Refinement** — the prose is true but could be clearer. Bounded: if a round returns a
@@ -33,7 +50,7 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   - **False claim** — the prose asserts something the code does not do. **Never bounded**, whatever
     round it lands on. A comment-accuracy FIX is the highest-risk site for a NEW false claim, so
     round N+1 on rewritten prose is exactly where the real ones surface.
-  - **Bounded-out findings do not reset the clean counter**, whatever severity the critic labelled
+  - **Bounded-out findings do not extend the loop**, whatever severity the critic labelled
     them. They are NOT skips-with-reason (that term is for findings wrong on the merits) — but they
     carry the same evidentiary burden: record the finding and the one-line basis on which the prose
     is TRUE. Without this, wording nits at ISSUE severity hold the floor open to the ceiling.
@@ -43,9 +60,12 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   The refinement/false-claim CLASSIFICATION governs both critics too; the multi-round discipline
   built on it does not.
 - **Ceiling.** Cap at **4 total rounds**. If the floor is unmet at the ceiling, STOP and **escalate
-  to the user** with the residual findings — do not loop.
+  to the user** with the residual findings — do not loop. **Floor/ceiling interaction:** under
+  extend-by-one, M = 3 and a 4-round cap coexist — three rounds satisfy M and the fourth absorbs one
+  finding-bearing round. Under the pre-2026-09-06 reset mechanic they did not; see the previous
+  bullet before proposing a change to either number.
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (`git diff --staged`) MUTATES on
-  every fix, so "consecutive clean on the same artifact" is undefined, and it has no skip condition.
+  every fix, so "clean rounds on the same artifact" is undefined, and it has no skip condition.
   It keeps its **2-round revision maximum + orchestrator takeover**.
 - **Learner counting.** A finding recurring across rounds of the SAME gate on the SAME artifact is
   ONE occurrence — deduplicate within-run recurrences before reporting.
@@ -65,7 +85,12 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   - **Cap coverage rounds at 2 lenses**, not 3 — three overlap heavily and re-derive each other.
   - **Prefer "execute / grep / diff and report the output" over "analyse and assess".** This is what
     makes cheap subagents safe: executable verification is both cheaper and more reliable than
-    inference. See `agent-workflow.md § Delegation Protocol`.
+    inference. See `agent-workflow.md § Delegation Protocol`. As of 2026-09-06 (#1254) this is no
+    longer only a dispatch-prompt habit the orchestrator must remember: `semantic-reviewer.md`,
+    `code-reviewer.md` and `implementation-critic.md` each carry a § Verify by Executing and require
+    an `EVIDENCE:` line on any runtime claim, so the requirement survives a prompt that forgets to
+    ask. plan-critic stays read-only by design — it reviews prose, and its asks stay at
+    grep / `git show` / `git diff`.
   - **The backstop** is already required: the orchestrator validates every finding before acting
     (`agent-workflow.md § Finding Validation`), and it is the Opus.
   - Sonnet is the floor for review work; Haiku stays for mechanical checks (doc-updater).
@@ -75,7 +100,7 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 ### DO
 - Run plan-critic on every multi-file plan, after validation and before user approval.
 - Fix all ISSUE and CRITICAL findings before proceeding to execution (plan-critic) or commit (implementation-critic).
-- Run plan-critic **ONCE** per plan — no coverage rounds, no consecutive-clean floor, no ceiling. Fix its APPLY-worthy findings and proceed. If a finding is severe enough that the plan must be redrafted, the redraft is a NEW plan and gets its own single run. (2026-08-24: supersedes the consecutive-clean floor, which now governs the post-commit reviewers only. A plan is prose, and rounds on prose do not converge — § Model tier.)
+- Run plan-critic **ONCE** per plan — no coverage rounds, no minimum-rounds floor, no ceiling. Fix its APPLY-worthy findings and proceed. If a finding is severe enough that the plan must be redrafted, the redraft is a NEW plan and gets its own single run. (2026-08-24: supersedes the floor, which now governs the post-commit reviewers only. A plan is prose, and rounds on prose do not converge — § Model tier.)
 - Respect the 2-round revision cap for implementation-critic. After 2 rounds between critic and implementer without convergence, the orchestrator takes over.
 - Treat SUGGESTION findings as non-blocking — note them in the summary but do not gate on them.
 - Validate critic findings before acting on them, same as with semantic-reviewer (see Finding Validation in `agent-workflow.md`).
@@ -87,8 +112,8 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 ### NEVER
 - Skip implementation-critic, even for small changes. Plan-critic may be skipped for single-file changes under 10 lines, but implementation-critic always runs.
 - Re-run plan-critic on the same plan to chase a clean round — it runs ONCE. For implementation-critic, exceed **2 revision rounds** (then the orchestrator takes over). Infinite loops waste time and context.
-- Count a coverage round (diverse lenses) toward a post-commit reviewer's consecutive-clean floor — only same-configuration stability rounds count.
-- Apply the consecutive-clean floor to implementation-critic — it is exempt (moving artifact + no skip condition).
+- Count a coverage round (diverse lenses) toward a post-commit reviewer's minimum-rounds floor — only same-configuration stability rounds count.
+- Apply the minimum-rounds floor to implementation-critic — it is exempt (moving artifact + no skip condition).
 - Let critics modify code or plans directly. Critics report findings; the orchestrator or implementing agent makes changes.
 - Replace post-commit agents with pre-commit critics. Critics are additive — they reduce but do not eliminate the need for post-commit review.
 - Dismiss a critic finding because "the post-commit agents will catch it." Fix it now; post-commit agents are the safety net, not the primary gate.

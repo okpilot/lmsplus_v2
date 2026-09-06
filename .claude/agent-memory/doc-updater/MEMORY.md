@@ -73,6 +73,18 @@ comparing "byte-for-byte" — false, the actual code folds line endings — surv
 it was re-typed verbatim in a reflowed paragraph while impl-critic had the file open but verified a
 different claim.
 
+### CI gate addition / mechanical guard wiring (infrastructure change)
+When a commit adds a new CI gate (e.g., agent-tools.test.mjs frontmatter invariant), it triggers the
+`lefthook.yml` / `ci.yml` change rule. Audit CLAUDE.md § QA-pipeline for ambiguity about "Unit tests":
+the phrase "Unit tests deliberately excluded — full suite runs in CI" meant the full VITEST suite is
+excluded from pre-commit hooks but runs in CI. NOW that the CI lint job runs 8 hook/agent unit tests
+(check-soft-delete-guard.test.mjs + 7 others), the phrase is ambiguous — readers may infer NO unit tests
+run in pre-commit (true) and by implication only the vitest suite runs in CI (false, 8 more run there).
+**Fix: clarify that CI runs unit tests for mechanical guards and agent-access-control validation,
+separate from the full Vitest suite.** Add the phrase like "along with unit tests for mechanical guards
+and agent-access-control invariants" to the pre-commit description. Decisions: no entry needed —
+infrastructure, not project architecture. Instance: 2026-09-06 (commit `29cd8d0f`, #1256).
+
 ### Async/notification-based pipeline clarification (agent behavior / infrastructure change)
 When a commit clarifies async behavior of agents or redefines "cycle complete" (e.g. dispatch returns immediately, notifying later; agents run in BACKGROUND, not synchronously), audit `docs/plan.md` pipeline diagram and `CLAUDE.md` post-commit section for accuracy.
 1. Verify the diagram clearly states ASYNC dispatch and notification, not sequential running order.

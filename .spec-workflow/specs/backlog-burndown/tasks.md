@@ -229,8 +229,20 @@ Ordering and contents in the artifact above. Not started.
       the #883 sweep also missed and `docs/security.md` recorded as complete. db-deploy run 33554217558
       is HELD `waiting` on the user's Production approval — neither migration is applied to prod until
       then. Filed #1258 (8 SECURITY INVOKER RPCs, the same class this PR could not reach) and #1256
-      · 3c (#990)
+      · ~~3c (#990)~~ **DONE** (PR #1259, merged `12e79f5d` 2026-09-06 — item-level denominator on
+      all three session-list fraction surfaces; CR cleared its own stale CHANGES_REQUESTED with a
+      fresh APPROVED, no dismiss needed)
       · PR 4 (#1197) · PR 5 (#539)
+
+- [ ] Pipeline integrity (out-of-wave, filed after the wave plan was written) — branch
+      `chore/pipeline-async-and-review-gates`, closes #1256 + #1254 + #1255. Rules/agent-definition
+      only; no product code, no migration, no security path. Post-commit agents run ASYNCHRONOUSLY
+      and nothing ENFORCED report-only, so an agent write could silently clobber an orchestrator
+      edit; `tools:` frontmatter now enforces it (test-writer is the only writer). Also: CR-local
+      findings become learner input, reviewer definitions require an `EVIDENCE:` line on runtime
+      claims, and the consecutive-clean floor becomes CR-local's extend-by-one (Decision 61).
+      ⚠️ The `tools:` enforcement is INERT until a session restart — agent definitions snapshot at
+      session start. CONFIRM next session; a tracker that stops updating is the only signal.
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
       · PR 11 (#1181+#1184)
 - [ ] W4 quiz actions/queries — PR 12 (#1210+#1206) · PR 13 (#1122+#1187) · PR 14 (#1028) · PR 15 (#1213)

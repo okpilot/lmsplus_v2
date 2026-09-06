@@ -6,6 +6,11 @@
 
 ## Positive-pattern log
 
+### pipeline-async-and-review-gates fixup (2026-09-06)
+
+CLEAN. 7 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) CLAUDE.md `/crlocal` paragraph factually correct — second review-follow-up condition fails on its face; reduced path skips learner confirmed by existing CLAUDE.md text; `agent-learner.md § DO` reference resolves to a section that does contain the CR-local counting rule. (b) `agent-tools.test.mjs` non-vacuous: a new agent missing `tools:` fails the per-file check (exit 1); a new agent with Write/Edit fails the global invariant. 11/11 passed. (c) ci.yml YAML valid; all 8 root-level `.test.mjs`/`.test.sh` under `.claude` are wired. (d) doc-updater changes are internally consistent (purpose line + DO + NEVER all say "reports", none says "applies"). (e) agent-memory.md correctly hedges an unverified platform claim. No self-contradictions found in the diff.
+
 ### batch3-governance CR-round-1 fixup — rules-text accuracy (2026-08-08)
 
 CLEAN. 2 files, 0 critical, 0 issues, 1 suggestion (non-blocking). Both CR-local APPLY edits verified:

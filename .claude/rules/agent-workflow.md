@@ -105,7 +105,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**One run, not rounds (2026-08-24).** plan-critic runs **ONCE**. Fix its APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply) and proceed; an ISSUE or CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because § NEVER forbids executing with either still open. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run. The **Multi-Round Review Discipline** (`agent-critic.md`) — coverage rounds, the consecutive-clean floor, the 4-round ceiling — governs the post-commit **semantic-reviewer** / **code-reviewer** only, and no longer plan-critic: a plan is prose, an LLM returns non-empty on almost any prose, and the findings that mattered came from critics reading CODE. See `agent-critic.md § Model tier`.
+**One run, not rounds (2026-08-24).** plan-critic runs **ONCE**. Fix its APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply) and proceed; an ISSUE or CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because § NEVER forbids executing with either still open. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run. The **Multi-Round Review Discipline** (`agent-critic.md`) — coverage rounds, the minimum-rounds floor, the 4-round ceiling — governs the post-commit **semantic-reviewer** / **code-reviewer** only, and no longer plan-critic: a plan is prose, an LLM returns non-empty on almost any prose, and the findings that mattered came from critics reading CODE. See `agent-critic.md § Model tier`.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -569,7 +569,7 @@ surface** — not the fewest PRs overall. Superseded 2026-08-24 (user directive)
   The gate is per-PR, not per-file: migrations that deploy together may share one PR — what must not
   ride along is the NON-migration work, which would otherwise be held behind a prod-deploy approval.
 - **A security path** (the `§ Red-Team Agent Trigger` set). It raises the post-commit reviewer floor
-  to N=3 and the CR-local floor to M=3, and it makes the red-team run mandatory; do not make
+  to M=3 and the CR-local floor to M=3 — both now the same minimum-rounds mechanic, and it makes the red-team run mandatory; do not make
   unrelated work pay those rounds.
 - **A change that supersedes an issue's stated acceptance criteria.** That needs its own argument in
   its own PR body, where a reviewer can find it.
@@ -739,9 +739,12 @@ same commit — not just the file.
 - Start fixing after only one agent reports — wait for all 4. They run ASYNCHRONOUSLY, so "I
   launched four" is not "four reported"; wait for four completion notifications.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight. Only test-writer can write repo files now,
-  and only test files (every agent still writes its OWN memory dir, which nothing else touches) — but that is one collision, silent and gateless, per § "Every agent dispatch
-  is ASYNCHRONOUS".
+- Edit a file while an agent that can write it is in flight. Only test-writer can write repo files
+  now, and only test files — but that is one collision, silent and gateless, per § "Every agent
+  dispatch is ASYNCHRONOUS". Agent memory dirs are a separate case and NOT a collision: each agent
+  writes only its own, no other RUNNING AGENT writes it concurrently, and the orchestrator commits
+  those deltas by design. (That memory grant is per the subagent docs and unconfirmed here until a
+  restart — see `agent-memory.md`.)
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.

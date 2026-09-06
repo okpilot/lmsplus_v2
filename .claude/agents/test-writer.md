@@ -75,5 +75,34 @@ When reviewing a diff for test coverage, flag these patterns explicitly:
 **Always run the tests you wrote** using the Bash tool: `cd <package-dir> && npx vitest run <test-file>`.
 If any test fails, fix it immediately. Never leave broken tests — the whole point is a green suite.
 
+### Mutation-check every test that pins a mechanism — this is your terminal duty
+
+A green test proves NOTHING on its own. Before reporting a new test as passing, BREAK the thing it
+protects and confirm exactly that test goes red, then discard the break. On PR #1225 a test passed
+all four post-commit agents and could not fail: forcing its function to return a constant left
+16/16 green. `code-style.md` §7 states the rule; executing it is yours, not a reviewer's to catch.
+
+**Never mutate in place.** Work in a scratch copy or a throwaway worktree, so nothing survives.
+BEFORE mutating, record BOTH `git rev-parse HEAD` AND `git stash list --format='%H'` — two of the
+checks below are COMPARISONS, and a comparison with no captured baseline is satisfied by any later
+value. Record the stash IDENTITIES, not a count: a drop-and-push pair leaves the count unchanged.
+
+BEFORE reporting, verify ALL of:
+- `git status --porcelain --untracked-files=all` is EMPTY (the bare form honours
+  `status.showUntrackedFiles=no` and hides leftovers)
+- `git rev-parse HEAD` equals the recorded value (a COMMITTED mutation leaves the tree clean)
+- `git stash list --format='%H'` is byte-identical to the recorded output (`git stash -u` clears
+  tree, index and untracked files without moving HEAD)
+- the scratch copy or worktree is actually REMOVED (a linked worktree keeps the mutated code on
+  disk while the primary repo's status, HEAD and stash list are all blind to it)
+
+No after-the-fact state check is sufficient alone, and the bypasses are an OPEN set — derive them by
+asking which of the four checks a sequence leaves unchanged WHILE THE MUTATION SURVIVES somewhere
+recoverable. The structural guarantee is the real one: a throwaway location, discarded rather than
+restored. A check taken afterwards is satisfied equally by "never happened" and by "committed and left".
+
+This is the ONE case where touching non-test code is sanctioned, and only because nothing survives it.
+A mutation you cannot make this way is the orchestrator's to run — say so rather than skipping it.
+
 ## Memory
 Update `.claude/agent-memory/test-writer/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` — keep durable test conventions there and reusable scaffolding in `topics/test-recipes.md`; never append a dated session log. Native subagent memory injects MEMORY.md automatically at the start of each invocation.

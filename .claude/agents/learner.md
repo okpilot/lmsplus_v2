@@ -26,7 +26,7 @@ You receive:
   cycle — this one — so CR-local findings DO reach you, unlike the two below. Count them. CR-local
   is the highest-signal reviewer we run; if it is missing from your input on a fixup cycle, say so
   rather than counting the four core agents and calling the cycle counted.
-- NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md:262`), so their findings
+- NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md § Red-Team Agent Trigger`), so their findings
   are never available in the cycle that invokes you. They reach you on the branch's NEXT full cycle.
 - The commit diff (`git diff HEAD~1..HEAD`)
 - Current rules: `.claude/rules/code-style.md`, `.claude/rules/security.md`
