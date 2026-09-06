@@ -1033,3 +1033,175 @@ second time: the agent reviewing `bb82cb7b` itself was reasoning from a copy of 
 that predated `bb82cb7b`'s own fix — cross-tracked as tracker-archive.md row 656 instance 2
 (WATCHING→RULE CANDIDATE), not double-counted here since it is a distinct mechanism (stale
 session-start snapshot, not a wrong-file citation).
+
+## Live-table row-detail relocation (2026-09-06, f0eef243/12bc77f5 cycle — MEMORY.md byte-cap compaction)
+
+MEMORY.md approached its 25KB read-injection cap; the rows below were shortened to one-line pointers
+in the live table. Full text preserved here verbatim (no data loss — see `agent-memory.md`'s
+"never delete a tracker row" rule; this is compaction, not deletion).
+
+**Row 28/604 (Fix commit correcting §10 violations introduces fresh §10), pre-compaction text:**
+RULE CANDIDATE (28) → text exists (§10 cl.3); enforcement gap. 6th branch
+(chore/promote-agent-selfreport-rule) STAYS at 28 (same-branch convention) — 2 more post-rebase
+sub-instances (`d2b1950c` caught pre-commit, `e69c45b3`→`c95d1cb1` shipped+fixed); then a 3rd arc,
+now 6 sub-instances in the mutation-check-rule chain (`74b87e4c`→`d20bd348`→`c5736063`→`bb82cb7b`→
+`f0eef243`→`12bc77f5`; `7fa05bde` exempted — net-new gaps found via adversarial review, not a
+sibling-miss) — same mechanism (a sweep verifies only the exact defect just fixed, not the general
+property) firing while fixing the rule THIS branch exists to promote. 7 consecutive commits vs the
+stop-rule's cap of 3 — the chain ended only when `12bc77f5` fixed the STRUCTURE (closed enumeration
+→ open-set derivation) rather than patching another instance; see the new closed-enumeration row
+(below) for that specific shape and a proposed stop-rule refinement.
+
+**Row 663 (Subagent asserts a verification/write it did not perform), pre-compaction text:**
+PROMOTED → agent-workflow.md § Finding Validation (`b177a3d2`, row 663). RECONCILED 6→7 at the
+`12e79f5d` rebase (2026-09-06, detail in topic file); earlier RECONCILED 7→6 (2026-09-02, a
+withdrawn false attribution, detail in topic file). Instances 8-10 (2026-09-06, SAME branch
+post-rebase, `90bc52c6`/`e69c45b3`/`c95d1cb1` cycles): 3 more doc-updater post-commit REPORTS —
+verdicts correct, evidence invented — each cited the wrong one of two similarly-named files
+(`agents/doc-updater.md` vs `rules/agent-doc-updater.md`). Count 7→10. 3 successive dispatch
+prompts, escalating detail, caught 0 of 3; orchestrator's own artifact re-check caught 3 of 3. Full
+instance-by-instance detail (8/9/10, span >=4 agent types) in topic file. Instance 11 (`bb82cb7b`
+cycle, SAME branch, DIFFERENT agent — test-writer, and a NEW shape): a dispatched test-writer
+asserted "the mutation-check rule never reaches me absent a literal paste", generalising a 0-match
+grep on `.claude/agents/test-writer.md` (the agent-DEFINITION file) to
+`.claude/rules/agent-test-writer.md` (the rules file, which it never checked and which does carry
+mutation-check text (multiple `git`-command references) and IS injected verbatim). Row 663's shape
+pointed at the agent's OWN CONTEXT rather than at a code fact. Count 10→11. **Checked for a 12th
+instance in the f0eef243/12bc77f5 cycle: NONE found.** Both cycles' load-bearing findings were the
+opposite of this row's pattern — the f0eef243 CRITICAL (git-stash-push+drop bypass) was reproduced
+in a throwaway repo and confirmed by impl-critic before being reported, and the 12bc77f5 cycle's
+test-writer 4th-bypass discovery (`git update-index --skip-worktree`) was likewise reproduced with a
+control. Count stays 11.
+
+**Row 64 (Coherent-but-false claim survives active same-paragraph edits), pre-compaction text:**
+PROMOTED → code-style.md §10 clause 3 addendum + new clause 5 (`18757ddf`) — `aef79fcb` introduced
+the claim past impl-critic (which checked the wrong adjacent function); `e0e3d520` fixed 2 sibling
+false claims in the same paragraph, leaving this one as an untouched CONTEXT line; `9c907cca`
+re-typed it verbatim while citing clause 3 by name. Promoted off ONE finding spanning 3 commits, not
+the usual 2-cycle bar — noting the deviation for the record, not reversing the promotion.
+
+**Row 65 (check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor within the same file),
+pre-compaction text:** WATCHING — `18757ddf` inserted 2 byte-identical clauses into
+`.coderabbit.yaml` in the same commit; `agent-workflow.md § Rule-Mirror Sync` leans on this script
+but it has no mechanical check for same-file duplicate anchors. First occurrence; log and watch.
+
+**Row (Implementation-critic outright omitted pre-commit, no stated exemption), pre-compaction
+text:** WATCHING — `c95d1cb1` (chore/promote-agent-selfreport-rule) committed without
+implementation-critic despite it having no skip condition; orchestrator self-reported the miss and
+ran it post-hoc, clean. A bare omission with no rationalization, unlike row 632's false-justification
+shape. First occurrence; log and watch, do not fold into row 632.
+
+**Row (Agent's own auto-injected rules-file copy is stale mid-session), pre-compaction text:** RULE
+CANDIDATE (2) → agent-workflow.md § Delegation Protocol: "when dispatching any subagent to review a
+diff touching a file the subagent's own definition/rules/memory embeds, tell it to re-read from
+disk, never its injected copy." Instance 1: chore/pr-split-practice (2026-08-24),
+implementation-critic/`agent-critic.md`, false CRITICAL, self-corrected. Instance 2:
+chore/promote-agent-selfreport-rule (`bb82cb7b` cycle, 2026-09-06), test-writer/
+`agent-test-writer.md`, reviewed pre-fix text of the bullet under review. Consequence: a rule
+promoted MID-SESSION is INERT for that session's own agents — no "the agent behaved better after the
+fix" observation from a promoting session is evidence for the file edit; needs a restart or an
+explicit dispatch-prompt restatement. Moved from tracker-archive.md row 656 (historical copy left
+there).
+
+**Durable-knowledge bullets relocated verbatim:**
+- POSITIVE (2026-09-02): `e0e3d520`, `d315b076`, `9c907cca` each ran 0/0/0/0 or fully clean across
+  all four agents (the latter confirming a rules-prose-only diff is pure review overhead — 3rd
+  exemption path drafted in topic file, MUST carry an explicit learner-pass carve-out since
+  rules-prose false-claim/mirror-sync findings are this tracker's dominant category).
+- SWEEP PROPOSED, not run (per agent-learner.md § Sweep-On-Rule-Promotion, off `18757ddf`'s §10
+  clause-3/5 promotion): other CLAUDE.md / `.claude/rules/*.md` prose narrating a THIRD-PARTY tool's
+  internal mechanism may carry the same un-re-derived-claim risk `byte-for-byte` did. Scope: grep
+  both for verb phrases describing external-tool internals (`compares`, `regenerates`, `computes`,
+  `detects`, `validates`) not sourced from a same-session code read, and re-derive each hit.
+  Orchestrator to scope/run.
+- POSITIVE (`bb82cb7b` cycle, 2026-09-06): branch's first fully clean full cycle (0/0/0/0/2 GOOD)
+  after 4 same-bullet fix commits, driven by EXECUTION not inference — semantic-reviewer reproduced
+  the vacuous-pass and worktree-blindness scenarios in throwaway repos; code-reviewer re-derived the
+  comparison-count and stash-figure claims independently; doc-updater re-ran the mirror sweep on
+  current wording rather than trusting a prior sweep's conclusion. Reconfirms
+  `agent-workflow.md § Delegation Protocol`'s "prefer executable verification over analysis" —
+  already binding, no new rule needed. Same-branch convergence signal only (not yet cross-branch,
+  per row 604/28's own bar).
+
+## f0eef243 / 12bc77f5 cycle — closed-enumeration-of-an-open-set pattern (2026-09-06)
+
+`f0eef243` (fix: switch the mutation-check stash baseline from a count to identities) closed
+review clean on code-reviewer/doc-updater/test-writer, but semantic-reviewer raised **1 CRITICAL**:
+a `git stash push` of an in-place mutation followed by `git stash drop` of that SAME new stash
+defeats all four mutation-check guards at once — `git status` EMPTY, HEAD unchanged, the stash list
+byte-identical (the transient entry is created and destroyed inside the window), and no scratch
+location was ever made — while the mutated tree survives as a dangling commit recoverable via
+`git fsck --unreachable` + `git cat-file`. Reproduced by execution before being reported.
+
+`12bc77f5` fixed it — and its OWN commit message names the deeper defect: the bullet's closing
+"Two holes remain OPEN" was a CLOSED enumeration of what is, on the evidence of this branch alone,
+a structurally OPEN set. Per the commit message this was **"the THIRD false enumeration this one
+bullet has shipped"** — `7fa05bde` first named "two holes" (already hedged as "OPEN" in prose, but
+with no derivation test, so subsequent commits treated it as exhaustive); `bb82cb7b`/`f0eef243`'s
+revision of the stash check nearly became a third hole (avoided by fixing pre-emptively, per
+`f0eef243`'s own message: "Left as a count, drop-and-push would have been a third hole falsifying
+that enumeration; closed, the enumeration stands"); then the git-stash-push+drop bypass semantic-
+reviewer found on `f0eef243` WAS the falsifying third instance. `12bc77f5` converted the bullet to a
+derivation per `code-style.md` §10 clause 2 ("Never enumerate an OPEN set — state how to derive
+it"): the three known bypasses (gitignored/out-of-repo path, linked worktree, stash push+drop) are
+now labelled ILLUSTRATIONS, not a census, and the bullet gives a membership test instead — "of any
+sequence, ask which of the four checks it leaves unchanged; one leaving all four unchanged WHILE THE
+MUTATION SURVIVES recoverable is another member." Both halves are load-bearing: a sequence that
+genuinely reverts also leaves all four checks unchanged and is NOT a bypass — impl-critic caught
+that the first draft of the derivation test stated only the first half, over-classifying a
+legitimate revert as a bypass; fixed pre-commit.
+
+**Why this is distinct from row 604/28 (the general "fix introduces fresh §10 violation"
+mechanism):** row 604/28 tracks the mechanism at the level of "a sweep verifies only the exact
+defect just fixed, not the general property" — true here too, and this cycle's 2 commits are logged
+as 2 more sub-instances of that arc (STAYS at 28). But the SHAPE that let the defect regenerate
+three times specifically, rather than being caught on the first or second attempt, is narrower: a
+bullet stated a fixed-cardinality "N holes" for a set that can always gain a member by construction
+(any git state-mutating command sequence is a candidate). `code-style.md` §10 clause 2 already
+states the general rule ("Never enumerate an OPEN set — state how to derive it... Name members only
+as explicit ILLUSTRATIONS or with an as-of date"); this is therefore an ENFORCEMENT-depth gap, not a
+missing-text gap — the same framing already used for row 604/28 itself. New tracker row opened
+(see live table) at count 3 (7fa05bde's original framing, the near-miss at f0eef243, and the
+git-stash-push+drop instance that forced the fix) — all on ONE bullet, ONE branch, so this is a
+same-bullet recurrence rather than a cross-branch one; flagged as RULE CANDIDATE on the strength of
+that count, but the recommended action is NOT new rule text (§10 clause 2 already covers it) —
+propose citing this precedent inline under clause 2 itself, the way clauses 3 and 5 already cite
+`generate-agent-files.js` / `aef79fcb`-`9c907cca` as worked examples. That gives reviewers (and
+future rules-file authors) a concrete "this is what an open set masquerading as closed looks like"
+example, rather than only the abstract principle.
+
+**Validation event (positive signal):** immediately after `12bc77f5`, the post-commit test-writer
+applied the new derivation's membership test to a candidate of its own choosing and found a
+**FOURTH** bypass: `git update-index --skip-worktree` after an in-place mutation leaves status
+empty, HEAD unchanged, and the stash list unchanged, with the mutated content plainly on disk (the
+index simply stops reporting it as modified). It also ran a CONTROL — mutate, then `git checkout --`
+to genuinely revert — showing all three first-half checks (status/HEAD/stash) read IDENTICALLY to
+the bypass case, which is what makes the derivation's second clause ("the mutation survives
+somewhere recoverable") load-bearing rather than decorative: without it, a genuine revert would be
+misclassified as a bypass. Under the old closed wording, this discovery would have forced an 8th
+commit on this bullet; under the derivation it falsified nothing — the 4th bypass is just another
+member of a set already declared open — and was logged as residue instead of triggering a new fix
+commit. This is the concrete evidence that converting an enumeration to a derivation can
+STRUCTURALLY end a fix-chain, not merely defer it to the next discovery.
+
+**Chain-cap deviation:** seven consecutive commits applied the previous one's findings to this
+single bullet (`74b87e4c`, `d20bd348`, `c5736063`, `7fa05bde`, `bb82cb7b`, `f0eef243`, `12bc77f5`)
+against the `CLAUDE.md § Post-commit review` stop-rule's cap of 3 consecutive commits. Each was
+individually justified as fixing a FALSE claim in prose, which the stop rule explicitly never bounds
+out — but that justification was available on every one of the seven, which is exactly why a bare
+cap-of-3 with a false-claim carve-out cannot terminate a chain generated by a structural defect: the
+carve-out re-applies to the (N+1)th instance for the same reason it applied to the Nth. The chain
+only ended when the FIX changed from "add an Nth instance to the enumeration" to "stop enumerating."
+PROPOSED (not applied — orchestrator to decide) refinement to the stop rule: when a chain of fixes
+to the SAME bullet/paragraph is about to exceed the cap, and each fix has taken the form "name one
+more exception/hole/bypass," treat that repetition itself as a signal to check the bullet against
+`code-style.md` §10 clause 2 (open-set enumeration) BEFORE authoring the next instance-level fix —
+if the set the bullet enumerates is open by construction, the correct Nth commit is a STRUCTURAL
+rewrite (derivation + membership test), not another named exception, and that structural rewrite is
+allowed to land even past the cap because it is categorically different from "one more instance
+patch." This is a single-branch, single-bullet data point (count=1 for the refinement itself,
+distinct from the count=3 closed-enumeration pattern above and the count=28 general row) — logged
+per `agent-learner.md`'s DO-NOT-on-a-single-occurrence rule as a proposal to watch for recurrence,
+not a promotion. If a second bullet on a different branch shows the same "cap-exceeded because the
+fix needed to be structural, not instance-level" shape, this refinement clears the 2-occurrence bar
+for the stop-rule text itself.
