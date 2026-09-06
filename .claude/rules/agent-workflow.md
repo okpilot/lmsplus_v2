@@ -340,10 +340,13 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        in neither HEAD nor the index and so is invisible to any `git diff` form — the commonest shape
        of a "I created that file" claim. For the NEW half specifically, bind the check to the CLAIMED
        commit: `git show --diff-filter=A --format=%H <sha> -- <path>` is non-empty only if THAT commit
-       added the path. `git log --diff-filter=A -- <path>` alone finds the addition ANYWHERE in
-       history, so it cannot BY ITSELF refute "commit X created it": one returned SHA differing from
-       the claimed one IS a refutation, but several (a path deleted and re-added) need each read to
-       see which event the claim is about. A *"+N tests"* claim is NOT answered by any `--stat` form
+       added the path. `git log --diff-filter=A --format=%H -- <path>` alone finds the addition
+       ANYWHERE in history — take `--format=%H` because the bare form prints a whole commit block
+       (hash, Author, Date, message) rather than bare SHAs, and `%H` additionally pins the FULL hash,
+       which `%h` and a `log.abbrevCommit=true` config do not. It cannot BY
+       ITSELF refute "commit X created it": one returned SHA differing from the claimed one IS a
+       refutation, but several (a path deleted and re-added — this very file has two) need each read
+       to see which event the claim is about. A *"+N tests"* claim is NOT answered by any `--stat` form
        above — `--stat` counts LINES, not tests —
        read the PATCH, picking the form for the state the claim is in: COMMITTED
        `git show <sha> -- <path>`, plus
