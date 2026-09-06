@@ -332,7 +332,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
 1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
    - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
      - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
-     - *"this file is new"* / *"+N tests"* → `git show --stat <sha> -- <path>` for a claim about a
+     - *"this file is new"* (and *"+N tests"*, which needs a DIFFERENT command — see below) →
+       `git show --stat <sha> -- <path>` for a claim about a
        COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
        `--diff-merges=first-parent`); for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
        then `git diff HEAD --stat -- <path>`, because a file that was created but never `git add`-ed is
@@ -342,7 +343,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        added the path. `git log --diff-filter=A -- <path>` alone finds the addition ANYWHERE in
        history, so it cannot BY ITSELF refute "commit X created it": one returned SHA differing from
        the claimed one IS a refutation, but several (a path deleted and re-added) need each read to
-       see which event the claim is about. For the "+N tests" half, `--stat` counts LINES, not tests —
+       see which event the claim is about. A *"+N tests"* claim is NOT answered by any `--stat` form
+       above — `--stat` counts LINES, not tests —
        read the PATCH, picking the form for the state the claim is in: COMMITTED
        `git show <sha> -- <path>`, plus
        `--diff-merges=first-parent` when `<sha>` is a merge, since a patch read is subject to the
