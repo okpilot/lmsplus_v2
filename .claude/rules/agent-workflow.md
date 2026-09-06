@@ -333,8 +333,10 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
    - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
      - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
      - *"this file is new"* / *"+N tests"* → `git show --stat <sha> -- <path>` for a claim about a
-       COMMITTED change (or `git diff HEAD --stat -- <path>` for uncommitted work), plus
-       `git log --diff-filter=A -- <path>`. NOT bare `git diff --stat`: it compares the worktree
+       COMMITTED change; for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
+       then `git diff HEAD --stat -- <path>`, because a file that was created but never `git add`-ed is
+       in neither HEAD nor the index and so is invisible to any `git diff` form — the commonest shape
+       of a "I created that file" claim. Plus `git log --diff-filter=A -- <path>`. NOT bare `git diff --stat`: it compares the worktree
        against the index, so it reports nothing for anything already staged or committed — which is
        most claims a reviewer makes. A claimed-new file with "+18 tests" was a MODIFIED file whose
        real delta was 8.
@@ -347,7 +349,9 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        repo-wide restatement was not, and it is now permanent in the history.
      - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
      - *"I ran / verified / updated / wrote X"* — an agent reporting its OWN ACTION, not a fact
-       about the code → inspect the ARTIFACT that action would have left: `git status --porcelain`,
+       about the code → inspect the ARTIFACT that action would have left:
+       `git status --porcelain --untracked-files=all` (the bare form honours `status.showUntrackedFiles`,
+       so a repo setting it to `no` hides every untracked leftover — `code-style.md` §10 clause 4),
        `git diff HEAD -- <path>` (NOT bare `git diff` — that shows only UNSTAGED changes, so an agent
        that staged its write reads as having written nothing), `git log -1 -- <path>` for a write
        already committed — and COMPARE that SHA against the commit the claim is about, because on a
