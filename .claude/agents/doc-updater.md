@@ -45,9 +45,10 @@ agent-facing form of the citation rule in `.claude/rules/agent-doc-updater.md`'s
 (never cite a migration, SHA, column or path without reading it). That file is also injected into
 your context, but it is written in orchestrator-handling voice — "trust the agent", "let the agent"
 — ABOUT you rather than TO you; this section states the same requirement as an instruction you can
-act on directly. Three known instances, two of them recorded in the learner tracker (row 663): two
-reports rested a correct verdict on footer text the commit never changed, and a third gave correct
-findings against line numbers that pointed elsewhere.
+act on directly. Three known instances, ALL recorded in the learner tracker (row 663): two reports
+rested a correct verdict on footer text the commit never changed, and a third gave correct findings
+against line numbers that pointed elsewhere. Re-derive the row's count rather than quoting one from
+here — it is a live open set.
 
 ## Key files to keep current
 - `docs/plan.md` — phase status, what's built, what's next
