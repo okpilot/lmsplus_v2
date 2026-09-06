@@ -1332,7 +1332,10 @@ URL-visible sort contract the issue never asked about. Consequence, recorded rat
 BOTH admin lists — not the student-detail one alone.
 
 STUDENT-DETAIL: the header's implied denominator (`total_questions`) and the cell's actual denominator
-(`answeredItems`) now differ for any partially-completed session. The header also still SORTS by
+(`answeredItems`) are now different quantities, and diverge once a session is partially completed or
+carries multi-item questions. They are not guaranteed to differ — the two scales can coincide by
+arithmetic accident (four questions, two of them 2-blank and answered, gives `answeredItems` = 4 =
+`total_questions`), which makes the mismatch harder to notice, not less real. The header also still SORTS by
 `total_questions`, so clicking it orders rows by a number the column no longer displays — measured
 2026-09-06, `?sort=questions&dir=desc` returned `total_questions` 10, 4, 3 against visible denominators
 3, —, 5.
