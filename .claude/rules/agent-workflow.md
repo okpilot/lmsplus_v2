@@ -350,7 +350,9 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        about the code → inspect the ARTIFACT that action would have left: `git status --porcelain`,
        `git diff HEAD -- <path>` (NOT bare `git diff` — that shows only UNSTAGED changes, so an agent
        that staged its write reads as having written nothing), `git log -1 -- <path>` for a write
-       already committed, read the file, or re-run the check. **Scope: claims you
+       already committed — and COMPARE that SHA against the commit the claim is about, because on a
+       file with prior history an untouched file returns an old commit, the same signature as a real
+       write; presence alone proves nothing. Read the file, or re-run the check. **Scope: claims you
        are about to ACT ON or RELAY to the user — not every sentence of every report.** A report's
        conclusion is often right while its stated evidence is invented, so checking the verdict is
        not checking the claim. Learner row 663 — derive its current count from the tracker table in
