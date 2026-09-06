@@ -353,10 +353,16 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        `git status --porcelain --untracked-files=all` (the bare form honours `status.showUntrackedFiles`,
        so a repo setting it to `no` hides every untracked leftover — `code-style.md` §10 clause 4),
        `git diff HEAD -- <path>` (NOT bare `git diff` — that shows only UNSTAGED changes, so an agent
-       that staged its write reads as having written nothing), `git log -1 -- <path>` for a write
-       already committed — and COMPARE that SHA against the commit the claim is about, because on a
-       file with prior history an untouched file returns an old commit, the same signature as a real
-       write; presence alone proves nothing. Read the file, or re-run the check. **Scope: claims you
+       that staged its write reads as having written nothing), and for a write already committed
+       `git show --stat <claimed sha> -- <path>` — an EMPTY stat means THAT commit did not touch the
+       path, whatever other history the file carries, and a NON-EMPTY one proves it did; the file
+       merely EXISTING proves nothing in either direction.
+       On a MERGE commit add `--diff-merges=first-parent`: the default combined diff omits any path
+       that matches a parent, so a merge that DID bring the file in stats EMPTY and reads as a false
+       claim.
+       NOT `git log -1 -- <path>` compared against the claimed SHA: that returns only the NEWEST
+       commit touching the path, so ANY later commit that also touched it makes a TRUE claim compare
+       unequal and be rejected. Read the file, or re-run the check. **Scope: claims you
        are about to ACT ON or RELAY to the user — not every sentence of every report.** A report's
        conclusion is often right while its stated evidence is invented, so checking the verdict is
        not checking the claim. Learner row 663 — derive its current count from the tracker table in
@@ -365,8 +371,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        reports cited footer text their commit never changed; a learner report claimed an archive
        entry updated while its count field stayed behind; a subagent called 13 failing tests
        "pre-existing, confirmed unrelated" without running the confirmation; and on `20a14793`
-       code-reviewer reported updating its own memory tracker when `git log -1 --` showed the last
-       touch was `ab737599` and the tree carried no delta. Naming the prior failure in the dispatch
+       code-reviewer reported updating its own memory tracker when the file's last touch was
+       `ab737599` and the tree carried no delta. Naming the prior failure in the dispatch
        prompt did NOT prevent recurrence (once for doc-updater, once for the learner) — the remedy
        is the artifact check, not a reminder. Where the claimed action is a VERIFICATION of a code
        fact this overlaps the bullet above: re-derive the fact there, inspect the artifact here.
