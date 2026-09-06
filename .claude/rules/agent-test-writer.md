@@ -20,8 +20,8 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
   sanctioned, and only because nothing survives it. **RECORD BOTH `git rev-parse HEAD` AND
   `git stash list --format='%H'` BEFORE you mutate** — two of the four checks below are COMPARISONS,
   and a comparison with no recorded baseline is not a check at all. Recording only HEAD leaves the
-  stash check unenforceable in exactly the way it exists to prevent: "no longer than before" with no
-  captured before is satisfied by ANY stash count, and this repo's stash list is routinely non-empty
+  stash check unenforceable in exactly the way it exists to prevent: a comparison with no captured
+  before is satisfied by ANY later value, and this repo's stash list is routinely non-empty
   (15 entries on 2026-09-06 — derive the current value with `git stash list`), so it cannot be
   eyeballed either. Record the IDENTITIES, not a count: a drop-and-push pair leaves the count
   unchanged, so `wc -l` reports clean while a pre-existing stash has been destroyed and the mutation
@@ -39,12 +39,20 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
   clears tree, index AND untracked files without moving HEAD, so it defeats both of those at once
   while the mutation stays recoverable (this repo has a documented history of abandoned stashes —
   `agent-memory.md`, #1115).
-  Two holes remain OPEN and no state check closes them: a mutation written to a GITIGNORED or
-  out-of-repo path that the test still imports is invisible to `--untracked-files=all` (which does not
-  imply `--ignored`), and a mutation committed inside a linked worktree never touches the primary
-  repo's HEAD or status. This is why the structural guarantee — a throwaway location, discarded rather
-  than restored — is the real one: a check taken afterwards is satisfied equally by "never happened"
-  and by "committed and left". A green test proves
+  The bypasses are an OPEN set that no after-the-fact state check closes. The three below are
+  ILLUSTRATIONS, not a census — do not read them as complete, and do not "fix" this paragraph by
+  appending a fourth: a mutation written to a GITIGNORED or out-of-repo path that the test still
+  imports is invisible to `--untracked-files=all` (which does not imply `--ignored`); a mutation
+  committed inside a linked worktree never touches the primary repo's HEAD or status; and a
+  `git stash push` of an in-place mutation followed by `git stash drop` of that SAME new stash leaves
+  status EMPTY, HEAD unchanged and the stash list byte-identical, while the mutated tree survives as a
+  dangling commit recoverable with `git fsck --unreachable`. DERIVE the rest rather than trusting this
+  list: of any sequence, ask which of the four checks it leaves unchanged — one that leaves all four
+  unchanged WHILE THE MUTATION SURVIVES somewhere recoverable is another member. Both halves are
+  required: a sequence that genuinely reverts leaves all four unchanged too, and is not a bypass.
+  This is why the structural guarantee — a throwaway location, discarded rather than restored — is
+  the real one: a check taken afterwards is satisfied equally by "never happened" and by "committed
+  and left". A green test proves
   nothing on its own — `code-style.md` §7 ("A Test Must Fail If Its Mechanism Is Removed") states the
   rule; this bullet makes it the test-writer's terminal duty rather than a reviewer's catch. On PR
   #1225 a branch-authored disjointness test passed all four post-commit agents and could not fail:
@@ -52,7 +60,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
-- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — record HEAD AND the stash IDENTITIES (`git stash list --format='%H'`, not a count — a drop-and-push pair preserves the count) first, then before reporting require `git status --porcelain --untracked-files=all` EMPTY, `git rev-parse HEAD` equal to the recorded value, `git stash list --format='%H'` byte-identical to the recorded output, and the scratch location removed. See the DO bullet for what each closes and for the two holes no state check closes. A mutation the agent cannot make that way is the orchestrator's to run.
+- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — record HEAD AND the stash IDENTITIES (`git stash list --format='%H'`, not a count — a drop-and-push pair preserves the count) first, then before reporting require `git status --porcelain --untracked-files=all` EMPTY, `git rev-parse HEAD` equal to the recorded value, `git stash list --format='%H'` byte-identical to the recorded output, and the scratch location removed. See the DO bullet for what each closes and for the OPEN set of bypasses no state check closes. A mutation the agent cannot make that way is the orchestrator's to run.
 - Skip running the tests the agent wrote. Always verify they pass.
 - Commit failing tests. If tests fail, fix them (or the production code) first.
 - Write tests for the same files the agent is covering — avoid duplicate work.
