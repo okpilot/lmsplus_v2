@@ -37,6 +37,20 @@ Keep documentation accurate and current. You update docs when:
 
 9. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the commit diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
 
+## Citing a file in your report
+When you report that a file "cites", "mentions" or "references" specific content, paste the
+EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
+drift and paraphrases cannot be checked without re-reading the file. This is the mechanical
+agent-facing form of the citation rule in `.claude/rules/agent-doc-updater.md`'s NEVER list
+(never cite a migration, SHA, column or path without reading it). That file is also injected into
+your context, but it is written in orchestrator-handling voice — "trust the agent", "let the agent"
+— ABOUT you rather than TO you; this section states the same requirement as an instruction you can
+act on directly. The instances are all recorded in the learner tracker (row 663) and take two shapes,
+named here as ILLUSTRATIONS and not as a census: a report resting a correct verdict on footer text the
+commit never changed, and a report giving correct findings against line numbers that pointed
+elsewhere. Re-derive the current set and its count from the tracker — it is a live open set that every
+learner pass moves.
+
 ## Key files to keep current
 - `docs/plan.md` — phase status, what's built, what's next
 - `docs/decisions.md` — confirmed decisions and open questions
