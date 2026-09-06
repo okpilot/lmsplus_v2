@@ -1006,8 +1006,10 @@ out of that arc:
   specifically off Haiku onto a Sonnet-tier check, since the verdicts (which don't require holding
   two filenames at once) were fine on Haiku throughout.
 - **CORRECTED cost claim:** an initial framing of this run as "3 full post-commit cycles on the same
-  2 lines of prose" over-counts. Of the 4 commits touching the `rules/agent-doc-updater.md` clause in
-  question (`d2b1950c`, `90bc52c6`, `e69c45b3`, `c95d1cb1`), only `90bc52c6` and `e69c45b3` triggered
+  2 lines of prose" over-counts. Of the 4 consecutive commits in this arc of the branch
+  (`d2b1950c`, `90bc52c6`, `e69c45b3`, `c95d1cb1`) — note only three of them touch the citation clause
+  at all; `d2b1950c` is an unrelated `docs/decisions.md` correction that merely landed between them —
+  only `90bc52c6` and `e69c45b3` triggered
   a FULL cycle — both touch a `.claude/rules/*.md` file, which bars both the docs-only and
   review-follow-up reduced paths. `d2b1950c` (docs/decisions.md only) and `c95d1cb1`
   (`.claude/agent-memory/**` only) correctly qualified for the docs-only exemption per

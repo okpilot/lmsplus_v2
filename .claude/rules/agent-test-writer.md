@@ -17,7 +17,9 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - **Mutation-check any test that pins a mechanism.** Before reporting a new test as passing, break
   the thing it protects and confirm exactly that test goes red, then restore. Do this in a scratch
   copy or a throwaway worktree, not in place — it is the one case where touching production code is
-  sanctioned, and only because nothing survives it: verify `git diff` is clean before reporting. A green test proves
+  sanctioned, and only because nothing survives it: verify `git status --porcelain` is EMPTY before
+  reporting — not bare `git diff`, which shows only UNSTAGED changes and so reads clean over a
+  mutation the agent happened to stage. A green test proves
   nothing on its own — `code-style.md` §7 ("A Test Must Fail If Its Mechanism Is Removed") states the
   rule; this bullet makes it the test-writer's terminal duty rather than a reviewer's catch. On PR
   #1225 a branch-authored disjointness test passed all four post-commit agents and could not fail:
@@ -25,7 +27,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
-- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — `git diff` must be clean before the agent reports. A mutation the agent cannot make that way is the orchestrator's to run.
+- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — `git status --porcelain` must be EMPTY before the agent reports. A mutation the agent cannot make that way is the orchestrator's to run.
 - Skip running the tests the agent wrote. Always verify they pass.
 - Commit failing tests. If tests fail, fix them (or the production code) first.
 - Write tests for the same files the agent is covering — avoid duplicate work.
