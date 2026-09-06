@@ -983,9 +983,10 @@ dispatched agent, not just the agent-def `memory:` frontmatter — and that vali
 effect requires either a fresh session or an explicit dispatch-prompt restatement to be ruled out as
 the actual cause of any observed improvement.
 
-### Row 663 instances 8-10 detail (2026-09-06, chore/promote-agent-selfreport-rule, post-rebase)
+### Row 663 instances 8-11 detail (2026-09-06, chore/promote-agent-selfreport-rule, post-rebase)
 
-Full instance breakdown lives in `tracker-archive.md` row 663. Summary of the two lessons pulled
+Full breakdown of instances 8-10 lives in `tracker-archive.md` row 663 (whose count column reads 10
+for that reason, and is not the current total); instance 11 is detailed below, not there. Summary of the two lessons pulled
 out of that arc:
 
 - **CORROBORATION of `agent-workflow.md § Finding Validation`:** 3 successive doc-updater dispatch
@@ -1017,3 +1018,18 @@ out of that arc:
   real overhead spent iterating the same clause, and still evidence for the drafted-but-unadopted 3rd
   exemption path (see the `e0e3d520`/`d315b076`/`9c907cca` positive note above), but the "3 full
   cycles" framing itself would have been an unverified claim if shipped as stated.
+
+**Instance 11 (`bb82cb7b` cycle, 2026-09-06, same branch, a NEW agent and a NEW shape — the row's
+pattern pointed at the agent's own CONTEXT rather than a code fact):** a dispatched test-writer,
+asked whether the mutation-check rule reaches it, reported "the rule never reaches me absent a
+literal paste" — grounding that on a 0-match grep of `.claude/agents/test-writer.md`, the
+agent-DEFINITION file. It never checked `.claude/rules/agent-test-writer.md`, the rules file that IS
+injected into a dispatched test-writer's context verbatim and in fact carries the mutation-check
+text (its DO bullet plus its NEVER-list restatement, each with several `git`-command references). Verdict false, evidence real but for the wrong file — same "cite the wrong one
+of two similarly-named files" confusion as instances 8-10, generalized from doc-updater to
+test-writer and from citing a FILE'S CONTENT to citing whether a rule REACHES the agent at all. The
+same re-check that disproved this claim also confirmed the mechanical discovery above empirically a
+second time: the agent reviewing `bb82cb7b` itself was reasoning from a copy of `agent-test-writer.md`
+that predated `bb82cb7b`'s own fix — cross-tracked as tracker-archive.md row 656 instance 2
+(WATCHING→RULE CANDIDATE), not double-counted here since it is a distinct mechanism (stale
+session-start snapshot, not a wrong-file citation).
