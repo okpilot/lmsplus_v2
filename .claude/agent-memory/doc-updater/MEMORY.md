@@ -72,3 +72,11 @@ source, not re-read. Instance (2026-09-02, `18757ddf`): `CLAUDE.md`'s claim abou
 comparing "byte-for-byte" — false, the actual code folds line endings — survived four passes because
 it was re-typed verbatim in a reflowed paragraph while impl-critic had the file open but verified a
 different claim.
+
+### Async/notification-based pipeline clarification (agent behavior / infrastructure change)
+When a commit clarifies async behavior of agents or redefines "cycle complete" (e.g. dispatch returns immediately, notifying later; agents run in BACKGROUND, not synchronously), audit `docs/plan.md` pipeline diagram and `CLAUDE.md` post-commit section for accuracy.
+1. Verify the diagram clearly states ASYNC dispatch and notification, not sequential running order.
+2. Verify all agents are listed correctly (including semantic-reviewer if it was omitted before).
+3. Verify the learner's input sources are documented (four core agents + CR-local on fixup commits).
+4. Check `.spec-workflow/steering/tech.md` — if it claims "4 post-commit agents run sequentially" or similar, flag as DRIFT; if it says "4 post-commit agents" without claiming synchronicity, no update needed.
+5. No decision entry needed — this is infrastructure clarification, not a new decision.

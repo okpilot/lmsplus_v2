@@ -739,8 +739,8 @@ same commit — not just the file.
 - Start fixing after only one agent reports — wait for all 4. They run ASYNCHRONOUSLY, so "I
   launched four" is not "four reported"; wait for four completion notifications.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight. Only test-writer can write at all now,
-  and only test files — but that is one collision, silent and gateless, per § "Every agent dispatch
+- Edit a file while an agent that can write it is in flight. Only test-writer can write repo files now,
+  and only test files (every agent still writes its OWN memory dir, which nothing else touches) — but that is one collision, silent and gateless, per § "Every agent dispatch
   is ASYNCHRONOUS".
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
 - Present "0 critical" as if that means clean — report every severity.

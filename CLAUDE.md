@@ -221,6 +221,12 @@ cycle runs semantic-reviewer only. ALL must hold:
 If any condition fails, run the full cycle. Neither the docs-only nor the review-follow-up path
 gets a learner pass.
 
+**A `/crlocal` fixup commit NEVER qualifies for the review-follow-up path.** Its hunks trace to
+CR-LOCAL findings, not to its own parent's post-commit cycle — the second condition fails on its
+face. This matters more than it looks: the reduced path skips the learner, and a CR-local fixup
+commit's cycle is the ONLY place a CR-local finding is ever counted (`agent-learner.md § DO`).
+Mislabel one and the relay is silently dead — no error, and the counts simply come up short.
+
 Docs-only and review-follow-up are the only exemptions, and neither is a "small commit" exemption —
 new scope gets the full cycle even at one line.
 

@@ -18,8 +18,11 @@ Setting `memory: project` in an agent's `.claude/agents/<name>.md` frontmatter b
 `tools:` list and only test-writer carries Write/Edit (see `agent-workflow.md § Every agent dispatch
 is ASYNCHRONOUS`). The eight `memory: project` agents still write their own trackers: the official
 subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
-regardless of the `tools:` allowlist. Do not "restore" Write to a read-only agent on the theory that
-its tracker is broken — verify the tracker first.
+regardless of the `tools:` allowlist. That is what the docs SAY; it has not yet been observed in this
+repo, because agent definitions snapshot at session start and the `tools:` keys landed mid-session.
+CONFIRM IT at the next restart — a tracker that stops updating is the first and only signal, since
+this fails silently. Do not "restore" Write to a read-only agent on the theory that its tracker is
+broken — verify the tracker first.
 
 Two consequences that shape every rule below:
 

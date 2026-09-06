@@ -16,7 +16,7 @@ Keeps project documentation in sync with code changes. Watches for schema change
   frontmatter): it runs asynchronously and in parallel with your own edits to those same docs, so a
   write from it would race you and the loser's paragraph would vanish silently. It reports
   `path:line` + exact replacement text; you apply it.
-- Review the agent's doc changes for accuracy — it sometimes hallucinate details about code it didn't read.
+- Review the agent's REPORTED doc edits for accuracy before applying them — it sometimes hallucinates details about code it didn't read, and you are the one committing the text.
 - When a stale claim is found anywhere in a long-form doc block (a bullet, a paragraph, a table
   row), read the WHOLE block before reporting — adjacent claims in the same block are frequently
   stale too, and the diff scope will not surface them. Promoted at learner count=2 (2026-08-20,
@@ -42,7 +42,7 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Let the agent make architecture decisions — it documents decisions, it doesn't make them.
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").
-- Let the agent do partial updates — if a change affects multiple docs, all must be updated in the same cycle.
+- Let the agent report partially — if a change affects multiple docs, it must report edits for ALL of them in the same cycle.
 - Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first (it may overwrite recent entries).
 - Let the agent pad docs with unnecessary detail — keep docs concise and scannable.
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
