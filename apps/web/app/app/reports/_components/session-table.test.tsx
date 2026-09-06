@@ -33,6 +33,10 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     subjectName: 'Navigation',
     totalQuestions: 10,
     correctCount: 8,
+    // Deliberately different from both correctCount and totalQuestions — a regression
+    // that renders correctCount/totalQuestions instead of correctCount/answeredItems
+    // must change the rendered fraction (code-style.md §7).
+    answeredItems: 9,
     scorePercentage: 80,
     startedAt: '2026-03-10T10:00:00Z',
     endedAt: '2026-03-10T10:15:00Z',
@@ -64,14 +68,25 @@ describe('SessionTable', () => {
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
   })
 
-  it('displays correct/total question counts', () => {
+  it('displays correct/answered-item counts, not correct/total-question counts', () => {
     render(
       <SessionTable
         {...SORT_PROPS}
-        sessions={[makeSession({ correctCount: 7, totalQuestions: 10 })]}
+        sessions={[makeSession({ correctCount: 7, totalQuestions: 10, answeredItems: 12 })]}
       />,
     )
-    expect(screen.getByText(/7 \/ 10/)).toBeInTheDocument()
+    expect(screen.getByText('7 / 12')).toBeInTheDocument()
+    expect(screen.queryByText(/7 \/ 10/)).not.toBeInTheDocument()
+  })
+
+  it('displays an em dash when nothing was answered', () => {
+    render(
+      <SessionTable
+        {...SORT_PROPS}
+        sessions={[makeSession({ correctCount: 0, answeredItems: 0 })]}
+      />,
+    )
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('displays duration in minutes when under one hour', () => {

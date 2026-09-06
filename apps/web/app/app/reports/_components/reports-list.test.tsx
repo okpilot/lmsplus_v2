@@ -51,6 +51,7 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     subjectName: 'Navigation',
     totalQuestions: 10,
     correctCount: 8,
+    answeredItems: 9,
     scorePercentage: 80,
     startedAt: '2026-03-10T10:00:00Z',
     endedAt: '2026-03-10T10:15:00Z',
@@ -120,14 +121,22 @@ describe('ReportsList', () => {
     expect(screen.getAllByText('Meteorology').length).toBeGreaterThan(0)
   })
 
-  it('shows correct/total question counts and duration', () => {
+  it('shows correct/answered-item counts and duration, not correct/total-question counts', () => {
     render(
       <ReportsList
-        sessions={[makeSession({ correctCount: 7, totalQuestions: 10, durationMinutes: 20 })]}
+        sessions={[
+          makeSession({
+            correctCount: 7,
+            totalQuestions: 10,
+            answeredItems: 12,
+            durationMinutes: 20,
+          }),
+        ]}
         {...DEFAULT_PROPS}
       />,
     )
-    expect(screen.getAllByText(/7 \/ 10/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/7 \/ 12/).length).toBeGreaterThan(0)
+    expect(screen.queryAllByText(/7 \/ 10/).length).toBe(0)
     expect(screen.getAllByText(/20m/).length).toBeGreaterThan(0)
   })
 

@@ -1,5 +1,6 @@
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
+import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { getReportContext } from '../_utils/report-context'
 import { DesktopStats, MobileStats } from './result-summary-stats'
 
@@ -44,8 +45,7 @@ function deriveStats(summary: QuizReportSummary): {
   dateStr: string
 } {
   return {
-    correctFraction:
-      summary.answeredItems === 0 ? '—' : `${summary.correctCount} / ${summary.answeredItems}`,
+    correctFraction: formatCorrectFraction(summary.correctCount, summary.answeredItems),
     // When answeredQuestions exceeds totalQuestions the inputs are incoherent (see the
     // note above). Render an em dash rather than clamping to 0: a 0 reads as
     // authoritative and is silently wrong in the direction that flatters the student,

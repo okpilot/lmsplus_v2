@@ -1,4 +1,7 @@
+import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
+import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 import {
   type OffsetChainBuilder,
   offsetAdminClient,
@@ -68,6 +71,14 @@ export async function listInternalExamAttempts(
     .range(from, to)
 
   const raw = await runOffsetRows<AttemptRowRaw>(dataBuilder, ctx)
-  const rows: InternalExamAttemptRow[] = raw.map(mapAttemptRow)
+  const { data: itemCounts, error: itemCountsError } = await fetchAnsweredItemCounts(
+    raw.map((r) => r.id),
+    adminClient as unknown as AnswerCountClient,
+  )
+  if (itemCountsError) {
+    console.error(`[${ctx.tag}] item count error:`, itemCountsError.message)
+    throw new Error(ctx.failMessage)
+  }
+  const rows: InternalExamAttemptRow[] = raw.map((r) => mapAttemptRow(r, itemCounts.get(r.id) ?? 0))
   return { rows, totalCount }
 }

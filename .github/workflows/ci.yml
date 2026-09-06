@@ -63,6 +63,20 @@ jobs:
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
+      # A test nothing runs certifies its mechanism unconditionally — the same
+      # defect as code-style.md §7 one level up. These three were maintained but
+      # unwired; all pass as of 2026-09-02. Enumerate with
+      #   find .claude .github -name '*.test.sh' -o -name '*.test.mjs'
+      # and check each against this file + lefthook.yml before adding another.
+      - name: CR-local plan reminder — unit test
+        run: bash .claude/hooks/cr-local-plan-reminder.test.sh
+
+      - name: Bash guard — unit test
+        run: node --test .claude/hooks/guard-bash.test.mjs
+
+      - name: Review gate — unit test
+        run: node --test .claude/hooks/review-gate.test.mjs
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

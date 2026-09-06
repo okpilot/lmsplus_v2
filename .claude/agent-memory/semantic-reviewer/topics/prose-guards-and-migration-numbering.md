@@ -268,3 +268,44 @@ site for the next false attribution — 13 of 22 instances in this row were crea
 accuracy fix. Re-read the WHOLE FILE (footers and headings included), not the corrected claim;
 `git grep` for the retired token is the cheap mechanical half, and a footer/heading is exactly what
 a claim-shaped grep misses because it paraphrases rather than repeats.
+
+### `18757ddf` (2026-09-02) — second clean accuracy-fix; origin of the "re-typed claim" sub-mechanism
+
+CLAUDE.md's claim that `generate-agent-files.js` "compares the installed block byte-for-byte" was
+FALSE (L84 is `normalizeEol(installed,'\n') === block` — line endings folded before compare) and
+survived THREE prior commits on the same paragraph: `aef79fcb` introduced it; `e0e3d520` fixed 2
+other claims in the paragraph with byte-for-byte sitting as an unchanged CONTEXT line (invisible to
+diff-scoped review); `9c907cca` fixed a 3rd claim and re-flowed the whole paragraph, turning
+byte-for-byte into a `+` line that read as already-reviewed text. `18757ddf` finally caught it and
+is the origin of code-style.md §10's new "a claim RE-TYPED unchanged inside a reflowed block is a
+NEW assertion" sentence (clause 3) and new clause 5 (re-derive every claim in an open block-source
+file can answer, not just the one under suspicion) — mirrored same-commit into `.coderabbit.yaml`
+(2 of the 3 partial-edit blocks; the 3rd, header-vs-body drift at L315, defensibly skipped as a
+different mechanism already carrying its own re-derive instruction) and `agent-doc-updater.md`.
+
+Every added assertion in `18757ddf` itself re-verified TRUE by execution (semantic-reviewer pass,
+no findings): `next` absent from PATH; `hasCurrentAgentRules` (L75-89) immediately precedes
+`writeAgentFiles` (L90-118), nothing between; `writeAgentFiles` L99-109 matches the stated
+AGENTS.md/CLAUDE.md precedence; fullpush.md L111-112 matches the quoted gate command verbatim; the
+commit-message's `aef79fcb`/`e0e3d520`/`9c907cca` line-range and commit-enumeration claims all
+checked out via `git show`/`git log`. Second clean instance after `88b5f0b7` — a fix commit CAN be
+clean when the sweep obligation is actually followed.
+
+### Enforcer mirror incompleteness — the exception/suppression clause is the miss (9ab38454)
+
+Pattern: a rule edit reaches its downstream ENFORCER incompletely — no entry, or an entry in only
+SOME of the blocks/clauses the rule governs. 4 instances through `b4156dc3` (#1175):
+`.coderabbit.yaml` left untouched; a path block missed; a DO-NOT-FLAG suppression missed; two
+skill/design mirrors left standing. 5th instance, `88b5f0b7` (#1238): §10 clause 4 corrected
+`git status --short` → `--untracked-files=all` after proving the bare form is blind to `??` under
+`status.showUntrackedFiles=no`; `fullpush.md` step 5b's gate still ran bare `git status --porcelain`
+(same suppression, verified) under a comment claiming it FAILS CLOSED on an "untracked mirror edit".
+The mirror here shares the FACT the fix established, not the rule TEXT — so a phrase-grep on the old
+wording never reaches it.
+
+**Lesson (RULE CANDIDATE → PROMOTE):** when a fix establishes a FACT about a tool's behaviour, sweep
+for other callers RELYING on that fact, not just other statements of the rule. Mirror into EVERY
+restatement an enforcer carries — path blocks AND a check's exception/DO-NOT-FLAG clauses, which sit
+far from the check text and fail OPEN; cloud CR cannot follow a pointer. A branch that has ALREADY
+edited a mirror file is the strongest predictor it was edited PARTIALLY — re-read those files
+end-to-end, don't diff-scope.

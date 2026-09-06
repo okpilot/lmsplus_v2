@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc, mockFetchAnsweredItemCounts } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
+  mockFetchAnsweredItemCounts: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -10,6 +11,14 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     rpc: mockRpc,
   }),
+}))
+
+// getSessionReports' own item-level fraction fix delegates to fetchAnsweredItemCounts —
+// mocked at the module boundary here so these tests exercise ONLY the RPC-mapping/pagination
+// orchestration in reports.ts. fetchAnsweredItemCounts' own paging/counting behavior (the
+// answered-item-counts.ts) already has its own coverage in answered-item-counts.test.ts.
+vi.mock('./answered-item-counts', () => ({
+  fetchAnsweredItemCounts: (...args: unknown[]) => mockFetchAnsweredItemCounts(...args),
 }))
 
 import { getSessionReports } from './reports'
@@ -36,6 +45,7 @@ describe('getSessionReports', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFetchAnsweredItemCounts.mockResolvedValue({ data: new Map(), error: null })
   })
 
   it('returns ok: false when not authenticated', async () => {
@@ -77,6 +87,61 @@ describe('getSessionReports', () => {
 
   it('returns ok: false when the RPC returns an error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
+  })
+
+  // ---- answeredItems (item-vs-question scale, #990 third surface) --------
+
+  it('derives answeredItems from the answer-item count, not total_questions', async () => {
+    // total_questions is 10 (from makeRpcRow); seed a distinct answered-item count so a
+    // regression that fell back to total_questions would change the observed value.
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ id: 'sess-1', total_questions: 10 })],
+      error: null,
+    })
+    mockFetchAnsweredItemCounts.mockResolvedValue({
+      data: new Map([['sess-1', 3]]),
+      error: null,
+    })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.answeredItems).toBe(3)
+    expect(result.sessions[0]!.answeredItems).not.toBe(result.sessions[0]!.totalQuestions)
+    // Pin the SECOND argument to the RLS-scoped client, not just "some object": `/app/reports`
+    // is a student path, and passing the service-role client here would bypass the
+    // `students_read_answers` policy that scopes this read. Only the mocked
+    // createServerSupabaseClient result carries these two members.
+    expect(mockFetchAnsweredItemCounts).toHaveBeenCalledWith(
+      ['sess-1'],
+      expect.objectContaining({
+        rpc: mockRpc,
+        auth: expect.objectContaining({ getUser: mockGetUser }),
+      }),
+    )
+  })
+
+  it('defaults answeredItems to 0 when the session has no recorded answer rows', async () => {
+    // fetchAnsweredItemCounts leaves a session with zero answer rows absent from the Map —
+    // exercises the `itemCounts.get(r.id) ?? 0` fallback at this call site.
+    mockRpc.mockResolvedValue({ data: [makeRpcRow({ id: 'sess-1' })], error: null })
+    mockFetchAnsweredItemCounts.mockResolvedValue({ data: new Map(), error: null })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.answeredItems).toBe(0)
+  })
+
+  it('returns ok: false when the answered-item count lookup fails', async () => {
+    mockRpc.mockResolvedValue({ data: [makeRpcRow()], error: null })
+    mockFetchAnsweredItemCounts.mockResolvedValue({
+      data: new Map(),
+      error: { message: 'item count boom' },
+    })
+
     const result = await getSessionReports(DEFAULT_OPTS)
     expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
   })
@@ -255,6 +320,23 @@ describe('getSessionReports', () => {
     // totalCount comes from the RPC window function (total_count field on the
     // first surviving row); makeRpcRow seeds it as 1.
     expect(result.totalCount).toBe(1)
+  })
+
+  it('excludes internal_exam session ids from the answered-item count lookup', async () => {
+    // fetchAnsweredItemCounts must be called with the internal_exam-FILTERED id list, not the
+    // raw RPC rows — a regression that passed the unfiltered list would ask for an item count
+    // on a session this list never displays.
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-quick', mode: 'quick_quiz' }),
+        makeRpcRow({ id: 'sess-internal', mode: 'internal_exam' }),
+      ],
+      error: null,
+    })
+
+    await getSessionReports(DEFAULT_OPTS)
+
+    expect(mockFetchAnsweredItemCounts).toHaveBeenCalledWith(['sess-quick'], expect.anything())
   })
 
   it('issues a single RPC call when a non-empty page filters down to no visible rows', async () => {

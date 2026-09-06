@@ -68,6 +68,7 @@ export type StudentSession = {
   scorePercentage: number | null
   totalQuestions: number
   correctCount: number
+  answeredItems: number
   startedAt: string
   endedAt: string | null
 }

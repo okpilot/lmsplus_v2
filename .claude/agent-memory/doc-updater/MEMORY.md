@@ -62,3 +62,13 @@ for every issue number a `Closes #N` trailer in the branch's commits touches, an
 that characterizes that issue as open. Instance: `chore/part3-audit-followup` closed #1194 (recorded
 as resolved via new Decision 57), but `docs/plan.md`'s dated "Open: ... deferred ... #1194 ..." line
 was untouched by the branch's diff and still read as if #1194 were an open deferral.
+
+### Claim re-typed unchanged in a reflowed block (code-style.md §10 clause 5)
+A claim copied verbatim into a reflowed paragraph/comment block arrives on a `+` line but reads as
+already-reviewed text, slipping the one review most likely to catch it (diff-scoped or impl-critic
+opening the cited source file without suspicion). When a diff re-types a block unchanged, every claim
+it contains that a source file can answer (e.g., "function X does Y") must be re-derived from that
+source, not re-read. Instance (2026-09-02, `18757ddf`): `CLAUDE.md`'s claim about `generate-agent-files.js`
+comparing "byte-for-byte" — false, the actual code folds line endings — survived four passes because
+it was re-typed verbatim in a reflowed paragraph while impl-critic had the file open but verified a
+different claim.

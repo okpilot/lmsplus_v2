@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { TableCell, TableRow } from '@/components/ui/table'
+import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import type { StudentSession } from '../../../types'
 import { formatDate, formatDuration } from './session-table-helpers'
 
@@ -26,9 +27,7 @@ export function ClickableSessionRow({ session: s }: Readonly<{ session: StudentS
       <TableCell>{s.topicName ?? '\u2014'}</TableCell>
       <TableCell className="capitalize">{s.mode}</TableCell>
       <TableCell>{s.scorePercentage !== null ? `${s.scorePercentage}%` : '\u2014'}</TableCell>
-      <TableCell>
-        {s.correctCount}/{s.totalQuestions}
-      </TableCell>
+      <TableCell>{formatCorrectFraction(s.correctCount, s.answeredItems)}</TableCell>
       <TableCell>{formatDuration(s.startedAt, s.endedAt)}</TableCell>
     </TableRow>
   )

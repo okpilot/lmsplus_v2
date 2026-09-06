@@ -177,6 +177,36 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(session?.durationMinutes).toBeGreaterThanOrEqual(0)
   })
 
+  it('returns answeredItems reflecting real answer rows under RLS (not silently 0)', async () => {
+    // getSessionReports now derives answeredItems via fetchAnsweredItemCounts on the
+    // RLS-scoped client (never adminClient) — this proves that read path actually returns
+    // real rows through `students_read_answers`, rather than silently landing on the
+    // `itemCounts.get(...) ?? 0` fallback because RLS blocked the query outright.
+    await signInAs(emailA, password)
+
+    const r = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) throw new Error(r.error)
+    expect(r.sessions.length).toBeGreaterThan(0)
+    // Every seeded session answered all `questionIds.length` (3) questions
+    // (submitAnswerSequence answers one per question) — one quiz_session_answers row each,
+    // so answeredItems equals totalQuestions here (MC questions, no multi-item scale).
+    //
+    // PARTIAL VACUITY, stated deliberately (code-style.md §7): because the two are equal on
+    // an MC-only fixture, this assertion CANNOT distinguish an answer-row-derived
+    // answeredItems from one that wrongly read total_questions. What it DOES prove is the
+    // other failure mode, and the one this test exists for: that the RLS-scoped read returns
+    // real rows rather than silently landing on `itemCounts.get(...) ?? 0` — 3 is
+    // distinguishable from 0. The item-vs-question discrimination is proven separately, on a
+    // fixture where the two genuinely diverge: answered-item-counts.integration.test.ts seeds
+    // a 3-blank dialog_fill and asserts 3, which a question-derived count would report as 1.
+    for (const session of r.sessions) {
+      expect(session.answeredItems).toBe(session.totalQuestions)
+      expect(session.answeredItems).toBe(3)
+    }
+  })
+
   it('returns sessions sorted non-strictly ascending by score', async () => {
     // With only 2 distinct score values (1/3 ≈ 33% and 3/3 = 100%), ties are
     // expected — assert non-strict monotonic (<=), not strict (<).

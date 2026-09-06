@@ -19,7 +19,9 @@ Keeps project documentation in sync with code changes. Watches for schema change
   `docs/security.md` consent bullet): both cycles reported exactly one stale claim, and both times
   reading the surrounding bullet found more — a redirect target, then a document-type list stale
   since migration `20260327000058` in March, then a misattributed actor. This is the read-side companion to
-  `code-style.md` §10's "a partial comment edit is the tell".
+  `code-style.md` §10 clauses 3 and 5. Reading the block is not checking it: a block-read surfaces
+  claims that contradict each other or the diff, never one that is internally coherent and false.
+  Any claim in the block that a source file could falsify is re-derived from that file, not re-read.
 - Report DRIFT findings with specific steering doc reference and contradicting code.
 - Elevate to CRITICAL when drift contradicts security rules.
 
@@ -101,4 +103,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-08-20*
+*Last updated: 2026-09-02*

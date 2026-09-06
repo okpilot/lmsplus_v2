@@ -31,6 +31,7 @@ function makeSession(id: string): SessionReport {
     subjectName: 'Meteorology',
     totalQuestions: 20,
     correctCount: 15,
+    answeredItems: 18,
     scorePercentage: 75,
     startedAt: '2026-01-01T10:00:00Z',
     endedAt: '2026-01-01T10:20:00Z',

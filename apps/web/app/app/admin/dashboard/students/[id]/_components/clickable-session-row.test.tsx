@@ -35,6 +35,7 @@ function makeSession(overrides: Partial<StudentSession> = {}): StudentSession {
     scorePercentage: 75,
     totalQuestions: 20,
     correctCount: 15,
+    answeredItems: 18,
     startedAt: '2026-03-12T10:00:00Z',
     endedAt: '2026-03-12T10:20:00Z',
     ...overrides,
@@ -122,15 +123,30 @@ describe('ClickableSessionRow', () => {
     expect(screen.getByText('\u2014')).toBeInTheDocument()
   })
 
-  it('displays correct count and total questions', () => {
+  it('shows correct answers over the number of items actually answered', () => {
+    // answeredItems (18) is deliberately distinct from both correctCount (15) and
+    // totalQuestions (20) so this can't pass on a regression that uses either instead.
     render(
       <table>
         <tbody>
-          <ClickableSessionRow session={makeSession({ correctCount: 15, totalQuestions: 20 })} />
+          <ClickableSessionRow
+            session={makeSession({ correctCount: 15, totalQuestions: 20, answeredItems: 18 })}
+          />
         </tbody>
       </table>,
     )
-    expect(screen.getByText('15/20')).toBeInTheDocument()
+    expect(screen.getByText('15 / 18')).toBeInTheDocument()
+  })
+
+  it('displays an em dash instead of a fraction when nothing was answered', () => {
+    render(
+      <table>
+        <tbody>
+          <ClickableSessionRow session={makeSession({ correctCount: 0, answeredItems: 0 })} />
+        </tbody>
+      </table>,
+    )
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('displays em dash when subjectName is null', () => {

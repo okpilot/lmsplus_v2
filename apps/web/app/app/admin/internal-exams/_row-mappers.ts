@@ -76,7 +76,7 @@ export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
   }
 }
 
-export function mapAttemptRow(r: AttemptRowRaw): InternalExamAttemptRow {
+export function mapAttemptRow(r: AttemptRowRaw, answeredItems: number): InternalExamAttemptRow {
   return {
     sessionId: r.id,
     studentId: r.student_id,
@@ -90,6 +90,7 @@ export function mapAttemptRow(r: AttemptRowRaw): InternalExamAttemptRow {
     endedAt: r.ended_at,
     totalQuestions: r.total_questions,
     correctCount: r.correct_count,
+    answeredItems,
     scorePercentage: r.score_percentage != null ? Number(r.score_percentage) : null,
     passed: r.passed,
     voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,

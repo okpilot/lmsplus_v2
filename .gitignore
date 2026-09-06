@@ -73,6 +73,25 @@ HANDOVER.md
 # deliberately not done in a content PR.
 apps/web/.claude/
 
+# The stray apps/web/.git.disabled-by-claude-<date>/ dir the comment above refers to. A prior
+# session neutralised a nested repo by renaming its .git rather than removing it, leaving ~549
+# untracked files under apps/web/. Two costs, and the second is the dangerous one:
+#   1. `git add -A apps/web` stages all of them.
+#   2. `/fullpush` step 5b aborts the push on ANY untracked path (`git status --porcelain
+#      --untracked-files=all`). That gate exists to catch an untracked MIRROR edit — a rule or
+#      doc file written but never `git add`ed. Permanent debris makes it fire every time, so the
+#      only way to push is to look past it, which is exactly how a real untracked mirror edit
+#      gets waved through. A gate that always fails protects nothing.
+# Ignoring it, not deleting it: removal of someone else's disabled repo is a separate, explicit
+# cleanup. Glob the date suffix — the name carries whenever it was disabled.
+# Trailing `/` = directory-only. If a future session ever leaves the artifact as a POINTER FILE
+# (as `.git` is under worktrees and submodules) rather than a renamed directory, this will not
+# match — which fails SAFE: the file surfaces as untracked rather than being silently swallowed.
+apps/web/.git.disabled-by-claude-*/
+
+# Branch-deletion logs written by session cleanup. Local bookkeeping, dated, never repo artifacts.
+.claude/deleted-branches-????-??-??.txt
+
 # Two per-issue manual-eval seed scripts, ignored BY NAME. Local scratch for #1011 and #907 —
 # never shipped, and they carry hardcoded local credentials. Listed individually rather than as
 # `seed-*-eval.ts` on purpose: six eval seeds ARE tracked (seed-quiz-setup-eval.ts,
@@ -84,3 +103,10 @@ apps/web/.claude/
 # hold. Use `git add -f` if one ever genuinely needs to ship.
 apps/web/scripts/seed-1011-eval.ts
 apps/web/scripts/seed-907-pagination-eval.ts
+
+# Local working-document folders — third-party reference material (ISO standards, operator
+# manuals), ~15MB of PDFs. Not repo artifacts, and not ours to redistribute. Listed by exact
+# name rather than a `/[0-9][0-9]. */` glob on purpose: a glob would silently swallow a future
+# numbered directory that IS repo content.
+/01. Product Maturity/
+/02. AI ELP/

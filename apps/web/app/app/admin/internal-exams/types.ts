@@ -39,6 +39,7 @@ export type InternalExamAttemptRow = {
   endedAt: string | null
   totalQuestions: number | null
   correctCount: number | null
+  answeredItems: number
   scorePercentage: number | null
   passed: boolean | null
   voidReason: string | null
