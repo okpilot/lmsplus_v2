@@ -343,9 +343,13 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        history, so it cannot BY ITSELF refute "commit X created it": one returned SHA differing from
        the claimed one IS a refutation, but several (a path deleted and re-added) need each read to
        see which event the claim is about. For the "+N tests" half, `--stat` counts LINES, not tests —
-       read the patch (`git show <sha> -- <path>`) and count the added `it(` / `test(` calls plus any
-       `it.each(` / `test.each(` blocks, which contribute one test per data row and do NOT match a
-       grep for `it(`; a stat total is not a test count. NOT bare `git diff --stat`: it compares the worktree
+       read the PATCH, picking the form for the state the claim is in: COMMITTED
+       `git show <sha> -- <path>`, plus
+       `--diff-merges=first-parent` when `<sha>` is a merge, since a patch read is subject to the
+       same combined-diff omission as a stat read; TRACKED-uncommitted `git diff HEAD -- <path>`;
+       UNTRACKED, read the file itself, because it is in neither HEAD nor the index. Then count the
+       added `it(` / `test(` calls plus any `it.each(` / `test.each(` blocks, which contribute one
+       test per data row and do NOT match a grep for `it(`; a stat total is not a test count. NOT bare `git diff --stat`: it compares the worktree
        against the index, so it reports nothing for anything already staged or committed — which is
        most claims a reviewer makes. A claimed-new file with "+18 tests" was a MODIFIED file whose
        real delta was 8.
