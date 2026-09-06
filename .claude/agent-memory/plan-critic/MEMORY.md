@@ -74,6 +74,7 @@
 | Red-team plans must verify Vector IDs against the LIVE attack-surface.md matrix + tech.md/decisions.md spec-counts. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-05-31 | 4 | 2026-06-09 | WATCHING (4) |
 | Red-team spec additions omit the attack-surface.md vector row / GAP→COVERED flip. ([details](topics/redteam-spec-organization-lessons.md)). | 2026-06-01 | 4 | 2026-06-06 | WATCHING (4) |
 | Two-dir migration mirror drift — identify the authoritative dir before reproducing a body. ([details](topics/migration-and-schema-audit-lessons.md)). | 2026-06-06 | 1 | 2026-07-11 | RESOLVED (packages/db/migrations frozen 2026-07-11; supabase/ sole truth — #1111) |
+| A mechanic-rename plan changes only the PRIMARY definition line (e.g. agent-critic.md:26 "Reset on finding") but leaves the CONCEPT NAME and derived wording throughout the same section (lines 20-21 "Consecutive-clean floor", line 37 "do not reset the clean counter", lines 48/78/90/91 "consecutive-clean floor") — readers see contradictory instructions in the same file. Change the concept name and every wording derived from it in the SAME commit. | 2026-09-06 | 1 | 2026-09-06 | WATCHING |
 
 ## Positive signals
 - See [tracker-archive § Relocated positive signals](topics/tracker-archive.md) — 6 plans that verified assumptions correctly.

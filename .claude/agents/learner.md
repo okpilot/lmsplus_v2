@@ -2,6 +2,7 @@
 name: learner
 description: Learns from post-commit agent findings, identifies recurring patterns, and updates project rules/memory to prevent repeat mistakes. Runs after code-reviewer, semantic-reviewer, doc-updater, and test-writer report back.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 

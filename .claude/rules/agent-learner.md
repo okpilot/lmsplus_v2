@@ -1,6 +1,6 @@
 # Agent Rules — learner
 
-> Model: sonnet | Trigger: after a full post-commit cycle COMPLETES — all four core agents reported AND any fixes they prompted are committed | Non-blocking
+> Model: sonnet | Trigger: after a full post-commit cycle COMPLETES — all four core agents' completion notifications RECEIVED and their results read, AND any fixes they prompted are committed | Non-blocking
 
 ## Purpose
 Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different commits). Prevents the same mistakes from happening repeatedly.
@@ -8,7 +8,22 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 ## Handling Results
 
 ### DO
-- Run the learner after every full post-commit cycle (all four core agents reported, and any fixes they prompted committed). A clean cycle produces no fix commit and still gets its learner pass — "absence of findings is itself data", per the NEVER list below, so a fix commit is not a precondition. A commit running a reduced cycle under any exemption in `CLAUDE.md § Post-commit review` does NOT get its own learner pass — there is no full-cycle finding set to synthesise, and the branch's next full cycle picks up anything durable.
+- Run the learner after every full post-commit cycle (all four core agents' completion
+  notifications RECEIVED and their results read, and any fixes they prompted committed). Agents run
+  ASYNCHRONOUSLY — dispatching four and launching the learner is not "the cycle completed", it is a
+  learner pass over whatever happened to have finished. Its counts drive promotion at the >=2
+  threshold, so a partial set does not merely under-report: it biases which patterns become rules.
+- **CR-local findings ARE learner input.** Every `/crlocal` APPLY finding produces a fixup commit
+  that re-enters the pipeline at `git commit`, so that commit gets its own full cycle and its own
+  learner pass. Hand that pass the round's CR-local triage table alongside the four core agents'
+  results. CR-local is the highest-signal reviewer we run and the only one reading with a genuinely
+  outside lens; counting the four core agents while dropping it means a pattern CR-local catches
+  every single round never reaches count>=2 and is never promoted. (Before 2026-09-06 neither
+  `agent-coderabbit-local.md` nor `.claude/commands/crlocal.md` mentioned the learner at all, in
+  either direction — the omission was silent, not a decision.)
+- Red-team and coderabbit-sync findings are NOT learner input — they run AFTER the learner by
+  design, so they reach it on the branch's next full cycle. That asymmetry with CR-local is
+  deliberate: CR-local's findings arrive on a commit that gets its own cycle, theirs do not. A clean cycle produces no fix commit and still gets its learner pass — "absence of findings is itself data", per the NEVER list below, so a fix commit is not a precondition. A commit running a reduced cycle under any exemption in `CLAUDE.md § Post-commit review` does NOT get its own learner pass — there is no full-cycle finding set to synthesise, and the branch's next full cycle picks up anything durable.
 - Trust its pattern detection — it tracks frequencies across commits in `.claude/agent-memory/learner/MEMORY.md`.
   That trust covers its JUDGMENT, not its report that it WROTE something. A claimed memory or
   archive edit is a self-reported action: verify the artifact per `agent-workflow.md § Finding

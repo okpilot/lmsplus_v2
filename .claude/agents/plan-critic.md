@@ -2,6 +2,7 @@
 name: plan-critic
 description: Reviews validated plans against the codebase before execution. Catches wrong assumptions about function signatures, missed callers, incorrect fallback values, and pattern violations. Runs via Agent tool after plan validation, before user approval.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 

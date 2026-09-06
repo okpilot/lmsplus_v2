@@ -165,6 +165,27 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 
 ## Post-Implementation Pipeline Order
 
+### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
+
+`Agent` returns an id immediately and the agent runs in the BACKGROUND; you are notified when it
+finishes. There is no synchronous mode, so nothing makes the diagram below happen in the order it is
+drawn. Two consequences, and both have fired in practice (#1256, observed on PR B):
+
+- **"The cycle is complete" means all four completion notifications have been RECEIVED — never
+  merely dispatched.** Read every result before starting any fix, and before launching the learner:
+  a learner pass started early synthesises from a partial finding set, and its counts are what drive
+  rule promotion at the >=2 threshold.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes
+  with no error, no conflict and no failing gate — lint, types and tests all pass on a doc whose
+  paragraph was silently clobbered. As of 2026-09-06 this is enforced rather than trusted:
+  `tools:` in each `.claude/agents/*.md` frontmatter withholds Write/Edit from every agent except
+  **test-writer** (the sole writer, scoped to the test files it creates). `memory: project` still
+  auto-grants Read/Write/Edit on an agent's OWN memory directory — nothing else writes there, so
+  there is no race to lose. Do not "fix" a read-only agent by widening its `tools:` list.
+
+The pipeline below is drawn as a sequence because each stage CONSUMES the previous stage's output.
+Respect it by waiting, not by assuming.
+
 ```
 Execute (subagents implement)
     │
@@ -241,7 +262,19 @@ git commit
                               ┌──────┴──────┐
                               │ update spec │  tasks.md: [ ] → [x]
                               │  (if spec)  │
-                              └─────────────┘
+                              └──────┬──────┘
+                                     │
+                          (pre-push, per branch — NOT per commit)
+                              ┌──────┴──────┐
+                              │  /crlocal   │  M=2 normal / M=3 security-path.
+                              └──────┬──────┘  Each APPLY finding makes a fixup
+                                     │         commit that RE-ENTERS at `git commit`
+                                     │         above — so the learner runs again on
+                                     │         that commit's own cycle, and the
+                                     │         CR-local round summary is one of its
+                                     │         INPUTS (`agent-learner.md`).
+                                     ▼
+                                 /fullpush → push
 ```
 
 ### Pre-Commit Implementation Review (runs AFTER execution, BEFORE git commit)
@@ -689,7 +722,7 @@ same commit — not just the file.
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
+- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit, then WAIT for all four completion notifications before acting on any of them — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -703,8 +736,12 @@ same commit — not just the file.
 - Allow more than 2 revision rounds between critic and implementer.
 - Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only reductions are the NAMED exemptions in `CLAUDE.md § Post-commit review`, and each has its OWN defining condition — docs-only by the PATHS the commit touches, review-follow-up by its parent having run a full cycle plus every hunk tracing to that cycle's findings. Neither is defined by how small the diff is.
 - Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect **or a false claim in the prose** — a false claim is never bounded out, whatever round it lands on, though the CHAIN is capped at 3 consecutive commits whose only content is applying the previous commit's findings — the ACT, not this exemption label, which cannot chain — before escalating (see `CLAUDE.md § Post-commit review`); log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
-- Start fixing after only one agent reports — wait for all 4.
+- Start fixing after only one agent reports — wait for all 4. They run ASYNCHRONOUSLY, so "I
+  launched four" is not "four reported"; wait for four completion notifications.
 - Fire-and-forget agents without reading results.
+- Edit a file while an agent that can write it is in flight. Only test-writer can write at all now,
+  and only test files — but that is one collision, silent and gateless, per § "Every agent dispatch
+  is ASYNCHRONOUS".
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.

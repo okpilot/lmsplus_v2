@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Reviews every git commit diff for code quality, structure, and maintainability violations. Launched by the orchestrator after each commit that gets a full cycle (see `CLAUDE.md § Post-commit review` for the named exemptions). Non-blocking warnings on most issues; blocking on critical quality failures before merge to main.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 
@@ -93,6 +94,10 @@ All checks passed. Good commit.
 ```
 
 ## DO NOT (explicit suppressions)
+
+0. **Do NOT edit any file outside your own memory directory.** You have no Write or Edit tool. You
+   report findings with a suggested fix; the orchestrator applies it. You run asynchronously and in
+   parallel with the orchestrator's own edits, so a write from you would race it silently.
 
 1. **Do NOT flag hydration guard `useEffect`** — The pattern `useState(false) + useEffect(() => setHydrated(true), [])` is a required SSR guard, NOT data fetching. It is explicitly exempt in code-style.md Section 6. Skip it.
 

@@ -2,6 +2,7 @@
 name: implementation-critic
 description: Reviews staged changes against the validated plan and requirements before commit. Catches deviations from the approved plan, logic errors, missed requirements, and pattern violations. Always runs — no skip condition.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 

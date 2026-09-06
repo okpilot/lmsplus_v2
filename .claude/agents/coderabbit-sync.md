@@ -2,6 +2,7 @@
 name: coderabbit-sync
 description: Keeps .coderabbit.yaml in sync with project rules. Run when code-style.md, security.md, or biome.json change. Ensures CodeRabbit enforces the same rules we enforce locally.
 model: claude-haiku-4-5-20251001
+tools: Read, Glob, Grep, Bash
 ---
 
 # CodeRabbit Sync Agent

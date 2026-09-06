@@ -14,6 +14,13 @@ Setting `memory: project` in an agent's `.claude/agents/<name>.md` frontmatter b
 2. Appends a **"curate if over budget"** instruction so the agent prunes its own `MEMORY.md` when it grows.
 3. Grants the agent **auto Read/Write/Edit** on its memory dir.
 
+**`tools:` does NOT gate the memory directory.** Since 2026-09-06 every agent declares an explicit
+`tools:` list and only test-writer carries Write/Edit (see `agent-workflow.md § Every agent dispatch
+is ASYNCHRONOUS`). The eight `memory: project` agents still write their own trackers: the official
+subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
+regardless of the `tools:` allowlist. Do not "restore" Write to a read-only agent on the theory that
+its tracker is broken — verify the tracker first.
+
 Two consequences that shape every rule below:
 
 - **Only `MEMORY.md` is auto-injected and auto-curated.** Sibling files in the dir (topic files) are read on demand and are **never** touched by native curation.
@@ -87,7 +94,7 @@ Any future protected matrix follows the same shape: keep it as a named topic fil
 
 - **Standard (`memory: project`, MEMORY.md index):** learner, semantic-reviewer, test-writer, code-reviewer, doc-updater, plan-critic, implementation-critic.
 - **red-team (special):** `memory: project` + small MEMORY.md index → protected `attack-surface.md` topic file.
-- **security-auditor:** deferred — `findings.md` is empty; no `memory:` until it accumulates real content.
+- **security-auditor:** deferred — `findings.md` holds only a header (36 bytes, zero entries, untouched since 2026-03-16); no `memory:` until it accumulates real content. Its definition's "After Each Audit" block told it to write that file anyway until 2026-09-06; it never had the grant.
 - **coderabbit-sync:** excluded — no memory dir, no `memory:`.
 
 ## DO

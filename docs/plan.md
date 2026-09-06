@@ -1044,14 +1044,24 @@ Claude finishes responding
 git commit
     → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
     → [Lefthook commit-msg] commitlint validates message format
-    → [Claude subagents — run by me via Agent tool, results come back to conversation]
+    → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
+       the dispatch returns immediately and each notifies on completion, so the
+       numbering below is a data dependency, not a running order. Wait for all
+       four core notifications before acting on any of them.]
+        core, in parallel:
         1. code-reviewer (sonnet) — diff against code-style.md
-        2. doc-updater (haiku) — check docs freshness
-        3. test-writer (sonnet) — find/write missing tests
-        4. learner (sonnet) — detect patterns, update rules/memory
-        5. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
-        6. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+        2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
+        3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
+        4. test-writer (sonnet) — find/write missing tests (the only agent with Write)
+        then:
+        5. learner (sonnet) — detect patterns, update rules/memory. Takes the four
+           core results, plus the CR-local triage table on a /crlocal fixup commit
+        conditionals, after the learner:
+        6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
+        7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     → Fix any findings → commit again → repeat until clean
+    (plan-critic gates the plan before execution; implementation-critic gates
+     `git diff --staged` before every commit. /crlocal runs pre-push, per branch.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

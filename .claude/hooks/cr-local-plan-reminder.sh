@@ -55,9 +55,11 @@ flow before reading the next user message:
   4. EXECUTE the plan. Apply, type-check, run the affected tests, commit.
   5. RUN POST-COMMIT REVIEW AGENTS in parallel: code-reviewer,
      semantic-reviewer, doc-updater, test-writer (mandatory unless a
-     NAMED exemption in CLAUDE.md applies). Then learner — it reads the
+     NAMED exemption in CLAUDE.md applies). They are ASYNC — wait for all
+     four notifications before acting. Then learner — it reads the
      cycle's findings, so it runs BEFORE the conditionals, and is skipped
-     entirely on a reduced cycle. Then red-team if security-sensitive
+     entirely on a reduced cycle. Hand it THIS round's CR-local triage
+     table too, or no CR-local finding is ever counted. Then red-team if security-sensitive
      paths changed, then coderabbit-sync if rules files changed.
   6. RE-RUN `coderabbit review` for the next round.
 

@@ -2,6 +2,7 @@
 name: test-writer
 description: Writes Vitest unit and integration tests for new TypeScript functions and React components. Invoke after writing new utility functions, Server Actions, or hooks. Use proactively when the user asks to test something or when new files lack tests.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash, Write, Edit
 memory: project
 ---
 

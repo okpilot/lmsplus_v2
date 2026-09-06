@@ -34,7 +34,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 12. Audit        → post-commit agents review (parallel)
 13. Fix          → address findings, repeat 11-12 until clean
 14. Tasks        → update task status if using TaskCreate
-15. Learn        → learner synthesizes patterns
+15. Learn        → learner synthesizes patterns (after ALL four report — they are async)
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
@@ -183,13 +183,22 @@ version.**
 After every `git commit`, run these 4 subagents in parallel using the Agent tool:
 1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
 2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
-3. **doc-updater** (haiku) — check if docs need updates, report what changed
-4. **test-writer** (sonnet) — check for missing tests, write them, run them
+3. **doc-updater** (haiku) — report the doc edits needed; YOU apply them (it has no Write/Edit tool)
+4. **test-writer** (sonnet) — check for missing tests, write them, run them (the ONLY agent that writes)
+
+**They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
+four" is not "four reported". WAIT for all four completion notifications, read ALL results, then fix.
+Never edit a file while an agent that can write it is in flight — the lost update is silent and no
+gate catches it. Write access is enforced by `tools:` in each `.claude/agents/*.md` frontmatter, not
+by remembering to say so in the dispatch prompt (`agent-workflow.md § Every agent dispatch is
+ASYNCHRONOUS`).
 
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 
 Then run:
-5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory
+5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory.
+   On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
+   drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
 
 If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
