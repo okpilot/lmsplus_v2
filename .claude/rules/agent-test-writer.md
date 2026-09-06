@@ -17,11 +17,17 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - **Mutation-check any test that pins a mechanism.** Before reporting a new test as passing, break
   the thing it protects and confirm exactly that test goes red, then restore. Do this in a scratch
   copy or a throwaway worktree, not in place — it is the one case where touching production code is
-  sanctioned, and only because nothing survives it. **RECORD `git rev-parse HEAD` BEFORE you mutate** —
-  the comparison below is unenforceable otherwise, and an agent that mutates first has no baseline to
-  diff against. Then, before reporting, verify ALL of: `git status --porcelain --untracked-files=all`
-  EMPTY; `git rev-parse HEAD` equal to the recorded value; `git stash list` no longer than before; and
-  the scratch worktree or copy actually removed.
+  sanctioned, and only because nothing survives it. **RECORD BOTH `git rev-parse HEAD` AND
+  `git stash list | wc -l` BEFORE you mutate** — two of the four checks below are COMPARISONS, and a
+  comparison with no recorded baseline is not a check at all. Recording only HEAD leaves the stash check
+  unenforceable in exactly the way it exists to prevent: "no longer than before" with no captured
+  before is satisfied by ANY stash count, and this repo's stash list is routinely non-empty (15
+  entries on 2026-09-06 — derive the current value with `git stash list`), so it cannot be eyeballed
+  either. Then, before reporting, verify ALL of: `git status --porcelain --untracked-files=all`
+  EMPTY; `git rev-parse HEAD` equal to the recorded value; `git stash list | wc -l` equal to the
+  recorded count; and the scratch worktree or copy actually removed — that last one because a
+  worktree left in place keeps the mutated copy on disk while the primary repo's status, HEAD and
+  stash list are all blind to it.
   No after-the-fact state check is sufficient on its own, and each of these closes a hole the others
   miss: bare `git diff` shows only UNSTAGED changes, so it reads clean over a staged mutation; bare
   `git status --porcelain` honours `status.showUntrackedFiles`, so with it set to `no` a leftover
@@ -43,7 +49,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
-- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — record HEAD first, then before reporting require `git status --porcelain --untracked-files=all` EMPTY, `git rev-parse HEAD` equal to the recorded value, `git stash list` no longer than before, and the scratch location removed. See the DO bullet for what each closes and for the two holes no state check closes. A mutation the agent cannot make that way is the orchestrator's to run.
+- Let the agent modify production code. It writes tests only. The single carve-out is the mutation check in the DO list above, and it is bounded: the change is made in a scratch copy or throwaway worktree, never in place, and nothing survives it — record HEAD AND the stash count first, then before reporting require `git status --porcelain --untracked-files=all` EMPTY, `git rev-parse HEAD` equal to the recorded value, `git stash list | wc -l` equal to the recorded count, and the scratch location removed. See the DO bullet for what each closes and for the two holes no state check closes. A mutation the agent cannot make that way is the orchestrator's to run.
 - Skip running the tests the agent wrote. Always verify they pass.
 - Commit failing tests. If tests fail, fix them (or the production code) first.
 - Write tests for the same files the agent is covering — avoid duplicate work.
