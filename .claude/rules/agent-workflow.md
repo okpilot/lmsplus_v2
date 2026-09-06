@@ -337,7 +337,15 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        `--diff-merges=first-parent`); for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
        then `git diff HEAD --stat -- <path>`, because a file that was created but never `git add`-ed is
        in neither HEAD nor the index and so is invisible to any `git diff` form — the commonest shape
-       of a "I created that file" claim. Plus `git log --diff-filter=A -- <path>`. NOT bare `git diff --stat`: it compares the worktree
+       of a "I created that file" claim. For the NEW half specifically, bind the check to the CLAIMED
+       commit: `git show --diff-filter=A --format=%H <sha> -- <path>` is non-empty only if THAT commit
+       added the path. `git log --diff-filter=A -- <path>` alone finds the addition ANYWHERE in
+       history, so it cannot BY ITSELF refute "commit X created it": one returned SHA differing from
+       the claimed one IS a refutation, but several (a path deleted and re-added) need each read to
+       see which event the claim is about. For the "+N tests" half, `--stat` counts LINES, not tests —
+       read the patch (`git show <sha> -- <path>`) and count the added `it(` / `test(` calls plus any
+       `it.each(` / `test.each(` blocks, which contribute one test per data row and do NOT match a
+       grep for `it(`; a stat total is not a test count. NOT bare `git diff --stat`: it compares the worktree
        against the index, so it reports nothing for anything already staged or committed — which is
        most claims a reviewer makes. A claimed-new file with "+18 tests" was a MODIFIED file whose
        real delta was 8.
