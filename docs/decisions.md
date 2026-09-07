@@ -1450,7 +1450,8 @@ test-commit policy (four sites disagree — separate commit / with the fix / one
 commit), red-team's mandate to file coverage-gap issues versus the `filed >= closed` defer budget it
 structurally fails, and `code-reviewer`'s "let the user decide" for WARNINGs over 10 lines, which is
 not one of the three terminal states. Also open: `.claude/commands/{crlocal,fullpush,wrapup}.md` each
-restate the six security paths, and `crlocal.md` the round floors, with no link to the spec. They
+restate the security paths declared in `.claude/pipeline.json`, and `crlocal.md` the round floors,
+with no link to the spec. They
 agree today; nothing keeps them agreeing.
 
 **One audit finding was REFUTED, and it is recorded because the refutation is the point.**
