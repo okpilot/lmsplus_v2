@@ -236,9 +236,9 @@ Ordering and contents in the artifact above. Not started.
 
 - [ ] Pipeline integrity (out-of-wave, filed after the wave plan was written) — branch
       `chore/pipeline-async-and-review-gates`, closes #1256 + #1254 + #1255. Rules/agent-definition
-      only; no product code, no migration, no security path. Post-commit agents run ASYNCHRONOUSLY
+      plus docs, one CI gate and one new test; no product code, no migration, no security path. Post-commit agents run ASYNCHRONOUSLY
       and nothing ENFORCED report-only, so an agent write could silently clobber an orchestrator
-      edit; `tools:` frontmatter now enforces it (test-writer is the only writer). Also: CR-local
+      edit; `tools:` frontmatter now enforces the ACCIDENTAL path (test-writer is the only Write/Edit holder, the only writer). Also: CR-local
       findings become learner input, reviewer definitions require an `EVIDENCE:` line on runtime
       claims, and the consecutive-clean floor becomes CR-local's extend-by-one (Decision 61).
       ⚠️ The `tools:` enforcement is INERT until a session restart — agent definitions snapshot at

@@ -1046,13 +1046,14 @@ git commit
     → [Lefthook commit-msg] commitlint validates message format
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
-       numbering below is a data dependency, not a running order. Wait for all
-       four core notifications before acting on any of them.]
+       numbering below is a data dependency, not a running order. Wait for a
+       notification from every agent actually launched — never a fixed number,
+       since an exemption launches fewer — before acting on any of them.]
         core, in parallel:
         1. code-reviewer (sonnet) — diff against code-style.md
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
-        4. test-writer (sonnet) — find/write missing tests (the only agent with Write)
+        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
         then:
         5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes the four

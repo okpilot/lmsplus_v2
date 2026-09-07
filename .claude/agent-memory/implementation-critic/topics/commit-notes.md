@@ -6,6 +6,11 @@
 
 ## Positive-pattern log
 
+### pipeline-async-and-review-gates commit 5 (SHA repoint: 765914d7 → 27d6df94) (2026-09-07)
+
+APPROVED. 2 binding doc files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) Both SHAs resolve. (b) 765914d7 subject: `fix(security): forbid dialog_fill token delimiters + harden answer-key strip (#951) (#978)`, date 2026-06-23 13:45:09 UTC, touches agent-coderabbit-local.md, adds "extends the loop by one round" as `+` lines. (c) 27d6df94 subject: `chore(rules): soften cr-local stop rule to minimum-rounds + last-clean`, date 2026-06-23 12:24:59 UTC, touches agent-coderabbit-local.md, adds "extends the loop by one round" as `+` lines. (d) Neither is an ancestor of the other (independent branches, both merged to master). (e) 27d6df94 is the better citation: its subject documents the mechanic change; its commit message states the "cloud authoritative gate" rationale cited in D61 footer. (f) No remaining 765914d7 refs outside agent-memory in .claude/, CLAUDE.md, docs/. (g) D61 footer's "CR-local argued a local stability proof is unnecessary because cloud CR is the authoritative gate" matches 27d6df94's commit message verbatim.
+
 ### pipeline-async-and-review-gates commit 4 (CR-local history fix + #1254 move completion) (2026-09-06)
 
 APPROVED. 5 production files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.

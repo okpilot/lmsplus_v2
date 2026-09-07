@@ -34,7 +34,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 12. Audit        → post-commit agents review (parallel)
 13. Fix          → address findings, repeat 11-12 until clean
 14. Tasks        → update task status if using TaskCreate
-15. Learn        → learner synthesizes patterns (after ALL four report — they are async)
+15. Learn        → learner synthesizes patterns (after every launched agent reports — async)
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
@@ -184,7 +184,7 @@ After every `git commit`, run these 4 subagents in parallel using the Agent tool
 1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
 2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
 3. **doc-updater** (haiku) — report the doc edits needed; YOU apply them (it has no Write/Edit tool)
-4. **test-writer** (sonnet) — check for missing tests, write them, run them (the ONLY agent that writes)
+4. **test-writer** (sonnet) — check for missing tests, write them, run them (the only agent holding Write/Edit; every agent keeps Bash, so this closes the ACCIDENTAL write path, not every one)
 
 **They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
 four" is not "four reported". WAIT for a completion notification from every agent you actually
