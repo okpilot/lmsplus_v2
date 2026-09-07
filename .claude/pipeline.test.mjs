@@ -203,9 +203,11 @@ const REQUIRED_ORDER = [
 ]
 const missing = REQUIRED_ORDER.filter((p) => !spec.order.includes(p))
 const extra = spec.order.filter((p) => !REQUIRED_ORDER.includes(p))
+const dupes = spec.order.filter((p, i) => spec.order.indexOf(p) !== i)
+if (dupes.length) fail(`order repeats phase(s): ${[...new Set(dupes)].join(', ')}`)
 if (missing.length) fail(`order is missing phase(s): ${missing.join(', ')}`)
 if (extra.length) fail(`order has unknown phase(s): ${extra.join(', ')}`)
-if (!missing.length && !extra.length) {
+if (!missing.length && !extra.length && !dupes.length) {
   let ordered = true
   for (let i = 0; i < REQUIRED_ORDER.length - 1; i++) {
     if (spec.order.indexOf(REQUIRED_ORDER[i]) >= spec.order.indexOf(REQUIRED_ORDER[i + 1])) {
@@ -228,7 +230,7 @@ for (const site of spec.modelLiteralSites) {
   }
   const body = readFileSync(join(ROOT, site.path), 'utf8')
     .split('\n')
-    .filter((l) => !l.trimStart().startsWith('#'))
+    .map((l) => (l.trimStart().startsWith('#') ? '' : l.replace(/\s#.*$/, '')))
     .join('\n')
 
   const values = [...body.matchAll(new RegExp(`${escapeRe(site.flag)}(?:\\s+|=)(\\S+)`, 'g'))].map(

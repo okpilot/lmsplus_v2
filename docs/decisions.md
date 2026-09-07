@@ -1414,8 +1414,8 @@ for `pre-push`, the command keys `lefthook.yml` actually runs; the
 single-writer invariant; closed key sets, top-level and per-agent, so an unchecked field cannot be
 reintroduced; existence of every declared path plus the parent directory of a glob entry; the phase
 ordering; and the flag value at each DECLARED `modelLiteralSites` entry — not every hardcoded model
-flag in the repo — matched against comment-stripped text
-so a dead comment cannot mask a removed flag, plus a sweep for model literals the spec does not know. It does **not** assert that a path list
+flag in the repo — matched against text with both full-line
+and inline `#` comments stripped, so a dead comment cannot mask a removed flag, plus a sweep for model literals the spec does not know. It does **not** assert that a path list
 is COMPLETE — dropping `apps/web/app/auth/**` would still pass — nor that a path is the RIGHT one:
 substituting a different real file passes too, since `existsSync` cannot tell intent.
 
