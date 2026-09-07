@@ -171,7 +171,8 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 finishes. There is no synchronous mode, so nothing makes the diagram below happen in the order it is
 drawn. Two consequences, and both have fired in practice (#1256, observed on PR B):
 
-- **"The cycle is complete" means all four completion notifications have been RECEIVED — never
+- **"The cycle is complete" means every completion notification from the agents you LAUNCHED has
+  been RECEIVED — never
   merely dispatched.** Read every result before starting any fix, and before launching the learner:
   a learner pass started early synthesises from a partial finding set, and its counts are what drive
   rule promotion at the >=2 threshold.
@@ -727,7 +728,7 @@ same commit — not just the file.
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit, then WAIT for all four completion notifications before acting on any of them — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
+- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit, then WAIT for a completion notification from every agent you LAUNCHED — never a fixed number, which hangs whenever an exemption launched fewer — before acting on any of them — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -741,8 +742,9 @@ same commit — not just the file.
 - Allow more than 2 revision rounds between critic and implementer.
 - Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only reductions are the NAMED exemptions in `CLAUDE.md § Post-commit review`, and each has its OWN defining condition — docs-only by the PATHS the commit touches, review-follow-up by its parent having run a full cycle plus every hunk tracing to that cycle's findings. Neither is defined by how small the diff is.
 - Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect **or a false claim in the prose** — a false claim is never bounded out, whatever round it lands on, though the CHAIN is capped at 3 consecutive commits whose only content is applying the previous commit's findings — the ACT, not this exemption label, which cannot chain — before escalating (see `CLAUDE.md § Post-commit review`); log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
-- Start fixing after only one agent reports — wait for all 4. They run ASYNCHRONOUSLY, so "I
-  launched four" is not "four reported"; wait for four completion notifications.
+- Start fixing before every agent you LAUNCHED has reported. They run ASYNCHRONOUSLY, so "I
+  launched them" is not "they reported" — wait on the set you actually dispatched, never on a
+  hard-coded number.
 - Fire-and-forget agents without reading results.
 - Edit a file while an agent that can write it is in flight. Only test-writer can write repo files
   now, and only test files — but that is one collision, silent and gateless, per § "Every agent

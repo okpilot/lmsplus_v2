@@ -187,7 +187,9 @@ After every `git commit`, run these 4 subagents in parallel using the Agent tool
 4. **test-writer** (sonnet) — check for missing tests, write them, run them (the ONLY agent that writes)
 
 **They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
-four" is not "four reported". WAIT for all four completion notifications, read ALL results, then fix.
+four" is not "four reported". WAIT for a completion notification from every agent you actually
+LAUNCHED, read ALL results, then fix. Never a fixed number: an exemption launches fewer, and the
+count then hangs on notifications that never arrive.
 Never edit a file while an agent that can write it is in flight — the lost update is silent and no
 gate catches it. Write access is enforced by `tools:` in each `.claude/agents/*.md` frontmatter, not
 by remembering to say so in the dispatch prompt (`agent-workflow.md § Every agent dispatch is
