@@ -21,9 +21,9 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
-- On a `/crlocal` fixup commit's cycle ONLY: that round's CR-local triage table. Every APPLY
-  finding produces a fixup commit that re-enters the pipeline at `git commit` and gets its own full
-  cycle — this one — so CR-local findings DO reach you, unlike the two below. Count them. CR-local
+- On a `/crlocal` fixup commit's cycle ONLY: that round's CR-local triage table. Every `/crlocal` ROUND with
+  approved APPLY findings produces ONE fixup commit containing all of them (§ PR Batching), which
+  re-enters the pipeline at `git commit` and gets its own full cycle — this one — so CR-local findings DO reach you, unlike the two below. Count them. CR-local
   is the highest-signal reviewer we run; if it is missing from your input on a fixup cycle, say so
   rather than counting the four core agents and calling the cycle counted.
 - NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md § Red-Team Agent Trigger`), so their findings

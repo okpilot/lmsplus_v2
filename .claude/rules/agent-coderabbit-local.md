@@ -98,7 +98,7 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - Collect ALL APPLY-verdict findings of a round into ONE fixup commit per round (`agent-workflow.md § PR Batching`, user directive 2026-07-02) — never per-finding commits; each extra commit re-triggers the review cycle.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
 - **Hand that round summary to the learner** on the fixup commit's own post-commit cycle. Every
-  APPLY finding produces a fixup commit that re-enters the pipeline at `git commit`, so a full cycle
+  round with approved APPLY findings produces ONE fixup commit containing all of them, which re-enters the pipeline at `git commit`, so a full cycle
   (learner included) runs on it — but the learner sees only the four core agents unless you pass the
   CR-local table too. CR-local is the highest-signal reviewer we run; dropping it from frequency
   counting means a pattern it catches every round never reaches the count>=2 promotion threshold.

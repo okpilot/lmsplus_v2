@@ -13,7 +13,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
   ASYNCHRONOUSLY — dispatching four and launching the learner is not "the cycle completed", it is a
   learner pass over whatever happened to have finished. Its counts drive promotion at the >=2
   threshold, so a partial set does not merely under-report: it biases which patterns become rules.
-- **CR-local findings ARE learner input.** Every `/crlocal` APPLY finding produces a fixup commit
+- **CR-local findings ARE learner input.** Every `/crlocal` ROUND with approved APPLY findings produces ONE fixup commit containing all of them (§ PR Batching), and that commit
   that re-enters the pipeline at `git commit`, so that commit gets its own full cycle and its own
   learner pass. Hand that pass the round's CR-local triage table alongside the four core agents'
   results. CR-local is the highest-signal reviewer we run and the only one reading with a genuinely
