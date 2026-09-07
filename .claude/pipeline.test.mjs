@@ -161,7 +161,7 @@ const prePushCommands = stageCommands('pre-push') ?? []
 // stops being checked LOUDLY rather than silently.
 const lefthookStages = [...lefthook.matchAll(/^([A-Za-z_][\w-]*):(?:\s*#.*)?$/gm)]
   .map((m) => m[1])
-  .filter((k) => /^ {2}commands:\s*$/m.test(sectionOf(k)))
+  .filter((k) => sectionOf(k) !== null && /^ {2}commands:\s*$/m.test(sectionOf(k)))
   .sort()
 const declaredStages = Object.keys(spec.hooks).sort()
 JSON.stringify(lefthookStages) === JSON.stringify(declaredStages)

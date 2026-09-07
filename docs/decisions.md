@@ -1460,10 +1460,13 @@ structurally fails, and `code-reviewer`'s "let the user decide" for WARNINGs ove
 not one of the three terminal states; and whether `.claude/**/*.test.mjs` joins the test-file size
 exemption in `.claude/agents/code-reviewer.md`, which today names only `.test.ts`/`.test.tsx`/`.spec.ts`
 — so `pipeline.test.mjs` (CI-only, ships nothing; `wc -l` it) is flagged against the 200-line utility
-cap on every commit. The exemption's extension list is itself an OPEN set written as closed. Also open: `.claude/commands/{crlocal,fullpush,wrapup}.md` each
-restate the security paths declared in `.claude/pipeline.json`, and `crlocal.md` the round floors,
-with no link to the spec. They
-agree today; nothing keeps them agreeing.
+cap on every commit. The exemption's extension list is itself an OPEN set written as closed. Also open: several
+`.claude/commands/*.md` restate the security paths declared in `.claude/pipeline.json`, and
+`crlocal.md` the round floors, with no link to the spec — derive the current set with
+`grep -rln 'proxy\.ts' .claude/commands/` (four files on 2026-09-08, not the three an earlier draft
+of this entry named); `proxy.ts` marks a FULL restatement, so that grep under-reports any file
+restating only PART of the set — `autonomerge.md` names `supabase/migrations/**` for the
+prod-deploy gate and is correctly not one. They agree today; nothing keeps them agreeing.
 
 **One audit finding was REFUTED, and it is recorded because the refutation is the point.**
 An auditor flagged `agent-workflow.md:224` ("parallel, wait for all 4") as contradicting `:733`

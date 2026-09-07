@@ -6,6 +6,16 @@
 
 ## Positive-pattern log
 
+### pipeline-spec-as-data commit 3 (decisions.md false-claim fix + test null-guard + MEMORY.md delta) (2026-09-08)
+
+APPROVED. 3 files reviewed, 0 critical, 0 issues, 1 suggestion (drop numeral from open-set count).
+Verified all five target questions:
+Q1: `grep -rln 'proxy\.ts' .claude/commands/` → exactly 4 files (wrapup, fullpush, automerge, crlocal), all restate full path set. nextjs-patterns.md exclusion confirmed correct (middleware docs, wrong dir).
+Q2: Derivation sound — `autonomerge.md` mentions `supabase/migrations` but not `proxy.ts`; its mention is auto-deploy gate, not red-team trigger set. No false negatives for `.claude/commands/` scope.
+Q3: "FOUR as of 2026-09-08" satisfies §10 clause 2 (as-of date + derivation), but tracker says "de-quantify" — SUGGESTION to remove the numeral.
+Q4: Retracted phrase `{crlocal,fullpush,wrapup}` — zero repo-wide hits. Clean.
+Q5: Suite 88 passed, 0 failed. Guard `sectionOf(k) !== null &&` has no behavior change on current lefthook.yml; defensive for future stages.
+
 ### pipeline-spec-as-data commit 2 (stage fail-open fix + decisions.md + CLAUDE.md) (2026-09-07)
 
 APPROVED. 4 files reviewed, 0 critical, 0 issues, 1 suggestion.
