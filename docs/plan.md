@@ -1048,7 +1048,9 @@ git commit
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a
        notification from every agent actually launched — never a fixed number,
-       since an exemption launches fewer — before acting on any of them.]
+       since an exemption launches fewer — and READ every returned result before
+       acting on any of them. Receiving a notification is not reading the result;
+       agent-workflow.md binds both ("Read every result before starting any fix").]
         core, in parallel:
         1. code-reviewer (sonnet) — diff against code-style.md
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
