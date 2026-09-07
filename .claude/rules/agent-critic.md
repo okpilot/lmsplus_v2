@@ -28,7 +28,7 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   determined from `git diff origin/master...HEAD --name-only` plus staged changes. Fetch and verify
   the base first; an unresolvable base must ABORT, never read as "no paths matched".
 - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply).
-- **Extend on finding; not on skip.** An APPLY finding does NOT reset anything — it **extends the
+- **Extend on finding; not on skip.** An APPLY finding does NOT reset the round counter M — it **extends the
   loop by one round**: fix it, then run one more round to confirm the fix surfaced nothing new.
   Rounds count cumulatively toward M. You simply cannot stop *on* a round that still carries an
   APPLY verdict, and cannot stop *before* round M. A validated skip-with-reason neither extends nor

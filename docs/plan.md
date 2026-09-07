@@ -1054,7 +1054,8 @@ git commit
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
         4. test-writer (sonnet) — find/write missing tests (the only agent with Write)
         then:
-        5. learner (sonnet) — detect patterns, update rules/memory. Takes the four
+        5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
+           orchestrator to apply; writes only its own memory dir. Takes the four
            core results, plus the CR-local triage table on a /crlocal fixup commit
         conditionals, after the learner:
         6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
