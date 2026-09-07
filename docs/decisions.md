@@ -1468,6 +1468,14 @@ of this entry named); `proxy.ts` marks a FULL restatement, so that grep under-re
 restating only PART of the set — `autonomerge.md` names `supabase/migrations/**` for the
 prod-deploy gate and is correctly not one. They agree today; nothing keeps them agreeing.
 
+**One learner promotion is DECIDED and owed to the rules PR, not deferred.** At count 3 across
+distinct commits — the cloud-CR agent-set finding, the non-agent lefthook gates, and the
+mirror-image fix that iterated its own spec — the class is *a consistency check that verifies two
+CO-MODIFIABLE sources against each other with no ground-truth anchor outside either*. Its rule text
+is drafted; it belongs in `code-style.md` §7, which is the rules PR's surface, not this one. The
+learner's tracker row initially read PROMOTED naming a §7 heading that `grep -c` scores 0 — a
+tracker asserting a rule into existence — and is corrected to RULE CANDIDATE.
+
 **One audit finding was REFUTED, and it is recorded because the refutation is the point.**
 An auditor flagged `agent-workflow.md:224` ("parallel, wait for all 4") as contradicting `:733`
 ("never a fixed number, which hangs whenever an exemption launched fewer"). I accepted it and
