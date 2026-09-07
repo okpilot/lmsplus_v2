@@ -157,18 +157,22 @@ SUGGESTION: [count] — improvement, non-blocking
 GOOD: [count]      — positive patterns worth noting
 
 --- FINDINGS ---
+(Illustrative shape only — paths, line numbers and command output below are
+fictitious. Do not run them; they describe the FORM a finding takes.)
 
 [CRITICAL] apps/web/proxy.ts:23 — PKCE redirect drops session cookies
 The new redirect branch returns `NextResponse.redirect(callbackUrl)` without
 copying cookies from the Supabase auth response. The two other redirect branches
 (lines 28-32, 37-41) both copy cookies. This will drop any token refresh that
 happened during `getUser()`.
+EVIDENCE: `grep -n "cookies.getAll" <the file>` -> the two other branches match; this one does not.
 Fix: Add the same `for (const cookie of response.cookies.getAll())` loop.
 
 [ISSUE] apps/web/app/app/quiz/actions.ts:45 — no auth check before RPC call
 `submitQuizAnswer` calls `supabase.rpc('submit_quiz_answer')` without first
 verifying `auth.uid()` is non-null. The RPC has its own auth check, but defense
 in depth requires the Server Action to check too.
+EVIDENCE: `sed -n '<range>p' <the file>` -> no `requireAuth` before the `.rpc(` call.
 Fix: Add `const user = await requireAuth()` before the RPC call.
 
 [SUGGESTION] apps/web/proxy.ts:21 — forward only expected params

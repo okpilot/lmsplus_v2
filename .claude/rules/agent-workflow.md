@@ -179,7 +179,12 @@ drawn. Two consequences, and both have fired in practice (#1256, observed on PR 
   with no error, no conflict and no failing gate — lint, types and tests all pass on a doc whose
   paragraph was silently clobbered. As of 2026-09-06 this is enforced rather than trusted:
   `tools:` in each `.claude/agents/*.md` frontmatter withholds Write/Edit from every agent except
-  **test-writer** (the sole writer, scoped to the test files it creates). `memory: project` still
+  **test-writer** (the sole writer, scoped to the test files it creates). **This removes the
+  accidental write path, not every write path** — every agent keeps `Bash`, deliberately, because
+  #1254's execution-evidence requirement needs it, and a shell can still write (`>`, `rm`, `mv`).
+  The guarantee is therefore "no agent writes a repo file by REACHING FOR ITS EDITING TOOL", which
+  is the actual failure mode observed on PR B — not a sandbox. Do not read it as one, and do not
+  "fix" it by removing `Bash`: that would disable the execution-evidence requirement #1254 introduced alongside it. `memory: project` still
   auto-grants Read/Write/Edit on an agent's OWN memory directory — nothing else writes there, so
   there is no race to lose. Do not "fix" a read-only agent by widening its `tools:` list.
 

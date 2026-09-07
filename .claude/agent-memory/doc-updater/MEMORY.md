@@ -7,6 +7,7 @@
 
 - No tracker table yet — doc-updater adds one only once a doc-drift pattern recurs ≥2× (per `.claude/rules/agent-memory.md`).
 - The binding scope rules (cross-reference audit, steering drift, severity escalation) live in `.claude/rules/agent-doc-updater.md` — this file holds only the doc-sync recipes.
+- When a rules file POINTS to an agent file for content ("the protocol is in `.claude/agents/<name>.md`"), verify the SPECIFIC content the pointer names actually EXISTS at the target after any movement/refactor. A pointer and its target can drift apart across commits, each internally consistent (pointer says "it's there", destination says "I have all of it") but jointly FALSE. Per-commit review cannot catch this; PR-level semantic sweep does. Instance (2026-09-07): agent-test-writer.md pointer said "full OPEN set of bypasses"; when the set was moved out of the rules file, three illustrations were deleted but NOT added to the agent file — the rule and the agent files were each reviewed independently and passed, the pointer became a lie, and only the PR-level sweep caught it by reading both. Restoration of the target (commit 565a819f) made the pointer true again.
 
 ## Recipes
 

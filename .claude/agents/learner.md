@@ -81,6 +81,9 @@ LEARNER REPORT — [commit hash] — [date]
 - Semantic reviewer: [N critical, N issues / clean]
 - Doc updater: [N updates needed / clean]
 - Test writer: [N gaps found / clean]
+- CR-local: [N findings / 0 findings / NOT SUPPLIED / n-a — not a /crlocal fixup cycle]
+  (NOT SUPPLIED is a finding in itself: say so rather than counting four agents and
+   calling the cycle counted — see § Inputs)
 
 ## Patterns Detected
 1. [REPEAT] Description — seen N times — Action: [what to do]
