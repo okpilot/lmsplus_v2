@@ -96,10 +96,23 @@ BEFORE reporting, verify ALL of:
 - the scratch copy or worktree is actually REMOVED (a linked worktree keeps the mutated code on
   disk while the primary repo's status, HEAD and stash list are all blind to it)
 
-No after-the-fact state check is sufficient alone, and the bypasses are an OPEN set — derive them by
-asking which of the four checks a sequence leaves unchanged WHILE THE MUTATION SURVIVES somewhere
-recoverable. The structural guarantee is the real one: a throwaway location, discarded rather than
-restored. A check taken afterwards is satisfied equally by "never happened" and by "committed and left".
+No after-the-fact state check is sufficient alone, and the bypasses are an OPEN set. The three below
+are ILLUSTRATIONS, not a census — do not read them as complete, and do not "fix" this paragraph by
+appending a fourth:
+
+- a mutation written to a GITIGNORED or out-of-repo path that the test still imports is invisible to
+  `--untracked-files=all` (which does not imply `--ignored`);
+- a mutation committed inside a linked worktree never touches the primary repo's HEAD or status;
+- a `git stash push` of an in-place mutation followed by `git stash drop` of that SAME new stash
+  leaves status EMPTY, HEAD unchanged and the stash list byte-identical, while the mutated tree
+  survives as a dangling commit recoverable with `git fsck --unreachable`.
+
+DERIVE the rest rather than trusting that list: of any sequence, ask which of the four checks it
+leaves unchanged — one that leaves all four unchanged WHILE THE MUTATION SURVIVES somewhere
+recoverable is another member. **Both halves are required:** a sequence that genuinely reverts leaves
+all four unchanged too, and is not a bypass. This is why the structural guarantee is the real one — a
+throwaway location, discarded rather than restored: a check taken afterwards is satisfied equally by
+"never happened" and by "committed and left".
 
 This is the ONE case where touching non-test code is sanctioned, and only because nothing survives it.
 A mutation you cannot make this way is the orchestrator's to run — say so rather than skipping it.
