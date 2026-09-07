@@ -124,4 +124,4 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 
 ---
 
-*Last updated: 2026-08-25*
+*Last updated: 2026-09-07*

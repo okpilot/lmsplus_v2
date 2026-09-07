@@ -67,4 +67,4 @@ This is the enforcer analogue of the call-site sweep: both close the "rule promo
 
 ---
 
-*Last updated: 2026-09-02*
+*Last updated: 2026-09-07*

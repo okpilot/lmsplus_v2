@@ -100,3 +100,6 @@ When a decision documents a renamed concept that is also mirrored in rule files 
 3. Cross-check: verify the new term (e.g. "minimum-rounds") appears in all the places the old term was removed.
 4. Validate the factual claims in Decision X by reading the referenced source files (not paraphrasing).
 5. Footnote: commit messages claiming "N instances survive" should be spot-checked — count them post-commit to verify. Minor discrepancies (N vs N+1) in commit prose don't affect doc accuracy if all instances are indeed in historical contexts.
+
+### Rule files updated in a commit must have their footers bumped
+When a commit substantially changes rule files (`.claude/rules/*.md`), the footer `*Last updated: YYYY-MM-DD*` in each modified file must be updated to the commit date. A stale footer signals to future readers that the file is outdated, causing them to distrust or re-verify current content. Found: 2026-09-06 commit d58572c8 updated agent-critic.md and agent-test-writer.md but left footers at 2026-08-25 and 2026-08-19 respectively.

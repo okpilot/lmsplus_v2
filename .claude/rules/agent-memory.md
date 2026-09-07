@@ -118,4 +118,4 @@ Any future protected matrix follows the same shape: keep it as a named topic fil
 
 ---
 
-*Last updated: 2026-08-19*
+*Last updated: 2026-09-07*

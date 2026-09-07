@@ -116,4 +116,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-09-02*
+*Last updated: 2026-09-07*

@@ -6,6 +6,11 @@
 
 ## Positive-pattern log
 
+### pipeline-async-and-review-gates commit 4 (CR-local history fix + #1254 move completion) (2026-09-06)
+
+APPROVED. 5 production files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) ddf5f647 exists, touches .claude/rules/agent-coderabbit-local.md, contains "Any round carrying an APPLY verdict **resets the consecutive-clean counter to zero**" — Jun 18 2026. (b) 765914d7 exists, touches same file, introduces "An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one round**" and self-labels "(rule chosen 2026-06-23, replaces the former consecutive-clean floor)" — Jun 23 2026. (c) "five days later" arithmetic correct (Jun 18 → Jun 23). (d) Full mutation-check protocol present in .claude/agents/test-writer.md: four post-conditions, stash identity requirement, drop-and-push count caveat, OPEN-set principle — no load-bearing content lost. (e) Orchestrator pointer in rules file lists all four artifact checks; adequate. Note: semantic-reviewer disagreed with code-reviewer on the prior commit — code-reviewer was correct (verified by git show; semantic-reviewer had verified only the 2026-06-23 date, not what preceded it).
+
 ### pipeline-async-and-review-gates commit 3 (Decision 61 + #1254 EVIDENCE) (2026-09-06)
 
 APPROVED. 15 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 2 suggestions (non-blocking).
