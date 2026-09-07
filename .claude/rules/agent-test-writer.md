@@ -1,6 +1,6 @@
 # Agent Rules — test-writer
 
-> Model: sonnet | Trigger: post-commit | Non-blocking (tests committed separately)
+> Model: sonnet | Trigger: post-commit | Non-blocking (tests ride the round's ONE fixup commit)
 
 ## Purpose
 Writes Vitest unit and integration tests for new or changed TypeScript functions and React components. Discovers coverage gaps that manual review misses. Runs the tests to verify they pass before reporting.
@@ -9,7 +9,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 
 ### DO
 - Let the agent discover gaps — it often finds untested files you didn't think about.
-- Commit new tests as a separate commit after verifying they pass.
+- Commit new tests in the round's SINGLE fixup commit, alongside every other agent's applied findings, after verifying they pass (`agent-workflow.md § PR Batching`). NOT a commit of their own: each extra commit re-triggers the whole review cycle. This does not change § When Tests Reveal Bugs below — fix and test still land together, which is the same one commit.
 - If a new test reveals a bug in production code, treat it as an ISSUE — fix the production code first, then commit the test.
 - Trust the agent's mock patterns — it maintains proven patterns in `.claude/agent-memory/test-writer/MEMORY.md`.
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.

@@ -29,7 +29,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 7. Plan-critic   → independent agent reviews plan (skip for single-file <10 lines)
 8. Approve       → user approves the validated plan
 9. Execute       → subagents implement (parallel when possible)
-10. Impl-critic  → review staged changes before commit (always runs)
+10. Impl-critic  → review staged changes before commit (all but agent-memory-only)
 11. Commit       → you create the commit
 12. Audit        → post-commit agents review (parallel)
 13. Fix          → address findings, repeat 11-12 until clean
@@ -164,7 +164,7 @@ version.**
 - **NEVER** skip post-commit agent review — run the four core agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) after every commit, except under a NAMED exemption in § Post-commit review. Commit size ALONE is never an exemption
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
-- **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
+- **NEVER** skip implementation-critic before a commit — run it on staged changes even for single-file changes. The ONE exemption is a commit whose paths are ALL under `.claude/agent-memory/**`, which would otherwise not terminate (`agent-workflow.md § Pre-Commit Implementation Review`); read the delta yourself instead
 - **NEVER** skip plan-critic for multi-file plans — run after validation, before user approval
 
 ### Agent behavior — hard stops

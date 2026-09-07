@@ -196,7 +196,7 @@ Respect it by waiting, not by assuming.
 Execute (subagents implement)
     │
     ▼
-Implementation-critic review (always runs)
+Implementation-critic review (always, except an agent-memory-only commit)
     │
     ├─► ISSUE ─► Implementer revises (max 2 rounds, then orchestrator takes over)
     ├─► CRITICAL ─► Orchestrator intervenes directly
@@ -296,7 +296,18 @@ After subagents complete implementation but before committing, run the implement
 - **CRITICAL** — the orchestrator intervenes directly (no implementer revision).
 - After 2 unsuccessful revision rounds, the orchestrator takes over resolution to prevent infinite loops.
 
-**No skip condition.** Even single-file changes get implementation review. The plan-critic is what gets skipped for small changes, not the implementation-critic.
+**ONE exemption, path-derived — otherwise it always runs.** A commit whose changed paths are ALL under
+`.claude/agent-memory/**` skips implementation-critic. Everything else gets it, single-file changes
+included; the plan-critic is what gets skipped for small work, not the implementation-critic.
+
+The exemption exists because the alternative does not TERMINATE: `agent-memory.md § Memory deltas are
+committed, never stashed` requires a memory delta to be committed, that commit would itself need
+implementation-critic, and its run writes its own memory delta. Derive the exemption from
+`git diff --cached --name-only`, never from judgement about how small the commit is.
+
+It removes a GATE, not the DUTY. Read the delta before committing it: a false tracker row inflates a
+learner count and can promote a rule nothing earned. That has happened: `implementation-critic/topics/commit-notes.md` in `2f94ddd2` carries the refutation of
+its own recorded ISSUE.
 
 **Timeout:** Proceed with a warning if the implementation-critic takes over 90 seconds for diffs under 500 lines. Post-commit agents remain as the safety net.
 
@@ -496,7 +507,10 @@ reduce the backlog and needs a written justification.
   empty substitution, and `git log -1 --format=%cI` then silently reports HEAD's date, narrowing the
   window and under-counting `filed`. Capture it, check the exit code, abort on failure, then query.
 
-**First-illumination exemption — the only accepted justification, evidence required, once per area.**
+There are exactly TWO accepted justifications — first-illumination and red-team coverage gaps. Both
+require evidence in the PR body; nothing else passes.
+
+**First-illumination exemption — evidence required, once per area.**
 A PR first to look hard at a neglected area will surface more than it closes. Name the path set and
 paste the output of steps 1-3:
 1. `git log --oneline -- <paths>` — must be NON-empty (proves the pathspec resolves).
@@ -517,6 +531,15 @@ result that GRANTS the exemption unless you test the log's own status first.
 Record it in the PR body as `first-illumination: <path set>`. A later PR into overlapping paths finds
 it via `gh pr list --state merged --search '"first-illumination" in:body'` — a coarse filter that
 still needs a human read. Treat a shared directory as the same area.
+
+**Red-team coverage-gap justification — evidence required, no area limit.**
+`agent-red-team.md` MANDATES filing an issue for every coverage gap it identifies, so a security-path
+PR that runs the agent as required can be pushed into failing this check BY OBEYING it. The filings
+still COUNT — they are real backlog, and exempting them by ORIGIN would key the exemption on the one
+field the filer controls. Instead: list each red-team-filed issue in the PR body's `## Deferred`
+section, marked `red-team-gap`, and name the spec or vector each one covers. A PR whose filings are
+ALL red-team gaps passes. A PR mixing them with ordinary deferrals is judged on the ordinary ones —
+count those alone against `closed`.
 
 Otherwise re-triage: the fix is usually to APPLY two or three deferrals, not to argue for them.
 
@@ -608,7 +631,8 @@ a piece is left unbuilt — say so explicitly in the PR body when that happens.
 
 ### Batch the fixups too (UNCHANGED by the split default)
 Collect ALL findings from ALL post-commit agents/reviewers, then make **ONE fixup commit** — not one
-commit per finding. Each fixup commit re-triggers the review cycle. This governs commits WITHIN a
+commit per finding. **test-writer's tests are covered by this like any other output** — they ride that
+same commit and do not get one of their own (`agent-test-writer.md`). Each fixup commit re-triggers the review cycle. This governs commits WITHIN a
 PR and is unaffected by how work is divided ACROSS PRs; `agent-coderabbit-local.md` and
 `.claude/commands/crlocal.md` both cite this section for exactly this rule.
 
@@ -729,7 +753,7 @@ same commit — not just the file.
 - Repeat until all agents report clean.
 
 ### DO
-- Run implementation-critic on staged changes before every commit.
+- Run implementation-critic on staged changes before every commit, except one whose paths are ALL under `.claude/agent-memory/**` (§ Pre-Commit Implementation Review).
 - Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit, then WAIT for a completion notification from every agent you LAUNCHED — never a fixed number, which hangs whenever an exemption launched fewer — before acting on any of them — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.

@@ -131,7 +131,7 @@ All checks passed. Good commit.
 
 4. **Do NOT flag duplicate types under 3 instances** — Duplicated types (e.g., RPC result shapes across features) are acceptable at 1–2 instances. Only flag when the same shape appears 3+ times.
 
-5. **Do NOT flag test files for line limits** — `.test.ts`/`.test.tsx`/`.spec.ts` files are exempt from component/utility line limits; only flag them if they exceed 500 lines. This exemption does NOT extend to shared test-infra helpers (e.g. `setup.ts`, `helpers/*.ts`, `seed.ts`) — those are utility files subject to the standard 200-line cap.
+5. **Do NOT flag test files for line limits** — a file whose BASENAME matches `*.test.*` or `*.spec.*` is exempt from component/utility line limits, whatever its extension and wherever it lives, including `.claude/`; only flag it above 500 lines. Derived rather than enumerated: an extension list is an OPEN set (`code-style.md` §10 clause 2), and this one had already drifted — it named three extensions and missed `.mjs`, so every `.claude/**/*.test.mjs` was flagged against the 200-line utility cap. The exemption keys on the BASENAME, so it still does NOT extend to shared test-infra helpers (`setup.ts`, `helpers/*.ts`, `seed.ts`) — those are utility files under the standard 200-line cap.
 
 6. **Do NOT flag config files for line limits** — `next.config.ts`, `biome.json`, `tailwind.config.ts`, and similar config files are exempt from line limits when clearly structured.
 

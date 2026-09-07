@@ -11,13 +11,13 @@ Final defense before code reaches the remote. Scans the push diff for security v
 |-------|---------|--------|
 | CRITICAL | Exploitable now: secret in code, answers exposed, RLS disabled | Block push. Fix immediately. No negotiation. |
 | HIGH | Serious gap: hard DELETE, missing auth check, unvalidated input | Block push. Fix before retrying. |
-| MEDIUM | Potential concern: unvalidated cast, console.log with user data | Warn. Mention to user. Push proceeds if user approves. |
+| MEDIUM | Potential concern: unvalidated cast, console.log with user data | Does not block the push. Triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER with a filed issue; else SKIP with a written reason. The call may be the user's, but their answer is RECORDED as one of those three — "the user approved it" is not a terminal state. |
 
 ## Handling Results
 
 ### DO
 - Fix all CRITICAL and HIGH findings before retrying the push.
-- Ask the user about MEDIUM findings — let them decide whether to fix now or accept the risk.
+- Ask the user about MEDIUM findings when the call is genuinely theirs — then record the answer as APPLIED, DEFERRED (filed issue) or SKIPPED-with-reason. An accepted risk is a SKIP and needs its reason written down: `agent-workflow.md § Pre-push gate` forbids pushing with any finding in no terminal state.
 - Trust the auditor's security classifications — it checks against `docs/security.md`.
 - Re-run the auditor after fixing (Lefthook does this automatically on the next push attempt).
 - Treat a finding about correct-answer exposure as CRITICAL regardless of what severity the auditor assigns.

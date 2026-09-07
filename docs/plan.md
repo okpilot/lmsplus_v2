@@ -1057,7 +1057,7 @@ git commit
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
         4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
     → Fix any findings, AND commit every agent-authored artifact — test-writer's new
-      tests (agent-test-writer.md: a separate commit) and any memory/tracker delta
+      tests (agent-test-writer.md: the round's ONE fixup commit) and any memory/tracker delta
       (agent-memory.md forbids leaving one uncommitted). A written test is not a
       "finding", so an agent can report clean while its output sits uncommitted.
     → repeat until no agent has an open finding and nothing agent-authored is uncommitted

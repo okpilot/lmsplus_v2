@@ -27,10 +27,11 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"` — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
       result is exactly 200 rows, treat that as truncated rather than as the answer — raise the
       bound and re-run; a cap only closes the hole while the result stays under it. If
-      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim the
-      first-illumination exemption on its test (see the rule — naming the area is not enough on its
-      own) or re-triage and APPLY two or three of the deferrals. A PR that files nothing clears this
-      check whatever it closes.
+      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one
+      of the TWO accepted justifications on its evidence test — first-illumination, or red-team
+      coverage gaps listed as `red-team-gap` — or re-triage and APPLY two or three of the deferrals.
+      See the rule: for first-illumination, naming the area is not enough on its own. A PR that files
+      nothing clears this check whatever it closes.
 
     Per-item justifications do not answer either check — PR #1225 passed every per-item test and
     still filed **9** against 7 closed, sailing past the volume budget too. Nine as of ITS push, not

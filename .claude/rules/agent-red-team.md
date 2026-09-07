@@ -23,7 +23,7 @@ Do NOT run on every commit — only when the above paths are in the diff.
 - Run after post-commit agents when security-sensitive files changed.
 - Review the agent's spec mapping — verify it correctly identified affected specs.
 - Re-run affected red-team specs if the agent flags them: `pnpm --filter @repo/web e2e:redteam`
-- Create GitHub Issues for coverage gaps the agent identifies (not immediate fixes).
+- Create GitHub Issues for coverage gaps the agent identifies (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers, which is the justification that clears the ratio check (`agent-workflow.md § Apply-vs-Defer Discipline`).
 - Trust the agent's vector-to-spec mapping — it maintains the mapping in memory.
 - **Read the actual migration before writing any column filter, table assertion, or schema-derived value in a red-team spec — never author one from memory of the schema.**
   - The first two were caught by CI before merge; the third reached production because Red Team Specs was non-required.

@@ -55,7 +55,10 @@ export function filesContaining(anchor, cwd = process.cwd()) {
  */
 export function clauseBlock(text, anchor) {
   const lines = text.split('\n')
-  const starts = lines.reduce((acc, l, i) => (l.includes(anchor) ? [...acc, i] : acc), [])
+  const starts = []
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(anchor)) starts.push(i)
+  }
   if (starts.length === 0) return null
   // More than one candidate block means we cannot say WHICH one the sweep should compare.
   // Taking the first silently under-checks the rest — the exact silent-omission class this
