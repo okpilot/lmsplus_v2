@@ -43,7 +43,7 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   four agents there were ZERO code defects and every finding was inaccurate prose. CR-local is
   PRECEDENT, not a counter-example: it shipped the SAME resetting counter on 2026-06-18
   (`ddf5f647`: "Any round carrying an APPLY verdict resets the consecutive-clean counter to zero")
-  and replaced it with extend-by-one five days later (`765914d7`, 2026-06-23). We are applying a fix
+  and replaced it with extend-by-one five days later (`27d6df94`, 2026-06-23). We are applying a fix
   that already proved itself here, not inventing one. The two gates now share one mechanic. The mechanical security-path derivation is
   UNCHANGED — this fixes the arithmetic, not the trigger, and deliberately does NOT add a
   comment-only-diff exception (`agent-workflow.md` forbids deriving the floor from judgement).
