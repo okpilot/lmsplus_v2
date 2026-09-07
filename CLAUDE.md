@@ -207,7 +207,7 @@ Then run:
 If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
-If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
+If rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
 **Docs-only exemption:** a commit touching ONLY `docs/**/*.md` (except `docs/security.md`), root
