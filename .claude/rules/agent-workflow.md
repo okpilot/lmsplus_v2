@@ -180,7 +180,7 @@ drawn. Two consequences, and both have fired in practice (#1256, observed on PR 
   with no error, no conflict and no failing gate — lint, types and tests all pass on a doc whose
   paragraph was silently clobbered. As of 2026-09-06 this is enforced rather than trusted:
   `tools:` in each `.claude/agents/*.md` frontmatter withholds Write/Edit from every agent except
-  **test-writer** (the sole writer, scoped to the test files it creates). **This removes the
+  **test-writer** (the sole Write/Edit holder, scoped to the test files it creates). **This removes the
   accidental write path, not every write path** — every agent keeps `Bash`, deliberately, because
   #1254's execution-evidence requirement needs it, and a shell can still write (`>`, `rm`, `mv`).
   The guarantee is therefore "no agent writes a repo file by REACHING FOR ITS EDITING TOOL", which
@@ -748,8 +748,8 @@ same commit — not just the file.
   launched them" is not "they reported" — wait on the set you actually dispatched, never on a
   hard-coded number.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight. Only test-writer can write repo files
-  now, and only test files — but that is one collision, silent and gateless, per § "Every agent
+- Edit a file while an agent that can write it is in flight. Only test-writer HOLDS Write/Edit
+  now, and only for test files (Bash still writes — see the § above) — but that is one collision, silent and gateless, per § "Every agent
   dispatch is ASYNCHRONOUS". Agent memory dirs are a separate case and NOT a collision: each agent
   writes only its own, no other RUNNING AGENT writes it concurrently, and the orchestrator commits
   those deltas by design. (That memory grant is per the subagent docs and unconfirmed here until a
