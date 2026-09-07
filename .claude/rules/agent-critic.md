@@ -16,7 +16,10 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 
 - **Coverage vs stability rounds.** A *coverage round* runs critics with distinct lenses in parallel
   (breadth). A *stability round* re-runs the SAME configuration against the SAME unchanged artifact
-  (depth). **Only stability rounds count toward the minimum M.**
+  (depth). **Only stability rounds count toward the minimum M.** A fix RESETS THE BASELINE: the
+  artifact changed, so the confirmation round that follows is a stability round against the NEW
+  baseline and counts toward M like any other. "Unchanged" is measured from the last fix, not from
+  the first round — otherwise extend-by-one could never satisfy M, since fixing is what extends it.
 - **Minimum-rounds-met + last-round-clean floor** (aligned with CR-local's rule, 2026-09-06 —
   see § "Why this is not a consecutive-clean counter"). On a normal diff the gate does not engage at
   all — **a single post-commit pass** stands, no floor. **M = 3** stability rounds minimum, then stop

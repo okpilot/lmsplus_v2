@@ -273,8 +273,10 @@ git commit
                           (pre-push, per branch — NOT per commit)
                               ┌──────┴──────┐
                               │  /crlocal   │  M=2 normal / M=3 security-path.
-                              └──────┬──────┘  Each APPLY finding makes a fixup
-                                     │         commit that RE-ENTERS at `git commit`
+                              └──────┬──────┘  Each ROUND with any APPLY finding
+                                     │         makes ONE fixup commit (§ PR Batching —
+                                     │         never one per finding) that RE-ENTERS
+                                     │         at `git commit`
                                      │         above — so the learner runs again on
                                      │         that commit's own cycle, and the
                                      │         CR-local round summary is one of its

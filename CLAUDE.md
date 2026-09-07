@@ -198,7 +198,9 @@ ASYNCHRONOUS`).
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 
 Then run:
-5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory.
+5. **learner** (sonnet) — reads all agents' findings, identifies patterns, and REPORTS proposed
+   rule changes; you apply them. It writes only its own memory dir (`memory: project` grants that
+   regardless of `tools:`), which nothing else touches.
    On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
    drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
 

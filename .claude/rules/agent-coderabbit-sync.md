@@ -19,7 +19,7 @@ Do NOT run on every commit — only when the above files are in the diff.
 ## Handling Results
 
 ### DO
-- Run after the learner, since the learner may update rules that trigger a sync.
+- Run after the learner, since the learner may propose rule changes that, once the orchestrator applies them, trigger a sync.
 - Review the agent's report before applying any changes to `.coderabbit.yaml`.
 - Verify that the proposed `.coderabbit.yaml` changes match the actual rule changes.
 - Commit `.coderabbit.yaml` updates alongside rule changes when possible.

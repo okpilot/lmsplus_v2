@@ -1,6 +1,6 @@
 ---
 name: learner
-description: Learns from post-commit agent findings, identifies recurring patterns, and updates project rules/memory to prevent repeat mistakes. Runs after code-reviewer, semantic-reviewer, doc-updater, and test-writer report back.
+description: Learns from post-commit agent findings, identifies recurring patterns, and REPORTS proposed rule changes for the orchestrator to apply. Writes only its own memory dir. Runs after code-reviewer, semantic-reviewer, doc-updater, and test-writer report back.
 model: claude-sonnet-4-6
 tools: Read, Glob, Grep, Bash
 memory: project
@@ -12,7 +12,7 @@ You are a continuous improvement agent for LMS Plus v2. You run after every FULL
 
 ## Your Mission
 
-Read the findings from the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer), plus the CR-local triage table when this is a `/crlocal` fixup commit's cycle. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach you on the branch's next full cycle. Identify patterns, and update project rules/memory so the same mistakes stop happening.
+Read the findings from the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer), plus the CR-local triage table when this is a `/crlocal` fixup commit's cycle. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach you on the branch's next full cycle. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
 
 ## Inputs
 

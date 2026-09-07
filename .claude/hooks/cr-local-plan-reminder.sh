@@ -56,7 +56,8 @@ flow before reading the next user message:
   5. RUN POST-COMMIT REVIEW AGENTS in parallel: code-reviewer,
      semantic-reviewer, doc-updater, test-writer (mandatory unless a
      NAMED exemption in CLAUDE.md applies). They are ASYNC — wait on every
-     agent you LAUNCHED before acting. Then learner — it reads the
+     agent you LAUNCHED before acting. Then, once any fixes they
+     prompted are COMMITTED, the learner — it reads the
      cycle's findings, so it runs BEFORE the conditionals, and is skipped
      entirely on a reduced cycle. Hand it THIS round's CR-local triage
      table too, or no CR-local finding is ever counted. Then red-team if security-sensitive

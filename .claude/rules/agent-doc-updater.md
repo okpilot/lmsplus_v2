@@ -8,7 +8,9 @@ Keeps project documentation in sync with code changes. Watches for schema change
 ## Handling Results
 
 ### DO
-- Commit doc updates alongside fix commits (same batch, separate or grouped as appropriate).
+- Apply the agent's reported doc edits YOURSELF and commit them alongside the cycle's fix commit
+  (same batch, grouped or separate as appropriate). The agent has no Write/Edit tool and cannot
+  commit; it reports `path:line` + exact replacement text.
 - Verify cross-references — if database.md was updated, check that decisions.md and plan.md are consistent.
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
 - Apply the agent's reported progress-tracking edits to `docs/plan.md` (sprint status, phase
