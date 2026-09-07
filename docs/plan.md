@@ -1054,7 +1054,11 @@ git commit
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
         4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
-    → Fix any findings → commit again → repeat until no agent has an open finding
+    → Fix any findings, AND commit every agent-authored artifact — test-writer's new
+      tests (agent-test-writer.md: a separate commit) and any memory/tracker delta
+      (agent-memory.md forbids leaving one uncommitted). A written test is not a
+      "finding", so an agent can report clean while its output sits uncommitted.
+    → repeat until no agent has an open finding and nothing agent-authored is uncommitted
         then, on a clean FULL cycle only:
         5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes the four
