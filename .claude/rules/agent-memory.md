@@ -97,7 +97,9 @@ Any future protected matrix follows the same shape: keep it as a named topic fil
 
 - **Standard (`memory: project`, MEMORY.md index):** learner, semantic-reviewer, test-writer, code-reviewer, doc-updater, plan-critic, implementation-critic.
 - **red-team (special):** `memory: project` + small MEMORY.md index → protected `attack-surface.md` topic file.
-- **security-auditor:** deferred — `findings.md` holds only a header (36 bytes, zero entries, untouched since 2026-03-16); no `memory:` until it accumulates real content. Its definition's "After Each Audit" block told it to write that file anyway until 2026-09-06; it never had the grant.
+- **security-auditor:** deferred — `findings.md` holds only a header and no entries — derive rather than trust a
+  literal here: `wc -c .claude/agent-memory/security-auditor/findings.md` and
+  `git log -1 --format=%cs -- .claude/agent-memory/security-auditor/findings.md`. No `memory:` until it accumulates real content. Its definition's "After Each Audit" block told it to write that file anyway until 2026-09-06; it never had the grant.
 - **coderabbit-sync:** excluded — no memory dir, no `memory:`.
 
 ## DO

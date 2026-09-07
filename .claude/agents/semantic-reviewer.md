@@ -165,7 +165,9 @@ The new redirect branch returns `NextResponse.redirect(callbackUrl)` without
 copying cookies from the Supabase auth response. The two other redirect branches
 (lines 28-32, 37-41) both copy cookies. This will drop any token refresh that
 happened during `getUser()`.
-EVIDENCE: `grep -n "cookies.getAll" <the file>` -> the two other branches match; this one does not.
+EVIDENCE: `curl -sI <dev-host>/auth/callback?code=x | grep -ci '^set-cookie'` -> 0;
+the two working branches return 2. (A grep showing the missing loop proves the
+STRUCTURE only — this finding asserts a runtime consequence, so it needs a run.)
 Fix: Add the same `for (const cookie of response.cookies.getAll())` loop.
 
 [ISSUE] apps/web/app/app/quiz/actions.ts:45 — no auth check before RPC call

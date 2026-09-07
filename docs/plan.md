@@ -1054,14 +1054,15 @@ git commit
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
         4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
-        then:
+    → Fix any findings → commit again → repeat until no agent has an open finding
+        then, on a clean FULL cycle only:
         5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes the four
-           core results, plus the CR-local triage table on a /crlocal fixup commit
+           core results as finally resolved, plus the CR-local triage table on a
+           /crlocal fixup commit
         conditionals, after the learner:
         6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
         7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
-    → Fix any findings → commit again → repeat until clean
     (plan-critic gates the plan before execution; implementation-critic gates
      `git diff --staged` before every commit. /crlocal runs pre-push, per branch.)
 

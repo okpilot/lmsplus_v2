@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Invariant: every .claude/agents/*.md declares tools: in its frontmatter.
-// Exactly one agent (test-writer) carries Write/Edit — nine are read-only.
+// test-writer carries BOTH Write and Edit; every other agent carries NEITHER.
+// Checking for either tool alone is too weak in both directions: it passes an
+// agent holding only Edit, and passes a test-writer that has silently lost Write.
 // A new agent without tools: inherits the full Write/Edit toolset by default,
 // violating the access-control model established in commit 1b4ee552.
 //
@@ -8,8 +10,8 @@
 // Override dir for mutation testing:
 //   node .claude/agents/agent-tools.test.mjs /tmp/scratch-agents
 
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
@@ -30,7 +32,9 @@ function fail(msg) {
 }
 
 // ── per-file checks ──────────────────────────────────────────────────────────
-const writableAgents = []
+const WRITER = 'test-writer.md'
+const offenders = []
+let writerTools = null
 
 for (const file of mdFiles) {
   const content = readFileSync(join(agentsDir, file), 'utf8')
@@ -55,20 +59,33 @@ for (const file of mdFiles) {
   pass(`${file}: has tools: key`)
 
   const tools = toolsMatch[1].split(',').map((t) => t.trim())
-  if (tools.includes('Write') || tools.includes('Edit')) {
-    writableAgents.push(file)
+  const hasWrite = tools.includes('Write')
+  const hasEdit = tools.includes('Edit')
+
+  if (file === WRITER) {
+    writerTools = { hasWrite, hasEdit }
+  } else if (hasWrite || hasEdit) {
+    const held = [hasWrite && 'Write', hasEdit && 'Edit'].filter(Boolean).join('+')
+    offenders.push(`${file} (${held})`)
   }
 }
 
-// ── global invariant: exactly one writer ─────────────────────────────────────
-if (writableAgents.length === 0) {
-  fail('no agent has Write/Edit — test-writer.md should have it')
-} else if (writableAgents.length === 1 && writableAgents[0] === 'test-writer.md') {
-  pass('exactly one agent has Write/Edit: test-writer.md')
+// ── global invariant: WRITER holds BOTH, every other agent holds NEITHER ─────
+if (writerTools === null) {
+  fail(`${WRITER} not found in ${agentsDir}`)
+} else if (writerTools.hasWrite && writerTools.hasEdit) {
+  pass(`${WRITER} carries both Write and Edit`)
 } else {
-  fail(
-    `expected only test-writer.md to carry Write/Edit; got: ${writableAgents.join(', ')}`,
-  )
+  const missing = [!writerTools.hasWrite && 'Write', !writerTools.hasEdit && 'Edit']
+    .filter(Boolean)
+    .join(' and ')
+  fail(`${WRITER} must carry both Write and Edit; missing: ${missing}`)
+}
+
+if (offenders.length === 0) {
+  pass(`no agent other than ${WRITER} carries Write or Edit`)
+} else {
+  fail(`only ${WRITER} may carry Write/Edit; also found: ${offenders.join(', ')}`)
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
