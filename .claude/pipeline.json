@@ -78,5 +78,7 @@
     ".claude/hooks/*.mjs"
   ],
 
-  "modelLiteralSites": [".claude/hooks/run-security-auditor.sh"]
+  "modelLiteralSites": [
+    { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" }
+  ]
 }

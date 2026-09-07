@@ -75,7 +75,7 @@ it was re-typed verbatim in a reflowed paragraph while impl-critic had the file 
 different claim.
 
 ### CI gate addition / mechanical guard wiring (infrastructure change)
-When a commit adds a new CI gate (e.g., agent-tools.test.mjs frontmatter invariant), it triggers the
+When a commit adds a new CI gate (e.g., pipeline.test.mjs spec invariant), it triggers the
 `lefthook.yml` / `ci.yml` change rule. Audit CLAUDE.md § QA-pipeline for ambiguity about "Unit tests":
 the phrase "Unit tests deliberately excluded — full suite runs in CI" meant the full VITEST suite is
 excluded from pre-commit hooks but runs in CI. NOW that the CI lint job runs 8 hook/agent unit tests
