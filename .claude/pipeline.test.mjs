@@ -111,6 +111,14 @@ const EXPECTED_ROLES = {
   'implementation-critic': 'pre-commit',
   'security-auditor': 'pre-push',
 }
+const DECLARED_AGENTS = Object.keys(spec.agents).sort()
+const EXPECTED_AGENTS = Object.keys(EXPECTED_ROLES).sort()
+JSON.stringify(DECLARED_AGENTS) === JSON.stringify(EXPECTED_AGENTS)
+  ? pass(
+      `agent set is exactly the expected ${EXPECTED_AGENTS.length}: ${EXPECTED_AGENTS.join(', ')}`,
+    )
+  : fail(`agent set is [${DECLARED_AGENTS.join(', ')}], expected [${EXPECTED_AGENTS.join(', ')}]`)
+
 for (const [n, a] of Object.entries(spec.agents)) {
   a.role === EXPECTED_ROLES[n]
     ? pass(`${n}: role ${a.role}`)
