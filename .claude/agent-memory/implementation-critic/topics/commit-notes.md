@@ -6,6 +6,26 @@
 
 ## Positive-pattern log
 
+### pipeline-async-and-review-gates commit 5 (SHA repoint: 765914d7 → 27d6df94) (2026-09-07)
+
+APPROVED. 2 binding doc files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) Both SHAs resolve. (b) 765914d7 subject: `fix(security): forbid dialog_fill token delimiters + harden answer-key strip (#951) (#978)`, date 2026-06-23 13:45:09 UTC, touches agent-coderabbit-local.md, adds "extends the loop by one round" as `+` lines. (c) 27d6df94 subject: `chore(rules): soften cr-local stop rule to minimum-rounds + last-clean`, date 2026-06-23 12:24:59 UTC, touches agent-coderabbit-local.md, adds "extends the loop by one round" as `+` lines. (d) Neither is an ancestor of the other (independent branches, both merged to master). (e) 27d6df94 is the better citation: its subject documents the mechanic change; its commit message states the "cloud authoritative gate" rationale cited in D61 footer. (f) No remaining 765914d7 refs outside agent-memory in .claude/, CLAUDE.md, docs/. (g) D61 footer's "CR-local argued a local stability proof is unnecessary because cloud CR is the authoritative gate" matches 27d6df94's commit message verbatim.
+
+### pipeline-async-and-review-gates commit 4 (CR-local history fix + #1254 move completion) (2026-09-06)
+
+APPROVED. 5 production files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) ddf5f647 exists, touches .claude/rules/agent-coderabbit-local.md, contains "Any round carrying an APPLY verdict **resets the consecutive-clean counter to zero**" — Jun 18 2026. (b) 765914d7 exists, touches same file, introduces "An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one round**" and self-labels "(rule chosen 2026-06-23, replaces the former consecutive-clean floor)" — Jun 23 2026. (c) "five days later" arithmetic correct (Jun 18 → Jun 23). (d) Full mutation-check protocol present in .claude/agents/test-writer.md: four post-conditions, stash identity requirement, drop-and-push count caveat, OPEN-set principle — no load-bearing content lost. (e) Orchestrator pointer in rules file lists all four artifact checks; adequate. Note: semantic-reviewer disagreed with code-reviewer on the prior commit — code-reviewer was correct (verified by git show; semantic-reviewer had verified only the 2026-06-23 date, not what preceded it).
+
+### pipeline-async-and-review-gates commit 3 (Decision 61 + #1254 EVIDENCE) (2026-09-06)
+
+APPROVED. 15 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 2 suggestions (non-blocking).
+Verified: (a) `agent-coderabbit-local.md` uses extend-by-one mechanic (line 84, confirmed by grep). (b) Decision 61 arithmetic correct: under reset-to-zero with N=3 and 4-ceiling, a finding on round 1 leaves rounds 2-4 — exactly 3 — and any second finding makes 3 consecutive clean rounds impossible; the unreachability claim holds. (c) `plan-critic.md` still has "Do NOT execute code or make file changes" — no execution requirement added. (d) All "consecutive-clean floor" survivors are historical references; no surviving current-claim use outside agent-memory. (e) `implementation-critic.md` DO NOT #4 allows targeted execution while forbidding only the full test suite — no conflict with EVIDENCE requirement. (f) Decision 61 footer is a single `*Last updated:` line; prior chain intact; all four listed mirrors (`agent-critic.md`, `agent-workflow.md`, `.claude/agents/plan-critic.md`, `.claude/commands/crlocal.md`) were actually updated. (g) `learner.md § Inputs` says "ONLY" for CR-local counting; `agent-learner.md § DO` describes the mechanism. Both CLAUDE.md citations correct. Suggestions: Decision 61 Problem section uses N=3 (old notation) while footer uses M=3 (new notation) — add clarification that N was the old variable; the expanded NEVER-list parenthetical in agent-workflow.md makes "that is one collision" referent ambiguous.
+
+### pipeline-async-and-review-gates fixup (2026-09-06)
+
+CLEAN. 7 files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
+Verified: (a) CLAUDE.md `/crlocal` paragraph factually correct — second review-follow-up condition fails on its face; reduced path skips learner confirmed by existing CLAUDE.md text; `agent-learner.md § DO` reference resolves to a section that does contain the CR-local counting rule. (b) `agent-tools.test.mjs` non-vacuous: a new agent missing `tools:` fails the per-file check (exit 1); a new agent with Write/Edit fails the global invariant. 11/11 passed. (c) ci.yml YAML valid; all 8 root-level `.test.mjs`/`.test.sh` under `.claude` are wired. (d) doc-updater changes are internally consistent (purpose line + DO + NEVER all say "reports", none says "applies"). (e) agent-memory.md correctly hedges an unverified platform claim. No self-contradictions found in the diff.
+
 ### batch3-governance CR-round-1 fixup — rules-text accuracy (2026-08-08)
 
 CLEAN. 2 files, 0 critical, 0 issues, 1 suggestion (non-blocking). Both CR-local APPLY edits verified:

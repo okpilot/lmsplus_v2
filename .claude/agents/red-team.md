@@ -2,6 +2,7 @@
 name: red-team
 description: Reviews diffs touching auth/RLS/RPCs, maps changes to red-team specs, flags coverage gaps
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 

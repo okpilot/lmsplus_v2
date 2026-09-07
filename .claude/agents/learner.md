@@ -1,7 +1,8 @@
 ---
 name: learner
-description: Learns from post-commit agent findings, identifies recurring patterns, and updates project rules/memory to prevent repeat mistakes. Runs after code-reviewer, semantic-reviewer, doc-updater, and test-writer report back.
+description: Learns from post-commit agent findings, identifies recurring patterns, and REPORTS proposed rule changes for the orchestrator to apply. Writes only its own memory dir. Runs after code-reviewer, semantic-reviewer, doc-updater, and test-writer report back.
 model: claude-sonnet-4-6
+tools: Read, Glob, Grep, Bash
 memory: project
 ---
 
@@ -11,7 +12,7 @@ You are a continuous improvement agent for LMS Plus v2. You run after every FULL
 
 ## Your Mission
 
-Read the findings from the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer). Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach you on the branch's next full cycle. Identify patterns, and update project rules/memory so the same mistakes stop happening.
+Read the findings from the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer), plus the CR-local triage table when this is a `/crlocal` fixup commit's cycle. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach you on the branch's next full cycle. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
 
 ## Inputs
 
@@ -20,7 +21,12 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
-- NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md:262`), so their findings
+- On a `/crlocal` fixup commit's cycle ONLY: that round's CR-local triage table. Every `/crlocal` ROUND with
+  approved APPLY findings produces ONE fixup commit containing all of them (§ PR Batching), which
+  re-enters the pipeline at `git commit` and gets its own full cycle — this one — so CR-local findings DO reach you, unlike the two below. Count them. CR-local
+  is the highest-signal reviewer we run; if it is missing from your input on a fixup cycle, say so
+  rather than counting the four core agents and calling the cycle counted.
+- NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md § Red-Team Agent Trigger`), so their findings
   are never available in the cycle that invokes you. They reach you on the branch's NEXT full cycle.
 - The commit diff (`git diff HEAD~1..HEAD`)
 - Current rules: `.claude/rules/code-style.md`, `.claude/rules/security.md`
@@ -75,6 +81,9 @@ LEARNER REPORT — [commit hash] — [date]
 - Semantic reviewer: [N critical, N issues / clean]
 - Doc updater: [N updates needed / clean]
 - Test writer: [N gaps found / clean]
+- CR-local: [N findings / 0 findings / NOT SUPPLIED / n-a — not a /crlocal fixup cycle]
+  (NOT SUPPLIED is a finding in itself: say so rather than counting four agents and
+   calling the cycle counted — see § Inputs)
 
 ## Patterns Detected
 1. [REPEAT] Description — seen N times — Action: [what to do]

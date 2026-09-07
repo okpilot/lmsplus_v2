@@ -105,7 +105,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**One run, not rounds (2026-08-24).** plan-critic runs **ONCE**. Fix its APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply) and proceed; an ISSUE or CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because § NEVER forbids executing with either still open. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run. The **Multi-Round Review Discipline** (`agent-critic.md`) — coverage rounds, the consecutive-clean floor, the 4-round ceiling — governs the post-commit **semantic-reviewer** / **code-reviewer** only, and no longer plan-critic: a plan is prose, an LLM returns non-empty on almost any prose, and the findings that mattered came from critics reading CODE. See `agent-critic.md § Model tier`.
+**One run, not rounds (2026-08-24).** plan-critic runs **ONCE**. Fix its APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply) and proceed; an ISSUE or CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because § NEVER forbids executing with either still open. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run. The **Multi-Round Review Discipline** (`agent-critic.md`) — coverage rounds, the minimum-rounds floor, the 4-round ceiling — governs the post-commit **semantic-reviewer** / **code-reviewer** only, and no longer plan-critic: a plan is prose, an LLM returns non-empty on almost any prose, and the findings that mattered came from critics reading CODE. See `agent-critic.md § Model tier`.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -164,6 +164,33 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 ---
 
 ## Post-Implementation Pipeline Order
+
+### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
+
+`Agent` returns an id immediately and the agent runs in the BACKGROUND; you are notified when it
+finishes. There is no synchronous mode, so nothing makes the diagram below happen in the order it is
+drawn. Two consequences, and both have fired in practice (#1256, observed on PR B):
+
+- **"The cycle is complete" means every completion notification from the agents you LAUNCHED has
+  been RECEIVED — never
+  merely dispatched.** Read every result before starting any fix, and before launching the learner:
+  a learner pass started early synthesises from a partial finding set, and its counts are what drive
+  rule promotion at the >=2 threshold.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes
+  with no error, no conflict and no failing gate — lint, types and tests all pass on a doc whose
+  paragraph was silently clobbered. As of 2026-09-06 this is enforced rather than trusted:
+  `tools:` in each `.claude/agents/*.md` frontmatter withholds Write/Edit from every agent except
+  **test-writer** (the sole Write/Edit holder, scoped to the test files it creates). **This removes the
+  accidental write path, not every write path** — every agent keeps `Bash`, deliberately, because
+  #1254's execution-evidence requirement needs it, and a shell can still write (`>`, `rm`, `mv`).
+  The guarantee is therefore "no agent writes a repo file by REACHING FOR ITS EDITING TOOL", which
+  is the actual failure mode observed on PR B — not a sandbox. Do not read it as one, and do not
+  "fix" it by removing `Bash`: that would disable the execution-evidence requirement #1254 introduced alongside it. `memory: project` still
+  auto-grants Read/Write/Edit on an agent's OWN memory directory — nothing else writes there, so
+  there is no race to lose. Do not "fix" a read-only agent by widening its `tools:` list.
+
+The pipeline below is drawn as a sequence because each stage CONSUMES the previous stage's output.
+Respect it by waiting, not by assuming.
 
 ```
 Execute (subagents implement)
@@ -241,7 +268,21 @@ git commit
                               ┌──────┴──────┐
                               │ update spec │  tasks.md: [ ] → [x]
                               │  (if spec)  │
-                              └─────────────┘
+                              └──────┬──────┘
+                                     │
+                          (pre-push, per branch — NOT per commit)
+                              ┌──────┴──────┐
+                              │  /crlocal   │  M=2 normal / M=3 security-path.
+                              └──────┬──────┘  Each ROUND with any APPLY finding
+                                     │         makes ONE fixup commit (§ PR Batching —
+                                     │         never one per finding) that RE-ENTERS
+                                     │         at `git commit`
+                                     │         above — so the learner runs again on
+                                     │         that commit's own cycle, and the
+                                     │         CR-local round summary is one of its
+                                     │         INPUTS (`agent-learner.md`).
+                                     ▼
+                                 /fullpush → push
 ```
 
 ### Pre-Commit Implementation Review (runs AFTER execution, BEFORE git commit)
@@ -536,7 +577,7 @@ surface** — not the fewest PRs overall. Superseded 2026-08-24 (user directive)
   The gate is per-PR, not per-file: migrations that deploy together may share one PR — what must not
   ride along is the NON-migration work, which would otherwise be held behind a prod-deploy approval.
 - **A security path** (the `§ Red-Team Agent Trigger` set). It raises the post-commit reviewer floor
-  to N=3 and the CR-local floor to M=3, and it makes the red-team run mandatory; do not make
+  to M=3 and the CR-local floor to M=3 — both now the same minimum-rounds mechanic, and it makes the red-team run mandatory; do not make
   unrelated work pay those rounds.
 - **A change that supersedes an issue's stated acceptance criteria.** That needs its own argument in
   its own PR body, where a reviewer can find it.
@@ -689,7 +730,7 @@ same commit — not just the file.
 
 ### DO
 - Run implementation-critic on staged changes before every commit.
-- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
+- Launch the four core post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) in parallel immediately after each commit, then WAIT for a completion notification from every agent you LAUNCHED — never a fixed number, which hangs whenever an exemption launched fewer — before acting on any of them — the learner, red-team and coderabbit-sync run AFTER them, not alongside — except under a NAMED exemption from `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer). A review-follow-up commit, which applies only findings from its own parent's cycle and introduces no new scope, runs semantic-reviewer alone — **and only if its PARENT ran the FULL cycle and claimed NO exemption**, so the reduced path cannot chain off another reduced path.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -703,8 +744,16 @@ same commit — not just the file.
 - Allow more than 2 revision rounds between critic and implementer.
 - Skip post-commit agents. Ever. Not even for "trivial" commits. Commit size is NOT a criterion — the only reductions are the NAMED exemptions in `CLAUDE.md § Post-commit review`, and each has its OWN defining condition — docs-only by the PATHS the commit touches, review-follow-up by its parent having run a full cycle plus every hunk tracing to that cycle's findings. Neither is defined by how small the diff is.
 - Chase a reviewer to convergence on a review-follow-up commit. Act on CRITICAL/ISSUE findings that name a runtime defect **or a false claim in the prose** — a false claim is never bounded out, whatever round it lands on, though the CHAIN is capped at 3 consecutive commits whose only content is applying the previous commit's findings — the ACT, not this exemption label, which cannot chain — before escalating (see `CLAUDE.md § Post-commit review`); log the rest and stop. An LLM reviewer returns non-empty on almost any prose, so the loop ends by rule, not by agreement (see the stop rule and its PR #1185 precedent in `CLAUDE.md § Post-commit review`).
-- Start fixing after only one agent reports — wait for all 4.
+- Start fixing before every agent you LAUNCHED has reported. They run ASYNCHRONOUSLY, so "I
+  launched them" is not "they reported" — wait on the set you actually dispatched, never on a
+  hard-coded number.
 - Fire-and-forget agents without reading results.
+- Edit a file while an agent that can write it is in flight. Only test-writer HOLDS Write/Edit
+  now, and only for test files (Bash still writes — see the § above) — but that is one collision, silent and gateless, per § "Every agent
+  dispatch is ASYNCHRONOUS". Agent memory dirs are a separate case and NOT a collision: each agent
+  writes only its own, no other RUNNING AGENT writes it concurrently, and the orchestrator commits
+  those deltas by design. (That memory grant is per the subagent docs and unconfirmed here until a
+  restart — see `agent-memory.md`.)
 - **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.
@@ -870,4 +919,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-09-02*
+*Last updated: 2026-09-07*

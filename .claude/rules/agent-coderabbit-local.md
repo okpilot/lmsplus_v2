@@ -97,6 +97,12 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
   round on `content/vfr-rt-part3` were outright false.
 - Collect ALL APPLY-verdict findings of a round into ONE fixup commit per round (`agent-workflow.md § PR Batching`, user directive 2026-07-02) — never per-finding commits; each extra commit re-triggers the review cycle.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
+- **Hand that round summary to the learner** on the fixup commit's own post-commit cycle. Every
+  round with approved APPLY findings produces ONE fixup commit containing all of them, which re-enters the pipeline at `git commit`, so a full cycle
+  (learner included) runs on it — but the learner sees only the four core agents unless you pass the
+  CR-local table too. CR-local is the highest-signal reviewer we run; dropping it from frequency
+  counting means a pattern it catches every round never reaches the count>=2 promotion threshold.
+  See `agent-learner.md § DO`. (Until 2026-09-06 this file did not mention the learner at all.)
 - Re-run the review after each fix commit — fixes can surface new findings that weren't visible before.
 - For DEFER verdicts, file a GitHub Issue with the CR comment context (severity, file, line, suggestion).
 - Stop the loop the moment a stop condition trips (≥ M rounds run AND the latest round has no apply-worthy findings, or the 4-fix ceiling hit) — but NOT before round M; report the running round count each round (e.g. "round 2/2 min, last round clean → stop") and tell the user which condition tripped.

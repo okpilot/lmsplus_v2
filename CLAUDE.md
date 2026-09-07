@@ -34,7 +34,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 12. Audit        → post-commit agents review (parallel)
 13. Fix          → address findings, repeat 11-12 until clean
 14. Tasks        → update task status if using TaskCreate
-15. Learn        → learner synthesizes patterns
+15. Learn        → learner synthesizes patterns (after every launched agent reports — async)
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
@@ -183,18 +183,31 @@ version.**
 After every `git commit`, run these 4 subagents in parallel using the Agent tool:
 1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
 2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
-3. **doc-updater** (haiku) — check if docs need updates, report what changed
-4. **test-writer** (sonnet) — check for missing tests, write them, run them
+3. **doc-updater** (haiku) — report the doc edits needed; YOU apply them (it has no Write/Edit tool)
+4. **test-writer** (sonnet) — check for missing tests, write them, run them (the only agent holding Write/Edit; every agent keeps Bash, so this closes the ACCIDENTAL write path, not every one)
+
+**They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
+four" is not "four reported". WAIT for a completion notification from every agent you actually
+LAUNCHED, read ALL results, then fix. Never a fixed number: an exemption launches fewer, and the
+count then hangs on notifications that never arrive.
+Never edit a file while an agent that can write it is in flight — the lost update is silent and no
+gate catches it. Write access is enforced by `tools:` in each `.claude/agents/*.md` frontmatter, not
+by remembering to say so in the dispatch prompt (`agent-workflow.md § Every agent dispatch is
+ASYNCHRONOUS`).
 
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 
 Then run:
-5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory
+5. **learner** (sonnet) — reads all agents' findings, identifies patterns, and REPORTS proposed
+   rule changes; you apply them. It writes only its own memory dir (`memory: project` grants that
+   regardless of `tools:`), which nothing else touches.
+   On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
+   drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
 
 If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
-If rules changed (code-style.md, security.md, docs/security.md, biome.json, CLAUDE.md, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
+If rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
 **Docs-only exemption:** a commit touching ONLY `docs/**/*.md` (except `docs/security.md`), root
@@ -211,6 +224,12 @@ cycle runs semantic-reviewer only. ALL must hold:
 
 If any condition fails, run the full cycle. Neither the docs-only nor the review-follow-up path
 gets a learner pass.
+
+**A `/crlocal` fixup commit NEVER qualifies for the review-follow-up path.** Its hunks trace to
+CR-LOCAL findings, not to its own parent's post-commit cycle — the second condition fails on its
+face. This matters more than it looks: the reduced path skips the learner, and a CR-local fixup
+commit's cycle is the ONLY place a CR-local finding is ever counted (`learner.md § Inputs` states the ONLY; `agent-learner.md § DO` the mechanism).
+Mislabel one and the relay is silently dead — no error, and the counts simply come up short.
 
 Docs-only and review-follow-up are the only exemptions, and neither is a "small commit" exemption —
 new scope gets the full cycle even at one line.

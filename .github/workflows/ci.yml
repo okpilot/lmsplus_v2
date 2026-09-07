@@ -77,6 +77,12 @@ jobs:
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
 
+      # Access-control invariant (#1256): an agent with no tools: key inherits the
+      # full Write/Edit toolset, so a new agent added without one silently reopens
+      # the concurrent-write race. Co-located with what it checks, per code-style §7.
+      - name: "Agent tools: frontmatter invariant — unit test"
+        run: node .claude/agents/agent-tools.test.mjs
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

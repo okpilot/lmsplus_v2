@@ -1044,14 +1044,33 @@ Claude finishes responding
 git commit
     → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
     → [Lefthook commit-msg] commitlint validates message format
-    → [Claude subagents — run by me via Agent tool, results come back to conversation]
+    → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
+       the dispatch returns immediately and each notifies on completion, so the
+       numbering below is a data dependency, not a running order. Wait for a
+       notification from every agent actually launched — never a fixed number,
+       since an exemption launches fewer — and READ every returned result before
+       acting on any of them. Receiving a notification is not reading the result;
+       agent-workflow.md binds both ("Read every result before starting any fix").]
+        core, in parallel:
         1. code-reviewer (sonnet) — diff against code-style.md
-        2. doc-updater (haiku) — check docs freshness
-        3. test-writer (sonnet) — find/write missing tests
-        4. learner (sonnet) — detect patterns, update rules/memory
-        5. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
-        6. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
-    → Fix any findings → commit again → repeat until clean
+        2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
+        3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
+        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
+    → Fix any findings, AND commit every agent-authored artifact — test-writer's new
+      tests (agent-test-writer.md: a separate commit) and any memory/tracker delta
+      (agent-memory.md forbids leaving one uncommitted). A written test is not a
+      "finding", so an agent can report clean while its output sits uncommitted.
+    → repeat until no agent has an open finding and nothing agent-authored is uncommitted
+        then, on a clean FULL cycle only:
+        5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
+           orchestrator to apply; writes only its own memory dir. Takes the four
+           core results as finally resolved, plus the CR-local triage table on a
+           /crlocal fixup commit
+        conditionals, after the learner:
+        6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
+        7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+    (plan-critic gates the plan before execution; implementation-critic gates
+     `git diff --staged` before every commit. /crlocal runs pre-push, per branch.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

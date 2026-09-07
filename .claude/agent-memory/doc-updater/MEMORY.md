@@ -7,6 +7,7 @@
 
 - No tracker table yet — doc-updater adds one only once a doc-drift pattern recurs ≥2× (per `.claude/rules/agent-memory.md`).
 - The binding scope rules (cross-reference audit, steering drift, severity escalation) live in `.claude/rules/agent-doc-updater.md` — this file holds only the doc-sync recipes.
+- When a rules file POINTS to an agent file for content ("the protocol is in `.claude/agents/<name>.md`"), verify the SPECIFIC content the pointer names actually EXISTS at the target after any movement/refactor. A pointer and its target can drift apart across commits, each internally consistent (pointer says "it's there", destination says "I have all of it") but jointly FALSE. Per-commit review cannot catch this; PR-level semantic sweep does. Instance (2026-09-07): agent-test-writer.md pointer said "full OPEN set of bypasses"; when the set was moved out of the rules file, three illustrations were deleted but NOT added to the agent file — the rule and the agent files were each reviewed independently and passed, the pointer became a lie, and only the PR-level sweep caught it by reading both. Restoration of the target (commit 565a819f) made the pointer true again.
 
 ## Recipes
 
@@ -72,3 +73,37 @@ source, not re-read. Instance (2026-09-02, `18757ddf`): `CLAUDE.md`'s claim abou
 comparing "byte-for-byte" — false, the actual code folds line endings — survived four passes because
 it was re-typed verbatim in a reflowed paragraph while impl-critic had the file open but verified a
 different claim.
+
+### CI gate addition / mechanical guard wiring (infrastructure change)
+When a commit adds a new CI gate (e.g., agent-tools.test.mjs frontmatter invariant), it triggers the
+`lefthook.yml` / `ci.yml` change rule. Audit CLAUDE.md § QA-pipeline for ambiguity about "Unit tests":
+the phrase "Unit tests deliberately excluded — full suite runs in CI" meant the full VITEST suite is
+excluded from pre-commit hooks but runs in CI. NOW that the CI lint job runs 8 hook/agent unit tests
+(check-soft-delete-guard.test.mjs + 7 others), the phrase is ambiguous — readers may infer NO unit tests
+run in pre-commit (true) and by implication only the vitest suite runs in CI (false, 8 more run there).
+**Fix: clarify that CI runs unit tests for mechanical guards and agent-access-control validation,
+separate from the full Vitest suite.** Add the phrase like "along with unit tests for mechanical guards
+and agent-access-control invariants" to the pre-commit description. Decisions: no entry needed —
+infrastructure, not project architecture. Instance: 2026-09-06 (commit `29cd8d0f`, #1256).
+
+### Async/notification-based pipeline clarification (agent behavior / infrastructure change)
+When a commit clarifies async behavior of agents or redefines "cycle complete" (e.g. dispatch returns immediately, notifying later; agents run in BACKGROUND, not synchronously), audit `docs/plan.md` pipeline diagram and `CLAUDE.md` post-commit section for accuracy.
+1. Verify the diagram clearly states ASYNC dispatch and notification, not sequential running order.
+2. Verify all agents are listed correctly (including semantic-reviewer if it was omitted before).
+3. Verify the learner's input sources are documented (four core agents + CR-local on fixup commits).
+4. Check `.spec-workflow/steering/tech.md` — if it claims "4 post-commit agents run sequentially" or similar, flag as DRIFT; if it says "4 post-commit agents" without claiming synchronicity, no update needed.
+5. No decision entry needed — this is infrastructure clarification, not a new decision.
+
+### Decision section with renamed concept + deprecation mirrors (e.g. Decision 61)
+When a decision documents a renamed concept that is also mirrored in rule files / agent definitions:
+1. Verify all mirrors were updated in the same commit: grep the commit diff for the old term (e.g. "consecutive-clean") across `.claude/rules/*.md`, `.claude/agents/*.md`, `.claude/commands/*.md`.
+2. For historical/explanatory residue: the old term survives ONLY in passages explaining the history, never as a current rule statement. Verify each survivor is in a section marked "Why this is not" or "Until [date]" or similar.
+3. Cross-check: verify the new term (e.g. "minimum-rounds") appears in all the places the old term was removed.
+4. Validate the factual claims in Decision X by reading the referenced source files (not paraphrasing).
+5. Footnote: commit messages claiming "N instances survive" should be spot-checked — count them post-commit to verify. Minor discrepancies (N vs N+1) in commit prose don't affect doc accuracy if all instances are indeed in historical contexts.
+
+### Rule files updated in a commit must have their footers bumped
+When a commit substantially changes rule files (`.claude/rules/*.md`), the footer `*Last updated: YYYY-MM-DD*` in each modified file must be updated to the commit date. A stale footer signals to future readers that the file is outdated, causing them to distrust or re-verify current content. Found: 2026-09-06 commit d58572c8 updated agent-critic.md and agent-test-writer.md but left footers at 2026-08-25 and 2026-08-19 respectively.
+
+### Multi-file footer sweep: widen beyond the diff (2026-09-07)
+When doc-updater flags stale footers on a narrow diff scope (one commit), the orchestrator widens the sweep to the entire branch. Not all files changed on a branch appear in a single commit's diff. Found: commit d58572c8 touched 2 rule files with stale footers; on the full branch these were 7. The 7th (implementation-critic.md) has a DATED CHAIN footer (parenthetical continuation of entry dates), not the plain form — a first regex pass matched 6 files in plain form and reported completion; the chain-form survivor nearly escaped. Pattern: a detection that matches most instances and silently skips odd ones (different syntax) is a FALSE-CLEAN signal. Also applies to docs/plan.md and docs/decisions.md, which use running-log footers but still need bumping when the file is modified on the branch. When a Decision's body is substantially changed and the footer's summary of that decision is now inaccurate, the footer text itself must be rewritten (not just the date) to match the new body. Decision 61, modified 2026-09-07: the body clarified "different stated reason" (two routes to the same fix); the footer said "for the same reason" and needed both date bump + text rewrite.
