@@ -118,7 +118,9 @@ for (const [n, a] of Object.entries(spec.agents)) {
 }
 
 const lefthook = readFileSync(join(ROOT, 'lefthook.yml'), 'utf8')
-const afterPrePush = lefthook.slice(lefthook.indexOf('\npre-push:') + 1)
+const prePushIdx = lefthook.indexOf('\npre-push:')
+if (prePushIdx === -1) fail('lefthook.yml has no pre-push: block')
+const afterPrePush = prePushIdx === -1 ? '' : lefthook.slice(prePushIdx + 1)
 const bodyStart = afterPrePush.indexOf('\n') + 1
 const nextTopKey = afterPrePush.slice(bodyStart).search(/^[A-Za-z_][\w-]*:/m)
 const prePushBlock =

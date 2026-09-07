@@ -1408,11 +1408,13 @@ the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-c
 strict subset of the new test's, confirmed by reading both.
 
 **Coverage — stated precisely, because overclaiming it would be the same defect.** The test asserts:
-agent-set closure in both directions; each agent's `model`/`tools`/`memory`/`role` against its
-frontmatter, with `role` checked against an expected map rather than mere enum membership; the
+agent-set closure in both directions; each agent's `model`/`tools`/`memory` against its frontmatter,
+and its `role` — which lives in `pipeline.json`, NOT in frontmatter — against an expected map plus,
+for `pre-push`, the command keys `lefthook.yml` actually runs; the
 single-writer invariant; closed key sets, top-level and per-agent, so an unchecked field cannot be
 reintroduced; existence of every declared path plus the parent directory of a glob entry; the phase
-ordering; and the value carried by each hardcoded model FLAG, matched against comment-stripped text
+ordering; and the flag value at each DECLARED `modelLiteralSites` entry — not every hardcoded model
+flag in the repo — matched against comment-stripped text
 so a dead comment cannot mask a removed flag, plus a sweep for model literals the spec does not know. It does **not** assert that a path list
 is COMPLETE — dropping `apps/web/app/auth/**` would still pass — nor that a path is the RIGHT one:
 substituting a different real file passes too, since `existsSync` cannot tell intent.
