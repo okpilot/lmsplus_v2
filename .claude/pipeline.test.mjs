@@ -126,13 +126,18 @@ for (const [n, a] of Object.entries(spec.agents)) {
 }
 
 const lefthook = readFileSync(join(ROOT, 'lefthook.yml'), 'utf8')
-function stageCommands(stage) {
+function sectionOf(stage) {
   const idx = lefthook.indexOf(`\n${stage}:`)
   if (idx === -1) return null
   const after = lefthook.slice(idx + 1)
   const bodyStart = after.indexOf('\n') + 1
   const nextTopKey = after.slice(bodyStart).search(/^[A-Za-z_][\w-]*:/m)
-  const block = nextTopKey === -1 ? after : after.slice(0, bodyStart + nextTopKey)
+  return nextTopKey === -1 ? after : after.slice(0, bodyStart + nextTopKey)
+}
+
+function stageCommands(stage) {
+  const block = sectionOf(stage)
+  if (block === null) return null
   return [...block.matchAll(/^ {4}([A-Za-z_][\w-]*):\s*$/gm)].map((m) => m[1])
 }
 
@@ -150,6 +155,21 @@ for (const [stage, expected] of Object.entries(spec.hooks)) {
 }
 
 const prePushCommands = stageCommands('pre-push') ?? []
+
+// The stage set is DERIVED from lefthook.yml — a top-level key whose block declares
+// `commands:` is a stage — and compared both ways, so a stage dropped from the spec
+// stops being checked LOUDLY rather than silently.
+const lefthookStages = [...lefthook.matchAll(/^([A-Za-z_][\w-]*):(?:\s*#.*)?$/gm)]
+  .map((m) => m[1])
+  .filter((k) => /^ {2}commands:\s*$/m.test(sectionOf(k)))
+  .sort()
+const declaredStages = Object.keys(spec.hooks).sort()
+JSON.stringify(lefthookStages) === JSON.stringify(declaredStages)
+  ? pass(`spec.hooks covers every lefthook.yml stage: ${lefthookStages.join(', ')}`)
+  : fail(
+      `lefthook.yml stages [${lefthookStages.join(', ')}] != spec.hooks [${declaredStages.join(', ')}]`,
+    )
+
 const declaredPrePush = inSpec.filter((n) => spec.agents[n].role === 'pre-push').sort()
 const actualPrePush = inSpec.filter((n) => prePushCommands.includes(n)).sort()
 JSON.stringify(declaredPrePush) === JSON.stringify(actualPrePush)

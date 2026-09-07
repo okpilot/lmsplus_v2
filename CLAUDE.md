@@ -250,6 +250,8 @@ Lefthook enforces mechanical gates (blocking):
 - **commit-msg:** conventional commit format
 - **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
 
+`.claude/pipeline.json` `hooks` is the machine-checked enumeration of every lefthook stage's commands — including the non-blocking `post-commit` reminder, which is not a gate and so is not listed above. `.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree in either direction; do not restate the command list here.
+
 Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
 
 ## Local migrations

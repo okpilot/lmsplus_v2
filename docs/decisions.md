@@ -1420,7 +1420,11 @@ ordering; and the flag value at each DECLARED `modelLiteralSites` entry — not 
 flag in the repo — matched against text with both full-line
 and inline `#` comments stripped, so a dead comment cannot mask a removed flag, plus a sweep for model literals the spec does not know. It does **not** assert that a path list
 is COMPLETE — dropping `apps/web/app/auth/**` would still pass — nor that a path is the RIGHT one:
-substituting a different real file passes too, since `existsSync` cannot tell intent.
+substituting a different real file passes too, since `existsSync` cannot tell intent. It pins hook
+command KEYS, not what they DO: `skip: true`, `run: true`, or a narrowed `glob:` disables a gate
+with every assertion green (all three verified by mutation). And nothing asserts that `ci.yml` still
+runs this test — such an assertion could never fire, because deleting that step is precisely what
+stops the test from running.
 
 Every assertion is mutation-verified in a throwaway worktree: agent model changed, read-only agent
 gains Write, `memory:` removed, rogue write-capable agent added, agent dropped from the spec, phases
@@ -1453,7 +1457,10 @@ are NOT settled here:
 test-commit policy (four sites disagree — separate commit / with the fix / one round fixup / same
 commit), red-team's mandate to file coverage-gap issues versus the `filed >= closed` defer budget it
 structurally fails, and `code-reviewer`'s "let the user decide" for WARNINGs over 10 lines, which is
-not one of the three terminal states. Also open: `.claude/commands/{crlocal,fullpush,wrapup}.md` each
+not one of the three terminal states; and whether `.claude/**/*.test.mjs` joins the test-file size
+exemption in `.claude/agents/code-reviewer.md`, which today names only `.test.ts`/`.test.tsx`/`.spec.ts`
+— so `pipeline.test.mjs` (CI-only, ships nothing; `wc -l` it) is flagged against the 200-line utility
+cap on every commit. The exemption's extension list is itself an OPEN set written as closed. Also open: `.claude/commands/{crlocal,fullpush,wrapup}.md` each
 restate the security paths declared in `.claude/pipeline.json`, and `crlocal.md` the round floors,
 with no link to the spec. They
 agree today; nothing keeps them agreeing.

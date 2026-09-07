@@ -6,6 +6,17 @@
 
 ## Positive-pattern log
 
+### pipeline-spec-as-data commit 2 (stage fail-open fix + decisions.md + CLAUDE.md) (2026-09-07)
+
+APPROVED. 4 files reviewed, 0 critical, 0 issues, 1 suggestion.
+Mutation-verified all four task claims: M0 88/0, M1 (drop pre-push from spec.hooks) → "FAIL: lefthook.yml stages [..., pre-push] != spec.hooks [...]", M3 (append post-merge stage) → "FAIL: lefthook.yml stages [..., post-merge, ...] != spec.hooks [...]", M4 (top-level config key, no commands:) → 88/0 no false positive.
+Trailing-comment edge case confirmed by M5: `pre-push: # note` causes the stage-set regex `/^([A-Za-z_][\w-]*):$/gm` to miss `pre-push`, causing a FALSE ALARM (not silent pass) for existing stages. For a new stage added to lefthook with trailing comment and not added to spec, both old and new checks silently miss it — no regression vs. pre-commit behavior. Reported as SUGGESTION.
+Q2 (`sectionOf(null)` → `test(null)` = false): safe and unreachable in practice (keys derive from same string).
+Q3 (`actual===null` branch): NOT dead — fires when spec declares a stage lefthook doesn't have.
+Q4 (decisions.md counts): "all three verified" (skip/run/glob — 3 items correct); "these policy contradictions" (no count — correct); "three terminal states" (APPLY/DEFER/SKIP — correct); "names only .test.ts/.test.tsx/.spec.ts" (verified against code-reviewer.md — accurate).
+Q5 (CLAUDE.md post-commit claim): git docs confirm "cannot affect the outcome of git commit" — "not a gate" is factually correct.
+10th instance of same-commit self-contradiction (semantic-reviewer MEMORY.md "test stays green") was caught and fixed in a PRIOR commit on this branch — semantic-reviewer MEMORY.md correctly uses past tense at review time of this commit. Positive signal.
+
 ### pipeline-async-and-review-gates commit 5 (SHA repoint: 765914d7 → 27d6df94) (2026-09-07)
 
 APPROVED. 2 binding doc files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.
