@@ -77,11 +77,12 @@ jobs:
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
 
-      # Access-control invariant (#1256): an agent with no tools: key inherits the
-      # full Write/Edit toolset, so a new agent added without one silently reopens
-      # the concurrent-write race. Co-located with what it checks, per code-style §7.
-      - name: "Agent tools: frontmatter invariant — unit test"
-        run: node .claude/agents/agent-tools.test.mjs
+      # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
+      # source for each agent's model, tools and memory, for the phase order, and
+      # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the
+      # access-control checks that file made are a strict subset of these.
+      - name: "Pipeline spec matches the repo — unit test"
+        run: node .claude/pipeline.test.mjs
 
   type-check:
     name: Type Check

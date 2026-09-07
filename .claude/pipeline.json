@@ -1,0 +1,91 @@
+{
+  "_": "Single source of truth for pipeline facts that .claude/pipeline.test.mjs VALIDATES. Every FACT here is asserted by that test (this `_` field is documentation, not a fact) — nothing is recorded that is not checked, so proximity to a green suite never implies coverage. Prose explains WHY; it must not restate a value from here. Rationale: docs/decisions.md Decision 62.",
+
+  "models": {
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5-20251001"
+  },
+
+  "baseTools": ["Read", "Glob", "Grep", "Bash"],
+  "writeTools": ["Write", "Edit"],
+
+  "agents": {
+    "code-reviewer": {
+      "model": "sonnet",
+      "memory": "project",
+      "write": false,
+      "role": "post-commit-core"
+    },
+    "semantic-reviewer": {
+      "model": "sonnet",
+      "memory": "project",
+      "write": false,
+      "role": "post-commit-core"
+    },
+    "doc-updater": {
+      "model": "haiku",
+      "memory": "project",
+      "write": false,
+      "role": "post-commit-core"
+    },
+    "test-writer": {
+      "model": "sonnet",
+      "memory": "project",
+      "write": true,
+      "role": "post-commit-core"
+    },
+    "learner": {
+      "model": "sonnet",
+      "memory": "project",
+      "write": false,
+      "role": "post-commit-learner"
+    },
+    "red-team": { "model": "sonnet", "memory": "project", "write": false, "role": "conditional" },
+    "coderabbit-sync": {
+      "model": "haiku",
+      "memory": "none",
+      "write": false,
+      "role": "conditional"
+    },
+    "plan-critic": { "model": "sonnet", "memory": "project", "write": false, "role": "pre-commit" },
+    "implementation-critic": {
+      "model": "sonnet",
+      "memory": "project",
+      "write": false,
+      "role": "pre-commit"
+    },
+    "security-auditor": { "model": "sonnet", "memory": "none", "write": false, "role": "pre-push" }
+  },
+
+  "order": ["post-commit-core", "fix-loop", "post-commit-learner", "conditional", "spec-tasks"],
+
+  "hooks": {
+    "pre-commit": ["biome-check", "soft-delete-guard", "test-title-leakage", "type-check"],
+    "commit-msg": ["commitlint"],
+    "post-commit": ["agent-reminder"],
+    "pre-push": ["audit", "security-auditor"]
+  },
+
+  "securityPaths": [
+    "supabase/migrations/**",
+    "packages/db/src/**",
+    "apps/web/app/app/quiz/actions/**",
+    "apps/web/app/auth/**",
+    "apps/web/proxy.ts",
+    "docs/security.md"
+  ],
+  "redTeamExtraPaths": ["apps/web/e2e/redteam/**"],
+
+  "coderabbitSyncTriggers": [
+    ".claude/rules/code-style.md",
+    ".claude/rules/security.md",
+    "docs/security.md",
+    "biome.json",
+    "CLAUDE.md",
+    ".claude/hooks/*.mjs"
+  ],
+
+  "modelLiteralSites": [
+    { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" }
+  ]
+}

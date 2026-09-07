@@ -6,6 +6,45 @@
 
 ## Positive-pattern log
 
+### pipeline-spec-as-data commit 4 (learner row correction + commit-notes phrase + decisions.md paragraph) (2026-09-08)
+
+REVISE — 1 ISSUE: learner MEMORY.md new tracker row has 4cbaba0a and 7eaef31a descriptions SWAPPED.
+- `4cbaba0a` row description says "cloud CR: security-auditor deleted from both, 76 passed" — this matches `git show 7eaef31a` verbatim ("76 passed, 0 failed", "security-auditor deleted from both"). The SHA 4cbaba0a is actually "docs(decisions): derive the security-path set, do not count it" (CR-local, §10 cl.2 prose fix, no mutation test).
+- Correct fix: swap descriptions, OR remove 4cbaba0a from the instance list if it is not a genuine "automated check passes when co-removing from both" instance (its actual content is a prose fix with no automated check).
+- §10 cl.3 sweep on "zero repo-wide hits": one hit in commit-notes.md line 16, in double quotes as a self-falsifying citation — not a restatement. Clean.
+- The §7 heading does not exist (grep -c returns 0 for both "Independent Ground-Truth Anchor" and "Completeness Tests Need an Independent"). RULE CANDIDATE correction is true.
+- Docs-only exemption confirmed: all 3 files are .claude/agent-memory/** or docs/**/*.md (not docs/security.md). doc-updater only.
+- **REFUTED by the orchestrator (2026-09-08).** The ISSUE above is a FALSE POSITIVE. It read each
+  commit's MESSAGE to decide what was true AT that commit; those are different things. Derived from
+  the TREES instead — `git show <sha>:.claude/pipeline.test.mjs`:
+  `4cbaba0a` agent-set anchor absent + hooks check absent; `7eaef31a` anchor present, hooks check
+  absent; `807b6658` hooks check present, stage set not derived; `45e93d51` all present. Each SHA
+  carried a DIFFERENT instance of the one class, exactly as the learner row states, and the mutation
+  producing "76 passed" was run against 4cbaba0a's TREE. Count 3 stands; applying the suggested swap
+  would have turned a true row false. LESSON: to establish what a commit CONTAINED, read
+  `git show <sha>:<path>`, never `git show <sha>` (the message/diff).
+
+### pipeline-spec-as-data commit 3 (decisions.md false-claim fix + test null-guard + MEMORY.md delta) (2026-09-08)
+
+APPROVED. 3 files reviewed, 0 critical, 0 issues, 1 suggestion (drop numeral from open-set count).
+Verified all five target questions:
+Q1: `grep -rln 'proxy\.ts' .claude/commands/` → exactly 4 files (wrapup, fullpush, automerge, crlocal), all restate full path set. nextjs-patterns.md exclusion confirmed correct (middleware docs, wrong dir).
+Q2: Derivation sound — `autonomerge.md` mentions `supabase/migrations` but not `proxy.ts`; its mention is auto-deploy gate, not red-team trigger set. No false negatives for `.claude/commands/` scope.
+Q3: "FOUR as of 2026-09-08" satisfies §10 clause 2 (as-of date + derivation), but tracker says "de-quantify" — SUGGESTION to remove the numeral.
+Q4: Retracted phrase `{crlocal,fullpush,wrapup}` — no hit outside this note. Clean. (Stated this way because committing the note makes the file itself a hit; "zero repo-wide hits" self-falsifies.)
+Q5: Suite 88 passed, 0 failed. Guard `sectionOf(k) !== null &&` has no behavior change on current lefthook.yml; defensive for future stages.
+
+### pipeline-spec-as-data commit 2 (stage fail-open fix + decisions.md + CLAUDE.md) (2026-09-07)
+
+APPROVED. 4 files reviewed, 0 critical, 0 issues, 1 suggestion.
+Mutation-verified all four task claims: M0 88/0, M1 (drop pre-push from spec.hooks) → "FAIL: lefthook.yml stages [..., pre-push] != spec.hooks [...]", M3 (append post-merge stage) → "FAIL: lefthook.yml stages [..., post-merge, ...] != spec.hooks [...]", M4 (top-level config key, no commands:) → 88/0 no false positive.
+Trailing-comment edge case confirmed by M5: `pre-push: # note` causes the stage-set regex `/^([A-Za-z_][\w-]*):$/gm` to miss `pre-push`, causing a FALSE ALARM (not silent pass) for existing stages. For a new stage added to lefthook with trailing comment and not added to spec, both old and new checks silently miss it — no regression vs. pre-commit behavior. Reported as SUGGESTION.
+Q2 (`sectionOf(null)` → `test(null)` = false): safe and unreachable in practice (keys derive from same string).
+Q3 (`actual===null` branch): NOT dead — fires when spec declares a stage lefthook doesn't have.
+Q4 (decisions.md counts): "all three verified" (skip/run/glob — 3 items correct); "these policy contradictions" (no count — correct); "three terminal states" (APPLY/DEFER/SKIP — correct); "names only .test.ts/.test.tsx/.spec.ts" (verified against code-reviewer.md — accurate).
+Q5 (CLAUDE.md post-commit claim): git docs confirm "cannot affect the outcome of git commit" — "not a gate" is factually correct.
+10th instance of same-commit self-contradiction (semantic-reviewer MEMORY.md "test stays green") was caught and fixed in a PRIOR commit on this branch — semantic-reviewer MEMORY.md correctly uses past tense at review time of this commit. Positive signal.
+
 ### pipeline-async-and-review-gates commit 5 (SHA repoint: 765914d7 → 27d6df94) (2026-09-07)
 
 APPROVED. 2 binding doc files reviewed (excl. agent-memory deltas), 0 critical, 0 issues, 0 suggestions.

@@ -1205,3 +1205,179 @@ per `agent-learner.md`'s DO-NOT-on-a-single-occurrence rule as a proposal to wat
 not a promotion. If a second bullet on a different branch shows the same "cap-exceeded because the
 fix needed to be structural, not instance-level" shape, this refinement clears the 2-occurrence bar
 for the stop-rule text itself.
+
+## Commits `dc9789f9`→`a8f92eab`→`c7686957` (chore/pipeline-spec-as-data) — 2026-09-07 learner pass
+
+Branch codifies pipeline governance into `.claude/pipeline.json` + `.claude/pipeline.test.mjs`. No
+product code, SQL, or migration touched — the entire diff is the governance/spec layer itself
+(plus `ci.yml`, `docs/decisions.md`, two agent-memory pointers). All findings below were validated
+against source before being logged.
+
+### New pattern 1 — mutation-check executed but doesn't falsify the claim (count=2, RULE CANDIDATE)
+
+`.claude/agents/test-writer.md` § "Mutation-check every test that pins a mechanism" is entirely
+about ARTIFACT CLEANLINESS (proving a mutation genuinely happened and left no trace — the `git
+status`/`HEAD`/stash-list checks and their bypasses). It says NOTHING about whether the mutation
+was DESIGNED correctly to falsify the claim. Verified by grep (`isolate`, `confound`, "two things at
+once", "does nothing" — no hits outside this new entry). This is a genuine gap, not an unfollowed
+existing rule.
+
+- Instance 1, `a8f92eab`: a frontmatter-parser fix (closing the `dc9789f9` semantic-reviewer CRITICAL
+  — `frontmatter()` scanning for the first `\n---` anywhere) was mutation-checked and reported
+  CLOSED. It was not: the added check was inert, and only a LATER, unrelated mutation (run
+  afterward, for a different purpose) revealed the gap. The reporting mutation was green either way
+  — it never exercised the specific new logic the fix added.
+- Instance 2, `c7686957`: a lefthook-grounding fix (closing an implementation-critic finding — the
+  grounding check substring-matched the whole command block, so it passed after a rename because the
+  unrelated path `run-security-auditor.sh` contains the agent's own name) was mutation-checked and
+  reported CLOSED. It was not: the mutation changed two things at once, so it never isolated the
+  mechanism the fix claimed to close.
+
+**Draft addendum** (insert in `.claude/agents/test-writer.md`, after the "BEFORE reporting, verify
+ALL of" artifact-cleanliness block, before "This is the ONE case where..."):
+
+> **Design the mutation before running it — isolation and targeting are separate failures from the
+> artifact-cleanliness checks above, and BOTH have shipped a false "closed" report on this repo:**
+>
+> - **Isolate exactly one change per mutation.** If confirming a fix requires touching two
+>   independent code paths, run two separate mutation passes, one per path. A mutation that
+>   conflates two edits and reddens proves only "something in this diff matters" — never that the
+>   SPECIFIC check under test does. (`chore/pipeline-spec-as-data`, `c7686957`.)
+> - **Target the specific gap the fix claims to close, not "any mutation that eventually reddens."**
+>   State in one sentence what the fix is supposed to catch before choosing the mutation, then
+>   confirm the mutation you are about to apply would trigger exactly that condition. A mutation
+>   that reddens for an unrelated reason — or a LATER, different mutation that happens to expose the
+>   gap — does not retroactively validate an earlier "closed" claim. (`chore/pipeline-spec-as-data`,
+>   `a8f92eab`.)
+
+Also extends to `agent-workflow.md § Finding Validation`'s "I ran/verified X" self-report bullet:
+these are the ORCHESTRATOR's own self-executed mutation checks failing, not a subagent's — the
+existing bullet's examples are all subagents; this is the first orchestrator-self instance of the
+same failure class (verify the artifact, not the claim — here the artifact check itself was flawed).
+
+### New pattern 2 — verification/gate check accepts membership/substring, not exact identity (count=2)
+
+`code-style.md` §7 "A Test Must Fail If Its Mechanism Is Removed" already states the general
+principle ("would it go red if I deleted the code?") and explicitly says its two named sub-rules
+"are worked examples... it also covers cases neither of them names." This is NOT a new rule — it's
+a third nameable shape the existing principle already anticipates but doesn't yet illustrate.
+
+- Instance 1, `dc9789f9` (semantic-reviewer CRITICAL): a model-literal check in
+  `pipeline.test.mjs` asserted that *a* known model string appeared in the BLOCKING pre-push hook,
+  never that the RIGHT one did. Swapping `sonnet`→`haiku` passed clean.
+- Instance 2, pre-`c7686957` (implementation-critic): a lefthook-grounding check substring-matched
+  the whole command block. It passed even after the command key was renamed, because the unrelated
+  path `run-security-auditor.sh` still contains the agent's own name.
+
+**Draft addendum** (3rd bullet in the existing list under §7, after the REVOKE-tests example):
+
+> - A check verifies **category/substring membership instead of exact identity**, so a SWAP passes
+>   as easily as a deletion. A model-literal check asserted that *a* known model string appeared in
+>   a blocking hook, never that the RIGHT one did — swapping `sonnet`→`haiku` passed clean. A
+>   sibling lefthook-grounding check substring-matched a whole command block, so it passed after a
+>   rename because an unrelated path happened to contain the agent's own name.
+
+### New pattern 3 — schema/spec validator has no closed key set (count=2, RULE CANDIDATE → code-style.md §5)
+
+Verified NOT covered elsewhere (grep for "closed key", "unknown key", `.strict()`, "exhaustive",
+"extra key" in code-style.md and this file — no hits before this entry).
+
+- Instance 1, `dc9789f9` (test-writer): `.claude/pipeline.json`'s validator checked each known field
+  but had no closed key set — a future edit could reintroduce the exact unchecked-field defect the
+  introducing commit's own message claimed to have removed.
+- Instance 2, `a8f92eab`: `.md` frontmatter validation had no closed-key check (semantic-reviewer) —
+  a contradictory `role:` key was invisible to the test; the same commit's data file also carried an
+  unreferenced `models` alias no check would ever catch (test-writer).
+
+**Draft new bullet** for `code-style.md` §5 (TypeScript Rules), title "Closed-Key Validation for
+Schema/Spec Files":
+
+> Any validator that checks a JSON/YAML/frontmatter object against an expected shape (a spec file, a
+> `.md` frontmatter block, a config schema) must reject or explicitly flag keys OUTSIDE the expected
+> set — not merely confirm that expected keys hold the right values. A validator that only checks
+> "does key X have the right value," with no `Object.keys(obj).every(k => KNOWN_KEYS.has(k))` (or an
+> explicit Zod `.strict()` decision), lets an unreferenced, resurrected, or contradictory extra key
+> sit invisible indefinitely — including the exact defect a prior fix's commit message claimed to
+> have removed.
+>
+> ```ts
+> // ❌ WRONG — checks known fields, says nothing about extras
+> for (const key of EXPECTED_KEYS) assert(obj[key] != null)
+>
+> // ✅ CORRECT — closes the key set
+> const unknown = Object.keys(obj).filter(k => !EXPECTED_KEYS.has(k))
+> assert(unknown.length === 0, `unexpected keys: ${unknown.join(', ')}`)
+> ```
+>
+> Promoted at count=2 (`chore/pipeline-spec-as-data`, `dc9789f9`/`a8f92eab`).
+
+### One-off watch items (count=1 each — logged, NOT promoted)
+
+- **Delimiter-scan parser matches the first occurrence anywhere, not the paired/anchored one**
+  (`dc9789f9`, semantic-reviewer CRITICAL): `frontmatter()` scanned for the first `\n---` anywhere in
+  the file; deleting a file's real closing `---` made it swallow ~190 lines of body and still pass.
+  A distinct parsing-robustness shape from pattern 2 above (that's membership-vs-exact-identity in a
+  VALUE check; this is unanchored-vs-paired in a DELIMITER scan). Watch for a second instance before
+  proposing a rule.
+- **Orchestrator encodes its own unresolved design PROPOSAL into a durable data file as settled
+  fact** (implementation-critic, commit unconfirmed — likely pre-`a8f92eab` or pre-`c7686957`):
+  caught two of the orchestrator's own proposals encoded as established fact in
+  `.claude/pipeline.json` (both CRITICAL, same catch — counts as one occurrence). Related to the
+  already-tracked row "Orchestrator drafts its own unverified 'because X'/attribution claim in
+  comment prose" (count=4) but a distinct shape: a settled-sounding VALUE in a DATA FILE, not a
+  causal claim in PROSE. Deliberately not folded into that row's count (would conflate two
+  observably different failure modes under one number). Watch for a second data-file instance.
+- **`EXPECTED_ROLES` asserts the test's own belief with nothing reading reality** (`a8f92eab`,
+  semantic-reviewer ISSUE) and **regex false positives / unescaped flag in `new RegExp`**
+  (`a8f92eab`, semantic-reviewer ISSUEs): ordinary code-correctness bugs in the test file itself.
+  The `EXPECTED_ROLES` shape reinforces the existing §7 general principle (not a new pattern); the
+  regex bugs are one-off implementation defects, not a systemic pattern at n=2 within one commit.
+
+### §10-class findings feeding existing rows (not new patterns — incrementing established rows)
+
+- `dc9789f9` CR WARNING trio: SCOPE header under-listed its own assertion list; `docs/decisions.md`
+  self-contradicting mutation tally (body "nine", footer "7/7"); "existence of every declared path"
+  false for one glob entry. Split across the two existing §10 rows: the arithmetic/tally mismatch →
+  "Rules-file claim true in its hunk, false vs another section/mirror/arithmetic" (now 13); the false
+  universal ("every X") claims → "Rules-file bullet closes an enumeration of a structurally OPEN
+  set" (now 5).
+- `a8f92eab` CR pair: "every agent file carries a third bare `---`" (true of 1/10) left standing NINE
+  LINES BELOW the orchestrator's own correction of it (→ the "closes an enumeration" row, now 5);
+  "four reviewer defs use `--- FINDINGS ---`" when one uses `--- DETAILS ---` (→ the
+  "arithmetic/mirror" row, now 13). The "every agent file" claim was ALSO caught again by
+  implementation-critic pre-`c7686957`, i.e. it survived a full post-commit CR pass before being
+  fixed — an enforcement-gap data point for the "Fix commit correcting §10 violations introduces
+  fresh §10" row (stays at 28 per its own same-branch convention; noted as a possible uncounted 4th
+  arc, attribution to "c7686957 introduced a fresh violation" vs "took one extra round to fully
+  clean up" is not confirmed).
+- `dc9789f9` doc-updater: reported 1 stale pointer, orchestrator found a 2nd. Matches the
+  already-PROMOTED whole-block-read rule in `agent-doc-updater.md` § DO almost exactly — this is a
+  3rd instance showing an ENFORCEMENT-GAP recurrence (the written rule exists; a Haiku-tier agent
+  still missed it), not a missing-text gap. Whether the 2nd pointer was in the SAME block as the 1st
+  (the rule's exact trigger) or a genuinely separate location is unconfirmed from the task
+  description — flagged as a caveat on the increment.
+
+### Q4 — "defects land in the prose describing a mechanism, not in the mechanism"
+
+NOT well-supported by this evidence, taken at face value, and there are two separate reasons to
+push back:
+
+1. **Severity runs the opposite way.** Of ~14 distinct findings across the three commits, the two
+   most severe (both semantic-reviewer CRITICAL) were LOGIC bugs in the verification code itself
+   (the model-literal check's weak matching; the frontmatter delimiter scan) — not prose/comment
+   inaccuracies. Counting roughly: ~7 findings were prose/§10-class (CR warnings, doc-updater), ~7
+   were logic/mechanism bugs in the test/validator code (both CRITICALs, the TW closed-key gaps, the
+   two self-inflicted mutation-check failures, the IC lefthook-substring finding). That's close to
+   even, and severity-weighted toward mechanism.
+2. **The comparison is close to tautological for this branch.** The whole diff IS the governance/
+   spec layer (`.claude/pipeline.json` + `.claude/pipeline.test.mjs`) — no `lefthook.yml`, CI script,
+   or agent definition file was touched. So "defects land in the description layer, not the
+   mechanism" is nearly guaranteed by construction: that's the only layer this branch edits. It says
+   nothing about whether prose-type defects are MORE COMMON than logic-type defects in general — only
+   that when you edit exclusively the descriptive/governance layer, defects (unsurprisingly) show up
+   there.
+
+Recommend NOT generalizing the thesis from this branch. A cleaner, evidence-backed reformulation:
+**verification/gate mechanisms that check "does X roughly look right" (membership, substring,
+unclosed-key) are as failure-prone, and at least as severe, as the prose claims describing them** —
+that's what patterns 1-3 above actually show.
