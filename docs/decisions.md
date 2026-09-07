@@ -1463,10 +1463,9 @@ exemption in `.claude/agents/code-reviewer.md`, which today names only `.test.ts
 cap on every commit. The exemption's extension list is itself an OPEN set written as closed. Also open: several
 `.claude/commands/*.md` restate the security paths declared in `.claude/pipeline.json`, and
 `crlocal.md` the round floors, with no link to the spec — derive the current set with
-`grep -rln 'proxy\.ts' .claude/commands/` (four files on 2026-09-08, not the three an earlier draft
-of this entry named); `proxy.ts` marks a FULL restatement, so that grep under-reports any file
-restating only PART of the set — `autonomerge.md` names `supabase/migrations/**` for the
-prod-deploy gate and is correctly not one. They agree today; nothing keeps them agreeing.
+`grep -rln 'proxy\.ts' .claude/commands/`; `proxy.ts` marks a FULL restatement, so that grep
+under-reports any file restating only PART of the set — `autonomerge.md` names
+`supabase/migrations/**` for the prod-deploy gate and is correctly not one. They agree today; nothing keeps them agreeing.
 
 **One learner promotion is DECIDED and owed to the rules PR, not deferred.** At count 3 across
 distinct commits — the cloud-CR agent-set finding, the non-agent lefthook gates, and the
