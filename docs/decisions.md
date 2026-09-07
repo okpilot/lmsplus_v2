@@ -1408,10 +1408,13 @@ the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-c
 strict subset of the new test's, confirmed by reading both.
 
 **Coverage — stated precisely, because overclaiming it would be the same defect.** The test asserts:
-agent-set closure in both directions; each agent's `model`/`tools`/`memory` against its frontmatter,
-and its `role` — which lives in `pipeline.json`, NOT in frontmatter — against an expected map plus,
-for `pre-push`, the command keys `lefthook.yml` actually runs; the
-single-writer invariant; closed key sets, top-level and per-agent, so an unchecked field cannot be
+agent-set closure in both directions AND the set itself against an expected list — closure alone
+stayed green when an agent was deleted from the spec and its definition file together, which is how
+the whole pre-push security gate came to be removable; each agent's `model`/`tools`/`memory` against
+its frontmatter, and its `role` — which lives in `pipeline.json`, NOT in frontmatter — against an
+expected map plus, for `pre-push`, the command keys `lefthook.yml` actually runs; the exact command
+set of EVERY `lefthook.yml` stage, so deleting a non-agent gate (`audit`, `soft-delete-guard`) fails
+too; the single-writer invariant; closed key sets, top-level and per-agent, so an unchecked field cannot be
 reintroduced; existence of every declared path plus the parent directory of a glob entry; the phase
 ordering; and the flag value at each DECLARED `modelLiteralSites` entry — not every hardcoded model
 flag in the repo — matched against text with both full-line

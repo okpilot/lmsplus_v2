@@ -59,6 +59,13 @@
 
   "order": ["post-commit-core", "fix-loop", "post-commit-learner", "conditional", "spec-tasks"],
 
+  "hooks": {
+    "pre-commit": ["biome-check", "soft-delete-guard", "test-title-leakage", "type-check"],
+    "commit-msg": ["commitlint"],
+    "post-commit": ["agent-reminder"],
+    "pre-push": ["audit", "security-auditor"]
+  },
+
   "securityPaths": [
     "supabase/migrations/**",
     "packages/db/src/**",

@@ -126,14 +126,30 @@ for (const [n, a] of Object.entries(spec.agents)) {
 }
 
 const lefthook = readFileSync(join(ROOT, 'lefthook.yml'), 'utf8')
-const prePushIdx = lefthook.indexOf('\npre-push:')
-if (prePushIdx === -1) fail('lefthook.yml has no pre-push: block')
-const afterPrePush = prePushIdx === -1 ? '' : lefthook.slice(prePushIdx + 1)
-const bodyStart = afterPrePush.indexOf('\n') + 1
-const nextTopKey = afterPrePush.slice(bodyStart).search(/^[A-Za-z_][\w-]*:/m)
-const prePushBlock =
-  nextTopKey === -1 ? afterPrePush : afterPrePush.slice(0, bodyStart + nextTopKey)
-const prePushCommands = [...prePushBlock.matchAll(/^ {4}([A-Za-z_][\w-]*):\s*$/gm)].map((m) => m[1])
+function stageCommands(stage) {
+  const idx = lefthook.indexOf(`\n${stage}:`)
+  if (idx === -1) return null
+  const after = lefthook.slice(idx + 1)
+  const bodyStart = after.indexOf('\n') + 1
+  const nextTopKey = after.slice(bodyStart).search(/^[A-Za-z_][\w-]*:/m)
+  const block = nextTopKey === -1 ? after : after.slice(0, bodyStart + nextTopKey)
+  return [...block.matchAll(/^ {4}([A-Za-z_][\w-]*):\s*$/gm)].map((m) => m[1])
+}
+
+for (const [stage, expected] of Object.entries(spec.hooks)) {
+  const actual = stageCommands(stage)
+  if (actual === null) {
+    fail(`lefthook.yml has no ${stage}: block`)
+    continue
+  }
+  JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort())
+    ? pass(`lefthook.yml ${stage}: runs exactly ${[...expected].sort().join(', ')}`)
+    : fail(
+        `lefthook.yml ${stage}: runs [${actual.join(', ')}], spec declares [${expected.join(', ')}]`,
+      )
+}
+
+const prePushCommands = stageCommands('pre-push') ?? []
 const declaredPrePush = inSpec.filter((n) => spec.agents[n].role === 'pre-push').sort()
 const actualPrePush = inSpec.filter((n) => prePushCommands.includes(n)).sort()
 JSON.stringify(declaredPrePush) === JSON.stringify(actualPrePush)
@@ -160,6 +176,7 @@ const TOP_LEVEL_KEYS = [
   'redTeamExtraPaths',
   'coderabbitSyncTriggers',
   'modelLiteralSites',
+  'hooks',
 ]
 const strayTopKeys = Object.keys(spec).filter((k) => !TOP_LEVEL_KEYS.includes(k))
 strayTopKeys.length === 0
