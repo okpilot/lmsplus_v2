@@ -1042,7 +1042,9 @@ Claude finishes responding
     → [Stop hook] PowerShell toast notification
 
 git commit
-    → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
+    → [Lefthook pre-commit] biome check --write + type-check + soft-delete guard +
+      test-title-leakage guard (BLOCKING). NOT unit tests — those run in CI
+      (docs/decisions.md:54; lefthook.yml's pre-commit stanza has no test runner).
     → [Lefthook commit-msg] commitlint validates message format
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the

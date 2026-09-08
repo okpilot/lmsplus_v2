@@ -425,9 +425,10 @@ for (const site of spec.modelLiteralSites) {
     .replace(/#.*$/gm, '')
     .split(/[;&|]+/)
     .filter((cmd) => /^\s*(?:npx\s+|pnpm\s+(?:exec|dlx)\s+)?biome\s+check\b.*\.claude/.test(cmd))
-  // `--write` turns the lint GATE into a fixer: it rewrites the offending file and still exits 0, so
+  // `--write` — and `--fix`, which `biome check --help` documents as its alias — turns the lint
+  // GATE into a fixer: it rewrites the offending file and still exits 0, so
   // a real violation is silently repaired instead of reported. fullpush.md requires this read-only.
-  claudeLintCmds.some((c) => /(?:^|\s)--write(?:\s|=|$)/.test(c))
+  claudeLintCmds.some((c) => /(?:^|\s)--(?:write|fix)(?:\s|=|$)/.test(c))
     ? fail(
         `root lint script "${lintScript}" runs biome over .claude in WRITE mode — must be read-only`,
       )

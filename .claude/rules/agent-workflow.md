@@ -506,7 +506,7 @@ reduce the backlog and needs a written justification.
   `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE`
   captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then
   `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline them — a failed `git merge-base`
-  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints TODAY's
+  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints HEAD's OWN committer timestamp — today's date only when HEAD was committed today, any earlier
   date and exits 0, narrowing the window and under-counting `filed` with no diagnostic (verified).
   `--limit 200` is load-bearing: `gh` defaults to 30 and exits 0 on a truncated list, so a silent
   under-count PASSES a check that should fail. If it returns exactly 200, treat it as truncated and
