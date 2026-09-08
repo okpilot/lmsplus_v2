@@ -1010,6 +1010,16 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    the immediately preceding function of the same open file — standing through two further commits
    that each corrected a DIFFERENT false claim in that same paragraph.
 
+6. **A commit message may not cite a SHA that does not resolve.** Mechanically enforced at
+   `commit-msg` by `.claude/hooks/check-commit-claims.mjs`: a hex token in commit-reference
+   position must resolve via `git rev-parse --verify` — no `--quiet`, which collapses an
+   AMBIGUOUS prefix and an ABSENT one into the same exit-1-empty-stderr signature. **Its bound,
+   stated because understating it would be this very defect:** it proves the commit EXISTS, never
+   that the claim about it is true. It does not check counts, or whether a self-reported
+   verification happened. A commit-message claim of either kind is still yours to derive.
+   Reference position is an OPEN set — read `TRIGGER_WORDS` and the position rules in the hook
+   rather than a list here, which would go stale the first time one is added (clause 2).
+
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
 supersession forms are an OPEN set — enumerated in `agent-workflow.md § "name EVERY supersession
