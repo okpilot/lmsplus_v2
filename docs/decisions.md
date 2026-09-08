@@ -1507,7 +1507,8 @@ written into the rules here rather than proposed.
 4. **"Let the user decide" is not a terminal state** — in `code-reviewer` (WARNING) or
    `security-auditor` (MEDIUM). Both now route into Apply-vs-Defer as `semantic-reviewer` already
    did. Asking stays a step; the answer is recorded APPLIED, DEFERRED or SKIPPED-with-reason. An
-   accepted risk is a SKIP and needs its reason written.
+   accepted risk is NOT a SKIP — SKIPPED means established wrong on the merits — so it is recorded
+   DEFERRED with a filed issue.
 
 5. **A commit touching only `.claude/agent-memory/**` skips implementation-critic.** Otherwise the
    rule does not terminate: a memory delta must be committed, that commit needs the critic, and the

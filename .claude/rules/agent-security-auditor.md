@@ -17,7 +17,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 
 ### DO
 - Fix all CRITICAL and HIGH findings before retrying the push.
-- Ask the user about MEDIUM findings when the call is genuinely theirs — then record the answer as APPLIED, DEFERRED (filed issue) or SKIPPED-with-reason. An accepted risk is a SKIP and needs its reason written down: `agent-workflow.md § Pre-push gate` forbids pushing with any finding in no terminal state.
+- Ask the user about MEDIUM findings when the call is genuinely theirs — then record the answer as APPLIED, DEFERRED (filed issue) or SKIPPED-with-reason. An accepted risk is NOT a SKIP — `agent-workflow.md § Pre-push gate` defines SKIPPED as established wrong on the merits, and an accepted risk is agreed to be real; record it DEFERRED with a filed issue. A finding disproved on the merits is the SKIP and needs its reason written down: `agent-workflow.md § Pre-push gate` forbids pushing with any finding in no terminal state.
 - Trust the auditor's security classifications — it checks against `docs/security.md`.
 - Re-run the auditor after fixing (Lefthook does this automatically on the next push attempt).
 - Treat a finding about correct-answer exposure as CRITICAL regardless of what severity the auditor assigns.

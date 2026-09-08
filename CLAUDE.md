@@ -204,7 +204,9 @@ Then run:
    On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
    drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
 
-If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
+If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run
+(`agent-workflow.md § Red-Team Agent Trigger` is canonical and names ONE further path this list does not
+repeat, `apps/web/e2e/redteam/`):
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
 If rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
