@@ -103,3 +103,43 @@ A title present in one file and absent in the other is the lead — verify it's 
 **Worked example (commit 1ea45b5c review, 2026-08-17):** `resume-exam-handlers.test.ts` has `'clears the error state at the start of each attempt'` (asserts `setError` is called with `null` as call #1 of `handleDiscard()`); `use-active-practice-discard.test.ts` has no equivalent — only `'clears the error when clearError is called'`, which tests the *separate* `clearError()` callback, not the `setError(null)` line at the top of `discard()` itself. Mutation-verified real: deleting `setError(null)` from `use-active-practice-discard.ts` left all 13 then-existing tests green (confirmed by running the file with the line commented out). The reason the file's own "retry" tests (added in the same commit) didn't already catch it: they assert only the END state after the retry resolves — a resolved-failure retry always overwrites the stale error via `setError(result.error ?? fallback)`, and a successful retry hides it because `discarded` unmounts the banner before the stale error would render. Neither retry test observes the *momentary* clear at the start of the new attempt.
 
 The fix does not require spying on `setError` (this file uses `renderHook` + real React state, not DI mocks like the sibling) — hold the SECOND `discardQuiz` call pending with an unresolved promise, invoke `discard()` again without awaiting, and assert `result.current.error` is `null` while the second call is in flight, before resolving it. This is the same pending-promise idiom already used by this file's `'submits a single discard when invoked twice before the first settles'` test — reuse it rather than inventing a new observation mechanism.
+
+---
+
+## `pipeline.test.mjs` subset-extraction blind spots {#pipeline-subset-extraction}
+
+A derived SUBSET-filtered value (`present = tracked.map(extractX).filter(x => ALLOWLIST.includes(x))`) has no check on its own extraction step — only a "present ⊆ allowlist" inclusion check downstream, which gets MORE lenient as the extraction shrinks. In `.claude/pipeline.test.mjs` the total-emptying forms (`indexOf` first-dot, `lastIndexOf('/')` basename) were 92/0 until `ec9ba068` added a `present.includes('mjs')` pin — RESOLVED by it (re-confirmed 93/0 stays green post-revert).
+
+STILL OPEN, both mutation-confirmed 93/0 on `ec9ba068` (2026-09-08):
+(a) a SELECTIVE shrink of the FILTER predicate (`BIOME_EXTS.includes(x) && x !== 'js'`) — evades both the emptiness pin and `droppedFromBiomeExts` (reads `BIOME_EXTS`, never `present`);
+(b) a collapse of the EXTRACTION step itself to the sentinel alone (`n.endsWith('.mjs') ? 'mjs' : ''`, or even a constant `'mjs'`) — `present.includes('mjs')` is satisfied trivially while js/json silently drop out of `present`, and `missing`/`droppedFromBiomeExts` stay green because both are one-directional (`present ⊆ X`, never `X ⊆ present`).
+
+Shrinking the `BIOME_EXTS` CONSTANT itself is NOT open — caught by the `droppedFromBiomeExts` reverse pin (confirmed: `BIOME_EXTS=['mjs']` → 92/0). Also confirmed harmless (not a gap): `.sort()` removal (order-only, no check depends on it) and `new Set` dedup removal (duplicates don't change subset membership) — both stay 93/0 but hide no defect.
+
+Fix shape unchanged: assert `present`'s distinct-extension SET (or count) against an independently-computed value, not just single-membership.
+
+---
+
+## Shell embedded in `.claude/commands/*.md` — untestable in place, but for a different reason than prose {#commands-md-shell}
+
+Not the same case as "rule-prose-only commits owe no test" — this shell is genuinely first-party logic with a proven bug history, not third-party behavior or inert prose. `ee0186d9` fixed real bugs in `RAW=$(git diff --name-status -M ...) || abort; CHANGED=$(printf ... | cut -f2- | tr '\t' '\n')`, embedded similarly-shaped (not byte-identical) in both `crlocal.md` and `fullpush.md`, which had already regressed TWICE in one PR: `--name-only` (rename-blind) → `--name-status -M`, then a wrong-exit-code `||` guard on the whole pipe instead of the diff. That history argues FOR pinning it in the abstract.
+
+It still gets no test because nothing in the repo executes `.claude/commands/*.md` bodies — no `.claude/scripts/` dir exists, no command file sources one, and `pipeline.test.mjs` never parses command-file content. There is no artifact to attach a test to without inventing new infra.
+
+Verify instead by DIRECT EXECUTION in a scratch repo and report inline (satisfies "verify by executing" without a persisted test):
+- bad ref (`origin/master` unresolvable) → `git rev-parse --verify` fails → script's own `|| abort` fires, exit 1
+- bad diff range (ref resolves but the range is invalid) → `git diff --name-status -M` fails → `|| abort` fires, exit 1, never read as empty
+- good diff, with a rename OUT of a security path → the final path list contains the rename SOURCE (verified via a fixture: `packages/db/src/admin.ts` → `other/admin-moved.ts`, `git diff --name-status -M` emits `R100\t<src>\t<dst>`, `cut -f2- | tr '\t' '\n'` splits both onto their own line)
+- a path containing a space → survives as one unsplit line (only literal tabs from `--name-status` are split, never internal spaces)
+
+Do NOT write a `.test.sh` against a copy-pasted duplicate of the snippet — the two markdown copies already aren't byte-identical to each other, so a third copy in a test file is a fourth text nothing keeps in sync; it can stay green while the real snippet drifts, which is worse than no test. If duplication/regression rate ever justifies it, the fix is extracting the shared logic into a real script under a new `.claude/scripts/` — that's infra work for the orchestrator to scope (Apply-vs-Defer), not something test-writer does unilaterally on a coverage pass.
+
+Checked in the same pass: whether the new clause is now byte-identical across 2+ files (a `check-mirror-sync.mjs` candidate) — `node .claude/hooks/check-mirror-sync.mjs '<anchor>'`, exit 0 = in sync. Two topically-related but differently-worded clauses in sibling rule files are NOT a duplicate; the guard only matters for verbatim-shared text. A short fixed-string overlap found by `git grep -F` is not proof of a real mirror — `check-mirror-sync.mjs` compares the full CLAUSE BLOCK (anchor line to next blank line), and two blocks can share one substring while continuing differently (confirmed divergent, exit 1: `c787b0d2`'s deliberate restatement across `.claude/agents/doc-updater.md` and `.claude/rules/agent-doc-updater.md`). `b177a3d2` (learner row 663 promotion) checked clean with no duplicate clause found.
+
+---
+
+## Prose-only commits touching `.coderabbit.yaml` {#coderabbit-yaml-prose}
+
+`.coderabbit.yaml` prose edits owe no test IF the commit is otherwise prose-only (`git show <sha> --stat` shows zero `.ts`/`.tsx`/`.mjs`/`.sh`/`.sql`). Confirm by checking whether anything actually reads the yaml BODY: `git grep -rln 'coderabbit.yaml' -- ':/*.mjs' ':/*.ts' ':/*.test.*'` — as of 2026-09-02, 3 hits, none of them a test reading the yaml body (`cr-local-plan-reminder.test.sh` pins a literal CLI-invocation fixture string; `import-vfr-rt-content.ts` / `seed-more-questions.ts` only mention the file in prose comments).
+
+`check-mirror-sync.mjs` (CI-run via `check-mirror-sync.test.mjs`, synthetic fixtures only) is a generic anchor-driven CLI invoked manually per `agent-workflow.md § Rule-Mirror Sync` — never auto-wired to specific new clause text. Its `clauseBlock()` treats 2+ occurrences of one anchor WITHIN THE SAME FILE as an unresolvable ambiguity (fails, doesn't diff them), so it cannot self-verify two identical same-file insertions (e.g. a clause duplicated across two `.coderabbit.yaml` `path_instructions` blocks) — that needs a different invocation shape, out of scope to build unprompted. Confirmed: `18757ddf` (prose-only across CLAUDE.md/code-style.md/agent-doc-updater.md/`.coderabbit.yaml` ×2 identical inserts) — no test written.

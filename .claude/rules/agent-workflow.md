@@ -324,6 +324,10 @@ After the learner, check if the commit diff includes any of these paths:
 - `apps/web/proxy.ts`
 - `docs/security.md`
 
+`agent-red-team.md` adds ONE path to this set for its own trigger — `apps/web/e2e/redteam/`, the
+specs themselves — and `/fullpush` step 7b honours it too. Read that file rather than treating this
+list as the whole trigger: a spec-only change runs the agent while matching nothing above.
+
 If yes, run the red-team agent (sonnet). It maps changes to red-team specs and flags coverage gaps. If it reports affected specs, run `pnpm --filter @repo/web e2e:redteam` to verify defenses still hold.
 
 ## Pre-Push PR Sweep (MANDATORY for multi-commit PRs)
@@ -499,7 +503,11 @@ reduce the backlog and needs a written justification.
 - **"Closed"** = the issues this PR's `Closes #N` / `Fixes #N` will actually close.
 - Enumerate with the merge-base TIMESTAMP, not its date (a bare date is day-granular and over-reports).
   `git fetch origin` first, ABORT if it fails, then:
-  `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"`
+  `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE`
+  captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then
+  `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline them — a failed `git merge-base`
+  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints TODAY's
+  date and exits 0, narrowing the window and under-counting `filed` with no diagnostic (verified).
   `--limit 200` is load-bearing: `gh` defaults to 30 and exits 0 on a truncated list, so a silent
   under-count PASSES a check that should fail. If it returns exactly 200, treat it as truncated and
   raise the bound. `author:@me` is the `gh`-authenticated account, not the commit author — under a

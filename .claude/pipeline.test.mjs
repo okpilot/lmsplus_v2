@@ -421,13 +421,21 @@ for (const site of spec.modelLiteralSites) {
   // script that merely NAMES .claude, and one whose biome call sits behind a `#` (npm runs scripts
   // through sh, so nothing after `#` executes — a substring or unanchored regex still matches).
   // So strip comments, split into commands, and require one whose COMMAND WORD is biome.
-  const lintsClaude = lintScript
+  const claudeLintCmds = lintScript
     .replace(/#.*$/gm, '')
     .split(/[;&|]+/)
-    .some((cmd) => /^\s*(?:npx\s+|pnpm\s+(?:exec|dlx)\s+)?biome\s+check\b.*\.claude/.test(cmd))
-  lintsClaude
-    ? pass('root lint script runs biome over .claude (turbo only reaches workspace packages)')
-    : fail(`root lint script "${lintScript}" has no biome check over .claude`)
+    .filter((cmd) => /^\s*(?:npx\s+|pnpm\s+(?:exec|dlx)\s+)?biome\s+check\b.*\.claude/.test(cmd))
+  // `--write` turns the lint GATE into a fixer: it rewrites the offending file and still exits 0, so
+  // a real violation is silently repaired instead of reported. fullpush.md requires this read-only.
+  claudeLintCmds.some((c) => /(?:^|\s)--write(?:\s|=|$)/.test(c))
+    ? fail(
+        `root lint script "${lintScript}" runs biome over .claude in WRITE mode — must be read-only`,
+      )
+    : claudeLintCmds.length > 0
+      ? pass(
+          'root lint script runs biome over .claude, read-only (turbo only reaches workspace packages)',
+        )
+      : fail(`root lint script "${lintScript}" has no biome check over .claude`)
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)

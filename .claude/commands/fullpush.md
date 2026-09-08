@@ -24,7 +24,11 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       what the `author:@me` below encodes), whatever its origin, listed in the PR body's
       `## Deferred` section, which must name every one. On a FIRST push there is no PR yet, so the
       list is the `## Deferred` section of the body you are about to open the PR with. Enumerate with the merge-base TIMESTAMP, never its date:
-      `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"` — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
+      `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE`
+  captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then
+  `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline them — a failed `git merge-base`
+  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints TODAY's
+  date and exits 0, narrowing the window and under-counting `filed` with no diagnostic (verified). — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
       result is exactly 200 rows, treat that as truncated rather than as the answer — raise the
       bound and re-run; a cap only closes the hole while the result stays under it. If
       **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one

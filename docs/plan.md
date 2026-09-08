@@ -1055,7 +1055,9 @@ git commit
         1. code-reviewer (sonnet) — diff against code-style.md
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
-        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
+        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
+         separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
+         everywhere by design)
     → Fix any findings, AND commit every agent-authored artifact — test-writer's new
       tests (agent-test-writer.md: the round's ONE fixup commit) and any memory/tracker delta
       (agent-memory.md forbids leaving one uncommitted). A written test is not a
