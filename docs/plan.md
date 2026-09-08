@@ -1070,7 +1070,8 @@ git commit
         6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
         7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic gates the plan before execution; implementation-critic gates
-     `git diff --staged` before every commit. /crlocal runs pre-push, per branch.)
+     `git diff --staged` before every commit but an agent-memory-only one.
+     /crlocal runs pre-push, per branch.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

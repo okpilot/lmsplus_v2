@@ -129,6 +129,17 @@ test('stops at the blank line and does not absorb the next paragraph', () => {
   assert.ok(!block.includes('tail'))
 })
 
+test('begins at the anchor line rather than the line after it', () => {
+  // The other clauseBlock cases assert only where the block ENDS, so shifting the start
+  // index by one dropped the anchor line with all of them still green (mutation-checked).
+  const block = clauseBlock(para('second line'), ANCHOR)
+  assert.ok(
+    block.startsWith(`${ANCHOR} here`),
+    `block began: ${JSON.stringify(block.slice(0, 40))}`,
+  )
+  assert.ok(!block.includes('intro'))
+})
+
 test('extracts to end of file when the clause is last and unterminated', () => {
   assert.ok(clauseBlock(`intro\n\n${ANCHOR} here\nlast line`, ANCHOR).includes('last line'))
 })

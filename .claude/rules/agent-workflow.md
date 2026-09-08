@@ -535,10 +535,14 @@ still needs a human read. Treat a shared directory as the same area.
 **Red-team coverage-gap justification — evidence required, no area limit.**
 `agent-red-team.md` MANDATES filing an issue for every coverage gap it identifies, so a security-path
 PR that runs the agent as required can be pushed into failing this check BY OBEYING it. The filings
-still COUNT — they are real backlog, and exempting them by ORIGIN would key the exemption on the one
-field the filer controls. Instead: list each red-team-filed issue in the PR body's `## Deferred`
-section, marked `red-team-gap`, and name the spec or vector each one covers. A PR whose filings are
-ALL red-team gaps passes. A PR mixing them with ordinary deferrals is judged on the ordinary ones —
+still COUNT — they are real backlog, and an ORIGIN-keyed exemption would drop them from the number
+silently. This one does not: `filed` stays honest and the claim sits in the PR body where a reader
+can push back. That is the whole of the difference — the `red-team-gap` label is self-applied, just
+as an origin field would be — so make it CHECKABLE. List each red-team-filed issue in `## Deferred`
+marked `red-team-gap`, naming the vector ID from
+`.claude/agent-memory/red-team/topics/attack-surface.md`, or the spec path, that it covers; a reader
+greps that name. A gap you cannot name is not a red-team gap. A PR whose filings are ALL red-team
+gaps passes. A PR mixing them with ordinary deferrals is judged on the ordinary ones —
 count those alone against `closed`.
 
 Otherwise re-triage: the fix is usually to APPLY two or three deferrals, not to argue for them.

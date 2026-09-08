@@ -296,5 +296,49 @@ for (const site of spec.modelLiteralSites) {
     : fail(`${site.path}: unknown model literal(s): ${stray.join(', ')}`)
 }
 
+// Lint coverage. Anchored on the FILESYSTEM, not on either declaration: the extensions are
+// derived from the files actually present under .claude/, so dropping an extension from the
+// lefthook glob fails against what is on disk rather than against a co-modifiable twin.
+{
+  const BIOME_EXTS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'jsonc']
+  const walk = (dir) =>
+    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+      e.name === 'worktrees' || e.name === 'node_modules'
+        ? []
+        : e.isDirectory()
+          ? walk(`${dir}/${e.name}`)
+          : [e.name],
+    )
+  const present = [
+    ...new Set(
+      walk('.claude')
+        .map((n) => n.slice(n.lastIndexOf('.') + 1))
+        .filter((x) => BIOME_EXTS.includes(x)),
+    ),
+  ].sort()
+
+  const biomeBlock = /\n {4}biome-check:\n([\s\S]*?)(?=\n {4}\S|\n {2}\S)/.exec(lefthook)?.[1] ?? ''
+  const glob = /^\s*glob:\s*"([^"]+)"/m.exec(biomeBlock)?.[1]
+  if (!glob) fail('lefthook.yml: biome-check has no glob: line')
+  else {
+    const missing = present.filter((x) => !glob.includes(x))
+    missing.length === 0
+      ? pass(
+          `lefthook biome-check glob covers every linted extension under .claude/: ${present.join(', ')}`,
+        )
+      : fail(
+          `lefthook biome-check glob "${glob}" misses ${missing.join(', ')} — present under .claude/`,
+        )
+  }
+
+  const lintScript =
+    JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.lint ?? ''
+  lintScript.includes('.claude')
+    ? pass('root lint script lints .claude (turbo only reaches workspace packages)')
+    : fail(
+        `root lint script "${lintScript}" does not lint .claude — no workspace package contains it`,
+      )
+}
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
