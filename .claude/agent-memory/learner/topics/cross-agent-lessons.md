@@ -1664,3 +1664,126 @@ Both are DRAFT proposals, not promotions — the underlying symptom is at count=
 extend-by-one mechanic (the pipeline-audit #1110 precedent used the retired mechanic, so it does not
 cleanly co-count). Apply now on the strength of the reasoning if the orchestrator judges it
 sufficient, or hold for a second same-mechanic recurrence per the standard threshold.
+
+## Branch `chore/evidence-gate` — 6th-branch row-42 instance, full detail (2026-09-08, commits `4ec5b894`..`d728e389`)
+
+Built `.claude/hooks/check-commit-claims.mjs` (a lefthook commit-msg guard blocking a message that
+cites a commit SHA which does not resolve), partially discharging row 42's ESCALATE note. Row 42
+itself is compacted to a pointer in MEMORY.md; this section is the detail it points to.
+
+**The prototype that was rejected, not shipped.** Row 42's own escalation proposed a literal
+`EVIDENCE:` line gate. It was prototyped and MEASURED before being written as a rule: over 300 commit
+messages it blocks 84% (2766 cardinal-count hits) — at that rate the only survivable author response
+is a token `EVIDENCE: git log` line that satisfies the gate while verifying nothing, i.e. row 40
+rebuilt as a hook (a check whose pass condition a bad-faith or rushed author can satisfy without doing
+the work it exists to enforce). Rejected ON THE MEASUREMENT, recorded so it is not rebuilt.
+`check-commit-claims.mjs` instead gates the CHECKABLE subset only: a cited SHA must resolve via
+`git rev-parse --verify` (no `--quiet` — verified to collapse an AMBIGUOUS prefix and an ABSENT one
+into one exit-1/empty-stderr signature, which the guard must distinguish). Recall re-measured at
+280/352 = 80% of real commit-SHA citations over 400 messages; precision measured only against real
+history (4 would-block cases, all pre-squash artifacts resolved by fetching).
+
+**All twelve findings, mapped to what actually happened (verified against the four commits' own
+messages, not inferred):**
+
+1. **plan-critic (one pre-commit run, `4ec5b894`'s plan): measured precision, never proposed
+   measuring recall.** → row 65 (Empirical measurement correct for tested scenario but excludes the
+   failure case), 4th instance.
+2. **The row-40-shaped `EVIDENCE:` line design, rejected on measurement before being written.**
+   Not a tracker increment — a design decision, recorded so the (bad) design is not rebuilt. See
+   above.
+3-5. **Three defects caught by TWO implementation-critic rounds on `4ec5b894` itself, all fixed
+   BEFORE the first commit landed (no separate fix commit; captured in `4ec5b894`'s own message):**
+   two vacuous tests, a prose trigger-word list that stated 13 positions against the code's 16 (later
+   corrected further — see below), and an action-pin exclusion scoped to the whole line that turned a
+   real citation into a SILENT DROP (exit 0, "0 refs verified"). All three folded into row 42's
+   per-branch count (30→31, already applied, do not re-increment).
+6. **A DIFFERENT overbroad exclusion — the precedes-a-trigger-word rule, not the action-pin
+   rule — had the SAME silent-drop shape, escaping both `4ec5b894`'s critic rounds because it targets
+   a SIBLING code path the first fix never touched.** Caught post-commit by semantic-reviewer in
+   cycle 2 as CRITICAL, fixed in `33c8ff79`. This is the sibling-fix-gap meta-pattern (MEMORY.md
+   Durable Knowledge: "partial fix to a sibling-file group," ~20 instances) recurring WITHIN one file
+   across two exclusion rules rather than across two files — reinforcing an already-well-past-
+   threshold pattern; no new row, folded into row 42's per-branch count (same branch, already
+   counted).
+7. **Same as 6 — the CRITICAL is the sibling-exclusion silent drop, not a distinct 7th finding.**
+8. **code-reviewer cycle 2: `33c8ff79`'s own message claimed a "3 refs vs expected 4" symptom was
+   caused by the silent-drop bug it fixed.** False — the token being counted was all-digit and never
+   a SHA candidate under either version of the guard; 3 was correct before and after. Retracted by
+   `029bee6f`'s own message ("The symptom was real; my inference about its cause was wrong"). Folded
+   into row 42's per-branch count (already counted).
+9. **Two findings in `029bee6f`, both fixed same-commit:** the remedy text sent an author to rewrite
+   a TRUE citation whenever the cited commit had not been fetched yet (fixed by naming
+   `git fetch origin` first in the remedy); and a "Two known limits" paragraph — an enumeration of a
+   structurally open set — was falsified by a third limit one round later (fixed by converting it to
+   a derivable list, citing §10 cl.2 explicitly in the commit's own body). Both folded into row 42's
+   per-branch count.
+10. **`d728e389`: the test file's header claimed every test goes red when its mechanism is deleted.**
+    An audit of all 32 found this false for two (a Dependabot-URL test no rule accepts either way, and
+    a redundant paren-with-prose test). Folded into row 42's per-branch count.
+11. **`d728e389`: mutation audit (not reading) found the guard's REMEDY.ambiguous branch was
+    classification-pinned but never reached by any assertion path** — corrupting the remedy string to
+    "WRONG TEXT ENTIRELY" left all 32 tests green. → "Mutation-check executed but doesn't falsify the
+    claim" row, 3rd instance.
+12. **`d728e389`: rewriting the false-universal header (finding 10) immediately reproduced the defect
+    it was fixing** — the new wording promised a per-test exception comment that the paren-with-prose
+    test did not carry. Caught by implementation-critic round 5 before landing, no git artifact.
+    Folded into row 42's per-branch count.
+
+**The three-way-inconsistent-measurement finding (drafting of `33c8ff79`, impl-critic round 2,
+pre-commit).** One recall/precision figure was stated three different ways in the same draft message
+— 79%/276/350 in the body, "77%, 0 FP/312" in the footer and the learner-row draft, with "0 FP"
+directly contradicting "4 blocked" two paragraphs above. `33c8ff79`'s own committed message names this
+class explicitly: "propagated to all four sites that state it, since inconsistent figures across
+files already occurred twice here." → row 69 (Rules-file claim true in its hunk, false vs another
+section/mirror/arithmetic), 15th instance, and the FIRST of that row's instances to land in a commit
+message rather than a rules/doc file — direct supporting evidence for row 42's own Q4 proposal to
+extend §10's grep-and-verify obligation to commit-message bodies/footers, not just source comments.
+
+**Dominant pattern, stated once.** Ten of the twelve findings (all but 1 and 2, which are a
+plan-critic measurement gap and a rejected design respectively) are the SAME mechanism: an author
+(orchestrator or agent) writes a claim, a test, or an exclusion rule that is correct for the ONE
+case/scenario/commit in front of them and silently wrong or absent for a SIBLING case the fix never
+re-examined — a sibling exclusion rule (6), a sibling section of the same message (the three-way
+figure), a sibling code branch (11), or the header's own newly-written replacement text immediately
+repeating the violation it was written to fix (12). This is row 42's already-established shape
+("fix commit correcting the class introduces a fresh instance of the SAME class") generalized one
+level: the recurrence is not always literally "the next commit reopens what the last one closed" —
+on this branch, MOST instances (3-5, 9, 10, 12, and the three-way-measurement one) never reached a
+commit at all, caught pre-commit by implementation-critic across five rounds and by test-writer's
+mutation audit. That is the one genuinely new information this branch adds to row 42's 31-instance
+record: the mechanism fires at the SAME rate inside a single drafting session as it does across
+separate commits — the defect class is not specific to "a fix commit," it is specific to "an author,
+including this one, correcting one instance of a self-referential/enumerative claim without checking
+whether a sibling instance has the same defect." Five implementation-critic rounds and one
+semantic-reviewer CRITICAL were required to converge a ~150-line hook plus its test suite to a state
+with no further self-reported defect — and the branch's own final commit message names this
+explicitly ("Four of them are mine").
+
+**Is "a fix introduces a fresh instance of the class it fixes" mechanically checkable?** No, not in
+general, and this branch is itself the evidence: the twelve instances above span at least five
+distinct SURFACES (a JS regex exclusion rule, a prose enumeration, a test-file header comment, a
+commit-message figure, a mutation-coverage gap) with no shared syntactic shape a linter or hook could
+key on — the common thread is semantic (an author is now trusted to have fixed X, and the fix's OWN
+correctness is being taken on faith) not structural. §10 clause 3 ("a partial comment edit is the
+tell — grep the retracted phrase repo-wide") is the closest existing mechanical proxy, and it already
+exists; the recurrence is an ENFORCEMENT gap in a fundamentally semantic check, not a missing
+mechanical rule. The one narrow exception found on THIS branch: finding 11 (an unreached branch in a
+mutation-check regime) IS mechanically detectable in principle — a coverage tool that reports
+per-branch mutation kill rate, not just per-file, would have caught it without a human/LLM audit. That
+is a testing-infrastructure gap (test-writer.md § Mutation-check), not a general answer to the
+broader question, and it is already captured at its own row ("Mutation-check executed but doesn't
+falsify the claim").
+
+**Promotion assessment.** Nothing here clears a threshold NOT already covered by existing rule text.
+Row 42 (31, ESCALATE) already proposes the two concrete next steps (extend §10 cl.3 to commit-message
+bodies; pair it with a mechanical EVIDENCE: gate) and this branch's own commit `4ec5b894` already
+executed the second proposal in the only form the branch's own measurement showed was survivable — the
+SHA-resolution gate, not a literal EVIDENCE: line. Row 69 (15, cross-section/mirror/arithmetic) still
+has NO drafted §10 cl.6 text; this branch adds supporting instance count but not new textual scope.
+Row "Mutation-check executed but doesn't falsify the claim" (3, THRESHOLD REACHED at 2+) has NOT yet
+had its addendum written into `test-writer.md` § Mutation-check — this is the one item here at or past
+promotion that lacks drafted text; propose in the next PR touching that file: "A mutation-check pass
+over a guard/validator with multiple classification branches must mutate EACH branch's output
+independently (not just the branch most recently touched), and the report must name which branches
+were exercised." Route to a future PR — not this branch, which is at its 3-commit fixup ceiling.

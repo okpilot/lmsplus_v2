@@ -146,7 +146,12 @@ test('classifyRef: an unrecognised non-zero outcome -> error, never resolved (fa
   assert.equal(classifyRef('269667d7', runner), 'error')
 })
 
-// ---- main() -------------------------------------------------------------------
+test('extractRefs finds a BACKTICKED possessive ref', () => {
+  // Regression: the possessive rule tested the raw `after`, while its neighbours tested the
+  // backtick-stripped form, so `<sha>`'s was a SILENT DROP — exit 0, "0 ref(s) verified".
+  // This repo writes that shape: `765914d7`'s, `7a02f45a`'s, `e65f01f4`'s in the last 400.
+  assert.deepEqual(extractRefs("See `3a50780a`'s message for context."), ['3a50780a'])
+})
 
 test('extractRefs finds a bare parenthetical citation', () => {
   assert.deepEqual(extractRefs('The master-merge (fb06ee55) kept stale copies.'), ['fb06ee55'])
@@ -204,6 +209,8 @@ test('extractRefs drops a git template comment line', () => {
   // `with <sha> in it`, which no rule accepts anyway — it passed with the filter deleted.
   assert.deepEqual(extractRefs('# On branch master, fixed by 1234567a since'), [])
 })
+
+// ---- main() -------------------------------------------------------------------
 
 test('main: a missing/unreadable commit-msg file exits non-zero', () => {
   // Asserting the guard's OWN message, not merely a non-zero exit: an uncaught

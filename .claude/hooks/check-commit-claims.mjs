@@ -117,7 +117,7 @@ export function extractRefs(text) {
     // POSITIVE evidence that this is a citation.
     const cited =
       TRIGGER_BEFORE_RE.test(beforeForTrigger) ||
-      POSSESSIVE_AFTER_RE.test(after) ||
+      POSSESSIVE_AFTER_RE.test(afterForExclusion) ||
       (PAREN_BEFORE_RE.test(before) &&
         PAREN_AFTER_RE.test(after) &&
         !ACTION_PIN_RE.test(tokenBeforeParen(before)))
