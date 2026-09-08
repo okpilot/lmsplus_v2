@@ -299,29 +299,39 @@ for (const site of spec.modelLiteralSites) {
 // Lint coverage. Anchored on the FILESYSTEM, not on either declaration: the extensions are
 // derived from the files actually present under .claude/, so dropping an extension from the
 // lefthook glob fails against what is on disk rather than against a co-modifiable twin.
+// Bounded on purpose: it pins coverage of .claude/ ONLY. The glob is repo-wide, so dropping an
+// extension that .claude/ happens not to use is a real regression this does NOT catch.
 {
   const BIOME_EXTS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'jsonc']
+  const SKIP_DIRS = new Set(['worktrees', 'node_modules'])
   const walk = (dir) =>
-    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
-      e.name === 'worktrees' || e.name === 'node_modules'
-        ? []
-        : e.isDirectory()
-          ? walk(`${dir}/${e.name}`)
-          : [e.name],
-    )
+    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+      if (SKIP_DIRS.has(e.name)) return []
+      return e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]
+    })
+  const all = walk('.claude')
   const present = [
     ...new Set(
-      walk('.claude')
-        .map((n) => n.slice(n.lastIndexOf('.') + 1))
-        .filter((x) => BIOME_EXTS.includes(x)),
+      all.map((n) => n.slice(n.lastIndexOf('.') + 1)).filter((x) => BIOME_EXTS.includes(x)),
     ),
   ].sort()
+
+  // Pins the RECURSION. Without it a walk that stopped descending silently shrinks `present` and
+  // every check below passes against a smaller world. Counting files does NOT pin this — a
+  // non-recursive walk still returns directory NAMES, so any count comparison stays satisfied.
+  // Only a path below the top level proves it descended.
+  all.some((f) => f.slice('.claude/'.length).includes('/'))
+    ? pass(`walk descends into .claude/ subdirectories (${all.length} files)`)
+    : fail('walk returned no file below .claude/ top level — it is not recursing')
 
   const biomeBlock = /\n {4}biome-check:\n([\s\S]*?)(?=\n {4}\S|\n {2}\S)/.exec(lefthook)?.[1] ?? ''
   const glob = /^\s*glob:\s*"([^"]+)"/m.exec(biomeBlock)?.[1]
   if (!glob) fail('lefthook.yml: biome-check has no glob: line')
   else {
-    const missing = present.filter((x) => !glob.includes(x))
+    // Exact set membership, never substring: `'*.{jsx}'.includes('js')` is true, so a substring
+    // test passes while bare `js` has been dropped from the glob.
+    const globExts = new Set((/\{([^}]*)\}/.exec(glob)?.[1] ?? '').split(',').map((x) => x.trim()))
+    const missing = present.filter((x) => !globExts.has(x))
     missing.length === 0
       ? pass(
           `lefthook biome-check glob covers every linted extension under .claude/: ${present.join(', ')}`,
@@ -333,11 +343,12 @@ for (const site of spec.modelLiteralSites) {
 
   const lintScript =
     JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.lint ?? ''
-  lintScript.includes('.claude')
-    ? pass('root lint script lints .claude (turbo only reaches workspace packages)')
-    : fail(
-        `root lint script "${lintScript}" does not lint .claude — no workspace package contains it`,
-      )
+  // The INVOCATION, not the mention: a script naming .claude only in a comment passes a substring
+  // test while the mechanism is gone.
+  const LINTS_CLAUDE = /biome\s+check\s+[^&|;]*\.claude/
+  LINTS_CLAUDE.test(lintScript)
+    ? pass('root lint script runs biome over .claude (turbo only reaches workspace packages)')
+    : fail(`root lint script "${lintScript}" has no biome check over .claude`)
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)

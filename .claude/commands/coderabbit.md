@@ -94,7 +94,8 @@ originating finding. And **two budgets bind on top of the per-item test**: VOLUM
 per PR; 3+ means re-triage every survivor and name them in the push summary) and RATIO (before
 pushing, count issues this PR closes against issues it files (every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all) — if `filed > 0 AND filed >= closed`,
 claim one of the TWO accepted justifications on its evidence test — first-illumination, or red-team
-coverage gaps listed as `red-team-gap` — or re-triage and apply some of them). A PR
+coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers — or
+re-triage and apply some of them). A PR
 that files nothing clears the ratio check whatever it closes.
 
 ### Skip if:
