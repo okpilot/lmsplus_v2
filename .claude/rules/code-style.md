@@ -1035,4 +1035,4 @@ This is the WRITE-side companion to the review-side "Pre-Flag Verification" rule
 
 ---
 
-*Last updated: 2026-09-02*
+*Last updated: 2026-09-08*

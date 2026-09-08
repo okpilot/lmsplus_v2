@@ -88,8 +88,14 @@ function normalize(text) {
   // BEFORE git strips it. Diff context lines are not `#`-prefixed, so a list item in the diff
   // carrying a hex token reaches the marker rules and false-blocks an ordinary commit — with no
   // way forward but `--no-verify`, which our own rules forbid. Cut there first.
-  const scissors = text.search(/^#\s*-+\s*>8\s*-+/m)
-  const body = scissors === -1 ? text : text.slice(0, scissors)
+  // Fences are stripped FIRST, then the scissors marker is searched in what remains. The other
+  // order truncated a message that merely QUOTES the scissors line inside a fenced block —
+  // dropping every citation after it. That is a silent drop, and it was introduced by the fix
+  // that added scissors handling. Reordering costs nothing: replaying 700 real messages through
+  // both orders gives identical output.
+  const fenceless = text.replace(/```[\s\S]*?```/g, ' ')
+  const scissors = fenceless.search(/^#\s*-+\s*>8\s*-+/m)
+  const body = scissors === -1 ? fenceless : fenceless.slice(0, scissors)
   const lines = body
     .split('\n')
     // `^#\s` only: git's template comments are `# On branch ...`, while `#1255` is an
@@ -99,7 +105,6 @@ function normalize(text) {
     .filter((line) => !/^(Co-Authored-By|Claude-Session|Signed-off-by):/i.test(line))
   let out = lines.join('\n')
   out = out.replace(/https?:\/\/\S+/g, ' ')
-  out = out.replace(/```[\s\S]*?```/g, ' ')
   return out
 }
 

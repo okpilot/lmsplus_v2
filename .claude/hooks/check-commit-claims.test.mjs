@@ -161,6 +161,15 @@ test('extractRefs finds a bare ref opening a NUMBERED list item', () => {
   assert.deepEqual(extractRefs('> d4e5f6a7 fixes it'), ['d4e5f6a7'])
 })
 
+test('extractRefs keeps citations when the scissors line is QUOTED in a fence', () => {
+  // Sixth silent drop: cutting at the scissors marker before stripping fences truncated a
+  // message that merely documents the marker, discarding every citation after the fence.
+  const msg =
+    'fix(x): doc\n\nExample:\n```\n# ------------------------ >8 ------------------------\n```\n' +
+    '\nVerified per abc1234f today.\n'
+  assert.deepEqual(extractRefs(msg), ['abc1234f'])
+})
+
 test('extractRefs ignores everything below a git commit -v scissors line', () => {
   // commit-msg hooks run BEFORE git strips the verbose diff, and diff context lines are not
   // `#`-prefixed — so a list item inside the diff reached the marker rules and false-blocked.
@@ -333,7 +342,14 @@ test('main: a git "error" outcome (no repo) exits non-zero and does not report s
     let threw = false
     let stdout = ''
     try {
-      stdout = execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: dir, encoding: 'utf8' })
+      // GIT_CEILING_DIRECTORIES pins the assumption this test rests on — that `dir` is outside
+      // any repo. Without it, git walks upward, and if TMPDIR sits under a work tree the SHA
+      // reads `absent` instead of the check failing, inverting what is asserted here.
+      stdout = execFileSync(process.execPath, [HOOK_PATH, msgFile], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...process.env, GIT_CEILING_DIRECTORIES: dir },
+      })
     } catch (err) {
       threw = true
       assert.notEqual(err.status, 0)
@@ -361,7 +377,11 @@ test('main: a git-check failure aborts before the unresolved-SHA report ever run
     writeFileSync(msgFile, 'fixes bug per 1234567a\n')
     let stderr = ''
     try {
-      execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: dir, encoding: 'utf8' })
+      execFileSync(process.execPath, [HOOK_PATH, msgFile], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...process.env, GIT_CEILING_DIRECTORIES: dir },
+      })
       assert.fail('expected a non-zero exit when git cannot run')
     } catch (err) {
       assert.notEqual(err.status, 0)
