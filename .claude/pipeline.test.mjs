@@ -5,6 +5,7 @@
 // Why each check exists: docs/decisions.md Decision 62, and git log.
 //
 // Run:  node .claude/pipeline.test.mjs [root]
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -294,6 +295,148 @@ for (const site of spec.modelLiteralSites) {
   stray.length === 0
     ? pass(`${site.path}: no model literals the spec does not know`)
     : fail(`${site.path}: unknown model literal(s): ${stray.join(', ')}`)
+}
+
+// Lint coverage. Anchored on the FILESYSTEM, not on either declaration: the extensions are
+// derived from the files actually present under .claude/, so dropping an extension from the
+// lefthook glob fails against what is on disk rather than against a co-modifiable twin.
+// Bounded on purpose: it pins coverage of .claude/ ONLY. The glob is repo-wide, so dropping an
+// extension that .claude/ happens not to use is a real regression this does NOT catch.
+{
+  const BIOME_EXTS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'jsonc']
+  // Enumerated by GIT, not by a walk of our own. Two reasons, and the second is the load-bearing
+  // one. (a) There is no recursion of ours left to pin: a hand-rolled walk needs a guard proving it
+  // descends, that guard needs a guard, and each one is satisfiable by a walk capped one level
+  // deeper. (b) git's set is the one the linter actually uses -- `biome check .claude` skips
+  // gitignored files, so a filesystem walk OVER-reports (it picks up .claude/settings.local.json,
+  // .gitignore:40) and would demand glob coverage for an extension biome never sees.
+  // execFileSync throws on a non-zero exit, so a git failure is loud rather than empty.
+  const tracked = execFileSync('git', ['-C', ROOT, 'ls-files', '-z', '--', '.claude'], {
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean)
+
+  // Pins the ENUMERATION. A mis-scoped pathspec exits 0 with an empty list, which would leave
+  // `present` empty and pass every check below against nothing.
+  // Two named paths catch narrowing in either direction -- this file for a pathspec narrowed to a
+  // subdirectory, the nested one for a pathspec narrowed to the top level. Named paths ALONE are
+  // not enough: a pathspec listing exactly those two satisfies both while collapsing `tracked`
+  // from every tracked file to 2 (mutation-proven). So the third term is a whole population this
+  // file already derives from the FILESYSTEM -- `onDisk`, the .claude/agents/ listing -- which git
+  // did not produce and a narrowed pathspec cannot satisfy. An agents file that is untracked fails
+  // here too, deliberately: an agent definition outside git is not part of the repo.
+  const ANCHORS = ['.claude/pipeline.test.mjs', '.claude/hooks/check-mirror-sync.mjs']
+  const unseen = [
+    ...ANCHORS.filter((f) => !tracked.includes(f)),
+    ...onDisk.map((n) => `.claude/agents/${n}.md`).filter((f) => !tracked.includes(f)),
+  ]
+  // A finite anchor set is only ever a SAMPLE, and a pathspec can union in exactly the
+  // subdirectories the sample covers -- `-- .claude/agents .claude/pipeline.test.mjs
+  // .claude/hooks/check-mirror-sync.mjs` satisfies every anchor while dropping .claude/rules/,
+  // .claude/commands/, .claude/pipeline.json and the rest -- collapsing 121 tracked files to 12
+  // and narrowing the coverage line below from three extensions to one. Before `full` was added
+  // that ran fully green; it is what `full` exists to catch. `full` is a second opinion: same
+  // command, no pathspec of its own. Chosen over a count floor, which rots and only catches past
+  // whatever number someone guessed.
+  //
+  // WHAT THIS CATCHES: a one-sided narrowing -- the pathspec on `tracked` edited while `full` is
+  // left alone. Adding the SAME pathspec to both keeps the two lengths equal and passes; that is
+  // mutation-proven, not hypothetical. `full` having no pathspec today is a property of the two
+  // lines below, not a guarantee about them.
+  //
+  // This guard has been rewritten repeatedly, each time after a reviewer defeated the version
+  // before it; `.claude/agent-memory/implementation-critic/topics/commit-notes.md` carries the
+  // record, including the drafts that were caught before they were ever committed. The durable
+  // finding is not any particular guard --
+  // it is that a test cannot establish its own enumeration is complete, because the oracle and the
+  // subject are the same editable file. What the block below is FOR is the two checks it ends with:
+  // the lefthook glob against the extensions actually tracked, and the lint script actually
+  // invoking biome. Those pin things that drift on their own. This enumeration guard pins a file
+  // someone would have to edit on purpose, and it is worth exactly that much.
+  const full = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8' })
+    .split('\0')
+    .filter((f) => f.startsWith('.claude/'))
+  if (unseen.length > 0) {
+    fail(`git ls-files did not return ${unseen.join(', ')} — the enumeration is broken`)
+  } else if (tracked.length !== full.length) {
+    fail(
+      `pathspec returned ${tracked.length} of ${full.length} tracked .claude/ files — it is narrowed`,
+    )
+  } else {
+    pass(`git enumerates all of .claude/ (${tracked.length} tracked files)`)
+  }
+
+  const present = [
+    ...new Set(
+      tracked.map((n) => n.slice(n.lastIndexOf('.') + 1)).filter((x) => BIOME_EXTS.includes(x)),
+    ),
+  ].sort()
+
+  // Pins the EXTRACTION. Everything downstream asks only whether `present` is a SUBSET of
+  // something, so an extraction returning nothing satisfies all of it: `indexOf('.')` in place of
+  // `lastIndexOf('.')`, or `lastIndexOf('/')`, each empties `present` and the suite stays green
+  // (mutation-proven). Widening is caught, shrinking is not. This file is itself a tracked .mjs,
+  // so `mjs` is in `present` unless the extraction is broken in a way that empties it.
+  present.includes('mjs')
+    ? pass(`extension extraction reads real suffixes (${present.join(', ')})`)
+    : fail(
+        `extension extraction produced ${JSON.stringify(present)} — .claude/pipeline.test.mjs is a tracked .mjs, so 'mjs' must be there`,
+      )
+
+  const biomeBlock = /\n {4}biome-check:\n([\s\S]*?)(?=\n {4}\S|\n {2}\S)/.exec(lefthook)?.[1] ?? ''
+  const glob = /^\s*glob:\s*"([^"]+)"/m.exec(biomeBlock)?.[1]
+  if (!glob) fail('lefthook.yml: biome-check has no glob: line')
+  else {
+    // Exact set membership, never substring: `'*.{jsx}'.includes('js')` is true, so a substring
+    // test passes while bare `js` has been dropped from the glob.
+    const globExts = new Set((/\{([^}]*)\}/.exec(glob)?.[1] ?? '').split(',').map((x) => x.trim()))
+    const missing = present.filter((x) => !globExts.has(x))
+    missing.length === 0
+      ? pass(
+          `lefthook biome-check glob covers every linted extension under .claude/: ${present.join(', ')}`,
+        )
+      : fail(
+          `lefthook biome-check glob "${glob}" misses ${missing.join(', ')} — present under .claude/`,
+        )
+
+    // Pins BIOME_EXTS itself. `present` is always a SUBSET of BIOME_EXTS (it's derived by
+    // filtering tracked extensions through it), so the `missing` check above can never go red from
+    // shrinking BIOME_EXTS -- dropping any entry only shrinks `present` to match, and an empty
+    // BIOME_EXTS passes vacuously against an empty `present` (mutation-proven for 'js', 'json',
+    // 'mjs' individually and for BIOME_EXTS = []). Assert the reverse direction instead: every
+    // extension the glob actually lints must be in BIOME_EXTS, so BIOME_EXTS can't silently drop
+    // one out from under the check above.
+    const droppedFromBiomeExts = [...globExts].filter((x) => !BIOME_EXTS.includes(x))
+    droppedFromBiomeExts.length === 0
+      ? pass(`BIOME_EXTS tracks every extension the lefthook glob lints (${BIOME_EXTS.length})`)
+      : fail(
+          `BIOME_EXTS is missing ${droppedFromBiomeExts.join(', ')} — the lefthook glob lints them but the coverage check above can no longer see them`,
+        )
+  }
+
+  const lintScript =
+    JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.lint ?? ''
+  // The INVOCATION, not the mention. Two shapes defeat a weaker check, both mutation-proven: a
+  // script that merely NAMES .claude, and one whose biome call sits behind a `#` (npm runs scripts
+  // through sh, so nothing after `#` executes — a substring or unanchored regex still matches).
+  // So strip comments, split into commands, and require one whose COMMAND WORD is biome.
+  const claudeLintCmds = lintScript
+    .replace(/#.*$/gm, '')
+    .split(/[;&|]+/)
+    .filter((cmd) => /^\s*(?:npx\s+|pnpm\s+(?:exec|dlx)\s+)?biome\s+check\b.*\.claude/.test(cmd))
+  // `--write` — and `--fix`, which `biome check --help` documents as its alias — turns the lint
+  // GATE into a fixer: it rewrites the offending file and still exits 0, so
+  // a real violation is silently repaired instead of reported. fullpush.md requires this read-only.
+  claudeLintCmds.some((c) => /(?:^|\s)--(?:write|fix)(?:\s|=|$)/.test(c))
+    ? fail(
+        `root lint script "${lintScript}" runs biome over .claude in WRITE mode — must be read-only`,
+      )
+    : claudeLintCmds.length > 0
+      ? pass(
+          'root lint script runs biome over .claude, read-only (turbo only reaches workspace packages)',
+        )
+      : fail(`root lint script "${lintScript}" has no biome check over .claude`)
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)

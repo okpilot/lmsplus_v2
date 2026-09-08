@@ -10,7 +10,7 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 | Level | Meaning | Action |
 |-------|---------|--------|
 | BLOCKING | Hard rule violation (file size, logic in page, barrel file) | Fix now. Create fix commit in same session. |
-| WARNING | Soft violation (long function, deep nesting, naming) | Fix if under 10 lines. Otherwise mention to user — let them decide. |
+| WARNING | Soft violation (long function, deep nesting, naming) | Fix if under 10 lines. Otherwise triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER with a filed issue only when all three defer conditions hold; else SKIP with a written reason. Asking the user is a STEP toward one of those three, never a terminal state. |
 
 ## Handling Results
 

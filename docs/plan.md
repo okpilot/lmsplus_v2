@@ -1042,7 +1042,9 @@ Claude finishes responding
     → [Stop hook] PowerShell toast notification
 
 git commit
-    → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
+    → [Lefthook pre-commit] biome check --write + type-check + soft-delete guard +
+      test-title-leakage guard (BLOCKING). NOT unit tests — those run in CI
+      (docs/decisions.md:54; lefthook.yml's pre-commit stanza has no test runner).
     → [Lefthook commit-msg] commitlint validates message format
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
@@ -1055,9 +1057,11 @@ git commit
         1. code-reviewer (sonnet) — diff against code-style.md
         2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
-        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit; Bash remains everywhere by design)
+        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
+         separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
+         everywhere by design)
     → Fix any findings, AND commit every agent-authored artifact — test-writer's new
-      tests (agent-test-writer.md: a separate commit) and any memory/tracker delta
+      tests (agent-test-writer.md: the round's ONE fixup commit) and any memory/tracker delta
       (agent-memory.md forbids leaving one uncommitted). A written test is not a
       "finding", so an agent can report clean while its output sits uncommitted.
     → repeat until no agent has an open finding and nothing agent-authored is uncommitted
@@ -1070,7 +1074,9 @@ git commit
         6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
         7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic gates the plan before execution; implementation-critic gates
-     `git diff --staged` before every commit. /crlocal runs pre-push, per branch.)
+     `git diff --staged` before every commit but an agent-memory-only one.
+     /crlocal runs pre-push on multi-commit branches (2+ commits) — see
+     `.claude/rules/agent-coderabbit-local.md` for the binding trigger.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

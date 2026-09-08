@@ -296,11 +296,19 @@ Count=1 WATCHING rows moved out of `MEMORY.md` for budget. State preserved: all 
 Older-instance prose moved out of `MEMORY.md` to keep it under the injection budget.
 The rows themselves stay in the tracker with their counts; only the narrative moved here.
 
-### Doc/code comment contradicted by the authority (count 16)
+### Doc/code comment contradicted by the authority (count 17)
+- **16th:** a `docs/security.md` template warning named three tables an org-wide policy "would"
+  expose; two carry no `organization_id`, so it 42703s at CREATE.
 - **15th:** "six collisions" in a file header vs "four" in the JSDoc 18 lines below — the
   partial-comment-edit tell. Read the WHOLE block after touching any part of it.
 
-### Same-commit self-contradiction (count 7)
+### Same-commit self-contradiction (count 10)
+- **9th:** a hand-typed open-set count fixed in `decisions.md`'s body but left literally intact
+  21 lines below in the same file's footer.
+- **8th:** a rules file's DO bullet said "reports, no Write/Edit" while its own PURPOSE line still
+  said "Updates" the same docs.
+- **7th:** a fix retracted a phrase in one place and left it LITERALLY intact 78 lines above in
+  the SAME file. Grep the target file for the retracted phrase before calling a mirror swept.
 - **6th (within one file):** a setup comment rewritten hard-DELETE→soft-delete retracted a
   fixture GUARANTEE that the same file's header (x2) and an inline arm comment still asserted
   unconditionally, plus 2 sites in a memory file the same diff edited. Retracting a guarantee
@@ -334,7 +342,10 @@ The rows themselves stay in the tracker with their counts; only the narrative mo
 - **4th:** pinning prevented two FALSE findings (the implementer had already fixed them), not
   merely stale ones.
 
-### Rule redefined in one surface, siblings stale (count 6)
+### Rule redefined in one surface, siblings stale (count 8)
+- **7th:** a class-sweep fix for a hard-coded "all four" wait count enumerated and fixed exactly 5
+  instances — but missed an unchanged line in the same changed file and a `.sh` hook not in the
+  diff. Grep by PHRASE across the entire repo, not the diff.
 - **6th (2026-08-20, `fix/1175-tenant-isolation-select-only`):** a distinct mechanism — the
   sweep's FILE-TYPE scope, not its phrase. The branch's mirror sweep was `.md`/`.yaml`-only, so
   three production `.ts` comments naming a dropped `users.tenant_isolation` policy survived it

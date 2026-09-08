@@ -25,7 +25,8 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   all — **a single post-commit pass** stands, no floor. **M = 3** stability rounds minimum, then stop
   on the first round at or after M with no APPLY-worthy findings, when the diff
   touches a security path (the canonical set in `agent-workflow.md § Red-Team Agent Trigger`),
-  determined from `git diff origin/master...HEAD --name-only` plus staged changes. Fetch and verify
+  determined from `git diff origin/master...HEAD --name-status -M` plus staged changes, taking BOTH
+  paths of an `R` entry. NOT `--name-only`, which prints only a rename's DESTINATION: moving a file OUT of a security path then reads as no-security-path and silently drops the floor. Verified by experiment 2026-09-08. `-M` is redundant on stock git (`diff.renames` defaults true since 2.9) and is kept to survive a `diff.renames=false` config; if `-C` is ever added, widen this to cover `C` entries too. Fetch and verify
   the base first; an unresolvable base must ABORT, never read as "no paths matched".
 - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply).
 - **Extend on finding; not on skip.** An APPLY finding does NOT reset the round counter M — it **extends the
@@ -70,7 +71,8 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   finding-bearing round. Under the pre-2026-09-06 reset mechanic they did not; see the previous
   bullet before proposing a change to either number.
 - **Implementation-critic is EXEMPT from the floor.** Its artifact (`git diff --staged`) MUTATES on
-  every fix, so "clean rounds on the same artifact" is undefined, and it has no skip condition.
+  every fix, so "clean rounds on the same artifact" is undefined, and it has only the one
+  agent-memory-only exemption.
   It keeps its **2-round revision maximum + orchestrator takeover**.
 - **Learner counting.** A finding recurring across rounds of the SAME gate on the SAME artifact is
   ONE occurrence — deduplicate within-run recurrences before reporting.
@@ -111,14 +113,14 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
 - Validate critic findings before acting on them, same as with semantic-reviewer (see Finding Validation in `agent-workflow.md`).
 - For plan-critic CRITICAL findings, the orchestrator resolves directly — with a single run there is no revision round to send them back to. An ISSUE **or** CRITICAL it cannot resolve escalates to the user instead; `agent-workflow.md` § NEVER forbids executing with either one still open, so neither has a proceed-anyway path.
 - Report critic findings to the user in the agent findings summary (agent / severity / count / status) alongside post-commit agent results.
-- Run implementation-critic on staged changes even for small single-file edits — only plan-critic is skipped for trivial changes.
+- Run implementation-critic on staged changes even for small single-file edits — size is never the criterion, and the sole exception is a commit whose paths are ALL under `.claude/agent-memory/**`. Plan-critic is additionally skipped for trivial changes.
 - Trace the supersession chain — EVERY supersession form — an OPEN set headed by `CREATE OR REPLACE FUNCTION`, `DROP FUNCTION` + `CREATE FUNCTION` and `ALTER FUNCTION <fn>(<arg types>)`, and enumerated in `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form" — to the latest definition FOR THE MATCHING SIGNATURE (an overloaded function has a different body per argument list) before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md`, `semantic-reviewer.md`, and `implementation-critic.md`.
 
 ### NEVER
-- Skip implementation-critic, even for small changes. Plan-critic may be skipped for single-file changes under 10 lines, but implementation-critic always runs.
+- Skip implementation-critic for any commit other than an agent-memory-only one (`agent-workflow.md § Pre-Commit Implementation Review` — the exemption is derived from the changed-path list, and small size is never the criterion). Plan-critic may additionally be skipped for single-file changes under 10 lines.
 - Re-run plan-critic on the same plan to chase a clean round — it runs ONCE. For implementation-critic, exceed **2 revision rounds** (then the orchestrator takes over). Infinite loops waste time and context.
 - Count a coverage round (diverse lenses) toward a post-commit reviewer's minimum-rounds floor — only same-configuration stability rounds count.
-- Apply the minimum-rounds floor to implementation-critic — it is exempt (moving artifact + no skip condition).
+- Apply the minimum-rounds floor to implementation-critic — it is exempt (moving artifact, and it runs on every commit but the agent-memory-only one).
 - Let critics modify code or plans directly. Critics report findings; the orchestrator or implementing agent makes changes.
 - Replace post-commit agents with pre-commit critics. Critics are additive — they reduce but do not eliminate the need for post-commit review.
 - Dismiss a critic finding because "the post-commit agents will catch it." Fix it now; post-commit agents are the safety net, not the primary gate.

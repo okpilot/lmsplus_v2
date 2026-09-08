@@ -93,7 +93,10 @@ Every deferred issue carries effort (S/M/L) + priority (P0–P2) + acceptance cr
 originating finding. And **two budgets bind on top of the per-item test**: VOLUME (0-2 deferrals
 per PR; 3+ means re-triage every survivor and name them in the push summary) and RATIO (before
 pushing, count issues this PR closes against issues it files (every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all) — if `filed > 0 AND filed >= closed`,
-either claim the first-illumination exemption on its test or re-triage and apply some of them). A PR
+claim one of the accepted justifications on its evidence test — first-illumination, or red-team
+coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
+filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are judged) — or
+re-triage and apply some of them). A PR
 that files nothing clears the ratio check whatever it closes.
 
 ### Skip if:

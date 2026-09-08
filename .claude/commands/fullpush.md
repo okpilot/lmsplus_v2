@@ -24,13 +24,21 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       what the `author:@me` below encodes), whatever its origin, listed in the PR body's
       `## Deferred` section, which must name every one. On a FIRST push there is no PR yet, so the
       list is the `## Deferred` section of the body you are about to open the PR with. Enumerate with the merge-base TIMESTAMP, never its date:
-      `gh issue list --state open --limit 200 --search "author:@me created:>=$(git log -1 --format=%cI $(git merge-base origin/master HEAD))"` — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
+      `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE`
+  captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then
+  `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline them — a failed `git merge-base`
+  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints HEAD's OWN committer timestamp — today's date only when HEAD was committed today, any earlier
+  date and exits 0, narrowing the window and under-counting `filed` with no diagnostic (verified). — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
       result is exactly 200 rows, treat that as truncated rather than as the answer — raise the
       bound and re-run; a cap only closes the hole while the result stays under it. If
-      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim the
-      first-illumination exemption on its test (see the rule — naming the area is not enough on its
-      own) or re-triage and APPLY two or three of the deferrals. A PR that files nothing clears this
-      check whatever it closes.
+      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one
+      of the accepted justifications on its evidence test — first-illumination, or red-team
+      coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
+      filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are
+      judged) — or
+      re-triage and APPLY two or three of the deferrals.
+      See the rule: for first-illumination, naming the area is not enough on its own. A PR that files
+      nothing clears this check whatever it closes.
 
     Per-item justifications do not answer either check — PR #1225 passed every per-item test and
     still filed **9** against 7 closed, sailing past the volume budget too. Nine as of ITS push, not
@@ -91,7 +99,9 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 After answering the checklist:
 
 1. **If any answer is "no"** — fix it before proceeding. Do not rationalize.
-2. **Lint the whole repo (read-only)**: `pnpm lint` (this is `biome check .`). Report errors. ⚠️ Do NOT use `pnpm check` here — that is `biome check --write .`, a fixer that rewrites files repo-wide. The gate must be read-only.
+2. **Lint (read-only)**: `pnpm lint`. Report errors. It is NOT `biome check .` — read `scripts.lint`
+   in `package.json` for what it actually covers, because a turbo-driven lint reaches only paths
+   inside a workspace package. ⚠️ Do NOT use `pnpm check` here — that is `biome check --write .`, a fixer that rewrites files repo-wide. The gate must be read-only.
 3. **Run type check**: `pnpm check-types`
 4. **Run the unit suite**: `pnpm --filter @repo/web test -- --run` — report pass/fail count. UNIT ONLY, despite the script name: `vitest.config.ts` excludes `**/*.integration.test.ts`. The integration tier is a separate config (`test:integration`) that runs real query code against a REAL local Postgres with NO Supabase mocking, and this gate never invokes it — CI's `integration-tests` job is where those first execute.
 5. **Build the app**: `pnpm build` (`turbo run build`). Always run it — catches RSC / Server-vs-Client boundary / static-generation errors that `tsc` misses. Turbo caches unchanged packages, so incremental builds are fast. A build failure blocks the push.
@@ -112,7 +122,14 @@ After answering the checklist:
     if [[ -n "$STATUS" ]]; then
       echo 'Uncommitted changes — commit docs, rules and mirrors before pushing. ABORT'; exit 1
     fi
-    CHANGED=$(git diff --name-only origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }
+    # --name-status -M, NOT --name-only: the latter prints only a rename's DESTINATION, so moving a
+    # file OUT of a security path reads as "no security path" and skips the MANDATORY red-team run
+    # at 7b. cut -f2- drops the R<score> column so BOTH sides of a rename reach $CHANGED.
+    # Capture FIRST, transform second. A pipeline's exit status is its LAST command's, and neither
+    # file sets `pipefail`, so `$(git diff ... | cut | tr) || abort` reads a failed diff as zero
+    # paths — the exact emptiness-vs-error conflation the paragraph below forbids.
+    RAW=$(git diff --name-status -M origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }
+    CHANGED=$(printf '%s\n' "$RAW" | cut -f2- | tr '\t' '\n')
     ```
     Steps 6, 7 and 7b then match against `$CHANGED` — do NOT re-run the diff per step. A guarded diff that EXITS non-zero aborts (above); a diff that succeeds with zero paths is a legitimate no-op that PROCEEDS and matches no conditional — branch on the exit code, never on emptiness (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"). 7b (Red Team) is MANDATORY: on a stale, unresolvable, or errored base an unguarded conditional silently evaluates false and the required gate is skipped (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 

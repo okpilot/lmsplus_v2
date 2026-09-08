@@ -29,7 +29,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 7. Plan-critic   → independent agent reviews plan (skip for single-file <10 lines)
 8. Approve       → user approves the validated plan
 9. Execute       → subagents implement (parallel when possible)
-10. Impl-critic  → review staged changes before commit (always runs)
+10. Impl-critic  → review staged changes before commit (all but agent-memory-only)
 11. Commit       → you create the commit
 12. Audit        → post-commit agents review (parallel)
 13. Fix          → address findings, repeat 11-12 until clean
@@ -164,7 +164,7 @@ version.**
 - **NEVER** skip post-commit agent review — run the four core agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) after every commit, except under a NAMED exemption in § Post-commit review. Commit size ALONE is never an exemption
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
-- **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
+- **NEVER** skip implementation-critic before a commit — run it on staged changes even for single-file changes. The ONE exemption is a commit whose paths are ALL under `.claude/agent-memory/**`, which would otherwise not terminate (`agent-workflow.md § Pre-Commit Implementation Review`); read the delta yourself instead
 - **NEVER** skip plan-critic for multi-file plans — run after validation, before user approval
 
 ### Agent behavior — hard stops
@@ -184,7 +184,7 @@ After every `git commit`, run these 4 subagents in parallel using the Agent tool
 1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
 2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
 3. **doc-updater** (haiku) — report the doc edits needed; YOU apply them (it has no Write/Edit tool)
-4. **test-writer** (sonnet) — check for missing tests, write them, run them (the only agent holding Write/Edit; every agent keeps Bash, so this closes the ACCIDENTAL write path, not every one)
+4. **test-writer** (sonnet) — check for missing tests, write them, run them (the only agent holding Write/Edit on REPOSITORY files — `memory: project` separately grants each agent Read/Write/Edit on its OWN memory dir; every agent keeps Bash, so this closes the ACCIDENTAL write path, not every one)
 
 **They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
 four" is not "four reported". WAIT for a completion notification from every agent you actually
@@ -204,7 +204,9 @@ Then run:
    On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
    drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
 
-If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
+If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run
+(`agent-workflow.md § Red-Team Agent Trigger` is canonical and names ONE further path this list does not
+repeat, `apps/web/e2e/redteam/`):
 6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
 
 If rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
