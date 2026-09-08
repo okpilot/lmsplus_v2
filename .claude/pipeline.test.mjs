@@ -345,9 +345,10 @@ for (const site of spec.modelLiteralSites) {
   // mutation-proven, not hypothetical. `full` having no pathspec today is a property of the two
   // lines below, not a guarantee about them.
   //
-  // Seven generations of this guard have now been written, and each of the six before it shipped a
-  // sentence claiming some edit could not defeat it. Every one of those sentences was falsified by
-  // the next reviewer, usually within the hour. The durable finding is not any particular guard --
+  // This guard has been rewritten repeatedly, each time after a reviewer defeated the version
+  // before it; `.claude/agent-memory/implementation-critic/topics/commit-notes.md` carries the
+  // record, including the drafts that were caught before they were ever committed. The durable
+  // finding is not any particular guard --
   // it is that a test cannot establish its own enumeration is complete, because the oracle and the
   // subject are the same editable file. What the block below is FOR is the two checks it ends with:
   // the lefthook glob against the extensions actually tracked, and the lint script actually
@@ -371,6 +372,17 @@ for (const site of spec.modelLiteralSites) {
       tracked.map((n) => n.slice(n.lastIndexOf('.') + 1)).filter((x) => BIOME_EXTS.includes(x)),
     ),
   ].sort()
+
+  // Pins the EXTRACTION. Everything downstream asks only whether `present` is a SUBSET of
+  // something, so an extraction returning nothing satisfies all of it: `indexOf('.')` in place of
+  // `lastIndexOf('.')`, or `lastIndexOf('/')`, each empties `present` and the suite stays green
+  // (mutation-proven). Widening is caught, shrinking is not. This file is itself a tracked .mjs,
+  // so `mjs` is in `present` unless the extraction is broken in a way that empties it.
+  present.includes('mjs')
+    ? pass(`extension extraction reads real suffixes (${present.join(', ')})`)
+    : fail(
+        `extension extraction produced ${JSON.stringify(present)} — .claude/pipeline.test.mjs is a tracked .mjs, so 'mjs' must be there`,
+      )
 
   const biomeBlock = /\n {4}biome-check:\n([\s\S]*?)(?=\n {4}\S|\n {2}\S)/.exec(lefthook)?.[1] ?? ''
   const glob = /^\s*glob:\s*"([^"]+)"/m.exec(biomeBlock)?.[1]
