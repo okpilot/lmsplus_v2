@@ -1017,8 +1017,9 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    stated because understating it would be this very defect:** it proves the commit EXISTS, never
    that the claim about it is true. It does not check counts, or whether a self-reported
    verification happened. A commit-message claim of either kind is still yours to derive.
-   Reference position is an OPEN set — read `TRIGGER_WORDS` and the position rules in the hook
-   rather than a list here, which would go stale the first time one is added (clause 2).
+   The commit-context WORD LIST is an OPEN set — read `TRIGGER_WORDS` in the hook rather than a
+   copy here, which goes stale the first time one is added (clause 2). The positions themselves are
+   fixed by the code's structure; read `extractRefs` for them.
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The

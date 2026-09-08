@@ -1,8 +1,10 @@
 // Unit test for the commit-claims guard. Run:
 //   node --test .claude/hooks/check-commit-claims.test.mjs
-// Every test below is written to go RED if the mechanism it pins is deleted from
-// check-commit-claims.mjs — see the mutation checks recorded in the commit that
-// added this file.
+// Each test pins a mechanism and goes RED when that mechanism is deleted from
+// check-commit-claims.mjs — EXCEPT where a comment directly above a test says which
+// mechanism it does NOT pin, and names the sibling that does. Read that comment rather
+// than assuming; this header said "every test" until an audit found two it was not true
+// of, which is the §10 cl.2 defect (a universal claim over a set that keeps growing).
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -60,7 +62,9 @@ test('extractRefs does NOT flag SHAs inside a URL', () => {
 
 // The Dependabot-shaped test above is a real requirement, but it is NOT mutation-sensitive
 // to URL-stripping specifically: a compare-URL SHA is always preceded by "compare/" and
-// never qualifies via any of the three position rules on its own, with or without
+// never qualifies via any position rule on its own (read them in extractRefs; do not
+// hardcode a count here — a docstring already claimed three when the code had four),
+// with or without
 // stripping (confirmed by replaying every historical commit message in this repo through
 // both the stripped and unstripped path: 0 of 1275 differ). This test IS sensitive: a
 // hex-looking URL path segment immediately followed by `'s` would otherwise satisfy the
@@ -167,6 +171,11 @@ test('extractRefs isolates the closing-paren boundary', () => {
   assert.deepEqual(extractRefs('Reworked the parser (ab12cd34 notes)'), [])
 })
 
+// This test does NOT independently pin either paren boundary: loosening PAREN_BEFORE_RE
+// alone leaves it green (PAREN_AFTER_RE still rejects), and vice versa — only loosening
+// BOTH turns it red. Its two siblings above each pin one boundary alone, which is what
+// catches a single-regex regression. Kept for documenting the combined case, not for
+// unique mutation coverage.
 test('extractRefs ignores hex inside parens that carry other prose', () => {
   assert.deepEqual(extractRefs('Reworked the parser (see ab12cd34 notes).'), [])
 })
@@ -305,6 +314,38 @@ test('main: a message citing an absent (but syntactically valid) SHA exits non-z
     assert.ok(threw, 'expected a non-zero exit for an unresolved SHA citation')
     assert.match(stderr, new RegExp(`${absentSha}\\s+\\(absent\\)`))
     assert.match(stderr, /not in this repository — try `git fetch origin`/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('main: a message citing an ambiguous SHA prefix exits non-zero with the remedy', () => {
+  // No other test reaches REMEDY.ambiguous: the classifyRef unit test above only proves the
+  // CLASSIFICATION ('ambiguous'), never the offender-report's REMEDY[cls] lookup or its text —
+  // confirmed by mutation (corrupting REMEDY.ambiguous to garbage left the rest of this file
+  // green). Two blob objects whose SHA1 shares a 7-char prefix make git itself report "is
+  // ambiguous", with no dependency on this repo's own history containing a real collision:
+  // git's blob-hash scheme is sha1(`blob ${byteLength}\0${content}`), so the two contents below
+  // were found offline once and are fixed here — nothing is searched for at test-run time.
+  const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: dir })
+    execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: dir, input: 'y13788' })
+    execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: dir, input: 'y17281' })
+    const msgFile = join(dir, 'MSG')
+    writeFileSync(msgFile, 'fixes bug per 578019b today\n')
+    let threw = false
+    let stderr = ''
+    try {
+      execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: dir, encoding: 'utf8' })
+    } catch (err) {
+      threw = true
+      assert.notEqual(err.status, 0)
+      stderr = err.stderr ?? ''
+    }
+    assert.ok(threw, 'expected a non-zero exit for an ambiguous SHA citation')
+    assert.match(stderr, /578019b\s+\(ambiguous\)/)
+    assert.match(stderr, /the SHA prefix matches more than one object — cite a longer prefix/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
