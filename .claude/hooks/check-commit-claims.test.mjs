@@ -190,7 +190,10 @@ test('extractRefs keeps a citation on an issue-reference line', () => {
 })
 
 test('extractRefs drops a git template comment line', () => {
-  assert.deepEqual(extractRefs('# On branch master with 1234567a in it'), [])
+  // The token must be one the filter ALONE excludes: `fixed by <sha> since` qualifies via
+  // TRIGGER_BEFORE, so this goes red if the `#` filter is removed. An earlier fixture used
+  // `with <sha> in it`, which no rule accepts anyway — it passed with the filter deleted.
+  assert.deepEqual(extractRefs('# On branch master, fixed by 1234567a since'), [])
 })
 
 test('main: a missing/unreadable commit-msg file exits non-zero', () => {
@@ -224,6 +227,37 @@ test('main: a git "error" outcome (no repo) exits non-zero and does not report s
     }
     assert.ok(threw, 'expected a non-zero exit when git cannot run')
     assert.ok(!stdout.includes('✓'), 'must not report success when the check could not run')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('main: a git-check failure aborts before the unresolved-SHA report ever runs', () => {
+  // Pins the collectOffenders extraction specifically. Its abort branch must exit(1) and
+  // never fall through to the loop's push line. A regression that dropped only the exit()
+  // call (leaving the surrounding push intact) would still exit non-zero — the 'error'
+  // token is not 'resolved', so it gets pushed as an ordinary offender — but stderr would
+  // then ALSO carry the generic "cites unresolved SHA(s)" report with an undefined remedy,
+  // which never happens when the abort genuinely short-circuits before that code runs.
+  // The sibling test above only checks for the absence of '✓'; it does not distinguish a
+  // real abort from one that fell through into the generic report and still failed closed.
+  const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
+  try {
+    const msgFile = join(dir, 'MSG')
+    writeFileSync(msgFile, 'fixes bug per 1234567a\n')
+    let stderr = ''
+    try {
+      execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: dir, encoding: 'utf8' })
+      assert.fail('expected a non-zero exit when git cannot run')
+    } catch (err) {
+      assert.notEqual(err.status, 0)
+      stderr = err.stderr ?? ''
+    }
+    assert.match(stderr, /could not verify '1234567a' — git check failed\. Aborting/)
+    assert.ok(
+      !stderr.includes('cites unresolved SHA(s)'),
+      'abort must short-circuit before the generic offender report runs',
+    )
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -270,7 +304,7 @@ test('main: a message citing an absent (but syntactically valid) SHA exits non-z
     }
     assert.ok(threw, 'expected a non-zero exit for an unresolved SHA citation')
     assert.match(stderr, new RegExp(`${absentSha}\\s+\\(absent\\)`))
-    assert.match(stderr, /does not exist in this repository/)
+    assert.match(stderr, /not in this repository — try `git fetch origin`/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

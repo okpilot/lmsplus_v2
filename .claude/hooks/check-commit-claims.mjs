@@ -179,7 +179,8 @@ function gitRunner(token) {
 }
 
 const REMEDY = {
-  absent: 'the SHA does not exist in this repository — fix the citation or drop it',
+  absent:
+    'not in this repository — try `git fetch origin` first (a just-merged commit may not be fetched yet), then fix or drop the citation',
   ambiguous: 'the SHA prefix matches more than one object — cite a longer prefix',
 }
 
