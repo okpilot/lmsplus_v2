@@ -1479,3 +1479,188 @@ where "the mechanism" is actually several independent mechanisms stacked.
   arithmetic/counts stated elsewhere in the same doc. This is a distinct check from cl.3's "grep the
   retracted phrase" — cl.3 catches a phrase left behind after editing; cl.6 would catch a phrase that
   was never edited but was always inconsistent with something else in the document.
+
+## Branch `chore/settle-policy-contradictions` — CR-local rounds 1-4 (2026-09-08, commits `24f6983d`..`2c42c970`)
+
+Continuation of the section above (same branch, later commits). Four CR-local rounds, each producing
+one fixup commit per § PR Batching: round 1 → `24f6983d` (3 findings, 3 applied); round 2 → `ee0186d9`
+(5 findings, 4 applied, 1 skipped, PLUS this cycle's four core agents); round 3 → `c740169b` (4
+findings, 3 applied, 1 skipped, plus semantic-reviewer); round 4 → `2c42c970` (1 finding, applied,
+plus the four core agents). The loop stopped at `2c42c970` because round 4 is the 4-fixup ceiling
+(agent-coderabbit-local.md § Stop Conditions rule 2) — **not** because a round came back clean. 0 of 4
+rounds were clean; the M=2 floor (this is not a security-path branch) was numerically met at round 2
+but every round through round 4 still carried an apply-worthy finding, so extend-by-one kept firing
+until the ceiling did.
+
+### Patterns, mapped
+
+- **Rename-blind `--name-only` pathspec used to derive a security-path floor or a path-based
+  exemption.** `24f6983d`: the agent-memory-only implementation-critic exemption was derived from
+  `git diff --cached --name-only`, which prints only a rename's DESTINATION — a file renamed INTO
+  `.claude/agent-memory/` from outside read as agent-memory-only and skipped implementation-critic.
+  `ee0186d9`: the security-path floor was derived the same way in FOUR places — moving
+  `packages/db/src/admin.ts` (the service-role key module) out of its tree matched zero security
+  paths, silently dropping the reviewer/CR-local floor from M=3 to M=2 and skipping the mandatory
+  red-team run. Both fixed to `--name-status -M`, taking both paths of an `R` entry. **2 distinct
+  commits, RULE CANDIDATE → RULE, and already swept clean**: `git grep -n -- '--name-only'` across
+  `.claude/rules/*.md`, `.claude/commands/*.md`, `docs/*.md`, `CLAUDE.md` (run 2026-09-08) returns
+  zero unguarded hits — every one of the 6 sites that ever cited `--name-only` for a security/
+  exemption derivation (`agent-critic.md:28`, `agent-coderabbit-local.md:83`, `crlocal.md:100/104`,
+  `fullpush.md:125/131`, `agent-workflow.md:306`, `docs/decisions.md:1514`) now uses
+  `--name-status -M`. Mark PROMOTED, not RULE CANDIDATE — the text is written AND the sweep is
+  independently confirmed, which is the two-part bar `agent-learner.md § Sweep-On-Rule-Promotion`
+  sets. New tracker row.
+- **`Rules-file bullet closes an enumeration of a structurally OPEN set` — row 43, 8th instance.**
+  `ee0186d9`: six files asserted a literal count ("exactly TWO" accepted defer-ratio justifications).
+  CR flagged two of the six; the orchestrator's own sweep found all six, all introduced by this
+  branch, all falsified at once by adding a third justification. Named, not counted, in the fix. This
+  is a DIFFERENT commit and a different subject (defer justifications, not "seven generations") from
+  the 7th instance already recorded on this row from `8867ccea`/`ec9ba068` — row 43's own counting
+  convention is per-commit (its 7th-instance note is tied to the specific commit that shipped it), so
+  this increments to 8, unlike row 42 below.
+- **`Fix commit correcting §10 violations introduces fresh §10 violations` — row 42, same branch,
+  NOT incremented.** Two more self-correction cycles landed on this branch after the six commits
+  already folded into row 42's count=30: `24f6983d`'s own commit message misattributed which bullet
+  in row 43 carried the "cannot narrow" sentence (off by one), corrected by `ee0186d9`'s message;
+  `c740169b`'s own prose said the merge-base fallback prints "TODAY's date" — true only when HEAD was
+  committed today, corrected by `2c42c970`. A third near-instance (the `CHANGED=$(git diff | cut |
+  tr) || abort` fix in `ee0186d9` reopening the same class of hole WIDER) never shipped —
+  implementation-critic caught it pre-commit, so per the row's own established precedent (the "every
+  previous generation" wording in the earlier section above) a caught draft does not increment the
+  count. Per row 42's OWN established counting unit ("folded into row 42 as ONE branch instance per
+  that row's established per-branch counting unit" — see the section above), these two are additional
+  evidence on the SAME already-counted branch, not a new branch, so the numeric count stays at 30.
+  Recorded here as reinforcement: this branch alone now shows FIVE separate self-correction touches
+  (3 original false claims + 2 more here) to the exact defect class row 42 tracks, and the row's own
+  Q4 note already says "Do not let this sit at RULE CANDIDATE through a 6th branch" — the next branch
+  to exhibit this is that 6th branch; the EVIDENCE: line gate proposed there should be applied before
+  it arrives, not after.
+- **`Verification gate's pass condition is empty result — fails open on malformed input` — row 58,
+  3rd instance, threshold cleared, ready to write.** `c740169b`: semantic-reviewer found an inlined
+  `$(git log -1 --format=%cI $(git merge-base ...))` printed as the command to run in the
+  Apply-vs-Defer `filed`-derivation section, three lines above prose that already forbade exactly
+  that inlining (a pre-existing bullet, not one this branch introduced). On a failed inner
+  `merge-base`, the substitution is empty, `git log -1 --format=%cI` (no ref) silently defaults to
+  HEAD and exits 0, printing a plausible date that narrows the window and under-counts `filed` — a
+  ratio check that should fail instead passes. Fixed by capturing and exit-code-checking each step
+  separately. Same shape as the row's first two instances (`git log --since` empty=PASS; `gh issue
+  list` default `--limit 30` truncating silently) — "any check whose PASS is absence must also prove
+  the mechanism ran," and here the near-equivalent: any check whose INPUT is itself a command
+  substitution must prove THAT ran too. Count 2→3. Propose: `agent-workflow.md § Always diff against
+  origin/master` already carries the fix inline ("Capture it, check the exit code, abort on failure,
+  then query" — the corrected text); the remaining action is a repo-wide sweep for any OTHER
+  printed/runnable example anywhere in `.claude/rules/*.md`, `.claude/commands/*.md`, `CLAUDE.md`
+  containing a nested `$(...)`-within-`$(...)` substitution, verifying each captures and checks the
+  inner command's exit code separately before use.
+- **`Mirror sweep scoped by file extension, not claim phrase — misses .ts hits` — row 59, 4th
+  instance, text CONFIRMED present, recurrence is enforcement not authoring.** `2c42c970`:
+  `CLAUDE.md` and `.claude/hooks/post-commit-reminder.sh` both still carried the unqualified "only
+  agent holding Write/Edit" claim that `docs/plan.md` had already retracted one commit earlier
+  (`c740169b`). The doc-shaped grep that found the first two mirrors missed the `.sh` file — which is
+  EXACTLY the case `agent-workflow.md`'s own Rule-Mirror Sync table already names: confirmed present
+  at `agent-workflow.md:719` ("`.claude/hooks/*.sh` | **executable mirrors** — ... Not `.md`, so
+  doc-shaped greps miss them"). The rule text is not the gap; the orchestrator's own sweep habit
+  (defaulting to a `.md`-extension grep) is. Count 3→4.
+- **New pattern, count=1, WATCHING — detection regex enumerates one flag spelling, misses a
+  documented CLI alias.** `c740169b` added a lint-mode guard rejecting `--write`; `biome check --help`
+  documents `--fix` as its alias, and `biome check --fix .claude` passed a gate whose stated purpose
+  is rejecting write mode. Found independently by test-writer AND semantic-reviewer in the same
+  round, both mutation-proven. Fixed in `2c42c970` by widening to `--(?:write|fix)` (confirmed live at
+  `.claude/pipeline.test.mjs:431`). Distinct from row 46 (SWAP/category-membership — a check too LOOSE,
+  accepting something it should reject via substring/category match): this is a check too NARROW,
+  rejecting only one exact spelling and missing an equivalent alias — the opposite direction. Also
+  distinct from row 45 (test-writer's formal Mutation-check protocol running unisolated/untargeted) —
+  this was the ORCHESTRATOR's own ad hoc mutation test ("I had mutation-tested only the shapes I
+  thought of and called it verified"), not test-writer's protocol, so it doesn't share row 45's
+  proposed remedy location. Mechanical lesson for next time: before writing a detection regex for any
+  CLI flag, grep the tool's own `--help` / documented alias list, not just the spelling used in the
+  finding that prompted the guard. Single occurrence — log and watch.
+- **New pattern, count=1, WATCHING — `cd` into a stale/removed worktree fails silently and the
+  write lands in the real repo.** A semantic-reviewer's `cd` into a scratch worktree that no longer
+  existed failed silently (no `set -e` / no `|| exit`), so the script continued in the original
+  working directory and its mutation landed in the REAL `package.json`. Self-caught: the agent
+  verified its own mutation had applied (per `agent-workflow.md § Finding Validation`'s artifact-check
+  discipline) before trusting it, found the wrong file changed, and restored it. Positive signal on
+  the verify-before-trusting discipline; distinct from the existing `git checkout HEAD` /
+  concurrent-work-destruction row (different command, different actor, no concurrent-agent race here)
+  — both are materializations of the same already-named Bash residual hole
+  (`agent-workflow.md § Every agent dispatch is ASYNCHRONOUS`: Bash is the one write path every agent
+  keeps, deliberately, and it is not sandboxed). Single occurrence — log and watch.
+- **Positive — 3-way corroboration, no action needed.** `docs/decisions.md`'s stale citation of the
+  superseded `--name-only` derivation (for the agent-memory exemption) was found INDEPENDENTLY by
+  doc-updater, semantic-reviewer, AND CR-local in the same round (`ee0186d9`'s cycle) — three
+  different reviewers, three different mechanisms, same finding, zero disagreement. Confirms the
+  four-core-agents-plus-CR-local design is not wastefully duplicative on a real defect; it is
+  redundant in the way that catches things reliably.
+- **Environment note, not a rule-change candidate.** The session's tmpfs hit 0 bytes free mid-cycle
+  (own agent transcripts + scratch worktrees), blocking every Bash call until cleared. Operational
+  hygiene, not a code-style/security pattern — logged here for continuity, no tracker row.
+
+### Q2 — CR-local's stop rule on a large, prose-heavy, self-referential branch
+
+**Data.** Round-by-round finding counts: 3, 5, 4, 1 — zero rounds clean across all 4. The loop ended
+at the 4-fixup ceiling (Stop Conditions rule 2), never at the minimum-rounds-met + last-round-clean
+floor (rule 1), even though the floor (M=2, not a security-path branch) was numerically reachable by
+round 2.
+
+**Is the extend-by-one arithmetic broken?** No — re-derive it directly: extend-by-one requires that
+the loop cannot stop ON a round that still carries an APPLY verdict, and cannot stop BEFORE round M.
+Every one of rounds 1-4 carried an APPLY verdict, so by the rule's own text the loop was REQUIRED to
+keep extending; it did, correctly, until the independent ceiling (a hard cap "even if the floor is
+unmet") terminated it. The arithmetic did exactly what it says. The symptom is not a bug in that
+mechanic.
+
+**What's actually going on.** Two known facts compound: (1) CR-local's `--committed --base
+origin/master` reviews the WHOLE branch diff every round, by design, to preview what cloud CR will
+see on the pushed PR — so the reviewed surface grows every round as each round's own fixup commit
+lands on the branch. (2) This branch's subject matter — settling rules-file self-contradictions — is
+exactly the row-42/row-69 defect class (a fix commit correcting one instance has an outsized,
+independently-tracked tendency to introduce a fresh one; row 42 sits at count=30 and row 69 at
+count=14, both already flagged ESCALATE/needs-mechanical-gate). Each round's fixup is therefore drawn
+from a population of edits with an unusually high empirical rate of containing the exact defect
+CR-local is tuned to catch. A clean round is not "bad luck failing to arrive" on this branch; it is
+the CR-local loop functioning as an effective row-42/row-69 detector on a target that keeps
+regenerating the thing it's detecting. This is corroborated by history, not a first observation: the
+archived pipeline-audit #1110 loop (2026-07-11, the OLDER consecutive-clean-reset mechanic, since
+replaced 2026-09-06) is recorded as closing "at the 4-fixup ceiling per stop-condition — non-
+convergence as documented (CR finds new nits on unchanged code each round)" — same externally visible
+shape (ceiling-only termination) under a DIFFERENT stop-rule mechanic, on a 60-file diff. Contrast
+with `batch/928-1010-1041-client-hardening` (2026-07-13), which achieved BOTH the floor+clean-round
+condition AND the ceiling simultaneously on a 5-round loop with mechanical (non-self-referential)
+fixups — proof that convergence IS reachable when the fixups aren't drawn from a self-regenerating
+defect class. Given the stop-rule mechanic differs between the two ceiling-only instances (old
+counter-reset vs current extend-by-one), this is the FIRST test of the current mechanic under this
+condition — count=1 under the current design, though the underlying symptom has now recurred twice
+across two different mechanics.
+
+**Verdict: not a defect in the stop-rule's arithmetic. It is an undocumented interaction between
+"review the whole branch every round" and the already-escalated row-42/row-69 defect rate, and there
+is a compliance gap in how the ceiling is being closed out.** Two concrete, separately actionable
+fixes:
+
+1. **`agent-workflow.md § PR Batching § "The non-convergence signal"`** (currently written for
+   plan-critic only: "If a review round surfaces a NEW critical in a section an earlier round already
+   reviewed, the diff is too large. Split — do not run another round."). Extend this explicitly to
+   CR-local with a mechanically checkable trigger: *"The same signal applies to a CR-local loop that
+   reaches its 4-fixup ceiling with ZERO clean rounds (every round 1..ceiling carried an apply-worthy
+   finding) — split the remaining scope into a separate branch/PR rather than trusting the ceiling to
+   terminate the review. This is distinguishable at write time from ordinary CR-local non-convergence
+   (§ agent-coderabbit-local.md's documented re-raise/noise behavior, which the minimum-rounds rule
+   was designed to accommodate and does not by itself warrant a split) by whether the findings across
+   rounds are on DIFFERENT material each time (a fixup's own fresh text failing review — split-worthy)
+   versus re-raises of the SAME already-adjudicated finding on unchanged code (accepted noise — not
+   split-worthy)."*
+2. **`agent-coderabbit-local.md § Stop Conditions` rule 2** — currently reads "...escalate to user
+   judgment rather than looping further," but this session's fixup-commit messages narrate the ceiling
+   firing as "Round 4 is the 4-fixup ceiling, so the CR loop stops here by rule" with no distinguishable
+   escalation step — the loop stopping "by rule" is being treated as if it were itself the disposition,
+   when the rule's own text calls for something stronger (explicit user-facing judgment). Propose
+   tightening the clause so the ceiling firing REQUIRES a stated line in the round summary — e.g. "N/4
+   rounds clean — ceiling reached; escalating" — addressed to the user, distinct from and in addition
+   to "stops here by rule." This does not change the mechanic; it closes a visibility gap between what
+   the rule already says to do and what closing-by-ceiling currently reads like in practice.
+
+Both are DRAFT proposals, not promotions — the underlying symptom is at count=1 under the current
+extend-by-one mechanic (the pipeline-audit #1110 precedent used the retired mechanic, so it does not
+cleanly co-count). Apply now on the strength of the reasoning if the orchestrator judges it
+sufficient, or hold for a second same-mechanic recurrence per the standard threshold.
