@@ -6,6 +6,51 @@
 
 ## Positive-pattern log
 
+### pipeline-spec-as-data — `.claude/pipeline.test.mjs` staged diff, generation 7 (2026-09-08, chore/settle-policy-contradictions)
+
+REVISE — 1 ISSUE (comment-accuracy, §10), 0 CRITICAL. Reviewed the diff closing two demonstrated
+holes: (1) pathspec-union narrowing `tracked` (generation six) — now cross-checked against `full`,
+a second `git ls-files -z` call with NO pathspec; (2) `BIOME_EXTS` unpinned — now reverse-pinned so
+every glob-linted extension must be in `BIOME_EXTS`. All 8 given mutations re-run in a scratch
+worktree (`git worktree add --detach`, seeded via `git show :.claude/pipeline.test.mjs`), baseline
+92/0, each mutation 91/1 as claimed — no disagreement.
+
+**Constructed generation 8, fires clean (92/0, silently wrong):** co-narrow BOTH `git ls-files`
+calls to the identical anchor-covering pathspec (`-- .claude/agents .claude/pipeline.test.mjs
+.claude/hooks/check-mirror-sync.mjs`) — apply the SAME edit to `tracked`'s call AND `full`'s call.
+`tracked.length === full.length` (12 = 12) holds, "enumerates all of .claude/ (12 tracked files)"
+PASSES, coverage narrows to `mjs` only, all 92 assertions green. Isolated: narrowing `full` alone
+(tracked unnarrowed) DOES fail (`121 of 12 ... narrowed`) — it's the CO-edit that escapes, exactly
+the co-modifiable-source shape point 4 already names for `BIOME_EXTS`+glob, applied here to a
+SECOND pair (`tracked`/`full`) the new prose claims is immune to it.
+
+**The false claim:** "Completeness therefore comes from a listing with NO pathspec, which a
+pathspec edit cannot narrow." Nothing pins `full`'s arg list — it is one `execFileSync` call, as
+editable as `tracked`'s. The SAME comment's own next paragraph — "any guard in a test can be
+defeated by editing the test" — directly contradicts the "cannot narrow" sentence eleven words
+earlier: a same-comment self-contradiction, not just a mutation-provable falsehood. Consequently the
+closing sentence "It closes the shapes that were demonstrated and claims nothing further" is also
+false — the "cannot narrow" sentence claims an unconditional structural immunity, which is more
+than "these specific demonstrated mutations are now caught."
+
+Also re-verified (EVIDENCE, not inferred): mutation-proof sentence for the BIOME_EXTS block is
+literally TRUE — ran BIOME_EXTS=[] and each of js/json/mjs dropped individually, old `missing`
+check passes vacuously in every case, new `droppedFromBiomeExts` check catches all of them (91/1).
+Re-ran the "121→12, all green, coverage narrows to one extension" claim against the PRE-diff
+(generation-six) tree specifically — confirmed TRUE there (91/0, not 92/0, since the new `full`
+check doesn't exist yet).
+
+Known residuals correctly left unfired and NOT re-raised: `onDisk` is still filesystem-derived
+(`readdirSync`), not self-referential — the "if made self-referential" residual is hypothetical and
+untouched by this diff; `lintsClaude`'s `&&`-short-circuit gap and the `BIOME_EXTS`+glob co-shrink
+are pre-existing, named, deliberately unfixed.
+
+Verdict: REVISE — rewrite or delete the "cannot narrow" / "claims nothing further" sentences (they
+overclaim relative to what `full` actually guarantees), or make `full` genuinely independent (e.g.
+diff `tracked` against a value not produced by an execFileSync call whose args are edited by the
+same class of commit — a lockfile-style out-of-band count is the honest fix if a floor is wanted
+here after all, though the PR text already rejected a bare numeric floor for a different reason).
+
 ### pipeline-spec-as-data commit 4 (learner row correction + commit-notes phrase + decisions.md paragraph) (2026-09-08)
 
 REVISE — 1 ISSUE: learner MEMORY.md new tracker row has 4cbaba0a and 7eaef31a descriptions SWAPPED.

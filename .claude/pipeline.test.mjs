@@ -331,9 +331,40 @@ for (const site of spec.modelLiteralSites) {
     ...ANCHORS.filter((f) => !tracked.includes(f)),
     ...onDisk.map((n) => `.claude/agents/${n}.md`).filter((f) => !tracked.includes(f)),
   ]
-  unseen.length === 0
-    ? pass(`git enumerates .claude/ (${tracked.length} tracked files)`)
-    : fail(`git ls-files did not return ${unseen.join(', ')} — the enumeration is broken`)
+  // A finite anchor set is only ever a SAMPLE, and a pathspec can union in exactly the
+  // subdirectories the sample covers -- `-- .claude/agents .claude/pipeline.test.mjs
+  // .claude/hooks/check-mirror-sync.mjs` satisfies every anchor while dropping .claude/rules/,
+  // .claude/commands/, .claude/pipeline.json and the rest -- collapsing 121 tracked files to 12
+  // and narrowing the coverage line below from three extensions to one. Before `full` was added
+  // that ran fully green; it is what `full` exists to catch. `full` is a second opinion: same
+  // command, no pathspec of its own. Chosen over a count floor, which rots and only catches past
+  // whatever number someone guessed.
+  //
+  // WHAT THIS CATCHES: a one-sided narrowing -- the pathspec on `tracked` edited while `full` is
+  // left alone. Adding the SAME pathspec to both keeps the two lengths equal and passes; that is
+  // mutation-proven, not hypothetical. `full` having no pathspec today is a property of the two
+  // lines below, not a guarantee about them.
+  //
+  // Seven generations of this guard have now been written, and each of the six before it shipped a
+  // sentence claiming some edit could not defeat it. Every one of those sentences was falsified by
+  // the next reviewer, usually within the hour. The durable finding is not any particular guard --
+  // it is that a test cannot establish its own enumeration is complete, because the oracle and the
+  // subject are the same editable file. What the block below is FOR is the two checks it ends with:
+  // the lefthook glob against the extensions actually tracked, and the lint script actually
+  // invoking biome. Those pin things that drift on their own. This enumeration guard pins a file
+  // someone would have to edit on purpose, and it is worth exactly that much.
+  const full = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8' })
+    .split('\0')
+    .filter((f) => f.startsWith('.claude/'))
+  if (unseen.length > 0) {
+    fail(`git ls-files did not return ${unseen.join(', ')} — the enumeration is broken`)
+  } else if (tracked.length !== full.length) {
+    fail(
+      `pathspec returned ${tracked.length} of ${full.length} tracked .claude/ files — it is narrowed`,
+    )
+  } else {
+    pass(`git enumerates all of .claude/ (${tracked.length} tracked files)`)
+  }
 
   const present = [
     ...new Set(
@@ -355,6 +386,20 @@ for (const site of spec.modelLiteralSites) {
         )
       : fail(
           `lefthook biome-check glob "${glob}" misses ${missing.join(', ')} — present under .claude/`,
+        )
+
+    // Pins BIOME_EXTS itself. `present` is always a SUBSET of BIOME_EXTS (it's derived by
+    // filtering tracked extensions through it), so the `missing` check above can never go red from
+    // shrinking BIOME_EXTS -- dropping any entry only shrinks `present` to match, and an empty
+    // BIOME_EXTS passes vacuously against an empty `present` (mutation-proven for 'js', 'json',
+    // 'mjs' individually and for BIOME_EXTS = []). Assert the reverse direction instead: every
+    // extension the glob actually lints must be in BIOME_EXTS, so BIOME_EXTS can't silently drop
+    // one out from under the check above.
+    const droppedFromBiomeExts = [...globExts].filter((x) => !BIOME_EXTS.includes(x))
+    droppedFromBiomeExts.length === 0
+      ? pass(`BIOME_EXTS tracks every extension the lefthook glob lints (${BIOME_EXTS.length})`)
+      : fail(
+          `BIOME_EXTS is missing ${droppedFromBiomeExts.join(', ')} — the lefthook glob lints them but the coverage check above can no longer see them`,
         )
   }
 
