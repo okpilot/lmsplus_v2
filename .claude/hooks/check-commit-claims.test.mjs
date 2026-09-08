@@ -156,9 +156,30 @@ test('classifyRef: an unrecognised non-zero outcome -> error, never resolved (fa
 
 test('extractRefs finds a bare ref opening a NUMBERED list item', () => {
   // The marker class once covered only -, * and ( — so a fabricated SHA opening a numbered
-  // item reported success. Numbered items appear 142 times in the last 400 messages here.
+  // item reported success. Numbered items are common here — derive the count, do not quote one.
   assert.deepEqual(extractRefs('1. d4e5f6a7 fixes it'), ['d4e5f6a7'])
   assert.deepEqual(extractRefs('> d4e5f6a7 fixes it'), ['d4e5f6a7'])
+})
+
+test('extractRefs ignores everything below a git commit -v scissors line', () => {
+  // commit-msg hooks run BEFORE git strips the verbose diff, and diff context lines are not
+  // `#`-prefixed — so a list item inside the diff reached the marker rules and false-blocked.
+  const msg =
+    'fix(x): normal\n\nNo citations.\n' +
+    '# ------------------------ >8 ------------------------\n' +
+    'diff --git a/x.md b/x.md\n - deadbee1 was the old pin\n'
+  assert.deepEqual(extractRefs(msg), [])
+})
+
+test('extractRefs keeps an unrelated citation when an action pin appears earlier', () => {
+  // The bare-start action-pin exclusion is bounded to the `(` case. Unbounded, it walked back
+  // to the previous whitespace token across newlines and blank lines, so ANY earlier
+  // `X/Y@Z`-shaped token silently dropped a later unrelated citation.
+  assert.deepEqual(
+    extractRefs('Pinned actions/checkout@v6\nabc1234f is unrelated and fixes the bug'),
+    ['abc1234f'],
+  )
+  assert.deepEqual(extractRefs('Pinned actions/checkout@v6\n\nabc1234f is unrelated'), ['abc1234f'])
 })
 
 test('extractRefs finds the FIRST token of a multi-SHA parenthetical', () => {
@@ -182,6 +203,9 @@ test('extractRefs excludes an action pin whose paren opens the next line', () =>
   assert.deepEqual(extractRefs('- actions/checkout@v6\t(de0fac2)'), [])
 })
 
+// EXCEPTION: does not pin the restored `(` bare-start marker — the PAREN rule accepts this
+// shape regardless of position, so it stays green with `(` removed from the marker class. The
+// multi-SHA-parenthetical test above pins that. Kept to show the restore does not regress it.
 test('extractRefs still finds a parenthetical that opens a line', () => {
   assert.deepEqual(extractRefs('(fb06ee55) opened the line'), ['fb06ee55'])
 })

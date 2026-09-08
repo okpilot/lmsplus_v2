@@ -60,7 +60,8 @@ function tokenBeforeParen(before) {
  *  real conflict was the action-pin exclusion not being applied on THIS path, so it is applied
  *  here too rather than the marker being removed.
  *  It once covered only the first three, so a fabricated SHA opening a NUMBERED item reported
- *  success — and numbered items appear 142 times in the last 400 messages here. */
+ *  success. Numbered items are common in this history — derive the count if you need one; an
+ *  earlier version of this comment asserted 142 and no counting method reproduced it. */
 const BARE_START_RE = /(?:^|\n)\s*(?:[-*(]|\d+[.)]|>)?\s*`?$/
 
 /** A lowercase-hex run, 7-40 chars, not embedded in a longer identifier. */
@@ -83,7 +84,13 @@ function hasHexLetter(token) {
  * @returns {string}
  */
 function normalize(text) {
-  const lines = text
+  // `git commit -v` appends the staged DIFF below a scissors line, and commit-msg hooks run
+  // BEFORE git strips it. Diff context lines are not `#`-prefixed, so a list item in the diff
+  // carrying a hex token reaches the marker rules and false-blocks an ordinary commit — with no
+  // way forward but `--no-verify`, which our own rules forbid. Cut there first.
+  const scissors = text.search(/^#\s*-+\s*>8\s*-+/m)
+  const body = scissors === -1 ? text : text.slice(0, scissors)
+  const lines = body
     .split('\n')
     // `^#\s` only: git's template comments are `# On branch ...`, while `#1255` is an
     // ISSUE REFERENCE and real content — 71 such lines in the last 400 messages against 1
@@ -139,10 +146,14 @@ export function extractRefs(text) {
     // a SILENT DROP: exit 0, "0 ref(s) verified", on a fabricated SHA.
     if (!cited) {
       if (!BARE_START_RE.test(before)) continue
-      // The action-pin exclusion is applied on THIS path too, not just the paren one: a pin
-      // whose paren opens the next line reaches the token through BARE_START, and gating only
-      // the paren rule let it through as a false block.
-      if (ACTION_PIN_RE.test(tokenBeforeParen(before))) continue
+      // The action-pin exclusion applies on THIS path too — but ONLY when the bare-start match
+      // came via the `(` marker, which is the case the pin reaches. Applying it to every
+      // bare-start match walks `tokenBeforeParen` back to the previous whitespace token across
+      // newlines and blank lines, so any earlier `X/Y@Z`-shaped token anywhere in the message
+      // silently dropped an unrelated citation — a fifth silent drop, introduced by the fix for
+      // the fourth. The `(`-anchored guard is what bounds it.
+      const beforeNoTick = before.endsWith('`') ? before.slice(0, -1) : before
+      if (/\(\s*$/.test(beforeNoTick) && ACTION_PIN_RE.test(tokenBeforeParen(before))) continue
       if (TRIGGER_AFTER_RE.test(afterForExclusion)) continue
     }
 
