@@ -1381,3 +1381,101 @@ Recommend NOT generalizing the thesis from this branch. A cleaner, evidence-back
 **verification/gate mechanisms that check "does X roughly look right" (membership, substring,
 unclosed-key) are as failure-prone, and at least as severe, as the prose claims describing them** —
 that's what patterns 1-3 above actually show.
+
+## Branch `chore/settle-policy-contradictions` (2026-09-08, 6 commits `7a4580ab`..`ec9ba068`)
+
+`7a4580ab` settled 5 policy contradictions and closed a lint gap (`pnpm lint` never reached repo
+root; the lefthook glob omitted `.mjs`). The 5 commits after it are ALL fixups to the guard that
+closed that gap — each version mutation-proven vacuous by the NEXT reviewer:
+
+1. `269667d7` — glob check used substring matching (`'*.{jsx}'.includes('js')` true); lint check
+   matched a mere mention. Both vacuous → row 46 (SWAP/category-membership), 3rd instance, threshold
+   reached — write the 3rd worked example under code-style.md §7 now.
+2. `b63c1019` — added a recursion pin at depth>=1; vacuous because every lintable file below
+   `.claude/` already sits at depth 1. No clean existing-row match; folded into the meta-lesson below
+   rather than forced into an existing row.
+3. `5ed08515` — deleted the hand-rolled walk for `git ls-files`, pinned via named anchors; vacuous
+   because a pathspec unioning the anchors' own directories satisfies them all. Self-referential
+   scoping (the check's search space is DERIVED from the same anchors it's meant to verify) — related
+   to row 85's "no independent anchor" shape but not force-fitted (row 85's named shape is
+   specifically "co-removing from both passes clean," which this isn't); folded into the meta-lesson.
+4. `8867ccea` — added a no-pathspec cross-check + `BIOME_EXTS` reverse pin; residual: co-editing both
+   `git ls-files` calls passes → row 85, 4th instance (2->4 after this branch, with `807b6658` between).
+5. `ec9ba068` — pinned the extraction step; residual (found by semantic-reviewer AND test-writer):
+   `present` collapses to `{'mjs'}` via the `.map()`/`.filter()`, because every downstream check is
+   one-directional (`present ⊆ X`, never `X ⊆ present`). Test-writer's OWN tracker (not this file)
+   already carries this exact shape at count=2 (`test-writer/MEMORY.md`, "derived SUBSET-filtered
+   value has no check on its own extraction step") — not double-counted here; cross-referenced only.
+
+### Q2 answer — what would have stopped the 5-generation loop itself
+
+Not any single vacuity fix. Each generation was validated by "does this defeat the ONE mutation I
+just found" rather than "does this defeat every INDEPENDENT axis this guard's correctness depends
+on." A guard whose job is closed-set/coverage enforcement (a lint-glob pin, an inventory check, a
+cross-reference check) has (at minimum) FOUR independent axes: (a) the input enumeration step, (b)
+any extraction/transform step, (c) the filter/predicate step, (d) the comparison DIRECTION
+(A⊆B vs B⊆A vs equality). A mutation passing on axis (d) certifies nothing about (a)-(c) — that is
+exactly what happened generation to generation here (gen1 mutated the match-exactness axis; gen4
+mutated the input-derivation axis; gen5 mutated the extraction axis; no single generation checked
+more than the one axis its predecessor had just failed).
+
+PROPOSAL (not yet applied — routes to whichever rules PR next touches test-writer.md or code-style.md
+§7): when mutation-testing a GUARD SCRIPT (as opposed to an ordinary unit test pinning app logic),
+require the mutation set to cover all four axes above before the guard is considered validated, not
+just the axis of the most recently found defect. This generalizes the existing §7 "kill the mechanism,
+watch it go red" discipline from single-mechanism unit tests to multi-axis coverage/inventory guards,
+where "the mechanism" is actually several independent mechanisms stacked.
+
+### Other findings, mapped
+
+- Three false claims shipped in commit messages on this branch (269667d7: "each mutation verified to
+  produce exactly one failure," true only for tried shapes; b63c1019: "Three assertions added in
+  269667d7," two were; 8867ccea: attributed a "cannot narrow" sentence to the prior commit — it
+  appears in no committed version, only a pre-commit draft) — folded into row 42 as ONE branch
+  instance per that row's established per-branch counting unit (29→30).
+- `8867ccea` SHIPPED the bounded-count-plus-universal pair "Seven generations ... Every one of those
+  sentences was falsified" as ONE claim; `ec9ba068` removed both and pointed at commit-notes.md
+  instead → row 43, 7th instance. The "every previous generation ... every one falsified" wording
+  quoted in `ec9ba068`'s own message never reached a committed file — it was a pre-commit draft that
+  implementation-critic caught. Attributing it to `ec9ba068` (as this entry first did) is the SAME
+  draft-vs-committed misattribution the "cannot narrow" bullet above disentangles; it recurred
+  inside the row that tracks it.
+- A semantic-reviewer ran `git checkout HEAD -- <path>` in the MAIN repo believing it was cleaning
+  its own contamination, destroying test-writer's legitimate uncommitted work. Both agents behaved
+  per their own definitions. `agent-workflow.md` withholds Write/Edit from every agent but test-writer
+  specifically to prevent this and already names Bash as the residual hole — first confirmed
+  materialization of an already-anticipated gap, logged as its own new row (count=1, WATCHING) rather
+  than merged into the `git reset --hard` archive row (different actor, different command, no
+  concurrent-agent race in the archived case).
+- The learner's own mutation run silently failed to apply (Python quoting error), printing a clean
+  pass; only incidental stderr text revealed it → row 40, 4th instance.
+- A test-writer report claimed a file was modified when the write was made inside a scratch worktree
+  since removed → row 68, 12th instance, POST-PROMOTION (the promoted Finding Validation
+  artifact-check caught it; the report itself did not self-correct).
+- PR 3's scope was planned citing learner rows as `638, 639, 649, 657, 668, 670, 677` — an unstable
+  mixture of MEMORY.md line numbers, archive line numbers, and literal `(row NNN)` IDs; several
+  resolved to nothing or the wrong pattern. New row (count=1, WATCHING): `(row NNN)` is not a stable
+  identifier — both files renumber on every edit/compaction. If it recurs, propose citing by the
+  Issue-Type text (grep-able) or a stable slug instead.
+
+### Q4 — rows 42 (count 30) and 69 (count 14), both far past threshold, neither promoted
+
+- **Row 42** ("fix commit correcting §10 violations introduces fresh §10 violations"): the remedy
+  TEXT already exists (§10 cl.3, "a partial comment edit is the tell — grep repo-wide"), so the
+  35-crossing-and-climbing count is an ENFORCEMENT gap, not a missing-text one — and it keeps firing
+  because cl.3 is scoped to comment/doc edits, not to the commit MESSAGE prose where a large share of
+  these instances actually live (this branch's 3 false claims all shipped in commit-message bodies,
+  not source comments). Concrete next step: (1) extend §10's scope to state explicitly that commit
+  message bodies/footers carry the same grep-and-verify obligation as source comments; (2) since text
+  alone has failed at this count, pair it with a MECHANICAL gate — require an EVIDENCE: line (command
+  + output) for any quantified/absolute claim ("every," "each," "exactly," a count) written into a
+  commit message, mirroring the EVIDENCE: requirement #1254 already put on agent reports for runtime
+  claims. Do not let this sit at RULE CANDIDATE through a 6th branch.
+- **Row 69** ("rules-file claim true in its hunk, false vs another section/mirror/arithmetic"): the
+  row's own status text says the remedy is "still unwritten in §10 text" — unlike row 42, this one
+  genuinely lacks drafted language. Concrete next step: write a NEW §10 clause 6 requiring that a
+  claim be checked not just for LOCAL truth (within its own paragraph/hunk) but for consistency
+  against (a) other sections of the SAME file, (b) mirror files per Rule-Mirror Sync, and (c) simple
+  arithmetic/counts stated elsewhere in the same doc. This is a distinct check from cl.3's "grep the
+  retracted phrase" — cl.3 catches a phrase left behind after editing; cl.6 would catch a phrase that
+  was never edited but was always inconsistent with something else in the document.

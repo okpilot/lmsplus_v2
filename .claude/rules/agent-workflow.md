@@ -303,7 +303,10 @@ included; the plan-critic is what gets skipped for small work, not the implement
 The exemption exists because the alternative does not TERMINATE: `agent-memory.md § Memory deltas are
 committed, never stashed` requires a memory delta to be committed, that commit would itself need
 implementation-critic, and its run writes its own memory delta. Derive the exemption from
-`git diff --cached --name-only`, never from judgement about how small the commit is.
+`git diff --cached --name-status -M`, never from judgement about how small the commit is. NOT
+`--name-only`: with rename detection on it prints only a rename's DESTINATION, so moving a file INTO
+`.claude/agent-memory/` from outside reads as agent-memory-only and skips the critic. Require BOTH
+paths of an `R` entry to be under the directory (verified by experiment, 2026-09-08).
 
 It removes a GATE, not the DUTY. Read the delta before committing it: a false tracker row inflates a
 learner count and can promote a rule nothing earned. That has happened: `implementation-critic/topics/commit-notes.md` in `2f94ddd2` carries the refutation of

@@ -29,7 +29,9 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       bound and re-run; a cap only closes the hole while the result stays under it. If
       **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one
       of the TWO accepted justifications on its evidence test — first-illumination, or red-team
-      coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers — or
+      coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
+      filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are
+      judged) — or
       re-triage and APPLY two or three of the deferrals.
       See the rule: for first-illumination, naming the area is not enough on its own. A PR that files
       nothing clears this check whatever it closes.
