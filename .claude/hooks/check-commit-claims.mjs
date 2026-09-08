@@ -77,7 +77,10 @@ function hasHexLetter(token) {
 function normalize(text) {
   const lines = text
     .split('\n')
-    .filter((line) => !/^#/.test(line))
+    // `^#\s` only: git's template comments are `# On branch ...`, while `#1255` is an
+    // ISSUE REFERENCE and real content — 71 such lines in the last 400 messages against 1
+    // template line. Dropping every `#` line discards a citation sharing it.
+    .filter((line) => !/^#\s/.test(line))
     .filter((line) => !/^(Co-Authored-By|Claude-Session|Signed-off-by):/i.test(line))
   let out = lines.join('\n')
   out = out.replace(/https?:\/\/\S+/g, ' ')
@@ -88,11 +91,12 @@ function normalize(text) {
 /**
  * Extract candidate commit-SHA references from a raw commit message.
  * A candidate is a 7-40 char lowercase-hex token containing at least one digit
- * AND at least one a-f letter, that is either preceded by a commit-context word,
- * carries a possessive `'s`, or is bare at the start of a line/list item — UNLESS
- * the token itself directly precedes one of the commit-context words, which marks
- * it as something else being described (e.g. a content-digest "abc123ef in file.md"),
- * not a commit citation.
+ * AND at least one a-f letter, qualifying on ANY of four positions: preceded by a
+ * commit-context word; carrying a possessive `'s`; a bare parenthetical `(<sha>)` whose
+ * immediately-preceding token is not an `owner/repo@ref` action pin; or bare at the start
+ * of a line/list item. Only that LAST, weakest position is cancelled when the token itself
+ * directly precedes a commit-context word — the shape of a content digest
+ * ("abc123ef in file.md"). The cancellation must never apply to the other three.
  * @param {string} text raw commit-message body
  * @returns {string[]} deduped tokens, in order of first appearance
  */
@@ -107,19 +111,28 @@ export function extractRefs(text) {
     const before = normalized.slice(0, m.index)
     const after = normalized.slice(m.index + token.length)
 
-    // A token that PRECEDES a trigger word is describing something else, never a citation.
     const afterForExclusion = after.startsWith('`') ? after.slice(1) : after
-    if (TRIGGER_AFTER_RE.test(afterForExclusion)) continue
-
     const beforeForTrigger = before.endsWith('`') ? before.slice(0, -1) : before
-    const qualifies =
+
+    // POSITIVE evidence that this is a citation.
+    const cited =
       TRIGGER_BEFORE_RE.test(beforeForTrigger) ||
       POSSESSIVE_AFTER_RE.test(after) ||
       (PAREN_BEFORE_RE.test(before) &&
         PAREN_AFTER_RE.test(after) &&
-        !ACTION_PIN_RE.test(tokenBeforeParen(before))) ||
-      BARE_START_RE.test(before)
-    if (!qualifies) continue
+        !ACTION_PIN_RE.test(tokenBeforeParen(before)))
+
+    // Bare at a line start is the WEAKEST signal, and the only one the
+    // precedes-a-trigger-word exclusion may cancel: a content digest reads
+    // "714eec4f in plan-critic.md". Applying that exclusion to a token with
+    // positive evidence drops real citations — "in <sha> as", "by <sha> to",
+    // "of <sha> on" are ordinary English and occur throughout this history,
+    // including in the commit that introduced this guard. Cancelling those is
+    // a SILENT DROP: exit 0, "0 ref(s) verified", on a fabricated SHA.
+    if (!cited) {
+      if (!BARE_START_RE.test(before)) continue
+      if (TRIGGER_AFTER_RE.test(afterForExclusion)) continue
+    }
 
     if (!seen.has(token)) {
       seen.add(token)
@@ -170,6 +183,27 @@ const REMEDY = {
   ambiguous: 'the SHA prefix matches more than one object — cite a longer prefix',
 }
 
+/**
+ * Classify every ref, aborting the process on an outcome that means the check
+ * could not RUN (fail closed) rather than treating it as resolved.
+ * @returns {{token: string, cls: string}[]} the non-resolved refs
+ */
+function collectOffenders(refs, runner) {
+  const offenders = []
+  for (const token of refs) {
+    const cls = classifyRef(token, runner)
+    if (cls === 'error') {
+      console.error(
+        `✖ commit-claims guard: could not verify '${token}' — git check failed. Aborting; this check could not run.`,
+      )
+      exit(1)
+      return offenders
+    }
+    if (cls !== 'resolved') offenders.push({ token, cls })
+  }
+  return offenders
+}
+
 function main() {
   const msgFile = argv[2]
   if (!msgFile) {
@@ -188,18 +222,7 @@ function main() {
   }
 
   const refs = extractRefs(text)
-  const offenders = []
-  for (const token of refs) {
-    const cls = classifyRef(token, gitRunner)
-    if (cls === 'error') {
-      console.error(
-        `✖ commit-claims guard: could not verify '${token}' — git check failed. Aborting; this check could not run.`,
-      )
-      exit(1)
-      return
-    }
-    if (cls !== 'resolved') offenders.push({ token, cls })
-  }
+  const offenders = collectOffenders(refs, gitRunner)
 
   if (offenders.length > 0) {
     console.error('✖ commit-claims guard: commit message cites unresolved SHA(s):')

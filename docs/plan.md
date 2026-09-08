@@ -1045,7 +1045,8 @@ git commit
     → [Lefthook pre-commit] biome check --write + type-check + soft-delete guard +
       test-title-leakage guard (BLOCKING). NOT unit tests — those run in CI
       (docs/decisions.md:54; lefthook.yml's pre-commit stanza has no test runner).
-    → [Lefthook commit-msg] commitlint validates message format
+    → [Lefthook commit-msg] commitlint validates message format + commit-claims guard
+      (BLOCKING) rejects a cited SHA that does not resolve (code-style.md §10 cl.6)
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a

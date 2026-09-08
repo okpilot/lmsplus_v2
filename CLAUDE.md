@@ -249,7 +249,7 @@ post-commit agents. Never push until every agent required by the selected path r
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking):
 - **pre-commit:** biome lint/format + type-check + soft-delete column guard (`check-soft-delete-guard.mjs`) + test-title leakage guard (`check-test-title-leakage.mjs`, diff-scoped, grandfathered). Both also run in the CI lint job. Unit tests deliberately excluded — full suite runs in CI
-- **commit-msg:** conventional commit format + commit-claims guard (`check-commit-claims.mjs`): a SHA in commit-reference position must resolve. It does NOT catch every citation (~79% of them) and proves only that the commit EXISTS, never that the claim about it is true — see `code-style.md` §10 cl.6
+- **commit-msg:** conventional commit format + commit-claims guard (`check-commit-claims.mjs`): a SHA in commit-reference position must resolve. It catches only ~80% of citations and proves only that the commit EXISTS, never that the claim about it is true — see `code-style.md` §10 cl.6
 - **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
 
 `.claude/pipeline.json` `hooks` is the machine-checked enumeration of every lefthook stage's commands — including the non-blocking `post-commit` reminder, which is not a gate and so is not listed above. `.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree in either direction; do not restate the command list here.

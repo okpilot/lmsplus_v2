@@ -7,12 +7,19 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { classifyRef, extractRefs } from './check-commit-claims.mjs'
 
 const HOOK_PATH = fileURLToPath(new URL('./check-commit-claims.mjs', import.meta.url))
+// Resolve the real repo root from the hook's own location (never process.cwd() — the
+// test may be invoked from a different working directory) so the two end-to-end main()
+// tests below can run the hook against real git history instead of a synthetic repo.
+const REPO_ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+  cwd: dirname(HOOK_PATH),
+  encoding: 'utf8',
+}).trim()
 
 // A 40-char hex string built from a repeating digit+letter cycle — always a valid
 // candidate shape (mixed digit and a-f letter), regardless of test-local length needs.
@@ -75,6 +82,17 @@ test('extractRefs ignores refs inside a fenced code block', () => {
   assert.deepEqual(refs, ['bbbbbbb2'])
 })
 
+test('extractRefs drops a "#" comment line before extraction (git template comments)', () => {
+  const refs = extractRefs('# implemented per abc1234f\nActual body text.\n')
+  assert.deepEqual(refs, [])
+})
+
+test('extractRefs drops trailer lines (Co-Authored-By / Claude-Session / Signed-off-by)', () => {
+  assert.deepEqual(extractRefs('Body text here.\n\nCo-Authored-By: Bot per abc1234f\n'), [])
+  assert.deepEqual(extractRefs('Body text here.\n\nClaude-Session: verified per abc1234f\n'), [])
+  assert.deepEqual(extractRefs('Body text here.\n\nSigned-off-by: Someone per abc1234f\n'), [])
+})
+
 // ---- classifyRef ------------------------------------------------------------
 
 test('classifyRef: exit 0 -> resolved', () => {
@@ -92,6 +110,22 @@ test('classifyRef: "is ambiguous" stderr -> ambiguous', () => {
 
 test('classifyRef: "Needed a single revision" stderr -> absent', () => {
   const runner = () => ({ status: 128, stderr: 'fatal: Needed a single revision\n' })
+  assert.equal(classifyRef('deadbeef', runner), 'absent')
+})
+
+test('classifyRef: "unknown revision" stderr -> absent', () => {
+  const runner = () => ({
+    status: 128,
+    stderr: 'fatal: unknown revision or path not in the working tree.\n',
+  })
+  assert.equal(classifyRef('deadbeef', runner), 'absent')
+})
+
+test('classifyRef: "not a valid object name" stderr -> absent', () => {
+  const runner = () => ({
+    status: 128,
+    stderr: "fatal: not a valid object name 'deadbeef^{commit}'\n",
+  })
   assert.equal(classifyRef('deadbeef', runner), 'absent')
 })
 
@@ -137,6 +171,28 @@ test('extractRefs ignores hex inside parens that carry other prose', () => {
   assert.deepEqual(extractRefs('Reworked the parser (see ab12cd34 notes).'), [])
 })
 
+test('extractRefs keeps a citation flanked by trigger words on BOTH sides', () => {
+  // Regression: the precedes-a-trigger exclusion used to cancel unconditionally, so
+  // "in <sha> of", "by <sha> to", "of <sha> on" — ordinary English, and the dominant
+  // citation shape in this history — were SILENTLY DROPPED (exit 0, "0 refs verified").
+  assert.deepEqual(extractRefs('documented in commit 1234567a of the plan'), ['1234567a'])
+  assert.deepEqual(extractRefs('fixed by 80b0aaeb to restore behavior'), ['80b0aaeb'])
+})
+
+test('extractRefs still excludes a content digest at a line start', () => {
+  // The exclusion survives for its ONE real case: the weakest position, bare line start.
+  assert.deepEqual(extractRefs('714eec4f in plan-critic.md'), [])
+})
+
+test('extractRefs keeps a citation on an issue-reference line', () => {
+  // `#1255` is content (71 such lines in the last 400 messages); only `# ` is a template comment.
+  assert.deepEqual(extractRefs('#1255 - the defect was fixed by 1234567a since'), ['1234567a'])
+})
+
+test('extractRefs drops a git template comment line', () => {
+  assert.deepEqual(extractRefs('# On branch master with 1234567a in it'), [])
+})
+
 test('main: a missing/unreadable commit-msg file exits non-zero', () => {
   // Asserting the guard's OWN message, not merely a non-zero exit: an uncaught
   // ENOENT also exits non-zero, so an exit-code-only assertion passes with the
@@ -168,6 +224,53 @@ test('main: a git "error" outcome (no repo) exits non-zero and does not report s
     }
     assert.ok(threw, 'expected a non-zero exit when git cannot run')
     assert.ok(!stdout.includes('✓'), 'must not report success when the check could not run')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('main: a message citing HEAD exits 0 and prints the success line', () => {
+  // Exercises main()'s only untested branch before this test existed: the happy path.
+  // Every other main() test in this file drives a FAILURE branch.
+  const head = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  }).trim()
+  const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
+  try {
+    const msgFile = join(dir, 'MSG')
+    writeFileSync(msgFile, `Fix applied in ${head} today.\n`)
+    const stdout = execFileSync(process.execPath, [HOOK_PATH, msgFile], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    })
+    assert.match(stdout, /^✓ commit-claims guard: 1 ref\(s\) verified/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('main: a message citing an absent (but syntactically valid) SHA exits non-zero with the remedy', () => {
+  // Distinct from the "no repo" test above: this drives the OFFENDERS branch (a real repo,
+  // a real git check that runs cleanly and reports the ref does not exist) rather than the
+  // "git check itself failed" branch — the two are different code paths in main().
+  const absentSha = '0123456789abcdef'.repeat(3).slice(0, 40) // 40-char hex: never a real object
+  const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
+  try {
+    const msgFile = join(dir, 'MSG')
+    writeFileSync(msgFile, `fixes bug per ${absentSha}\n`)
+    let threw = false
+    let stderr = ''
+    try {
+      execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: REPO_ROOT, encoding: 'utf8' })
+    } catch (err) {
+      threw = true
+      assert.notEqual(err.status, 0)
+      stderr = err.stderr ?? ''
+    }
+    assert.ok(threw, 'expected a non-zero exit for an unresolved SHA citation')
+    assert.match(stderr, new RegExp(`${absentSha}\\s+\\(absent\\)`))
+    assert.match(stderr, /does not exist in this repository/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
