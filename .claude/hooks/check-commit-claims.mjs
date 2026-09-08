@@ -49,11 +49,19 @@ const ACTION_PIN_RE = /^\S+\/\S+@\S/
 /** The whitespace-delimited token immediately preceding an opening paren. */
 function tokenBeforeParen(before) {
   const head = before.replace(/\(\s*`?$/, '').trimEnd()
-  return head.slice(head.lastIndexOf(' ') + 1).trim()
+  return head.split(/\s+/).pop() ?? ''
 }
 
-/** Bare at the start of a line or list item: only whitespace/list-marker/backtick before it. */
-const BARE_START_RE = /(?:^|\n)\s*[-*(]?\s*`?$/
+/** Bare at the start of a line or list item: only whitespace/list-marker/backtick before it.
+ *  The marker set covers `-`, `*`, `(`, a numbered marker (`1.` / `1)`) and a blockquote `>`.
+ *  `(` is load-bearing: it is the ONLY rule covering the FIRST token of a multi-SHA parenthetical
+ *  — `(<sha>, <sha>)`, an idiom this repo uses — because the PAREN pair needs `)` immediately
+ *  after. Dropping it to stop an action-pin false block traded one silent drop for another; the
+ *  real conflict was the action-pin exclusion not being applied on THIS path, so it is applied
+ *  here too rather than the marker being removed.
+ *  It once covered only the first three, so a fabricated SHA opening a NUMBERED item reported
+ *  success — and numbered items appear 142 times in the last 400 messages here. */
+const BARE_START_RE = /(?:^|\n)\s*(?:[-*(]|\d+[.)]|>)?\s*`?$/
 
 /** A lowercase-hex run, 7-40 chars, not embedded in a longer identifier. */
 const HEX_RE = /(?<![0-9a-zA-Z_])[0-9a-f]{7,40}(?![0-9a-zA-Z_])/g
@@ -131,6 +139,10 @@ export function extractRefs(text) {
     // a SILENT DROP: exit 0, "0 ref(s) verified", on a fabricated SHA.
     if (!cited) {
       if (!BARE_START_RE.test(before)) continue
+      // The action-pin exclusion is applied on THIS path too, not just the paren one: a pin
+      // whose paren opens the next line reaches the token through BARE_START, and gating only
+      // the paren rule let it through as a false block.
+      if (ACTION_PIN_RE.test(tokenBeforeParen(before))) continue
       if (TRIGGER_AFTER_RE.test(afterForExclusion)) continue
     }
 

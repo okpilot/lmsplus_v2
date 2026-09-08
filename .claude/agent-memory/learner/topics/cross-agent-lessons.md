@@ -1749,15 +1749,20 @@ figure), a sibling code branch (11), or the header's own newly-written replaceme
 repeating the violation it was written to fix (12). This is row 42's already-established shape
 ("fix commit correcting the class introduces a fresh instance of the SAME class") generalized one
 level: the recurrence is not always literally "the next commit reopens what the last one closed" —
-on this branch, MOST instances (3-5, 9, 10, 12, and the three-way-measurement one) never reached a
-commit at all, caught pre-commit by implementation-critic across five rounds and by test-writer's
-mutation audit. That is the one genuinely new information this branch adds to row 42's 31-instance
+on this branch, SOME instances (3-5, 12, and the three-way-measurement one) never reached a commit
+at all, caught pre-commit by implementation-critic across five rounds. The rest — including 9 and
+10 — DID land and were caught by a post-commit cycle, each producing its own follow-up commit:
+`33c8ff79` carried the "Two known limits" count that `029bee6f` corrected, and `4ec5b894` carried
+the test-header claim that `d728e389` corrected. This sentence read "MOST ... never reached a
+commit" until a code-reviewer checked it against those four messages — a claim true of the
+instances it was drafted from and false against the history in the same file, which is the shape
+catalogued two rows above. That is the one genuinely new information this branch adds to row 42's 31-instance
 record: the mechanism fires at the SAME rate inside a single drafting session as it does across
 separate commits — the defect class is not specific to "a fix commit," it is specific to "an author,
 including this one, correcting one instance of a self-referential/enumerative claim without checking
 whether a sibling instance has the same defect." Five implementation-critic rounds and one
 semantic-reviewer CRITICAL were required to converge a ~150-line hook plus its test suite to a state
-with no further self-reported defect — and the branch's own final commit message names this
+with no further self-reported defect — and `d728e389`'s message names this
 explicitly ("Four of them are mine").
 
 **Is "a fix introduces a fresh instance of the class it fixes" mechanically checkable?** No, not in

@@ -45,6 +45,15 @@ test('extractRefs finds a bare line-start ref in a list item', () => {
   assert.deepEqual(refs, ['d4e5f6a7'])
 })
 
+test('extractRefs finds a BACKTICKED line-start ref in a list item', () => {
+  // Mutation-blind before this test: BARE_START_RE tolerates an optional trailing backtick
+  // via `\`?` built into the regex itself (not a stripped view). Dropping that `\`?` left
+  // 34/34 green and silently dropped this citation. Same bug class as 371bfe49's fix,
+  // sibling to the other three backtick-view tests grouped after the possessive fix below.
+  const refs = extractRefs('Summary:\n- `d4e5f6a7` fixes the timeout\n- unrelated line\n')
+  assert.deepEqual(refs, ['d4e5f6a7'])
+})
+
 test('extractRefs does NOT flag a token that precedes a preposition (content digest, not a citation)', () => {
   const refs = extractRefs(
     '714eec4f in plan-critic.md against 3e0bfa5f in implementation-critic.md',
@@ -53,6 +62,11 @@ test('extractRefs does NOT flag a token that precedes a preposition (content dig
   assert.ok(!refs.includes('3e0bfa5f'))
 })
 
+// EXCEPTION: this test does NOT pin URL-stripping. A compare-URL SHA sits after "compare/"
+// and qualifies via no position rule with or without stripping — replaying every historical
+// message in this repo through both paths gives identical results. It is kept because the
+// Dependabot shape is a real requirement. The test directly below is the one that pins the
+// mechanism.
 test('extractRefs does NOT flag SHAs inside a URL', () => {
   const refs = extractRefs(
     `Bumps foo from 1.0 to 1.1.\nhttps://github.com/foo/bar/compare/${HEX40}...${HEX40_ALT}`,
@@ -60,15 +74,9 @@ test('extractRefs does NOT flag SHAs inside a URL', () => {
   assert.deepEqual(refs, [])
 })
 
-// The Dependabot-shaped test above is a real requirement, but it is NOT mutation-sensitive
-// to URL-stripping specifically: a compare-URL SHA is always preceded by "compare/" and
-// never qualifies via any position rule on its own (read them in extractRefs; do not
-// hardcode a count here — a docstring already claimed three when the code had four),
-// with or without
-// stripping (confirmed by replaying every historical commit message in this repo through
-// both the stripped and unstripped path: 0 of 1275 differ). This test IS sensitive: a
-// hex-looking URL path segment immediately followed by `'s` would otherwise satisfy the
-// possessive rule, so it proves the URL-strip step runs before candidate extraction.
+// This one IS mutation-sensitive to URL-stripping: a hex-looking URL path segment followed by
+// `'s` would otherwise satisfy the possessive rule, so it proves stripping runs BEFORE
+// candidate extraction.
 test('extractRefs does NOT flag a hex path segment inside a URL that looks possessive', () => {
   const refs = extractRefs("Verified per https://github.com/foo/1234567a's-diff for details.")
   assert.deepEqual(refs, [])
@@ -146,6 +154,38 @@ test('classifyRef: an unrecognised non-zero outcome -> error, never resolved (fa
   assert.equal(classifyRef('269667d7', runner), 'error')
 })
 
+test('extractRefs finds a bare ref opening a NUMBERED list item', () => {
+  // The marker class once covered only -, * and ( — so a fabricated SHA opening a numbered
+  // item reported success. Numbered items appear 142 times in the last 400 messages here.
+  assert.deepEqual(extractRefs('1. d4e5f6a7 fixes it'), ['d4e5f6a7'])
+  assert.deepEqual(extractRefs('> d4e5f6a7 fixes it'), ['d4e5f6a7'])
+})
+
+test('extractRefs finds the FIRST token of a multi-SHA parenthetical', () => {
+  // `(` is the only rule covering it — the PAREN pair needs `)` immediately after, so it
+  // catches neither token here. Removing `(` from the marker class to fix an action-pin
+  // false block silently dropped this shape, which appears 3 times per 400 real messages.
+  assert.deepEqual(extractRefs('cited hashes\n  (deadbee1, cafebab2) not reachable'), ['deadbee1'])
+})
+
+test('extractRefs excludes an action pin separated from its paren by a newline', () => {
+  // Pins tokenBeforeParen splitting on WHITESPACE, not the space character: with a space-only
+  // split the head keeps "line one\nactions/checkout@v6", ACTION_PIN_RE (anchored) misses, and
+  // the foreign SHA false-blocks. No prior test diverged the two implementations.
+  assert.deepEqual(extractRefs('line one\nactions/checkout@v6 (de0fac2)'), [])
+})
+
+test('extractRefs excludes an action pin whose paren opens the next line', () => {
+  // `(` was a bare-start marker, which bypassed the paren rule's action-pin exclusion and
+  // false-blocked a foreign SHA. Parentheticals are the PAREN rule's job, exclusion included.
+  assert.deepEqual(extractRefs('- actions/checkout@v6\n  (de0fac2)'), [])
+  assert.deepEqual(extractRefs('- actions/checkout@v6\t(de0fac2)'), [])
+})
+
+test('extractRefs still finds a parenthetical that opens a line', () => {
+  assert.deepEqual(extractRefs('(fb06ee55) opened the line'), ['fb06ee55'])
+})
+
 test('extractRefs finds a BACKTICKED possessive ref', () => {
   // Regression: the possessive rule tested the raw `after`, while its neighbours tested the
   // backtick-stripped form, so `<sha>`'s was a SILENT DROP — exit 0, "0 ref(s) verified".
@@ -153,8 +193,42 @@ test('extractRefs finds a BACKTICKED possessive ref', () => {
   assert.deepEqual(extractRefs("See `3a50780a`'s message for context."), ['3a50780a'])
 })
 
+// Sweep of the sibling positions for the SAME bug class the possessive fix (371bfe49)
+// closed: does the rule read the backtick-stripped view? Each of these four is currently
+// correct in extractRefs — but each was, before this test existed, a MUTATION-BLIND
+// silent drop: reverting the rule's view to the raw (unstripped) `before`/`after` left
+// all pre-existing tests green, because none of them wrapped the citation in backticks
+// at THIS position. Verified by mutation against 371bfe49 in a scratch worktree
+// (`beforeForTrigger`→`before`, `afterForExclusion`→`after` in the TRIGGER_AFTER
+// cancellation, and dropping the optional backtick from PAREN_BEFORE_RE/PAREN_AFTER_RE
+// and from BARE_START_RE) — each mutation left the suite at 34/34 and each produced a
+// wrong result on the fixture below.
+
+test('extractRefs finds a BACKTICKED ref preceded by a trigger word', () => {
+  // Mutation-blind before this test: TRIGGER_BEFORE_RE reads `beforeForTrigger` (trailing
+  // backtick stripped). Reverting it to the raw `before` — the same bug class as the
+  // possessive regression, just on this sibling rule — left 34/34 green and dropped this.
+  assert.deepEqual(extractRefs('reviewed per `abc1234f` today.'), ['abc1234f'])
+})
+
+test('extractRefs still excludes a BACKTICKED content digest at a line start', () => {
+  // Mutation-blind before this test: the TRIGGER_AFTER cancellation reads
+  // `afterForExclusion` (leading backtick stripped) so a backtick-wrapped content digest
+  // still cancels the weak bare-line-start signal. Reverting it to the raw `after` left
+  // 34/34 green and let this fixture wrongly resolve to ['714eec4f'] instead of [] — a
+  // false BLOCK on a non-citation, the mirror-image failure of a silent drop.
+  assert.deepEqual(extractRefs('`714eec4f` in plan-critic.md'), [])
+})
+
 test('extractRefs finds a bare parenthetical citation', () => {
   assert.deepEqual(extractRefs('The master-merge (fb06ee55) kept stale copies.'), ['fb06ee55'])
+})
+
+test('extractRefs finds a BACKTICKED parenthetical citation', () => {
+  // Mutation-blind before this test: PAREN_BEFORE_RE/PAREN_AFTER_RE tolerate an optional
+  // backtick via `\`?` built into the regex itself (not a stripped view). Dropping that
+  // `\`?` from both regexes left 34/34 green and silently dropped this citation.
+  assert.deepEqual(extractRefs('The master-merge (`fb06ee55`) kept stale copies.'), ['fb06ee55'])
 })
 
 test('extractRefs ignores a third-party action pin cited parenthetically', () => {
@@ -282,10 +356,16 @@ test('main: a git-check failure aborts before the unresolved-SHA report ever run
 test('main: a message citing HEAD exits 0 and prints the success line', () => {
   // Exercises main()'s only untested branch before this test existed: the happy path.
   // Every other main() test in this file drives a FAILURE branch.
-  const head = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], {
+  // extractRefs requires a mixed digit+letter token, and 12 of the last 500 short SHAs in this
+  // repo (2.4%) are all-digit — picking HEAD blindly fails this test against a CORRECT hook.
+  const head = execFileSync('git', ['log', '-50', '--format=%h', '--abbrev=8'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
-  }).trim()
+  })
+    .split('\n')
+    .map((line) => line.trim())
+    .find((sha) => /^[0-9a-f]{7,40}$/.test(sha) && /[0-9]/.test(sha) && /[a-f]/.test(sha))
+  assert.ok(head, 'no recent commit has a mixed digit+letter short SHA')
   const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
   try {
     const msgFile = join(dir, 'MSG')
