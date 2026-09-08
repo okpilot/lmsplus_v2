@@ -5,6 +5,7 @@
 // Why each check exists: docs/decisions.md Decision 62, and git log.
 //
 // Run:  node .claude/pipeline.test.mjs [root]
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -303,26 +304,42 @@ for (const site of spec.modelLiteralSites) {
 // extension that .claude/ happens not to use is a real regression this does NOT catch.
 {
   const BIOME_EXTS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'jsonc']
-  const SKIP_DIRS = new Set(['worktrees', 'node_modules'])
-  const walk = (dir) =>
-    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
-      if (SKIP_DIRS.has(e.name)) return []
-      return e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]
-    })
-  const all = walk('.claude')
+  // Enumerated by GIT, not by a walk of our own. Two reasons, and the second is the load-bearing
+  // one. (a) There is no recursion of ours left to pin: a hand-rolled walk needs a guard proving it
+  // descends, that guard needs a guard, and each one is satisfiable by a walk capped one level
+  // deeper. (b) git's set is the one the linter actually uses -- `biome check .claude` skips
+  // gitignored files, so a filesystem walk OVER-reports (it picks up .claude/settings.local.json,
+  // .gitignore:40) and would demand glob coverage for an extension biome never sees.
+  // execFileSync throws on a non-zero exit, so a git failure is loud rather than empty.
+  const tracked = execFileSync('git', ['-C', ROOT, 'ls-files', '-z', '--', '.claude'], {
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean)
+
+  // Pins the ENUMERATION. A mis-scoped pathspec exits 0 with an empty list, which would leave
+  // `present` empty and pass every check below against nothing.
+  // Two named paths catch narrowing in either direction -- this file for a pathspec narrowed to a
+  // subdirectory, the nested one for a pathspec narrowed to the top level. Named paths ALONE are
+  // not enough: a pathspec listing exactly those two satisfies both while collapsing `tracked`
+  // from every tracked file to 2 (mutation-proven). So the third term is a whole population this
+  // file already derives from the FILESYSTEM -- `onDisk`, the .claude/agents/ listing -- which git
+  // did not produce and a narrowed pathspec cannot satisfy. An agents file that is untracked fails
+  // here too, deliberately: an agent definition outside git is not part of the repo.
+  const ANCHORS = ['.claude/pipeline.test.mjs', '.claude/hooks/check-mirror-sync.mjs']
+  const unseen = [
+    ...ANCHORS.filter((f) => !tracked.includes(f)),
+    ...onDisk.map((n) => `.claude/agents/${n}.md`).filter((f) => !tracked.includes(f)),
+  ]
+  unseen.length === 0
+    ? pass(`git enumerates .claude/ (${tracked.length} tracked files)`)
+    : fail(`git ls-files did not return ${unseen.join(', ')} — the enumeration is broken`)
+
   const present = [
     ...new Set(
-      all.map((n) => n.slice(n.lastIndexOf('.') + 1)).filter((x) => BIOME_EXTS.includes(x)),
+      tracked.map((n) => n.slice(n.lastIndexOf('.') + 1)).filter((x) => BIOME_EXTS.includes(x)),
     ),
   ].sort()
-
-  // Pins the RECURSION. Without it a walk that stopped descending silently shrinks `present` and
-  // every check below passes against a smaller world. Counting files does NOT pin this — a
-  // non-recursive walk still returns directory NAMES, so any count comparison stays satisfied.
-  // Only a path below the top level proves it descended.
-  all.some((f) => f.slice('.claude/'.length).includes('/'))
-    ? pass(`walk descends into .claude/ subdirectories (${all.length} files)`)
-    : fail('walk returned no file below .claude/ top level — it is not recursing')
 
   const biomeBlock = /\n {4}biome-check:\n([\s\S]*?)(?=\n {4}\S|\n {2}\S)/.exec(lefthook)?.[1] ?? ''
   const glob = /^\s*glob:\s*"([^"]+)"/m.exec(biomeBlock)?.[1]
@@ -343,10 +360,15 @@ for (const site of spec.modelLiteralSites) {
 
   const lintScript =
     JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.lint ?? ''
-  // The INVOCATION, not the mention: a script naming .claude only in a comment passes a substring
-  // test while the mechanism is gone.
-  const LINTS_CLAUDE = /biome\s+check\s+[^&|;]*\.claude/
-  LINTS_CLAUDE.test(lintScript)
+  // The INVOCATION, not the mention. Two shapes defeat a weaker check, both mutation-proven: a
+  // script that merely NAMES .claude, and one whose biome call sits behind a `#` (npm runs scripts
+  // through sh, so nothing after `#` executes — a substring or unanchored regex still matches).
+  // So strip comments, split into commands, and require one whose COMMAND WORD is biome.
+  const lintsClaude = lintScript
+    .replace(/#.*$/gm, '')
+    .split(/[;&|]+/)
+    .some((cmd) => /^\s*(?:npx\s+|pnpm\s+(?:exec|dlx)\s+)?biome\s+check\b.*\.claude/.test(cmd))
+  lintsClaude
     ? pass('root lint script runs biome over .claude (turbo only reaches workspace packages)')
     : fail(`root lint script "${lintScript}" has no biome check over .claude`)
 }

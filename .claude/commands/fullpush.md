@@ -93,7 +93,9 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 After answering the checklist:
 
 1. **If any answer is "no"** — fix it before proceeding. Do not rationalize.
-2. **Lint the whole repo (read-only)**: `pnpm lint` (this is `biome check .`). Report errors. ⚠️ Do NOT use `pnpm check` here — that is `biome check --write .`, a fixer that rewrites files repo-wide. The gate must be read-only.
+2. **Lint (read-only)**: `pnpm lint`. Report errors. It is NOT `biome check .` — read `scripts.lint`
+   in `package.json` for what it actually covers, because a turbo-driven lint reaches only paths
+   inside a workspace package. ⚠️ Do NOT use `pnpm check` here — that is `biome check --write .`, a fixer that rewrites files repo-wide. The gate must be read-only.
 3. **Run type check**: `pnpm check-types`
 4. **Run the unit suite**: `pnpm --filter @repo/web test -- --run` — report pass/fail count. UNIT ONLY, despite the script name: `vitest.config.ts` excludes `**/*.integration.test.ts`. The integration tier is a separate config (`test:integration`) that runs real query code against a REAL local Postgres with NO Supabase mocking, and this gate never invokes it — CI's `integration-tests` job is where those first execute.
 5. **Build the app**: `pnpm build` (`turbo run build`). Always run it — catches RSC / Server-vs-Client boundary / static-generation errors that `tsc` misses. Turbo caches unchanged packages, so incremental builds are fast. A build failure blocks the push.
