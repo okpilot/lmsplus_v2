@@ -97,7 +97,12 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
      ```bash
      BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
-     paths=$(git diff "$BASE...HEAD" --name-only) || { echo 'security-path diff failed — ABORT'; exit 1; }
+     # --name-status -M, NOT --name-only: the latter hides a rename's SOURCE, so moving a file OUT of
+     # a security path silently downgrades the M=3 floor to M=2. cut -f2- keeps both sides.
+     # Capture FIRST, transform second: a pipeline's exit status is its LAST command's, so guarding
+     # the whole pipe would let a failed diff read as "no paths matched" and downgrade M=3 to M=2.
+     raw=$(git diff "$BASE...HEAD" --name-status -M) || { echo 'security-path diff failed — ABORT'; exit 1; }
+     paths=$(printf '%s\n' "$raw" | cut -f2- | tr '\t' '\n')
      ```
      (`git fetch origin` from the run block above only proves the fetch succeeded, not that `origin/master` resolves — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`".)
 

@@ -28,7 +28,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       result is exactly 200 rows, treat that as truncated rather than as the answer — raise the
       bound and re-run; a cap only closes the hole while the result stays under it. If
       **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one
-      of the TWO accepted justifications on its evidence test — first-illumination, or red-team
+      of the accepted justifications on its evidence test — first-illumination, or red-team
       coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
       filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are
       judged) — or
@@ -118,7 +118,14 @@ After answering the checklist:
     if [[ -n "$STATUS" ]]; then
       echo 'Uncommitted changes — commit docs, rules and mirrors before pushing. ABORT'; exit 1
     fi
-    CHANGED=$(git diff --name-only origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }
+    # --name-status -M, NOT --name-only: the latter prints only a rename's DESTINATION, so moving a
+    # file OUT of a security path reads as "no security path" and skips the MANDATORY red-team run
+    # at 7b. cut -f2- drops the R<score> column so BOTH sides of a rename reach $CHANGED.
+    # Capture FIRST, transform second. A pipeline's exit status is its LAST command's, and neither
+    # file sets `pipefail`, so `$(git diff ... | cut | tr) || abort` reads a failed diff as zero
+    # paths — the exact emptiness-vs-error conflation the paragraph below forbids.
+    RAW=$(git diff --name-status -M origin/master...HEAD) || { echo 'diff failed — ABORT'; exit 1; }
+    CHANGED=$(printf '%s\n' "$RAW" | cut -f2- | tr '\t' '\n')
     ```
     Steps 6, 7 and 7b then match against `$CHANGED` — do NOT re-run the diff per step. A guarded diff that EXITS non-zero aborts (above); a diff that succeeds with zero paths is a legitimate no-op that PROCEEDS and matches no conditional — branch on the exit code, never on emptiness (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"). 7b (Red Team) is MANDATORY: on a stale, unresolvable, or errored base an unguarded conditional silently evaluates false and the required gate is skipped (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 

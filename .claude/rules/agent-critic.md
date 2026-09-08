@@ -25,7 +25,8 @@ Applies to the post-commit **semantic-reviewer** / **code-reviewer** only. NOT i
   all — **a single post-commit pass** stands, no floor. **M = 3** stability rounds minimum, then stop
   on the first round at or after M with no APPLY-worthy findings, when the diff
   touches a security path (the canonical set in `agent-workflow.md § Red-Team Agent Trigger`),
-  determined from `git diff origin/master...HEAD --name-only` plus staged changes. Fetch and verify
+  determined from `git diff origin/master...HEAD --name-status -M` plus staged changes, taking BOTH
+  paths of an `R` entry. NOT `--name-only`, which prints only a rename's DESTINATION: moving a file OUT of a security path then reads as no-security-path and silently drops the floor. Verified by experiment 2026-09-08. `-M` is redundant on stock git (`diff.renames` defaults true since 2.9) and is kept to survive a `diff.renames=false` config; if `-C` is ever added, widen this to cover `C` entries too. Fetch and verify
   the base first; an unresolvable base must ABORT, never read as "no paths matched".
 - A *clean round* = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION chosen to apply).
 - **Extend on finding; not on skip.** An APPLY finding does NOT reset the round counter M — it **extends the

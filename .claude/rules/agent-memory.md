@@ -20,8 +20,13 @@ is ASYNCHRONOUS`). The eight `memory: project` agents still write their own trac
 subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
 regardless of the `tools:` allowlist. That is what the docs SAY; it has not yet been observed in this
 repo, because agent definitions snapshot at session start and the `tools:` keys landed mid-session.
-CONFIRM IT at the next restart — a tracker that stops updating is the first and only signal, since
-this fails silently. Do not "restore" Write to a read-only agent on the theory that its tracker is
+CONFIRM IT at the next restart. **The signal this section used to prescribe — "a tracker that stops
+updating" — does not discriminate.** On `chore/settle-policy-contradictions`, three agents with
+IDENTICAL frontmatter (`memory: project`, no Write/Edit in `tools:`) updated their dirs while
+code-reviewer's did not change, and every one of them also holds `Bash`, so a memory commit
+cannot distinguish the auto-grant from a shell redirect. A quiet tracker is also indistinguishable
+from an agent with nothing to record. Resolve it by having one agent report the outcome of an
+attempted memory Write explicitly, not by watching for silence. Do not "restore" Write to a read-only agent on the theory that its tracker is
 broken — verify the tracker first.
 
 Two consequences that shape every rule below:

@@ -1071,7 +1071,8 @@ git commit
         7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic gates the plan before execution; implementation-critic gates
      `git diff --staged` before every commit but an agent-memory-only one.
-     /crlocal runs pre-push, per branch.)
+     /crlocal runs pre-push on multi-commit branches (2+ commits) — see
+     `.claude/rules/agent-coderabbit-local.md` for the binding trigger.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

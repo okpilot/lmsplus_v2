@@ -1495,8 +1495,8 @@ written into the rules here rather than proposed.
    ORIGIN-keyed exemption would drop them from the number silently. A justification does not: the
    count stays honest and the claim sits in the PR body where a reader can push back. The
    `red-team-gap` label is self-applied either way, so it must be CHECKABLE — name the vector ID or
-   spec path each issue covers, and a reader greps it. There are now exactly TWO accepted
-   justifications, first-illumination and red-team gaps; the prior wording called the first "the only
+   spec path each issue covers, and a reader greps it. The accepted justifications are now
+   first-illumination and red-team gaps; the prior wording called the first "the only
    accepted justification", retracted here.
 
 3. **test-writer's tests ride the round's ONE fixup commit.** Its header and DO list both said
@@ -1511,8 +1511,8 @@ written into the rules here rather than proposed.
 
 5. **A commit touching only `.claude/agent-memory/**` skips implementation-critic.** Otherwise the
    rule does not terminate: a memory delta must be committed, that commit needs the critic, and the
-   critic's own run writes another delta. Derived from `git diff --cached --name-only`, never
-   judged. It removes a gate, not the duty — a false tracker row inflates a learner count and can
+   critic's own run writes another delta. Derived from `git diff --cached --name-status -M`, requiring BOTH paths of an `R`
+   entry to be under the directory, never judged. It removes a gate, not the duty — a false tracker row inflates a learner count and can
    promote a rule nothing earned, and reading the delta is what has actually caught that.
 
 **`.claude/**` was linted by nothing.** `pnpm lint` WAS `turbo run lint`, which runs each workspace

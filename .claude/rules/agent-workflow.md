@@ -510,8 +510,9 @@ reduce the backlog and needs a written justification.
   empty substitution, and `git log -1 --format=%cI` then silently reports HEAD's date, narrowing the
   window and under-counting `filed`. Capture it, check the exit code, abort on failure, then query.
 
-There are exactly TWO accepted justifications — first-illumination and red-team coverage gaps. Both
-require evidence in the PR body; nothing else passes.
+The accepted justifications are first-illumination and red-team coverage gaps. Both require
+evidence in the PR body; nothing else passes. Named, not counted: a count goes false the moment a
+third is added, and every mirror of it goes false at the same time.
 
 **First-illumination exemption — evidence required, once per area.**
 A PR first to look hard at a neglected area will surface more than it closes. Name the path set and
