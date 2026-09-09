@@ -1,11 +1,11 @@
 {
-  "_": "Canonical file-size limits. Formerly prose in .claude/rules/code-style.md §1 and eight other hand-maintained copies. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.test.mjs — CodeRabbit cannot follow a pointer, so its copy is KEPT and machine-verified rather than deleted. Prose may explain WHY a limit exists; it must not restate a number from here.",
+  "_": "Canonical file-size limits. Formerly prose in .claude/rules/code-style.md \u00a71 and eight other hand-maintained copies. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.test.mjs \u2014 CodeRabbit cannot follow a pointer, so its copy is KEPT and machine-verified rather than deleted. Prose may explain WHY a limit exists; it must not restate a number from here.",
   "rules": [
     {
       "kind": "test file",
       "glob": "**/*.test.*",
       "max": 500,
-      "note": "Test files are relaxed, not exempt. Keyed on the BASENAME so the extension is an open set (.ts, .tsx, .mjs all count) — an enumerated extension list had already drifted once by missing .mjs. 502 of 553 comply; the 51 that do not are grandfathered, on the same basis as every other rule here."
+      "note": "Test files are relaxed, not exempt. Keyed on the BASENAME so the extension stays an open set (.ts, .tsx, .mjs all count) \u2014 an enumerated extension list had already drifted once by missing .mjs. The great majority comply, so the cap is achievable and the violators are drift, not evidence the cap is wrong; they are grandfathered below. NO RATIO IS STATED HERE ON PURPOSE: it is an OPEN set (code-style.md \u00a710 cl.2) and three successive commits shipped it wrong, each measured before that commit's own new test file landed. Re-derive, never quote: `node --input-type=module -e \"import {readFileSync} from 'node:fs';import {execFileSync} from 'node:child_process';const m=await import('./.claude/hooks/check-file-size-guard.mjs');const L=JSON.parse(readFileSync('.claude/limits.json','utf8'));let t=0,o=0;for(const f of execFileSync('git',['ls-files'],{encoding:'utf8',maxBuffer:6e7}).split('\\n').filter(Boolean)){let c;try{c=readFileSync(f,'utf8')}catch{continue}const r=m.classify(f,c,L);if(!r||r.kind!==KIND)continue;t++;if(m.countLines(c)>r.max)o++}console.log(t,o)\"` with KIND set to the rule's kind."
     },
     {
       "kind": "test file",
@@ -16,13 +16,13 @@
       "kind": "SQL migration",
       "glob": "supabase/migrations/**/*.sql",
       "max": 300,
-      "note": "EXCEPTION, applied by grandfathering rather than by a code branch: a migration whose content is a single unsplittable DDL object (one CREATE OR REPLACE FUNCTION plus its GRANT/COMMENT/DROP boilerplate) cannot be split — a plpgsql body does not span files, and single-function SECURITY DEFINER redefinitions run ~300-330 lines. Such files are listed in `baseline` below. The limit stays strict so a genuinely multi-statement migration that COULD be split by concern is still flagged."
+      "note": "EXCEPTION, applied by grandfathering rather than by a code branch: a migration whose content is a single unsplittable DDL object (one CREATE OR REPLACE FUNCTION plus its GRANT/COMMENT/DROP boilerplate) cannot be split \u2014 a plpgsql body does not span files, and single-function SECURITY DEFINER redefinitions run ~300-330 lines. Such files are listed in `baseline` below. The limit stays strict so a genuinely multi-statement migration that COULD be split by concern is still flagged."
     },
     {
       "kind": "page file",
       "glob": "**/page.tsx",
       "max": 80,
-      "note": "Composition only — no logic."
+      "note": "Composition only \u2014 no logic."
     },
     {
       "kind": "hook",
@@ -39,7 +39,7 @@
       "glob": "**/*.ts",
       "max": 100,
       "requiresUseServer": true,
-      "note": "Defined by the `'use server'` directive, NOT by living in an actions/ folder. Measured: 2 of 7 over-limit files under actions/ do not declare it (they are pure helpers, split out to obey THIS rule), and apps/web/lib/queries/load-session-questions.ts declares it while living outside actions/ — a folder-based rule gets both wrong. 46 of 51 declaring files comply, so 100 is achievable; the 5 that do not are grandfathered below."
+      "note": "Defined by the `'use server'` directive, NOT by living in an actions/ folder \u2014 a folder-based rule gets both groups wrong in both directions: most over-limit files under an actions/ directory lack the directive entirely (pure helpers, several split out to obey THIS rule and saying so in their header), while several files that do declare it live outside any actions/ directory. The great majority of declaring files comply, so 100 is achievable; the rest are grandfathered below. No ratio is stated here \u2014 same open-set reason as the test-file rule. Re-derive, never quote: `node --input-type=module -e \"import {readFileSync} from 'node:fs';import {execFileSync} from 'node:child_process';const m=await import('./.claude/hooks/check-file-size-guard.mjs');const L=JSON.parse(readFileSync('.claude/limits.json','utf8'));let t=0,o=0;for(const f of execFileSync('git',['ls-files'],{encoding:'utf8',maxBuffer:6e7}).split('\\n').filter(Boolean)){let c;try{c=readFileSync(f,'utf8')}catch{continue}const r=m.classify(f,c,L);if(!r||r.kind!==KIND)continue;t++;if(m.countLines(c)>r.max)o++}console.log(t,o)\"` with KIND set to the rule's kind."
     },
     {
       "kind": "Server Action file",
@@ -65,7 +65,7 @@
     "packages/db/migrations/**",
     "packages/db/src/types.ts"
   ],
-  "_excludeGlobs": "scripts/ and apps/web/scripts/ are the long-standing `scripts/ directory exclusion`. packages/db/migrations/ has been FROZEN since 2026-07-11 and carries false history; it must never be graded or fixed (13 of its files exceed 300). packages/db/src/types.ts is GENERATED by `supabase gen types` (1807 lines) — the generator owns its length. apps/web/e2e/** is deliberately NOT excluded: only *.test.* / *.spec.* BASENAMES are exempt, and the superseded code-reviewer suppression was explicit that test-INFRA helpers (setup.ts, seed.ts, shared helpers/*.ts) take the ordinary 200-line utility cap. Excluding the directory would silently reverse that decision; the over-limit helpers are grandfathered in `baseline` instead, where they stay visible and can only shrink.",
+  "_excludeGlobs": "scripts/ and apps/web/scripts/ are the long-standing `scripts/ directory exclusion`. packages/db/migrations/ has been FROZEN since 2026-07-11 and carries false history; it must never be graded or fixed (13 of its files exceed 300). packages/db/src/types.ts is GENERATED by `supabase gen types` (1806 lines) \u2014 the generator owns its length. apps/web/e2e/** is deliberately NOT excluded: only *.test.* / *.spec.* BASENAMES are exempt, and the superseded code-reviewer suppression was explicit that test-INFRA helpers (setup.ts, seed.ts, shared helpers/*.ts) take the ordinary 200-line utility cap. Excluding the directory would silently reverse that decision; the over-limit helpers are grandfathered in `baseline` instead, where they stay visible and can only shrink.",
   "baseline": {
     ".claude/hooks/check-commit-claims.test.mjs": 604,
     "apps/web/app/app/_hooks/use-session-state.ts": 89,
@@ -159,5 +159,6 @@
     "supabase/migrations/20260702000600_batch_submit_quiz_diagram_label.sql": 431,
     "supabase/migrations/20260815000200_check_non_mc_answer_fuzzy.sql": 380,
     "supabase/migrations/20260815000300_submit_vfr_rt_fuzzy.sql": 351
-  }
+  },
+  "_coverage": "COVERAGE BOUNDARY, stated because an unstated one is the drift this file exists to stop: `.mjs` matches no rule, so every `.claude/hooks/*.mjs` guard \u2014 including the one that enforces this file \u2014 is ungraded. That is deliberate (hook scripts are infrastructure, and the carve-out previously lived only in agent-memory prose), but it is a gap in coverage rather than an entry in excludeGlobs, and the two are not the same thing. Their co-located *.test.mjs files ARE graded, under the test-file rule."
 }

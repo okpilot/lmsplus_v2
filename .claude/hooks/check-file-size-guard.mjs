@@ -29,7 +29,7 @@
 //         1 = a regression, OR the check could not run (FAIL CLOSED)
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { lstatSync, readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
@@ -132,8 +132,30 @@ export function evaluate(files, readFile, limits) {
     let content
     try {
       content = readFile(file)
-    } catch {
-      continue // deleted between enumeration and read — not this guard's concern
+    } catch (err) {
+      // A transient race and a PERMANENTLY unreadable path are not the same thing, and
+      // swallowing both was a silent exemption. Git stores a symlink's target TEXT as its
+      // blob, so a committed symlink whose target is absent passes every git-side check
+      // while `readFileSync` follows it and throws ENOENT forever — exempting that path
+      // from every limit, in pre-commit and CI alike, with exit 0.
+      // `lstatSync` does NOT follow the link, so it succeeds exactly when the entry is
+      // still there and the read failure is real rather than a mid-run deletion.
+      let stillPresent = true
+      try {
+        lstatSync(file)
+      } catch {
+        stillPresent = false
+      }
+      if (stillPresent) {
+        regressions.push({
+          file,
+          n: null,
+          max: null,
+          kind: 'unreadable',
+          why: `tracked but unreadable (${err.code ?? err.message}) — no limit can be applied`,
+        })
+      }
+      continue
     }
     const rule = classify(file, content, limits)
     if (!rule) continue
@@ -147,14 +169,20 @@ export function evaluate(files, readFile, limits) {
       continue
     }
     liveViolators.add(file)
-    if (n > allowed) {
-      regressions.push({
-        file,
-        n,
-        max: rule.max,
-        kind: rule.kind,
-        why: `grew past its grandfathered size of ${allowed}`,
-      })
+    if (n !== allowed) {
+      // BOTH directions fail, and the shrink case is the load-bearing half. The baseline
+      // is keyed on PATH alone, so if a baselined file's content is replaced in place by
+      // unrelated content that is still over the limit but under the old allowance, a
+      // "grew only" check reports nothing at all — the path never leaves liveViolators,
+      // so not even the stale-entry warning fires. Requiring the recorded number to stay
+      // EXACT turns that silent absorption into a visible edit: whoever shrinks the file
+      // must write the new number down, which is also what "the baseline may only shrink"
+      // means operationally.
+      const why =
+        n > allowed
+          ? `grew past its grandfathered size of ${allowed}`
+          : `is ${allowed - n} line(s) smaller than its grandfathered size of ${allowed} — tighten the baseline to ${n}`
+      regressions.push({ file, n, max: rule.max, kind: rule.kind, why })
     }
   }
   return { regressions, liveViolators }
@@ -207,10 +235,19 @@ function main(args) {
   )
   for (const r of regressions) {
     console.error(`  ${r.file}`)
-    console.error(`    ${r.n} lines — ${r.kind} limit is ${r.max} (${r.why})`)
+    console.error(
+      r.n === null ? `    ${r.why}` : `    ${r.n} lines — ${r.kind} limit is ${r.max} (${r.why})`,
+    )
   }
-  console.error('\n  Split the file. If it is genuinely unsplittable, add it to the')
-  console.error(`  "baseline" in ${LIMITS_PATH} with a one-line reason in the PR.\n`)
+  if (regressions.some((r) => r.n !== null)) {
+    console.error('\n  Split the file. If it is genuinely unsplittable, add it to the')
+    console.error(`  "baseline" in ${LIMITS_PATH} with a one-line reason in the PR.`)
+  }
+  if (regressions.some((r) => r.n === null)) {
+    console.error('\n  An unreadable tracked path cannot be graded at all — a dangling symlink is')
+    console.error('  the usual cause. Remove it or point it at a real file; do not baseline it.')
+  }
+  console.error('')
   return 1
 }
 

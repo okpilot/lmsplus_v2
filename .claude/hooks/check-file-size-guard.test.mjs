@@ -1,4 +1,4 @@
-// Unit test for the file-size guard. Run:
+// Unit tests for the file-size guard (in-process; no subprocess, no real tree). Run:
 //   node --test .claude/hooks/check-file-size-guard.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in
@@ -6,8 +6,7 @@
 // The mutation each case pins is named in its title, because a test whose mechanism
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -199,6 +198,14 @@ test('an uppercase extension is still matched, not silently unclassified', () =>
   assert.equal(r.max, 150)
 })
 
+test('a file type with no matching rule is left unclassified, not defaulted to a limit', () => {
+  // MUTATION: fall through to a default rule instead of returning null when no glob
+  // matches → an untracked file type (docs, configs with no glob at all) silently
+  // starts being graded against a made-up limit instead of being ignored.
+  assert.equal(classify('README.md', 'x'.repeat(10000), fixture()), null)
+  assert.equal(classify('docs/plan.md', 'x'.repeat(10000), fixture()), null)
+})
+
 test('glob translation distinguishes one segment from any depth', () => {
   assert.equal(globToRe('**/use-*.ts').test('a/b/use-x.ts'), true)
   assert.equal(globToRe('**/use-*.ts').test('use-x.ts'), true)
@@ -207,7 +214,33 @@ test('glob translation distinguishes one segment from any depth', () => {
   assert.equal(globToRe('scripts/**').test('apps/scripts/a.ts'), false)
 })
 
+test('treats regex metacharacters inside a glob as literal characters', () => {
+  // MUTATION: stop escaping SPECIAL characters (emit `c` instead of `\\${c}`) → a glob
+  // like '**/*.test.*' would compile with its literal dots acting as regex wildcards
+  // ("any character"), silently widening every rule's match beyond its intended glob.
+  const dot = globToRe('a.b.c')
+  assert.equal(dot.test('a.b.c'), true)
+  assert.equal(dot.test('aXbXc'), false) // unescaped '.' would match any char here
+  const question = globToRe('ab?c')
+  assert.equal(question.test('ab?c'), true)
+  assert.equal(question.test('ac'), false) // unescaped '?' would make the 'b' optional
+})
+
 // -------------------------------------------------------------- ratchet logic
+
+test('skips a file deleted between enumeration and read, without failing the whole run', () => {
+  // MUTATION: drop the try/catch around readFile() → a file removed mid-run (deleted
+  // after `git ls-files` enumerated it, before it was read) throws out of evaluate()
+  // entirely, and every OTHER file's regression is lost along with it.
+  const limits = fixture()
+  const read = (file) => {
+    if (file === 'a/gone.ts') throw new Error('ENOENT: no such file')
+    return lines(81)
+  }
+  const { regressions } = evaluate(['a/gone.ts', 'a/use-x.ts'], read, limits)
+  assert.equal(regressions.length, 1)
+  assert.equal(regressions[0].file, 'a/use-x.ts')
+})
 
 test('flags a new over-limit file that is not in the baseline', () => {
   const { regressions } = evaluate(['a/use-x.ts'], () => lines(81), fixture())
@@ -260,59 +293,75 @@ test('a still-violating baseline row is NOT reported stale', () => {
   assert.deepEqual(staleBaselineEntries(liveViolators, limits), [])
 })
 
-// ----------------------------------------------------------------- fail closed
+test('evaluate treats a config with no baseline key at all as an empty baseline', () => {
+  // MUTATION: read limits.baseline directly instead of `?? {}` → a limits object that
+  // omits the key entirely (rather than setting it to {}) throws inside the loop
+  // instead of grading the file as an ungrandfathered new violation.
+  const limits = {
+    rules: [{ kind: 'hook', glob: '**/use-*.ts', max: 80 }],
+    excludeBasenamePatterns: [],
+    excludeGlobs: [],
+  }
+  assert.equal('baseline' in limits, false)
+  const { regressions } = evaluate(['a/use-x.ts'], () => lines(81), limits)
+  assert.equal(regressions.length, 1)
+  assert.equal(regressions[0].why, 'new violation')
+})
 
-test('blocks rather than passes when the limits file cannot be read', () => {
-  // MUTATION: change the catch to exit(0) → the guard reports clean forever the moment
-  // anything breaks, and nobody looks again. This is the failure mode that made
-  // check-mirror-sync.mjs necessary: five shipped fail-opens, each silently passing.
-  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const empty = mkdtempSync(join(tmpdir(), 'file-size-'))
+test('staleBaselineEntries reports nothing when the config has no baseline key at all', () => {
+  // MUTATION: `Object.keys(limits.baseline)` without `?? {}` → throws on a limits
+  // object that never had a baseline key, instead of correctly reporting no stale rows.
+  const limits = { excludeBasenamePatterns: [], excludeGlobs: [] }
+  assert.equal('baseline' in limits, false)
+  assert.deepEqual(staleBaselineEntries(new Set(), limits), [])
+})
+
+// ------------------------------------- holes found by post-commit semantic review
+
+test('a grandfathered file that SHRANK but is still over the limit fails', () => {
+  // MUTATION: change `n !== allowed` back to `n > allowed` → this goes red, and with it
+  // the same-path content-swap hole reopens: the baseline is keyed on PATH alone, so
+  // replacing a baselined file's contents in place with unrelated content that is still
+  // over the limit but under the old allowance reported NOTHING — not even a stale-entry
+  // warning, since the path never leaves liveViolators. Requiring the recorded number to
+  // stay exact turns silent absorption into a visible edit.
+  const limits = fixture({ baseline: { 'a/use-x.ts': 120 } })
+  const { regressions } = evaluate(['a/use-x.ts'], () => lines(110), limits)
+  assert.equal(regressions.length, 1)
+  assert.match(regressions[0].why, /tighten the baseline to 110/)
+})
+
+test('a grandfathered file that shrank below its limit is stale, not a failure', () => {
+  // The boundary between the two mechanisms: once a file is COMPLIANT it leaves the
+  // ratchet entirely and is reported as a prunable baseline row instead.
+  const limits = fixture({ baseline: { 'a/use-x.ts': 120 } })
+  const { regressions, liveViolators } = evaluate(['a/use-x.ts'], () => lines(40), limits)
+  assert.deepEqual(regressions, [])
+  assert.deepEqual(staleBaselineEntries(liveViolators, limits), ['a/use-x.ts'])
+})
+
+test('a tracked path that cannot be read is reported, not silently skipped', () => {
+  // MUTATION: restore the bare `catch { continue }` → a symlink committed to git whose
+  // target is absent passes every git-side check (git stores the target TEXT as the blob)
+  // while readFileSync follows it and throws ENOENT forever. The path was exempt from
+  // every limit, in pre-commit and CI alike, at exit 0.
+  const dir = mkdtempSync(join(tmpdir(), 'file-size-dangling-'))
   try {
-    execFileSync('git', ['init', '-q', '.'], { cwd: empty })
-    let code = 0
-    try {
-      execFileSync('node', [guard], { cwd: empty, stdio: 'pipe' })
-    } catch (err) {
-      code = err.status
-    }
-    assert.equal(code, 1, 'a guard that cannot read its config must BLOCK')
+    const link = join(dir, 'x.ts')
+    symlinkSync(join(dir, 'no-such-target.ts'), link)
+    const { regressions } = evaluate([link], (f) => readFileSync(f, 'utf8'), fixture())
+    assert.equal(regressions.length, 1)
+    assert.equal(regressions[0].kind, 'unreadable')
+    assert.equal(regressions[0].n, null)
   } finally {
-    rmSync(empty, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
   }
 })
 
-// ------------------------------------------- the .coderabbit.yaml pinned mirror
-
-test('.coderabbit.yaml carries the same limits as limits.json', () => {
-  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so
-  // explicitly — so its copy of the numbers is KEPT and verified here rather than
-  // deleted. This is the second codification move: PIN a copy the consumer cannot
-  // dereference, instead of DELETING it. Without this test the two drift, which is
-  // exactly what happened to the eight prose copies this slice replaced.
-  const yaml = readFileSync('.coderabbit.yaml', 'utf8')
-  const inYaml = new Set([...yaml.matchAll(/Max (\d+) lines/g)].map((m) => Number(m[1])))
-  const inJson = new Set(LIMITS.rules.map((r) => r.max))
-
-  for (const n of inJson) {
-    assert.ok(inYaml.has(n), `limits.json declares ${n} but .coderabbit.yaml never states it`)
-  }
-  for (const n of inYaml) {
-    assert.ok(inJson.has(n), `.coderabbit.yaml states ${n}, which is not a limit in limits.json`)
-  }
-})
-
-// -------------------------------------------------- the live tree stays green
-
-test('the current tracked tree has no regression against the committed baseline', () => {
-  // Guards the baseline itself: if someone edits limits.json by hand and gets a number
-  // wrong, or a grandfathered file grows, this goes red without waiting for a commit.
-  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  let code = 0
-  try {
-    execFileSync('node', [guard], { stdio: 'pipe' })
-  } catch (err) {
-    code = err.status
-  }
-  assert.equal(code, 0)
+test('a path that vanished mid-run is skipped without failing the check', () => {
+  // The other half of the same branch: a genuine race must NOT fail. lstat is what
+  // separates them — it succeeds only when the entry is still there.
+  const gone = join(tmpdir(), `file-size-vanished-${Date.now()}`, 'x.ts')
+  const { regressions } = evaluate([gone], (f) => readFileSync(f, 'utf8'), fixture())
+  assert.deepEqual(regressions, [])
 })

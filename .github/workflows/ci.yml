@@ -59,6 +59,12 @@ jobs:
       - name: File-size guard — unit test
         run: node --test .claude/hooks/check-file-size-guard.test.mjs
 
+      # Split from the unit suite when the combined file crossed the 500-line test-file
+      # cap this guard enforces. A test file nothing runs certifies its mechanism
+      # unconditionally, so the split needs its own step, not just its own file.
+      - name: File-size guard — CLI and live-tree tests
+        run: node --test .claude/hooks/check-file-size-guard.cli.test.mjs
+
       # §7 test-title impl-leakage guard (#946). Diff-scoped + grandfathered:
       # only titles ADDED in the PR are checked (PR events only — push to master
       # has no PR base). fetch-depth:0 above makes the base SHA available.

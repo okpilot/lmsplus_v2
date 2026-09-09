@@ -2,7 +2,8 @@
 
 > **Order matters.** Phase A (migrations) is the critical path — once shipped, types regen and unblocks everything else. Phase B–E can partially overlap.
 >
-> Each migration is one task; SQL ≤ 300 lines per file (`code-style.md` §1).
+> Each migration is one task; SQL files stay within the migration cap in `.claude/limits.json`
+> (mechanically enforced — do not restate the number here).
 > Migration slots through **093** are taken as of 2026-06-10 (the `#611` score-forgery fix shipped as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql`). VFR RT migs start at **094** — re-confirm the next-free slot at implementation time, since more may land first.
 > Every `packages/db/migrations/0NN_*.sql` has a byte-identical mirror at `supabase/migrations/<ts>_*.sql`.
 
@@ -146,7 +147,7 @@
   - _Requirements: R2.1, R2.4_
 
 - [x] **B.3 Server Action `submitVfrRtExam`**
-  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts` (+ `_answer-mapping.ts` helper extracted to keep submit.ts ≤100 lines)
+  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts` (+ `_answer-mapping.ts` helper extracted to keep submit.ts within the Server Action cap)
   - Zod union over the three answer-entry shapes (tagless `z.union` of `.strict()` objects — mirrors the RPC's tagless entries 1:1), RPC call, returns `{ success, session_id, redirect_to, expired? }`. MC key mapped to `selected_option_id` (mig 113). The optional `expired` flag surfaces the RPC's timer-expiry path.
   - _Test_: idempotent re-submit, partial answers, invalid question id mapping, expiry-flag passthrough.
   - _Requirements: R3, R6_
@@ -166,7 +167,7 @@
 ## Phase C — Student UI
 
 - [ ] **C.1 Briefing/landing page**
-  - File: `apps/web/app/app/vfr-rt-exam/page.tsx` (≤ 80 lines, composition)
+  - File: `apps/web/app/app/vfr-rt-exam/page.tsx` (composition only; page cap in `.claude/limits.json`)
   - Reads active vfr_rt_exam session (if any) via a Server Component query; either redirects to `/in-progress/<id>` or renders `<VfrRtExamBriefing>` with Start button.
   - _Requirements: R2, R3, NFR-Usability_
 
