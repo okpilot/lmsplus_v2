@@ -1,8 +1,9 @@
 // Argument-handling tests for the file-size guard: mode flags, path spellings, and the
 // two exemptions that keep the unknown-path check from blocking legitimate commits
 // (staged deletions, staged renames). Split out of the CLI suite when adding the rename
-// case left that file three lines under the test-file cap this very guard enforces —
-// code-style.md §1 requires the extraction in the SAME commit, and baselining our own
+// case pushed that file into §1's same-commit extraction trigger — the exact line count is
+// deliberately not stated, because it describes an intermediate authoring state nobody can
+// reproduce, and two reviewers reconstructed it differently. Baselining our own
 // test file would be the "widen the rule to fit my own code" move the programme exists
 // to stop. Run:
 //   node --test .claude/hooks/check-file-size-guard.args.test.mjs
@@ -196,6 +197,74 @@ test('a staged rename does not reject the SOURCE path as unknown', () => {
     })
     assert.equal(bogus.status, 1)
     assert.match(bogus.stderr, /match no tracked path/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check', () => {
+  // MUTATION: drop `--no-renames` (same mechanism as the sibling test above) → red. Without
+  // it the SOURCE path is rejected as unknown BEFORE the violation is ever reported, so the
+  // failure reason flips from "violation(s) of the limits" to "match no tracked path" — the
+  // commit still exits 1, but for the wrong reason, and a caller branching on the message
+  // (or a future test asserting only the exit code) would not notice. This also confirms the
+  // exemption is scoped to the unknown-path gate alone: it must not double as a reason to
+  // skip evaluating the renamed file, which would silently launder a real regression through
+  // a rename.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-mv-violation-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    writeFileSync(
+      join(repo, '.claude/limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'utility/helper', glob: '**/*.ts', max: 100 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    // Already over cap BEFORE the rename, and never baselined — a "new violation" the
+    // rename must not launder away.
+    writeFileSync(join(repo, 'src/old.ts'), 'x\n'.repeat(150))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    execFileSync('git', ['commit', '-qm', 'seed', '--no-verify'], { cwd: repo })
+    execFileSync('git', ['mv', 'src/old.ts', 'src/new.ts'], { cwd: repo })
+
+    const staged = execFileSync('git', ['diff', '--cached', '--name-status', '-M'], {
+      cwd: repo,
+      encoding: 'utf8',
+    })
+    assert.match(staged, /^R/m, 'fixture must produce a RENAME, not an add+delete pair')
+
+    const run = (args) =>
+      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', ...args], {
+        cwd: repo,
+        encoding: 'utf8',
+      })
+
+    // Both spellings, and the destination alone — how lefthook's `{staged_files}` actually
+    // spells a rename (`git diff --diff-filter=ACMR --name-only` reports only the new path,
+    // confirmed empirically: a rename never surfaces the source through today's caller) —
+    // must each report the violation, not wave it through.
+    for (const args of [['src/old.ts', 'src/new.ts'], ['src/new.ts']]) {
+      const r = run(args)
+      const label = args.join(' ')
+      assert.equal(r.status, 1, `${label} must block`)
+      assert.match(r.stderr, /violation\(s\) of the limits/, `${label} must report the violation`)
+      assert.doesNotMatch(
+        r.stderr,
+        /match no tracked path/,
+        `${label} must not be rejected as unknown`,
+      )
+    }
   } finally {
     rmSync(repo, { recursive: true, force: true })
   }

@@ -17,9 +17,13 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 
 - **Mutation pattern**: Server Actions only (no API routes) for `submitVfrRtExam` and `startVfrRtExam` (names match the architecture diagram and the Components section below). `code-style.md` §6.
 - **RPC requirements**: every new RPC SECURITY DEFINER, `SET search_path = public`, explicit `auth.uid()` check, every soft-deletable SELECT includes `deleted_at IS NULL` (`security.md` §9, §10).
-- **Migration size**: each migration ≤ 300 lines per `code-style.md` §1; complex changes split across multiple files.
+- **Migration size**: each migration stays within the SQL-migration cap in `.claude/limits.json`,
+  mechanically enforced for `supabase/migrations/**`; complex changes split across multiple files.
+  Do NOT restate the number here.
 - **TypeScript**: discriminated unions for the question-type Zod schemas; no `any`; runtime `Array.isArray` guards on RPC results that arrive as `unknown[]`.
-- **Mirror migrations**: every `packages/db/migrations/0NN_*.sql` has a byte-identical mirror at `supabase/migrations/<timestamp>_*.sql` (per repo convention, verified for migs 049, 060, 063, 079, 081).
+- **Migration location**: `supabase/migrations/` is the SOLE source of truth. The dual-directory
+  mirror convention this line used to describe was RETIRED when `packages/db/migrations/` was
+  frozen on 2026-07-11; that directory carries false history. Do not write a mirror there.
 
 ### Project Structure (`structure.md`)
 
@@ -27,7 +31,11 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 - New route folder for admin VFR RT exam config (v1: read-only/listing): `apps/web/app/app/admin/vfr-rt-exam/` — only used if v1 ships exam-config UI; if the exam config is seeded and not admin-editable, this folder is skipped (defer to user choice during plan review).
 - New constants module: `apps/web/lib/constants/exam-modes.ts` — extend the existing `EXAM_MODES` array + `MODE_LABELS` map to include `'vfr_rt_exam'`.
 - New helper module: `apps/web/lib/grading/normalize-answer.ts` — single-purpose pure function; co-located unit tests `normalize-answer.test.ts`.
-- Migrations: `packages/db/migrations/094..103_*.sql` + matching timestamped mirrors in `supabase/migrations/`. Slots through `093` are already taken as of 2026-06-10; the `#611` score-forgery fix shipped as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql` (a column-level REVOKE/GRANT, not a sequential `packages/db` migration).
+- Migrations: timestamped files in `supabase/migrations/` ONLY (the `packages/db/migrations/0NN_*.sql`
+  half of this line predates the 2026-07-11 freeze). The old sequential slot scheme had reached `093` as of 2026-06-10 — DEAD CONTEXT, kept only to
+  date this note: new work is timestamped and takes no slot. The `#611` score-forgery fix already
+  shipped that way, as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql`
+  (a column-level REVOKE/GRANT).
 
 ## Code Reuse Analysis
 
