@@ -431,6 +431,25 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
   }
 })
 
+test('passing two mode flags together blocks instead of silently running one', () => {
+  // MUTATION: remove the `new Set(flags).size > 1` guard → red. Both flags are KNOWN, so
+  // neither the unknown-flag gate nor the flag-vs-path gate catches the pair; the first `if`
+  // then wins and the other request is dropped with no diagnostic and exit 0. On the escape
+  // valve that reads as "the baseline was rewritten" when nothing was written — the same
+  // looks-like-it-worked shape as the `--stats` positional collision, one level up.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  for (const pair of [
+    ['--update-baseline', '--stats'],
+    ['--stats', '--update-baseline'],
+  ]) {
+    const r = spawnSync('node', [guard, ...pair], { encoding: 'utf8' })
+    assert.equal(r.status, 1, `${pair.join(' ')} must block`)
+    assert.match(r.stderr, /separate modes — run one/)
+  }
+  // each alone still works
+  assert.equal(spawnSync('node', [guard, '--stats'], { encoding: 'utf8' }).status, 0)
+})
+
 // -------------------------------------------------- the live tree stays green
 
 test('the current tracked tree has no regression against the committed baseline', () => {

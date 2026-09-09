@@ -319,6 +319,16 @@ function main(args) {
     console.error('[file-size] a mode flag cannot be combined with file paths — BLOCKING')
     return 1
   }
+  // Two known flags is the same trap one level up: both pass the unknown-flag and
+  // flag-vs-path gates, then the first `if` wins and the other request is dropped with no
+  // diagnostic and exit 0. On the escape valve specifically that reads as "it worked" while
+  // the baseline was never written. Precedence between modes is not a thing to guess at.
+  if (new Set(flags).size > 1) {
+    console.error(
+      `[file-size] ${[...new Set(flags)].join(' and ')} are separate modes — run one — BLOCKING`,
+    )
+    return 1
+  }
 
   if (flags.includes('--stats')) {
     stats(limits, all, read)

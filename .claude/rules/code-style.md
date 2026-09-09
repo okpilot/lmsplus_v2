@@ -1005,16 +1005,6 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    the immediately preceding function of the same open file — standing through two further commits
    that each corrected a DIFFERENT false claim in that same paragraph.
 
-7. **Recompute any count as the LAST authoring step, against the final diff.** Distinct from
-   cl.2: that one says do not enumerate an open set at all. This one governs a count you have
-   decided to state — a dated snapshot, a compliance ratio in a commit message. Measuring it
-   before your own commit's remaining edits land makes it stale ON ARRIVAL, and it reads as
-   verified because it was, once. Promoted at count=2 (learner, 2026-09-09): one commit stated
-   four figures — a file total, a compliance ratio, a corpus line count and a file's length —
-   every one taken before that same commit split two files and added a third. Where the number
-   is derivable, prefer shipping the derivation as a runnable command over stating it
-   (`check-file-size-guard.mjs --stats` exists for exactly this reason).
-
 6. **A commit message may not cite a SHA that does not resolve.** Mechanically enforced at
    `commit-msg` by `.claude/hooks/check-commit-claims.mjs`: a hex token in commit-reference
    position must resolve via `git rev-parse --verify` — no `--quiet`, which collapses an
@@ -1028,6 +1018,16 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    The commit-context WORD LIST is an OPEN set — read `TRIGGER_WORDS` in the hook rather than a
    copy here, which goes stale the first time one is added (clause 2). The positions themselves are
    fixed by the code's structure; read `extractRefs` for them.
+
+7. **Recompute any count as the LAST authoring step, against the final diff.** Distinct from
+   cl.2: that one says do not enumerate an open set at all. This one governs a count you have
+   decided to state — a dated snapshot, a compliance ratio in a commit message. Measuring it
+   before your own commit's remaining edits land makes it stale ON ARRIVAL, and it reads as
+   verified because it was, once. Promoted at count=2 (learner, 2026-09-09): one commit stated
+   four figures — a file total, a compliance ratio, a corpus line count and a file's length —
+   every one taken before that same commit split two files and added a third. Where the number
+   is derivable, prefer shipping the derivation as a runnable command over stating it
+   (`check-file-size-guard.mjs --stats` exists for exactly this reason).
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The

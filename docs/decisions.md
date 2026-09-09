@@ -1688,6 +1688,17 @@ files declaring it — of any size — live outside `actions/` entirely, only on
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
 flips between two reasonable implementations.
 
+**Two flags, both opt-in.** `--stats` prints per-rule compliance; it exists because the ratios
+were literals that shipped wrong three times, and an embedded derivation command that replaced
+them threw when run as written. `--update-baseline` rewrites the recorded numbers for a human to
+review and commit. The check NEVER writes on a normal run — a check that rewrites the record it
+is judged against launders its own baseline — but exact-match blocking means every legitimate
+shrink fails CI until the number is updated, and a check that annoying gets switched off. An
+unreadable path keeps its existing row, so the flag cannot be used to launder a violation out by
+making a file unreadable. Flags are parsed before any argument is treated as a path, and cannot
+be combined with paths: `args.includes('--stats')` was a positional collision that turned a run
+carrying a real violation into exit 0.
+
 **Coverage boundary, stated rather than left implicit.** `.mjs` matches no rule, so the hook scripts —
 including this guard — are ungraded. Deliberate, but a gap, not an `excludeGlobs` entry.
 

@@ -1,4 +1,7 @@
-// Unit tests for the file-size guard (in-process; no subprocess, no real tree). Run:
+// Unit tests for the file-size guard — mostly in-process, no subprocess, no real tree. A small
+// `--update-baseline` section near the end IS CLI-driven: that function is a `main()`-local
+// helper, not exported, so pinning its branches needs a real subprocess against a throwaway repo.
+// Run:
 //   node --test .claude/hooks/check-file-size-guard.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in

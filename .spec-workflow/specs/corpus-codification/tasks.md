@@ -24,9 +24,17 @@
 Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 (`check-companion-file.mjs` + config), not three programs.
 
-- [ ] **`--update-baseline` flag on the file-size guard. HIGHEST PRIORITY.** Without it,
+- [x] **`--update-baseline` flag on the file-size guard.** SHIPPED EARLY in slice 1
+      (`63c2356d`) — the guard's own error message already pointed at it, so the choice was
+      implement it or delete a false claim. Without it,
       slice 1's exact-match ratchet fails CI on every legitimate shrink and gets disabled.
       Human-invoked; must never self-rewrite silently.
+- [ ] **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
+      caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness
+      lives in the scratch directory and is deleted. That is the same unfalsifiable-claim class
+      the slice exists to remove, in the slice's own commit messages. Either commit it as a
+      dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
+      stating a number. Do not keep asserting an unverifiable count.
 - [ ] R1: every `*.test.*` under `.claude/hooks/` is referenced in `ci.yml`. Currently a
       COMMENT telling a human to run `find`; has already failed once (3 unwired files until
       2026-09-02). Measured 2026-09-09: 10/10 wired, so it lands clean, no baseline needed.
