@@ -26,17 +26,19 @@
 // Usage:  node .claude/hooks/check-file-size-guard.mjs            # whole tracked tree
 //         node .claude/hooks/check-file-size-guard.mjs <file...>  # lefthook staged mode
 //         node .claude/hooks/check-file-size-guard.mjs --stats     # per-rule compliance
+//         node .claude/hooks/check-file-size-guard.mjs --update-baseline  # rewrite for review
 // Exit:   0 = no regression
 //         1 = a regression, OR the check could not run (FAIL CLOSED)
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 const LIMITS_PATH = '.claude/limits.json'
 const GUARD = '.claude/hooks/check-file-size-guard.mjs'
+const KNOWN_FLAGS = new Set(['--stats', '--update-baseline'])
 
 /**
  * Line count, editor semantics: the number of lines a reader sees.
@@ -241,14 +243,90 @@ function stats(limits, all, read) {
   return byKind
 }
 
+/**
+ * `--update-baseline`: rewrite `baseline` from the live tree, for a human to review and commit.
+ *
+ * The check must NEVER do this on its own — a check that silently rewrites the record it is
+ * judged against launders its own baseline. But exact-match blocking means every legitimate
+ * shrink fails CI until the number is updated by hand, and a check that annoying gets disabled.
+ * So: opt-in, prints every change, writes nothing else. Same shape as `eslint --fix` or a
+ * snapshot `-u` — the human runs it and the diff is reviewable.
+ */
+function updateBaseline(limits, all, read) {
+  const previous = limits.baseline ?? {}
+  const next = {}
+  for (const file of all) {
+    let content
+    try {
+      content = read(file)
+    } catch {
+      // Keep an unreadable path's existing row rather than dropping it: this command must not
+      // become a way to launder a violation out of the record by making it unreadable.
+      if (previous[file] !== undefined) next[file] = previous[file]
+      continue
+    }
+    const rule = classify(file, content, limits)
+    if (!rule) continue
+    const n = countLines(content)
+    if (n > rule.max) next[file] = n
+  }
+
+  const added = Object.keys(next).filter((f) => previous[f] === undefined)
+  const removed = Object.keys(previous).filter((f) => next[f] === undefined)
+  const changed = Object.keys(next).filter(
+    (f) => previous[f] !== undefined && previous[f] !== next[f],
+  )
+
+  if (added.length === 0 && removed.length === 0 && changed.length === 0) {
+    console.error('[file-size] baseline already matches the tree — nothing written.')
+    return 0
+  }
+  for (const f of removed) console.error(`  - ${f} (was ${previous[f]}) — no longer a violation`)
+  for (const f of changed) console.error(`  ~ ${f}: ${previous[f]} -> ${next[f]}`)
+  for (const f of added)
+    console.error(`  + ${f}: ${next[f]} — NEW violation, argue for it in the PR`)
+
+  const sorted = Object.fromEntries(
+    Object.keys(next)
+      .sort()
+      .map((k) => [k, next[k]]),
+  )
+  writeFileSync(LIMITS_PATH, `${JSON.stringify({ ...limits, baseline: sorted }, null, 2)}\n`)
+  console.error(`\n[file-size] ${LIMITS_PATH} rewritten. REVIEW THE DIFF before committing —`)
+  console.error('  a `+` line is a new violation being grandfathered, which needs an argument.')
+  return 0
+}
+
 function main(args) {
   const limits = JSON.parse(readFileSync(LIMITS_PATH, 'utf8'))
   const all = trackedFiles()
   const read = (f) => readFileSync(f, 'utf8')
 
-  if (args.includes('--stats')) {
+  // Flags are parsed BEFORE anything is treated as a file path, and a flag cannot be mixed
+  // with paths. `args.includes('--stats')` was a positional-arg collision: a file literally
+  // named `--stats` anywhere in argv turned an enforcement run carrying a real violation into
+  // exit 0. Unreachable through today's two callers (lefthook's glob drops an extensionless
+  // name; CI passes none) — but by luck of the callers, not by construction, and a future one
+  // passing raw `git diff` paths would reintroduce it silently.
+  const flags = args.filter((a) => a.startsWith('--'))
+  const files = args.filter((a) => !a.startsWith('--'))
+  const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f))
+  if (unknown.length > 0) {
+    console.error(`[file-size] unknown flag(s): ${unknown.join(' ')} — BLOCKING`)
+    return 1
+  }
+  if (flags.length > 0 && files.length > 0) {
+    console.error('[file-size] a mode flag cannot be combined with file paths — BLOCKING')
+    return 1
+  }
+
+  if (flags.includes('--stats')) {
     stats(limits, all, read)
     return 0
+  }
+
+  if (flags.includes('--update-baseline')) {
+    return updateBaseline(limits, all, read)
   }
 
   // The whole tree is always evaluated, so stale-baseline drift is visible on every run.

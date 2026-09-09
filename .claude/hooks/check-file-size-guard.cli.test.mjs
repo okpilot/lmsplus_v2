@@ -351,6 +351,86 @@ test('renaming a grandfathered file out of its rule class is blocked, not silent
   }
 })
 
+// ------------------------------------------------------------ flags and modes
+
+test('a mode flag mixed with file paths blocks instead of skipping enforcement', () => {
+  // MUTATION: restore `args.includes('--stats')` → red. That was a positional-arg collision,
+  // not a mode switch: a file literally named `--stats` anywhere in argv turned a run carrying
+  // a real violation into exit 0. Unreachable through today's two callers (lefthook's glob
+  // drops an extensionless name; CI passes none) — but by luck of the callers, not by
+  // construction, and it is the same green-while-broken shape as the four criticals this slice
+  // closed.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const mixed = spawnSync('node', [guard, '--stats', 'CLAUDE.md'], { encoding: 'utf8' })
+  assert.equal(mixed.status, 1)
+  assert.match(mixed.stderr, /cannot be combined with file paths/)
+})
+
+test('an unrecognised flag blocks rather than being treated as a file path', () => {
+  // MUTATION: drop the KNOWN_FLAGS check → an unknown flag falls through to the file list and
+  // is silently ignored, so a typo'd `--upate-baseline` would run a plain enforcement pass and
+  // look like it worked.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const bogus = spawnSync('node', [guard, '--bogus'], { encoding: 'utf8' })
+  assert.equal(bogus.status, 1)
+  assert.match(bogus.stderr, /unknown flag/)
+})
+
+test('updating the baseline rewrites a shrunk entry and leaves everything else alone', () => {
+  // The escape valve for the exact-match ratchet: without it, every legitimate shrink fails CI
+  // until a human edits JSON by hand, and a check that annoying gets switched off. It must be
+  // opt-in — a check that rewrites its own baseline silently launders the record it is judged
+  // against. MUTATION: make updateBaseline write on a normal run → red.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-update-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    const limits = {
+      rules: [{ kind: 'utility/helper', glob: '**/*.ts', max: 100 }],
+      excludeBasenamePatterns: [],
+      excludeGlobs: [],
+      baseline: { 'src/big.ts': 200 },
+    }
+    writeFileSync(join(repo, '.claude/limits.json'), JSON.stringify(limits))
+    writeFileSync(join(repo, 'src/big.ts'), 'x\n'.repeat(150)) // shrunk from 200
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const before = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+      cwd: repo,
+      encoding: 'utf8',
+    })
+    assert.equal(before.status, 1, 'a shrunk grandfathered file must block until recorded')
+
+    const upd = spawnSync(
+      'node',
+      ['.claude/hooks/check-file-size-guard.mjs', '--update-baseline'],
+      { cwd: repo, encoding: 'utf8' },
+    )
+    assert.equal(upd.status, 0)
+    assert.match(upd.stderr, /src\/big\.ts: 200 -> 150/)
+
+    const after = JSON.parse(readFileSync(join(repo, '.claude/limits.json'), 'utf8'))
+    assert.equal(after.baseline['src/big.ts'], 150)
+    assert.deepEqual(after.rules, limits.rules, 'nothing but the baseline may be rewritten')
+    assert.equal(
+      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }).status,
+      0,
+    )
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 // -------------------------------------------------- the live tree stays green
 
 test('the current tracked tree has no regression against the committed baseline', () => {

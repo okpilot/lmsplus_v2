@@ -36,6 +36,15 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 - [ ] R3: `.claude/limits.json` `baseline` never GROWS vs `origin/master`.
 - [ ] Delete the prose those three replace, including the `ci.yml` comment.
 
+### Rejected proposals — recorded so they are not re-raised each slice
+
+- **Key the ratchet baseline on `path + content-hash`** (learner, 2026-09-09, count 2). The
+  diagnosis is right — a path-keyed baseline is defeatable by content swap and by rename — but
+  the remedy costs more than it saves: a hash invalidates the row on ANY edit, so touching a
+  grandfathered file at all would fail CI. Both observed instances are already closed by the
+  exact line-count match plus blocking on a stale row. Residual and ACCEPTED: a different file
+  at the same path with a coincidentally identical line count inherits the old allowance.
+
 ## Slice 3 — archaeology deletion (pure deletion, no checks to write)
 
 Largest size win in the programme; ~500-700 lines, one PR, no new machinery.

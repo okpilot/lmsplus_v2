@@ -223,6 +223,12 @@ reviews:
           can answer is re-derived before moving on. Re-reading the block does not substitute: a
           block-read finds claims that contradict each other, never one that is coherent and
           false. code-style.md §10 clause 5.
+        - A count stated in a comment or commit message that was computed BEFORE the same
+          change's remaining edits landed, making it stale on arrival while reading as verified.
+          Distinct from clause 2 (do not enumerate an open set at all): this governs a count
+          deliberately stated, such as a dated snapshot or a compliance ratio. Recompute it as
+          the last authoring step, against the final diff — or ship a runnable derivation
+          instead of the number. code-style.md §10 clause 7.
         - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
           not sufficient — after correcting any claim, the retracted phrase must be grepped
           repo-wide and every surviving hit confirmed not to describe current behaviour.

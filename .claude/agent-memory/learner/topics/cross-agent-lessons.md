@@ -1858,3 +1858,86 @@ does not close the general mechanical-checkability question (findings 6 and 11 r
 semantic, no shared shape), but it converts three-plus recurrences of one specific shape into
 something a hook or a review-prompt checklist item can flag without human judgment about truth —
 only about whether the shape recurred.
+
+### File-size codification slice — `chore/file-size-codification` (2026-09-09, commits `7ca1f522`/`3752c88a`/`fa52e34f`)
+
+Learner pass over 2 completed post-commit cycles (cycle 1 reviewed `7ca1f522`, fixed by `3752c88a`;
+cycle 2 reviewed `3752c88a`, fixed by `fa52e34f`). Five findings, all reinforcing existing rows;
+none required a brand-new tracker entry beyond the two below.
+
+- **Row 613 instances 4-5** (`Verification gate's pass condition is empty result`, 3→5,
+  THRESHOLD-CLEARED further): cycle 1 found a committed dangling symlink — `readFileSync` throws
+  ENOENT on it, and the guard treated that read failure as "path gone mid-run, skip" rather than
+  "path exists and cannot be read, block" — permanently exempt at exit 0, no trace. `3752c88a`'s fix
+  introduced `lstat` to distinguish "gone" from "unreadable". Cycle 2 found that fix itself wrong:
+  `lstat` traverses every parent directory, so `chmod 000` on ONE directory made `lstat` fail
+  identically for every path beneath it — hid NINE already-baselined violators and reported them
+  RESOLVED. `fa52e34f`'s real fix: delete the lstat distinction entirely; every path comes from
+  `git ls-files`, which already asserts existence, so ANY read failure — genuine mid-run deletion
+  included — now blocks. Two "fix the specific escape reported" iterations before landing on
+  "delete the disambiguation, don't refine it" — the FIX pattern to watch for next time this row
+  recurs: prefer removing the fail-open branch over hardening its guard.
+- **Row 602 instance 5** (`Proposed verification command silently verifies nothing`, 4→5): cycle 2's
+  BLOCKING finding — a derivation command embedded in `.claude/limits.json` (meant to let a reader
+  regenerate a cited number) threw when run as written, due to an unbound placeholder. It replaced a
+  wrong hardcoded literal with something that LOOKED checkable and wasn't — worse than the literal
+  it replaced, because a reader trusts "there's a command for this" without running it.
+- **Row 519 instance 8** (`Claim-correction commit updates a count but leaves its arithmetic stale`,
+  7→8): cycle 1 found types.ts "1807" (real 1806) and "502 of 553" (real 504/554) wrong. `3752c88a`
+  fixed both — but ONLY at the specific line under review. Cycle 2 (reviewing `3752c88a`) found both
+  numbers STILL wrong in sibling comments elsewhere in the same file family — the fix corrected the
+  instance being looked at, not the class. Textbook row-519 shape: same document, same fact,
+  uncorrected copy survives a commit whose whole purpose was correcting it.
+- **NEW — Ratchet/baseline keyed on PATH, not content, is defeated by content-swap or rename**
+  (2 instances, RULE CANDIDATE): (1) cycle 1: the ratchet's ONLY key is the file path string. Editing
+  a baselined file's content in place — replacing it with different content that is STILL over the
+  limit but UNDER the recorded baseline number — reports nothing at all: not even a stale-baseline
+  warning, because the path never left the violators list. Ordinary refactor, no adversarial intent,
+  applies to all 92 baseline entries simultaneously. (2) cycle 2: classification (which line-cap
+  applies) ALSO derives from the path — specifically the filename suffix (`.test.ts` vs `.ts`,
+  `use-*.ts` vs plain). `git mv foo.ts foo.test.ts` moves a 103-line Server Action from the 100-line
+  cap to the 500-line test-file cap; the only trace was the old baseline row going stale, reported
+  as an ADVISORY "this violation is resolved" notice — exactly backwards, since the rename didn't
+  fix anything, it just changed which rule applied. `fa52e34f`'s fix: a stale baseline row now
+  BLOCKS instead of advising, forcing the rename through `limits.json` where a human sees it. This is
+  the SAME general lesson as the PROMOTED `--name-only` row (88, "a rename's other half is invisible")
+  — path is an unstable identity — but manifesting in a hand-rolled JSON baseline schema rather than
+  a `git diff` flag, so it's tracked as a distinct mechanism rather than folded into 88's count.
+  Propose (2 occurrences, same slice, different commits — meets the letter of the 2+-occurrences
+  rule; note this is the SAME open ambiguity as row 106's "2nd-branch" gate, since both instances are
+  on one slice/branch): any NEW ratchet/baseline data file must key entries on `path + content-hash`
+  (so content-swap is visible), and must derive rule-classification fresh from the CURRENT filename
+  every run rather than trusting a stored classification — a stale classification is exactly the
+  rename escape. No existing mirror for this (`.coderabbit.yaml` and `security-auditor.md` do not
+  cover `check-file-size-guard.mjs`); flag as a candidate mirror-sweep target if/when promoted.
+- **NEW — generalizes WATCHING row 690** (`Commit-message verification citation carried over from an
+  earlier draft, not re-derived after the code moved`, 1→2, now RULE CANDIDATE): row 690 was scoped
+  to a single line-number citation. `7ca1f522`'s cycle-1 findings are the same root cause on
+  COUNTS/TOTALS instead: FOUR wrong figures in one commit message — "502 of 553" files (real
+  504/554), "one Server Action outside actions/" (real 4), "2 of 7 files under actions/" (real 7 of
+  11), types.ts "1807" lines (real 1806) — every one stale because the commit ITSELF split two
+  over-limit Server Actions into four files and made other edits AFTER the counts were taken, so the
+  counts were wrong from the moment they were written, not from later drift. (Per the same-commit
+  convention, these 4 instances count as ONE occurrence for promotion purposes — they share one
+  originating commit.) Generalized text to propose for `code-style.md` §10, as a clause distinct from
+  cl.2 (open-set framing) and cl.3 (partial comment edit — that's about EDITING an existing claim;
+  this is about AUTHORING one against a moving target): "Any count of files/lines/instances stated in
+  a commit message or comment must be (re)computed as the LAST step before finalizing the message,
+  against the commit's OWN final diff — never against a pre-edit, draft, or mid-edit state." This is
+  a THIRD distinct §10 failure shape (open-set enumeration; partial-edit staleness; and now
+  authorship-ordering staleness on an otherwise-closed, computable count) — worth a clause of its own
+  rather than folding into cl.2 or cl.3, since neither's fix (derive-a-command / grep-the-retracted-
+  phrase) addresses "recompute at the end, not the start."
+
+**What did NOT recur (positive signals).** No occurrence of: row 43 (open-enumeration rules-file
+bullet) — the whole POINT of this slice was replacing prose enumerations with a JSON data file a
+test validates, and it worked for the numbers themselves (no stale §1 cap literal found in either
+cycle). Row 69 (rules-file claim true in its hunk, false vs. another section/arithmetic) — none of
+the wrong counts found here were internally CONTRADICTORY within one document; they were externally
+wrong against the filesystem, a narrower and different defect. Row 602's usual shape (a proposed
+verification command that runs but checks the wrong scope) — this cycle's row-602 instance is the
+stronger sub-case, a command that does not run at all. And genuinely positive: the commit message
+states both CRITICALs in `3752c88a` "were reproduced as working exploits before the fix and re-run
+against it after" — proper mutation-check discipline (row 602's sibling "Mutation-check executed but
+doesn't falsify the claim" did NOT recur here; the checks shipped were real: `chmod 000` and a
+same-path content-swap are both isolated, targeted reproductions, not category-membership checks).
