@@ -401,6 +401,18 @@ test('extractRefs keeps a citation between two separate fenced code blocks', () 
   assert.deepEqual(extractRefs(msg), ['abc1234f'])
 })
 
+// Mutation-blind before this test: no fixture cited the SAME token twice, so the `seen` Set
+// dedup — the function's own documented contract, "deduped tokens, in order of first
+// appearance" — was never exercised. Deleting the `if (!seen.has(token)) { ... }` guard
+// (pushing every match unconditionally) left the then-current suite green — verified by
+// mutation in a scratch copy. A duplicate citation would otherwise reach collectOffenders
+// twice and inflate the printed offender/verified count for one real ref.
+test('extractRefs dedups a citation repeated later in the message, keeping first-appearance order', () => {
+  const msg =
+    'Fix applied in 1234567a today. Later confirmed per 1234567a again, and per 89ab1234 too.'
+  assert.deepEqual(extractRefs(msg), ['1234567a', '89ab1234'])
+})
+
 // ---- main() -------------------------------------------------------------------
 
 test('main: no commit-msg-file argument at all prints usage and exits non-zero', () => {
