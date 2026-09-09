@@ -32,7 +32,9 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `package.json` — pnpm enforced, correct devDeps, private workspace
 - `turbo.json` — TUI enabled, correct task deps, caching strategy sound
 - `biome.json` — strict rules (`noExplicitAny` error, `noUnusedVariables` error), test overrides
-- `lefthook.yml` — pre-commit (biome + type-check + unit tests), commit-msg (commitlint), pre-push (security-auditor agent + dep audit)
+- `lefthook.yml` — the per-stage command list is DATA in `.claude/pipeline.json`, which
+  `.claude/pipeline.test.mjs` validates against `lefthook.yml` in both directions. Not enumerated
+  here: this line claimed unit tests run at pre-commit long after they were moved to CI.
 - `commitlint.config.ts` — extends `@commitlint/config-conventional`
 - `pnpm-workspace.yaml` — `apps/*` + `packages/*`
 - `.env.example` — correct key separation (NEXT_PUBLIC_ vs server-only)

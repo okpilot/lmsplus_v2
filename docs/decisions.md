@@ -1684,7 +1684,7 @@ suppression inside an agent definition and is now a real rule.
 **Definitions the prose left open, settled by measurement.** A Server Action is a file declaring
 `'use server'`, not one living in `actions/`: of the 11 non-test files under an `actions/` directory
 over 100 lines, 7 lack the directive (pure helpers, several split out to obey this rule), while 4
-files declaring it live outside `actions/` entirely. Line counting is editor semantics, equal to
+files declaring it — of any size — live outside `actions/` entirely, only one of which is over the cap. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
 flips between two reasonable implementations.
 

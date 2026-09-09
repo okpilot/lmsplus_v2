@@ -25,16 +25,18 @@
 //
 // Usage:  node .claude/hooks/check-file-size-guard.mjs            # whole tracked tree
 //         node .claude/hooks/check-file-size-guard.mjs <file...>  # lefthook staged mode
+//         node .claude/hooks/check-file-size-guard.mjs --stats     # per-rule compliance
 // Exit:   0 = no regression
 //         1 = a regression, OR the check could not run (FAIL CLOSED)
 
 import { execFileSync } from 'node:child_process'
-import { lstatSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 const LIMITS_PATH = '.claude/limits.json'
+const GUARD = '.claude/hooks/check-file-size-guard.mjs'
 
 /**
  * Line count, editor semantics: the number of lines a reader sees.
@@ -59,7 +61,8 @@ export function countLines(content) {
  *
  * Anchored at line start so a HEADER COMMENT mentioning the directive cannot match:
  * `resume-helpers.ts` and `load-draft-helpers.ts` each carry the line
- * "No `'use server'` — these are pure transforms", and an unanchored search matches the
+ * "No `'use server'` — these are pure transforms" and `resume-helpers.ts` "No
+ * `'use server'` — these are invoked by the action"; an unanchored search matches the
  * text DENYING the directive. Those two files exist precisely because someone split a
  * file to obey this very rule; misreading them as Server Actions inverts the finding.
  */
@@ -123,6 +126,8 @@ export function classify(file, content, limits) {
  * @returns {{regressions: Array, liveViolators: Set<string>}}
  *   liveViolators = baselined paths that are STILL over their limit.
  */
+export { stats }
+
 export function evaluate(files, readFile, limits) {
   const baseline = limits.baseline ?? {}
   const regressions = []
@@ -133,28 +138,26 @@ export function evaluate(files, readFile, limits) {
     try {
       content = readFile(file)
     } catch (err) {
-      // A transient race and a PERMANENTLY unreadable path are not the same thing, and
-      // swallowing both was a silent exemption. Git stores a symlink's target TEXT as its
-      // blob, so a committed symlink whose target is absent passes every git-side check
-      // while `readFileSync` follows it and throws ENOENT forever — exempting that path
-      // from every limit, in pre-commit and CI alike, with exit 0.
-      // `lstatSync` does NOT follow the link, so it succeeds exactly when the entry is
-      // still there and the read failure is real rather than a mid-run deletion.
-      let stillPresent = true
-      try {
-        lstatSync(file)
-      } catch {
-        stillPresent = false
-      }
-      if (stillPresent) {
-        regressions.push({
-          file,
-          n: null,
-          max: null,
-          kind: 'unreadable',
-          why: `tracked but unreadable (${err.code ?? err.message}) — no limit can be applied`,
-        })
-      }
+      // Every path reaching here came from `git ls-files`, so git already asserts it exists —
+      // a read failure is therefore a problem whatever its cause, and this FAILS CLOSED.
+      //
+      // An earlier version tried to separate "gone" from "unreadable" with lstatSync, on the
+      // model that lstat fails only when the entry is truly absent. That model is WRONG:
+      // lstat must traverse every parent directory, so losing the `x` bit on one directory
+      // (a stray chmod, an NFS mount, a build step running as another user) makes read AND
+      // lstat fail identically for everything beneath it. Measured: `chmod 000` on one
+      // directory hid NINE already-baselined violators and reported them as RESOLVED.
+      //
+      // The cost is that a file genuinely deleted between enumeration and read now blocks
+      // instead of being skipped. That is the correct direction to fail: the tree changed
+      // underneath the check, so its answer is not trustworthy — re-run it.
+      regressions.push({
+        file,
+        n: null,
+        max: null,
+        kind: 'unreadable',
+        why: `tracked but unreadable (${err.code ?? err.message}) — no limit can be applied`,
+      })
       continue
     }
     const rule = classify(file, content, limits)
@@ -206,10 +209,47 @@ function trackedFiles() {
     .filter(Boolean)
 }
 
+/**
+ * `--stats`: print per-rule totals. This exists because the compliance ratios were previously
+ * written into `.claude/limits.json` as literals, three of which shipped WRONG — each measured
+ * before the measuring commit's own files landed. Replacing them with an embedded one-liner was
+ * worse: it carried a `KIND` placeholder and threw when run as written, so it LOOKED checkable
+ * and was not. A flag cannot rot that way — it is executed by the same code that enforces.
+ */
+function stats(limits, all, read) {
+  const byKind = new Map()
+  for (const file of all) {
+    let content
+    try {
+      content = read(file)
+    } catch {
+      continue
+    }
+    const rule = classify(file, content, limits)
+    if (!rule) continue
+    const row = byKind.get(rule.kind) ?? { total: 0, over: 0, max: rule.max }
+    row.total += 1
+    if (countLines(content) > rule.max) row.over += 1
+    byKind.set(rule.kind, row)
+  }
+  for (const [kind, r] of [...byKind].sort()) {
+    const pct = Math.round(((r.total - r.over) / r.total) * 100)
+    console.log(
+      `  ${kind} (cap ${r.max}): ${r.total - r.over}/${r.total} comply (${pct}%), ${r.over} over`,
+    )
+  }
+  return byKind
+}
+
 function main(args) {
   const limits = JSON.parse(readFileSync(LIMITS_PATH, 'utf8'))
   const all = trackedFiles()
   const read = (f) => readFileSync(f, 'utf8')
+
+  if (args.includes('--stats')) {
+    stats(limits, all, read)
+    return 0
+  }
 
   // The whole tree is always evaluated, so stale-baseline drift is visible on every run.
   const whole = evaluate(all, read, limits)
@@ -221,14 +261,18 @@ function main(args) {
   const { regressions } = evaluate(scoped, read, limits)
 
   if (stale.length > 0) {
-    const s = stale.length === 1 ? 'y' : 'ies'
-    console.error(`\n[file-size] ${stale.length} stale baseline entr${s} in ${LIMITS_PATH}:`)
+    const plural = stale.length === 1 ? 'y' : 'ies'
+    console.error(`\n[file-size] ${stale.length} stale baseline entr${plural} in ${LIMITS_PATH}:`)
     for (const p of stale) console.error(`  ${p}`)
-    console.error('  These no longer describe a live violation. Prune them — a stale entry')
-    console.error('  lets a different file later occupy that path under the old allowance.')
+    console.error('\n  These no longer describe a live violation. BLOCKING, not advisory: a file')
+    console.error('  can leave its rule class by being RENAMED — `foo.ts` to `foo.test.ts` moves a')
+    console.error('  Server Action from the 100-line cap to the 500-line test cap, and `use-x.ts`')
+    console.error('  to `x.ts` moves a hook from 80 to 200 — and the only trace is this entry')
+    console.error('  going stale, which reads as "resolved". Prune it deliberately, or restore')
+    console.error(`  the file: \`node ${GUARD} --update-baseline\` writes the change for review.`)
   }
 
-  if (regressions.length === 0) return 0
+  if (regressions.length === 0) return stale.length > 0 ? 1 : 0
 
   console.error(
     `\n[file-size] ${regressions.length} violation(s) of the limits in ${LIMITS_PATH}:\n`,

@@ -10,7 +10,15 @@
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -92,7 +100,7 @@ test('only a violation among the files passed as arguments can block the commit'
   }
 })
 
-test('reports a single stale baseline entry in the singular, several in the plural', () => {
+test('reports a single stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing
   // else would ever catch the copy-editing regression.
@@ -111,7 +119,7 @@ test('reports a single stale baseline entry in the singular, several in the plur
   const one = makeRepo({ 'gone.ts': 90 })
   try {
     const result = spawnSync('node', [guard], { cwd: one, encoding: 'utf8' })
-    assert.equal(result.status, 0)
+    assert.equal(result.status, 1) // stale entries BLOCK: a rename out of a rule class is otherwise silent
     assert.match(result.stderr, /1 stale baseline entry in/)
     assert.doesNotMatch(result.stderr, /1 stale baseline entries/)
   } finally {
@@ -121,7 +129,7 @@ test('reports a single stale baseline entry in the singular, several in the plur
   const two = makeRepo({ 'gone.ts': 90, 'also-gone.ts': 90 })
   try {
     const result = spawnSync('node', [guard], { cwd: two, encoding: 'utf8' })
-    assert.equal(result.status, 0)
+    assert.equal(result.status, 1) // stale entries BLOCK: a rename out of a rule class is otherwise silent
     assert.match(result.stderr, /2 stale baseline entries in/)
   } finally {
     rmSync(two, { recursive: true, force: true })
@@ -167,6 +175,98 @@ test("keeps working when the tracked-file listing is bigger than node's default 
   }
 })
 
+// ------------------------------------------------- the two-branch stderr trailer
+
+test('prints split-file guidance for a normal violation, not the unreadable-path one', () => {
+  // MUTATION: swap `.some((r) => r.n !== null)` for `.some((r) => r.n === null)` on the
+  // first trailer block → this scenario has no null-n regression, so the split-file
+  // guidance silently stops printing for the one class of regression a developer can
+  // actually act on by editing the source file.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-trailer-normal-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 1 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'a.ts'), lines(3)) // violates max: 1, not baselined
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /3 lines — util limit is 1 \(new violation\)/)
+    assert.match(result.stderr, /Split the file/)
+    assert.doesNotMatch(result.stderr, /unreadable tracked path/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('prints unreadable-path guidance for a dangling symlink, not the split-file one', () => {
+  // MUTATION: swap the second trailer block's predicate to `.some((r) => r.n !== null)`
+  // → this scenario has no non-null-n regression, so the dangling-symlink guidance
+  // silently stops printing for the one class of regression that CANNOT be fixed by
+  // splitting the file — leaving a developer with only "Split the file" advice for a
+  // problem splitting cannot solve.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-trailer-unreadable-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({ rules: [], excludeBasenamePatterns: [], excludeGlobs: [], baseline: {} }),
+    )
+    symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'x.ts'))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /tracked but unreadable \(ENOENT\) — no limit can be applied/)
+    assert.doesNotMatch(result.stderr, /lines — unreadable limit is/)
+    assert.match(result.stderr, /unreadable tracked path cannot be graded at all/)
+    assert.doesNotMatch(result.stderr, /Split the file/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('an unreadable path blocks the commit only when it is among the staged arguments', () => {
+  // The unreadable branch shares the SAME scoped/all filter as a normal violation — this
+  // pins that no shortcut in the catch-block bypasses staged-mode scoping for it.
+  // MUTATION: evaluate the unreadable branch against `all` instead of `scoped` → a
+  // dangling symlink anywhere in the tree blocks every commit, even one that never
+  // touched it.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-staged-unreadable-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({ rules: [], excludeBasenamePatterns: [], excludeGlobs: [], baseline: {} }),
+    )
+    symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'x.ts'))
+    writeFileSync(join(repo, 'b.ts'), 'compliant\n')
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = (args) => spawnSync('node', [guard, ...args], { cwd: repo, encoding: 'utf8' })
+
+    assert.equal(run([]).status, 1, 'whole-tree mode sees the dangling symlink and fails')
+    assert.equal(run(['b.ts']).status, 0, 'x.ts was not staged, so it cannot block')
+    assert.equal(run(['x.ts']).status, 1, 'x.ts WAS staged, so it blocks')
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 // ------------------------------------------- the .coderabbit.yaml pinned mirror
 
 test('.coderabbit.yaml carries the same limits as limits.json', () => {
@@ -184,6 +284,70 @@ test('.coderabbit.yaml carries the same limits as limits.json', () => {
   }
   for (const n of inYaml) {
     assert.ok(inJson.has(n), `.coderabbit.yaml states ${n}, which is not a limit in limits.json`)
+  }
+})
+
+test('reports per-rule compliance totals when asked for stats', () => {
+  // MUTATION: delete the `--stats` early return in main() → this goes red. The flag replaced a
+  // derivation command embedded in .claude/limits.json that carried an unbound placeholder and
+  // THREW when run as written — it looked checkable and was not, which is worse than the literal
+  // ratio it replaced. A flag cannot rot that way: the same code that enforces computes it.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const out = execFileSync('node', [guard, '--stats'], { encoding: 'utf8' })
+  assert.match(out, /Server Action file \(cap 100\): \d+\/\d+ comply/)
+  assert.match(out, /test file \(cap 500\): \d+\/\d+ comply/)
+  // and it must not double as an enforcement run
+  assert.doesNotMatch(out, /violation/)
+})
+
+test('renaming a grandfathered file out of its rule class is blocked, not silently allowed', () => {
+  // MUTATION: make a stale baseline entry advisory again (`return 0` when only stale rows
+  // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a 103-line
+  // Server Action from the 100-line cap to the 500-line test cap, `use-x.ts` -> `x.ts` moves
+  // a hook from 80 to 200, and `.config.` removes it from scope entirely. Classification is
+  // derived from the PATH, and the baseline is keyed on the PATH, so the only trace was the
+  // old entry going stale — which read as "resolved". Reproduced end to end before the fix.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-rename-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    writeFileSync(
+      join(repo, '.claude/limits.json'),
+      JSON.stringify({
+        rules: [
+          { kind: 'test file', glob: '**/*.test.*', max: 500 },
+          { kind: 'utility/helper', glob: '**/*.ts', max: 100 },
+        ],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: { 'src/big.ts': 150 },
+      }),
+    )
+    writeFileSync(join(repo, 'src/big.ts'), 'x\n'.repeat(150))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = () =>
+      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+        cwd: repo,
+        encoding: 'utf8',
+      })
+    assert.equal(run().status, 0, 'the grandfathered file at its recorded size must pass')
+
+    // the escape: same content, new name, now graded at the 500 test cap
+    execFileSync('git', ['mv', 'src/big.ts', 'src/big.test.ts'], { cwd: repo })
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    const after = run()
+    assert.equal(after.status, 1, 'renaming out of the rule class must block')
+    assert.match(after.stderr, /stale baseline entr/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
   }
 })
 

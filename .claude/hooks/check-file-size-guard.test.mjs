@@ -6,7 +6,7 @@
 // The mutation each case pins is named in its title, because a test whose mechanism
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -90,7 +90,7 @@ test('recognises the directive in single or double quotes at line start', () => 
 
 test('test files are relaxed to 500, not exempt from every limit', () => {
   // MUTATION: restore the blanket basename EXCLUSION → a test file gets no cap at all,
-  // silently retiring a promoted rule that 502 of 553 files still comply with.
+  // silently retiring a promoted rule that the great majority of files still comply with.
   const limits = fixture()
   assert.equal(isExcluded('apps/web/a/foo.test.ts', limits), false)
   const r = classify('apps/web/a/foo.test.ts', '', limits)
@@ -101,7 +101,7 @@ test('test files are relaxed to 500, not exempt from every limit', () => {
 })
 
 test('excludes the generated Supabase types file', () => {
-  // MUTATION: remove the types.ts glob → a 1807-line GENERATED file is reported as a
+  // MUTATION: remove the types.ts glob → a 1806-line GENERATED file is reported as a
   // violation nobody can fix, since the generator owns its length.
   assert.equal(isExcluded('packages/db/src/types.ts', fixture()), true)
 })
@@ -228,18 +228,20 @@ test('treats regex metacharacters inside a glob as literal characters', () => {
 
 // -------------------------------------------------------------- ratchet logic
 
-test('skips a file deleted between enumeration and read, without failing the whole run', () => {
-  // MUTATION: drop the try/catch around readFile() → a file removed mid-run (deleted
-  // after `git ls-files` enumerated it, before it was read) throws out of evaluate()
-  // entirely, and every OTHER file's regression is lost along with it.
+test('an enumerated file that cannot be read blocks instead of being skipped', () => {
+  // MUTATION: restore `continue` in evaluate's catch → red. SUPERSEDES the old
+  // "skip a mid-run deletion" behaviour, which was measured to hide NINE baselined
+  // violators when one parent directory lost its execute bit: read and lstat fail
+  // identically there, so "gone" and "unreadable" were indistinguishable. Every path
+  // here comes from `git ls-files`, so git already asserts it exists — failing closed
+  // on a genuine race is the correct direction to be wrong.
   const limits = fixture()
-  const read = (file) => {
-    if (file === 'a/gone.ts') throw new Error('ENOENT: no such file')
-    return lines(81)
+  const boom = () => {
+    throw Object.assign(new Error('nope'), { code: 'EACCES' })
   }
-  const { regressions } = evaluate(['a/gone.ts', 'a/use-x.ts'], read, limits)
+  const { regressions } = evaluate(['a/x.ts'], boom, limits)
   assert.equal(regressions.length, 1)
-  assert.equal(regressions[0].file, 'a/use-x.ts')
+  assert.equal(regressions[0].kind, 'unreadable')
 })
 
 test('flags a new over-limit file that is not in the baseline', () => {
@@ -358,10 +360,45 @@ test('a tracked path that cannot be read is reported, not silently skipped', () 
   }
 })
 
-test('a path that vanished mid-run is skipped without failing the check', () => {
-  // The other half of the same branch: a genuine race must NOT fail. lstat is what
-  // separates them — it succeeds only when the entry is still there.
+test('a path that vanished between enumeration and read still blocks', () => {
+  // The other half of the superseded model. A vanished path is now reported rather than
+  // skipped: the tree changed underneath the check, so its answer is not trustworthy.
   const gone = join(tmpdir(), `file-size-vanished-${Date.now()}`, 'x.ts')
   const { regressions } = evaluate([gone], (f) => readFileSync(f, 'utf8'), fixture())
-  assert.deepEqual(regressions, [])
+  assert.equal(regressions.length, 1)
+  assert.equal(regressions[0].kind, 'unreadable')
+})
+
+test('falls back to the raw error message when a read failure carries no error code', () => {
+  // MUTATION: drop the `?? err.message` fallback (leave bare `err.code`) → any read
+  // failure that is not a real fs error — nothing here guarantees the thrower is
+  // `readFileSync` itself, only that `readFile` threw — reports "(undefined)" instead of
+  // the actual reason. A plain `Error` (no `.code` property) is exactly that case.
+  const dir = mkdtempSync(join(tmpdir(), 'file-size-nocode-'))
+  try {
+    const file = join(dir, 'x.ts')
+    writeFileSync(file, 'irrelevant — read() below is stubbed and ignores this\n')
+    const read = () => {
+      throw new Error('boom: permission denied')
+    }
+    const { regressions } = evaluate([file], read, fixture())
+    assert.equal(regressions.length, 1)
+    assert.equal(regressions[0].kind, 'unreadable')
+    assert.match(regressions[0].why, /tracked but unreadable \(boom: permission denied\)/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a baseline row for a file that became EXCLUDED is reported stale, not kept alive', () => {
+  // MUTATION: hoist `liveViolators.add(file)` above the classify/exclusion check → a file
+  // that was baselined and later moved under an exclusion glob (e.g. into scripts/) is
+  // wrongly counted as still violating, and staleBaselineEntries never surfaces its now-
+  // orphaned baseline row for pruning. Distinct from the "now compliant" case above: that
+  // one exits via `n <= rule.max`, this one exits via `classify` returning null before a
+  // line count is ever taken.
+  const limits = fixture({ baseline: { 'scripts/a/use-x.ts': 999 } })
+  assert.equal(isExcluded('scripts/a/use-x.ts', limits), true)
+  const { liveViolators } = evaluate(['scripts/a/use-x.ts'], () => lines(999), limits)
+  assert.deepEqual(staleBaselineEntries(liveViolators, limits), ['scripts/a/use-x.ts'])
 })
