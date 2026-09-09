@@ -32,6 +32,34 @@
       7ca1f522^..0cc1a4bb`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
       `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
+## BUILD ORDER — read this before picking anything up
+
+Agreed with the user 2026-09-09. The order is the argument; do not reorder by "biggest number".
+
+1. **R0b-1 retracted-phrase check** — ~40 lines, pre-commit. Cheapest item on the list, and it
+   attacks a failure that recurred THREE times in slice 1 and is already logged in user memory as
+   having cost five CR rounds on an earlier PR. Best ratio available; introduces no new concept.
+2. **R0-VALUE** — canonical numbers restated in prose. Zero ambiguity: a value either matches a
+   canonical source or it does not. On the ratchet, so the existing corpus is frozen, not blocking.
+3. **R0-PATH** — the exclusion set is the real work (illustrations, context-relative paths,
+   placeholders, globs). ACCEPTANCE TEST ALREADY MEASURED: it must land near the low tens on the
+   binding surface. A first probe said 1,655 and a second 95, both wrong — one truncated every
+   `.claude/` path, the other truncated `.tsx` to `.ts` and `.json` to `.js`. A detector reporting
+   wildly outside the measured range is broken, and that is knowable in seconds.
+4. **R0b-2** — reject counts in commit messages (extend `check-commit-claims.mjs`). Small, and a
+   commit message is the one surface that cannot be corrected afterwards.
+5. **Slice 2's original three** — hook tests wired into CI, companion tests for new
+   `_hooks`/`_utils`/`lib` files, baseline cannot grow. All one shape; build the shared harness
+   HERE, not earlier. Rule of three.
+6. **Slice 3 archaeology deletion** — the large size win, no new machinery, pure deletion.
+7. **R0-ENUMERATION** — last. Noisiest detector; ships once the exclusion discipline is proven.
+
+**Why not delete first, since that is the biggest number.** Deletion is a ONE-TIME win on text
+that is not decaying. Items 1-4 stop the bleeding, and the bleeding is the recurring cost — a
+measured five-to-one ratio of stale-claim findings to real runtime defects across slice 1. Once
+the guards exist, slice 3 is safe at any pace and gets easier, because less prose remains making
+checkable claims at all.
+
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 
 Full plan drafted 2026-09-09. All three are one shape — build a shared harness
@@ -108,6 +136,43 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       missing path · an enumeration with a derivation beside it passes · one without does not ·
       the guard fails CLOSED when its config or the canonical source is unreadable · the baseline
       cannot grow silently.
+
+- [ ] **R0b — AUTHORING-TIME GUARDS. The other half of R0, and the one the user actually asked
+      for: not "find stale claims in the corpus" but "stop me making today's mistakes again".**
+
+      **The evidence, from one session.** Every mechanism that worked fired AT THE MOMENT of the
+      mistake, unprompted, at zero cost: the `.coderabbit.yaml` pin test went red about a minute
+      after the cap was changed without its mirror; the file-size guard rejected its own test
+      file twice. Everything else — implementation-critic, CR-local, the PR sweep — caught things
+      10 to 40 minutes later, each costing a full round. Re-reading my own work caught NOTHING,
+      which `code-style.md` §10 cl.5 already concedes: re-reading finds incoherence, only
+      re-deriving finds a claim that is coherent and false. Design for immediacy, not diligence.
+
+      **R0b-1 — RETRACTED-PHRASE CHECK. Highest value; §10 cl.3 made mechanical.**
+      If a commit REMOVES a distinctive phrase from one tracked file and that phrase still exists
+      in another tracked file, block. Directly attacks "fixed the instance, not the class", which
+      happened THREE times in this slice alone: a stale `1807` corrected in one file and left in
+      its sibling; a `502 of 553` ratio likewise; a wrong test filename corrected in
+      `.coderabbit.yaml` while two other files kept it. Every one cost a reviewer round; every one
+      is a two-line grep. Runs at pre-commit off `git diff --cached`. Needs a minimum phrase
+      length and a stop-list so common wording does not fire.
+
+      **R0b-2 — NO COUNTS IN COMMIT MESSAGES.** Extend `check-commit-claims.mjs`. Four figures in
+      one message of this slice were measured before that same commit's remaining edits landed,
+      making them stale ON ARRIVAL while reading as verified. A commit message cannot be
+      re-derived later, so the number should not be there at all: name the derivation instead.
+      Same rule already applied to `limits.json`; the message is the surface that escaped it.
+
+      **R0b-3 — EDIT WITH A TOOL THAT FAILS LOUDLY.** Behavioural, not a hook, and stated because
+      it bit: a `s.replace()` in a script silently no-ops when the anchor is absent. That is
+      exactly how a "fixed" misquote survived an entire commit in this slice and had to be found
+      by a reviewer two commits later. Prefer the editor tool, which errors on a missing anchor;
+      where a script is genuinely needed, ASSERT the anchor before writing. Cheap to state,
+      impossible to enforce mechanically, and worth writing down because the failure is SILENT.
+
+      **What this cannot do.** None of it makes the author reliable. It makes the failure loud and
+      immediate instead of expensive and late — which, measured on this session, is the whole
+      difference between a five-second correction and a five-to-one round ratio.
 
 - [ ] R1: every `*.test.*` under `.claude/hooks/` is referenced in `ci.yml`. Currently a
       COMMENT telling a human to run `find`; has already failed once (3 unwired files until
