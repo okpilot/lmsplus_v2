@@ -62,10 +62,9 @@ export function countLines(content) {
  * Does this file declare itself a Server Action?
  *
  * Anchored at line start so a HEADER COMMENT mentioning the directive cannot match:
- * `resume-helpers.ts` and `load-draft-helpers.ts` each carry the line
- * "No `'use server'` — these are pure transforms" and `resume-helpers.ts` "No
- * `'use server'` — these are invoked by the action"; an unanchored search matches the
- * text DENYING the directive. Those two files exist precisely because someone split a
+ * `load-draft-helpers.ts` carries "No `'use server'` — these are pure transforms" and
+ * `resume-helpers.ts` carries "No `'use server'` — these are invoked by the action".
+ * Neither declares the directive; an unanchored search matches the text DENYING it. Those two files exist precisely because someone split a
  * file to obey this very rule; misreading them as Server Actions inverts the finding.
  */
 export function declaresUseServer(content) {

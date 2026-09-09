@@ -32,15 +32,15 @@ You receive:
    - `fetch()` call inside a React component body
    - Data transformation logic (>3 lines) directly in JSX
 
-3. **`useEffect` for data fetching**
+2. **`useEffect` for data fetching**
    - `useEffect` with a fetch/Supabase call inside — this is a Next.js anti-pattern
 
-4. **Barrel files created**
+3. **Barrel files created**
    - New `index.ts` that re-exports from multiple other files
 
 ### WARNINGS (logged, non-blocking)
 
-5. **Long functions** — any function > 30 lines (EXCEPT React function-component / custom-hook render/return bodies of pure JSX composition, allowed up to 35 lines — see suppression #8 below and code-style.md §3)
+5. **Long functions** — any function > 30 lines (EXCEPT React function-component / custom-hook render/return bodies of pure JSX composition, allowed up to 35 lines — see suppression #5 below and code-style.md §3)
 6. **Too many parameters** — function with > 3 non-object parameters
 7. **Deep nesting** — code indented > 3 levels deep
 8. **`any` type** — TypeScript `any` without a comment explaining why
@@ -87,7 +87,7 @@ WARNINGS: [count]
 
 --- FINDINGS ---
 
-[BLOCKING] apps/web/app/quiz/session/page.tsx — 127 lines (limit: 80)
+[BLOCKING] apps/web/app/quiz/session/page.tsx — Supabase query in a component body
 Page files must be pure composition. This page contains quiz session logic.
 Fix: Extract session management to a <QuizSessionManager> component or Server Component.
 

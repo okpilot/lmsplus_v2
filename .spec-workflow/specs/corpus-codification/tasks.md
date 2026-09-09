@@ -12,12 +12,25 @@
 
 ## Slice 1 — file-size limits (COMPLETE)
 
-- [x] `.claude/limits.json` + `check-file-size-guard.mjs` + 40 tests over two files
-- [x] Ten prose copies → one source + one pinned mirror; 2 live drift bugs fixed
-- [x] Ratchet with a 92-entry visible baseline; 19 mutations run, 19 caught
-- [x] Both post-commit CRITICALs closed (same-path content swap; unreadable tracked path)
+- [x] `.claude/limits.json` + `check-file-size-guard.mjs` + a mutation-pinned suite, split by
+      concern across three files (in-process / subprocess / the write path). No count stated:
+      it is an open set (`code-style.md` §10 cl.2) and this line already went stale once —
+      derive with `node --test .claude/hooks/check-file-size-guard.*.test.mjs`.
+- [x] Ten prose copies → one source + one test-pinned mirror; 2 live drift bugs fixed (a
+      fabricated "any file: max 300 lines" rule, and a suppression raising the Server Action cap
+      100→120 inside the enforcing agent)
+- [x] Ratchet with a visible, shrink-only baseline; every mechanism mutation-pinned
+- [x] FIVE holes closed, each reproduced as a working exploit and re-run against the fix:
+      same-path content swap · a committed dangling symlink permanently unreadable · a rename
+      out of the rule class (`foo.ts` → `foo.test.ts`, 100-cap → 500-cap) · `chmod 000` on one
+      directory hiding nine baselined violators and reporting them RESOLVED · a file named
+      `--stats` in argv turning an enforcement run into exit 0
+- [x] `--stats` and `--update-baseline` shipped; §10 clause 7 promoted and mirrored
 - [x] Decision 65 recorded
-      Commits: `7ca1f522`, `3752c88a`. Injected corpus 3,383 → 3,379.
+      Five commits, `7ca1f522`..`0cc1a4bb`. No counts stated here — this block already went
+      stale once by being written at commit 2 of 5 (§10 cl.7). Derive: `git log --oneline
+      origin/master..HEAD`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
+      `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 

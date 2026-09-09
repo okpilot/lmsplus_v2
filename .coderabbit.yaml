@@ -4,7 +4,7 @@
 # copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
 # literal text; it cannot follow a pointer (`agent-workflow.md § Rule-Mirror Sync`), so
 # replacing a number here with a reference would not keep it in sync — it would delete the
-# enforcement. `.claude/hooks/check-file-size-guard.test.mjs` fails in CI if any cap here
+# enforcement. `.claude/hooks/check-file-size-guard.cli.test.mjs` fails in CI if any cap here
 # disagrees with limits.json, so the copy is machine-verified rather than hand-maintained.
 # Change a limit in limits.json and here, in the same commit.
 
