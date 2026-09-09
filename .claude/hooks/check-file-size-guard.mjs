@@ -132,6 +132,11 @@ export function evaluate(files, readFile, limits) {
   const liveViolators = new Set()
 
   for (const file of files) {
+    // Exclusion FIRST: an excluded path is out of scope whatever its readability. Reading it
+    // first meant a dangling symlink under an excluded glob produced an `unreadable` regression
+    // that blocked every run — and no baseline row could clear it, because that branch returns
+    // before the baseline is consulted. `isExcluded` needs no file content.
+    if (isExcluded(file, limits)) continue
     let content
     try {
       content = readFile(file)
@@ -356,7 +361,26 @@ function main(args) {
     const rel = isAbsolute(f) ? relative(process.cwd(), f) : f
     return rel.replace(/^\.\//, '')
   })
-  const unknownPaths = normalised.filter((f) => !all.includes(f))
+  // Staged DELETIONS reach us through `{staged_files}` but are absent from `git ls-files`, so
+  // without this every commit that removes a file was rejected as an unknown path — a
+  // regression introduced by the unknown-path check itself, one commit earlier. Guarded: a
+  // failed git call ABORTS rather than silently yielding an empty set, which would restore the
+  // breakage while looking clean.
+  let deleted
+  try {
+    deleted = new Set(
+      execFileSync('git', ['diff', '--cached', '--diff-filter=D', '--name-only'], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+      })
+        .split('\n')
+        .filter(Boolean),
+    )
+  } catch (err) {
+    console.error(`[file-size] cannot list staged deletions — BLOCKING: ${err.message}`)
+    return 1
+  }
+  const unknownPaths = normalised.filter((f) => !all.includes(f) && !deleted.has(f))
   if (unknownPaths.length > 0) {
     console.error(
       `[file-size] argument(s) match no tracked path: ${unknownPaths.join(' ')} — BLOCKING`,

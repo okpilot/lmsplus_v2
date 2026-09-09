@@ -321,6 +321,22 @@ test('staleBaselineEntries reports nothing when the config has no baseline key a
   assert.deepEqual(staleBaselineEntries(new Set(), limits), [])
 })
 
+test('an excluded path is skipped without being read at all', () => {
+  // MUTATION: move `isExcluded` back below the read → red. A dangling symlink under an excluded
+  // glob produced an `unreadable` regression that blocked every run, and no baseline row could
+  // clear it because that branch returns before the baseline is consulted. Exclusion needs no
+  // file content, so it must come first.
+  const limits = fixture({ excludeGlobs: ['scripts/**'] })
+  let reads = 0
+  const read = () => {
+    reads++
+    throw Object.assign(new Error('unreadable'), { code: 'ELOOP' })
+  }
+  const { regressions } = evaluate(['scripts/dangling.ts'], read, limits)
+  assert.deepEqual(regressions, [], 'an excluded path must not produce a finding')
+  assert.equal(reads, 0, 'an excluded path must not be read')
+})
+
 // ------------------------------------- holes found by post-commit semantic review
 
 test('a grandfathered file that SHRANK but is still over the limit fails', () => {

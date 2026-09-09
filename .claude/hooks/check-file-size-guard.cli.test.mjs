@@ -10,20 +10,10 @@
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-
-const LIMITS = JSON.parse(readFileSync('.claude/limits.json', 'utf8'))
 
 const lines = (n) => `${'x\n'.repeat(n)}`
 
@@ -252,55 +242,6 @@ test('an unreadable path blocks the commit only when it is among the staged argu
 
 // ------------------------------------------- the .coderabbit.yaml pinned mirror
 
-test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () => {
-  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so — so its
-  // copy of the numbers is KEPT and verified here rather than deleted. This is the second
-  // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
-  //
-  // MUTATION: compare the two as SETS of numbers instead of per-kind pairs → red. The set form
-  // was the original and it was VACUOUS for the mutation that matters: swapping the page cap
-  // with the component cap leaves both sets identical, so the mirror could state the two kinds
-  // reversed and the test still passed. Proven by executing that swap.
-  const yaml = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
-
-  // Each .coderabbit.yaml path block, and the limits.json rule KIND it mirrors. The YAML paths
-  // are deliberately narrower than limits.json's globs (CodeRabbit reviews app-layer code, not
-  // every file on disk) — so the mapping is stated, not inferred from the glob text.
-  const MIRRORED = [
-    ['apps/web/app/**/page.tsx', 'page file'],
-    ['apps/web/app/**/_components/*.tsx', 'React component'],
-    ['apps/web/app/**/actions.ts', 'Server Action file'],
-    ['apps/web/app/**/_hooks/use-*.ts', 'hook'],
-    ['packages/db/src/**/*.ts', 'utility/helper'],
-    ['supabase/migrations/**/*.sql', 'SQL migration'],
-    ['**/*.test.{ts,tsx}', 'test file'],
-  ]
-
-  /** The `Max N lines` stated inside one `- path:` block, or null. */
-  const capFor = (path) => {
-    const i = yaml.findIndex((l) => l.trim() === `- path: "${path}"`)
-    assert.notEqual(i, -1, `.coderabbit.yaml has no block for ${path}`)
-    for (let j = i + 1; j < yaml.length && !/^\s*- path: "/.test(yaml[j]); j++) {
-      const m = yaml[j].match(/Max (\d+) lines/)
-      if (m) return Number(m[1])
-    }
-    return null
-  }
-
-  for (const [path, kind] of MIRRORED) {
-    const rule = LIMITS.rules.find((r) => r.kind === kind)
-    assert.ok(rule, `limits.json has no rule of kind ${kind}`)
-    assert.equal(capFor(path), rule.max, `${path} must mirror the ${kind} cap`)
-  }
-
-  // and no cap in the YAML that limits.json does not declare at all
-  const declared = new Set(LIMITS.rules.map((r) => r.max))
-  for (const l of yaml) {
-    const m = l.match(/Max (\d+) lines/)
-    if (m) assert.ok(declared.has(Number(m[1])), `.coderabbit.yaml states ${m[1]}, not a limit`)
-  }
-})
-
 test('renaming a grandfathered file out of its rule class is blocked, not silently allowed', () => {
   // MUTATION: make a stale baseline entry advisory again (`return 0` when only stale rows
   // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a Server Action
@@ -426,6 +367,54 @@ test('a violation blocks however its path is spelled, and an unknown path is rej
     }
     const bogus = run('nope/missing.ts')
     assert.equal(bogus.status, 1, 'an argument matching no tracked path must fail closed')
+    assert.match(bogus.stderr, /match no tracked path/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a staged deletion is not rejected as an unknown path', () => {
+  // MUTATION: drop the `deleted` set from the unknown-path filter → red. lefthook passes staged
+  // DELETIONS through {staged_files} while `git ls-files` omits them, so the unknown-path check
+  // introduced one commit earlier blocked EVERY commit that removes a file. Caught by CR-local
+  // round 4; the regression was live for one commit.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-del-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    writeFileSync(
+      join(repo, '.claude/limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'utility/helper', glob: '**/*.ts', max: 100 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'src/gone.ts'), 'x\n'.repeat(10))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    execFileSync('git', ['commit', '-qm', 'seed', '--no-verify'], { cwd: repo })
+    execFileSync('git', ['rm', '-q', 'src/gone.ts'], { cwd: repo })
+
+    const del = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', 'src/gone.ts'], {
+      cwd: repo,
+      encoding: 'utf8',
+    })
+    assert.equal(del.status, 0, 'a staged deletion must not block the commit')
+
+    // a genuinely unknown path must still fail closed
+    const bogus = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', 'src/never.ts'], {
+      cwd: repo,
+      encoding: 'utf8',
+    })
+    assert.equal(bogus.status, 1)
     assert.match(bogus.stderr, /match no tracked path/)
   } finally {
     rmSync(repo, { recursive: true, force: true })

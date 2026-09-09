@@ -1,4 +1,5 @@
-// Tests for the file-size guard's MODE FLAGS — `--stats` and `--update-baseline`. Run:
+// Tests for the file-size guard's NON-ENFORCEMENT surfaces — the mode flags (`--stats`,
+// `--update-baseline`) and the `.coderabbit.yaml` mirror pin. Run:
 //   node --test .claude/hooks/check-file-size-guard.update.test.mjs
 //
 // A THIRD file, split from the unit suite when it reached the test-file cap this very
@@ -26,6 +27,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+
+const LIMITS = JSON.parse(readFileSync('.claude/limits.json', 'utf8'))
 
 // ------------------------------------------------- --update-baseline (CLI-only, see header)
 
@@ -251,5 +254,54 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
     )
   } finally {
     rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () => {
+  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so — so its
+  // copy of the numbers is KEPT and verified here rather than deleted. This is the second
+  // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
+  //
+  // MUTATION: compare the two as SETS of numbers instead of per-kind pairs → red. The set form
+  // was the original and it was VACUOUS for the mutation that matters: swapping the page cap
+  // with the component cap leaves both sets identical, so the mirror could state the two kinds
+  // reversed and the test still passed. Proven by executing that swap.
+  const yaml = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
+
+  // Each .coderabbit.yaml path block, and the limits.json rule KIND it mirrors. The YAML paths
+  // are deliberately narrower than limits.json's globs (CodeRabbit reviews app-layer code, not
+  // every file on disk) — so the mapping is stated, not inferred from the glob text.
+  const MIRRORED = [
+    ['apps/web/app/**/page.tsx', 'page file'],
+    ['apps/web/app/**/_components/*.tsx', 'React component'],
+    ['apps/web/app/**/actions.ts', 'Server Action file'],
+    ['apps/web/app/**/_hooks/use-*.ts', 'hook'],
+    ['packages/db/src/**/*.ts', 'utility/helper'],
+    ['supabase/migrations/**/*.sql', 'SQL migration'],
+    ['**/*.test.{ts,tsx}', 'test file'],
+  ]
+
+  /** The `Max N lines` stated inside one `- path:` block, or null. */
+  const capFor = (path) => {
+    const i = yaml.findIndex((l) => l.trim() === `- path: "${path}"`)
+    assert.notEqual(i, -1, `.coderabbit.yaml has no block for ${path}`)
+    for (let j = i + 1; j < yaml.length && !/^\s*- path: "/.test(yaml[j]); j++) {
+      const m = yaml[j].match(/Max (\d+) lines/)
+      if (m) return Number(m[1])
+    }
+    return null
+  }
+
+  for (const [path, kind] of MIRRORED) {
+    const rule = LIMITS.rules.find((r) => r.kind === kind)
+    assert.ok(rule, `limits.json has no rule of kind ${kind}`)
+    assert.equal(capFor(path), rule.max, `${path} must mirror the ${kind} cap`)
+  }
+
+  // and no cap in the YAML that limits.json does not declare at all
+  const declared = new Set(LIMITS.rules.map((r) => r.max))
+  for (const l of yaml) {
+    const m = l.match(/Max (\d+) lines/)
+    if (m) assert.ok(declared.has(Number(m[1])), `.coderabbit.yaml states ${m[1]}, not a limit`)
   }
 })
