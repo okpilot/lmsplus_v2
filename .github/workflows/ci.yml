@@ -77,6 +77,9 @@ jobs:
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
 
+      - name: Commit-claims guard — unit test
+        run: node --test .claude/hooks/check-commit-claims.test.mjs
+
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the

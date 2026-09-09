@@ -48,7 +48,8 @@ test('extractRefs finds a bare line-start ref in a list item', () => {
 test('extractRefs finds a BACKTICKED line-start ref in a list item', () => {
   // Mutation-blind before this test: BARE_START_RE tolerates an optional trailing backtick
   // via `\`?` built into the regex itself (not a stripped view). Dropping that `\`?` left
-  // 34/34 green and silently dropped this citation. Same bug class as 371bfe49's fix,
+  // the then-current suite fully green and silently dropped this citation. Same bug class as
+  // 371bfe49's fix,
   // sibling to the other three backtick-view tests grouped after the possessive fix below.
   const refs = extractRefs('Summary:\n- `d4e5f6a7` fixes the timeout\n- unrelated line\n')
   assert.deepEqual(refs, ['d4e5f6a7'])
@@ -234,13 +235,14 @@ test('extractRefs finds a BACKTICKED possessive ref', () => {
 // at THIS position. Verified by mutation against 371bfe49 in a scratch worktree
 // (`beforeForTrigger`→`before`, `afterForExclusion`→`after` in the TRIGGER_AFTER
 // cancellation, and dropping the optional backtick from PAREN_BEFORE_RE/PAREN_AFTER_RE
-// and from BARE_START_RE) — each mutation left the suite at 34/34 and each produced a
+// and from BARE_START_RE) — each mutation left the then-current suite green and each produced a
 // wrong result on the fixture below.
 
 test('extractRefs finds a BACKTICKED ref preceded by a trigger word', () => {
   // Mutation-blind before this test: TRIGGER_BEFORE_RE reads `beforeForTrigger` (trailing
   // backtick stripped). Reverting it to the raw `before` — the same bug class as the
-  // possessive regression, just on this sibling rule — left 34/34 green and dropped this.
+  // possessive regression, just on this sibling rule — left the then-current suite green and
+  // dropped this.
   assert.deepEqual(extractRefs('reviewed per `abc1234f` today.'), ['abc1234f'])
 })
 
@@ -248,7 +250,7 @@ test('extractRefs still excludes a BACKTICKED content digest at a line start', (
   // Mutation-blind before this test: the TRIGGER_AFTER cancellation reads
   // `afterForExclusion` (leading backtick stripped) so a backtick-wrapped content digest
   // still cancels the weak bare-line-start signal. Reverting it to the raw `after` left
-  // 34/34 green and let this fixture wrongly resolve to ['714eec4f'] instead of [] — a
+  // the then-current suite green and let this fixture wrongly resolve to ['714eec4f'] instead of [] — a
   // false BLOCK on a non-citation, the mirror-image failure of a silent drop.
   assert.deepEqual(extractRefs('`714eec4f` in plan-critic.md'), [])
 })
@@ -260,7 +262,7 @@ test('extractRefs finds a bare parenthetical citation', () => {
 test('extractRefs finds a BACKTICKED parenthetical citation', () => {
   // Mutation-blind before this test: PAREN_BEFORE_RE/PAREN_AFTER_RE tolerate an optional
   // backtick via `\`?` built into the regex itself (not a stripped view). Dropping that
-  // `\`?` from both regexes left 34/34 green and silently dropped this citation.
+  // `\`?` from both regexes left the then-current suite green and silently dropped this citation.
   assert.deepEqual(extractRefs('The master-merge (`fb06ee55`) kept stale copies.'), ['fb06ee55'])
 })
 
@@ -275,6 +277,10 @@ test('extractRefs keeps a citation when unrelated scope@ref prose shares the lin
   ])
 })
 
+// These three pin the paren rule's BOUNDARY — they are not an endorsement of the outcome.
+// `(see <sha>)` is a real citation idiom in this history, so the `[]` below is a KNOWN
+// UNCOVERED POSITION, listed as such in docs/decisions.md Decision 64, not correct behaviour
+// the guard is meant to preserve. Whoever closes that gap should expect these to change.
 test('extractRefs isolates the opening-paren boundary', () => {
   assert.deepEqual(extractRefs('Reworked the parser (see ab12cd34)'), [])
 })
@@ -317,7 +323,99 @@ test('extractRefs drops a git template comment line', () => {
   assert.deepEqual(extractRefs('# On branch master, fixed by 1234567a since'), [])
 })
 
+// Mutation-blind before this test: only `in`, `on`, `per`, `commit` and `by` from
+// TRIGGER_WORDS were exercised as a directly-preceding trigger elsewhere in this file.
+// Deleting the remaining eleven (`from|since|of|replaying|after|before|for|as|to|head|via`)
+// from TRIGGER_WORDS left the whole suite green — verified by mutation in a scratch copy,
+// `of` included and separately: it is part of the dominant citation shape ("of <sha> on")
+// yet nothing pinned it. One assertion per word, so a regression dropping any SINGLE word
+// still fails this test. Derive the word list from the hook, never from this comment.
+test('extractRefs finds a ref after each of the remaining commit-context trigger words', () => {
+  const msg =
+    'resolved from 1234567a today.\n' +
+    'part of 1234568e overall.\n' +
+    'valid since 1234567b now.\n' +
+    'fixed by replaying 1234567c here.\n' +
+    'changed after 1234567d again.\n' +
+    'validated before 1234567e merge.\n' +
+    'waiting for 1234567f release.\n' +
+    'known as 1234568a alias.\n' +
+    'migrated to 1234568b branch.\n' +
+    'merged at head 1234568c point.\n' +
+    'shipped via 1234568d channel.\n'
+  assert.deepEqual(extractRefs(msg), [
+    '1234567a',
+    '1234568e',
+    '1234567b',
+    '1234567c',
+    '1234567d',
+    '1234567e',
+    '1234567f',
+    '1234568a',
+    '1234568b',
+    '1234568c',
+    '1234568d',
+  ])
+})
+
+// Mutation-blind before this test: BARE_START_RE's marker class only had `-`, backtick-`-`,
+// a numbered `.`-suffix, and `>` exercised. Dropping `*` from the `[-*(]` character class, or
+// dropping `)` from the `\d+[.)]` numbered-suffix alternative, each left the suite
+// green — verified by mutation in a scratch copy.
+test('extractRefs finds a bare ref opening an asterisk bullet or a close-paren numbered item', () => {
+  assert.deepEqual(extractRefs('Summary:\n* d4e5f6a7 fixes the timeout\n'), ['d4e5f6a7'])
+  assert.deepEqual(extractRefs('1) d4e5f6a7 fixes it'), ['d4e5f6a7'])
+})
+
+// Mutation-blind before this test: HEX_RE's `(?<![0-9a-zA-Z_])`/`(?![0-9a-zA-Z_])` boundary
+// lookarounds exist to stop a hex-shaped RUN inside a longer identifier from being read as a
+// citation. Deleting BOTH lookarounds left the suite green — verified by mutation in
+// a scratch copy — and turned "deadbee1x" (a longer token merely STARTING with 8 hex chars)
+// into a reported citation of "deadbee1".
+test('extractRefs does not extract a hex run embedded in a longer identifier', () => {
+  // Right/suffix boundary: the hex run is followed by a non-hex alnum char before the trigger
+  // word's positional context ends.
+  assert.deepEqual(extractRefs('referenced per deadbee1x today.'), [])
+  // Left/prefix boundary: the hex run is preceded by a non-hex alnum char, so the possessive
+  // rule must not treat "xdeadbee1" as the cited token.
+  assert.deepEqual(extractRefs("See xdeadbee1's message for context."), [])
+})
+
+// Mutation-blind before this test: no fixture used a token shorter than 7 or longer than 40
+// chars. Widening HEX_RE's `{7,40}` to `{6,45}` left the suite green — verified by
+// mutation in a scratch copy.
+test('extractRefs ignores a token shorter than 7 or longer than 40 hex chars', () => {
+  assert.deepEqual(extractRefs('reviewed per abc123 today.'), [])
+  const tok41 = '0123456789abcdef'.repeat(3).slice(0, 41)
+  assert.deepEqual(extractRefs(`reviewed per ${tok41} today.`), [])
+})
+
+// Mutation-blind before this test: the fence-stripping regex's non-greedy `[\s\S]*?` was only
+// ever exercised against a message with ONE fenced block, where greedy vs non-greedy produce
+// identical output. Widening it to greedy `[\s\S]*` left the suite green — verified
+// by mutation in a scratch copy — and silently swallowed a real citation sitting BETWEEN two
+// separate fenced blocks (greedy matches from the first ``` to the LAST ``` in the message).
+test('extractRefs keeps a citation between two separate fenced code blocks', () => {
+  const msg =
+    'Before.\n```\ncode one\n```\nVerified per abc1234f today.\n```\ncode two\n```\nAfter.'
+  assert.deepEqual(extractRefs(msg), ['abc1234f'])
+})
+
 // ---- main() -------------------------------------------------------------------
+
+test('main: no commit-msg-file argument at all prints usage and exits non-zero', () => {
+  // Mutation-blind before this test: deleting the entire `if (!msgFile) { ...; exit(1); return }`
+  // guard block left the suite green — verified by mutation in a scratch copy, because
+  // the fallback `readFileSync(undefined, ...)` catch block still exits non-zero on its own. This
+  // test pins the guard's OWN usage message, not merely "some non-zero exit happened for some
+  // reason" (which the read-failure catch would already satisfy).
+  assert.throws(
+    () => {
+      execFileSync(process.execPath, [HOOK_PATH], { encoding: 'utf8', stdio: 'pipe' })
+    },
+    (err) => /usage: check-commit-claims\.mjs <commit-msg-file>/.test(String(err.stderr)),
+  )
+})
 
 test('main: a missing/unreadable commit-msg file exits non-zero', () => {
   // Asserting the guard's OWN message, not merely a non-zero exit: an uncaught

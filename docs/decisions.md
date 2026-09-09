@@ -1535,9 +1535,11 @@ verifying nothing — learner row 40 ("proposed verification command silently ve
 rebuilt as infrastructure. **The escalated design is rejected on measurement.** Recorded here so it
 is not rebuilt.
 
-What ships instead VERIFIES what a machine can decide, so it never fires on a true claim and creates
-no bypass pressure: `.claude/hooks/check-commit-claims.mjs` at `commit-msg` blocks a message citing
-a commit SHA that does not resolve.
+What ships instead VERIFIES what a machine can decide: `.claude/hooks/check-commit-claims.mjs` at
+`commit-msg` blocks a message citing a commit SHA that does not resolve. It fired on no true claim
+in the measured history, so it creates no bypass pressure there — but precision is UNMEASURED
+outside that window, and one shape that WOULD fire on a true claim is disclosed below. Stating that
+unqualified was itself the overclaim this entry exists to make catchable.
 
 - Detection is POSITIONAL: a hex token after a commit-context word, a possessive, a bare
   parenthetical `(<sha>)`, or bare at the start of a line or list item — the marker set is in
@@ -1584,21 +1586,47 @@ EXISTS, never that the claim about it is true. Row 42 therefore stays RULE CANDI
 recent instances are behavioural mischaracterisations no such check can see. Row 40 and row 58 are
 untouched.
 
-**Known uncovered position, accepted deliberately.** Only the FIRST SHA of a multi-SHA
-parenthetical is checked — `(<sha>, <sha>)` leaves the rest uncovered, so a fabricated SHA in that
-position exits 0. Closing it means widening both paren boundaries, and every regex widening on this
-branch introduced a fresh silent drop: five for five, three of them in the fix for the previous one.
-The gap fails SAFE (a missed check, never a false block), so it is documented rather than patched at
-the review ceiling. Reopen it only with the full behaviour matrix and a 700-message replay, which is
-what caught the last three.
+**Known uncovered positions, accepted deliberately — a LIST, not a count.** It has already grown
+once (the PR-level sweep on 2026-09-09 added five to the one originally recorded), so it is named
+rather than numbered, exactly as "Known limits on WHEN it runs" below. Derive the current set by
+replaying real messages through `extractRefs`, never by trusting this list:
+
+- Only the FIRST SHA of a multi-SHA parenthetical `(<sha>, <sha>)`.
+- A backticked token mid-sentence with no adjacent trigger word — ``the instance `<sha>` itself
+  produced``. This is the ordinary way this repo writes a citation, and this branch's own commit
+  messages contain one.
+- A single-SHA parenthetical carrying one introducer word — `(see <sha>)`, `(squash <sha>)`,
+  `(fix <sha>)`. Occurs in real history; re-derive with
+  `git log -400 --format=%B | grep -oE '\((see|squash|fix) [0-9a-f]{7,40}\)'` rather than
+  quoting a number, which moves with the window.
+- A trigger word separated from the token by a colon — `per: <sha>` — which breaks
+  `TRIGGER_BEFORE_RE`'s trailing-whitespace anchor and drops the WHOLE list after it. The word
+  must be a real `TRIGGER_WORDS` member for this to be the mechanism: `per <sha>` extracts and
+  `per: <sha>` does not, whereas a non-member like `fired` yields nothing either way and
+  demonstrates nothing.
+- The second and later items of a bare comma list — `<sha>, <sha> and <sha>`.
+- Both SHAs of a bare or backticked range — `<sha>..<sha>`, `<sha>...<sha>` — outside a URL.
+
+Every one exits 0 on a fabricated SHA.
+
+Closing any of them means widening a detection boundary, and EVERY regex widening on this branch so
+far has introduced a fresh silent drop, several of them in the fix for the previous one. Not counted
+here — the run is an OPEN set (§10 cl.2), recorded in the numbered comments in
+`check-commit-claims.mjs` and its test and derivable from `git log --oneline` over this branch.
+They all fail SAFE (a missed check, never a false block), so they are documented rather than patched
+at the review ceiling. Reopen only with the full behaviour matrix and a 700-message replay, which is
+what caught the last three — and treat the set as ONE fix, since the last three separate patches to
+closely-related positions each introduced a new drop.
 
 **Measured recall, UNMEASURED precision.** The 0-false-positive claim is against REAL history; it
 is not a claim about every shape an author could write. One is known and DISCLOSED rather than
 fixed: "bumped the digest from <hex> to <hex>" extracts both tokens, because each has a trigger word
 on one side, and a checksum is not a commit — so the guard blocks. It appears 0 times in the last
 400 messages, and it fails CLOSED (a clear block the author can reword), where every added rule has
-so far introduced a fresh defect in this very guard — four revisions, four new defects, which is
-learner row 42's own signature. Buying prospective precision at that risk is the worse trade.
+so far introduced a fresh defect in this very guard — several revisions, each with a fresh defect,
+which is learner row 42's own signature. Not stated as a ratio: mapping defects one-to-one onto
+revisions does not survive reading the commit messages, since at least one drop was self-corrected
+before it ever landed. Buying prospective precision at that risk is the worse trade.
 
 **Known limits on WHEN it runs — a list, not a count, because it has already grown once.**
 `gh pr merge --squash` is server-side, so no local hook gates the message that lands on master.
