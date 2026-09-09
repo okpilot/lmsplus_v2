@@ -143,3 +143,40 @@ Checked in the same pass: whether the new clause is now byte-identical across 2+
 `.coderabbit.yaml` prose edits owe no test IF the commit is otherwise prose-only (`git show <sha> --stat` shows zero `.ts`/`.tsx`/`.mjs`/`.sh`/`.sql`). Confirm by checking whether anything actually reads the yaml BODY: `git grep -rln 'coderabbit.yaml' -- ':/*.mjs' ':/*.ts' ':/*.test.*'` — as of 2026-09-02, 3 hits, none of them a test reading the yaml body (`cr-local-plan-reminder.test.sh` pins a literal CLI-invocation fixture string; `import-vfr-rt-content.ts` / `seed-more-questions.ts` only mention the file in prose comments).
 
 `check-mirror-sync.mjs` (CI-run via `check-mirror-sync.test.mjs`, synthetic fixtures only) is a generic anchor-driven CLI invoked manually per `agent-workflow.md § Rule-Mirror Sync` — never auto-wired to specific new clause text. Its `clauseBlock()` treats 2+ occurrences of one anchor WITHIN THE SAME FILE as an unresolvable ambiguity (fails, doesn't diff them), so it cannot self-verify two identical same-file insertions (e.g. a clause duplicated across two `.coderabbit.yaml` `path_instructions` blocks) — that needs a different invocation shape, out of scope to build unprompted. Confirmed: `18757ddf` (prose-only across CLAUDE.md/code-style.md/agent-doc-updater.md/`.coderabbit.yaml` ×2 identical inserts) — no test written.
+
+---
+
+## One-position-fixed sweep on a multi-view fan-out function {#one-position-fixed-sweep}
+
+`check-commit-claims.mjs`'s `extractRefs` maintains a raw view and a normalized (backtick-stripped)
+view of the text around each hex token, and OR's together 4-5 positional rules (`TRIGGER_BEFORE`,
+`POSSESSIVE_AFTER`, `PAREN` pair + its `ACTION_PIN` exclusion, `BARE_START`, `TRIGGER_AFTER`
+cancellation). `371bfe49` fixed exactly one of them (POSSESSIVE reading raw `after` instead of the
+stripped `afterForExclusion`) and added exactly one regression test for it.
+
+A bugfix that pins ONE sibling position in a multi-position OR-chain is not evidence the siblings are
+covered — each reads a *different slice* of the surrounding text, so a test on position A cannot
+exercise position B's normalization. Swept all four remaining positions by mutation (scratch worktree
+off the commit, one mutation at a time, `git checkout --` between each, baseline/HEAD/stash verified
+before and after):
+
+- `TRIGGER_BEFORE_RE.test(beforeForTrigger)` → `.test(before)` — 34/34 still green pre-fix-commit
+  test file; production code is CORRECT (reads the right view), but no test pinned it with a
+  backticked token, so the exact same silent-drop bug class as the fixed one was reintroducible
+  invisibly.
+- `TRIGGER_AFTER_RE.test(afterForExclusion)` → `.test(after)` (the BARE_START cancellation) — same
+  gap, opposite failure mode: makes a backticked *content digest* wrongly resolve as a citation
+  (false block, not a silent drop).
+- `PAREN_BEFORE_RE`/`PAREN_AFTER_RE` dropping their built-in optional-backtick (`` `? ``) — these two
+  don't use the stripped views at all (the regex itself tolerates the backtick), so this is a
+  different code shape from the other three but the same test gap.
+- `BARE_START_RE` dropping its built-in optional-backtick — same shape as PAREN.
+
+Each mutation was applied singly, confirmed to isolate to exactly its intended new test (`grep -n
+"not ok\|✖ [a-z]"` on the TAP output — no other test moved), then reverted (`git checkout --`) before
+the next. Four tests added, grouped near their non-backticked siblings, each carrying a comment
+naming the exact mutation it catches. Suite total moves every cycle — derive it (`grep -c '^test(' <file>`), do not quote one here, `check-commit-claims.test.mjs`.
+
+General lesson: for any function with N positional rules reading M distinct text views (raw vs.
+normalized), a regression fix to one (rule, view) pair earns exactly one test for that pair — sweep
+the other N-1 rules against the same view-mismatch shape before calling the coverage gap closed.

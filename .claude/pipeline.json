@@ -61,7 +61,7 @@
 
   "hooks": {
     "pre-commit": ["biome-check", "soft-delete-guard", "test-title-leakage", "type-check"],
-    "commit-msg": ["commitlint"],
+    "commit-msg": ["claim-check", "commitlint"],
     "post-commit": ["agent-reminder"],
     "pre-push": ["audit", "security-auditor"]
   },

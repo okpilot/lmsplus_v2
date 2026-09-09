@@ -3,7 +3,7 @@
 # ============================================================================
 #
 # Layer 1: pre-commit  — BLOCKING — catches broken code before git history
-# Layer 2: commit-msg  — BLOCKING — enforces conventional commits
+# Layer 2: commit-msg  — BLOCKING — conventional commits + cited SHAs must resolve
 # Layer 3: pre-push    — BLOCKING — security gate (final defense)
 #
 # NOTE: Code review, doc updates, and test writing are NOT here.
@@ -41,6 +41,9 @@ commit-msg:
   commands:
     commitlint:
       run: npx commitlint --edit "{1}"
+    # Block a message citing a commit SHA that does not resolve (code-style.md §10 cl.6).
+    claim-check:
+      run: node .claude/hooks/check-commit-claims.mjs "{1}"
 
 post-commit:
   commands:
