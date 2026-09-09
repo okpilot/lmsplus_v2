@@ -339,10 +339,16 @@ function main(args) {
   const whole = evaluate(all, read, limits)
   const stale = staleBaselineEntries(whole.liveViolators, limits)
 
-  // In staged mode only the passed files can BLOCK — a commit is not failed by a file
-  // it did not touch. Paths not tracked by git are ignored (see the header).
-  const scoped = args.length > 0 ? all.filter((f) => args.includes(f)) : all
-  const { regressions } = evaluate(scoped, read, limits)
+  // In staged mode only the passed files can block a VIOLATION — a commit is not failed by a
+  // violation in a file it did not touch. Paths not tracked by git are ignored (see the header).
+  // Stale baseline rows are NOT scoped: they are computed whole-tree and block regardless, below.
+  // The comment previously claimed the whole run was scoped, which the stale branch contradicts.
+  //
+  // Filtered from the whole-tree pass rather than re-evaluated: `evaluate` is per-file with no
+  // cross-file state, so a second pass only re-reads every tracked file. Keyed on `files`, not
+  // `args` — post-flag-parse, so a flag can never be mistaken for a path.
+  const regressions =
+    files.length > 0 ? whole.regressions.filter((r) => files.includes(r.file)) : whole.regressions
 
   if (stale.length > 0) {
     const plural = stale.length === 1 ? 'y' : 'ies'

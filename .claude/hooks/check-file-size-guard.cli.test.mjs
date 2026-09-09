@@ -25,23 +25,6 @@ import { test } from 'node:test'
 
 const LIMITS = JSON.parse(readFileSync('.claude/limits.json', 'utf8'))
 
-/** A minimal limits object so unit cases do not depend on the live baseline. */
-const _fixture = (over = {}) => ({
-  rules: [
-    { kind: 'test file', glob: '**/*.test.*', max: 500 },
-    { kind: 'SQL migration', glob: 'supabase/migrations/**/*.sql', max: 300 },
-    { kind: 'page file', glob: '**/page.tsx', max: 80 },
-    { kind: 'hook', glob: '**/use-*.ts', max: 80 },
-    { kind: 'Server Action file', glob: '**/*.ts', max: 100, requiresUseServer: true },
-    { kind: 'React component', glob: '**/*.tsx', max: 150 },
-    { kind: 'utility/helper', glob: '**/*.ts', max: 200 },
-  ],
-  excludeBasenamePatterns: ['\\.config\\.[jt]sx?$'],
-  excludeGlobs: ['scripts/**', 'packages/db/src/types.ts'],
-  baseline: {},
-  ...over,
-})
-
 const lines = (n) => `${'x\n'.repeat(n)}`
 
 // ----------------------------------------------------------------- fail closed

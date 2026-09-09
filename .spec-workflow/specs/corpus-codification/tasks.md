@@ -29,7 +29,7 @@
 - [x] Decision 65 recorded
       Five commits, `7ca1f522`..`0cc1a4bb`. No counts stated here — this block already went
       stale once by being written at commit 2 of 5 (§10 cl.7). Derive: `git log --oneline
-      origin/master..HEAD`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
+      7ca1f522^..0cc1a4bb`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
       `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
@@ -48,6 +48,67 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
       dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
       stating a number. Do not keep asserting an unverifiable count.
+- [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
+      User directive 2026-09-09: correcting prose that has gone stale is the single largest
+      ongoing cost — "three weeks of correcting prose only because of this". Widened the same day
+      from values-only to paths and enumerations: "fix it as hard as we can".
+
+      **Why a check and not a rule — the archaeology, since a wrong citation here would be this
+      very defect.** `code-style.md` §1's "Never restate a number here" was introduced in
+      `7ca1f522` — and BROKEN IN THAT SAME COMMIT, which hardcoded cap literals into the guard
+      and its tests. They were swept out of six files in `54fb4c6b`, whose own message records
+      that the sweep REINTRODUCED the identical defect twice, inside the comment being used to
+      remove it. A separate rule, §10 cl.7 ("recompute any count as the last authoring step"),
+      was authored later in `63c2356d` and had its own breakage: the spec's Slice-1 block written
+      at commit 2 of 5, corrected in `f50619c1`.
+      Four instances, two rules, one session, all by the author while actively trying to comply —
+      and the first was violated by the diff that created it. A rule the person who just wrote it
+      cannot follow in the same commit is not a rule.
+      (This paragraph originally cited §10 cl.7 for the six-file sweep. Wrong rule — caught by
+      implementation-critic running `git log -S` on both rule texts. A false citation inside the
+      entry proposing a guard against false citations; left recorded rather than quietly fixed,
+      because it is the strongest evidence in the entry.)
+
+      **The governing distinction, which is what makes this tractable:**
+      prose stating WHAT goes stale; prose stating WHY does not. Every failure in this slice was
+      a WHAT — a number, a filename, a count, a commit range. Nothing that stated a REASON went
+      stale. The guard therefore targets WHAT-claims only and must never touch rationale prose.
+
+      **Architecture: the file-size ratchet, applied to prose.** Same shape, already proven —
+      `.claude/prose-claims.json` holds the baseline, the guard blocks a NEW bad claim, and the
+      frozen list may only shrink. This is what converts an unbounded backlog into a finite one.
+      Diff-scoped alone is not enough: it stops the bleeding but leaves the existing prose
+      unmeasured, so nobody ever knows how much is wrong.
+
+      **Three detectors, each independently mutation-pinned:**
+      1. **VALUE** — a canonical value (`limits.json` `rules[].max`; later any registered source)
+         restated in prose in a matching context ("N lines", "N-line", "cap ... N").
+         Allow: the canonical file, a mirror a test pins, and data lines — the ban is on PROSE.
+      2. **PATH** — a file path written in prose that does not resolve on disk. The strongest
+         detector: a path either exists or it does not, so there is no judgment and no LLM.
+         Would have caught the `check-file-size-guard.test.mjs` misattribution three times in
+         this slice, instantly. Needs care for globs, patterns, and paths naming things that do
+         not exist yet.
+      3. **ENUMERATION** — "all ten", "the eight", "both", "three of", "N of M". Flags the
+         PATTERN and demands either a derivation command in the same block or an explicit as-of
+         date, which is `code-style.md` §10 cl.2 made mechanical. Highest false-positive rate of
+         the three; ship it last and behind its own baseline.
+
+      **The escape hatch must COST something.** An inline marker requiring a written reason, not
+      a silent disable — visible in the diff, greppable, and auditable by `/insights`. A free
+      suppression is used reflexively and the guard dies.
+
+      **Honest bounds, stated because understating them would be this very defect:**
+      it catches a path that does not resolve, NOT a path that resolves while the claim about it
+      is false. It catches a count-shaped phrase, NOT whether that set is genuinely open. It says
+      nothing about WHY-prose, deliberately. It reduces the class; it does not close it.
+
+      **Mutation checks owed:** a prose literal is caught · a data line is not · a pre-existing
+      baselined claim does not block · a new bad path is caught · a glob is not flagged as a
+      missing path · an enumeration with a derivation beside it passes · one without does not ·
+      the guard fails CLOSED when its config or the canonical source is unreadable · the baseline
+      cannot grow silently.
+
 - [ ] R1: every `*.test.*` under `.claude/hooks/` is referenced in `ci.yml`. Currently a
       COMMENT telling a human to run `find`; has already failed once (3 unwired files until
       2026-09-02). Measured 2026-09-09: 10/10 wired, so it lands clean, no baseline needed.

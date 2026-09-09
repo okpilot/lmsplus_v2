@@ -138,7 +138,8 @@ All checks passed. Good commit.
 Update `.claude/agent-memory/code-reviewer/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
 - Log recurring violations (e.g., "page files consistently contain data fetching logic")
 - Track which rules are violated most often
-- Note files that are approaching limits (might need refactoring soon)
+- Note watch items worth refactoring soon. NOT file-size headroom — you no longer count
+  lines; that is `node .claude/hooks/check-file-size-guard.mjs --stats`.
 - Record positive patterns worth preserving (e.g., "quiz session components are well-structured")
 
 Use this memory to give better advice over time and to flag files at risk before they become a problem.

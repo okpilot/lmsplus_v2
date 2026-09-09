@@ -1,7 +1,7 @@
 # Corpus Codification — Requirements
 
 > Status: IN PROGRESS. Slice 1 complete — five commits, `7ca1f522`..`0cc1a4bb`
-> (derive: `git log --oneline origin/master..HEAD`). This spec is the source of
+> (derive: `git log --oneline 7ca1f522^..0cc1a4bb`). This spec is the source of
 > truth for the programme; chat history is not. Started 2026-09-07, scoped 2026-09-09.
 
 ## The problem, measured

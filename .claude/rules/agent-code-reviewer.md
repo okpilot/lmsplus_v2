@@ -18,7 +18,9 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 - Read every finding, even warnings — they signal drift before it becomes blocking.
 - Fix all BLOCKING findings before any other work continues.
 - Group BLOCKING fixes into a single commit when they're in the same file.
-- Note watch items (files approaching limits) in the summary to the user.
+- Note watch items in the summary to the user. File-size headroom is NOT the reviewer's to
+  count — it no longer counts lines at all; derive it with
+  `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ### NEVER
 - Dismiss a BLOCKING finding. It must be fixed, no exceptions.

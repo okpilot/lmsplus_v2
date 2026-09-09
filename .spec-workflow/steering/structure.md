@@ -384,7 +384,9 @@ Forward-only, timestamped SQL files. Never modify an existing migration. Always 
 
 The caps are DATA in `.claude/limits.json`, enforced by
 `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI. No number is restated here.
-It is a ratchet: a new over-limit file fails, and so does a grandfathered one that grows.
+It is a ratchet: a new over-limit file fails, and so does a grandfathered one whose recorded
+size CHANGES — in either direction. The shrink half is what stops a baselined path absorbing
+unrelated content silently.
 
 ### Function size limits
 

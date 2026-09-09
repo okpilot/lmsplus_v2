@@ -24,10 +24,11 @@ CONFIRM IT at the next restart. **CONFIRMED 2026-09-09, and the discriminator is
 section used to prescribe — "a tracker that stops updating" — never discriminated: every agent also
 holds `Bash`, so a memory write cannot be attributed to the auto-grant rather than a shell redirect,
 and a quiet tracker is indistinguishable from an agent with nothing to record. Compare instead the
-session's agent roster against the `tools:` frontmatter. All ten definitions declare
-`Read, Glob, Grep, Bash` (test-writer alone adds `Write, Edit`), yet the roster shows `Write, Edit`
-for exactly the eight carrying `memory: project` — and NOT for `coderabbit-sync` and
-`security-auditor`, the only two with no `memory:` key. Perfect correlation, no Bash ambiguity: the
+session's agent roster against the `tools:` frontmatter. Derive both sides rather than counting
+them — `.claude/agents/` gains members:
+`grep -l '^memory: project' .claude/agents/*.md` and `grep -n '^tools:' .claude/agents/*.md`.
+Every definition declaring `memory: project` shows `Write, Edit` in the roster even where its
+frontmatter omits them; every definition with no `memory:` key does not. No Bash ambiguity: the
 memory declaration is what adds the tools. Observed alongside it, `code-reviewer` — no Write/Edit in
 its frontmatter — wrote its own memory directory and nothing else during a post-commit cycle.
 Do not "restore" Write to a read-only agent on the theory that its tracker is
@@ -78,7 +79,7 @@ When new knowledge arrives, **edit the existing row/bullet** so the file stays s
 
 ```markdown
 ✅ CORRECT — update the existing tracker row in place
-| Hook file over its line limit | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |
+| Server Action file over its cap | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |
 
 ❌ WRONG — appending a dated journal entry every session
 ## 2026-05-29 session
