@@ -1792,3 +1792,69 @@ promotion that lacks drafted text; propose in the next PR touching that file: "A
 over a guard/validator with multiple classification branches must mutate EACH branch's output
 independently (not just the branch most recently touched), and the report must name which branches
 were exercised." Route to a future PR — not this branch, which is at its 3-commit fixup ceiling.
+
+### Continuation — commits `4cebe91c`/`ade3f05f` (2026-09-09), plus CR-local round 1
+
+13. **`4cebe91c`: the new `check-commit-claims.test.mjs` was the only hook test on disk absent from
+    `.github/workflows/ci.yml`'s enumeration — while `ci.yml` already carried a comment naming this
+    exact failure mode plus the enumeration command to prevent it.** Same dominant pattern as 3-12: a
+    fix trusted without checking it against an EXISTING sibling safeguard the repo itself provides.
+    Folded into row 42's per-branch count (31→32).
+14. **`4cebe91c`: five previously-unreported silent-drop positions in the guard, confirmed by
+    EXECUTING `extractRefs`** — the enumeration-fragility shape (findings 6-7) recurring a third time
+    in the same file. Treated as ONE further row-42 instance, not five: same underlying enumeration
+    gap rediscovered, not five independent mechanisms.
+15. **`4cebe91c`: a "Known uncovered position" doc section stated the set was singular; the real set
+    was larger.** Same shape as finding 9's "Two known limits" (an enumeration of a structurally open
+    or under-counted set). Folded into row 42 (→33, with 14 above).
+16. **`4cebe91c`: doc-updater proposed 2 edits, both wrong on the merits, and mis-cited a decision
+    header date by echoing the ILLUSTRATIVE EXAMPLE given in its own dispatch prompt rather than
+    reading the file.** A new sub-mechanism, not previously tracked: an agent's dispatch-prompt
+    example text leaking into its own output as if it were a real citation. The agent DID look — but
+    at the wrong source (its own prompt scaffolding) — which is why it is distinct from row 68
+    (asserting a verification never performed at all). Logged as its own WATCHING row, count=1.
+17. **`4cebe91c`: test-writer found 7 MORE mutation-blind mechanisms in the same guard** (deleting
+    each left the suite green); `ade3f05f`'s cycle found an 8th (interior-whitespace tolerance in two
+    paren regexes). Both fold into "Mutation-check executed but doesn't falsify the claim" as
+    reinforcing volume on the SAME branch/file (row moved 3→4) — the drafted `test-writer.md` §
+    Mutation-check addendum above is now overdue given how much evidence has accumulated on one file.
+18. **CR-local round 1 (3 findings, all verified against source before triage, all APPLIED):**
+    `docs/decisions.md` L1538 and L1589 — 2 more instances of row 69 (internally-contradictory
+    arithmetic within one document; L1538's "never fires on a true claim" contradicted its own
+    entry's UNMEASURED-precision section, L1589 carried two different stale tallies for the same
+    fact) — now 16th-17th; plus 5 hardcoded `34/34`-style suite-count lines in
+    `check-commit-claims.test.mjs`, stale against the grown suite (row "Claim-correction commit
+    updates a count...", 7th instance, and a THIRD branch for that row's cross-branch tracking,
+    joining the 2026-08-08 branch and `chore/run-log-1242-merged`).
+
+### Reassessed 2026-09-09: a narrow checkable SUBSET of "fix introduces a fresh instance" now exists
+
+The "no shared syntactic shape" verdict two sections up stands for the GENERAL class — finding 11
+(mutation-coverage gap) and finding 6 (sibling-exclusion silent drop) still share no syntactic shape
+with each other or with a prose enumeration. But three more instances on this branch cluster on ONE
+shape specifically:
+
+- (a) `4cebe91c`→`33c8ff79` removed 5 hardcoded `N/N`-style suite-count literals from
+  `check-commit-claims.test.mjs` and simultaneously ADDED 6 more of the same shape — and CR-local
+  round 1 later found even those stale again (finding 18 above).
+- (b) The same drafting pass de-quantified one overclaim ("never fires on a true claim") while ADDING
+  a fresh one ("one per revision, without exception") — finding 65's 4th instance and this branch's
+  own three-way-measurement finding are siblings of this shape.
+- (c) A `docs/decisions.md` bullet fixing a false claim overcorrected into a different false one
+  ("neither SHA is checked" against a real, position-dependent behaviour).
+
+All three are a DIFF that DELETES a line matching an absolute-quantifier-or-hardcoded-count regex
+class (`\b(all|every|never|always|only|none|exactly)\b`, or a bare `\d+\s*(/|of)\s*\d+` ratio) and
+ADDS a line matching the SAME class, in the same file, in the same commit. That pairing IS
+mechanically detectable — not as a truth-checker (a mechanical check cannot know whether the NEW
+claim is correct), but as a MANDATORY-reverify flag: a non-blocking check that scans a commit's diff
+per file and WARNs whenever a removed line and an added line both match the regex class above.
+
+**Proposed text** (for `code-style.md` §10 clause 3, pending orchestrator review — not yet applied):
+widen "a partial comment edit is the tell — grep the retracted phrase repo-wide" to also grep the
+retracted phrase's REGEX CLASS (absolute quantifiers, hardcoded ratios/counts), not only its exact
+text — so a REWORDED recurrence of the same rot-shape is caught, not only a verbatim repeat. This
+does not close the general mechanical-checkability question (findings 6 and 11 remain genuinely
+semantic, no shared shape), but it converts three-plus recurrences of one specific shape into
+something a hook or a review-prompt checklist item can flag without human judgment about truth —
+only about whether the shape recurred.

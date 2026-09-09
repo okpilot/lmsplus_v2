@@ -1013,10 +1013,13 @@ it is what the next reader trusts when deciding whether a guard can safely be re
 6. **A commit message may not cite a SHA that does not resolve.** Mechanically enforced at
    `commit-msg` by `.claude/hooks/check-commit-claims.mjs`: a hex token in commit-reference
    position must resolve via `git rev-parse --verify` — no `--quiet`, which collapses an
-   AMBIGUOUS prefix and an ABSENT one into the same exit-1-empty-stderr signature. **Its bound,
-   stated because understating it would be this very defect:** it proves the commit EXISTS, never
+   AMBIGUOUS prefix and an ABSENT one into the same exit-1-empty-stderr signature. **Its bounds,
+   stated because understating them would be this very defect:** it proves the commit EXISTS, never
    that the claim about it is true. It does not check counts, or whether a self-reported
-   verification happened. A commit-message claim of either kind is still yours to derive.
+   verification happened. A commit-message claim of either kind is still yours to derive. And
+   detection is PARTIAL: uncovered positions exit 0 on a fabricated SHA, so a green gate is not
+   evidence that every cited SHA was checked. Derive the current set by replaying real messages
+   through `extractRefs` (`docs/decisions.md` Decision 64), never from a list.
    The commit-context WORD LIST is an OPEN set — read `TRIGGER_WORDS` in the hook rather than a
    copy here, which goes stale the first time one is added (clause 2). The positions themselves are
    fixed by the code's structure; read `extractRefs` for them.

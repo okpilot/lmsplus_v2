@@ -48,9 +48,9 @@ test('extractRefs finds a bare line-start ref in a list item', () => {
 test('extractRefs finds a BACKTICKED line-start ref in a list item', () => {
   // Mutation-blind before this test: BARE_START_RE tolerates an optional trailing backtick
   // via `\`?` built into the regex itself (not a stripped view). Dropping that `\`?` left
-  // the then-current suite fully green and silently dropped this citation. Same bug class as
-  // 371bfe49's fix,
-  // sibling to the other three backtick-view tests grouped after the possessive fix below.
+  // the then-current suite fully green and silently dropped this citation. Same bug class as the
+  // backticked-possessive fix, sibling to the other three backtick-view tests grouped after it
+  // below.
   const refs = extractRefs('Summary:\n- `d4e5f6a7` fixes the timeout\n- unrelated line\n')
   assert.deepEqual(refs, ['d4e5f6a7'])
 })
@@ -227,12 +227,12 @@ test('extractRefs finds a BACKTICKED possessive ref', () => {
   assert.deepEqual(extractRefs("See `3a50780a`'s message for context."), ['3a50780a'])
 })
 
-// Sweep of the sibling positions for the SAME bug class the possessive fix (371bfe49)
+// Sweep of the sibling positions for the SAME bug class the backticked-possessive fix
 // closed: does the rule read the backtick-stripped view? Each of these four is currently
 // correct in extractRefs — but each was, before this test existed, a MUTATION-BLIND
 // silent drop: reverting the rule's view to the raw (unstripped) `before`/`after` left
 // all pre-existing tests green, because none of them wrapped the citation in backticks
-// at THIS position. Verified by mutation against 371bfe49 in a scratch worktree
+// at THIS position. Verified by mutation against that fix in a scratch worktree
 // (`beforeForTrigger`→`before`, `afterForExclusion`→`after` in the TRIGGER_AFTER
 // cancellation, and dropping the optional backtick from PAREN_BEFORE_RE/PAREN_AFTER_RE
 // and from BARE_START_RE) — each mutation left the then-current suite green and each produced a
