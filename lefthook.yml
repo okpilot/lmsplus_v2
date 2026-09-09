@@ -13,7 +13,11 @@
 # ============================================================================
 
 pre-commit:
-  parallel: true
+  # NOT parallel: `biome-check` runs with `stage_fixed: true`, so it rewrites and restages files
+  # while other commands run. `check-file-size-guard.mjs` reads the WORKING TREE, so in parallel
+  # it can count pre-format content — and its ratchet is exact-match, where a one-line difference
+  # is a failure. The stage is sub-second serially; correctness wins over the saving.
+  parallel: false
   commands:
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,mjs,cjs}"
@@ -32,7 +36,11 @@ pre-commit:
     # The glob must include `sql` — the migration limit is one of the two riskiest
     # categories, and a migration-only commit would otherwise never trigger the guard.
     file-size-guard:
-      glob: "*.{ts,tsx,sql}"
+      # `mjs` is load-bearing: limits.json caps test files by BASENAME, so the extension is
+      # an open set — and every commit of the slice that introduced this guard logged
+      # "file-size-guard (skip) no files for inspection", because its own files are .mjs. The
+      # guard existed and was inert at pre-commit for exactly the files it capped.
+      glob: "*.{ts,tsx,sql,mjs}"
       run: node .claude/hooks/check-file-size-guard.mjs {staged_files}
     # Forbid impl-detail leakage in NEWLY-added it()/test() titles (code-style.md §7, #946).
     # Diff-scoped + grandfathered: the script reads `git diff --cached` and checks only

@@ -17,12 +17,12 @@
       it is an open set (`code-style.md` §10 cl.2) and this line already went stale once —
       derive with `node --test .claude/hooks/check-file-size-guard.*.test.mjs`.
 - [x] Ten prose copies → one source + one test-pinned mirror; 2 live drift bugs fixed (a
-      fabricated "any file: max 300 lines" rule, and a suppression raising the Server Action cap
-      100→120 inside the enforcing agent)
+      invented blanket any-file rule that exists nowhere, and a suppression quietly raising the
+      Server Action cap inside the enforcing agent)
 - [x] Ratchet with a visible, shrink-only baseline; every mechanism mutation-pinned
 - [x] FIVE holes closed, each reproduced as a working exploit and re-run against the fix:
       same-path content swap · a committed dangling symlink permanently unreadable · a rename
-      out of the rule class (`foo.ts` → `foo.test.ts`, 100-cap → 500-cap) · `chmod 000` on one
+      out of the rule class (`foo.ts` → `foo.test.ts`, action cap → test cap) · `chmod 000` on one
       directory hiding nine baselined violators and reporting them RESOLVED · a file named
       `--stats` in argv turning an enforcement run into exit 0
 - [x] `--stats` and `--update-baseline` shipped; §10 clause 7 promoted and mirrored

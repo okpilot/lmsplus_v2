@@ -1,13 +1,13 @@
 // Tests for the file-size guard's MODE FLAGS — `--stats` and `--update-baseline`. Run:
 //   node --test .claude/hooks/check-file-size-guard.update.test.mjs
 //
-// A THIRD file, split from the unit suite when it reached the 500-line test cap this very
+// A THIRD file, split from the unit suite when it reached the test-file cap this very
 // guard enforces — twice in one session. Grandfathering a file written minutes earlier is the
 // "widen the rule to fit my own code" move the programme exists to stop, and trimming a comment
 // to squeak under is the same move in costume. The split is by concern: in-process unit tests,
 // subprocess enforcement tests, and this — the one code path that WRITES to the data file the
 // guard is judged against, which is why it is worth isolating. The `--stats` cases moved here
-// from the CLI suite when that file reached 497 of its 500-line cap: three lines of headroom
+// from the CLI suite when that file came within a few lines of its cap: that little headroom
 // is a trap for whoever adds the next test, and this file is where the non-enforcing modes
 // belong anyway.
 //

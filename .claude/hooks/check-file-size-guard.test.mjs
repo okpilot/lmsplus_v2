@@ -1,6 +1,6 @@
-// Unit tests for the file-size guard — mostly in-process, no subprocess, no real tree. A small
-// `--update-baseline` section near the end IS CLI-driven: that function is a `main()`-local
-// helper, not exported, so pinning its branches needs a real subprocess against a throwaway repo.
+// Unit tests for the file-size guard — in-process only, no subprocess, no real tree. The CLI and
+// mode-flag paths live in check-file-size-guard.cli.test.mjs and check-file-size-guard.update.test.mjs,
+// because `main()` and its local helpers are not exported.
 // Run:
 //   node --test .claude/hooks/check-file-size-guard.test.mjs
 //
@@ -48,7 +48,7 @@ const lines = (n) => `${'x\n'.repeat(n)}`
 
 test('counts a newline-terminated file the way wc -l does', () => {
   // MUTATION: return parts.length unconditionally → 101 here, and the real
-  // batch-submit.ts (exactly 100 against a limit of 100) starts failing.
+  // batch-submit.ts (which sits exactly at its cap) starts failing.
   assert.equal(countLines('a\nb\nc\n'), 3)
   assert.equal(countLines(lines(100)), 100)
 })
@@ -146,7 +146,7 @@ test('the live limits file excludes both script directories and generated types'
 
 test('the live limits file orders the Server Action rule ahead of the util rule', () => {
   // Also added after mutation testing: moving the util rule to the front of
-  // limits.json.rules silently doubled the Server Action cap from 100 to 200 with every
+  // limits.json.rules silently loosened the Server Action cap to the utility one with every
   // test still green, for the same fixture-vs-config reason. Rule ORDER is load-bearing
   // — first match wins — so it has to be pinned against the real file.
   const action = classify('apps/web/app/a/actions/x.ts', "'use server'\nconst a = 1\n", LIMITS)
@@ -165,7 +165,7 @@ test('the live limits file orders the Server Action rule ahead of the util rule'
 
 test('a .ts declaring use server takes the 100 limit, not the 200 util limit', () => {
   // MUTATION: move the util rule above the Server Action rule in limits.json → a real
-  // Server Action is graded at 200 and the cap silently doubles.
+  // Server Action is graded against the utility rule and its cap silently loosens.
   const r = classify('apps/web/app/a/actions/x.ts', "'use server'\n", fixture())
   assert.equal(r.kind, 'Server Action file')
   assert.equal(r.max, 100)
@@ -194,7 +194,7 @@ test('page.tsx takes the 80 limit ahead of the 150 component limit', () => {
 })
 
 test('an uppercase extension is still matched, not silently unclassified', () => {
-  // MUTATION: drop the 'i' flag from globToRe → a 300-line `Weird.TSX` matches NO rule
+  // MUTATION: drop the 'i' flag from globToRe → an over-limit `Weird.TSX` matches NO rule
   // and passes clean. Found by implementation-critic as a 17th surviving mutation.
   const r = classify('apps/web/components/ui/Weird.TSX', '', fixture())
   assert.notEqual(r, null)

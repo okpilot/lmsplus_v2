@@ -34,9 +34,7 @@ The agent definition (`.claude/agents/code-reviewer.md`) carries a `## DO NOT (e
 - Hydration guard `useEffect` (not data fetching)
 - 4-param infrastructure utilities (documented JSDoc exception)
 - Duplicate types under 3 instances
-- Agent memory file formatting
 - React render/return bodies 30–35 lines (pure JSX composition — see code-style.md §3)
-- `scripts/` directory exclusion
 
 ---
 

@@ -1,5 +1,5 @@
 // CLI + live-tree tests for the file-size guard. Split out of the unit suite when the
-// combined file crossed the 500-line test-file cap that this very guard enforces —
+// combined file crossed the test-file cap that this very guard enforces —
 // baselining it would have been the "widen the rule to fit my own code" move the
 // programme exists to stop. Run:
 //   node --test .claude/hooks/check-file-size-guard.cli.test.mjs
@@ -269,29 +269,60 @@ test('an unreadable path blocks the commit only when it is among the staged argu
 
 // ------------------------------------------- the .coderabbit.yaml pinned mirror
 
-test('.coderabbit.yaml carries the same limits as limits.json', () => {
-  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so
-  // explicitly — so its copy of the numbers is KEPT and verified here rather than
-  // deleted. This is the second codification move: PIN a copy the consumer cannot
-  // dereference, instead of DELETING it. Without this test the two drift, which is
-  // exactly what happened to the eight prose copies this slice replaced.
-  const yaml = readFileSync('.coderabbit.yaml', 'utf8')
-  const inYaml = new Set([...yaml.matchAll(/Max (\d+) lines/g)].map((m) => Number(m[1])))
-  const inJson = new Set(LIMITS.rules.map((r) => r.max))
+test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () => {
+  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so — so its
+  // copy of the numbers is KEPT and verified here rather than deleted. This is the second
+  // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
+  //
+  // MUTATION: compare the two as SETS of numbers instead of per-kind pairs → red. The set form
+  // was the original and it was VACUOUS for the mutation that matters: swapping the page cap
+  // with the component cap leaves both sets identical, so the mirror could state the two kinds
+  // reversed and the test still passed. Proven by executing that swap.
+  const yaml = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
 
-  for (const n of inJson) {
-    assert.ok(inYaml.has(n), `limits.json declares ${n} but .coderabbit.yaml never states it`)
+  // Each .coderabbit.yaml path block, and the limits.json rule KIND it mirrors. The YAML paths
+  // are deliberately narrower than limits.json's globs (CodeRabbit reviews app-layer code, not
+  // every file on disk) — so the mapping is stated, not inferred from the glob text.
+  const MIRRORED = [
+    ['apps/web/app/**/page.tsx', 'page file'],
+    ['apps/web/app/**/_components/*.tsx', 'React component'],
+    ['apps/web/app/**/actions.ts', 'Server Action file'],
+    ['apps/web/app/**/_hooks/use-*.ts', 'hook'],
+    ['packages/db/src/**/*.ts', 'utility/helper'],
+    ['supabase/migrations/**/*.sql', 'SQL migration'],
+    ['**/*.test.{ts,tsx}', 'test file'],
+  ]
+
+  /** The `Max N lines` stated inside one `- path:` block, or null. */
+  const capFor = (path) => {
+    const i = yaml.findIndex((l) => l.trim() === `- path: "${path}"`)
+    assert.notEqual(i, -1, `.coderabbit.yaml has no block for ${path}`)
+    for (let j = i + 1; j < yaml.length && !/^\s*- path: "/.test(yaml[j]); j++) {
+      const m = yaml[j].match(/Max (\d+) lines/)
+      if (m) return Number(m[1])
+    }
+    return null
   }
-  for (const n of inYaml) {
-    assert.ok(inJson.has(n), `.coderabbit.yaml states ${n}, which is not a limit in limits.json`)
+
+  for (const [path, kind] of MIRRORED) {
+    const rule = LIMITS.rules.find((r) => r.kind === kind)
+    assert.ok(rule, `limits.json has no rule of kind ${kind}`)
+    assert.equal(capFor(path), rule.max, `${path} must mirror the ${kind} cap`)
+  }
+
+  // and no cap in the YAML that limits.json does not declare at all
+  const declared = new Set(LIMITS.rules.map((r) => r.max))
+  for (const l of yaml) {
+    const m = l.match(/Max (\d+) lines/)
+    if (m) assert.ok(declared.has(Number(m[1])), `.coderabbit.yaml states ${m[1]}, not a limit`)
   }
 })
 
 test('renaming a grandfathered file out of its rule class is blocked, not silently allowed', () => {
   // MUTATION: make a stale baseline entry advisory again (`return 0` when only stale rows
-  // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a 103-line
-  // Server Action from the 100-line cap to the 500-line test cap, `use-x.ts` -> `x.ts` moves
-  // a hook from 80 to 200, and `.config.` removes it from scope entirely. Classification is
+  // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a Server Action
+  // onto the far looser test-file rule, `use-x.ts` -> `x.ts` moves a hook onto the utility
+  // rule, and a `.config.` infix removes it from scope entirely. Classification is
   // derived from the PATH, and the baseline is keyed on the PATH, so the only trace was the
   // old entry going stale — which read as "resolved". Reproduced end to end before the fix.
   const repo = mkdtempSync(join(tmpdir(), 'file-size-rename-'))
@@ -327,7 +358,7 @@ test('renaming a grandfathered file out of its rule class is blocked, not silent
       })
     assert.equal(run().status, 0, 'the grandfathered file at its recorded size must pass')
 
-    // the escape: same content, new name, now graded at the 500 test cap
+    // the escape: same content, new name, now graded against the test-file rule
     execFileSync('git', ['mv', 'src/big.ts', 'src/big.test.ts'], { cwd: repo })
     execFileSync('git', ['add', '-A'], { cwd: repo })
     const after = run()

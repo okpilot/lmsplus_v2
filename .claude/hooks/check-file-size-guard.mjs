@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Mechanical guard for the file-size limits that used to live as prose in
 // `.claude/rules/code-style.md` §1 — and in eight other hand-maintained copies, two of
-// which had already drifted (a fabricated "any file: max 300 lines" rule, and a
-// suppression quietly raising the Server Action cap from 100 to 120).
+// which had already drifted: one invented a blanket any-file rule that exists nowhere, and
+// one suppression quietly raised the Server Action cap inside the enforcing agent.
 //
 // The limits, exclusions and grandfathered baseline are DATA in `.claude/limits.json`;
 // this file is only the mechanism.
@@ -47,10 +47,9 @@ const KNOWN_FLAGS = new Set(['--stats', '--update-baseline'])
  * formatter enforces a final newline. Differs ONLY for a file lacking a trailing
  * newline, where this counts the final partial line and `wc -l` does not.
  *
- * Load-bearing, not a detail: `apps/web/app/app/quiz/actions/batch-submit.ts` sits at
- * EXACTLY 100 against a limit of 100. A naive `split('\n').length` reports 101 and
- * fails it; this reports 100 and passes it. Two reasonable implementations disagree
- * about a real file in this repo today.
+ * Load-bearing, not a detail: `apps/web/app/app/quiz/actions/batch-submit.ts` sits EXACTLY
+ * at its cap. A naive `split('\n').length` counts one line more and fails it; this passes
+ * it. Two reasonable implementations disagree about a real file in this repo today.
  */
 export function countLines(content) {
   if (content === '') return 0
@@ -98,7 +97,7 @@ export function globToRe(glob) {
     out += SPECIAL.test(c) ? `\\${c}` : c
     i += 1
   }
-  // Case-insensitive: a 300-line `Weird.TSX` matched no rule at all and passed clean.
+  // Case-insensitive: an over-limit `Weird.TSX` matched no rule at all and passed clean.
   return new RegExp(`^${out}$`, 'i')
 }
 
@@ -127,8 +126,6 @@ export function classify(file, content, limits) {
  * @returns {{regressions: Array, liveViolators: Set<string>}}
  *   liveViolators = baselined paths that are STILL over their limit.
  */
-export { stats }
-
 export function evaluate(files, readFile, limits) {
   const baseline = limits.baseline ?? {}
   const regressions = []
@@ -217,7 +214,7 @@ function trackedFiles() {
  * worse: it carried a `KIND` placeholder and threw when run as written, so it LOOKED checkable
  * and was not. A flag cannot rot that way — it is executed by the same code that enforces.
  */
-function stats(limits, all, read) {
+export function stats(limits, all, read) {
   const byKind = new Map()
   for (const file of all) {
     let content
@@ -353,9 +350,9 @@ function main(args) {
     for (const p of stale) console.error(`  ${p}`)
     console.error('\n  These no longer describe a live violation. BLOCKING, not advisory: a file')
     console.error('  can leave its rule class by being RENAMED — `foo.ts` to `foo.test.ts` moves a')
-    console.error('  Server Action from the 100-line cap to the 500-line test cap, and `use-x.ts`')
-    console.error('  to `x.ts` moves a hook from 80 to 200 — and the only trace is this entry')
-    console.error('  going stale, which reads as "resolved". Prune it deliberately, or restore')
+    console.error('  Server Action onto the test-file rule, `use-x.ts` to `x.ts` moves a hook onto')
+    console.error('  the utility rule — and the only trace is this entry going stale, which reads')
+    console.error('  as "resolved". Prune it deliberately, or restore')
     console.error(`  the file: \`node ${GUARD} --update-baseline\` writes the change for review.`)
   }
 

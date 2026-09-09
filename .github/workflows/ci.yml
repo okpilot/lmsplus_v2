@@ -59,8 +59,8 @@ jobs:
       - name: File-size guard — unit test
         run: node --test .claude/hooks/check-file-size-guard.test.mjs
 
-      # Split from the unit suite when the combined file crossed the 500-line test-file
-      # cap this guard enforces. A test file nothing runs certifies its mechanism
+      # Split from the unit suite when the combined file crossed the test-file cap this
+      # guard enforces. A test file nothing runs certifies its mechanism
       # unconditionally, so the split needs its own step, not just its own file.
       - name: File-size guard — CLI and live-tree tests
         run: node --test .claude/hooks/check-file-size-guard.cli.test.mjs
