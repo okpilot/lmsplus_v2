@@ -1584,6 +1584,14 @@ EXISTS, never that the claim about it is true. Row 42 therefore stays RULE CANDI
 recent instances are behavioural mischaracterisations no such check can see. Row 40 and row 58 are
 untouched.
 
+**Known uncovered position, accepted deliberately.** Only the FIRST SHA of a multi-SHA
+parenthetical is checked — `(<sha>, <sha>)` leaves the rest uncovered, so a fabricated SHA in that
+position exits 0. Closing it means widening both paren boundaries, and every regex widening on this
+branch introduced a fresh silent drop: five for five, three of them in the fix for the previous one.
+The gap fails SAFE (a missed check, never a false block), so it is documented rather than patched at
+the review ceiling. Reopen it only with the full behaviour matrix and a 700-message replay, which is
+what caught the last three.
+
 **Measured recall, UNMEASURED precision.** The 0-false-positive claim is against REAL history; it
 is not a claim about every shape an author could write. One is known and DISCLOSED rather than
 fixed: "bumped the digest from <hex> to <hex>" extracts both tokens, because each has a trigger word
