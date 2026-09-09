@@ -1,6 +1,7 @@
 // Unit tests for the file-size guard — in-process only, no subprocess, no real tree. The CLI and
-// mode-flag paths live in check-file-size-guard.cli.test.mjs and check-file-size-guard.update.test.mjs,
-// because `main()` and its local helpers are not exported.
+// mode-flag paths live in the sibling subprocess suites (`*.args`, `*.cli`, `*.update`), because
+// `main()` and its local helpers are not exported. Enumerate them rather than trusting this list:
+// `ls .claude/hooks/check-file-size-guard.*.test.mjs`.
 // Run:
 //   node --test .claude/hooks/check-file-size-guard.test.mjs
 //

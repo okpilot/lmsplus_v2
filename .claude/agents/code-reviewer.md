@@ -140,7 +140,8 @@ Update `.claude/agent-memory/code-reviewer/MEMORY.md` **in place** (per `.claude
 - Track which rules are violated most often
 - Note watch items worth refactoring soon. NOT file-size headroom — you no longer count
   lines. Per-rule compliance is `node .claude/hooks/check-file-size-guard.mjs --stats`;
-  a single file's headroom is `wc -l` against its cap in `.claude/limits.json`.
+  a single file's headroom is `wc -l` against its cap in `.claude/limits.json` — which agrees
+  with the guard except on a file lacking a trailing newline, where the guard counts one MORE.
 - Record positive patterns worth preserving (e.g., "quiz session components are well-structured")
 
 Use this memory to give better advice over time and to flag files at risk before they become a problem.

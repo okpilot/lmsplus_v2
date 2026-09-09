@@ -21,7 +21,9 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 - Note watch items in the summary to the user. File-size headroom is NOT the reviewer's to
   count — it no longer counts lines at all. For per-rule compliance run
   `node .claude/hooks/check-file-size-guard.mjs --stats`; for one file's headroom, `wc -l`
-  against that rule's cap in `.claude/limits.json`. `--stats` does NOT report headroom.
+  against that rule's cap in `.claude/limits.json` — which agrees with the guard except on a
+  file lacking a trailing newline, where the guard counts one MORE. `--stats` does NOT report
+  headroom.
 
 ### NEVER
 - Dismiss a BLOCKING finding. It must be fixed, no exceptions.

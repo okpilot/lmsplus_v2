@@ -7,15 +7,17 @@
 ## The problem, measured
 
 The rules that govern how work happens in this repo are **prose**, restated by hand across
-seven surfaces. Measured 2026-09-09:
+the surfaces below. A SNAPSHOT, re-measured 2026-09-09 against this commit's final tree — every
+figure here moves on almost any commit, so re-derive rather than quote it:
+`cat CLAUDE.md .claude/rules/*.md .claude/agents/*.md .claude/commands/*.md .coderabbit.yaml | wc -l`
 
 | Surface | Lines | Injected every request? |
 |---|---|---|
-| `CLAUDE.md` + `.claude/rules/*.md` | **3,383** | YES |
-| `.claude/agents/*.md` | 1,406 | on agent dispatch |
+| `CLAUDE.md` + `.claude/rules/*.md` | **3,399** | YES |
+| `.claude/agents/*.md` | 1,401 | on agent dispatch |
 | `.claude/commands/*.md` | 863 | on command |
-| `.coderabbit.yaml` | 738 | external reviewer |
-| **total hand-maintained rule prose** | **≈6,390** | |
+| `.coderabbit.yaml` | 754 | external reviewer |
+| **total hand-maintained rule prose** | **6,417** | |
 
 Three independent whole-corpus audits (2026-09-07) converged on ~740 claims, ~50% duplicated
 somewhere else, and **23 contradictions** — 11 hand-verified, 1 refuted.
@@ -30,7 +32,7 @@ Anything **mechanically checkable** becomes a check and its prose is DELETED. Wh
 genuinely judgment, and is short enough that it actually gets read. Today the judgment is
 buried among thousands of lines a machine should be doing.
 
-Estimated landing: **~1,550 injected lines** (from 3,383). ESTIMATE, not a measurement —
+Estimated landing: **~1,550 injected lines** (from the measured total above). ESTIMATE, not a measurement —
 re-derive per slice rather than quoting it.
 
 ## Requirements

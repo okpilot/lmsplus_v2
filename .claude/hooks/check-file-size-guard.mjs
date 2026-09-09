@@ -10,9 +10,12 @@
 // RATCHET, not a gate. A hard "fail if any file exceeds its limit" check would have
 // failed on day one — the measured baseline carries real violations that cannot be
 // fixed here (migrations are immutable history; the over-limit Server Actions need
-// splitting, tracked separately). So the check fails only on a REGRESSION:
-//   (a) a file over its limit that is not in the baseline, or
-//   (b) a baselined file that GREW.
+// splitting, tracked separately). So the check fails on a REGRESSION. The failure modes
+// are enumerated canonically in code-style.md §1 — not restated here, because this comment
+// and lefthook.yml carried byte-DIFFERENT copies of the same wrong two-item "only" list,
+// so a grep for either wording found one site and reported clean. The one that surprises:
+// the baseline match is EXACT in BOTH directions, so a recorded violation that SHRINKS
+// fails too, until `--update-baseline` records it.
 // The baseline is visible in limits.json and may only shrink. Entries that no longer
 // describe a live violation are REPORTED, because a purely path-keyed baseline would
 // otherwise let a different file later occupy that path and inherit its allowance.
@@ -361,6 +364,12 @@ function main(args) {
     const rel = isAbsolute(f) ? relative(process.cwd(), f) : f
     return rel.replace(/^\.\//, '')
   })
+  // `--no-renames` is load-bearing: with rename detection ON (the default) git classifies a
+  // staged rename `R`, so `--diff-filter=D` returns NOTHING for it while `git ls-files` holds
+  // only the destination — a caller spelling the SOURCE path would have it rejected as unknown.
+  // Not reachable from today's caller, which is exactly the point: the same shape (works only
+  // because of how the current caller happens to spell things) produced the staged-deletion
+  // regression below and the `./`-prefix hole, both live in this branch's history.
   // Staged DELETIONS reach us through `{staged_files}` but are absent from `git ls-files`, so
   // without this every commit that removes a file was rejected as an unknown path — a
   // regression introduced by the unknown-path check itself, one commit earlier. Guarded: a
@@ -369,7 +378,7 @@ function main(args) {
   let deleted
   try {
     deleted = new Set(
-      execFileSync('git', ['diff', '--cached', '--diff-filter=D', '--name-only'], {
+      execFileSync('git', ['diff', '--cached', '--diff-filter=D', '--no-renames', '--name-only'], {
         encoding: 'utf8',
         maxBuffer: 64 * 1024 * 1024,
       })

@@ -3,9 +3,11 @@
 > **Order matters.** Phase A (migrations) is the critical path — once shipped, types regen and unblocks everything else. Phase B–E can partially overlap.
 >
 > Each migration is one task; SQL files stay within the migration cap in `.claude/limits.json`
-> (mechanically enforced — do not restate the number here).
+> (mechanically enforced for `supabase/migrations/**` — the guard's SQL rule globs only that
+> path — do not restate the number here).
 > Migration slots through **093** are taken as of 2026-06-10 (the `#611` score-forgery fix shipped as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql`). VFR RT migs start at **094** — re-confirm the next-free slot at implementation time, since more may land first.
-> Every `packages/db/migrations/0NN_*.sql` has a byte-identical mirror at `supabase/migrations/<ts>_*.sql`.
+> `supabase/migrations/` is the SOLE source of truth. This line predated the 2026-07-11 freeze of
+> `packages/db/migrations/`, which carries false history — do not write a mirror there.
 
 ## Prerequisites (hard blockers)
 

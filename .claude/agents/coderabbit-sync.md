@@ -29,7 +29,7 @@ After any commit that modifies:
 ### Path instructions match code-style.md
 - File size limits — the numbers are data in `.claude/limits.json`. Do NOT restate them here.
   `.coderabbit.yaml` KEEPS its literal caps (CodeRabbit cannot follow a pointer), and
-  `check-file-size-guard.cli.test.mjs` fails if the two disagree — so this is a PINNED mirror,
+  `check-file-size-guard.update.test.mjs` fails if the two disagree — so this is a PINNED mirror,
   not one you sync by hand.
 - Function limits (30 lines, 3 params, 3 nesting levels)
 - No useEffect for data fetching
@@ -72,7 +72,7 @@ No changes needed: [list sections that are current]
 
 3. **Do NOT hand-check file-size limits** — that mirror is machine-verified. Changing a cap in
    `.claude/limits.json` without updating `.coderabbit.yaml` (or vice versa) fails
-   `check-file-size-guard.cli.test.mjs` in CI. Report nothing; the test is the enforcement.
+   `check-file-size-guard.update.test.mjs` in CI. Report nothing; the test is the enforcement.
 
 4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our code-reviewer or semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
 

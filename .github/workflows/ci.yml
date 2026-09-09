@@ -65,6 +65,12 @@ jobs:
       - name: File-size guard — CLI and live-tree tests
         run: node --test .claude/hooks/check-file-size-guard.cli.test.mjs
 
+      # Split from the CLI suite when the staged-rename case left it three lines under the
+      # cap this guard enforces. Same reason as the split above, same requirement: its own
+      # step, or the file runs nowhere.
+      - name: File-size guard — argument-handling tests
+        run: node --test .claude/hooks/check-file-size-guard.args.test.mjs
+
       - name: File-size guard — --update-baseline tests
         run: node --test .claude/hooks/check-file-size-guard.update.test.mjs
 

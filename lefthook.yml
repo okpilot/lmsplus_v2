@@ -32,7 +32,10 @@ pre-commit:
       glob: "*.{ts,tsx}"
       run: node .claude/hooks/check-soft-delete-guard.mjs {staged_files}
     # File-size limits — data in .claude/limits.json, formerly prose in code-style.md §1.
-    # RATCHET: fails only on a NEW over-limit file or a grandfathered one that GREW.
+    # RATCHET, not a gate: it fails on a REGRESSION, and the failure modes are enumerated
+    # canonically in code-style.md §1 — not restated here. The one that surprises: the
+    # baseline match is EXACT in BOTH directions, so a recorded violation that SHRINKS
+    # fails too, until `--update-baseline` records it.
     # The glob must include `sql` — the migration limit is one of the two riskiest
     # categories, and a migration-only commit would otherwise never trigger the guard.
     file-size-guard:

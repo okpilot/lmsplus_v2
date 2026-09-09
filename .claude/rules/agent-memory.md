@@ -25,8 +25,10 @@ section used to prescribe — "a tracker that stops updating" — never discrimi
 holds `Bash`, so a memory write cannot be attributed to the auto-grant rather than a shell redirect,
 and a quiet tracker is indistinguishable from an agent with nothing to record. Compare instead the
 session's agent roster against the `tools:` frontmatter. Derive both sides rather than counting
-them — `.claude/agents/` gains members:
+them — `.claude/agents/` gains members. Only the FRONTMATTER side is greppable:
 `grep -l '^memory: project' .claude/agents/*.md` and `grep -n '^tools:' .claude/agents/*.md`.
+The ROSTER side is a RUNTIME fact, read off the session's own available-agent list; no command
+reconstitutes it, which is why confirming this needed a restart and not a better grep.
 Every definition declaring `memory: project` shows `Write, Edit` in the roster even where its
 frontmatter omits them; every definition with no `memory:` key does not. No Bash ambiguity: the
 memory declaration is what adds the tools. Observed alongside it, `code-reviewer` — no Write/Edit in

@@ -60,7 +60,7 @@ right abstraction. Rule of three.
 ## What codification does NOT buy
 
 **It barely shrinks the corpus.** Slice 1 replaced a 45-line section and the injected corpus
-moved 3,383 → 3,379. You delete a table and write a paragraph explaining the mechanism.
+did not get smaller (derive: `wc -l CLAUDE.md .claude/rules/*.md`). You delete a table and write a paragraph explaining the mechanism.
 The size win is in DELETING ARCHAEOLOGY (R6), which is a different activity with different
 economics: large size win, no correctness win, low cost.
 

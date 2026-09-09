@@ -1,5 +1,5 @@
 {
-  "_": "Canonical file-size limits. Formerly prose in .claude/rules/code-style.md \u00a71 and eight other hand-maintained copies. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.cli.test.mjs \u2014 CodeRabbit cannot follow a pointer, so its copy is KEPT and machine-verified rather than deleted. Prose may explain WHY a limit exists; it must not restate a number from here.",
+  "_": "Canonical file-size limits. Formerly prose in .claude/rules/code-style.md \u00a71 and eight other hand-maintained copies. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.update.test.mjs \u2014 CodeRabbit cannot follow a pointer, so its copy is KEPT and machine-verified rather than deleted. Prose may explain WHY a limit exists; it must not restate a number from here.",
   "rules": [
     {
       "kind": "test file",
