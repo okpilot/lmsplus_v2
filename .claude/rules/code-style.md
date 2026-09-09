@@ -8,23 +8,19 @@
 
 ## 1. File Size Limits
 
-| File type | Max lines | Action if exceeded |
-|-----------|-----------|-------------------|
-| React component | 150 lines | Split into sub-components |
-| Page file (`page.tsx`) | 80 lines | Page should be composition only — no logic |
-| Server Action file | 100 lines | Split by feature area |
-| Utility / helper | 200 lines | Split by concern |
-| Hook (`use*.ts`) | 80 lines | Split or extract logic to util |
-| SQL migration file | 300 lines | Split into multiple migrations |
+Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at
+pre-commit and in CI. Never restate a number here.
 
-**Exception — single unsplittable DDL object.** A migration whose entire content is ONE
-`CREATE OR REPLACE FUNCTION` (or another atomic DDL object) may exceed 300 lines — a plpgsql body
-cannot be split across files. Keep the header comment minimal; push rationale to the commit message.
-The cap targets multi-statement migrations that can be split by concern.
+- **RATCHET, not a gate.** Fails on a NEW over-limit file, or a grandfathered one that GREW.
+  Pre-existing violations are frozen in `limits.json` `baseline` and may only shrink — so green
+  means *you did not make it worse*, never *the repo is clean*.
+- **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
+  action takes the utility cap; a Server Action outside `actions/` still takes the action cap.
 
 **Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
-include the extraction in the SAME commit. Does NOT apply to a file covered by the exception above:
-an atomic DDL object cannot be split, so there is nothing to extract. Run `wc -l` on every file you plan to grow during Plan
+include the extraction in the SAME commit. Does NOT apply to a migration covered by the
+unsplittable-DDL-object note on the SQL migration rule in `.claude/limits.json`: an atomic DDL
+object cannot be split, so there is nothing to extract. Run `wc -l` on every file you plan to grow during Plan
 Validation and budget the split up front.
 
 **The golden rule:** if you need to scroll to understand a file, it's too long.
@@ -944,7 +940,6 @@ Sibling to "Red-Team RPC Specs Must Assert the Full Output Contract" (the two-se
 
 The `code-reviewer` agent flags these after every commit:
 
-- Files exceeding line limits
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
 - Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)

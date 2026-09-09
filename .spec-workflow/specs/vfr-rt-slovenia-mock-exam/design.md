@@ -96,7 +96,8 @@ flowchart TD
 ### Modular Design Principles
 
 - **Single File Responsibility**: every migration touches exactly one schema/function concern. Splitting the work across ~8 migrations (rather than one mega-mig) makes each one easier to review, roll back, and audit.
-- **Component Isolation**: `vfr-rt-exam/page.tsx` ≤ 80 lines (composition); each Part-N renderer ≤ 150 lines; `dialog-fill-renderer.tsx` is the most complex new component and the one whose tests must cover the most edge cases (multi-line dialog, multiple blanks, speaker-tag stripping for display).
+- **Component Isolation**: `vfr-rt-exam/page.tsx` is composition only; the Part-N renderers stay
+  within the component cap (`.claude/limits.json`, mechanically enforced); `dialog-fill-renderer.tsx` is the most complex new component and the one whose tests must cover the most edge cases (multi-line dialog, multiple blanks, speaker-tag stripping for display).
 - **Service Layer Separation**: grading lives in the SQL RPC. The Server Action is a thin wrapper. The client never grades.
 - **Utility Modularity**: `normalize-answer.ts` is a 1-function module with comprehensive unit tests; the SQL equivalent uses an inline `regexp_replace` chain (or a `normalize_answer(text)` plpgsql helper) and is covered by SQL integration tests asserting parity against the TS version.
 

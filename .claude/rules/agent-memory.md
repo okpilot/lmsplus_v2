@@ -74,7 +74,7 @@ When new knowledge arrives, **edit the existing row/bullet** so the file stays s
 
 ```markdown
 ✅ CORRECT — update the existing tracker row in place
-| Hook file > 80-line limit | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → code-style.md §1 |
+| Hook file over its line limit | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |
 
 ❌ WRONG — appending a dated journal entry every session
 ## 2026-05-29 session

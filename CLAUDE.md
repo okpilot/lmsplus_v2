@@ -131,7 +131,7 @@ version.**
 - Record the pin's exit condition in the commit message — `package.json` cannot carry comments.
 
 ## Critical rules (full details in linked docs)
-- page.tsx: 80 lines max, composition only, no logic
+- page.tsx: composition only, no logic (file-size limits are data: `.claude/limits.json`)
 - No `useEffect` for data fetching — Server Components only
 - No hard DELETE — always soft delete (`deleted_at`)
 - No `any` type — use `unknown` with narrowing

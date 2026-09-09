@@ -1,4 +1,12 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# PINNED MIRROR — the "Max N lines" caps in the path_instructions below are a deliberate
+# copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
+# literal text; it cannot follow a pointer (`agent-workflow.md § Rule-Mirror Sync`), so
+# replacing a number here with a reference would not keep it in sync — it would delete the
+# enforcement. `.claude/hooks/check-file-size-guard.test.mjs` fails in CI if any cap here
+# disagrees with limits.json, so the copy is machine-verified rather than hand-maintained.
+# Change a limit in limits.json and here, in the same commit.
 
 language: "en-US"
 tone_instructions: >
@@ -486,6 +494,8 @@ reviews:
     - path: "**/*.test.{ts,tsx}"
       instructions: |
         Test file. Enforce:
+        - Max 500 lines. Test files are RELAXED relative to the component/utility caps,
+          not exempt from every limit. Split by concern if exceeded.
         - Test names describe behavior, not implementation.
           Good: 'schedules a shorter review interval when the answer is wrong'
           Bad: 'calls updateFsrsState'

@@ -27,14 +27,7 @@ You receive:
 
 ### BLOCKING on merge to main
 
-1. **File size violations**
-   - React component > 150 lines
-   - Page file (`page.tsx`) > 80 lines
-   - Server Action file > 100 lines
-   - Hook file > 80 lines
-   - Any single file > 300 lines (regardless of type)
-
-2. **Business logic in components**
+1. **Business logic in components**
    - Supabase query inside a React component body (should be in Server Component or Server Action)
    - `fetch()` call inside a React component body
    - Data transformation logic (>3 lines) directly in JSX
@@ -125,19 +118,13 @@ All checks passed. Good commit.
 
 1. **Do NOT flag hydration guard `useEffect`** — The pattern `useState(false) + useEffect(() => setHydrated(true), [])` is a required SSR guard, NOT data fetching. It is explicitly exempt in code-style.md Section 6. Skip it.
 
-2. **Do NOT flag Server Action files at 110–120 lines** — Action files containing 3+ focused exported functions (each ≤30 lines) plus private helpers are acceptable. Only flag if individual functions exceed 30 lines or the file exceeds 150 lines.
+2. **Do NOT flag 4-parameter infrastructure utilities** — Functions with 4 parameters are acceptable when each parameter maps to a distinct semantic role AND the function has a JSDoc comment. Only flag >3 params on business-logic functions.
 
-3. **Do NOT flag 4-parameter infrastructure utilities** — Functions with 4 parameters are acceptable when each parameter maps to a distinct semantic role AND the function has a JSDoc comment. Only flag >3 params on business-logic functions.
+3. **Do NOT flag duplicate types under 3 instances** — Duplicated types (e.g., RPC result shapes across features) are acceptable at 1–2 instances. Only flag when the same shape appears 3+ times.
 
-4. **Do NOT flag duplicate types under 3 instances** — Duplicated types (e.g., RPC result shapes across features) are acceptable at 1–2 instances. Only flag when the same shape appears 3+ times.
+4. **Do NOT add docstrings, comments, or type annotations** to unchanged code. Only flag what's in the diff.
 
-5. **Do NOT flag test files for line limits** — a file whose BASENAME matches `*.test.*` or `*.spec.*` is exempt from component/utility line limits, whatever its extension and wherever it lives, including `.claude/`; only flag it above 500 lines. Derived rather than enumerated: an extension list is an OPEN set (`code-style.md` §10 clause 2), and this one had already drifted — it named three extensions and missed `.mjs`, so every `.claude/**/*.test.mjs` was flagged against the 200-line utility cap. The exemption keys on the BASENAME and the basename WINS: `helpers/thing.test.ts` is a test file. It does NOT extend to test-infra helpers whose basenames do not match those patterns — `setup.ts`, `seed.ts`, and the shared `helpers/*.ts` modules — those are utility files under the standard 200-line cap.
-
-6. **Do NOT flag config files for line limits** — `next.config.ts`, `biome.json`, `tailwind.config.ts`, and similar config files are exempt from line limits when clearly structured.
-
-7. **Do NOT add docstrings, comments, or type annotations** to unchanged code. Only flag what's in the diff.
-
-8. **Do NOT flag React render/return bodies at 30–35 lines when they are pure JSX composition** — A React function-component or custom-hook render/return body of pure JSX/element composition (no branching logic, no data transformation) is acceptable up to 35 lines, mirroring the Server-Action-orchestrator boundary (#2 above). Hard ceiling: flag only past 35 lines, OR at any length if the body contains non-composition logic (an `if`/loop/`.map` that computes, branches, or reshapes data). See code-style.md §3.
+5. **Do NOT flag React render/return bodies at 30–35 lines when they are pure JSX composition** — A React function-component or custom-hook render/return body of pure JSX/element composition (no branching logic, no data transformation) is acceptable up to 35 lines, mirroring the Server-Action-orchestrator boundary (`code-style.md` §3). Hard ceiling: flag only past 35 lines, OR at any length if the body contains non-composition logic (an `if`/loop/`.map` that computes, branches, or reshapes data). See code-style.md §3.
 
 ## Tone and Approach
 

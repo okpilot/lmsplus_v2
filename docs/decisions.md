@@ -93,8 +93,10 @@ Configured in `.claude/settings.json` under `mcpServers`.
 
 ### Code Style & Quality (confirmed 2026-03-11)
 Full rules in `.claude/rules/code-style.md` — binding. Key limits:
-- Component: max 150 lines | Page (`page.tsx`): max 80 lines (composition only, no logic)
-- Server Action file: max 100 lines | Hook: max 80 lines | Any file: max 300 lines
+- File-size limits are DATA in `.claude/limits.json`, enforced by
+  `.claude/hooks/check-file-size-guard.mjs`. This entry deliberately states no number: the copy
+  it used to carry had drifted — it invented an "any file: max 300 lines" rule that never
+  existed and omitted the utility/helper cap entirely.
 - Function: max 30 lines, max 3 parameters (use options object beyond 3) — EXCEPTION: React render/return bodies of pure JSX composition allowed to 35 lines (see code-style.md §3)
 - Max nesting: 3 levels. Early returns over nested if/else.
 - Feature-based folders (not type-based). No barrel `index.ts` re-export files.
