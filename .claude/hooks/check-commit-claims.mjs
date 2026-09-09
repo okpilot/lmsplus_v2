@@ -23,10 +23,13 @@ import { pathToFileURL } from 'node:url'
 /** Commit-context words that make a following hex token a citation, not incidental hex. */
 const TRIGGER_WORDS = 'in|on|per|from|since|commit|of|replaying|by|after|before|for|as|to|head|via'
 
-/** A trigger word directly preceding the token (optionally through a backtick), end-anchored. */
+/** A trigger word directly preceding the token, end-anchored. Backtick tolerance for THIS rule
+ *  comes from the stripped `beforeForTrigger` view below, NOT from a `\`?` in the pattern —
+ *  unlike the PAREN/BARE_START rules, which do carry one inline. */
 const TRIGGER_BEFORE_RE = new RegExp(`\\b(?:${TRIGGER_WORDS})\\s+$`, 'i')
 
-/** A trigger word directly following the token (optionally through a backtick), start-anchored. */
+/** A trigger word directly following the token, start-anchored. Backtick tolerance for THIS rule
+ *  comes from the stripped `afterForExclusion` view below, NOT from a `\`?` in the pattern. */
 const TRIGGER_AFTER_RE = new RegExp(`^\\s+(?:${TRIGGER_WORDS})\\b`, 'i')
 
 /** Possessive: `<token>'s`. */

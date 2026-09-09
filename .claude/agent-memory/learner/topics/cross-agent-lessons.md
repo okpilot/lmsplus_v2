@@ -1673,7 +1673,7 @@ itself is compacted to a pointer in MEMORY.md; this section is the detail it poi
 
 **The prototype that was rejected, not shipped.** Row 42's own escalation proposed a literal
 `EVIDENCE:` line gate. It was prototyped and MEASURED before being written as a rule: over 300 commit
-messages it blocks 84% (2766 cardinal-count hits) — at that rate the only survivable author response
+messages it blocks 84% of MESSAGES (the trigger-shape figures are hit counts against a different denominator, so they do not decompose that rate — re-derive both) — at that rate the only survivable author response
 is a token `EVIDENCE: git log` line that satisfies the gate while verifying nothing, i.e. row 40
 rebuilt as a hook (a check whose pass condition a bad-faith or rushed author can satisfy without doing
 the work it exists to enforce). Rejected ON THE MEASUREMENT, recorded so it is not rebuilt.

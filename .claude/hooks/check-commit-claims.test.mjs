@@ -579,7 +579,9 @@ test('main: a message citing an ambiguous SHA prefix exits non-zero with the rem
   // were found offline once and are fixed here — nothing is searched for at test-run time.
   const dir = mkdtempSync(join(tmpdir(), 'commit-claims-'))
   try {
-    execFileSync('git', ['init', '-q', '.'], { cwd: dir })
+    // Pin SHA-1: the two fixture blobs below share the 578019b prefix only under SHA-1, so
+    // under init.defaultObjectFormat=sha256 this would report absent instead of ambiguous.
+    execFileSync('git', ['init', '-q', '--object-format=sha1', '.'], { cwd: dir })
     execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: dir, input: 'y13788' })
     execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: dir, input: 'y17281' })
     const msgFile = join(dir, 'MSG')

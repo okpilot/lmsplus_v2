@@ -1528,8 +1528,10 @@ Decision 5 does NOT close learner row 639 (a delta never staged before push). Di
 ## Decision 64: commit-message claims get a mechanical gate — the checkable subset, not a ritual (2026-09-08)
 
 Learner row 42 (count 30) escalated for "a mechanical EVIDENCE: gate". That literal design was
-prototyped and MEASURED before anything was written: over 300 commit messages it blocks **84%**
-(2766 cardinal-count hits, 106 self-reported-verification, 59 SHA attributions). At that rate the
+prototyped and MEASURED before anything was written: over 300 commit messages it blocks **84% of
+MESSAGES**. The trigger-shape figures behind it are HIT counts against a different denominator — a
+single message carries several — so they do not decompose that rate and are not restated here;
+re-derive both before quoting either. At that rate the
 only survivable author response is a token `EVIDENCE: git log` line, which satisfies the gate while
 verifying nothing — learner row 40 ("proposed verification command silently verifies nothing")
 rebuilt as infrastructure. **The escalated design is rejected on measurement.** Recorded here so it
@@ -1615,7 +1617,10 @@ replaying real messages through `extractRefs`, never by trusting this list:
   `per: <sha>` does not, whereas a non-member like `fired` yields nothing either way and
   demonstrates nothing.
 - The second and later items of a bare comma list — `<sha>, <sha> and <sha>`.
-- Both SHAs of a bare or backticked range — `<sha>..<sha>`, `<sha>...<sha>` — outside a URL.
+- A bare or backticked range outside a URL — `<sha>..<sha>`, `<sha>...<sha>` — position-dependent
+  in the same way, so re-derive per shape. The SECOND token is never reached in ANY position: `.`
+  is not a `TRIGGER_WORDS` member and no position rule accepts it. The FIRST leaks only
+  MID-SENTENCE; opening a line or a list item, `BARE_START_RE` still catches it.
 
 Every one exits 0 on a fabricated SHA.
 
