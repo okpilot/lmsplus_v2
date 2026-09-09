@@ -32,7 +32,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { basename } from 'node:path'
+import { basename, isAbsolute, relative } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
@@ -347,8 +347,26 @@ function main(args) {
   // Filtered from the whole-tree pass rather than re-evaluated: `evaluate` is per-file with no
   // cross-file state, so a second pass only re-reads every tracked file. Keyed on `files`, not
   // `args` — post-flag-parse, so a flag can never be mistaken for a path.
+  // Paths are normalised to repo-root-relative BEFORE filtering, and an argument matching no
+  // tracked path is a hard error. `files.includes(r.file)` is an exact string compare, so
+  // `./x.ts` and an absolute path both matched nothing and silently returned 0 on a real
+  // violation — verified. Today's only caller passes git-root-relative paths, so this held by
+  // luck of the caller, which is the same shape as the flag/path collision above.
+  const normalised = files.map((f) => {
+    const rel = isAbsolute(f) ? relative(process.cwd(), f) : f
+    return rel.replace(/^\.\//, '')
+  })
+  const unknownPaths = normalised.filter((f) => !all.includes(f))
+  if (unknownPaths.length > 0) {
+    console.error(
+      `[file-size] argument(s) match no tracked path: ${unknownPaths.join(' ')} — BLOCKING`,
+    )
+    return 1
+  }
   const regressions =
-    files.length > 0 ? whole.regressions.filter((r) => files.includes(r.file)) : whole.regressions
+    normalised.length > 0
+      ? whole.regressions.filter((r) => normalised.includes(r.file))
+      : whole.regressions
 
   if (stale.length > 0) {
     const plural = stale.length === 1 ? 'y' : 'ies'

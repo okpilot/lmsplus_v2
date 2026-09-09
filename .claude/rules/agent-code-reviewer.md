@@ -19,8 +19,9 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 - Fix all BLOCKING findings before any other work continues.
 - Group BLOCKING fixes into a single commit when they're in the same file.
 - Note watch items in the summary to the user. File-size headroom is NOT the reviewer's to
-  count — it no longer counts lines at all; derive it with
-  `node .claude/hooks/check-file-size-guard.mjs --stats`.
+  count — it no longer counts lines at all. For per-rule compliance run
+  `node .claude/hooks/check-file-size-guard.mjs --stats`; for one file's headroom, `wc -l`
+  against that rule's cap in `.claude/limits.json`. `--stats` does NOT report headroom.
 
 ### NEVER
 - Dismiss a BLOCKING finding. It must be fixed, no exceptions.

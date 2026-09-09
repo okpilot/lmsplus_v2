@@ -83,7 +83,7 @@ test('only a violation among the files passed as arguments can block the commit'
   }
 })
 
-test('reports a single stale baseline entries in the singular and plural, and blocks on them', () => {
+test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing
   // else would ever catch the copy-editing regression.
@@ -371,6 +371,65 @@ test('passing two mode flags together blocks instead of silently running one', (
   }
   // each alone still works
   assert.equal(spawnSync('node', [guard, '--stats'], { encoding: 'utf8' }).status, 0)
+})
+
+test('a violation blocks however its path is spelled, and an unknown path is rejected', () => {
+  // MUTATION: drop the normalisation and the unknown-argument check → red. `files.includes()` is
+  // an exact string compare, so `./x.ts` and an absolute path matched nothing and the guard
+  // returned 0 on a REAL violation. Today's only caller passes repo-root-relative paths, so this
+  // held by luck of the caller — the same shape as the flag/path collision.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-norm-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    writeFileSync(
+      join(repo, '.claude/limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'utility/helper', glob: '**/*.ts', max: 100 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'src/big.ts'), 'x\n'.repeat(150))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = (arg) =>
+      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', arg], {
+        cwd: repo,
+        encoding: 'utf8',
+      })
+    for (const spelling of ['src/big.ts', './src/big.ts', join(repo, 'src/big.ts')]) {
+      const r = run(spelling)
+      assert.equal(r.status, 1, `${spelling} must block`)
+      // Assert the REASON, not just the exit code. Dropping normalisation still exits 1 — via
+      // the unknown-path branch — so an outcome-only assertion passed with the mechanism gone.
+      // A legitimate absolute-path caller must be told about the VIOLATION, not handed a
+      // spurious "matches no tracked path".
+      assert.match(
+        r.stderr,
+        /violation\(s\) of the limits/,
+        `${spelling} must report the violation`,
+      )
+      assert.doesNotMatch(
+        r.stderr,
+        /match no tracked path/,
+        `${spelling} must resolve, not be rejected`,
+      )
+    }
+    const bogus = run('nope/missing.ts')
+    assert.equal(bogus.status, 1, 'an argument matching no tracked path must fail closed')
+    assert.match(bogus.stderr, /match no tracked path/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
 })
 
 // -------------------------------------------------- the live tree stays green

@@ -11,9 +11,12 @@
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at
 pre-commit and in CI. Never restate a number here.
 
-- **RATCHET, not a gate.** Fails on a NEW over-limit file, or a grandfathered one that GREW.
-  Pre-existing violations are frozen in `limits.json` `baseline` and may only shrink — so green
-  means *you did not make it worse*, never *the repo is clean*.
+- **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
+  longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row
+  (its file gone, now compliant, or excluded). Pre-existing violations are frozen in `limits.json`
+  `baseline` and may only shrink — but a shrink must be RECORDED, so it blocks until it is:
+  `check-file-size-guard.mjs --update-baseline` writes the change for review. Green means *you
+  did not make it worse*, never *the repo is clean*.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
   action takes the utility cap; a Server Action outside `actions/` still takes the action cap.
 

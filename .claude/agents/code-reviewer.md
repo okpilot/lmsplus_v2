@@ -139,7 +139,8 @@ Update `.claude/agent-memory/code-reviewer/MEMORY.md` **in place** (per `.claude
 - Log recurring violations (e.g., "page files consistently contain data fetching logic")
 - Track which rules are violated most often
 - Note watch items worth refactoring soon. NOT file-size headroom — you no longer count
-  lines; that is `node .claude/hooks/check-file-size-guard.mjs --stats`.
+  lines. Per-rule compliance is `node .claude/hooks/check-file-size-guard.mjs --stats`;
+  a single file's headroom is `wc -l` against its cap in `.claude/limits.json`.
 - Record positive patterns worth preserving (e.g., "quiz session components are well-structured")
 
 Use this memory to give better advice over time and to flag files at risk before they become a problem.

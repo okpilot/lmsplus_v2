@@ -717,6 +717,7 @@ rules; a rule change that skips them leaves an agent following superseded text.
 | `.claude/commands/*.md` | slash commands restate gate lists |
 | `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; often EMPTY — enumerate at sweep time |
 | `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
+| `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
 | `.claude/hooks/*.sh` | **executable mirrors** — some PRINT the agent list at commit time. Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |

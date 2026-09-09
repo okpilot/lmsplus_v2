@@ -16,7 +16,7 @@ Setting `memory: project` in an agent's `.claude/agents/<name>.md` frontmatter b
 
 **`tools:` does NOT gate the memory directory.** Since 2026-09-06 every agent declares an explicit
 `tools:` list and only test-writer carries Write/Edit (see `agent-workflow.md § Every agent dispatch
-is ASYNCHRONOUS`). The eight `memory: project` agents still write their own trackers: the official
+is ASYNCHRONOUS`). The `memory: project` agents still write their own trackers: the official
 subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
 regardless of the `tools:` allowlist. That is what the docs SAY; it has not yet been observed in this
 repo, because agent definitions snapshot at session start and the `tools:` keys landed mid-session.
