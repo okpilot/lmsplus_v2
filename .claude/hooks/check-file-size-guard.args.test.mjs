@@ -9,9 +9,12 @@
 //   node --test .claude/hooks/check-file-size-guard.args.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in
-// check-file-size-guard.mjs and exactly one test goes red. The mutation each case pins is
-// named in its title, because a test whose mechanism nothing exercises is a lie you will
-// later trust.
+// check-file-size-guard.mjs and the case (or the named GROUP of cases sharing that
+// mechanism) goes red — the two rename cases deliberately share `--no-renames`, so breaking
+// it reddens both. Do not restore the stricter "exactly one" wording here without re-running
+// the mutations; it was false of this file the moment the second rename case landed. The
+// mutation each case pins is named in its title, because a test whose mechanism nothing
+// exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'

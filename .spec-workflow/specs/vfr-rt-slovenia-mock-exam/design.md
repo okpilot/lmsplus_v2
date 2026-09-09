@@ -6,7 +6,7 @@ This design adds a new timed exam mode (`vfr_rt_exam`) to the LMS, two new `ques
 
 The work reuses three proven patterns from existing modes:
 - **Sampling + freeze-on-start** from `start_internal_exam_session` (mig `060`) — `random() LIMIT N` per part, IDs stored in `quiz_sessions.config.question_ids`.
-- **Auto-complete on overdue** from `complete_overdue_exam_session` (mig `063` — verify the LATEST definition via Pre-Flag Verification at implementation time) — extended to include the new mode in its `IF v_mode NOT IN (...)` guard and `v_event_type` CASE branch (see Reuse/Extend table below).
+- **Auto-complete on overdue** from `complete_overdue_exam_session` (and its sibling `complete_empty_exam_session`) — ALREADY EXTENDED to accept the new mode in the `IF v_mode NOT IN (...)` guard and the `v_event_type` CASE branch; see the Reuse/Extend table below. Re-derive the latest definition via Pre-Flag Verification rather than trusting a migration number here.
 - **Audit-event INSERT pattern** from every completion RPC since mig `049` — `event_type = 'vfr_rt_exam.completed'`, `actor_role` subquery filtering `deleted_at IS NULL` (security.md rule 10).
 
 The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC that normalizes string answers, compares them to canonical+synonyms lists, and computes per-part scores. Everything else (timer, freeze, sampling, audit, discard-protection, RLS) is a near-copy of `internal_exam`'s shape.
@@ -56,8 +56,8 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 | File | Change |
 |---|---|
 | `apps/web/lib/constants/exam-modes.ts` | Add `'vfr_rt_exam'` to `EXAM_MODES` array. Add `MODE_LABELS['vfr_rt_exam']` and `isExamMode()` already returns `true` for any string in the array — no separate branch. |
-| `apps/web/app/app/quiz/actions/discard.ts` | Add `existing.mode === 'vfr_rt_exam'` to the existing `internal_exam` rejection branch. Return new error code `'cannot_discard_vfr_rt_exam'`. |
-| `complete_overdue_exam_session` RPC (latest = `packages/db/migrations/063_extend_overdue_for_internal_exam.sql`; verify via Pre-Flag Verification at implementation time) | Widen the mode guard `IF v_mode NOT IN ('mock_exam','internal_exam')` (mig 063 L54 + L191) to also accept `'vfr_rt_exam'`, and extend the `v_event_type := CASE v_mode` branch (L112, L228, L234) to emit `'vfr_rt_exam.expired'`. There is no mode-based WHERE clause — the WHERE filters are scoped by `qs.id = p_session_id`. Audit-event INSERT pattern otherwise unchanged. |
+| `apps/web/app/app/quiz/actions/discard.ts` | **SHIPPED, and NOT as planned here.** The intended inline addition to an `internal_exam` rejection branch never happened: the check lives in `apps/web/app/app/quiz/actions/_discard-guard.ts` as a `NON_DISCARDABLE_MODES` map behind `discardBlockedError(mode)`, and `discard.ts` carries no mode literal. The error code `'cannot_discard_vfr_rt_exam'` is as specified. See tasks.md B.5. |
+| `complete_overdue_exam_session` AND `complete_empty_exam_session` RPCs — **ALREADY DONE**, do not re-plan. Re-derive the latest definition of each via Pre-Flag Verification (`agent-critic.md`) rather than trusting any path stated here; the citation this row used to carry pointed at the FROZEN `packages/db/migrations/`. | Widening the mode guard to accept `'vfr_rt_exam'` and extending the `v_event_type := CASE v_mode` branch SHIPPED for BOTH functions in one file, `supabase/migrations/20260610001200_extend_overdue_for_vfr_rt_exam.sql` — its header says "BOTH functions in that file", and it carries two `CREATE OR REPLACE`. This row named only the overdue one until 2026-09-09; `complete_empty_exam_session` appeared nowhere in this spec despite shipping in the same migration. Neither has a mode-based WHERE clause — the WHERE filters are scoped by `qs.id = p_session_id`. |
 | `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` | Add type selector (segmented control) above the existing fields. Conditionally render either the existing 4-option editor, the short-answer field group, OR the dialog template editor. |
 | `packages/db/src/schema.ts` `UpsertQuestionSchema` | Convert from a flat `z.object` to `z.discriminatedUnion('question_type', [multipleChoiceSchema, shortAnswerSchema, dialogFillSchema])`. |
 | `packages/db/src/types.ts` | Regenerated after migrations; no manual edit. |
@@ -192,7 +192,7 @@ flowchart TD
 ### Migrations `095b_update_existing_inserters_for_blank_index.sql` + `095c_update_batch_submit_quiz_for_blank_index.sql`
 
 - **CRITICAL companions to mig `095`.** Without them, applying mig `095` immediately breaks `batch_submit_quiz` and `submit_quiz_answer` for ALL exam modes (PPL mock_exam, internal_exam, smart_review, quick_quiz) — the old `ON CONFLICT (session_id, question_id)` clause no longer matches any constraint after mig `095` drops the original UNIQUE. Because the clause lives inside plpgsql bodies, the failure is **deferred to execution time** (`42P10`): `db reset` applies clean and nothing breaks until a student submits a quiz — exactly the deferred-validation trap documented in `code-style.md` §5 (`ON CONFLICT` Requires a UNIQUE Inference Target).
-- **Two files, not one** (renamed from a single planned 095b): the verbatim `batch_submit_quiz` body alone is ~297 lines, so the two bodies cannot share a file under the 300-line cap. `095b` carries `submit_quiz_answer` (latest: `20260316000040`); `095c` carries `batch_submit_quiz` (latest: `20260601000001`). For each: locate LATEST via Pre-Flag Verification (`agent-critic.md`), copy body VERBATIM, change only the `quiz_session_answers` ON CONFLICT clause from `(session_id, question_id)` to `(session_id, question_id, blank_index)`. The `fsrs_cards` `ON CONFLICT (student_id, question_id)` clauses in both bodies target a different table — untouched.
+- **Two files, not one** (renamed from a single planned 095b): the verbatim `batch_submit_quiz` body alone is ~297 lines, so the two bodies cannot share a file under the SQL-migration cap in `.claude/limits.json`. `095b` carries `submit_quiz_answer` (latest: `20260316000040`); `095c` carries `batch_submit_quiz` (latest: `20260601000001`). For each: locate LATEST via Pre-Flag Verification (`agent-critic.md`), copy body VERBATIM, change only the `quiz_session_answers` ON CONFLICT clause from `(session_id, question_id)` to `(session_id, question_id, blank_index)`. The `fsrs_cards` `ON CONFLICT (student_id, question_id)` clauses in both bodies target a different table — untouched.
 - `complete_quiz_session` needs NO redefinition (see mig 095 item 3 correction) — but A.11 still EXECUTES it against the widened constraint as a regression test.
 - These functions continue to INSERT only MC/short-answer rows (no `blank_index`); the new ON CONFLICT inference matches the new constraint, NULL = NULL by `NULLS NOT DISTINCT` semantics — behavior is preserved.
 - **095, 095b, and 095c apply in the same release.** They cannot be split across deploys; the schema and the callers must move together.
@@ -310,9 +310,12 @@ flowchart TD
   ```
   The runtime test at `A.11` covers the same contract from the test side; the migration-time assertion adds a deploy-time guarantee so a misconfigured environment fails to apply mig 101 rather than silently miscounting exam answers.
 
-### Migration `102_extend_complete_overdue_exam_session.sql`
+### Migration `102` — shipped as `supabase/migrations/20260610001200_extend_overdue_for_vfr_rt_exam.sql`
 
-- `CREATE OR REPLACE FUNCTION complete_overdue_exam_session(...)` — copy the LATEST body verbatim per Pre-Flag Verification (`agent-critic.md` Pre-Flag Verification rule); add `'vfr_rt_exam'` to the `mode IN (...)` clause.
+- **TWO functions.** `CREATE OR REPLACE FUNCTION complete_overdue_exam_session(...)` AND
+  `complete_empty_exam_session(...)` — both widened in that one file, per its own header. Copy each
+  LATEST body verbatim per Pre-Flag Verification (`agent-critic.md`); add `'vfr_rt_exam'` to the
+  `v_mode NOT IN (...)` guard. The section title named only the overdue function until 2026-09-09.
 - The body for `vfr_rt_exam` overdue: same shape as `internal_exam` overdue — compute partial scores using the entries already in `quiz_session_answers` (default 0 for missing entries), update `ended_at`, set `passed` from per-part, emit `'vfr_rt_exam.expired'` audit event (matches the existing CASE branch shape in mig 063 lines 112–115).
 - DO NOT widen mode checks in any other RPC unless this migration explicitly does so. Out of scope: `batch_submit_quiz`, `complete_quiz_session`.
 
@@ -385,7 +388,10 @@ flowchart TD
 ### Admin question editor extension
 
 - `apps/web/app/app/admin/questions/_components/question-form-fields.tsx`:
-  - **Pre-refactor required:** the file is already at the 150-line component cap (`code-style.md` §1), so "extend in place" is not possible. First extract the existing 4-option MC editor into a new `mc-option-fields.tsx` (≤ 80 lines), THEN add the selector + conditional render to the slimmed-down parent.
+  - **Pre-refactor check — RE-MEASURE, do not trust this line.** The file was at the component cap when
+    this was written and is now just under it. Run `wc -l` against the cap in `.claude/limits.json` before
+    deciding. If the addition would cross it, first extract the existing 4-option MC editor into a new
+    `mc-option-fields.tsx`, THEN add the selector + conditional render to the slimmed-down parent.
   - Add a `<SegmentedControl>` at the top for `question_type`.
   - Conditional render: `multiple_choice` → `<McOptionFields>` (extracted); `short_answer` → new `<ShortAnswerFields>`; `dialog_fill` → new `<DialogFillFields>`.
   - **Edit flow data source:** when loading an existing `short_answer`/`dialog_fill` question, the four answer-key columns are privilege-blocked for direct PostgREST SELECT (mig 094) — the editor's Server Component fetches them via the `get_question_authoring_fields` RPC (mig 094b) and passes them down as props.
