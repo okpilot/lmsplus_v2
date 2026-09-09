@@ -266,6 +266,15 @@ test('extractRefs finds a BACKTICKED parenthetical citation', () => {
   assert.deepEqual(extractRefs('The master-merge (`fb06ee55`) kept stale copies.'), ['fb06ee55'])
 })
 
+// Mutation-blind before this test: PAREN_BEFORE_RE / PAREN_AFTER_RE each tolerate interior
+// whitespace via their own `\s*` — padding between the paren and the token — built into
+// the regexes themselves, not a stripped view. Dropping EITHER `\s*` independently left the
+// then-current suite green — verified by mutation in a scratch copy — and silently dropped
+// a padded parenthetical citation.
+test('extractRefs finds a parenthetical citation with interior whitespace padding', () => {
+  assert.deepEqual(extractRefs('The master-merge ( fb06ee55 ) kept stale copies.'), ['fb06ee55'])
+})
+
 test('extractRefs ignores a third-party action pin cited parenthetically', () => {
   assert.deepEqual(extractRefs('Pinned actions:\n- actions/checkout@v6 (de0fac2)\n'), [])
 })
