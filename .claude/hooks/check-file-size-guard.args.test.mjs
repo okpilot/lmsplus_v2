@@ -272,3 +272,62 @@ test('a rename into a violation still blocks — the exemption clears the unknow
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+test('a git failure listing staged deletions blocks instead of failing open', () => {
+  // MUTATION: change the catch's `return 1` to a fail-open (e.g. `deleted = new Set()`
+  // and fall through) → red. The comment right above this catch calls out exactly this
+  // risk — "a failed git call ABORTS rather than silently yielding an empty set" — but
+  // nothing exercised it: every other case in this file makes the underlying git command
+  // SUCCEED. A PATH-shadowed `git` makes `diff --cached` fail while `ls-files` (a
+  // different subcommand, needed earlier in main()) still passes through to the real
+  // binary — isolating the one call this test targets.
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-deldiff-'))
+  const fakeBin = mkdtempSync(join(tmpdir(), 'file-size-fakegit-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude', 'hooks'), { recursive: true })
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    copyFileSync(
+      join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs'),
+      join(repo, '.claude/hooks/check-file-size-guard.mjs'),
+    )
+    writeFileSync(
+      join(repo, '.claude/limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'utility/helper', glob: '**/*.ts', max: 100 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'src/a.ts'), 'x\n')
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    execFileSync('git', ['commit', '-qm', 'seed', '--no-verify'], { cwd: repo })
+
+    // A `git` on PATH that fails ONLY `diff --cached ...` and otherwise delegates —
+    // ls-files (called earlier in main()) must still succeed for real.
+    writeFileSync(
+      join(fakeBin, 'git'),
+      '#!/bin/sh\n' +
+        'if [ "$1" = "diff" ] && [ "$2" = "--cached" ]; then\n' +
+        '  echo "fake git diff failure" >&2\n' +
+        '  exit 1\n' +
+        'fi\n' +
+        'exec /usr/bin/git "$@"\n',
+    )
+    execFileSync('chmod', ['+x', join(fakeBin, 'git')])
+
+    const r = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    })
+    assert.equal(r.status, 1, 'a git failure here must BLOCK, not pass clean')
+    assert.match(r.stderr, /cannot list staged deletions — BLOCKING/)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+    rmSync(fakeBin, { recursive: true, force: true })
+  }
+})

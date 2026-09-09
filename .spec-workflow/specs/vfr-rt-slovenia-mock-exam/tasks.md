@@ -92,7 +92,7 @@
   - SECURITY DEFINER + STABLE + `SET search_path = public` + `auth.uid()` check + `users.deleted_at IS NULL` filter. Returns one row per requested question id with: `id`, `question_type`, `question_text`, `question_image_url`, `subject_code`, `topic_code`, `difficulty`, `question_number`, `explanation_text`, `explanation_image_url`. For MC rows: `options` projected via the existing stripped pattern (id + text only, ORDER BY random()). For short_answer: `options = NULL`. For dialog_fill: `options = NULL`, `dialog_template` returned with `{{n|canonical;...}}` tokens REPLACED by `{{n}}` plain markers (`regexp_replace(dialog_template, '\{\{(\d+)\|[^}]*\}\}', '{{\1}}', 'g')`), and `blanks_safe jsonb` = `[{ index: int }]` array (canonicals stripped).
   - **MUST NEVER return**: `canonical_answer`, `accepted_synonyms`, raw `blanks_config` with canonicals, or any `correct` flag on options. Failure to strip is a `security.md` rule 1 violation.
   - `p_question_ids` carries the immutable-write-once exception per `docs/security.md §15` (same as `batch_submit_quiz` reading `quiz_sessions.config.question_ids`).
-  - _Leverage: `get_quiz_questions()` LATEST body at `supabase/migrations/20260327000059_shuffle_answer_options.sql` for the options-stripping pattern; sibling RPC, not a replacement_
+  - _Leverage: `get_quiz_questions()` for the options-stripping pattern; sibling RPC, not a replacement. DERIVE its latest body per Pre-Flag Verification (`agent-critic.md`) — this line named `20260327000059` as LATEST with no as-of qualifier and has been superseded by later redefinitions since._
   - _Requirements: R1 (type-discriminated rendering), R3.8 (no answer leak before submit), NFR-Security_
 
 - [x] **A.7 Migration `100` — `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` RPC**
@@ -149,7 +149,7 @@
 
 - [x] **B.2 Server Action `startVfrRtExam`**
   - File: `apps/web/app/app/vfr-rt-exam/actions/start.ts` + `.test.ts`
-  - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping (4 cases per design.md). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
+  - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping — one case per mapped token, DERIVED from `START_VFR_RT_EXAM_ERROR_MESSAGES` in `_error-messages.ts` rather than counted here (this line said "4 cases"; the map carries six and is explicitly open). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
   - _Test_: success-path asserts the returned `sessionId` (no `redirect` mock — the action returns).
   - _Requirements: R2.1, R2.4_
 
