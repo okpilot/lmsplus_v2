@@ -12,7 +12,9 @@
 // is a trap for whoever adds the next test, and this file is where the non-enforcing modes
 // belong anyway.
 //
-// Every case is MUTATION-PINNED: break the named mechanism and exactly one test goes red.
+// Every case is MUTATION-PINNED: break the named mechanism and that case — or the named GROUP of cases sharing that mechanism — goes red.
+// Not "exactly one": several mechanisms here are pinned by a PAIR, and the stricter wording
+// was false of this file. Do not restore it without re-running the mutations.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import {

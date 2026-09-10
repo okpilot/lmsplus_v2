@@ -1682,9 +1682,12 @@ caps are achievable and the violators are drift. The 500-line test-file cap was 
 suppression inside an agent definition and is now a real rule.
 
 **Definitions the prose left open, settled by measurement.** A Server Action is a file declaring
-`'use server'`, not one living in `actions/`: of the 11 non-test files under an `actions/` directory
-over 100 lines, 7 lack the directive (pure helpers, several split out to obey this rule), while 4
-files declaring it — of any size — live outside `actions/` entirely, only one of which is over the cap. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
+`'use server'`, not one living in `actions/`: AS MEASURED 2026-09-09, and an OPEN set on both sides — re-derive
+rather than quoting these: of the 11 non-test files under an `actions/` directory over the Server
+Action cap (the number lives in `.claude/limits.json`, not here), 7 lack the directive (pure
+helpers, several split out to obey this rule), while 4 files declaring it — of any size — live
+outside `actions/` entirely, only one of which is over the cap. Derive both populations with
+`grep -rln "^\s*['\"]use server" apps/web` against the guard's own `--stats`. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
 flips between two reasonable implementations.
 

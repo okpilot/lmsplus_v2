@@ -13,7 +13,10 @@
 ## Slice 1 — file-size limits (COMPLETE)
 
 - [x] `.claude/limits.json` + `check-file-size-guard.mjs` + a mutation-pinned suite, split by
-      concern across three files (in-process / subprocess / the write path). No count stated:
+      concern across several files (in-process / subprocess / argument handling / the write path).
+      Derive the set rather than counting it here — it grew from three to four when the rename case
+      pushed the CLI suite into §1's extraction trigger:
+      `ls .claude/hooks/check-file-size-guard*.test.mjs`. No count stated:
       it is an open set (`code-style.md` §10 cl.2) and this line already went stale once —
       derive with `node --test .claude/hooks/check-file-size-guard.*.test.mjs`.
 - [x] Ten prose copies → one source + one test-pinned mirror; 2 live drift bugs fixed (a

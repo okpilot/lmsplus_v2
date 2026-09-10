@@ -8,6 +8,10 @@
 > Migration slots through **093** are taken as of 2026-06-10 (the `#611` score-forgery fix shipped as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql`). VFR RT migs start at **094** — re-confirm the next-free slot at implementation time, since more may land first.
 > `supabase/migrations/` is the SOLE source of truth. This line predated the 2026-07-11 freeze of
 > `packages/db/migrations/`, which carries false history — do not write a mirror there.
+> **The `packages/db/migrations/0NN_*.sql` paths in Phase A below are a HISTORICAL RECORD**, not an
+> instruction: those files were written in June 2026, before the July freeze, and the tasks are
+> complete. Do not follow them as a template. Any NEW migration is a timestamped file in
+> `supabase/migrations/` only, and takes no sequential slot.
 
 ## Prerequisites (hard blockers)
 

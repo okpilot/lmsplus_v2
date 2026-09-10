@@ -5,7 +5,9 @@
 //   node --test .claude/hooks/check-file-size-guard.cli.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in
-// check-file-size-guard.mjs (or .claude/limits.json) and exactly one test goes red.
+// check-file-size-guard.mjs (or .claude/limits.json) and that case — or the named GROUP of cases sharing that mechanism — goes red.
+// Not "exactly one": several mechanisms here are pinned by a PAIR, and the stricter wording
+// was false of this file. Do not restore it without re-running the mutations.
 // The mutation each case pins is named in its title, because a test whose mechanism
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
