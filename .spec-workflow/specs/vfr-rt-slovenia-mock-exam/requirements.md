@@ -103,7 +103,9 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 ### Code Architecture and Modularity
 
 - **Single File Responsibility**: each new migration does exactly one architectural thing — one for the `question_type` enum + column, one for the `quiz_sessions.mode` CHECK extension, one for the `start_vfr_rt_exam_session` RPC, one for `submit_vfr_rt_exam_answers` RPC, one for `get_vfr_rt_exam_questions` if needed.
-- **File size limits** (`code-style.md` §1): page.tsx ≤ 80 lines, components ≤ 150, hooks ≤ 80, utility ≤ 200, SQL migration ≤ 300.
+- **File size limits**: the caps are data in `.claude/limits.json`, enforced by
+  `.claude/hooks/check-file-size-guard.mjs`. Read them there — any number written into this spec
+  can diverge the moment a cap changes. Per-task `(≤ N)` annotations below are indicative only.
 - **No `any`** (`code-style.md` §5): question-type discriminated unions use Zod `.discriminatedUnion('question_type', ...)`.
 - **No `useEffect` for data fetching**: exam-progress UI uses Server Components + Server Action submissions, identical pattern to existing `internal_exam` and `mock_exam`.
 - **Reuse before new**: extend `start_internal_exam_session`'s sampling pattern, `complete_overdue_exam_session`'s auto-complete pattern, and `batch_submit_quiz`'s answer-write pattern wherever possible.

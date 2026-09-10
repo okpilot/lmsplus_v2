@@ -47,6 +47,23 @@ nothing else writes to it, so there is no race to lose.
 
 9. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the commit diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
 
+## Reporting a COUNT
+Every number you report — spec or task tallies, occurrence counts, file or mention counts — must
+arrive WITH the command you ran and that command's pasted output. Never a remembered figure, never
+an estimate, never a number you inferred from a listing you skimmed. If you cannot derive it in
+this session, write "not derived" instead; a short report carrying three verified facts is worth
+more than a thorough one carrying an invented number.
+
+This is a rule and not a nicety because on PR #1273 the fabricated count was load-bearing: the
+report said "all 19 specs have 0 incomplete tasks" and concluded that the spec being corrected was
+a historical record which must not be touched. Seven specs were active and that one had 14 open
+tasks. Acting on the report would have REVERTED a correct fix. Two OTHER reports in the same
+session carried wrong counts too — one before this, one after — each under a conclusion that read
+as sound.
+
+Being TOLD about those failures in your prompt did not prevent the next one — it was tried twice
+and a fresh wrong count came back both times. Pasting the artifact is what worked. So paste it.
+
 ## Citing a file in your report
 When you report that a file "cites", "mentions" or "references" specific content, paste the
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers

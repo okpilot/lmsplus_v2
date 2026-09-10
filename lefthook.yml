@@ -13,7 +13,11 @@
 # ============================================================================
 
 pre-commit:
-  parallel: true
+  # NOT parallel: `biome-check` runs with `stage_fixed: true`, so it rewrites and restages files
+  # while other commands run. `check-file-size-guard.mjs` reads the WORKING TREE, so in parallel
+  # it can count pre-format content — and its ratchet is exact-match, where a one-line difference
+  # is a failure. The stage is sub-second serially; correctness wins over the saving.
+  parallel: false
   commands:
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,mjs,cjs}"
@@ -27,6 +31,20 @@ pre-commit:
     soft-delete-guard:
       glob: "*.{ts,tsx}"
       run: node .claude/hooks/check-soft-delete-guard.mjs {staged_files}
+    # File-size limits — data in .claude/limits.json, formerly prose in code-style.md §1.
+    # RATCHET, not a gate: it fails on a REGRESSION, and the failure modes are enumerated
+    # canonically in code-style.md §1 — not restated here. The one that surprises: the
+    # baseline match is EXACT in BOTH directions, so a recorded violation that SHRINKS
+    # fails too, until `--update-baseline` records it.
+    # The glob must include `sql` — the migration limit is one of the two riskiest
+    # categories, and a migration-only commit would otherwise never trigger the guard.
+    file-size-guard:
+      # `mjs` is load-bearing: limits.json caps test files by BASENAME, so the extension is
+      # an open set — and every commit of the slice that introduced this guard logged
+      # "file-size-guard (skip) no files for inspection", because its own files are .mjs. The
+      # guard existed and was inert at pre-commit for exactly the files it capped.
+      glob: "*.{ts,tsx,sql,mjs}"
+      run: node .claude/hooks/check-file-size-guard.mjs {staged_files}
     # Forbid impl-detail leakage in NEWLY-added it()/test() titles (code-style.md §7, #946).
     # Diff-scoped + grandfathered: the script reads `git diff --cached` and checks only
     # added titles, so pre-existing `maps <token>` titles never block a commit.

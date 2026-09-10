@@ -90,11 +90,19 @@ lmsplusv2/
 
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
 - **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
-- **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook.
+- **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook,
+  alongside a second gate there — a commit SHA cited in the message must resolve. Mechanism and
+  its measured bounds: `docs/decisions.md` Decision 64. Do not restate them here; the stage's
+  command list is DATA in `.claude/pipeline.json`.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
-  - `pre-commit` (parallel): Biome check + type-check + soft-delete-column guard + test-title-leakage guard (unit tests run in CI, not pre-commit)
-  - `commit-msg`: commitlint
+  - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard reads
+    the worktree, and the guard's ratchet is exact-match): the stage's command list is DATA in
+    `.claude/pipeline.json`, and
+    `.claude/pipeline.test.mjs` fails if it disagrees with `lefthook.yml` in either direction.
+    Read it there — this line used to enumerate the hooks and went stale the first time one was
+    added. (Unit tests run in CI, not pre-commit.)
+  - `commit-msg`: commitlint + the cited-SHA claim gate (Decision 64)
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)
 

@@ -2,9 +2,16 @@
 
 > **Order matters.** Phase A (migrations) is the critical path — once shipped, types regen and unblocks everything else. Phase B–E can partially overlap.
 >
-> Each migration is one task; SQL ≤ 300 lines per file (`code-style.md` §1).
+> Each migration is one task; SQL files stay within the migration cap in `.claude/limits.json`
+> (mechanically enforced for `supabase/migrations/**` — the guard's SQL rule globs only that
+> path — do not restate the number here).
 > Migration slots through **093** are taken as of 2026-06-10 (the `#611` score-forgery fix shipped as `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql`). VFR RT migs start at **094** — re-confirm the next-free slot at implementation time, since more may land first.
-> Every `packages/db/migrations/0NN_*.sql` has a byte-identical mirror at `supabase/migrations/<ts>_*.sql`.
+> `supabase/migrations/` is the SOLE source of truth. This line predated the 2026-07-11 freeze of
+> `packages/db/migrations/`, which carries false history — do not write a mirror there.
+> **The `packages/db/migrations/0NN_*.sql` paths in Phase A below are a HISTORICAL RECORD**, not an
+> instruction: those files were written in June 2026, before the July freeze, and the tasks are
+> complete. Do not follow them as a template. Any NEW migration is a timestamped file in
+> `supabase/migrations/` only, and takes no sequential slot.
 
 ## Prerequisites (hard blockers)
 
@@ -42,12 +49,12 @@
   - On BOTH tables: `ALTER COLUMN selected_option_id DROP NOT NULL` (keep the existing `IN ('a','b','c','d')` CHECK — it permits NULL automatically). ADD `response_text TEXT NULL`, `blank_index INT NULL`. ADD a discriminator CHECK (do NOT replace the existing CHECK): exactly one of `selected_option_id` / `response_text` non-null per row; `blank_index` non-null only when `response_text` is set.
   - **Widen UNIQUE on BOTH tables.** `quiz_session_answers` carries `UNIQUE (session_id, question_id)` from mig 001; `student_responses` carries `student_responses_session_question_unique UNIQUE (session_id, question_id)` from `supabase/migrations/20260313000020_fix_student_responses_unique.sql`. Both must be widened — without the `student_responses` widening, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT. Pattern (on each table): DROP the existing constraint, ADD `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)`. Supabase Postgres 17 supports `NULLS NOT DISTINCT`. The NULL=NULL semantics preserve the "no duplicate MC rows per session" behavior for MC/short_answer rows where `blank_index IS NULL`.
   - **HARD DEPENDENCY:** migs 095, 095b, and 095c MUST ship in the same release. Applying 095 alone breaks `batch_submit_quiz` and `submit_quiz_answer` (their `ON CONFLICT (session_id, question_id)` clauses on `quiz_session_answers` no longer match any constraint after the DROP — a deferred `42P10` that surfaces at execution, not at apply; see `code-style.md` §5). The `student_responses` INSERT inside `batch_submit_quiz` uses bare `ON CONFLICT DO NOTHING` (mig 078 line 212) — no column-list match — so it works against any constraint and needs no update.
-  - **Why split files, not one:** combining the schema changes (mig 095) and the two `CREATE OR REPLACE FUNCTION` bodies (migs 095b + 095c) into a single migration file would exceed the 300-line cap in `code-style.md` §1 (the `batch_submit_quiz` body alone is ~297 lines verbatim). `db push` applies pending migrations in timestamp order and records each in `supabase_migrations.schema_migrations`, but Supabase does not document cross-file transaction atomicity — so do NOT assume 095, 095b, and 095c apply as one rollback-safe unit. All files must ship in the same PR/release so they deploy together; the residual risk (095 applied, 095b/095c missing or failed mid-deploy) is mitigated two ways: (1) the A.2 acceptance test (`batch_submit_quiz` idempotency under the new constraint) catches a skipped/failed companion at PR time, and (2) recovery is to re-run `db push` (it resumes from the unrecorded migration) or apply 095b/095c manually and record their `schema_migrations` entries.
+  - **Why split files, not one:** combining the schema changes (mig 095) and the two `CREATE OR REPLACE FUNCTION` bodies (migs 095b + 095c) into a single migration file would exceed the SQL-migration cap in `.claude/limits.json` (the `batch_submit_quiz` body alone runs ~297 lines verbatim, leaving no room for a second body). `db push` applies pending migrations in timestamp order and records each in `supabase_migrations.schema_migrations`, but Supabase does not document cross-file transaction atomicity — so do NOT assume 095, 095b, and 095c apply as one rollback-safe unit. All files must ship in the same PR/release so they deploy together; the residual risk (095 applied, 095b/095c missing or failed mid-deploy) is mitigated two ways: (1) the A.2 acceptance test (`batch_submit_quiz` idempotency under the new constraint) catches a skipped/failed companion at PR time, and (2) recovery is to re-run `db push` (it resumes from the unrecorded migration) or apply 095b/095c manually and record their `schema_migrations` entries.
   - _Leverage: existing schema in `001_initial_schema.sql`; `supabase/migrations/20260313000020_fix_student_responses_unique.sql`; `supabase/config.toml` for Postgres version_
   - _Requirements: R2, R3, R4_
 
 - [x] **A.2b Migrations `095b` + `095c` — update `batch_submit_quiz` and `submit_quiz_answer` ON CONFLICT clauses for the new constraint**
-  - Files: `packages/db/migrations/095b_update_existing_inserters_for_blank_index.sql` (carries `submit_quiz_answer`) + `095c_update_batch_submit_quiz_for_blank_index.sql` (carries `batch_submit_quiz` — its verbatim body alone is ~297 lines, so the two cannot share a file under the 300-line cap) (+ mirrors)
+  - Files: `packages/db/migrations/095b_update_existing_inserters_for_blank_index.sql` (carries `submit_quiz_answer`) + `095c_update_batch_submit_quiz_for_blank_index.sql` (carries `batch_submit_quiz` — its verbatim body alone is ~297 lines, so the two cannot share a file under the SQL-migration cap in `.claude/limits.json`) (+ mirrors)
   - **TWO callers** (CORRECTED 2026-06-10 during implementation — an earlier revision claimed `complete_quiz_session` as a third, misattributing the `ON CONFLICT` at L259 of `20260406000004` to it; function-boundary tracing shows `complete_quiz_session` spans L21–97 of that file and inserts only into `audit_events`; L259 belongs to the `batch_submit_quiz` body redefined in the same file, superseded by `20260601000001`): `batch_submit_quiz` (latest as of 2026-06-10: `20260601000001_align_batch_submit_audit_metadata_keys.sql`) and `submit_quiz_answer` (latest: `20260316000040`). For each: locate the LATEST body via Pre-Flag Verification at implementation time, copy verbatim, change only the `quiz_session_answers` clause `ON CONFLICT (session_id, question_id)` → `ON CONFLICT (session_id, question_id, blank_index)`. The `fsrs_cards` ON CONFLICT clauses in both bodies are untouched (different table).
   - These functions continue to INSERT only MC/short-answer rows (no `blank_index`). With `NULLS NOT DISTINCT` semantics, the inference clause `(s, q, NULL)` matches the new constraint identically to the old `(s, q)` constraint — behavior is preserved.
   - _Acceptance:_ existing PPL/internal_exam/smart_review/quick_quiz answer-submission AND completion paths continue to work after 095 + 095b + 095c are applied. SQL integration test asserts (a) a re-submit of the same answer returns DO NOTHING (no duplicate row) and (b) `complete_quiz_session` executes clean against the widened constraint (regression — it reads the table even though it needs no redefinition) — these must EXECUTE the functions, since the `42P10` failure mode is invisible to `db reset`.
@@ -89,7 +96,7 @@
   - SECURITY DEFINER + STABLE + `SET search_path = public` + `auth.uid()` check + `users.deleted_at IS NULL` filter. Returns one row per requested question id with: `id`, `question_type`, `question_text`, `question_image_url`, `subject_code`, `topic_code`, `difficulty`, `question_number`, `explanation_text`, `explanation_image_url`. For MC rows: `options` projected via the existing stripped pattern (id + text only, ORDER BY random()). For short_answer: `options = NULL`. For dialog_fill: `options = NULL`, `dialog_template` returned with `{{n|canonical;...}}` tokens REPLACED by `{{n}}` plain markers (`regexp_replace(dialog_template, '\{\{(\d+)\|[^}]*\}\}', '{{\1}}', 'g')`), and `blanks_safe jsonb` = `[{ index: int }]` array (canonicals stripped).
   - **MUST NEVER return**: `canonical_answer`, `accepted_synonyms`, raw `blanks_config` with canonicals, or any `correct` flag on options. Failure to strip is a `security.md` rule 1 violation.
   - `p_question_ids` carries the immutable-write-once exception per `docs/security.md §15` (same as `batch_submit_quiz` reading `quiz_sessions.config.question_ids`).
-  - _Leverage: `get_quiz_questions()` LATEST body at `supabase/migrations/20260327000059_shuffle_answer_options.sql` for the options-stripping pattern; sibling RPC, not a replacement_
+  - _Leverage: `get_quiz_questions()` for the options-stripping pattern; sibling RPC, not a replacement. DERIVE its latest body per Pre-Flag Verification (`agent-critic.md`) — this line named `20260327000059` as LATEST with no as-of qualifier and has been superseded by later redefinitions since._
   - _Requirements: R1 (type-discriminated rendering), R3.8 (no answer leak before submit), NFR-Security_
 
 - [x] **A.7 Migration `100` — `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` RPC**
@@ -105,10 +112,15 @@
   - _Leverage: `apps/web/lib/grading/normalize-answer.ts` (TS source of truth; mig 101 mirrors it)_
   - _Requirements: R6.1–R6.4_
 
-- [x] **A.9 Migration `102` — extend `complete_overdue_exam_session` for vfr_rt_exam mode**
-  - File: `packages/db/migrations/102_extend_overdue_for_vfr_rt_exam.sql` (+ mirror)
-  - `CREATE OR REPLACE FUNCTION complete_overdue_exam_session(...)` — locate LATEST via Pre-Flag Verification (`agent-critic.md`), copy verbatim, widen `mode IN (...)` to include `'vfr_rt_exam'`. Body for vfr_rt_exam overdue: compute partial per-part scores from existing answers, default missing entries to 0, emit `'vfr_rt_exam.expired'` audit event — matches the existing `CASE v_mode WHEN 'internal_exam' THEN 'internal_exam.expired' ELSE 'exam.expired' END` pattern at mig 063 lines 112–115. **Do NOT widen any other RPC mode check.**
-  - _Leverage: `packages/db/migrations/063_extend_overdue_for_internal_exam.sql` (verify LATEST per agent-critic.md before copying)_
+- [x] **A.9 Migration `102` — extend `complete_overdue_exam_session` AND `complete_empty_exam_session` for vfr_rt_exam mode**
+  - Shipped as `supabase/migrations/20260610001200_extend_overdue_for_vfr_rt_exam.sql`.
+  - **TWO functions, not one.** That file carries a `CREATE OR REPLACE` for BOTH — its own header says
+    "BOTH functions in that file". This task named only the overdue one until 2026-09-09, which is how
+    `complete_empty_exam_session` came to appear nowhere in this spec despite shipping here.
+  - For each: locate the LATEST definition via Pre-Flag Verification (`agent-critic.md`), copy verbatim,
+    widen the `v_mode NOT IN (...)` guard to accept `'vfr_rt_exam'`, and extend the `v_event_type := CASE
+    v_mode` branch. `complete_overdue_exam_session` additionally computes partial per-part scores from
+    existing answers, defaulting missing entries to 0. **Do NOT widen any other RPC mode check.**
   - _Requirements: R2.3, NFR-Reliability_
 
 - [x] **A.9b Migration `103` — `get_vfr_rt_exam_results(p_session_id)` RPC (results/review read path, REQUIRED for Phase C)**
@@ -141,12 +153,12 @@
 
 - [x] **B.2 Server Action `startVfrRtExam`**
   - File: `apps/web/app/app/vfr-rt-exam/actions/start.ts` + `.test.ts`
-  - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping (4 cases per design.md). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
+  - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping — one case per mapped token, DERIVED from `START_VFR_RT_EXAM_ERROR_MESSAGES` in `_error-messages.ts` rather than counted here (this line said "4 cases"; the map carries six and is explicitly open). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
   - _Test_: success-path asserts the returned `sessionId` (no `redirect` mock — the action returns).
   - _Requirements: R2.1, R2.4_
 
 - [x] **B.3 Server Action `submitVfrRtExam`**
-  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts` (+ `_answer-mapping.ts` helper extracted to keep submit.ts ≤100 lines)
+  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts` (+ `_answer-mapping.ts` helper extracted to keep submit.ts within the Server Action cap)
   - Zod union over the three answer-entry shapes (tagless `z.union` of `.strict()` objects — mirrors the RPC's tagless entries 1:1), RPC call, returns `{ success, session_id, redirect_to, expired? }`. MC key mapped to `selected_option_id` (mig 113). The optional `expired` flag surfaces the RPC's timer-expiry path.
   - _Test_: idempotent re-submit, partial answers, invalid question id mapping, expiry-flag passthrough.
   - _Requirements: R3, R6_
@@ -159,14 +171,20 @@
 
 - [x] **B.5 Discard guard extension**
   - File: `apps/web/app/app/quiz/actions/discard.ts` + `.test.ts`
-  - Extend the existing `internal_exam` branch to also reject `vfr_rt_exam` with `'cannot_discard_vfr_rt_exam'`. Add the new test case alongside the existing internal_exam test.
-  - **Cap note:** `discard.ts` is already at 105 lines — over the 100-line Server Action cap (`code-style.md` §1). Extract a small `assertDiscardableMode()` helper (or equivalent) while extending, so the file lands back under the cap rather than further over it.
+  - **SHIPPED — this body describes a plan, not the code.** The intended "extend the existing
+    `internal_exam` branch" never happened: the mode check was EXTRACTED into
+    `apps/web/app/app/quiz/actions/_discard-guard.ts` as a `NON_DISCARDABLE_MODES` map behind
+    `discardBlockedError(mode)`, and `discard.ts` now carries no mode literal at all. Both the
+    `vfr_rt_exam` rejection and its tests exist (`discard.test.ts`, `_discard-guard.test.ts`).
+  - **Cap note — historical.** The extraction that this note anticipated has already happened, so
+    `discard.ts` sits under the Server Action cap. If you ever do extend it, re-measure with `wc -l`
+    against `.claude/limits.json` rather than trusting any size stated here.
   - _Requirements: R2.2_
 
 ## Phase C — Student UI
 
 - [ ] **C.1 Briefing/landing page**
-  - File: `apps/web/app/app/vfr-rt-exam/page.tsx` (≤ 80 lines, composition)
+  - File: `apps/web/app/app/vfr-rt-exam/page.tsx` (composition only; page cap in `.claude/limits.json`)
   - Reads active vfr_rt_exam session (if any) via a Server Component query; either redirects to `/in-progress/<id>` or renders `<VfrRtExamBriefing>` with Start button.
   - _Requirements: R2, R3, NFR-Usability_
 
@@ -203,7 +221,10 @@
 
 - [ ] **D.2 Type selector + conditional form sections**
   - Files: `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` (pre-refactor + extend) + `mc-option-fields.tsx` (extracted, ≤ 80) + `short-answer-fields.tsx` (new ≤ 80) + `dialog-fill-fields.tsx` (new ≤ 150) + tests
-  - **Pre-refactor first:** `question-form-fields.tsx` is already AT the 150-line component cap — extract the existing 4-option MC editor into `mc-option-fields.tsx` before adding anything.
+  - **Pre-refactor check — RE-MEASURE, do not trust this line.** This file was AT the component cap
+    when the task was written and is now just under it. Run `wc -l` against `.claude/limits.json`; if the
+    addition would cross the cap, extract the existing 4-option MC editor into `mc-option-fields.tsx` in
+    the SAME commit per `code-style.md` §1.
   - Segmented control for question_type; conditional render based on selected value.
   - **Edit-flow data source:** existing `short_answer`/`dialog_fill` questions load their answer-key fields via the `get_question_authoring_fields` RPC (mig 094b) in the editor's Server Component — direct PostgREST SELECT of those columns is privilege-blocked (mig 094) for admins too.
   - _Requirements: R5.1, R5.2, R5.3_
