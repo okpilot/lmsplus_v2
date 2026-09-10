@@ -17,7 +17,7 @@
 // exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -46,7 +46,12 @@ test('a violation blocks however its path is spelled, and an unknown path is rej
   // an exact string compare, so `./x.ts` and an absolute path matched nothing and the guard
   // returned 0 on a REAL violation. Today's only caller passes repo-root-relative paths, so this
   // held by luck of the caller — the same shape as the flag/path collision.
-  const repo = mkdtempSync(join(tmpdir(), 'file-size-norm-'))
+  // realpathSync is load-bearing, not tidiness: on macOS `os.tmpdir()` is /var/..., a symlink
+  // to /private/var. The child reports the RESOLVED cwd, so the absolute spelling below would
+  // relativise to a `..`-prefixed path matching no tracked file — the guard would block for the
+  // WRONG reason and the doesNotMatch assertion would fail. Same platform-divergence class as
+  // the CLI suite's PATH_MAX fixture.
+  const repo = realpathSync(mkdtempSync(join(tmpdir(), 'file-size-norm-')))
   try {
     execFileSync('git', ['init', '-q', '.'], { cwd: repo })
     execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
@@ -274,6 +279,9 @@ test('a rename into a violation still blocks — the exemption clears the unknow
 })
 
 test('a git failure listing staged deletions blocks instead of failing open', () => {
+  // Resolve the real binary rather than hardcoding /usr/bin/git — a wrapper that delegates to a
+  // fixed path works only where git happens to be installed there (not Homebrew, not Nix).
+  const REAL_GIT = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
   // MUTATION: change the catch's `return 1` to a fail-open (e.g. `deleted = new Set()`
   // and fall through) → red. The comment right above this catch calls out exactly this
   // risk — "a failed git call ABORTS rather than silently yielding an empty set" — but
@@ -315,7 +323,7 @@ test('a git failure listing staged deletions blocks instead of failing open', ()
         '  echo "fake git diff failure" >&2\n' +
         '  exit 1\n' +
         'fi\n' +
-        'exec /usr/bin/git "$@"\n',
+        `exec ${REAL_GIT} "$@"\n`,
     )
     execFileSync('chmod', ['+x', join(fakeBin, 'git')])
 

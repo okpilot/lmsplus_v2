@@ -147,6 +147,23 @@ test('the live limits file excludes both script directories and generated types'
   assert.equal(isExcluded('apps/web/lib/queries/x.ts', LIMITS), false)
 })
 
+test('every rule note pointing at `_ratios` finds it — the pointer cannot dangle', () => {
+  // MUTATION: delete (or rename) the top-level `_ratios` key while a rule's `note` still
+  // reads "See `_ratios`." — nothing else in this codebase reads `note`, so a dropped
+  // key would leave the pointer dangling silently forever.
+  // Deliberately narrow: this pins only the dangling-pointer half. It does NOT detect a
+  // future note re-duplicating the `_ratios` paragraph text instead of pointing at it —
+  // that would need a text-similarity check across hand-written prose, which is the same
+  // fragile-mirror trade this PR already declined for `globToRe` memoization. `note` is
+  // pure documentation the guard never evaluates, so a re-duplicated paragraph is a style
+  // regression, not a functional one; a dangling pointer is what's cheap and unambiguous
+  // to pin here.
+  const referencing = LIMITS.rules.filter((r) => r.note?.includes('`_ratios`'))
+  assert.ok(referencing.length > 0, 'expected at least one rule note to reference `_ratios`')
+  assert.equal(typeof LIMITS._ratios, 'string')
+  assert.ok(LIMITS._ratios.length > 0)
+})
+
 test('the live limits file orders the Server Action rule ahead of the util rule', () => {
   // Also added after mutation testing: moving the util rule to the front of
   // limits.json.rules silently loosened the Server Action cap to the utility one with every
@@ -183,9 +200,12 @@ test('a .ts inside actions/ WITHOUT the directive takes the util limit', () => {
 })
 
 test('classifies a SQL migration, so the sql path is not invisible to the guard', () => {
-  // MUTATION: drop 'sql' from the lefthook glob and this rule is never reached at
-  // pre-commit for a SQL-only commit — the ratchet's "new violation" half dies for one
-  // of its two riskiest categories.
+  // MUTATION: widen this rule's glob past `supabase/migrations/**/*.sql`, or reorder it after a
+  // broader rule → a migration stops taking the migration cap. FIXTURE-LEVEL ONLY: this case
+  // calls classify() against the local fixture, so it can say nothing about the live config or
+  // the lefthook glob. It previously claimed to pin 'drop sql from the lefthook glob', which it
+  // cannot detect at all — the exact lie this file's header warns about. The glob is pinned
+  // separately, in the --update-baseline suite.
   const r = classify('supabase/migrations/20260101000000_x.sql', '', fixture())
   assert.equal(r.kind, 'SQL migration')
   assert.equal(r.max, 300)

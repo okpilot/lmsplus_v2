@@ -18,7 +18,7 @@
       "kind": "SQL migration",
       "glob": "supabase/migrations/**/*.sql",
       "max": 300,
-      "note": "EXCEPTION, applied by grandfathering rather than by a code branch: a migration whose content is a single unsplittable DDL object (one CREATE OR REPLACE FUNCTION plus its GRANT/COMMENT/DROP boilerplate) cannot be split \u2014 a plpgsql body does not span files, and single-function SECURITY DEFINER redefinitions run ~300-330 lines. Such files are listed in `baseline` below. The limit stays strict so a genuinely multi-statement migration that COULD be split by concern is still flagged."
+      "note": "EXCEPTION, applied by grandfathering rather than by a code branch: a migration whose content is a single unsplittable DDL object (one CREATE OR REPLACE FUNCTION plus its GRANT/COMMENT/DROP boilerplate) cannot be split \u2014 a plpgsql body does not span files, and single-function SECURITY DEFINER redefinitions run well past this cap. The range is NOT stated here: the first attempt said \"~300-330\" and was refuted by the `baseline` map three lines below it in this same file, from inception, through nine review passes \u2014 the exact defect this file exists to end, committed inside it. Derive it from `baseline` instead. Such files are listed in `baseline` below. The limit stays strict so a genuinely multi-statement migration that COULD be split by concern is still flagged."
     },
     {
       "kind": "page file",

@@ -1656,7 +1656,7 @@ which is §10 cl.2 in the decision record for the guard against exactly that. Br
 
 ## Decision 65: file-size limits become data + a ratchet; a mirror is DELETED or PINNED, never pointed at (2026-09-09)
 
-**What.** The §1 caps move from prose — restated by hand in ten places — into `.claude/limits.json`,
+**What.** The §1 caps move from prose — restated by hand across the surfaces the mirror table names — into `.claude/limits.json`,
 enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI. Slice 1 of the
 corpus-codification programme.
 
@@ -1677,7 +1677,7 @@ it would delete the enforcement. Its caps are KEPT and pinned by a test assertin
 not the mirror. Every other copy is deleted.
 
 **Keep the cap, grandfather the violators — never relax the cap to fit the drift.** Applied twice, to
-avoid two standards: Server Actions and test files (each ~90% compliant as of this commit; the ratios are an open set and are derived, not restated — see the rule notes in `.claude/limits.json`). Both ~90%, so both
+avoid two standards: Server Actions and test files. Both ratios are an OPEN set, derived and NOT restated — this sentence carried "~90%" twice while saying it did not, until CR-local round 2 caught it. Run `node .claude/hooks/check-file-size-guard.mjs --stats`. Both classes sit close enough that both
 caps are achievable and the violators are drift. The 500-line test-file cap was previously a
 suppression inside an agent definition and is now a real rule.
 
@@ -1691,7 +1691,7 @@ outside `actions/` entirely, only one of which is over the cap. Derive both popu
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
 flips between two reasonable implementations.
 
-**Two flags, both opt-in.** `--stats` prints per-rule compliance; it exists because the ratios
+**The opt-in flags — derive the set from `KNOWN_FLAGS` in the guard, not from a count here.** `--stats` prints per-rule compliance; it exists because the ratios
 were literals that shipped wrong three times, and an embedded derivation command that replaced
 them threw when run as written. `--update-baseline` rewrites the recorded numbers for a human to
 review and commit. The check NEVER writes on a normal run — a check that rewrites the record it
@@ -1707,7 +1707,7 @@ carrying a real violation into exit 0.
 ARE graded, under the test-file rule, which keys on the basename. Deliberate, but a gap, not an
 `excludeGlobs` entry.
 
-**Consequence accepted.** Codifying a rule barely shrinks the injected corpus: ten copies collapsed to
+**Consequence accepted.** Codifying a rule barely shrinks the injected corpus: many hand-kept copies collapsed to
 one, and the corpus did not get smaller. Derive the current total with
 `wc -l CLAUDE.md .claude/rules/*.md` rather than quoting one here: three figures in this slice
 shipped wrong, each measured before its own commit's remaining edits landed (§10 cl.7), and the

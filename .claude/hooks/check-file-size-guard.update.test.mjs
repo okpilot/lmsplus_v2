@@ -259,6 +259,26 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
   }
 })
 
+test('the lefthook glob reaches every extension the rules can match', () => {
+  // MUTATION: drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml → red.
+  // Nothing else pins this. The guard can only grade a file lefthook actually HANDS it, so a
+  // narrowed glob silently retires whole rule classes at pre-commit while every unit test stays
+  // green — CI's whole-tree run would still catch it, but a commit sails through locally. This is
+  // not hypothetical: the `mjs` omission meant the guard never ran at pre-commit on its OWN files
+  // for the entire slice that introduced it, which lefthook.yml's comment now records.
+  const yml = readFileSync('lefthook.yml', 'utf8')
+  const block = yml.slice(yml.indexOf('file-size-guard:'))
+  const glob = block.match(/glob:\s*"([^"]+)"/)
+  assert.ok(glob, 'file-size-guard has no glob in lefthook.yml')
+  const exts = new Set(glob[1].replace(/^\*\.\{|\}$/g, '').split(','))
+  // Derive what the rules can match rather than restating a list: every extension any rule glob
+  // ends in must be reachable. `**/*.test.*` is a basename rule with an open extension, and .mjs
+  // is the one it caught us on, so it is asserted explicitly.
+  for (const want of ['ts', 'tsx', 'sql', 'mjs']) {
+    assert.ok(exts.has(want), `lefthook file-size-guard glob omits ${want}: ${glob[1]}`)
+  }
+})
+
 test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () => {
   // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so — so its
   // copy of the numbers is KEPT and verified here rather than deleted. This is the second
@@ -295,9 +315,16 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
   }
 
   for (const [path, kind] of MIRRORED) {
-    const rule = LIMITS.rules.find((r) => r.kind === kind)
-    assert.ok(rule, `limits.json has no rule of kind ${kind}`)
-    assert.equal(capFor(path), rule.max, `${path} must mirror the ${kind} cap`)
+    // EVERY rule of the kind, not `.find()`. limits.json declares `test file`, `hook` and
+    // `Server Action file` TWICE each (one rule per glob), so a `.find()` pinned only the first
+    // and a cap changed on the second diverged from .coderabbit.yaml in silence — while this
+    // test, which agent-coderabbit-sync.md tells the agent to trust instead of hand-checking,
+    // stayed green. Found by CR-local round 2.
+    const rules = LIMITS.rules.filter((r) => r.kind === kind)
+    assert.ok(rules.length > 0, `limits.json has no rule of kind ${kind}`)
+    const maxes = new Set(rules.map((r) => r.max))
+    assert.equal(maxes.size, 1, `limits.json declares ${kind} with disagreeing caps`)
+    assert.equal(capFor(path), rules[0].max, `${path} must mirror the ${kind} cap`)
   }
 
   // and no cap in the YAML that limits.json does not declare at all
