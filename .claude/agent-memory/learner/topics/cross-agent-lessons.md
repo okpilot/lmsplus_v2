@@ -1941,3 +1941,124 @@ states both CRITICALs in `3752c88a` "were reproduced as working exploits before 
 against it after" — proper mutation-check discipline (row 602's sibling "Mutation-check executed but
 doesn't falsify the claim" did NOT recur here; the checks shipped were real: `chmod 000` and a
 same-path content-swap are both isolated, targeted reproductions, not category-membership checks).
+
+## PR #1273 (feat/codify-file-size-limits, commits 48a2df66/aa10d2b5/08a59fce/d4f8f33d/b7081ec4) — 2026-09-10 learner pass
+
+Origin: cloud CodeRabbit round 1 (8 findings) on the file-size-limits codification slice, applied
+across 4 full post-commit cycles. Input includes the CR-local/cloud-CR triage table for the FIRST
+time on this specific PR (per `agent-learner.md § DO`, it is counted here).
+
+**Row 604 (+4 → 37), 4TH BRANCH, all "fixing one §10 claim ships/leaves another":**
+code-reviewer's `latest=` citation named the FROZEN `packages/db/migrations/`, pointed at the wrong
+migration, and described already-shipped work as pending; implementation-critic caught a
+"slots through 093" clause left standing under a numbering scheme two clauses above had just
+retired, and (combined, same round) a migration-citation naming one redefined function when the
+migration redefines two, plus a `[x]` task whose body described an inline branch the shipped code
+had since extracted to a helper; semantic-reviewer caught 3 false claims in one pass (a superseded
+"LATEST body" citation; `requireStudent()` called an "existing helper" when it exists nowhere and
+the SAME FILE says so nine lines below; "4 cases" when the shipped map carries six and is explicitly
+open), combined as one instance per the same-pass precedent. Final semantic-reviewer pass: "the well
+is dry" — a shape-sweep across the tracked repo found nothing further. POSITIVE: this is a working
+confirmation of the extend-by-one + M-round-floor mechanic converging to a genuinely clean state,
+not merely running out of rounds.
+
+**Row 69 (+4 → 21), CR-local round 1, cloud CodeRabbit's whole-diff read catching what per-commit
+review missed — same shape as row 655's origin:** `lefthook.yml`'s ratchet comment said the check
+"fails only on a NEW over-limit file or one that GREW" when `evaluate()` uses `n !== allowed`, so a
+SHRINK fails too (and a stale baseline row blocks independently of either direction);
+`docs/decisions.md` claimed `.mjs` "matches no rule so the hook scripts are ungraded" when
+`**/*.test.*` grades the `.test.mjs` siblings; `.claude/agents/code-reviewer.md` AND
+`.claude/rules/agent-code-reviewer.md` both gave headroom as an unqualified `wc -l` when the guard
+counts one MORE on a file with no trailing newline (a 2-file byte-identical mirror, both wrong);
+a VFR RT spec claimed mechanical enforcement over `packages/db/migrations/` when the SQL rule globs
+only `supabase/migrations/**`. **CLAUSE-SLOT CONFLICT surfaced while writing this up:** row 69's
+tracker note previously said "§10 cl.6 text overdue" — but cl.6 is now WRITTEN, as the commit-claims
+SHA-citation gate (`0cbadf11`, merged the day before this PR). That is a different, narrower rule
+than what row 69 needs (a general "claim true in hunk, false vs mirror/arithmetic" clause). Propose
+cl.8 instead of cl.6 when this is finally promoted — the slot was taken by unrelated, legitimate
+work, not a duplicate.
+
+**Row 43/cl.2 (+1 → 10):** `requirements.md` stated "seven surfaces" over a table that lists five.
+Verdict: the count was DELETED, not corrected to "five" — consistent with cl.2's actual instruction
+(state the derivation, not a fresher wrong number).
+
+**Row 519 (+1 → 9), first NON-numeric instance:** a §10 cl.3 sweep fixed a retracted claim in
+`tasks.md` and missed the byte-identical claim in `design.md` one file over. Row 519 was scoped to
+counts specifically ("claim-correction commit updates a count but leaves its [sibling] stale"); this
+instance is a prose claim, not a number, so it broadens the row's scope rather than confirming it as
+originally framed. This is also the "partial fix to a sibling-file group" durable defect (already
+the single biggest recurring class per `MEMORY.md`'s durable-knowledge bullet) recurring in its
+purest form: CLAUDE.md's own sibling-grep rule, unapplied to the very sweep meant to enforce §10.
+
+**Row 663 (+3 → 15), doc-updater fabricates a COUNT in 3 consecutive reports, varying severity,
+surviving 2 dispatches that named the prior failure by name:**
+1. `48a2df66` — claimed `.coderabbit.yaml` had TWO mentions of a filename; it had ONE.
+2. `aa10d2b5` — claimed "all 19 specs have 0 incomplete tasks" and concluded the spec under
+   correction is a historical record that must NOT be flagged. FALSE on both counts: seven specs
+   are active and the one in question had 14 open tasks. Acting on this report would have REVERTED
+   a CORRECT fix — the highest-stakes instance of row 663 to date, since prior instances were
+   self-corrected or caught before action, not one dispatch away from reverting a fix.
+3. `08a59fce` — claimed `vfr-rt-training` is ACTIVE with 1 open task; it has ZERO.
+Dispatches 2 and 3 each explicitly named the PRIOR failure and asked for derived counts — and each
+still produced a fresh wrong one. **Only dispatch 4, which named all three failures AND required the
+count-generating command's output pasted beside every figure, produced a clean, verifiable report.**
+This is the same shape as row 663's general mechanism (a self-reported fact/action, unverifiable,
+later found false) — not a distinct pattern — but it sharpens the REMEDY: naming the past failure in
+the dispatch prompt is NOT sufficient (2/2 failed that way here); requiring the pasted artifact
+generalizes what `agent-doc-updater.md` already says for citations ("paste the EXACT substring") to
+COUNTS specifically. Proposed addition to `agent-doc-updater.md` § DO: any claim of a count — spec/
+task tallies, occurrence counts, file counts — must be accompanied by the exact command run and its
+pasted output, citing this 3-in-a-row instance as the evidence a bare reminder does not work.
+
+**Row 92/cl.7 (2→3), 3rd instance, WHILE the commit cited cl.7 by name:** the orchestrator's own
+commit message stated THREE test counts, all wrong — in the very commit that removed an
+unreproducible count from a comment, explicitly citing §10 cl.7 as the reason. Each count was true
+when measured and stale by the time the commit landed (a suite went 5→6 mid-work). Caught by
+test-writer and semantic-reviewer independently; fixed by amending the unpushed commit to state the
+derivation instead of a number. This is the strongest available evidence that cl.7's recurrence is
+an ENFORCEMENT-DEPTH gap, not a text gap — the rule was cited and violated in the same breath.
+
+**Two new WATCHING rows (count=1 each), both genuinely new mechanisms:**
+- `check-file-size-guard.mjs`'s staged-deletion lookup used `--diff-filter=D`; a staged RENAME
+  reports `R100`, not `D`, so it silently escaped detection. Cousin of the PROMOTED row 88
+  (`--name-only` rename-blindness in the security-path floor) but a DIFFERENT flag in a DIFFERENT
+  file — not a recurrence of row 88, a sibling instance of the general "git rename status is easy to
+  forget" class. If a THIRD distinct git-plumbing/rename-blindness bug surfaces (a third flag, a
+  third file), consider a general code-style.md note: any script deriving change-sets from `git
+  diff` must explicitly state how it handles `R`-status entries, not just `A`/`M`/`D`.
+- The orchestrator's own SKIP-with-reason on the big-tree fixture path (~2250 chars, macOS
+  `PATH_MAX`) was reversed by a later CR-local round on the same finding — the SKIP's stated reason
+  was itself wrong. This is the mirror image of the usual Finding Validation direction: validating
+  one's OWN dismissal, not a reviewer's claim. `agent-workflow.md § Finding Validation` already
+  covers "verify a reviewer's claim before fixing"; it has no explicit bullet for "verify your OWN
+  skip reason before defending it against a repeat finding." First occurrence — log and watch.
+
+**§10 clause 5 — assessed, NOT amended as a new clause; a light addendum is proposed instead.**
+Across this PR, 7 consecutive review passes each found one more stale claim in a block a previous
+pass had already opened and corrected — and every miss was a claim of a DIFFERENT SHAPE than the one
+that triggered the read (hunting frozen-directory paths, sliding past a "latest=" citation; hunting
+cap literals, sliding past a sibling function-count omission; hunting migration numbers, sliding
+past a task body contradicting shipped code). Existing cl.5 text ("nobody reopens a file for the
+claim they were not suspicious of") already names this mechanism in general terms — this is the same
+enforcement-depth conclusion reached for row 604 at line 231-237 above, not a new mechanism. Given
+7 recurrences in a single PR, propose ONE addendum sentence to cl.5 (not a new clause):
+"The blind spot is specifically CLAIM-TYPE, not location: a reader who reopens a block hunting one
+type of claim (a path, a cap literal, a migration number) reliably re-verifies claims of THAT type
+and slides past a co-located claim of a DIFFERENT type (a citation, a function-count, a
+task-vs-code contradiction) even while looking straight at it. Re-derive every claim in the block
+regardless of whether it resembles the one that triggered the read." This is offered as a sharper
+articulation of already-adequate text, per the standing "enforcement-depth, not rule-text" reading —
+the orchestrator may take it or leave it without changing the promotion status of anything.
+
+**Positive signals, not tracked as rows:**
+- test-writer declined a proposed cross-reference test on the reasoning that it would trade one
+  fragile hand-maintained mirror for another — a sound judgment call consistent with the
+  Rule-Mirror-Sync meta-lesson (hand-maintained enumerations are the recurring defect shape, not the
+  fix for one).
+- test-writer's mutation check on the guard's fail-closed catch (staged-deletion lookup) found it
+  UNPINNED — mutating it to fail-open passed the whole suite — and wrote a test that closes the gap.
+  Working confirmation of the "mutation-check every test that pins a mechanism" requirement.
+- CR-local finding #6 (agent-memory.md's "CONFIRMED" auto-grant language) was correctly SKIPPED —
+  re-derived live 10/10 at time of finding — with the wording clarified rather than removed. Not a
+  false positive exactly; CR's underlying caution (an unqualified "CONFIRMED" invites over-trust) had
+  some merit even though the specific claim held.
