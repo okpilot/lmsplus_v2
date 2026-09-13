@@ -2062,3 +2062,99 @@ the orchestrator may take it or leave it without changing the promotion status o
   re-derived live 10/10 at time of finding — with the wording clarified rather than removed. Not a
   false positive exactly; CR's underlying caution (an unqualified "CONFIRMED" invites over-trust) had
   some merit even though the specific claim held.
+
+## PR #1273 (feat/codify-file-size-limits), commits 24c2bd70/a170a0f8/b6f78ae4/2acd514a — 2026-09-13 learner pass
+
+Four full post-commit cycles, one hand-rolled parser (the `'use server'`/`'use strict'` directive-
+prologue scanner replacing a `/m` regex) and one CI mechanism (a `--test-timeout` flag), fixed in
+sequence, each fix commit itself reviewed by the next cycle. Verified against `git show` on all four
+SHAs before writing this.
+
+**NEW — Regex→hand-parser rewrite of a blocking gate: corpus-diff testing proves nothing about a
+grammar shape the corpus never contains (2 instances, RULE CANDIDATE).**
+`24c2bd70` replaced a `/m`-anchored regex directive check with a hand-rolled prologue scanner and
+verified it with "51 [files] over the tracked .ts/.tsx set, zero differing paths" against the regex
+it replaced. That verification was TRUE and INSUFFICIENT: no tracked file contains `'use strict'`
+immediately followed by `'use server'`, so the scanner's first-string-literal-only walk silently
+misclassified that shape (semantic-reviewer ISSUE, caught reviewing `24c2bd70` in the next cycle).
+`a170a0f8`'s fix re-ran the identical corpus-diff proof ("51... zero differing paths... for the
+third commit running") and it was AGAIN true and insufficient: no tracked file contains a bare
+directive-shaped literal mid-statement (`'use server'.length`), so the fix's own exemption branch
+returned true for it, contradicting the scanner's own docstring (semantic-reviewer ISSUE, caught
+reviewing `a170a0f8`). Two distinct commits, two distinct edge cases, one shared root cause: the
+verification method (diff against the CURRENT repo tree) can only ever prove parity on shapes the
+tree already contains, and a hand-rolled parser's failure modes live specifically in the shapes a
+naturally-occurring corpus doesn't happen to exercise. `b6f78ae4`'s fix broke the chain — semantic-
+reviewer found 0 findings on it — by making the exempted literal go through the same
+`endOfPrologueEntry` check as every other literal, closing the class rather than patching the
+instance.
+
+Propose: for any hand-rolled scanner/parser REPLACING a regex or other mechanism in a blocking gate,
+require — in the same commit — one SYNTHESIZED fixture per branch of the new implementation's
+control flow, chosen specifically to discriminate that branch from its neighbor, in addition to (not
+instead of) a corpus-diff check. Location: `code-style.md` §7 (test-writer's existing "ship with
+tests" rule already covers new hooks/utilities; this is the parser-specific corollary — a corpus-diff
+check is Necessary-Not-Sufficient the same way a green `tsc` on an excluded config is) or
+`agent-workflow.md` § Delegation Protocol as a named mechanism class alongside "For any task that
+locates a DB object's current definition, name EVERY supersession form". Supporting, not duplicating:
+test-writer independently added a test on 3 of these 4 cycles pinning a branch that was structurally
+unreachable by every fixture that existed BEFORE that cycle's fix — the same root cause (branch space
+enumerated reactively, one CR round at a time, instead of up front) surfacing on the coverage side
+rather than the correctness side.
+
+**Row 602 instance 6** (`Proposed verification command silently verifies nothing`, 5→6): `b6f78ae4`
+added `--test-timeout=<n>` to the directive suite's CI step with a comment claiming it turned the
+suite's known hang into a failure. code-reviewer (WARNING) proved this false and the orchestrator
+reproduced it: node's `--test-timeout` is a timer on the event loop; the hang it was meant to catch
+is a SYNCHRONOUS busy loop that never yields to that loop; measured, `--test-timeout=2000` against a
+12-second sync loop does not fire — only an external process kill ends it. `2acd514a`'s own commit
+message names the shape explicitly: "the flag added to prove termination was itself inert... the
+same shape as the three gates this PR opened with: green, and enforcing nothing. It is worse here
+only in that I wrote it while fixing that exact class." Fixed by replacing the in-process flag with a
+step-level `timeout-minutes`, which bounds by killing the process rather than waiting on a timer the
+hung code never services. Sharper than the row's usual shape (row 602 is normally a documentation/
+derivation command that silently checks nothing) because here the INERT mechanism was authored, by
+the same author, in the very commit fixing the PR's opening instance of gates being green while
+checking less than they claimed — naming the class did not, by itself, prevent writing a fresh member
+of it one commit later.
+
+**Row 45 instance 5** (`Mutation-check executed but doesn't falsify the claim`, 4→5): `a170a0f8`,
+caught PRE-COMMIT by implementation-critic (the prior 4 instances of this row were post-commit
+findings) — a test's own MUTATION note named a mutation ("delete the guard, index resets to a fixed
+value") that left the test GREEN: for a comment opening at index 0, the fixed reset value happens to
+equal the correct answer, so the claimed falsifying mutation doesn't falsify anything. Distinct value
+of the pre-commit catch: it never reached a post-commit cycle at all, so it isn't one of the four
+cycles enumerated above — recorded here because it's the same branch, same session, same underlying
+parser work.
+
+**Question 4 (concurrent-agent Bash mutation) — assessed, not assumed, logged WATCHING count=1.**
+The claim as given (test-writer reported a transient modification to the tracked guard file it did
+not make, during a cycle where other agents were concurrently running mutation-checks) is a live-
+session process observation, not something with a corresponding commit — there is no artifact to
+`git show`. What IS checkable: (1) `test-writer.md § "Mutation-check every test that pins a
+mechanism"` already states "Never mutate in place. Work in a scratch copy or a throwaway worktree, so
+nothing survives" — precedent for the specific ask ("mutate on a copy outside the repo") already
+exists, but it is written ONLY into test-writer.md. (2) The mirrored `§ Verify by Executing` text in
+code-reviewer.md, semantic-reviewer.md and implementation-critic.md — checked directly, all three
+carry byte-identical wording — says "run the function, grep the call sites, git show the old body,
+print the actual value"; none of it instructs editing a tracked file, so none of the three is
+LICENSED to mutate in place, but none is explicitly PROHIBITED either, the way test-writer now is.
+(3) This is not a new class: rows 86 and 89 already name a "Bash residual hole" (an agent's Bash
+access, un-gated by the `tools:` Write/Edit restriction added 2026-09-06, colliding with a concurrent
+reader/writer) with two prior materializations (a destructive cleanup command destroying another
+agent's uncommitted work; a `cd` into a stale worktree landing a write in the primary repo). A
+concurrent mutation-check race would be a THIRD, again-distinct mechanism under the same class.
+Logged as its own WATCHING row rather than folded into 86/89 (each of those is itself tracked
+separately as a distinct mechanism at count=1) — not promoted to RULE CANDIDATE, since the specific
+mechanism (which agent's Bash call actually wrote the file, and whether it was ever staged) was not
+established here. If it recurs, the fix is straightforward and mirrors test-writer's own rule: extend
+the "never mutate in place, scratch copy or throwaway worktree" sentence out of test-writer.md and
+into the shared `§ Verify by Executing` text (or a new shared subsection) so it binds every agent
+that might reach for an in-place edit to test a hypothesis, not just the one that currently has
+explicit permission to mutate at all.
+
+**Positive/neutral, not tracked as rows:** cycle 4 (`2acd514a`) was clean on code-reviewer,
+semantic-reviewer and doc-updater — the chain terminated once the fix addressed the CLASS (kill the
+process from outside) rather than patching the instance (a bigger internal timeout), consistent with
+the `fa52e34f` "prefer removing the fail-open branch over hardening its guard" lesson from the
+sibling `chore/file-size-codification` slice.
