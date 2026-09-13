@@ -186,6 +186,38 @@ test('a tracked path whose bytes are not valid UTF-8 is still graded', () => {
   }
 })
 
+test('staged mode grades the INDEX, not the working tree', () => {
+  // MUTATION: read the scoped paths from the worktree again (drop the fromIndex branch) → red.
+  // git commits the index. Staging an over-limit file and then trimming the worktree copy
+  // without re-staging let the ratchet pass while the over-limit version was committed — a
+  // fail-open in the gate, found by CodeRabbit at CR-local round 3 after eight internal passes.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-index-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'big.ts'), lines(9)) // over the cap of 5
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    writeFileSync(join(repo, 'big.ts'), lines(2)) // ...but the WORKTREE now looks compliant
+
+    const run = spawnSync('node', [guard, 'big.ts'], { cwd: repo, encoding: 'utf8' })
+    const out = run.stdout + run.stderr
+    assert.equal(run.status, 1, `the staged 9-line version is what gets committed: ${out}`)
+    assert.match(out, /9 lines/, 'it must report the INDEX line count, not the worktree one')
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing

@@ -34,7 +34,7 @@
 //         1 = a regression, OR the check could not run (FAIL CLOSED)
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { lstatSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, isAbsolute, relative } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
@@ -410,7 +410,38 @@ function main(args) {
     }
     exact.set(all[i], bytes[i])
   }
-  const read = (f) => readFileSync(exact.get(f) ?? f, 'utf8')
+  // In STAGED mode the enforced files are read from the INDEX, not the working tree. git commits
+  // the index; the guard was grading the worktree. Stage a 9-line file over a cap of 5, then trim
+  // the worktree copy to 2 without re-staging, and the ratchet passed while the 9-line version was
+  // committed — reproduced before this branch, found by CodeRabbit at CR-local round 3. Everything
+  // NOT passed as an argument keeps the worktree read: it is not being committed, and HEAD equals
+  // the worktree for it in the ordinary case.
+  const fromIndex = new Set()
+  const read = (f) => {
+    const target = exact.get(f) ?? f
+    if (!fromIndex.has(f)) return readFileSync(target, 'utf8')
+    // SYMLINKS keep the worktree read. git stores a symlink's TARGET PATH as its blob content,
+    // so reading one from the index turns a DANGLING symlink into a perfectly readable one-line
+    // file — reopening the permanently-unreadable-therefore-exempt hole this branch closed, in
+    // the one mode that matters. Caught by that hole's own test when this was first written.
+    let stat = null
+    try {
+      stat = lstatSync(target)
+    } catch (err) {
+      // Absent from the worktree but present in the index: the index is the only source there.
+      // Narrow, because a bare catch here swallowed a ReferenceError when this was first
+      // written — lstatSync was not imported, every path silently took the index branch, and
+      // the symlink test was the only thing that noticed.
+      if (err?.code !== 'ENOENT' && err?.code !== 'ENOTDIR') throw err
+    }
+    if (stat?.isSymbolicLink()) return readFileSync(target, 'utf8')
+    // Otherwise fail CLOSED: a staged path this cannot resolve in the index cannot be graded,
+    // and falling back to the worktree would restore exactly the hole being closed.
+    return execFileSync('git', ['show', `:${f}`], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
+  }
 
   // Flags are parsed BEFORE anything is treated as a file path, and a flag cannot be mixed
   // with paths. `args.includes('--stats')` was a positional-arg collision: a file literally
@@ -449,7 +480,17 @@ function main(args) {
     return updateBaseline(limits, all, read)
   }
 
+  const normalised = files.map((f) => {
+    const rel = isAbsolute(f) ? relative(process.cwd(), f) : f
+    return rel.replace(/^\.\//, '')
+  })
   // The whole tree is always evaluated, so stale-baseline drift is visible on every run.
+  for (const f of normalised) fromIndex.add(f)
+  // No try/catch here: `evaluate` already catches a failing read PER FILE and turns it into an
+  // unreadable regression, which blocks through the ordinary path — including a `git show` throw
+  // from the index branch. A wrapper here was written anyway, with a comment claiming it was what
+  // made the index read fail closed. It could never fire, and the claim was the thing that made it
+  // worth removing rather than keeping as harmless.
   const whole = evaluate(all, read, limits)
   const stale = staleBaselineEntries(whole.liveViolators, limits)
 
@@ -466,10 +507,6 @@ function main(args) {
   // `./x.ts` and an absolute path both matched nothing and silently returned 0 on a real
   // violation — verified. Today's only caller passes git-root-relative paths, so this held by
   // luck of the caller, which is the same shape as the flag/path collision above.
-  const normalised = files.map((f) => {
-    const rel = isAbsolute(f) ? relative(process.cwd(), f) : f
-    return rel.replace(/^\.\//, '')
-  })
   // `--no-renames` is load-bearing: with rename detection ON (the default) git classifies a
   // staged rename `R`, so `--diff-filter=D` returns NOTHING for it while `git ls-files` holds
   // only the destination — a caller spelling the SOURCE path would have it rejected as unknown.
