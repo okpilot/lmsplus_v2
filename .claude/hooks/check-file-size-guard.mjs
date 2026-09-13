@@ -63,14 +63,37 @@ export function countLines(content) {
 /**
  * Does this file declare itself a Server Action?
  *
- * Anchored at line start so a HEADER COMMENT mentioning the directive cannot match:
- * `load-draft-helpers.ts` carries "No `'use server'` — these are pure transforms" and
- * `resume-helpers.ts` carries "No `'use server'` — these are invoked by the action".
- * Neither declares the directive; an unanchored search matches the text DENYING it. Those two files exist precisely because someone split a
- * file to obey this very rule; misreading them as Server Actions inverts the finding.
+ * A directive is only a directive in the PROLOGUE — before any statement — so that is what
+ * this scans: whitespace and comments are skipped, and the directive must be what comes next.
+ *
+ * A line-start anchor is not enough, and the two steps of getting here are worth keeping.
+ * An UNANCHORED search matches the text DENYING the directive: `load-draft-helpers.ts` carries
+ * "No `'use server'` — these are pure transforms" and `resume-helpers.ts` carries
+ * "No `'use server'` — these are invoked by the action". Those two files exist precisely because
+ * someone split a file to obey this very rule; misreading them as Server Actions inverts the
+ * finding. Anchoring fixed that but left `/m`, which matches any line of a BLOCK COMMENT that
+ * happens to begin with the quoted directive — handing a 200-line utility the 100-line Server
+ * Action cap. Cloud CodeRabbit found that one; no tracked file trips it today.
  */
 export function declaresUseServer(content) {
-  return /^\s*['"]use server['"]/m.test(content)
+  let i = 0
+  while (i < content.length) {
+    const c = content[i]
+    if (c === ' ' || c === '\t' || c === '\r' || c === '\n' || c === '\uFEFF') {
+      i += 1
+    } else if (c === '/' && content[i + 1] === '/') {
+      const nl = content.indexOf('\n', i)
+      if (nl === -1) return false
+      i = nl + 1
+    } else if (c === '/' && content[i + 1] === '*') {
+      const end = content.indexOf('*/', i + 2)
+      if (end === -1) return false // unterminated comment — no prologue follows it
+      i = end + 2
+    } else {
+      return /^['"]use server['"]/.test(content.slice(i, i + 12))
+    }
+  }
+  return false
 }
 
 /** Compile a glob to a RegExp. Supports a leading-or-embedded `**` and a single `*`. */

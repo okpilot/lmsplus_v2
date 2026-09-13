@@ -271,10 +271,17 @@ test('the lefthook glob reaches every extension the rules can match', () => {
   const glob = block.match(/glob:\s*"([^"]+)"/)
   assert.ok(glob, 'file-size-guard has no glob in lefthook.yml')
   const exts = new Set(glob[1].replace(/^\*\.\{|\}$/g, '').split(','))
-  // Derive what the rules can match rather than restating a list: every extension any rule glob
-  // ends in must be reachable. `**/*.test.*` is a basename rule with an open extension, and .mjs
-  // is the one it caught us on, so it is asserted explicitly.
-  for (const want of ['ts', 'tsx', 'sql', 'mjs']) {
+  // Derive what the rules can match rather than restating a list — this loop used to SAY that
+  // while iterating a hardcoded ['ts','tsx','sql','mjs'], so a rule added on a new extension
+  // (`**/*.js`, say) would leave the glob narrowed and this test green. Every closed extension a
+  // rule glob ends in is now read out of limits.json. `**/*.test.*` and `**/*.spec.*` end in `.*`
+  // and yield no suffix, so .mjs — the one it caught us on — stays asserted explicitly.
+  const required = new Set(['mjs'])
+  for (const rule of LIMITS.rules) {
+    const suffix = rule.glob.match(/\.([a-z0-9]+)$/i)
+    if (suffix) required.add(suffix[1])
+  }
+  for (const want of required) {
     assert.ok(exts.has(want), `lefthook file-size-guard glob omits ${want}: ${glob[1]}`)
   }
 })
