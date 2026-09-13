@@ -25,18 +25,24 @@
 - [x] Ratchet with a visible, shrink-only baseline; every mechanism mutation-pinned
 - [x] Holes closed, each reproduced as a working exploit and re-run against the fix. No count
       here — this line said FIVE and was outrun by two later ones (path spelling, staged
-      deletions) while being edited again in between. Derive: `git log --oneline
-      0cbadf11..HEAD -- .claude/hooks/check-file-size-guard.mjs`. As of 2026-09-09 they
-      included: same-path content swap · a committed dangling symlink permanently unreadable ·
+      deletions) while being edited again in between. `git log --oneline
+      0cbadf11..HEAD -- .claude/hooks/check-file-size-guard.mjs` is the SUPERSET to read from,
+      not a count of holes: it lists every commit touching the guard, refactors and CR responses
+      included, and the hole-closures are a subset you identify by reading them. There is no
+      command that isolates them, which is the honest state of it. As of 2026-09-09 the set was:
+      same-path content swap · a committed dangling symlink permanently unreadable ·
       a rename out of the rule class (`foo.ts` → `foo.test.ts`, action cap → test cap) ·
       `chmod 000` on one directory hiding nine baselined violators and reporting them RESOLVED ·
       a file named `--stats` in argv turning an enforcement run into exit 0
 - [x] `--stats` and `--update-baseline` shipped; §10 clause 7 promoted and mirrored
 - [x] Decision 65 recorded
-      No counts stated here — this block went stale TWICE: written at commit 2 of what it
-      called 5, then frozen at 5 of what the slice became (§10 cl.7). Stating a commit RANGE is
-      the same defect as stating a count, so derive both: `git log --oneline
-      origin/master..HEAD`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
+      No counts stated here — this block went stale TWICE: written when two commits were done
+      and calling it five, then frozen at five while the branch kept going (§10 cl.7). Stating a
+      commit RANGE is the same defect as stating a count. `git log --oneline
+      origin/master..HEAD` measures the BRANCH, which is wider than this slice — Slice 1 is
+      closed and the BUILD ORDER items below it are also on the branch — so read it as the outer
+      bound, not as Slice 1's own range. The suites and the compliance table are exact:
+      `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
       `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ## BUILD ORDER — read this before picking anything up
