@@ -23,16 +23,20 @@
       invented blanket any-file rule that exists nowhere, and a suppression quietly raising the
       Server Action cap inside the enforcing agent)
 - [x] Ratchet with a visible, shrink-only baseline; every mechanism mutation-pinned
-- [x] FIVE holes closed, each reproduced as a working exploit and re-run against the fix:
-      same-path content swap · a committed dangling symlink permanently unreadable · a rename
-      out of the rule class (`foo.ts` → `foo.test.ts`, action cap → test cap) · `chmod 000` on one
-      directory hiding nine baselined violators and reporting them RESOLVED · a file named
-      `--stats` in argv turning an enforcement run into exit 0
+- [x] Holes closed, each reproduced as a working exploit and re-run against the fix. No count
+      here — this line said FIVE and was outrun by two later ones (path spelling, staged
+      deletions) while being edited again in between. Derive: `git log --oneline
+      0cbadf11..HEAD -- .claude/hooks/check-file-size-guard.mjs`. As of 2026-09-09 they
+      included: same-path content swap · a committed dangling symlink permanently unreadable ·
+      a rename out of the rule class (`foo.ts` → `foo.test.ts`, action cap → test cap) ·
+      `chmod 000` on one directory hiding nine baselined violators and reporting them RESOLVED ·
+      a file named `--stats` in argv turning an enforcement run into exit 0
 - [x] `--stats` and `--update-baseline` shipped; §10 clause 7 promoted and mirrored
 - [x] Decision 65 recorded
-      Five commits, `7ca1f522`..`0cc1a4bb`. No counts stated here — this block already went
-      stale once by being written at commit 2 of 5 (§10 cl.7). Derive: `git log --oneline
-      7ca1f522^..0cc1a4bb`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
+      No counts stated here — this block went stale TWICE: written at commit 2 of what it
+      called 5, then frozen at 5 of what the slice became (§10 cl.7). Stating a commit RANGE is
+      the same defect as stating a count, so derive both: `git log --oneline
+      origin/master..HEAD`, `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
       `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ## BUILD ORDER — read this before picking anything up

@@ -396,8 +396,12 @@ flowchart TD
   - Conditional render: `multiple_choice` → `<McOptionFields>` (extracted); `short_answer` → new `<ShortAnswerFields>`; `dialog_fill` → new `<DialogFillFields>`.
   - **Edit flow data source:** when loading an existing `short_answer`/`dialog_fill` question, the four answer-key columns are privilege-blocked for direct PostgREST SELECT (mig 094) — the editor's Server Component fetches them via the `get_question_authoring_fields` RPC (mig 094b) and passes them down as props.
 - New components co-located in `_components/`:
-  - `short-answer-fields.tsx` (≤ 80 lines): canonical answer input + synonyms chip input.
-  - `dialog-fill-fields.tsx` (≤ 150 lines): textarea for template + auto-parsed blanks preview with per-blank synonyms editor.
+  - `short-answer-fields.tsx`: canonical answer input + synonyms chip input.
+  - `dialog-fill-fields.tsx`: textarea for template + auto-parsed blanks preview with per-blank synonyms editor.
+  - Both take the React-component cap in `.claude/limits.json` — not restated here. This spec is
+    ACTIVE, so a cap literal in it is a live mirror (`agent-workflow.md` § Rule-Mirror Sync), and
+    the two that stood here named 80 and 150 as if they were different caps for two files of the
+    same kind.
 - `packages/db/src/schema.ts`:
   - Convert `UpsertQuestionSchema` to `z.discriminatedUnion('question_type', [...])`.
 - `apps/web/app/app/admin/questions/actions/upsert-question.ts`:

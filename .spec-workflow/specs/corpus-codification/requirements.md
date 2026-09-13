@@ -1,8 +1,10 @@
 # Corpus Codification — Requirements
 
-> Status: IN PROGRESS. Slice 1 complete — five commits, `7ca1f522`..`0cc1a4bb`
-> (derive: `git log --oneline 7ca1f522^..0cc1a4bb`). This spec is the source of
-> truth for the programme; chat history is not. Started 2026-09-07, scoped 2026-09-09.
+> Status: IN PROGRESS. Slice 1 landed with `7ca1f522` and kept going — the count and the end
+> of the range are both derived, not stated, because the earlier form named five commits and
+> `0cc1a4bb` and was outrun by the rest of the branch: `git log --oneline origin/master..HEAD`.
+> This spec is the source of truth for the programme; chat history is not. Started 2026-09-07,
+> scoped 2026-09-09.
 
 ## The problem, measured
 

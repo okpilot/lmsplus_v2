@@ -1712,7 +1712,9 @@ ARE graded, under the test-file rule, which keys on the basename. Deliberate, bu
 
 **Consequence accepted.** Codifying a rule barely shrinks the injected corpus: many hand-kept copies collapsed to
 one, and the corpus did not get smaller. Derive the current total with
-`wc -l CLAUDE.md .claude/rules/*.md` rather than quoting one here: three figures in this slice
+`wc -l CLAUDE.md .claude/rules/*.md` rather than quoting one here — that is the INJECTED
+corpus; `.spec-workflow/specs/corpus-codification/requirements.md` measures a wider one (agents,
+commands, `.coderabbit.yaml` too), so the two derivations disagree by design: three figures in this slice
 shipped wrong, each measured before its own commit's remaining edits landed (§10 cl.7), and the
 replacement was itself stale by the time CodeRabbit round 1 was triaged. The size win is in deleting archaeology, not in
 codification; the win here is that these copies can no longer drift.
