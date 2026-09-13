@@ -218,6 +218,37 @@ test('staged mode grades the INDEX, not the working tree', () => {
   }
 })
 
+test('staged mode does not launder a worktree-only regression through the index', () => {
+  // MUTATION: read whichever of the index/worktree content is LONGER (e.g. block if either
+  // is over the cap) instead of the index alone → red. That alternate shape still blocks the
+  // sibling test above (the index content is the larger one there), so this is a genuinely
+  // separate case: the index must be authoritative in BOTH directions, not just the one that
+  // blocks — an unstaged worktree edit must never fail a commit that never touches it.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-index-safe-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'small.ts'), lines(2)) // compliant when staged
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    writeFileSync(join(repo, 'small.ts'), lines(9)) // unstaged worktree edit, over the cap
+
+    const run = spawnSync('node', [guard, 'small.ts'], { cwd: repo, encoding: 'utf8' })
+    assert.equal(run.status, 0, 'the staged 2-line version is what gets committed')
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing

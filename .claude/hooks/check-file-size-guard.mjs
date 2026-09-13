@@ -485,6 +485,11 @@ function main(args) {
     return rel.replace(/^\.\//, '')
   })
   // The whole tree is always evaluated, so stale-baseline drift is visible on every run.
+  // Only the ARGUMENT-scoped paths. With no arguments `normalised` is empty, so the whole-tree
+  // pass reads the worktree throughout — CI's caller, where a fresh checkout makes index, worktree
+  // and HEAD agree by construction, so the divergence this closes cannot exist there. Named
+  // because a future caller that stages something and then runs the bare command would be reading
+  // the wrong bytes, and would have no way to know it from the code.
   for (const f of normalised) fromIndex.add(f)
   // No try/catch here: `evaluate` already catches a failing read PER FILE and turns it into an
   // unreadable regression, which blocks through the ordinary path — including a `git show` throw

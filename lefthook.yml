@@ -13,10 +13,13 @@
 # ============================================================================
 
 pre-commit:
-  # NOT parallel: `biome-check` runs with `stage_fixed: true`, so it rewrites and restages files
-  # while other commands run. `check-file-size-guard.mjs` reads the WORKING TREE, so in parallel
-  # it can count pre-format content — and its ratchet is exact-match, where a one-line difference
-  # is a failure. The stage is sub-second serially; correctness wins over the saving.
+  # NOT parallel: `biome-check` runs with `stage_fixed: true`, so it rewrites and RESTAGES files
+  # while other commands run. `check-file-size-guard.mjs` grades the INDEX for the paths passed
+  # here, so serial execution is what guarantees it sees biome's restage completed rather than
+  # the pre-format blob — and its ratchet is exact-match, where a one-line difference is a
+  # failure. The constraint predates the index read and survived it with its REASON changed: the
+  # comment used to say the guard read the working tree, which was true until it wasn't.
+  # The stage is sub-second serially; correctness wins over the saving.
   parallel: false
   commands:
     biome-check:

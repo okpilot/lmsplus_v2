@@ -96,8 +96,8 @@ lmsplusv2/
   command list is DATA in `.claude/pipeline.json`.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
-  - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard reads
-    the worktree, and the guard's ratchet is exact-match): the stage's command list is DATA in
+  - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard grades
+    the INDEX for the paths it is passed, and the guard's ratchet is exact-match): the stage's command list is DATA in
     `.claude/pipeline.json`, and
     `.claude/pipeline.test.mjs` fails if it disagrees with `lefthook.yml` in either direction.
     Read it there — this line used to enumerate the hooks and went stale the first time one was
