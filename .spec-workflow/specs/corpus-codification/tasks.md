@@ -18,7 +18,10 @@
       pushed the CLI suite into §1's extraction trigger:
       `ls .claude/hooks/check-file-size-guard*.test.mjs`. No count stated:
       it is an open set (`code-style.md` §10 cl.2) and this line already went stale once —
-      derive with `node --test .claude/hooks/check-file-size-guard.*.test.mjs`.
+      derive with `node --test .claude/hooks/check-file-size-guard*.test.mjs`. Note the glob:
+      no dot before the `*`. `guard.*.test.mjs` needs a segment between the dots, so it silently
+      skips the base suite and reports about half the tests — it stood here, and in the block
+      below, offered as the exact derivation of a total it could not reach.
 - [x] Ten prose copies → one source + one test-pinned mirror; 2 live drift bugs fixed (a
       invented blanket any-file rule that exists nowhere, and a suppression quietly raising the
       Server Action cap inside the enforcing agent)
@@ -42,7 +45,7 @@
       origin/master..HEAD` measures the BRANCH, which is wider than this slice — Slice 1 is
       closed and the BUILD ORDER items below it are also on the branch — so read it as the outer
       bound, not as Slice 1's own range. The suites and the compliance table are exact:
-      `node --test .claude/hooks/check-file-size-guard.*.test.mjs`,
+      `node --test .claude/hooks/check-file-size-guard*.test.mjs`,
       `node .claude/hooks/check-file-size-guard.mjs --stats`.
 
 ## BUILD ORDER — read this before picking anything up

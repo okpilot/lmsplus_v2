@@ -1,7 +1,9 @@
 // Unit tests for the file-size guard — in-process only, no subprocess, no real tree. The CLI and
-// mode-flag paths live in the sibling subprocess suites (`*.args`, `*.cli`, `*.update`), because
-// `main()` and its local helpers are not exported. Enumerate them rather than trusting this list:
-// `ls .claude/hooks/check-file-size-guard.*.test.mjs`.
+// mode-flag paths live in sibling SUBPROCESS suites, because `main()` and its local helpers are
+// not exported; `*.directive` is a sibling too but in-process, split off this file on size. So
+// `ls .claude/hooks/check-file-size-guard*.test.mjs` enumerates the SUITES, not the subprocess
+// ones — read each header for which kind it is. Note the glob has no dot before the `*`: the
+// dotted form needs a segment between the dots and silently omits this very file.
 // Run:
 //   node --test .claude/hooks/check-file-size-guard.test.mjs
 //
