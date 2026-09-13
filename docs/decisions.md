@@ -1697,11 +1697,12 @@ question, so it is the cap source, not the census:
 node --input-type=module -e '
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
+import { basename } from "node:path"
 import { countLines, declaresUseServer } from "./.claude/hooks/check-file-size-guard.mjs"
 
 const tracked = execFileSync("git", ["ls-files", "-z", "apps/web/*.ts", "apps/web/*.tsx"], {
   maxBuffer: 1 << 28,
-}).toString("utf8").split("\0").filter(Boolean).filter((f) => !/\.(test|spec)\./.test(f))
+}).toString("utf8").split("\0").filter(Boolean).filter((f) => !/\.(test|spec)\./.test(basename(f)))
 
 const body = (f) => readFileSync(f, "utf8")
 const inActions = tracked.filter((f) => f.includes("/actions/"))
