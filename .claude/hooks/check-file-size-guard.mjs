@@ -64,7 +64,8 @@ export function countLines(content) {
  * Does this file declare itself a Server Action?
  *
  * A directive is only a directive in the PROLOGUE — before any statement — so that is what
- * this scans: whitespace and comments are skipped, and the directive must be what comes next.
+ * this scans: whitespace, comments and any EARLIER prologue entry are walked past, and the
+ * directive must be what comes next.
  *
  * A line-start anchor is not enough, and the two steps of getting here are worth keeping.
  * An UNANCHORED search matches the text DENYING the directive: `load-draft-helpers.ts` carries
@@ -74,6 +75,13 @@ export function countLines(content) {
  * finding. Anchoring fixed that but left `/m`, which matches any line of a BLOCK COMMENT that
  * happens to begin with the quoted directive — handing a 200-line utility the 100-line Server
  * Action cap. Cloud CodeRabbit found that one; no tracked file trips it today.
+ *
+ * The prologue is a SEQUENCE of bare string literals, so a leading `'use strict'` has to be
+ * walked past rather than read as the end of it. The first draft of this scan stopped at the
+ * first literal and answered FALSE for `'use strict'` + `'use server'`, where the regex it
+ * replaced answered true — the dangerous direction, a real Server Action silently taking the
+ * 200-line utility cap. No tracked file has that shape either. Handled anyway: which
+ * direction a gap fails in is not the author's to predict.
  */
 export function declaresUseServer(content) {
   let i = 0
@@ -89,11 +97,53 @@ export function declaresUseServer(content) {
       const end = content.indexOf('*/', i + 2)
       if (end === -1) return false // unterminated comment — no prologue follows it
       i = end + 2
+    } else if (c === "'" || c === '"') {
+      const lit = readStringLiteral(content, i)
+      if (lit === null) return false // unterminated literal — not a prologue
+      if (lit.value === 'use server') return true
+      const next = endOfPrologueEntry(content, lit.end)
+      if (next === -1) return false // the string was an expression, so the prologue is over
+      i = next
     } else {
-      return /^['"]use server['"]/.test(content.slice(i, i + 12))
+      return false // a statement — the prologue ended without the directive
     }
   }
   return false
+}
+
+/** Read the string literal starting at `i`. Returns null if it does not terminate on its line. */
+function readStringLiteral(content, i) {
+  const quote = content[i]
+  let j = i + 1
+  while (j < content.length) {
+    const c = content[j]
+    if (c === '\\') {
+      j += 2
+    } else if (c === quote) {
+      return { value: content.slice(i + 1, j), end: j + 1 }
+    } else if (c === '\n') {
+      return null
+    } else {
+      j += 1
+    }
+  }
+  return null
+}
+
+/**
+ * Where the next prologue entry may start, or -1 if the statement did not END at the literal.
+ *
+ * `'use strict'` continues the prologue; `'x'.length` does not — the difference is only visible
+ * in what FOLLOWS the closing quote, so it is checked rather than assumed. A `;` ends the
+ * statement outright; otherwise ASI needs a line break, EOF or a comment.
+ */
+function endOfPrologueEntry(content, from) {
+  let k = from
+  while (content[k] === ' ' || content[k] === '\t' || content[k] === '\r') k += 1
+  if (content[k] === ';') return k + 1
+  if (k >= content.length || content[k] === '\n') return k
+  if (content[k] === '/' && (content[k + 1] === '/' || content[k + 1] === '*')) return k
+  return -1
 }
 
 /** Compile a glob to a RegExp. Supports a leading-or-embedded `**` and a single `*`. */

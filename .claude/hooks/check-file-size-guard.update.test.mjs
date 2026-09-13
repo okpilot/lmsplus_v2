@@ -279,7 +279,7 @@ test('the lefthook glob reaches every extension the rules can match', () => {
   const required = new Set(['mjs'])
   for (const rule of LIMITS.rules) {
     const suffix = rule.glob.match(/\.([a-z0-9]+)$/i)
-    if (suffix) required.add(suffix[1])
+    if (suffix) required.add(suffix[1].toLowerCase()) // the lefthook glob is lowercase
   }
   for (const want of required) {
     assert.ok(exts.has(want), `lefthook file-size-guard glob omits ${want}: ${glob[1]}`)

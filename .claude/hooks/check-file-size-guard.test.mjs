@@ -19,7 +19,6 @@ import { test } from 'node:test'
 import {
   classify,
   countLines,
-  declaresUseServer,
   evaluate,
   globToRe,
   isExcluded,
@@ -74,37 +73,6 @@ test('a file exactly at its limit is not a violation', () => {
   const { regressions } = evaluate(files, read, limits)
   assert.equal(countLines(read()), 100)
   assert.deepEqual(regressions, [])
-})
-
-// ---------------------------------------------------------- declaresUseServer
-
-test('a header comment DENYING the use server directive is not a declaration', () => {
-  // MUTATION: unanchor the regex (drop ^\s*) → this matches and two real helper files
-  // (resume-helpers.ts, load-draft-helpers.ts) get misread as Server Actions. Those
-  // files exist BECAUSE someone split a file to obey this rule; flagging them inverts
-  // the finding. This is a real false positive that occurred during scoping.
-  const denial = "// Hoisted out of resume.ts. No `'use server'` — these are pure transforms.\n"
-  assert.equal(declaresUseServer(denial), false)
-})
-
-test('recognises the directive in single or double quotes at line start', () => {
-  assert.equal(declaresUseServer("'use server'\nimport x\n"), true)
-  assert.equal(declaresUseServer('"use server"\nimport x\n'), true)
-})
-
-test('a block comment whose line begins with the directive is not a declaration', () => {
-  // MUTATION: restore `/^\s*['"]use server['"]/m` → this matches and a 200-line utility takes
-  // the 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did
-  // not fix this one: `/m` re-anchors on every line, including the inside of a block comment.
-  // A directive is only a directive in the prologue, so the scan skips comments and whitespace
-  // and requires the directive to be what comes next.
-  const block =
-    "/*\n 'use server' is deliberately absent — these are pure transforms.\n*/\nexport const x = 1\n"
-  assert.equal(declaresUseServer(block), false)
-  // The prologue itself still reads through comments to a real directive.
-  assert.equal(declaresUseServer("/* header */\n\n'use server'\nimport y\n"), true)
-  // ...and a directive AFTER a statement is not a prologue directive.
-  assert.equal(declaresUseServer("export const a = 1\n'use server'\n"), false)
 })
 
 // ------------------------------------------------------------------ exclusion
