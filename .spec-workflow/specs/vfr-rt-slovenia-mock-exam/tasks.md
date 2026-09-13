@@ -189,24 +189,24 @@
   - _Requirements: R2, R3, NFR-Usability_
 
 - [ ] **C.2 In-progress page + runner shell**
-  - Files: `in-progress/[sessionId]/page.tsx` (≤ 80) + `_components/vfr-rt-exam-runner.tsx` (≤ 150) + co-located tests
+  - Files: `in-progress/[sessionId]/page.tsx` + `_components/vfr-rt-exam-runner.tsx` + co-located tests
   - Reads session + answers in Server Component, passes to client `<VfrRtExamRunner>`. Runner manages local answer state + part-nav + timer (server-derived remaining time via `started_at + 1800s`).
   - _Test_: refresh-resume (Vitest) per `code-style.md` §7.
   - _Requirements: R2, R4.5, NFR-Reliability, NFR-Usability_
 
 - [ ] **C.3 Per-question-type renderers**
-  - Files: `_components/short-answer-renderer.tsx` (≤ 80), `_components/dialog-fill-renderer.tsx` (≤ 150), `_components/mc-renderer.tsx` (≤ 80; may reuse existing) + co-located tests
+  - Files: `_components/short-answer-renderer.tsx`, `_components/dialog-fill-renderer.tsx`, `_components/mc-renderer.tsx` (may reuse existing) + co-located tests
   - dialog-fill-renderer: parse the template's `[atc]`/`[pilot]` speaker tags + `{{n|canonical;...}}` blanks; render with inline `<input>` per blank. **Correct answers must NOT appear in client props** — only the template skeleton + blank index.
   - _Test_: snapshot of rendered template; verify neither the `canonical_answer` prop name nor any canonical answer values from `blanks_config` (test fixture seeds known canonical strings like "S5-ABC", "descending to 2500 feet" — assert each is absent) appear in client props or rendered HTML.
   - _Requirements: R1, R5, NFR-Security_
 
 - [ ] **C.4 Part progress bar**
-  - File: `_components/part-progress.tsx` (≤ 80) + test
+  - File: `_components/part-progress.tsx` + test
   - 3-segment bar: answered/total per part.
   - _Requirements: NFR-Usability_
 
 - [ ] **C.5 Results page + breakdown**
-  - Files: `results/[sessionId]/page.tsx` (≤ 80) + `_components/results-breakdown.tsx` (≤ 150) + tests
+  - Files: `results/[sessionId]/page.tsx` + `_components/results-breakdown.tsx` + tests
   - Per-part score bars with 75% threshold marker, pass/fail badge, per-question review (correct answers revealed post-submit).
   - **Data source:** the page's Server Component calls `get_vfr_rt_exam_results` (mig 103 / task A.9b) — NOT direct table reads (per-part scores aren't persisted; canonicals are privilege-blocked). On the RPC's guard error (not owned / not completed), redirect to `/app/vfr-rt-exam`.
   - _Test_: pass/fail badge at boundary values (74.9 → fail; 75.0 → pass); pre-completion access redirects instead of rendering.

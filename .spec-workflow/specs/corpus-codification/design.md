@@ -82,6 +82,8 @@ Archaeology is not decaying; an unenforced "ship tests with new code" rule is.
    exclusion left the suite green.
 3. **Do not measure a state your own commit then changes.** Three separate counts shipped
    wrong in slice 1, all from this. The fix is not a fourth correction: a ratio over a growing
-   set is an OPEN set, so state the derivation, never the number (`code-style.md` §10 cl.2).
+   set is an OPEN set, so prefer the derivation — and where a number IS stated, §10 cl.2
+   wants it dated and cl.7 wants it recomputed against the FINAL diff. "Never the number"
+   overstated both — its own drifted restatement of the `code-style.md` rule it cites.
 4. **A guard's own artifacts are subject to it.** Slice 1's test file crossed the cap it
    enforces. Split it — do not grandfather a file written minutes earlier.
