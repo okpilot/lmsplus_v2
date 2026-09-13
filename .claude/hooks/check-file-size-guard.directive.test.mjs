@@ -112,3 +112,16 @@ test('a directive-shaped literal that is an EXPRESSION is not a declaration', ()
   assert.equal(declaresUseServer("'use server';\n"), true)
   assert.equal(declaresUseServer("'use server'"), true)
 })
+
+test('a literal that runs off the end of the file with no closing quote is unterminated', () => {
+  // MUTATION: change readStringLiteral's final fallback `return null` (reached when the scan
+  // loop exits because `j` hit `content.length`, as opposed to the explicit `c === '\n'` case
+  // above it) to instead treat EOF as a closing quote → red. Every existing unterminated-literal
+  // test ends on an internal `\n` (hitting the `c === '\n'` branch directly, e.g. `'unterminated\n`
+  // in the second-prologue-entry test above); none exercises a buffer that ends WITHOUT a
+  // trailing newline at all, so that fallback `return null` was reachable but never observed. The
+  // fixture must be the DIRECTIVE text itself cut short — `'unterminated` fails to distinguish the
+  // two returns, since a non-matching value answers `false` either way.
+  assert.equal(declaresUseServer("'use server"), false)
+  assert.equal(declaresUseServer('"use server'), false)
+})

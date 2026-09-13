@@ -77,13 +77,17 @@ jobs:
       # Split from the unit suite when the multi-entry prologue case pushed it into the same
       # trigger again. Same reason as the two splits above, same requirement: its own step.
       #
-      # --test-timeout because one case here proves TERMINATION: the guard's unterminated-comment
-      # branch, if dropped, makes the scan loop forever rather than answer wrong. node --test has
-      # no default per-test timeout and this job sets no timeout-minutes, so that regression would
-      # burn the GitHub Actions ceiling instead of failing. A test cannot assert a hang; it can
-      # only be given a deadline.
+      # timeout-minutes because one case here proves TERMINATION: drop the guard's
+      # unterminated-comment branch and the scan loops forever rather than answering wrong.
+      # The deadline has to come from OUTSIDE the process. `node --test --test-timeout` cannot
+      # do it — it is a timer on the event loop, and a synchronous busy loop never yields to
+      # that loop, so the timeout callback never runs. Measured, after this step first shipped
+      # with exactly that wrong flag: --test-timeout=2000 against a 12s sync loop did not fire,
+      # and only an external kill ended it. A test cannot assert a hang; only something that
+      # can kill the process can bound one.
       - name: File-size guard — use-server directive tests
-        run: node --test --test-timeout=30000 .claude/hooks/check-file-size-guard.directive.test.mjs
+        timeout-minutes: 5
+        run: node --test .claude/hooks/check-file-size-guard.directive.test.mjs
 
       # §7 test-title impl-leakage guard (#946). Diff-scoped + grandfathered:
       # only titles ADDED in the PR are checked (PR events only — push to master
