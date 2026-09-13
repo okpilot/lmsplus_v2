@@ -284,11 +284,16 @@ export function staleBaselineEntries(liveViolators, limits) {
 }
 
 function trackedFiles() {
-  return execFileSync('git', ['ls-files'], {
+  // -z, because `core.quotePath` defaults to TRUE: without it git renders a tracked path holding
+  // any non-ASCII byte as the literal `"apps/web/\303\251.ts"`, quotes and octal escapes and all.
+  // One accented filename anywhere in the tree then blocks EVERY run — whole-tree mode hands that
+  // literal to readFile, gets ENOENT, and records an unreadable regression that returns before the
+  // baseline is consulted, so no baseline row can clear it. -z emits paths verbatim, NUL-separated.
+  return execFileSync('git', ['ls-files', '-z'], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   })
-    .split('\n')
+    .split('\0')
     .filter(Boolean)
 }
 
@@ -455,11 +460,15 @@ function main(args) {
   let deleted
   try {
     deleted = new Set(
-      execFileSync('git', ['diff', '--cached', '--diff-filter=D', '--no-renames', '--name-only'], {
-        encoding: 'utf8',
-        maxBuffer: 64 * 1024 * 1024,
-      })
-        .split('\n')
+      // -z for the same reason as trackedFiles: an unquoted, NUL-separated list. Here the
+      // consequence is the mirror image — a quoted deletion path never matches the raw path
+      // lefthook passes, so removing an accented file is rejected as an unknown path.
+      execFileSync(
+        'git',
+        ['diff', '--cached', '--diff-filter=D', '--no-renames', '--name-only', '-z'],
+        { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+      )
+        .split('\0')
         .filter(Boolean),
     )
   } catch (err) {

@@ -1661,7 +1661,9 @@ enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI. S
 corpus-codification programme.
 
 **RATCHET, not a gate.** A hard "fail if any file exceeds its limit" check fails on day one; the tree
-carries 92 real violations and migrations are immutable history. It fails on a new over-limit file,
+carried 92 real violations WHEN MEASURED 2026-09-13 — an open set; derive the current
+figure with `node .claude/hooks/check-file-size-guard.mjs --stats` — and migrations are
+immutable history. It fails on a new over-limit file,
 or on a grandfathered one whose recorded size CHANGES in either direction. The shrink half is
 load-bearing and was added only after post-commit review: the baseline is keyed on PATH, so a
 "grew only" check let a baselined file's contents be replaced in place by unrelated content that is

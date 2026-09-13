@@ -75,6 +75,83 @@ test('only a violation among the files passed as arguments can block the commit'
   }
 })
 
+test('a non-ASCII tracked filename does not block every run', () => {
+  // MUTATION: drop `-z` from trackedFiles' `git ls-files` → red. core.quotePath defaults to
+  // true, so git renders the path as the literal `"\303\251.ts"`; readFile gets ENOENT on that
+  // string and the guard records an unreadable regression, which returns BEFORE the baseline is
+  // consulted — so no baseline row can ever clear it and one accented file in the tree blocks
+  // every commit repo-wide. Found by CodeRabbit; the guard's own suites all used ASCII fixtures.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-utf8-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'e\u0301clair.ts'), lines(1)) // compliant, and non-ASCII
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    assert.equal(
+      run.status,
+      0,
+      `a compliant non-ASCII path must not block: ${run.stdout}${run.stderr}`,
+    )
+    assert.ok(
+      !/unreadable|ENOENT/i.test(run.stdout + run.stderr),
+      `the accented path must be read, not reported unreadable: ${run.stdout}${run.stderr}`,
+    )
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('removing a non-ASCII file does not read as an unknown path', () => {
+  // MUTATION: drop `-z` from the staged-deletion `git diff` → red. The mirror image of the
+  // trackedFiles case: git hands back the QUOTED deletion path while lefthook passes the raw
+  // one, so the deleted-set membership test misses and the commit is rejected as naming a path
+  // that is not tracked. Staged deletions are absent from `git ls-files` by definition, so that
+  // set is the only thing that admits them.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-utf8-del-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    execFileSync('git', ['config', 'user.email', 't@t.t'], { cwd: repo })
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    const accented = 'e\u0301clair.ts'
+    writeFileSync(join(repo, accented), lines(1))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    execFileSync('git', ['commit', '-qm', 'seed'], { cwd: repo })
+    execFileSync('git', ['rm', '-q', accented], { cwd: repo })
+
+    const run = spawnSync('node', [guard, accented], { cwd: repo, encoding: 'utf8' })
+    assert.equal(
+      run.status,
+      0,
+      `removing a tracked non-ASCII file must not block: ${run.stdout}${run.stderr}`,
+    )
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing
