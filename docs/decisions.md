@@ -1694,18 +1694,37 @@ outside `actions/` entirely, only one of which is over the cap. Derive each figu
 question, so it is the cap source, not the census:
 
 ```sh
-D='^[[:space:]]*['"'"'"]use server['"'"'"]'                       # the directive, anchored
-A=$(git ls-files 'apps/web/*.ts' 'apps/web/*.tsx' | grep '/actions/' | grep -vE '\.(test|spec)\.')
-echo "$A" | wc -l                                       # non-test files under actions/
-OVER=$(echo "$A" | while read f; do if [ "$(wc -l <"$f")" -gt 100 ]; then echo "$f"; fi; done)
-echo "$OVER" | wc -l                                    # ...of those, over the cap
-echo "$OVER" | xargs grep -LE "$D" | wc -l              # ...lacking the directive
-echo "$OVER" | xargs grep -lE "$D" | wc -l              # ...carrying it
-git ls-files 'apps/web/*.ts' 'apps/web/*.tsx' | grep -v '/actions/' | xargs grep -lE "$D"
+node --input-type=module -e '
+import { execFileSync } from "node:child_process"
+import { readFileSync } from "node:fs"
+import { countLines, declaresUseServer } from "./.claude/hooks/check-file-size-guard.mjs"
+
+const tracked = execFileSync("git", ["ls-files", "-z", "apps/web/*.ts", "apps/web/*.tsx"], {
+  maxBuffer: 1 << 28,
+}).toString("utf8").split("\0").filter(Boolean).filter((f) => !/\.(test|spec)\./.test(f))
+
+const body = (f) => readFileSync(f, "utf8")
+const inActions = tracked.filter((f) => f.includes("/actions/"))
+const over = inActions.filter((f) => countLines(body(f)) > 100)
+const outside = tracked.filter((f) => !f.includes("/actions/") && declaresUseServer(body(f)))
+
+console.log("under actions/      ", inActions.length)
+console.log("  over the cap      ", over.length)
+console.log("    no directive    ", over.filter((f) => !declaresUseServer(body(f))).length)
+console.log("    directive       ", over.filter((f) => declaresUseServer(body(f))).length)
+console.log("outside actions/    ", outside.length)
+console.log("  over the cap      ", outside.filter((f) => countLines(body(f)) > 100).length)
+'
 ```
 
+It imports the GUARD's own `declaresUseServer` and `countLines` rather than grepping, because a
+grep cannot answer this question. The first version of this block used
+`grep -E "^[[:space:]]*['\"]use server['\"]"` — which is the very regex the guard replaced: it
+counts the directive inside a block comment, after the prologue, and in an expression like
+`'use server'.length`. It reproduced the right figures only because no file in the tree has those
+shapes. A census that agrees with the definition by luck is the defect this entry is about.
 TRACKED files throughout, matching what the guard enumerates. A bare `grep -r apps/web` is not the
-same population: it walks the working tree and picks up build output under `apps/web/.next/`. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
+same population either: it walks the working tree and picks up build output under `apps/web/.next/`. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
 flips between two reasonable implementations.
 
