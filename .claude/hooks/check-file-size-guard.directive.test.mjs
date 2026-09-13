@@ -81,3 +81,34 @@ test('a use server directive that is the SECOND prologue entry still counts', ()
   // An unterminated literal is not a prologue entry either.
   assert.equal(declaresUseServer("'unterminated\n'use server'\n"), false)
 })
+
+test('an escaped quote inside a prologue literal does not end it early', () => {
+  // MUTATION: drop the `c === '\\'` escape branch in readStringLiteral → red. Without it, the
+  // backslash before the embedded apostrophe is treated as an ordinary character, so the literal
+  // is (wrongly) read as ending at that apostrophe. The truncated remainder ("s'") is neither
+  // whitespace, `;`, EOF, newline nor a comment, so endOfPrologueEntry answers -1 and the real
+  // `'use server'` that follows is never reached.
+  assert.equal(declaresUseServer("'it\\'s'\n'use server'\n"), true)
+})
+
+test('a comment directly abutting a prologue literal (no separating newline) still continues it', () => {
+  // MUTATION: delete the comment check in endOfPrologueEntry (`content[k] === '/' && ...`) → red.
+  // Every other prologue test separates entries with a newline, which already ends the statement
+  // via ASI before a comment is ever considered — so this is the only case exercising that branch.
+  assert.equal(declaresUseServer("'use strict'/* c */'use server'\n"), true)
+  assert.equal(declaresUseServer("'use strict'// trailing\n'use server'\n"), true)
+})
+
+test('a directive-shaped literal that is an EXPRESSION is not a declaration', () => {
+  // MUTATION: return true on `lit.value === 'use server'` BEFORE calling endOfPrologueEntry → red.
+  // That was the shipped shape for one commit: every other literal was checked for whether its
+  // statement actually ended, and the one the answer turns on was exempt. `'use server'.length`
+  // is a member expression, and V8 does not treat the equivalent `'use strict'.length` as a
+  // directive either — verified against the engine, not inferred from the spec.
+  assert.equal(declaresUseServer("'use server'.length\n"), false)
+  assert.equal(declaresUseServer("'use server' + ''\n"), false)
+  // The directive proper still holds, with and without a terminator or a trailing newline.
+  assert.equal(declaresUseServer("'use server'\n"), true)
+  assert.equal(declaresUseServer("'use server';\n"), true)
+  assert.equal(declaresUseServer("'use server'"), true)
+})

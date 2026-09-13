@@ -100,9 +100,13 @@ export function declaresUseServer(content) {
     } else if (c === "'" || c === '"') {
       const lit = readStringLiteral(content, i)
       if (lit === null) return false // unterminated literal — not a prologue
-      if (lit.value === 'use server') return true
+      // The end-of-statement check comes FIRST, and applies to the directive too: an earlier
+      // draft returned true on the value alone, so `'use server'.length` — a member expression,
+      // not a directive — read as a declaration. Every OTHER literal was checked; the one the
+      // answer turns on was not.
       const next = endOfPrologueEntry(content, lit.end)
       if (next === -1) return false // the string was an expression, so the prologue is over
+      if (lit.value === 'use server') return true
       i = next
     } else {
       return false // a statement — the prologue ended without the directive
