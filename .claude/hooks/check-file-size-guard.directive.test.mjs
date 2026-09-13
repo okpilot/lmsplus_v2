@@ -113,6 +113,15 @@ test('a directive-shaped literal that is an EXPRESSION is not a declaration', ()
   assert.equal(declaresUseServer("'use server'"), true)
 })
 
+test('a line comment that runs off the end of the file with no trailing newline is not a declaration', () => {
+  // MUTATION: change the line-comment branch's `if (nl === -1) return false` to `return true` →
+  // red. Every other `//` fixture in this file ends with `\n`, so `content.indexOf('\n', i)`
+  // always succeeds and this fallback is reachable but never observed — the same shape as the
+  // EOF-unterminated-literal gap below, one level up (comments, not literals). Confirmed by
+  // mutation: flipping that return value leaves the rest of the suite green.
+  assert.equal(declaresUseServer('// no trailing newline'), false)
+})
+
 test('a literal that runs off the end of the file with no closing quote is unterminated', () => {
   // MUTATION: change readStringLiteral's final fallback `return null` (reached when the scan
   // loop exits because `j` hit `content.length`, as opposed to the explicit `c === '\n'` case
