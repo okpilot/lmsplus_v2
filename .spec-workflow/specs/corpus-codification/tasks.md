@@ -14,8 +14,10 @@
 
 - [x] `.claude/limits.json` + `check-file-size-guard.mjs` + a mutation-pinned suite, split by
       concern across several files (in-process / subprocess / argument handling / the write path).
-      Derive the set rather than counting it here — it grew from three to four when the rename case
-      pushed the CLI suite into §1's extraction trigger:
+      Derive the set rather than counting it here — it grows whenever an addition pushes a suite
+      into §1's extraction trigger, and every attempt to narrate that with figures has gone stale,
+      including a "three to four" that was wrong by the next split and a "grown twice" that
+      replaced it:
       `ls .claude/hooks/check-file-size-guard*.test.mjs`. No count stated:
       it is an open set (`code-style.md` §10 cl.2) and this line already went stale once —
       derive with `node --test .claude/hooks/check-file-size-guard*.test.mjs`. Note the glob:

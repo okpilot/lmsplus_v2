@@ -360,7 +360,7 @@ flowchart TD
 | `apps/web/app/app/vfr-rt-exam/_components/vfr-rt-exam-runner.tsx` | Timer + part nav + current-question shell | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/short-answer-renderer.tsx` | Acronym + text input | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/dialog-fill-renderer.tsx` | Renders the dialog with inline `<input>` per blank | React component |
-| `apps/web/app/app/vfr-rt-exam/_components/mc-renderer.tsx` | Same as existing MC renderer; can be the existing one imported directly | reuse |
+| `apps/web/app/app/vfr-rt-exam/_components/mc-renderer.tsx` | Same as existing MC renderer; can be the existing one imported directly | *(reuse — a decision, not a rule kind)* |
 | `apps/web/app/app/vfr-rt-exam/_components/part-progress.tsx` | 3-segment progress bar | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/results-breakdown.tsx` | Per-part scores + per-question review | React component |
 
@@ -476,7 +476,7 @@ v1: the RPC reads counts/topics from `parts_config` if present, else falls back 
 ### Unit Testing
 
 - `apps/web/lib/grading/normalize-answer.test.ts` — comprehensive table of normalized vs raw pairs; diacritic-preservation case explicit.
-- `apps/web/app/app/vfr-rt-exam/actions/start.test.ts` — Zod parse fail, auth fail, and one case per mapped RPC token. The token set is OPEN — derive it from `START_VFR_RT_EXAM_ERROR_MESSAGES` in `_error-messages.ts`, whose own comment says to keep it in sync as the RPC gains tokens; this line said "4 cases" while the shipped map carries six. The success path asserts the RETURNED object (`sessionId`/`parts`/`questionIds`), NOT a navigation call — the test mocks no router and no `redirect`, per the Phase B deviation recorded above.
+- `apps/web/app/app/vfr-rt-exam/actions/start.test.ts` — Zod parse fail, auth fail, and one case per mapped RPC token. The token set is OPEN — derive it from `START_VFR_RT_EXAM_ERROR_MESSAGES` in `_error-messages.ts`, whose own comment says to keep it in sync as the RPC gains tokens. This line stated "4 cases" against a map that already held more; the replacement named a number too, which is the same defect one round later. The success path asserts the RETURNED object (`sessionId`/`parts`/`questionIds`), NOT a navigation call — the test mocks no router and no `redirect`, per the Phase B deviation recorded above.
 - `apps/web/app/app/vfr-rt-exam/actions/submit.test.ts` — Zod discriminated-union parse, idempotent re-submit, generic-error mapping.
 - Admin editor component tests for each new type's form (with `userEvent` to fill, save, assert payload).
 - `dialog-fill-renderer.test.tsx` — multi-blank rendering, edit propagates, no answer leaks to props (correct answers must not be in client bundle).

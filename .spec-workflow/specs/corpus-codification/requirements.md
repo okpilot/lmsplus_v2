@@ -10,17 +10,25 @@
 ## The problem, measured
 
 The rules that govern how work happens in this repo are **prose**, restated by hand across
-the surfaces below. A SNAPSHOT, re-measured 2026-09-09 against this commit's final tree — every
+the surfaces below. A SNAPSHOT, re-measured 2026-09-13 against this commit's final tree — every
 figure here moves on almost any commit, so re-derive rather than quote it:
-`cat CLAUDE.md .claude/rules/*.md .claude/agents/*.md .claude/commands/*.md .coderabbit.yaml | wc -l`
+```
+wc -l CLAUDE.md .claude/rules/*.md   | tail -1   # row 1, the injected corpus
+wc -l .claude/agents/*.md            | tail -1   # row 2
+wc -l .claude/commands/*.md          | tail -1   # row 3
+wc -l .coderabbit.yaml                           # row 4
+cat CLAUDE.md .claude/rules/*.md .claude/agents/*.md .claude/commands/*.md .coderabbit.yaml | wc -l
+```
+One command per ROW, because the aggregate alone reproduces only the last line of the table and a
+derivation that cannot rebuild what it sits under is not a derivation.
 
 | Surface | Lines | Injected every request? |
 |---|---|---|
-| `CLAUDE.md` + `.claude/rules/*.md` | **3,399** | YES |
-| `.claude/agents/*.md` | 1,401 | on agent dispatch |
+| `CLAUDE.md` + `.claude/rules/*.md` | **3,410** | YES |
+| `.claude/agents/*.md` | 1,421 | on agent dispatch |
 | `.claude/commands/*.md` | 863 | on command |
 | `.coderabbit.yaml` | 754 | external reviewer |
-| **total hand-maintained rule prose** | **6,417** | |
+| **total hand-maintained rule prose** | **6,448** | |
 
 Three independent whole-corpus audits (2026-09-07) converged on ~740 claims, ~50% duplicated
 somewhere else, and **23 contradictions** — 11 hand-verified, 1 refuted.
