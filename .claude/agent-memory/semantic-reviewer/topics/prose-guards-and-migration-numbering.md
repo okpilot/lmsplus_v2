@@ -309,3 +309,28 @@ restatement an enforcer carries — path blocks AND a check's exception/DO-NOT-F
 far from the check text and fail OPEN; cloud CR cannot follow a pointer. A branch that has ALREADY
 edited a mirror file is the strongest predictor it was edited PARTIALLY — re-read those files
 end-to-end, don't diff-scope.
+
+### 23rd instance — `aa10d2b5` (2026-09-09), same file the commit itself was fixing
+
+`aa10d2b5` retracted TWO stale `packages/db/migrations/` claims from
+`.spec-workflow/specs/vfr-rt-slovenia-mock-exam/design.md` per §10 cl.5 (re-reading the block found
+the second one the commit's own parent missed). A third citation in the SAME file, one table row
+below the second fix, was not re-derived: the "EXTEND in place" table's `complete_overdue_exam_session`
+row reads `(latest = packages/db/migrations/063_extend_overdue_for_internal_exam.sql; verify via
+Pre-Flag Verification at implementation time)`. That citation is false — the actual latest definition
+is `supabase/migrations/20260610001200_extend_overdue_for_vfr_rt_exam.sql` (task A.9, already marked
+`[x]` in this spec's own `tasks.md`), which already widened the mode guard to `vfr_rt_exam` and added
+the per-part grading branch the design row still describes as future work. Confirmed via
+`grep -rl complete_overdue_exam_session supabase/migrations/` (19 hits, latest by timestamp is
+`20260610001200`) and `tasks.md:111` (`- [x] **A.9 Migration `102`...**`).
+
+**Same mechanism as instance 21/22 (`676984fb`) one PR later, in a different file family (an ACTIVE
+spec, not a rule file):** the fix opened the block to correct claim N and did not re-verify claim
+N+1 sitting in the very next table row. §10 cl.5 says "re-derive every claim in the block that file
+can answer" — this row's claim (the "latest" citation) could have been re-derived by the exact same
+`grep -rl <fn> supabase/migrations/` used for the other two fixes in the same commit; it wasn't,
+because the third row wasn't recognised as making a currency claim (it reads as a design-plan
+citation, not a retracted-directory claim, so it didn't pattern-match the two the author was already
+hunting). **Refined lesson: cl.5's "re-derive every claim the open file can answer" must include
+claims of a DIFFERENT shape than the one that triggered the read** — not just repeats of the same
+retracted phrase.

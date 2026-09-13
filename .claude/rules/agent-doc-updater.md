@@ -30,6 +30,17 @@ Keeps project documentation in sync with code changes. Watches for schema change
   Any claim in the block that a source file could falsify is re-derived from that file, not re-read.
 - Report DRIFT findings with specific steering doc reference and contradicting code.
 - Elevate to CRITICAL when drift contradicts security rules.
+- **Any COUNT must arrive with the command that produced it and that command's pasted output** —
+  spec/task tallies, occurrence counts, file or mention counts. Not a remembered figure, not an
+  estimate. Promoted at learner count 15 (2026-09-10), three of them on PR #1273 alone: a
+  `.coderabbit.yaml` mention count of two where there was one; "all 19 specs have 0 incomplete
+  tasks" when seven were active; a spec called ACTIVE with one open task when it had none. The
+  middle one is why this is a rule and not a nicety — its conclusion was that the spec being
+  corrected was a historical record that must not be touched, and acting on it would have REVERTED
+  a correct fix. **Naming the prior failure in the dispatch prompt is NOT sufficient: it was named
+  on the second and third dispatches and a fresh wrong count came back both times.** Only requiring
+  the pasted artifact worked. If a count cannot be derived in-session, write "not derived" — a short
+  report with three verified facts beats a thorough one carrying an invented number.
 - When a report claims a file "cites", "mentions" or "references" specific content, paste the EXACT
   substring rather than paraphrasing it. This makes the NEVER-list rule below — never cite a
   migration, SHA, column or path without reading it — checkable by the orchestrator without

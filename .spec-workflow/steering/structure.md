@@ -113,7 +113,7 @@ feature/
 │   ├── submit.ts
 │   └── submit.test.ts
 ├── types.ts              # Feature-scoped type definitions
-├── page.tsx              # Route page (composition only, max 80 lines)
+├── page.tsx              # Route page (composition only — limits: .claude/limits.json)
 └── loading.tsx           # Suspense fallback
 ```
 
@@ -380,16 +380,13 @@ Forward-only, timestamped SQL files. Never modify an existing migration. Always 
 
 ## Code Size Guidelines
 
-### File size limits (hard — code-reviewer enforces)
+### File size limits (hard — mechanically enforced)
 
-| File type | Max lines | What to do if exceeded |
-|-----------|-----------|----------------------|
-| `page.tsx` | 80 | Extract logic to `lib/`, components to `_components/` |
-| React component (`.tsx`) | 150 | Split into sub-components |
-| Server Action file | 100 | Split by action into separate files in `actions/` |
-| Hook (`use-*.ts`) | 80 | Extract logic to utility functions |
-| Utility/helper (`.ts`) | 200 | Split by concern |
-| SQL migration | 300 | Split into multiple sequential migrations |
+The caps are DATA in `.claude/limits.json`, enforced by
+`.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI. No number is restated here.
+It is a ratchet: a new over-limit file fails, and so does a grandfathered one whose recorded
+size CHANGES — in either direction. The shrink half is what stops a baselined path absorbing
+unrelated content silently.
 
 ### Function size limits
 

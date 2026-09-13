@@ -27,7 +27,11 @@ After any commit that modifies:
 ## What to check
 
 ### Path instructions match code-style.md
-- File size limits (page: 80, component: 150, action: 100, hook: 80, util: 200, migration: 300)
+- File size limits — the numbers are data in `.claude/limits.json`. Do NOT restate them here.
+  `.coderabbit.yaml` KEEPS its literal caps (CodeRabbit cannot follow a pointer), and
+  `check-file-size-guard.update.test.mjs` fails if a MIRRORED kind's cap disagrees — so this is a
+  PINNED mirror, not one you sync by hand. Its kind list is hardcoded, so a kind absent from it is
+  not covered; see the CAPS item under DO NOT.
 - Function limits (30 lines, 3 params, 3 nesting levels)
 - No useEffect for data fetching
 - No barrel files
@@ -67,7 +71,11 @@ No changes needed: [list sections that are current]
 
 2. **Do NOT flag CodeRabbit out-of-sync if `.coderabbit.yaml` doesn't exist** — If the file hasn't been created yet, report "CodeRabbit not yet configured" and skip all checks.
 
-3. **Do NOT miss limit changes** — When `code-style.md` file size limits change (e.g., page.tsx 80 → 75), find the exact matching `path_instructions` entry and flag the discrepancy. Treat limit changes as mandatory sync.
+3. **Do NOT hand-check file-size CAPS** — changing a cap for a rule KIND the test already mirrors
+   fails `check-file-size-guard.update.test.mjs` in CI, so report nothing about the numbers. But the
+   test walks a HARDCODED list of path/kind pairs, so a rule kind added to `.claude/limits.json`
+   that the list does not cover has no test requiring a `.coderabbit.yaml` block at all — DO report
+   that. "Machine-verified" covers the caps of the mirrored kinds, not the set of kinds.
 
 4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our code-reviewer or semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
 

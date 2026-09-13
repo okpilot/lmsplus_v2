@@ -16,17 +16,24 @@ Setting `memory: project` in an agent's `.claude/agents/<name>.md` frontmatter b
 
 **`tools:` does NOT gate the memory directory.** Since 2026-09-06 every agent declares an explicit
 `tools:` list and only test-writer carries Write/Edit (see `agent-workflow.md § Every agent dispatch
-is ASYNCHRONOUS`). The eight `memory: project` agents still write their own trackers: the official
+is ASYNCHRONOUS`). The `memory: project` agents still write their own trackers: the official
 subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
 regardless of the `tools:` allowlist. That is what the docs SAY; it has not yet been observed in this
 repo, because agent definitions snapshot at session start and the `tools:` keys landed mid-session.
-CONFIRM IT at the next restart. **The signal this section used to prescribe — "a tracker that stops
-updating" — does not discriminate.** On `chore/settle-policy-contradictions`, three agents with
-IDENTICAL frontmatter (`memory: project`, no Write/Edit in `tools:`) updated their dirs while
-code-reviewer's did not change, and every one of them also holds `Bash`, so a memory commit
-cannot distinguish the auto-grant from a shell redirect. A quiet tracker is also indistinguishable
-from an agent with nothing to record. Resolve it by having one agent report the outcome of an
-attempted memory Write explicitly, not by watching for silence. Do not "restore" Write to a read-only agent on the theory that its tracker is
+CONFIRM IT at the next restart. **CONFIRMED 2026-09-09, and the discriminator is the ROSTER, not a tracker.** The signal this
+section used to prescribe — "a tracker that stops updating" — never discriminated: every agent also
+holds `Bash`, so a memory write cannot be attributed to the auto-grant rather than a shell redirect,
+and a quiet tracker is indistinguishable from an agent with nothing to record. Compare instead the
+session's agent roster against the `tools:` frontmatter. Derive both sides rather than counting
+them — `.claude/agents/` gains members. Only the FRONTMATTER side is greppable:
+`grep -l '^memory: project' .claude/agents/*.md` and `grep -n '^tools:' .claude/agents/*.md`.
+The ROSTER side is a RUNTIME fact, read off the session's own available-agent list; no command
+reconstitutes it, which is why confirming this needed a restart and not a better grep.
+Every definition declaring `memory: project` shows `Write, Edit` in the roster even where its
+frontmatter omits them; every definition with no `memory:` key does not. No Bash ambiguity: the
+memory declaration is what adds the tools. Observed alongside it, `code-reviewer` — no Write/Edit in
+its frontmatter — wrote its own memory directory and nothing else during a post-commit cycle.
+Do not "restore" Write to a read-only agent on the theory that its tracker is
 broken — verify the tracker first.
 
 Two consequences that shape every rule below:
@@ -74,7 +81,7 @@ When new knowledge arrives, **edit the existing row/bullet** so the file stays s
 
 ```markdown
 ✅ CORRECT — update the existing tracker row in place
-| Hook file > 80-line limit | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → code-style.md §1 |
+| Server Action file over its cap | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |
 
 ❌ WRONG — appending a dated journal entry every session
 ## 2026-05-29 session
