@@ -289,12 +289,22 @@ function trackedFiles() {
   // One accented filename anywhere in the tree then blocks EVERY run — whole-tree mode hands that
   // literal to readFile, gets ENOENT, and records an unreadable regression that returns before the
   // baseline is consulted, so no baseline row can clear it. -z emits paths verbatim, NUL-separated.
-  return execFileSync('git', ['ls-files', '-z'], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
-    .split('\0')
-    .filter(Boolean)
+  // Returned as BUFFERS, not strings. `encoding: 'utf8'` is a LOSSY decode, and a git path is
+  // arbitrary bytes on Linux — a filename carrying an invalid sequence (an old import, a zip
+  // extracted with the wrong codepage) decodes to U+FFFD, and readFile on THAT string gets
+  // ENOENT. Same unrecoverable shape as the quoting bug above: the unreadable branch returns
+  // before the baseline is consulted, so no baseline row can clear it. -z fixed the quoting;
+  // only raw bytes fix the decode. Reproduced with a `bad\x80name.ts` fixture before the change.
+  const raw = execFileSync('git', ['ls-files', '-z'], { maxBuffer: 64 * 1024 * 1024 })
+  const out = []
+  let start = 0
+  for (let i = 0; i <= raw.length; i += 1) {
+    if (i === raw.length || raw[i] === 0) {
+      if (i > start) out.push(raw.subarray(start, i))
+      start = i + 1
+    }
+  }
+  return out
 }
 
 /**
@@ -385,8 +395,22 @@ function updateBaseline(limits, all, read) {
 
 function main(args) {
   const limits = JSON.parse(readFileSync(LIMITS_PATH, 'utf8'))
-  const all = trackedFiles()
-  const read = (f) => readFileSync(f, 'utf8')
+  // Everything downstream matches on STRINGS — globs, baseline keys, argv — so the byte paths
+  // are decoded once for matching and kept for reading. Two paths whose bytes differ can decode
+  // to the same string, which would silently grade one twice and skip the other; that BLOCKS
+  // rather than being papered over, because a silent skip is the failure this guard exists to
+  // prevent.
+  const bytes = trackedFiles()
+  const all = bytes.map((b) => b.toString('utf8'))
+  const exact = new Map()
+  for (let i = 0; i < all.length; i += 1) {
+    if (exact.has(all[i])) {
+      console.error(`[file-size] two tracked paths decode identically — BLOCKING: ${all[i]}`)
+      return 1
+    }
+    exact.set(all[i], bytes[i])
+  }
+  const read = (f) => readFileSync(exact.get(f) ?? f, 'utf8')
 
   // Flags are parsed BEFORE anything is treated as a file path, and a flag cannot be mixed
   // with paths. `args.includes('--stats')` was a positional-arg collision: a file literally

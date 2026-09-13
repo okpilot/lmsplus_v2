@@ -152,6 +152,40 @@ test('removing a non-ASCII file does not read as an unknown path', () => {
   }
 })
 
+test('a tracked path whose bytes are not valid UTF-8 is still graded', () => {
+  // MUTATION: restore `encoding: 'utf8'` on trackedFiles' git call and split the string on
+  // '\0' → red. A git path is arbitrary bytes on Linux; an invalid sequence decodes to U+FFFD,
+  // and readFile on THAT string gets ENOENT. The guard then calls the file unreadable, and that
+  // branch returns before the baseline is consulted — so the file can never be cleared and every
+  // commit in the repo blocks. `-z` fixed the QUOTING; only raw bytes fix the DECODE.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-badenc-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    // 0x80 is a continuation byte with no lead byte — invalid UTF-8, and a legal filename.
+    const badName = Buffer.concat([Buffer.from('bad'), Buffer.from([0x80]), Buffer.from('.ts')])
+    writeFileSync(Buffer.concat([Buffer.from(`${repo}/`), badName]), lines(1))
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const out = run.stdout + run.stderr
+    assert.equal(run.status, 0, `a compliant invalid-UTF-8 path must not block: ${out}`)
+    assert.ok(!/unreadable/i.test(out), `it must be READ, not called unreadable: ${out}`)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing
