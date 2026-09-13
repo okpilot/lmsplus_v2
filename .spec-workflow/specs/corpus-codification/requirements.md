@@ -12,13 +12,15 @@
 The rules that govern how work happens in this repo are **prose**, restated by hand across
 the surfaces below. A SNAPSHOT, re-measured 2026-09-13 against this commit's final tree — every
 figure here moves on almost any commit, so re-derive rather than quote it:
-```
+
+```sh
 wc -l CLAUDE.md .claude/rules/*.md   | tail -1   # row 1, the injected corpus
 wc -l .claude/agents/*.md            | tail -1   # row 2
 wc -l .claude/commands/*.md          | tail -1   # row 3
 wc -l .coderabbit.yaml                           # row 4
 cat CLAUDE.md .claude/rules/*.md .claude/agents/*.md .claude/commands/*.md .coderabbit.yaml | wc -l
 ```
+
 One command per ROW, because the aggregate alone reproduces only the last line of the table and a
 derivation that cannot rebuild what it sits under is not a derivation.
 

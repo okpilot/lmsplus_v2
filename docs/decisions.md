@@ -1692,7 +1692,8 @@ Action cap (the number lives in `.claude/limits.json`, not here), 7 lack the dir
 helpers, several split out to obey this rule), while 4 files declaring it — of any size — live
 outside `actions/` entirely, only one of which is over the cap. Derive each figure separately — `--stats` reports per-RULE totals and cannot answer a path-scoped
 question, so it is the cap source, not the census:
-```
+
+```sh
 D='^[[:space:]]*['"'"'"]use server['"'"'"]'                       # the directive, anchored
 A=$(git ls-files 'apps/web/*.ts' 'apps/web/*.tsx' | grep '/actions/' | grep -vE '\.(test|spec)\.')
 echo "$A" | wc -l                                       # non-test files under actions/
@@ -1702,6 +1703,7 @@ echo "$OVER" | xargs grep -LE "$D" | wc -l              # ...lacking the directi
 echo "$OVER" | xargs grep -lE "$D" | wc -l              # ...carrying it
 git ls-files 'apps/web/*.ts' 'apps/web/*.tsx' | grep -v '/actions/' | xargs grep -lE "$D"
 ```
+
 TRACKED files throughout, matching what the guard enumerates. A bare `grep -r apps/web` is not the
 same population: it walks the working tree and picks up build output under `apps/web/.next/`. (Two populations, stated separately because an earlier draft ran them into one sentence and read as a contradiction.) Line counting is editor semantics, equal to
 `wc -l` for newline-terminated files — `batch-submit.ts` sits at exactly 100 against a cap of 100 and
