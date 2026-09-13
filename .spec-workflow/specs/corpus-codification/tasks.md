@@ -32,11 +32,21 @@
       0cbadf11..HEAD -- .claude/hooks/check-file-size-guard.mjs` is the SUPERSET to read from,
       not a count of holes: it lists every commit touching the guard, refactors and CR responses
       included, and the hole-closures are a subset you identify by reading them. There is no
-      command that isolates them, which is the honest state of it. As of 2026-09-09 the set was:
+      command that isolates them, which is the honest state of it. As of 2026-09-13 the set was:
       same-path content swap · a committed dangling symlink permanently unreadable ·
       a rename out of the rule class (`foo.ts` → `foo.test.ts`, action cap → test cap) ·
       `chmod 000` on one directory hiding nine baselined violators and reporting them RESOLVED ·
-      a file named `--stats` in argv turning an enforcement run into exit 0
+      a file named `--stats` in argv turning an enforcement run into exit 0 ·
+      a tracked path git QUOTES (any non-ASCII byte, or a quote or backslash) read as its own
+      escaped literal, unreadable, blocking every commit in the repo with no baseline row able to
+      clear it · the same path read through a LOSSY utf8 decode, same outcome by a different door ·
+      and grading the WORKING TREE while git commits the INDEX, so a file staged over its cap and
+      then trimmed unstaged passed while the over-limit version was committed. That last one is
+      fail-OPEN — as are the `chmod 000` and `--stats` entries above it, both of which also exit 0
+      on a live violation; the first draft of this line called it "the only fail-open of the set"
+      and its own list refuted it. Two of the three came from CodeRabbit (the quoting hole and the
+      index one) after eight internal passes did not; the lossy decode came from semantic-reviewer,
+      reviewing the fix for the first.
 - [x] `--stats` and `--update-baseline` shipped; §10 clause 7 promoted and mirrored
 - [x] Decision 65 recorded
       No counts stated here — this block went stale TWICE: written when two commits were done

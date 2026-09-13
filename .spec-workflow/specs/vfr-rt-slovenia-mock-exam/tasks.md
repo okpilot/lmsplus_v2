@@ -220,7 +220,7 @@
   - _Requirements: R1, R5.5_
 
 - [ ] **D.2 Type selector + conditional form sections**
-  - Files: `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` (pre-refactor + extend) + `mc-option-fields.tsx` (extracted, ≤ 80) + `short-answer-fields.tsx` (new ≤ 80) + `dialog-fill-fields.tsx` (new ≤ 150) + tests
+  - Files: `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` (pre-refactor + extend) + `mc-option-fields.tsx` (extracted) + `short-answer-fields.tsx` (new) + `dialog-fill-fields.tsx` (new) + tests
   - **Pre-refactor check — RE-MEASURE, do not trust this line.** This file was AT the component cap
     when the task was written and is now just under it. Run `wc -l` against `.claude/limits.json`; if the
     addition would cross the cap, extract the existing 4-option MC editor into `mc-option-fields.tsx` in

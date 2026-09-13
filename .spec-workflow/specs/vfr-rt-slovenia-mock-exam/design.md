@@ -352,17 +352,22 @@ flowchart TD
 
 ### Pages
 
-| Path | Purpose | Lines |
+| Path | Purpose | Rule kind |
 |---|---|---|
-| `apps/web/app/app/vfr-rt-exam/page.tsx` | Briefing + Start button OR resume in-progress (composition only) | ≤ 80 |
-| `apps/web/app/app/vfr-rt-exam/in-progress/[sessionId]/page.tsx` | The exam UI; reads session + answers; renders `<VfrRtExamRunner>` | ≤ 80 |
-| `apps/web/app/app/vfr-rt-exam/results/[sessionId]/page.tsx` | Per-part scores + review; Server Component reads `get_vfr_rt_exam_results` (mig 103); pre-completion/non-owner calls error → redirect to briefing page | ≤ 80 |
-| `apps/web/app/app/vfr-rt-exam/_components/vfr-rt-exam-runner.tsx` | Timer + part nav + current-question shell | ≤ 150 |
-| `apps/web/app/app/vfr-rt-exam/_components/short-answer-renderer.tsx` | Acronym + text input | ≤ 80 |
-| `apps/web/app/app/vfr-rt-exam/_components/dialog-fill-renderer.tsx` | Renders the dialog with inline `<input>` per blank | ≤ 150 |
+| `apps/web/app/app/vfr-rt-exam/page.tsx` | Briefing + Start button OR resume in-progress (composition only) | page file |
+| `apps/web/app/app/vfr-rt-exam/in-progress/[sessionId]/page.tsx` | The exam UI; reads session + answers; renders `<VfrRtExamRunner>` | page file |
+| `apps/web/app/app/vfr-rt-exam/results/[sessionId]/page.tsx` | Per-part scores + review; Server Component reads `get_vfr_rt_exam_results` (mig 103); pre-completion/non-owner calls error → redirect to briefing page | page file |
+| `apps/web/app/app/vfr-rt-exam/_components/vfr-rt-exam-runner.tsx` | Timer + part nav + current-question shell | React component |
+| `apps/web/app/app/vfr-rt-exam/_components/short-answer-renderer.tsx` | Acronym + text input | React component |
+| `apps/web/app/app/vfr-rt-exam/_components/dialog-fill-renderer.tsx` | Renders the dialog with inline `<input>` per blank | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/mc-renderer.tsx` | Same as existing MC renderer; can be the existing one imported directly | reuse |
-| `apps/web/app/app/vfr-rt-exam/_components/part-progress.tsx` | 3-segment progress bar | ≤ 80 |
-| `apps/web/app/app/vfr-rt-exam/_components/results-breakdown.tsx` | Per-part scores + per-question review | ≤ 150 |
+| `apps/web/app/app/vfr-rt-exam/_components/part-progress.tsx` | 3-segment progress bar | React component |
+| `apps/web/app/app/vfr-rt-exam/_components/results-breakdown.tsx` | Per-part scores + per-question review | React component |
+
+The cap for each kind is data in `.claude/limits.json`; this table names the KIND so it cannot
+go stale against it. The column held eight literals until 2026-09-13 — two sweeps on this branch
+removed the same literals from this file's prose and from `tasks.md` and neither grepped for the
+table.
 
 ### Constants
 

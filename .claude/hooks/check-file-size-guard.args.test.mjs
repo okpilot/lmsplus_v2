@@ -339,3 +339,75 @@ test('a git failure listing staged deletions blocks instead of failing open', ()
     rmSync(fakeBin, { recursive: true, force: true })
   }
 })
+
+test('two tracked paths whose bytes differ but decode alike BLOCK rather than one being dropped', () => {
+  // MUTATION: drop the `exact.has(all[i])` duplicate check in main() → red. 0x80 and 0x81 are
+  // each a lone continuation byte, so both are invalid UTF-8 and BOTH decode to one U+FFFD:
+  // two distinct tracked blobs collapse to a single JS string. Everything downstream keys on
+  // that string, so without the check one file is graded twice and the other is never graded
+  // at all — a silent skip, which is the failure this whole guard exists to prevent.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = realpathSync(mkdtempSync(join(tmpdir(), 'file-size-collide-')))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    for (const byte of [0x80, 0x81]) {
+      const name = Buffer.concat([Buffer.from('bad'), Buffer.from([byte]), Buffer.from('.ts')])
+      writeFileSync(Buffer.concat([Buffer.from(`${repo}/`), name]), 'x\n')
+    }
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+
+    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const out = run.stdout + run.stderr
+    assert.equal(run.status, 1, `a decode collision must BLOCK, not pass clean: ${out}`)
+    assert.match(out, /decode identically/, `it must say why it blocked: ${out}`)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a staged path with non-UTF-8 bytes is graded from the index, not called unreadable', () => {
+  // MUTATION: read the index with `git show :${f}` instead of readIndexBlob(target) → red.
+  // argv is strings, so the lossily-decoded name re-encodes to bytes git does not have and the
+  // staged file reads as missing. The whole-tree test for this passes either way — it never
+  // takes the staged branch — which is how the regression shipped in the one mode lefthook uses.
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = realpathSync(mkdtempSync(join(tmpdir(), 'file-size-stagedbytes-')))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 5 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    const name = Buffer.concat([Buffer.from('bad'), Buffer.from([0x80]), Buffer.from('name.ts')])
+    writeFileSync(Buffer.concat([Buffer.from(`${repo}/`), name]), 'x\n')
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    // What lefthook actually hands over: it passes the raw bytes, and Node decodes argv as UTF-8
+    // lossily, so the child sees the U+FFFD form. Resolving THAT back to the real bytes is the
+    // whole job of the fix. (`git ls-files` without -z would give the quoted literal instead,
+    // which is a different string again and matches nothing.)
+    const arg = name.toString('utf8')
+
+    const run = spawnSync('node', [guard, arg], { cwd: repo, encoding: 'utf8' })
+    const out = run.stdout + run.stderr
+    assert.equal(run.status, 0, `a compliant staged non-UTF-8 path must not block: ${out}`)
+    assert.ok(!/unreadable/i.test(out), `it must be READ from the index: ${out}`)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

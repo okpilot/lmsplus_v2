@@ -150,6 +150,32 @@ function endOfPrologueEntry(content, from) {
   return -1
 }
 
+/**
+ * Read a path's INDEX content by its exact BYTES.
+ *
+ * NOT `git show :<path>`. argv is strings, so a lossily-decoded path is re-encoded to UTF-8 and
+ * no longer names the file — git reports it missing and the guard calls a readable staged file
+ * unreadable. That regressed the byte fix in the ONE mode lefthook uses, and only there, so the
+ * whole-tree test written for it stayed green. `cat-file --batch` takes the spec on STDIN, where
+ * bytes survive.
+ *
+ * It also exits 0 for a missing or ambiguous object, printing `<spec> missing` in place of a blob
+ * header — so the header is CHECKED. Skip that and this helper fails OPEN, which is the failure
+ * it exists to prevent.
+ */
+function readIndexBlob(pathBytes) {
+  const bytes = Buffer.isBuffer(pathBytes) ? pathBytes : Buffer.from(pathBytes)
+  const out = execFileSync('git', ['cat-file', '--batch'], {
+    input: Buffer.concat([Buffer.from(':'), bytes, Buffer.from([0x0a])]),
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  const nl = out.indexOf(0x0a)
+  const header = nl === -1 ? out.toString('utf8') : out.subarray(0, nl).toString('utf8')
+  const blob = header.match(/ blob (\d+)$/)
+  if (!blob) throw new Error(`git cat-file could not resolve the staged path: ${header}`)
+  return out.subarray(nl + 1, nl + 1 + Number(blob[1])).toString('utf8')
+}
+
 /** Compile a glob to a RegExp. Supports a leading-or-embedded `**` and a single `*`. */
 export function globToRe(glob) {
   // Scanned left to right rather than by placeholder substitution. The placeholder
@@ -437,10 +463,7 @@ function main(args) {
     if (stat?.isSymbolicLink()) return readFileSync(target, 'utf8')
     // Otherwise fail CLOSED: a staged path this cannot resolve in the index cannot be graded,
     // and falling back to the worktree would restore exactly the hole being closed.
-    return execFileSync('git', ['show', `:${f}`], {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-    })
+    return readIndexBlob(target)
   }
 
   // Flags are parsed BEFORE anything is treated as a file path, and a flag cannot be mixed
