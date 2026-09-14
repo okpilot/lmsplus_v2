@@ -452,6 +452,10 @@
     {
       "claim": "MUTATION: make validateDataFile always push a problem → every data file is rejected and the harness exits 2 without running anything, while reporting a data-file fault.",
       "why": "The break is the ADDITION of an unconditional push at the function entry — not the removal or alteration of any existing text. Any substitution that achieves 'always push' (e.g. seeding the problems array) reddens 'accepts a well-formed data file', 'accepts an empty replacement as a deletion', and the relative-path half of 'rejects a target outside the worktree' simultaneously, producing a superset that pins nothing the individual field-rejection tests do not already cover."
+    },
+    {
+      "claim": "the rmSync fallback in runMutation's finally removes a temp dir that `git worktree add` failed to register, which `worktree remove` refuses and `prune` does not touch",
+      "why": "NOT PINNED and not cheaply pinnable, established by looking rather than assuming — the same claim was wrong twice on this branch. The `git` helper is an unexported module-level closure, so there is no injection point; and the spawn route cannot reach it, because the fault fixture throws from `assertSingleOccurrence`, which runs AFTER `worktree add` has already succeeded. Forcing `worktree add` to fail needs an engineered condition (no HEAD, a path collision, a full disk) that is neither cheap nor reliable. Recorded here because it carries no MUTATION: comment, so `--coverage` cannot report it as a gap at all — a silent hole is exactly what this list exists for. The bound on the damage is what makes leaving it acceptable: deleting the line leaks one temp dir per faulted mutation under tmpdir(), and can never produce a wrong verdict or a wrong exit code."
     }
   ]
 }
