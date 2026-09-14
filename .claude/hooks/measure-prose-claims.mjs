@@ -102,6 +102,7 @@ function blob(sha) {
 /** Claim keys of one file's content. Waived lines are excluded, as in the guard. */
 function keysOf(path, content, caps, ctx) {
   const keys = new Set()
+  const seen = new Map()
   if (content === null) return keys
   for (const { text } of proseLines(path, content)) {
     if (findClaims(text, caps, ctx).length === 0) continue
@@ -110,7 +111,16 @@ function keysOf(path, content, caps, ctx) {
     // which is the one direction a measurement must not be wrong in.
     const waiver = parseWaiver(text)
     if (waiver && !waiver.problem) continue
-    keys.add(claimKey(path, text))
+    // Occurrence index, exactly as the guard keys them. Without it, a commit that adds a SECOND
+    // copy of an already-baselined claim produces no new key here and measures CLEAN, while the
+    // guard sees the `#1` key and BLOCKS. I skipped this on a first pass, arguing a duplicate is
+    // one block either way — wrong: the relevant case is the duplicate arriving when the
+    // original is ALREADY baselined, and then the two disagree. A measurement that understates
+    // the block rate is the one direction this tool must not be wrong in.
+    const dupKey = `${path}\u0000${text.trim()}`
+    const occurrence = seen.get(dupKey) ?? 0
+    seen.set(dupKey, occurrence + 1)
+    keys.add(claimKey(path, text, occurrence))
   }
   return keys
 }
