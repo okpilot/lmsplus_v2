@@ -44,7 +44,8 @@
 
 ### Git Hook Pipeline (Lefthook) — updated by Decision 64
 ```
-pre-commit  → biome check --write + tsc --noEmit + soft-delete guard + test-title-leakage guard
+pre-commit  → mechanical guards (list is DATA in .claude/pipeline.json — this line had gone
+               stale by omitting the file-size guard)
 commit-msg  → commitlint (conventional commits) + check-commit-claims (a cited SHA must resolve)
               + check-retracted-phrase (a corrected claim must not still stand elsewhere)
 pre-push    → security-auditor agent + pnpm audit
@@ -1809,15 +1810,19 @@ replay harness is not committed, so such a claim cannot be checked by a reader, 
 slice-2 entry settles that case — commit the harness so the number is re-derivable, or stop stating
 it. Committing the harness remains an OPEN slice-2 task; until it lands, the second branch applies.
 
-**Five false claims were written on this branch by its own author, and each was caught by a
-different reviewer — none by re-reading.** The calibration figure (measured before the last two
-detector edits, stale on arrival); two MUTATION comments claiming a test pinned a mechanism it did
-not; a tracker row describing a `tech.md` fix as a DEFERRAL when it had only extended the
-enumeration; and this commit's own message listing `tech.md` among its changes when the parent had
-made them — a commit message cannot be corrected afterwards, which is the entire argument for the
-next build-order item. A fourth overclaiming MUTATION comment was found by test-writer and a stale
-"a second gate" count by re-deriving while in the file. This is the evidence for §10 cl.5: reading
-a block finds incoherence, only RE-DERIVING finds a claim that is coherent and false.
+**This branch's author wrote false claims repeatedly while building the guard against them, and
+each was caught by a DIFFERENT reviewer — none by re-reading.** No total is given, deliberately:
+the first draft said "five" and then listed seven in the same paragraph, which is §10 cl.2's own
+defect committed inside the entry explaining it. Derive the list from the branch's commit messages
+(`git log origin/master..HEAD`), which record each one where it was found. The shapes were: a
+calibration figure measured before the same branch's later edits landed; several MUTATION comments
+claiming a test pinned a mechanism it did not; a tracker row calling a change a DEFERRAL when it
+had only extended the enumeration it claimed to remove; a commit message listing a file among its
+own changes when the parent had changed it; and a `.coderabbit.yaml` mirror promising to cover
+"any paraphrased restatement" from under a glob that never sees the corpus.
+
+This is the evidence for §10 cl.5: reading a block finds incoherence, only RE-DERIVING finds a
+claim that is coherent and false. Every one of these read as verified.
 
 **Bounds are in the guard's header and three mechanisms are NOT mutation-pinned** — the latin1 path
 decode (a fixture cannot create an invalid-byte filename through Node's string path API), an

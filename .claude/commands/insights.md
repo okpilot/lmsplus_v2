@@ -24,7 +24,10 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - **Doc-updater**: confirm watched file list matches actual doc files in repo; note any unresolved steering drift
    - **Security-auditor**: compare checklist in agent definition vs rules in `docs/security.md`
    - **CodeRabbit**: spot-check last 3 rules in `code-style.md` against `.coderabbit.yaml` path_instructions
-   - **Retracted-phrase waivers**: `git log -S'Retracted-ok:' --oneline | wc -l` — every waiver is a
+   - **Retracted-phrase waivers**: `git log --grep='^Retracted-ok:' --oneline | wc -l` — NOT
+     `git log -S`, which searches changed FILE CONTENT and so cannot see a trailer that exists
+     only in a commit message; it would report zero for ever and this check would certify a clean
+     hatch permanently. Every waiver is a
      claim someone chose not to finish correcting. Read the reasons. If waivers are running above
      roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
      a hatch used reflexively is how this guard dies quietly

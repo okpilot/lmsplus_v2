@@ -145,22 +145,28 @@ function inCorpus(path) {
  * FAIL DIRECTION: a spec with no readable tasks.md counts as LIVE. Including it is merely
  * noisy; excluding it silently unwatches a whole tree.
  */
-function completedSpecDirs() {
-  const withTasks = splitNul(git(['ls-files', '-z', '--', '.spec-workflow/specs/*/tasks.md']))
+function completedSpecDirs(ref) {
+  const withTasks = splitNul(listTracked(ref, '.spec-workflow/specs/*/tasks.md'))
   let live = []
   try {
-    live = splitNul(
-      git([
-        'grep',
-        '--cached',
-        '-l',
-        '-z',
-        '-F',
-        '-e',
-        '- [ ]',
-        '--',
-        '.spec-workflow/specs/*/tasks.md',
-      ]),
+    live = stripRef(
+      ref,
+      splitNul(
+        git([
+          'grep',
+          '-l',
+          '-z',
+          '-F',
+          '-e',
+          '- [ ]',
+          // The scope token goes AFTER the pattern: `git grep [opts] <pattern> [<rev>] -- <path>`.
+          // Placed before the flags, git reads the next flag as a revision and aborts with
+          // "unable to resolve revision: -l" — exit 2 on every run.
+          ...grepScope(ref),
+          '--',
+          '.spec-workflow/specs/*/tasks.md',
+        ]),
+      ),
     )
   } catch (err) {
     if (err.status !== 1 || err.signal) throw err // exit 1 = no matches; anything else is a failure
@@ -172,11 +178,34 @@ function completedSpecDirs() {
 }
 
 /** Pathspecs scoping every survivor search to the live prose corpus. */
-function corpusPathspecs() {
+function corpusPathspecs(ref) {
   const specs = CORPUS.map((r) => `:(top)${r}`)
   specs.push(`:(top,exclude)${MEMORY_PREFIX}`)
-  for (const dir of completedSpecDirs()) specs.push(`:(top,exclude)${dir}/`)
+  for (const dir of completedSpecDirs(ref)) specs.push(`:(top,exclude)${dir}/`)
   return specs
+}
+
+/**
+ * What the survivor search READS. `'--cached'` is the staged index — correct at commit-msg,
+ * because git commits the index. In `--base` mode each commit in the range is checked against
+ * ITS OWN tree: reading the index there would ask whether the claim survives at HEAD, which is
+ * a different question and gets the answer wrong for every commit but the last.
+ */
+const grepScope = (ref) => (ref === '--cached' ? ['--cached'] : [ref])
+
+/** `git grep <ref>` prefixes every path with `<ref>:`; `--cached` does not. */
+const stripRef = (ref, paths) =>
+  ref === '--cached'
+    ? paths
+    : paths.map((p) => (p.startsWith(`${ref}:`) ? p.slice(ref.length + 1) : p))
+
+/** Tracked paths at `ref` (NUL-delimited, byte-safe), optionally filtered by a pathspec. */
+function listTracked(ref, pathspec) {
+  const args =
+    ref === '--cached'
+      ? ['ls-files', '-z', ...(pathspec ? ['--', pathspec] : [])]
+      : ['ls-tree', '-r', '-z', '--name-only', ref, ...(pathspec ? ['--', pathspec] : [])]
+  return git(args)
 }
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -289,7 +318,7 @@ export function parseWaivers(message) {
 }
 
 /** Files in the live corpus whose indexed content contains `token`, excluding `self`. */
-function survivors(token, self, pathspecs) {
+function survivors(token, self, pathspecs, ref) {
   // A short or whitespace-padded needle makes `grep -F` match nearly everything, the rarity
   // gate then reads ">= 3", and the guard passes silently. Hard error, never a skip.
   if (token.length < 3 || token.trim() !== token) {
@@ -305,13 +334,13 @@ function survivors(token, self, pathspecs) {
       'core.quotePath=false',
       '--no-pager',
       'grep',
-      '--cached',
       '-l',
       '-z',
       '-a',
       '-F',
       '-e',
       token,
+      ...grepScope(ref), // after the pattern — see completedSpecDirs
       '--',
       ...pathspecs,
     ])
@@ -319,7 +348,7 @@ function survivors(token, self, pathspecs) {
     if (err.status === 1 && !err.signal) return [] // 1 = no matches. err.status is null on a signal.
     throw err
   }
-  return splitNul(out).filter((p) => p !== self && inCorpus(p))
+  return stripRef(ref, splitNul(out)).filter((p) => p !== self && inCorpus(p))
 }
 
 const NULL_SHA = /^0+$/
@@ -403,41 +432,23 @@ function hunksFor(entry) {
   return parseHunks(buf.toString('latin1'))
 }
 
-export function main(args) {
-  let range
-  let message = ''
-  if (args[0] === '--base') {
-    if (!args[1]) {
-      console.error('✖ retracted-phrase guard: --base requires a ref')
-      return 2
-    }
-    range = [`${args[1]}...HEAD`]
-  } else if (args.length === 1 && !args[0].startsWith('--')) {
-    message = readFileSync(args[0], 'utf8')
-    range = ['--cached']
-  } else {
-    console.error('✖ retracted-phrase guard: usage: <commit-msg-file> | --base <ref>')
-    return 2
-  }
-
-  if (range[0] === '--cached') {
-    try {
-      git(['rev-parse', '--verify', 'HEAD'], undefined)
-    } catch {
-      range = ['--cached', EMPTY_TREE] // first commit in a repo — not a reason to skip
-    }
-  }
-
+/**
+ * Check ONE commit's worth of change: `range` is what to diff, `message` is that commit's own
+ * message, `ref` is the tree the survivor search reads.
+ *
+ * Kept per-commit deliberately. In `--base` mode it would be simpler to diff the whole range and
+ * concatenate every message into one waiver map — and that would be WRONG in a way that widens
+ * the only escape hatch: `parseWaivers` keys on the token alone, so a `Retracted-ok: 1807` written
+ * in one commit would silently clear an unrelated `1807` finding introduced by another. A waiver
+ * is scoped to the commit whose author wrote it, and nothing else.
+ */
+function checkCommit({ range, message, ref }) {
   const { waivers, problems } = parseWaivers(message)
-  if (problems.length > 0) {
-    console.error('✖ retracted-phrase guard: unusable Retracted-ok trailer\n')
-    for (const p of problems) console.error(`  ${p}`)
-    return 1
-  }
+  if (problems.length > 0) return { problems, offenders: [] }
 
   const entries = changedEntries(range)
-  const pathspecs = corpusPathspecs()
-  const tracked = new Set(splitNul(git(['ls-files', '-z'])).map((p) => p.split('/').pop()))
+  const pathspecs = corpusPathspecs(ref)
+  const tracked = new Set(splitNul(listTracked(ref)).map((p) => p.split('/').pop()))
 
   // Every added line in the CORPUS side of this commit. A token reappearing here was REWORDED,
   // not retracted. Memory files are excluded: a tracker row quoting the old claim would otherwise
@@ -477,13 +488,69 @@ export function main(args) {
         if (c.kind === 'filename' && c.resolves && !c.sameExt) continue
         if (reAdded(c.token, c.kind, addedText)) continue
         if (waivers.has(c.token)) continue
-        const others = survivors(c.token, path, pathspecs)
+        const others = survivors(c.token, path, pathspecs, ref)
         // 0 = the retraction was complete. >= 3 = common vocabulary, not a distinctive claim.
         if (others.length >= 1 && others.length <= 2) {
           offenders.push({ path, token: c.token, kind: c.kind, others })
         }
       }
     }
+  }
+
+  return { problems: [], offenders }
+}
+
+export function main(args) {
+  /** Each element is one commit's worth of work. Staged mode has exactly one. */
+  let units
+  if (args[0] === '--base') {
+    if (!args[1]) {
+      console.error('✖ retracted-phrase guard: --base requires a ref')
+      return 2
+    }
+    // TWO-dot for commit ENUMERATION (agent-workflow.md); three-dot is for diffs.
+    // NOT `-z`: rev-list ACCEPTS the flag and ignores it, still emitting newline-separated
+    // output. Splitting that on NUL yields ONE blob of concatenated SHAs, and every later
+    // `<sha>^` then fails — the guard aborts at exit 2 instead of checking anything.
+    const shas = git(['rev-list', '--reverse', `${args[1]}..HEAD`])
+      .toString('latin1')
+      .split('\n')
+      .filter(Boolean)
+    units = shas.map((sha) => ({
+      range: [`${sha}^`, sha],
+      message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),
+      ref: sha,
+    }))
+    // A root commit has no `^`. Diff it against the empty tree rather than skipping it.
+    for (const u of units) {
+      try {
+        git(['rev-parse', '--verify', `${u.ref}^`])
+      } catch {
+        u.range = [EMPTY_TREE, u.ref]
+      }
+    }
+  } else if (args.length === 1 && !args[0].startsWith('--')) {
+    let range = ['--cached']
+    try {
+      git(['rev-parse', '--verify', 'HEAD'])
+    } catch {
+      range = ['--cached', EMPTY_TREE] // first commit in a repo — not a reason to skip
+    }
+    units = [{ range, message: readFileSync(args[0], 'utf8'), ref: '--cached' }]
+  } else {
+    console.error('✖ retracted-phrase guard: usage: <commit-msg-file> | --base <ref>')
+    return 2
+  }
+
+  const offenders = []
+  for (const unit of units) {
+    const res = checkCommit(unit)
+    if (res.problems.length > 0) {
+      console.error('✖ retracted-phrase guard: unusable Retracted-ok trailer\n')
+      for (const p of res.problems) console.error(`  ${p}`)
+      return 1
+    }
+    offenders.push(...res.offenders)
   }
 
   if (offenders.length === 0) return 0

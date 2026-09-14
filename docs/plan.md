@@ -1042,9 +1042,10 @@ Claude finishes responding
     → [Stop hook] PowerShell toast notification
 
 git commit
-    → [Lefthook pre-commit] biome check --write + type-check + soft-delete guard +
-      test-title-leakage guard (BLOCKING). NOT unit tests — those run in CI
-      (docs/decisions.md:54; lefthook.yml's pre-commit stanza has no test runner).
+    → [Lefthook pre-commit] mechanical guards, BLOCKING. NOT unit tests — those run in
+      CI (lefthook.yml's pre-commit stanza has no test runner). The command list is
+      DATA in `.claude/pipeline.json`; this line enumerated it until 2026-09-14 and had
+      gone stale by omitting the file-size guard.
     → [Lefthook commit-msg] commitlint validates message format + commit-claims guard
       (BLOCKING) rejects a cited SHA that does not resolve (code-style.md §10 cl.6)
       + retracted-phrase guard (BLOCKING) rejects a claim corrected here but left
