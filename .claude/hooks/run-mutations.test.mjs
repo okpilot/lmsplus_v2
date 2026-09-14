@@ -353,8 +353,11 @@ test('rejects a suites list that contains a non-string entry', () => {
 })
 
 test('rejects a data file where mutations is not an array', () => {
-  // MUTATION: make the `!Array.isArray(obj.mutations)` condition always false → passing mutations
-  // as a string bypasses all per-mutation checks and the harness runs 0 mutations at exit 0.
+  // MUTATION: make the `!Array.isArray(obj.mutations)` condition always false → the string falls
+  // through to the `else` branch, which calls `.forEach()` on it and THROWS a TypeError out of
+  // validateDataFile. The test still reddens, but by throwing, not by returning a clean problem
+  // string — an earlier version of this comment claimed the harness "runs 0 mutations at exit 0",
+  // which is what would happen if the else branch were reached safely. It is not.
   const data = validData()
   data.mutations = 'not-an-array'
   assert.match(validateDataFile(data).join('\n'), /`mutations` must be an array/)
@@ -391,9 +394,10 @@ test('rejects a mutation whose expectRed contains a non-string entry', () => {
 })
 
 test('rejects a notEncoded value that is not an array', () => {
-  // MUTATION: change `!Array.isArray(obj.notEncoded)` to `false` → passing notEncoded as an
-  // object bypasses the entry-level forEach; a claim-without-why is never validated and passes
-  // silently, laundering an unencoded gap as an excused one. (Deleting the whole line would
+  // MUTATION: change `!Array.isArray(obj.notEncoded)` to `false` → the non-array falls through to
+  // the `else`, whose `.forEach()` THROWS a TypeError. The test reddens by throwing, not by a
+  // claim-without-why passing validation — an earlier version of this comment described the
+  // latter, which is the outcome only if the forEach were reachable safely. (Deleting the whole line would
   // orphan the `else` below and cause a syntax error — that reddens every test, not just this
   // one, so it is not the break this comment describes.)
   const data = validData()

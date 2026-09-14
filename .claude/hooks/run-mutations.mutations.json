@@ -176,6 +176,16 @@
       "expectRed": ["refuses an ambiguous anchor that occurs twice"]
     },
     {
+      "id": "anchor-count-not-two",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count !== 2) {",
+      "expectRed": [
+        "accepts an anchor that occurs exactly once",
+        "refuses an ambiguous anchor that occurs twice"
+      ],
+      "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws."
+    },
+    {
       "id": "default-mode-list",
       "find": "    mode: modes.length === 0 ? 'run' : modes[0].slice(2),",
       "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
@@ -237,7 +247,7 @@
       "find": "  if (!Array.isArray(obj.mutations)) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
       "replace": "  if (false) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
       "expectRed": ["rejects a data file where mutations is not an array"],
-      "note": "Passing mutations as a string bypasses all per-mutation checks; the harness runs 0 mutations and exits 0 (vacuous success). Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
+      "note": "Passing mutations as a string falls through to the `else`, whose `.forEach()` THROWS a TypeError out of validateDataFile — the test reddens by throwing, not by a vacuous exit-0 run. (Corrected after code-reviewer caught the original description.) Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
     },
     {
       "id": "mut-entry-not-object-allowed",
@@ -304,6 +314,14 @@
     {
       "claim": "MUTATION: replace the CAUGHT branch's condition with `false` → nothing is ever caught.",
       "why": "Encodable, but it is strictly dominated by `superset-is-caught` and `subset-is-caught`, which mutate the same condition in the two directions that can actually ship. A blanket `false` reddens most of the compareResult block and would pin nothing the other two do not."
+    },
+    {
+      "claim": "MUTATION: make validateDataFile always push a problem → every data file is rejected and the harness exits 2 without running anything, while reporting a data-file fault.",
+      "why": "The break is the ADDITION of an unconditional push at the function entry — not the removal or alteration of any existing text. Any substitution that achieves 'always push' (e.g. seeding the problems array) reddens 'accepts a well-formed data file', 'accepts an empty replacement as a deletion', and the relative-path half of 'rejects a target outside the worktree' simultaneously, producing a superset that pins nothing the individual field-rejection tests do not already cover."
+    },
+    {
+      "claim": "modeRun throws when no *.mutations.json exists (5b47604c) → without it the harness exits 0 having graded nothing",
+      "why": "NOT PINNED, and not pinnable at the unit tier: `modeRun` is not exported, and `main()` resolves the repo root via `git rev-parse --show-toplevel` with no injection point, so even running from a temp dir finds this repo's data files and never reaches the branch. Recorded here rather than left silent because it is the single most important false-green path in the tool and `--coverage` would otherwise not even show it as a gap — it carries no MUTATION: comment to count. Closing it needs an injectable root or an end-to-end tier, not a better fixture."
     }
   ]
 }
