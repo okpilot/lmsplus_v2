@@ -65,6 +65,11 @@ commit-msg:
     # Block a message citing a commit SHA that does not resolve (code-style.md §10 cl.6).
     claim-check:
       run: node .claude/hooks/check-commit-claims.mjs "{1}"
+    # Block a commit that corrects a claim in one corpus file and leaves the same claim
+    # standing in another (code-style.md §10 cl.3). Runs at commit-msg, not pre-commit,
+    # because its only escape hatch is a `Retracted-ok:` trailer in the message itself.
+    retracted-phrase:
+      run: node .claude/hooks/check-retracted-phrase.mjs "{1}"
 
 post-commit:
   commands:

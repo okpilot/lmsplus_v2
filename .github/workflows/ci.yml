@@ -119,6 +119,27 @@ jobs:
       - name: Commit-claims guard — unit test
         run: node --test .claude/hooks/check-commit-claims.test.mjs
 
+      # Retracted-phrase guard (code-style.md §10 cl.3). This re-checks each commit in the
+      # range exactly as the commit-msg hook did, so its value is catching commits pushed
+      # with the hook bypassed — NOT a wider cross-branch analysis. Merge commits are skipped
+      # (see the guard's rev-list call), so nothing here sees more than one commit at a time.
+      # Each suite needs its own step — there is no aggregator.
+      - name: Retracted-phrase guard (PR diff, code-style.md §10 cl.3)
+        if: github.event_name == 'pull_request'
+        run: node .claude/hooks/check-retracted-phrase.mjs --base ${{ github.event.pull_request.base.sha }}
+
+      - name: Retracted-phrase guard — unit test
+        run: node --test .claude/hooks/check-retracted-phrase.test.mjs
+
+      - name: Retracted-phrase guard — git-facing tests
+        run: node --test .claude/hooks/check-retracted-phrase.repo.test.mjs
+
+      - name: Retracted-phrase guard — --base (branch-range) tests
+        run: node --test .claude/hooks/check-retracted-phrase.base.test.mjs
+
+      - name: Retracted-phrase guard — path-handling tests
+        run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
+
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the

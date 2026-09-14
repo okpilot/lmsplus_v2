@@ -42,10 +42,12 @@
 - **Git hooks:** Lefthook — replaces Husky + lint-staged. One YAML file, parallel execution, native monorepo support. Biome docs officially recommend Lefthook.
 - **Commit format:** Conventional Commits enforced via commitlint in the Lefthook commit-msg hook, alongside the commit-claims guard (a cited SHA must resolve — Decision 64).
 
-### Git Hook Pipeline (Lefthook) — updated by Decision 64
+### Git Hook Pipeline (Lefthook)
 ```
-pre-commit  → biome check --write + tsc --noEmit + soft-delete guard + test-title-leakage guard
-commit-msg  → commitlint (conventional commits) + check-commit-claims (a cited SHA must resolve)
+pre-commit  → mechanical guards (list is DATA in .claude/pipeline.json — this line had gone
+               stale by omitting the file-size guard)
+commit-msg  → enforces conventional commit format, resolvable cited SHAs, and retracted-claim
+               consistency; the command list is DATA in .claude/pipeline.json
 pre-push    → security-auditor agent + pnpm audit
 post-commit → reminder to run subagents (non-blocking)
 ```
@@ -1754,6 +1756,100 @@ shipped wrong, each measured before its own commit's remaining edits landed (§1
 replacement was itself stale by the time CodeRabbit round 1 was triaged. The size win is in deleting archaeology, not in
 codification; the win here is that these copies can no longer drift.
 
-*Last updated: 2026-09-13 — Decision 65 amended: the violation total carries the date it was
+## Decision 66: §10 cl.3 becomes a gate — an incomplete retraction blocks the commit (2026-09-14)
+
+Build-order item 1 of the corpus-codification programme. `code-style.md` §10 cl.3 has always told
+the author to grep a retracted phrase repo-wide before claiming the class closed. The learner row
+*"Claim-correction commit updates a count but leaves its arithmetic stale"* reached RULE CANDIDATE
+across five branches anyway — derive its current count from the tracker, not from this line.
+`.claude/hooks/check-retracted-phrase.mjs` now blocks at `commit-msg` when a value or filename this
+commit corrected in one corpus file still stands in one or two others. CI re-runs the SAME
+per-commit check over the branch range (`--base`), iterating commits so a waiver stays scoped to
+the commit whose author wrote it and skipping merges — on a `pull_request` event HEAD is the merge
+ref, and grading that as one unit would put the whole PR under a generated message no waiver can
+reach. The CI run therefore adds no analysis the hook does not do; its value is catching a commit
+pushed with the hook bypassed.
+
+**The design is what the measurement forced, and the first design was wrong.** Replayed against 120
+master commits, the rule as written in the spec — "a phrase removed here that still exists there" —
+blocks 18% of commits, is almost entirely noise, and MISSES the instance it was written for. The
+narrowings needed before it was shippable are NOT counted here — this entry said "four" while the
+guard already had a fifth, and any corrected number goes stale the next time one is added (§10
+cl.2; derive them from `CORPUS`, `ISSUE_PREFIX_RE`, `completedSpecDirs` and `candidatesFor`): a
+rarity window (a token surviving in three or more
+files is vocabulary, not a claim); exclusion of ticket references and migration numbers; exclusion
+of `.claude/agent-memory/**` on all three sides (those files quote past false claims verbatim, so
+counting them both invents survivors and exonerates real retractions); exclusion of any spec whose
+tasks are all `[x]`, which `agent-workflow.md § Rule-Mirror Sync` designates a historical record;
+and a correction gate at HUNK granularity — a removal fires only when the same hunk supplies a same-class replacement, which
+is what separates a correction from a deduplication or a rewrite. It was calibrated by replaying
+the detector over 120 master commits, and it fires correctly on `3752c88a` — the real commit whose
+incomplete `1807`→`1806` correction cost a reviewer round. No block-rate figure is quoted for the
+detector as shipped: the replay harness is not committed, so no reader can reproduce one. (The 18%
+that appears above and in the footer measures the REJECTED spec design, which is a different
+detector and is cited to explain why it was rejected.) Slice 2's rule settles
+it — commit the harness or stop stating the number — and committing it is still an open task.
+
+That figure was FIRST recorded here as 0, measured before the detector's last two edits landed —
+stale on arrival while reading as verified, which is `code-style.md` §10 cl.7 committed by the
+author of the guard built to catch that class. It is recorded rather than quietly overwritten
+because it is the clearest evidence in this entry that the rule needs a machine. Re-derive rather
+than trusting the number: the replay harness is NOT committed, so this is a claim to re-measure
+before relying on it.
+
+**The spec's escape-hatch design could not work and was replaced.** It proposed an inline marker on
+the removed line — text the commit is deleting, so nothing greppable survives. The waiver is a
+commit-message trailer instead, `Retracted-ok: <token> — <reason>`, naming ONE token and requiring a
+reason that is not a bare "false positive". That is why the guard runs at `commit-msg`: it is the
+only stage holding both the message and the staged index. `/insights` now audits waiver frequency,
+and the recorded revisit condition is falsifiable — above roughly one waiver per 25 commits the
+detector is re-narrowed, never baselined.
+
+**No baseline file, deliberately, unlike Decision 65.** R4 mandates a ratchet for a check adopted
+onto an already-violating codebase. This one is diff-scoped by construction: a retraction is a
+property of an act of removal, not of the tree, so there is no standing violation to freeze. A
+baseline could only ever be appended after a block, which is a permanent free suppression list.
+
+**The post-commit cycle found a fail-open the whole design had missed, and it is worth recording
+because of where it hid.** The re-added-token check was a bare `addedText.includes(token)` — a
+substring test with no word boundary. `'11807'.includes('1807')` is true, so a commit correcting
+`1807` while any co-occurring line mentioned an unrelated `11807` exonerated the retraction and
+never reported the surviving copy. The boundary rules existed and were correct; they lived in the
+tokeniser, and this check simply did not re-apply them. Every one of the 43 tests passed. Fixed with
+a boundary-aware `reAdded()`, and the re-added scan narrowed to the corpus so it agrees with the
+survivor search about what "the documented set" means — a value moved from a rule file into source
+no longer exonerates a corpus retraction. Both pinned. NO calibration figure is restated here, and no re-measurement is asserted either: the
+replay harness is not committed, so such a claim cannot be checked by a reader, and this spec's own
+slice-2 entry settles that case — commit the harness so the number is re-derivable, or stop stating
+it. Committing the harness remains an OPEN slice-2 task; until it lands, the second branch applies.
+
+**This branch's author wrote false claims repeatedly while building the guard against them, and
+each was caught by a DIFFERENT reviewer — none by re-reading.** No total is given, deliberately:
+the first draft said "five" and then listed seven in the same paragraph, which is §10 cl.2's own
+defect committed inside the entry explaining it. Derive the list from the branch's commit messages
+(`git log origin/master..HEAD`), which record each one where it was found. The shapes were: a
+calibration figure measured before the same branch's later edits landed; several MUTATION comments
+claiming a test pinned a mechanism it did not; a tracker row calling a change a DEFERRAL when it
+had only extended the enumeration it claimed to remove; a commit message listing a file among its
+own changes when the parent had changed it; and a `.coderabbit.yaml` mirror promising to cover
+"any paraphrased restatement" from under a glob that never sees the corpus.
+
+This is the evidence for §10 cl.5: reading a block finds incoherence, only RE-DERIVING finds a
+claim that is coherent and false. Every one of these read as verified.
+
+**A bound the branch demonstrated on itself:** CR-local round 3 found that a "three mechanisms"
+count had been corrected in one place and left standing in three others — the guard's exact target
+class, inside the guard's own tests. The guard did not and cannot catch it: `three` is a WORD, and
+the value detector requires three or more DIGITS. Spelled-out counts, and any claim not carrying a
+numeral or a filename, are outside it. That is the clearest statement available of how narrow the
+mechanical slice is, and it is why §10 cl.3's grep remains the author's job.
+
+**Bounds are in the guard's header, and the mechanisms that are NOT mutation-pinned are named — not counted — in the test suite's preamble.** That list got SHORTER under cloud review: the latin1 path decode sat on it as untestable because "a fixture cannot create an invalid-byte filename", which was wrong about the REASON — the fixture built its path as a string, and Node re-encodes a string path to UTF-8 on the way to the syscall. A Buffer path does not. CodeRabbit spotted it; the decode is pinned now. An "untestable" label is a claim like any other and deserves the same suspicion. What remains unpinned is the unreachable degenerate-token
+assertion and the `git grep` exit-code discrimination. They are listed
+in the test file rather than left looking covered. Two mutation runs also found a redundant early
+return presented as a second mechanism, and a test whose comment claimed to pin the path decode when
+it pinned nothing of the sort; both were corrected rather than explained away.
+
+*Last updated: 2026-09-14 — Decision 66: `code-style.md` §10 cl.3 becomes a mechanical commit-msg gate (`check-retracted-phrase.mjs`); the spec's own detector design was refuted by a 120-commit replay (18% block rate, missed its own motivating case) and rebuilt around a rarity window, a hunk-level correction gate and several exclusions; its inline escape hatch was mechanically impossible and became a commit-message trailer. No baseline, and the unpinned mechanisms are named rather than counted. Prior: 2026-09-13 — Decision 65 amended: the violation total carries the date it was
 measured and the command to re-derive it, and the DELETE-vs-PIN line states the rule instead of
 asserting what the set currently contains (§10 cl.2). Prior: 2026-09-09 — Decision 65: file-size limits become data plus a ratchet; the DELETE-vs-PIN distinction is recorded because a mirror whose consumer cannot dereference a pointer is load-bearing, not duplication. Both post-commit CRITICALs (same-path content swap; a committed dangling symlink permanently unreadable and so exempt from every limit at exit 0) were closed before the follow-up commit. Prior: 2026-09-09 — Decision 64 CORRECTED by its own pre-push sweep: the entry claimed the gate "never fires on a true claim" while a later section of the same entry disclosed a shape that does; it carried two contradictory tallies of the branch's own regex-widening defects; and it recorded ONE uncovered detection position where calling `extractRefs` finds more — now a named, uncounted list (§10 cl.2). That list's own first item then needed a SECOND rewrite: carried over unchanged, it still claimed "only the FIRST SHA" of a multi-SHA parenthetical leaks, which holds only when the `(` opens a line and understates every other position; a first attempt to fix it overcorrected to "neither leaks", equally wrong. Split by position, each shape executed. Still documented rather than patched because every widening on this branch introduced a fresh silent drop and all of them fail SAFE. The guard's test suite was also the only hook suite absent from `ci.yml`; wired, and its mutation-blind mechanisms pinned. Prior: 2026-09-08 — Decision 64: commit messages get a mechanical claim gate — a cited SHA must resolve (`check-commit-claims.mjs`, commit-msg). The EVIDENCE:-line design row 42 escalated for was prototyped, measured at an 84% block rate, and REJECTED as row 40 in hook form; the gate verifies the checkable subset instead (recall 280 of 352 real commit-SHA citations, over a 400-message window measured in flight, a snapshot to re-derive rather than quote; the only 4 tokens it would block sit in two squash merges citing their own pre-squash commits, which resolved at commit-msg time). Row 42 stays open — the gate cannot see behavioural mischaracterisation. Prior: 2026-09-07 — Decision 63: the open policy contradictions settled by the user (test-file size exemption derived not enumerated; red-team filings keep counting toward the defer ratio with a second named justification; test-writer's tests ride the round's one fixup commit; "let the user decide" routed into the three terminal states in BOTH code-reviewer and security-auditor; agent-memory-only commits skip implementation-critic to terminate the memory/critic regress) and `.claude/**` brought under the lint, which no gate reached — one real O(n^2) warning fixed in `check-mirror-sync.mjs`. Prior: 2026-09-07 — Decision 62: pipeline facts move to `.claude/pipeline.json`, validated by `.claude/pipeline.test.mjs`, every assertion mutation-verified; post-commit review found two CRITICAL holes in the first cut (model-literal accepted any known model; the frontmatter parser swallowed a body) — both closed; `agent-tools.test.mjs` deleted as a strict subset; one audit finding (`agent-workflow.md:224`) was REFUTED by reading #1266's commit message, which kept the line deliberately — the audits are leads, not findings. Coverage is stated precisely in the entry: path-list COMPLETENESS is not asserted. The policy contradictions and the `.claude/commands/*` restatements are recorded as OPEN, not resolved. Prior: 2026-09-07 — Decision 61 rationale CORRECTED: it said CR-local replaced its resetting counter "for the same reason". It did not. CR-local argued a local stability proof is unnecessary because cloud CR is the authoritative gate (`27d6df94`); this decision argues the floor is arithmetically unreachable. Same defect, same fix, two INDEPENDENT routes — which strengthens the case rather than weakening it, since neither leans on the other. Prior: 2026-09-06 — Decision 61: post-commit reviewer rounds adopt CR-local's EXTEND-BY-ONE mechanic; an APPLY finding extends the loop by a round instead of resetting a consecutive-clean counter, which with the 4-round ceiling could make M=3 unreachable — not always, but whenever a later finding or a coverage round consumed the remaining rounds (#1255, evidenced on PR #1248 where two rounds and four agents produced zero code defects). The concept is renamed minimum-rounds-met + last-round-clean; NO comment-only-diff exception is added and the mechanical path-glob derivation is unchanged. Prior: 2026-09-06 — Decision 60 consequence CORRECTED: the recorded "the attempts table has no such gap" claim was FALSE. That table's "Answered" header mismatches its NUMERATOR (`correctCount / answeredItems`), and the change also cost the student↔admin denominator agreement (admin "1 / 3" vs the student's "3/10" for the same attempt), so BOTH admin lists carry a header/cell gap — not student-detail alone. Found by manual eval, measured on a seeded 10-question internal exam. Prior: 2026-09-02 — Decision 60 divergence CLOSED (#990): all THREE list surfaces (two admin, one student-facing) now render the item/item fraction through the shared `formatCorrectFraction`, and the decision's original exact-adjacency audit grep is recorded as a FALSE-CLEAN — it missed the two student-facing sites, which put spaces around the slash. Prior: 2026-08-24 — Decision 60: the report "Correct" fraction is item/item in every mode (`correctCount / answeredItems`, em dash when nothing was answered) — the exam branch divided an ITEM-level `correct_count` by a QUESTION-level `total_questions` and can render "29 / 25" for live VFR RT exams (reproduced locally; no production render observed); `Skipped` now renders for exams and in the mobile layout (2x2) because it is what carries the paper-size signal the old denominator used to, and renders an em dash when `answeredQuestions` overshoots the question total — a clamped 0 would read as authoritative while being wrong in the student's favour. The admin route's raw answer-ROW `answeredQuestions`, which first exposed this, was fixed in #991; the guard stays as defence for any caller passing inconsistent values. Note the fix derives the distinct count in the query helper (a `Set` over the fetched answer rows), NOT via a SQL `COUNT(DISTINCT ...)`. Prior: 2026-08-20 — Decision 59: EVERY `tenant_isolation` policy is `FOR SELECT` (the policy exists only on org-scoped tables; it is not added to every table), on either of two INDEPENDENT grounds (role-gated writes, or no intended user-scoped write path) — supersedes Decision 53 points 2 and 4; `organizations`/`question_banks`/`courses`/`lessons` narrowed in mig `20260820000100`, closing GHSA-hjp9-x868-7wgw §2, with the exposure verified against production for the first time since the access token was rotated (#1183); invariant recorded that no table in `public` carries an unqualified `tenant_isolation` (#1175). Prior: 2026-08-19 — Decision 58: post-commit proportionality — the repeated-numeric-literal sub-rules are DROPPED (doc-updater no longer chases a stale count across tech.md/decisions.md/plan.md; those literals will drift and stay drifted), and NO no-executable-change exemption is added — an oracle was built and reverted after measuring that it would have fired on 1 of the last 300 commits (#1222, #1232, #1231, #1164). Prior: 2026-08-18 — Decision 57: the authoring gate R3 stays exact-match while the grader is typo-tolerant; the divergence is recorded rather than closed, because a simulated tolerant R3 newly fails zero of the 50 shipped questions and porting would reverse `normalize-answer.ts`'s own instruction and add a second untested SQL↔TS parity contract (#1194). Prior: 2026-08-15 — Decisions 55 & 56: Part 2 blanks pinned by dialogue not a scene line (authoring rule R7); grading tolerates typos but never digits (`answer_matches`, mig 158; graders repointed across migs 158–160). Prior: 2026-08-11 — Decision 54: VFR RT content lives in the org's existing question bank; the licence/course model stays deferred. Prior: 2026-08-09 — Decision 53: `tenant_isolation` must be `FOR SELECT` on any table that also has role-gated write policies (unqualified = `FOR ALL`, and permissive policies OR together, so the `is_admin()` gate never binds); `questions` narrowed in mig `20260809000100`, DELETE left with no permissive policy; carve-out mirrored into `docs/security.md` §3, `.claude/rules/security.md` rule 2 and `.coderabbit.yaml` | Earlier 2026-07-03 — Decision 49 amended: save-for-later drafts now close their practice sessions on save + resume mints fresh sessions (#1085) | Earlier 2026-07-02 — Decision 52: `diagram_label` question type — inline SVG component registry keyed by `image_ref` (not a static image), distractor labels allowed, 9-zone RWY 27/09 LH pattern seed, general `diagram_config` schema; per-zone answer rows reusing the Decision-51 model; INVERTED self-defence vs `ordering` (distinct zone_id/label_id is the integrity key, partial submission + unused labels explicitly allowed); migs 150–156 (VFR RT Phase 6) | Earlier 2026-06-30 — Decision 51: `ordering` question type stores PER-SLOT answer rows (dialog_fill-clone) for partial credit, deviating from spec N7's single-JSON-row; mig-144 trigger widening; `_grade_record_ordering` REVOKE-gated per-slot helper (mig 147); get_quiz_questions shuffled delivery (mig 145); batch_submit_quiz ordering dispatch + partial-credit rollup (mig 148) (VFR RT Phase 5) | Earlier 2026-06-30 — Decision 50: dnd-kit (core/sortable/utilities) for drag-and-drop question types (ordering, diagram_label); sensors [Pointer, Touch(delay250/tol5), Keyboard] for iPad (VFR RT Phase 5) | Earlier 2026-06-29 — Decision 49: single active quiz_sessions row per account across all modes (#1011) — global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row + `endDiscovery` + `ActivePracticeBanner` recovery; Decision 48 amended (Discovery now a real ephemeral `mode='discovery'` DB row, still non-resumable + nothing-scored). | Earlier 2026-06-27 — Decision 48 reworked: Discovery reuses the real quiz runner via an ephemeral pre-marked sessionStorage handoff (navigate to `/app/quiz/session`, correct option pre-marked, explanation behind its tab, Exit not Finish, nothing persisted; persisted `ActiveSession` typed resumable-only). | Earlier 2026-06-26 — Decision 48 UI label: Study Mode surfaced as Discovery (first/default segment of New Quiz ModeToggle; internal identifiers remain `study`) | Decision 48: Study Mode `get_study_questions` RPC returns MC answers on-demand (deliberate exposure; exam-integrity enforced by the active-exam-session guard — raises `active_exam_session` mid-exam, red-team EO6) | Earlier 2026-06-21 — Decision 47: batch_submit_quiz per-type dispatch via internal helpers gated by REVOKE EXECUTE FROM PUBLIC, anon, authenticated (single authz boundary in the dispatcher) + DISTINCT-question partial-credit scoring matching the exam (VFR RT Phase 2.3) | Earlier 2026-06-21 — Decision 46: app-layer DB integration test tier (`apps/web/vitest.integration.config.ts`, real-DB under RLS) + mechanical schema-contract guards (soft-delete column guard, test-helpers import ban) + HARD new-query-site integration-test policy (#925) | Earlier 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

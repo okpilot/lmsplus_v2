@@ -22,6 +22,9 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
   ARTIFACT per `agent-workflow.md § Finding Validation` rather than the claim — `git status
   --porcelain --untracked-files=all` empty, HEAD unchanged, `git stash list --format='%H'`
   byte-identical, scratch location gone. A mutation the agent cannot make that way is yours to run.
+- **Before writing a `MUTATION:` line, confirm every mechanism it names is REACHABLE by the
+  fixture's inputs** — `code-style.md` §7, "A `MUTATION:` Comment Is a Prose Claim". A comment
+  naming a second mechanism an earlier guard already rejects reads as coverage and is not.
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER

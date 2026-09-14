@@ -920,6 +920,57 @@ Cheapest proof, and the one to prefer over argument: **revert the production cha
 the test fail**, then restore. Where that is impractical, pick a fixture whose expected value differs
 from every value an unrelated guard could produce.
 
+### A `MUTATION:` Comment Is a Prose Claim, Subject to §10 (from 2026-09-14)
+
+A `// MUTATION: <break>` line asserts that making `<break>` turns THIS test red. That is a claim
+about behaviour, so §10 governs it exactly as it governs any other comment — and it rots the same
+way. Writing `MUTATION: X` does not make X true.
+
+List only mechanisms the fixture can actually REACH. The recurring defect is a comment naming two
+mechanisms ("delete A **or** B") where B is unreachable given the fixture: an earlier guard rejects
+the input first, so deleting B leaves the test green and the comment silently overclaims. Verify by
+reverting ONLY the named mechanism and confirming that exactly those tests go red — a superset
+means the comment is under-specific, and green means it is false. Where a mechanism genuinely
+cannot be reached, say so in the comment rather than implying coverage; an honest "NOT pinned, and
+here is why" is worth more than a claim that reads as verified and is not.
+
+**Verify that the mutation APPLIED before reading the result.** A `sed` whose anchor does not match
+is a no-op, and a no-op mutation is indistinguishable from an unpinned test — it reports SURVIVED
+either way. Check the edit landed (a changed line count, a `grep -c` that moved) before concluding
+anything.
+
+Promoted at count=4 across two commits (2026-09-14, `feat/retracted-phrase-guard`): three comments
+overclaimed by naming an unreachable second mechanism, one named a skip that a sibling regex
+boundary already made unreachable. Three were written by the author of the guard whose whole
+purpose is catching false claims.
+
+The promotion sweep audited every `MUTATION:` claim in the file-size-guard suites and found them
+ALL accurate, each multi-mechanism one verified by execution. Count them with `grep -c 'MUTATION:'`,
+not `grep -c '// MUTATION:'`: some claims sit mid-line after other prose and the narrower pattern
+silently misses them — derive the difference with
+`diff <(grep -c 'MUTATION:' <file>) <(grep -c '// MUTATION:' <file>)` rather than trusting a number. Post-commit review flagged the wider figure as wrong on the strength of the
+narrower grep; both numbers were right, for different questions. So the defect is not the convention
+going bad over time — it concentrated entirely in files written fresh in one sitting, which is
+where to look for it next.
+
+### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way (from 2026-09-14)
+
+When a check has one half that decides what a change ADDED and another that decides what SURVIVES
+elsewhere, the two must use IDENTICAL matching semantics. A split is invisible in review — each
+half reads correctly on its own — and shows up only as a wrong verdict on an input that crosses
+them.
+
+Worked example, and the one this was promoted from: `check-retracted-phrase.mjs` gave `reAdded()`
+anchored token boundaries so that `11807` would stop exonerating a retraction of `1807`, and left
+`survivors()` on a bare `grep -F`, which is a SUBSTRING match. The halves then disagreed about what
+"the same token" is, and an unrelated `11807` counted as a surviving occurrence — blocking a
+retraction that was complete. `my-plan.md` did the same to `plan.md`. The first half was fixed
+three commits before anyone noticed the second.
+
+The tell is a fix applied to one side of a comparison. When you correct matching semantics
+anywhere, find the other place that must agree with it and correct both, or state why they
+legitimately differ. Promoted at count=4 with the learner's substring-not-exact-identity row.
+
 ### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
 
 When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
@@ -992,6 +1043,15 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    block alone has never caught a non-adjacent instance.
    A claim RE-TYPED unchanged inside a reflowed block is a NEW assertion: it arrives on a `+` line
    but reads as text you already had, so it slips the one review most likely to catch it.
+   **Mechanically enforced at `commit-msg` by `.claude/hooks/check-retracted-phrase.mjs`**, which
+   blocks when a value or filename this commit corrected in one corpus file still stands in one or
+   two others. Its bounds are in its own header and it does NOT discharge this clause: it reads
+   `.claude/`, `docs/`, `.spec-workflow/`, `CLAUDE.md` and `.coderabbit.yaml` only — excluding
+   `.claude/agent-memory/**`, which quotes past false claims verbatim, and any spec whose tasks are
+   all `[x]`, which `agent-workflow.md § Rule-Mirror Sync` designates a historical record. It also
+   needs the hunk to contain the REPLACEMENT, and cannot see a paraphrase or a spelled-out count. The grep above is still yours to run.
+   The sole waiver is a `Retracted-ok: <token> — <reason>` trailer, which must say why the
+   surviving occurrence is not the same claim.
 
 4. **Verify the fix is STAGED, not merely written.** `git grep` reads the working tree, so it goes
    clean the moment the text is on disk. Run `git diff --staged` AND

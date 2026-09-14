@@ -67,7 +67,7 @@
       "test-title-leakage",
       "type-check"
     ],
-    "commit-msg": ["claim-check", "commitlint"],
+    "commit-msg": ["claim-check", "commitlint", "retracted-phrase"],
     "post-commit": ["agent-reminder"],
     "pre-push": ["audit", "security-auditor"]
   },

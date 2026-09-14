@@ -24,6 +24,15 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - **Doc-updater**: confirm watched file list matches actual doc files in repo; note any unresolved steering drift
    - **Security-auditor**: compare checklist in agent definition vs rules in `docs/security.md`
    - **CodeRabbit**: spot-check last 3 rules in `code-style.md` against `.coderabbit.yaml` path_instructions
+   - **Retracted-phrase waivers**: `git log --format=%B | grep -c '^Retracted-ok:'` — counts
+     TRAILERS, not commits: one commit can waive several tokens, and `--grep ... --oneline | wc -l`
+     would score that as one. NOT
+     `git log -S`, which searches changed FILE CONTENT and so cannot see a trailer that exists
+     only in a commit message; it would report zero for ever and this check would certify a clean
+     hatch permanently. Every waiver is a
+     claim someone chose not to finish correcting. Read the reasons. If waivers are running above
+     roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
+     a hatch used reflexively is how this guard dies quietly
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
    - **Implementation-critic**: check pre-commit findings log — are staged-change reviews catching issues before commit?
 8. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
