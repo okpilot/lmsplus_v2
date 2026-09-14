@@ -39,7 +39,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) (row 600) |
 | Proposed verification command silently verifies nothing | 6 | 2026-09-13 | RULE CANDIDATE (6) (row 602) — 6th: `b6f78ae4` `--test-timeout`, inert against a sync busy-loop. Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum (counts are enumerations in disguise). Surface extends beyond plan.md (row 547) |
-| Fix commit correcting §10 violations introduces fresh §10 | 37 | 2026-09-10 | RULE CANDIDATE (37, per-branch). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 40 | 2026-09-14 | RULE CANDIDATE (40, per-branch). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set — falsified on each new discovery | 10 | 2026-09-10 | RULE CANDIDATE (10) — text exists (§10 cl.2). Chain in topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 2 | 2026-09-01 | RULE CANDIDATE (2) → agent-learner.md needs a re-derivable RECORD, not prose (row 688, topic file) |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 5 | 2026-09-13 | RULE CANDIDATE (5), overdue. 5th: `a170a0f8`, caught PRE-COMMIT by impl-critic. Draft: cross-agent-lessons.md |
@@ -87,13 +87,15 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Branch scope cited via unstable tracker-row IDs (line# vs archive line# vs literal `(row NNN)`) — several resolved wrong | 1 | 2026-09-08 | WATCHING — cite Issue-Type text instead if recurs. Detail: cross-agent-lessons.md |
 | Rename-blind `--name-only` pathspec derives a security-path floor or exemption — a rename's other half is invisible | 2 | 2026-09-08 | PROMOTED — fixed to `--name-status -M` at all 6 sites; swept clean 2026-09-08. Detail: cross-agent-lessons.md |
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo — self-caught via verify-after-mutation | 1 | 2026-09-08 | WATCHING — same Bash residual hole, distinct actor/race. Detail: cross-agent-lessons.md |
-| doc-updater proposal echoes an illustrative example from its OWN dispatch prompt as a literal citation | 1 | 2026-09-09 | WATCHING — mis-cited a date matching the dispatch prompt's example, not the file. Distinct from row 68 |
+| doc-updater proposal echoes an illustrative example from its OWN dispatch prompt as a literal citation | 2 | 2026-09-14 | RULE CANDIDATE (2) — 2nd: `ff562c9f` fabricated `if (!waivers.size) return 0` (no grep match anywhere) + wrong count ("four families"; the constant has five). AFTER naming the specific failure in dispatch prompt cycles 2-3 were clean — weak positive, 2 cycles only. Propose: dispatch prompt must require pasted `grep -rn '<claimed function body>'` output on any code-body citation. Distinct from row 68. |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2) — same class as PROMOTED row 88, new mechanism. Detail: cross-agent-lessons.md |
 | Commit-message count computed pre-edit; the SAME commit's own edits make it stale on arrival | 3 (generalizes row 690) | 2026-09-10 | PROMOTED → code-style.md §10 cl.7 (written). Enforcement-depth gap, not text. Detail: cross-agent-lessons.md |
 | Hook script's git-diff filter argument doesn't cover git's R(ename) status — a rename escapes the intended filter | 1 | 2026-09-10 | WATCHING — `--diff-filter=D` missed a staged RENAME (`R100`). Cousin of PROMOTED row 88. Detail: topic file |
 | Orchestrator's own SKIP-with-reason rests on a wrong stated premise, reversed by an external reviewer round | 1 | 2026-09-10 | WATCHING — inverse of usual Finding Validation direction (validating own dismissal, not a reviewer's claim). Detail: topic file |
 | Regex→hand-parser rewrite of a blocking gate: each fix commit's own corpus-diff claim is true and insufficient — corpus lacks the grammar shape the next bug lives in | 2 | 2026-09-13 | RULE CANDIDATE (2) — `24c2bd70`→`a170a0f8`→`b6f78ae4` chain. Propose: 1 synthesized fixture per control-flow branch, not corpus-sourced. Detail: topic file |
 | Concurrent agent-Bash mutation transiently modifies a tracked file; unrelated agent reports a change it didn't cause | 1 | 2026-09-13 | WATCHING — 3rd materialization of Bash-residual-hole class (86/89), new mechanism. test-writer's scratch-copy rule isn't mirrored elsewhere. Detail: topic file |
+| MUTATION: comment overclaims which mechanisms the test pins — sub-claim is unreachable; the comment is §10 prose against the test artifact | 4 | 2026-09-14 | RULE CANDIDATE (4) — 3 orchestrator + 1 test-writer on `ff562c9f`/`ab310cc9`. Writing "MUTATION: removes X and Y" does not make Y reachable. Propose: code-style.md §7 addendum: a MUTATION: line is a prose claim and must be verified by reverting ONLY that mechanism and watching exactly those tests fail. |
+| Tracker row written against staged/draft code state — the referenced code is corrected before the commit lands, leaving the row's present-tense description false on arrival | 1 | 2026-09-14 | WATCHING — `ab310cc9` cycle 2: a tracker row quoted a test name with zero grep matches; the test had been renamed in the same branch. Mechanism distinct from §10 cl.7 (which governs counts in commit messages). Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -111,6 +113,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 - CR-local Q2: 0/4 clean, closed at ceiling not floor+clean — compounds row 42/69. Topic file.
 - POSITIVE (`ee0186d9`): a stale citation found by 3 reviewers in one round.
 - File-size-codification programme, `feat/codify-file-size-limits`: "0 net-new rows" reads never hold — every slice produces new row-42/69 instances. 2026-09-13 pass: rows 40/45 +1 each, 2 new rows. Detail: topic file.
+- POSITIVE (weak, `feat/retracted-phrase-guard`): doc-updater clean cycles 2-3 AFTER naming specific fabrication failures in dispatch prompt. Only 2 cycles; no new citation opportunity arose. Does NOT reverse row-68 meta-lesson (naming alone insufficient — artifact check is what worked at N=3). Watch for a 3rd cycle before updating that conclusion.
+- POSITIVE (`feat/retracted-phrase-guard`): highest-value finding (substring fail-open in `addedText.includes(token)`) came from EXECUTION of boundary cases by semantic-reviewer. Corroborates the "execute > infer" principle. Four no-op mutation seds were themselves a false-claim class — the mutation harness needed verification that it had actually applied.
 
 ## Topic pointers
 

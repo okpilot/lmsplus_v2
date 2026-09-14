@@ -41,6 +41,16 @@ Keeps project documentation in sync with code changes. Watches for schema change
   on the second and third dispatches and a fresh wrong count came back both times.** Only requiring
   the pasted artifact worked. If a count cannot be derived in-session, write "not derived" — a short
   report with three verified facts beats a thorough one carrying an invented number.
+- **A CODE-BODY citation needs a pasted `grep` result, not just a line number.** When the report
+  quotes an `if` expression, a function signature, a return value or any other fragment of code as
+  evidence, paste the output of `grep -rn '<distinctive token from that expression>' .` A citation
+  that cannot be grounded in a grep result is fabricated, whatever else in the report is correct.
+  Promoted at count=2 on two different mechanisms: a date echoed back out of its own dispatch
+  prompt (2026-09-09), and an invented function body — `if (!waivers.size) return 0`, which exists
+  nowhere in the repo — offered as the evidence for an otherwise CORRECT conclusion
+  (2026-09-14, `ff562c9f`). The second landed on the very commit whose guard targets false claims,
+  in a report that also miscounted a five-element constant as four. A right verdict resting on
+  invented evidence is not a right report: the next reader checks the evidence.
 - When a report claims a file "cites", "mentions" or "references" specific content, paste the EXACT
   substring rather than paraphrasing it. This makes the NEVER-list rule below — never cite a
   migration, SHA, column or path without reading it — checkable by the orchestrator without

@@ -920,6 +920,35 @@ Cheapest proof, and the one to prefer over argument: **revert the production cha
 the test fail**, then restore. Where that is impractical, pick a fixture whose expected value differs
 from every value an unrelated guard could produce.
 
+### A `MUTATION:` Comment Is a Prose Claim, Subject to §10 (from 2026-09-14)
+
+A `// MUTATION: <break>` line asserts that making `<break>` turns THIS test red. That is a claim
+about behaviour, so §10 governs it exactly as it governs any other comment — and it rots the same
+way. Writing `MUTATION: X` does not make X true.
+
+List only mechanisms the fixture can actually REACH. The recurring defect is a comment naming two
+mechanisms ("delete A **or** B") where B is unreachable given the fixture: an earlier guard rejects
+the input first, so deleting B leaves the test green and the comment silently overclaims. Verify by
+reverting ONLY the named mechanism and confirming that exactly those tests go red — a superset
+means the comment is under-specific, and green means it is false. Where a mechanism genuinely
+cannot be reached, say so in the comment rather than implying coverage; an honest "NOT pinned, and
+here is why" is worth more than a claim that reads as verified and is not.
+
+**Verify that the mutation APPLIED before reading the result.** A `sed` whose anchor does not match
+is a no-op, and a no-op mutation is indistinguishable from an unpinned test — it reports SURVIVED
+either way. Check the edit landed (a changed line count, a `grep -c` that moved) before concluding
+anything.
+
+Promoted at count=4 across two commits (2026-09-14, `feat/retracted-phrase-guard`): three comments
+overclaimed by naming an unreachable second mechanism, one named a skip that a sibling regex
+boundary already made unreachable. Three were written by the author of the guard whose whole
+purpose is catching false claims.
+
+The promotion sweep audited every `MUTATION:` comment in the file-size-guard suites and found them
+ALL accurate, each multi-mechanism one verified by execution. So the defect is not the convention
+going bad over time — it concentrated entirely in files written fresh in one sitting, which is
+where to look for it next.
+
 ### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
 
 When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
