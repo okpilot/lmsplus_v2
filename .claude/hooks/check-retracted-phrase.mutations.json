@@ -195,9 +195,10 @@
         "a waiver for one token does not waive another",
         "--base mode honours a waiver written in the commit that needed it",
         "a merge commit in the range does not swallow the waivers below it",
-        "a valid waiver trailer permits the commit"
+        "a valid waiver trailer permits the commit",
+        "rejects a waiver reason that is too brief even if not a known empty phrase"
       ],
-      "note": "superset: the trailer is the only entry point to every waiver path"
+      "note": "superset: the trailer is the only entry point to every waiver path UNDER-SPECIFIC until 98469ba0's own harness run caught it: breaking TRAILER_RE reddens every waiver test, including the length-floor test added in that same commit. Recorded rather than trimmed — a superset is the comment being under-specific."
     },
     {
       "id": "waiver-drop-empty-reasons",

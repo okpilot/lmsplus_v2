@@ -103,7 +103,10 @@ export function parseTap(text) {
     throw new Error('TAP stream carried no top-level plan line (1..N) — the run did not complete')
   }
   const failed = points
-    .filter((p, i) => !p.ok && p.directive !== 'TODO' && !isAggregate(points, i))
+    .filter(
+      (p, i) =>
+        !p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),
+    )
     .map((p) => p.name)
   return { points, failed, plan: sawPlan }
 }
@@ -170,8 +173,17 @@ export function validateDataFile(obj, label = '<data>') {
   } else if (!obj.suites.every(isNonEmptyString)) {
     problems.push(at('every `suites` entry must be a non-empty string'))
   }
+  if (isAbsolute(String(obj.target ?? ''))) {
+    // `target` is join()ed onto the worktree root, and join(root, '/etc/passwd') IS '/etc/passwd'
+    // — an absolute target would mutate the host tree instead of the throwaway copy.
+    problems.push(at('`target` must be a repo-relative path'))
+  }
   if (!Array.isArray(obj.mutations)) {
     problems.push(at('`mutations` must be an array'))
+  } else if (obj.mutations.length === 0) {
+    // Same false-green as the no-data-files case, one level down, and asymmetric with `suites`
+    // which is already length-checked: an empty list runs no mutation and reports success.
+    problems.push(at('`mutations` must not be empty — an empty list grades nothing'))
   } else {
     const seen = new Set()
     obj.mutations.forEach((mut, i) => {
@@ -422,8 +434,11 @@ function modeCoverage(root, guard) {
 function modeRun(root, guard, scratch) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
-    console.log('no *.mutations.json data files found — 0 mutations run, 0 caught')
-    return 0
+    // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
+    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`
+    // would otherwise turn this oracle permanently green while checking nothing — the precise
+    // failure mode the tool exists to detect in other people's tests.
+    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
   }
   const base = scratchBase(root, scratch)
   let caught = 0

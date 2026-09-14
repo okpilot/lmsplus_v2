@@ -6,6 +6,25 @@
 
 ## Positive-pattern log
 
+### mutation-harness + MUTATION comment corrections (2026-09-14, feat/mutation-harness)
+
+APPROVED. 13 files reviewed, 0 critical, 0 issues, 0 suggestions.
+
+Key verifications:
+1. All anchor uniqueness checks: PASS. Ran python3 `source.count(mut['find'])` against staged targets for all 3 data files — every anchor occurs exactly once.
+2. `compareResult` superset = MISMATCH: code `if (missing.length === 0 && unexpected.length === 0)` — superset triggers unexpected.length > 0 → MISMATCH. Correct.
+3. Worktree cleanup in `finally`: verified code has a `finally` block calling `git(['worktree', 'remove', '--force', wt])`.
+4. `countMutationClaims` uses `/MUTATION:/g` not `/\/\/ MUTATION:/g`: verified at line `return (String(text).match(/MUTATION:/g) ?? []).length`.
+5. Two-mode flag returns `{ error }` → `return 2` path verified.
+6. All three test suites pass: run-mutations.test.mjs 35/35, check-retracted-phrase.test.mjs 32/32, directive.test.mjs 11/11.
+7. Decision 67 SEVEN count: traced 6 directly (tsx ordering, length-floor, escapeRe, FILE_EXT source comment, no-dedup, narrow-mutation-grep) + 7th (linecount 2-line fixture vacuity in run-mutations.test.mjs). Count confirmed.
+8. New waiver-floor test: 'insufficient detail' stripped length = 18 (< 20) and NOT in EMPTY_REASONS — floor is sole mechanism. Correct.
+9. pipeline.json/lefthook.yml NOT modified: consistent with harness being a dev script, not a gate. Plan explicitly permits this.
+10. `assertSingleOccurrence` throws → propagates to top-level `try { exit(main()) } catch { exit(2) }` — exits 2. Correct.
+
+Positive pattern: A strongly self-referential commit (harness tested against its own tests, MUTATION comments corrected by the tool that evaluates them) had zero false claims introduced. The SEVEN count was fully traceable. The `notEncoded` entries are honest about mechanisms that cannot be expressed as find/replace, with falsifiable `why` fields (SURVIVED was re-derived, not assumed).
+
+
 ### retracted-phrase guard -- --no-merges + merge test (2026-09-14, feat/retracted-phrase-guard round 2)
 
 APPROVED. 9 files reviewed (incl. agent-memory deltas), 0 critical, 0 issues, 1 suggestion (non-blocking).

@@ -33,9 +33,10 @@
     },
     {
       "id": "todo-counts-as-red",
-      "find": "    .filter((p, i) => !p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
-      "replace": "    .filter((p, i) => !p.ok && !isAggregate(points, i))",
-      "expectRed": ["does not count a TODO-directive failure as a red test"]
+      "find": "    .filter(\n      (p, i) =>\n        !p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "replace": "    .filter(\n      (p, i) => !p.ok && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "expectRed": ["does not count a TODO-directive failure as a red test"],
+      "note": "Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
     },
     {
       "id": "no-directive-strip",
@@ -55,8 +56,8 @@
     },
     {
       "id": "invert-failed-filter",
-      "find": "    .filter((p, i) => !p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
-      "replace": "    .filter((p, i) => p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
+      "find": "    .filter(\n      (p, i) =>\n        !p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "replace": "    .filter(\n      (p, i) =>\n        p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
       "expectRed": [
         "reads the names of the tests that failed",
         "reports a green run as no failures rather than as unparseable",
@@ -65,7 +66,7 @@
         "does not count a TODO-directive failure as a red test",
         "reads a test point written without the \"-\" separator"
       ],
-      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset."
+      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
     },
     {
       "id": "no-survived-branch",
@@ -217,6 +218,76 @@
       "replace": "    return 1\n  }\n  const root = repoRoot()",
       "expectRed": ["exits 2, not 1, on a usage error"],
       "note": "Collapses the 1-vs-2 distinction the header exists to defend: a harness fault reported as a test finding gets remedied by deleting the test."
+    },
+    {
+      "id": "suites-entry-not-string",
+      "find": "  } else if (!obj.suites.every(isNonEmptyString)) {\n    problems.push(at('every `suites` entry must be a non-empty string'))\n  }",
+      "replace": "  }",
+      "expectRed": ["rejects a suites list that contains a non-string entry"],
+      "note": "Dropping the every-string check lets null or a number pass; `node --test null` then crashes the runner rather than surfacing a clean validation error."
+    },
+    {
+      "id": "mutations-not-array-allowed",
+      "find": "  if (!Array.isArray(obj.mutations)) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
+      "replace": "  if (false) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
+      "expectRed": ["rejects a data file where mutations is not an array"],
+      "note": "Passing mutations as a string bypasses all per-mutation checks; the harness runs 0 mutations and exits 0 (vacuous success). Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
+    },
+    {
+      "id": "mut-entry-not-object-allowed",
+      "find": "      if (mut === null || typeof mut !== 'object' || Array.isArray(mut)) {\n        w('must be an object')\n        return\n      }",
+      "replace": "",
+      "expectRed": ["rejects a mutation entry that is not an object"],
+      "note": "Without the guard a non-object entry falls through to id/find/replace checks, producing misleading 'must be a non-empty string' errors on undefined properties."
+    },
+    {
+      "id": "replace-typeof-removed",
+      "find": "      if (typeof mut.replace !== 'string') w('`replace` must be a string (may be empty)')",
+      "replace": "",
+      "expectRed": ["rejects a mutation whose replace is not a string"],
+      "note": "A numeric replace passes validation and coerces silently at apply time; the wrong value is written to the worktree with no diagnostic."
+    },
+    {
+      "id": "expectred-entry-not-string",
+      "find": "      } else if (!mut.expectRed.every(isNonEmptyString)) {\n        w('every `expectRed` entry must be a non-empty string')\n      }",
+      "replace": "      }",
+      "expectRed": ["rejects a mutation whose expectRed contains a non-string entry"],
+      "note": "A null entry in expectRed passes validation; compareResult includes it in the exact-set comparison and no real test name matches it, so every such mutation reports MISMATCH."
+    },
+    {
+      "id": "notencoded-array-check-removed",
+      "find": "!Array.isArray(obj.notEncoded)",
+      "replace": "false",
+      "expectRed": ["rejects a notEncoded value that is not an array"],
+      "note": "Passing notEncoded as a non-array object bypasses the forEach; a claim-without-why is never validated and passes silently. Note: deleting the whole line would orphan the `else` below and cause a syntax error that reddens every test."
+    },
+    {
+      "id": "scratch-hardcoded-null",
+      "find": "    scratch: opts.scratch,",
+      "replace": "    scratch: null,",
+      "expectRed": ["reads the value of the --scratch option"],
+      "note": "Hardcoding null silently ignores --scratch; the harness always uses tmpdir. The existing --guard test cannot catch this because it asserts scratch: null."
+    },
+    {
+      "id": "drop-empty-mutations-check",
+      "find": "  } else if (obj.mutations.length === 0) {",
+      "replace": "  } else if (false) {",
+      "expectRed": ["rejects a data file whose mutations list is empty"],
+      "note": "Found by semantic-reviewer on 98469ba0: asymmetric with `suites`, which was already length-checked. An empty list grades nothing and exited 0 — the oracle reporting success having run no mutation."
+    },
+    {
+      "id": "drop-absolute-target-check",
+      "find": "  if (isAbsolute(String(obj.target ?? ''))) {",
+      "replace": "  if (false) {",
+      "expectRed": ["rejects a target outside the worktree"],
+      "note": "join(root, '/etc/passwd') returns '/etc/passwd', so an absolute target writes to the host tree rather than the throwaway worktree."
+    },
+    {
+      "id": "drop-skip-directive-filter",
+      "find": "p.directive !== 'SKIP' && ",
+      "replace": "",
+      "expectRed": ["a skipped test is not counted as a red test"],
+      "note": "The file header CLAIMED SKIP was excluded before the code did it — a false comment inside the commit whose subject is false comments. Code and comment now agree, and this pins it."
     }
   ],
   "notEncoded": [

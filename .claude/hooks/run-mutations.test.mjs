@@ -340,3 +340,116 @@ test('exits 2, not 1, on a usage error', () => {
   // for "this test is unpinned" is to delete the test.
   assert.equal(main(['--list', '--coverage']), 2)
 })
+
+// ---------------------------------------------------------------- validateDataFile (uncovered branches)
+
+test('rejects a suites list that contains a non-string entry', () => {
+  // MUTATION: delete the `else if (!obj.suites.every(isNonEmptyString))` branch → a suites list
+  // carrying null or a number passes validation; `node --test null` then crashes the runner
+  // rather than surfacing a clean validation error before any worktree is made.
+  const data = validData()
+  data.suites = ['.claude/hooks/check-file-size-guard.directive.test.mjs', null]
+  assert.match(validateDataFile(data).join('\n'), /every `suites` entry must be a non-empty string/)
+})
+
+test('rejects a data file where mutations is not an array', () => {
+  // MUTATION: make the `!Array.isArray(obj.mutations)` condition always false → passing mutations
+  // as a string bypasses all per-mutation checks and the harness runs 0 mutations at exit 0.
+  const data = validData()
+  data.mutations = 'not-an-array'
+  assert.match(validateDataFile(data).join('\n'), /`mutations` must be an array/)
+})
+
+test('rejects a mutation entry that is not an object', () => {
+  // MUTATION: delete the `typeof mut !== 'object'` guard inside the mutations forEach → a string
+  // mutation entry falls through to the id/find/replace checks and reports misleading
+  // "must be a non-empty string" errors on its undefined properties rather than "must be an object".
+  const data = validData()
+  data.mutations = ['not-an-object']
+  assert.match(validateDataFile(data).join('\n'), /must be an object/)
+})
+
+test('rejects a mutation whose replace is not a string', () => {
+  // MUTATION: delete the `typeof mut.replace !== 'string'` check → a numeric or null replace
+  // passes validation; at apply time `String.prototype.replace(find, 42)` silently coerces and
+  // the wrong value is written to the worktree with no diagnostic.
+  const data = validData()
+  data.mutations[0].replace = 42
+  assert.match(validateDataFile(data).join('\n'), /`replace` must be a string/)
+})
+
+test('rejects a mutation whose expectRed contains a non-string entry', () => {
+  // MUTATION: delete the `else if (!mut.expectRed.every(isNonEmptyString))` branch → an
+  // expectRed list containing null passes validation; compareResult then includes null in the
+  // exact-set comparison and no real test name matches it, so every such mutation reports MISMATCH.
+  const data = validData()
+  data.mutations[0].expectRed = ['valid-name', null]
+  assert.match(
+    validateDataFile(data).join('\n'),
+    /every `expectRed` entry must be a non-empty string/,
+  )
+})
+
+test('rejects a notEncoded value that is not an array', () => {
+  // MUTATION: change `!Array.isArray(obj.notEncoded)` to `false` → passing notEncoded as an
+  // object bypasses the entry-level forEach; a claim-without-why is never validated and passes
+  // silently, laundering an unencoded gap as an excused one. (Deleting the whole line would
+  // orphan the `else` below and cause a syntax error — that reddens every test, not just this
+  // one, so it is not the break this comment describes.)
+  const data = validData()
+  data.notEncoded = 'not-an-array'
+  assert.match(validateDataFile(data).join('\n'), /`notEncoded` must be an array/)
+})
+
+// ---------------------------------------------------------------- parseArgs (--scratch)
+
+test('reads the value of the --scratch option', () => {
+  // MUTATION: change `scratch: opts.scratch` to `scratch: null` in parseArgs's return → the
+  // caller always receives null for the scratch path and silently uses the default tmpdir,
+  // ignoring the user's --scratch flag. The existing --guard test cannot catch this: it
+  // asserts `scratch: null` because it never passes --scratch.
+  assert.deepEqual(parseArgs(['--scratch', '/tmp/my-scratch']), {
+    mode: 'run',
+    guard: null,
+    scratch: '/tmp/my-scratch',
+  })
+})
+
+// ------------------------------------------- guards added after the first post-commit cycle
+
+test('rejects a data file whose mutations list is empty', () => {
+  // MUTATION: delete the `else if (obj.mutations.length === 0)` branch → an empty list validates,
+  // modeRun's loop body never executes, and the run exits 0 having graded nothing. Note the
+  // sibling `suites` check was ALREADY length-checked; this test pins the half that was not.
+  const problems = validateDataFile({ target: 'f.mjs', suites: ['t.mjs'], mutations: [] })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /must not be empty/)
+})
+
+test('rejects a target outside the worktree', () => {
+  // MUTATION: delete the `isAbsolute(...)` branch → an absolute target validates, and because
+  // join(root, '/etc/passwd') returns '/etc/passwd', the mutation would be written to the host
+  // tree instead of the throwaway worktree. A relative target must still pass, or the guard
+  // would reject every real data file — both halves are asserted here.
+  const abs = validateDataFile({
+    target: '/etc/passwd',
+    suites: ['t.mjs'],
+    mutations: [{ id: 'a', find: 'x', replace: 'y', expectRed: ['t'] }],
+  })
+  assert.equal(abs.length, 1)
+  assert.match(abs[0], /repo-relative/)
+  const rel = validateDataFile({
+    target: '.claude/hooks/f.mjs',
+    suites: ['t.mjs'],
+    mutations: [{ id: 'a', find: 'x', replace: 'y', expectRed: ['t'] }],
+  })
+  assert.deepEqual(rel, [])
+})
+
+test('a skipped test is not counted as a red test', () => {
+  // MUTATION: drop `p.directive !== 'SKIP'` from parseTap's filter → a `not ok ... # SKIP` point
+  // joins the failing set, so a mutation gets credited with a catch no test earned. The file
+  // header already CLAIMED this exclusion before the code did it; the claim is what this pins.
+  const tap = 'TAP version 13\nnot ok 1 - skipped case # SKIP\nnot ok 2 - genuinely red\n1..2\n'
+  assert.deepEqual(parseTap(tap).failed, ['genuinely red'])
+})
