@@ -172,8 +172,12 @@
       "id": "anchor-zero-ok",
       "find": "  if (count !== 1) {",
       "replace": "  if (count > 1) {",
-      "expectRed": ["refuses an anchor that matches nothing, naming the count"],
-      "note": "The single most important entry in this file. A stale anchor applies as a no-op, the suites stay green, and the mutation reports SURVIVED — code-style.md §7's named trap."
+      "expectRed": [
+        "refuses an anchor that matches nothing, naming the count",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "exits 2 when a batch carries both a fault and a survivor, not 1"
+      ],
+      "note": "The single most important entry in this file. A stale anchor applies as a no-op, the suites stay green, and the mutation reports SURVIVED — code-style.md §7's named trap. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "anchor-two-ok",
@@ -187,9 +191,10 @@
       "replace": "  if (count !== 2) {",
       "expectRed": [
         "accepts an anchor that occurs exactly once",
-        "refuses an ambiguous anchor that occurs twice"
+        "refuses an ambiguous anchor that occurs twice",
+        "grades every mutation after a stale-anchor fault, not just those before it"
       ],
-      "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws."
+      "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "default-mode-list",
@@ -197,9 +202,12 @@
       "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
       "expectRed": [
         "defaults to the run mode with no flags",
-        "reads the value of the --scratch option"
+        "reads the value of the --scratch option",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "exits 2 when a batch carries both a fault and a survivor, not 1",
+        "refuses to report success when there was nothing at all to grade"
       ],
-      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
+      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "option-no-consume",
