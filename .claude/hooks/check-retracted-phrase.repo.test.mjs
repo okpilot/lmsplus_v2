@@ -298,8 +298,11 @@ test('reports a usage error as could-not-run, never as a finding', () => {
 })
 
 test('runs on a repository with no commits yet', () => {
-  // MUTATION: catch the missing-HEAD case and exit 0 instead of diffing the empty tree → the
-  // guard is silently disabled on the first commit of every new worktree.
+  // NOT MUTATION-PINNED, and says so: removing the explicit EMPTY_TREE argument changes nothing
+  // observable here, because `git diff --cached` already treats an unborn HEAD as the empty tree.
+  // A first commit is also all additions, so the hunk gate yields no candidate either way. This
+  // case documents that the guard RUNS on a fresh repo rather than aborting; the EMPTY_TREE
+  // fallback is belt-and-braces against a git that stops being so forgiving. (CodeRabbit.)
   withRepo((r) => {
     r.write('docs/a.md', 'the value is 1807 here\n')
     r.git('add', '-A')
@@ -425,5 +428,27 @@ test('a submodule pointer does not abort the run', () => {
     const { status, stderr } = run(r, 'fix: correct the count beside a submodule\n')
     assert.equal(status, 1, 'the retraction is still graded; the submodule is simply skipped')
     assert.match(stderr, /retracted the value `1807`/)
+  })
+})
+
+test('a ticket reference elsewhere does not exonerate or survive a retraction', () => {
+  // MUTATION: give reAdded its own boundary regex instead of delegating to tokensOf, or drop the
+  // (*SKIP)(*FAIL) alternation from the survivor pattern → `PR 1807` counts as a re-add or as a
+  // surviving occurrence of 1807, even though tokensOf refuses to treat it as a claim at all.
+  // Three code paths decide what a token IS; any one of them disagreeing is a defect, and this
+  // pair disagreed until CodeRabbit measured it.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1807 lines)" }\n')
+    r.write('docs/tickets.md', 'tracked in PR 1807 and issue 1807\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1806 lines)" }\n')
+    r.write('docs/more-tickets.md', 'follow-up in PR 1807\n')
+    r.git('add', '-A')
+    assert.equal(
+      run(r, 'fix: correct the count\n').status,
+      0,
+      'ticket references are neither survivors nor re-adds',
+    )
   })
 })

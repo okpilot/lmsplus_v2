@@ -240,12 +240,13 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * when tokenising — this check has to re-apply them itself.
  */
 export function reAdded(token, kind, addedText) {
-  const body = escapeRe(token)
-  const re =
-    kind === 'value'
-      ? new RegExp(`(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`)
-      : new RegExp(`(?<![\\w.@-])${body}(?![\\w-])`)
-  return re.test(addedText)
+  // Reuses `tokensOf` rather than re-deriving a regex, so "re-added" means EXACTLY what
+  // "candidate" means. A hand-written boundary pattern matched `PR 1807` — which `tokensOf`
+  // correctly refuses to treat as a claim at all — so a ticket reference anywhere in the commit
+  // exonerated a real retraction. Two halves of the same comparison disagreeing, for the third
+  // time on this branch; the fix is to stop having two halves.
+  const key = kind === 'value' ? 'nums' : 'files'
+  return addedText.split('\n').some((line) => tokensOf(line)[key].includes(token))
 }
 
 /** Tokens of each class on one line. Returned as plain strings — the literal grep needle. */
@@ -355,9 +356,13 @@ function survivors(token, kind, self, pathspecs, ref) {
   // the catch below recovers ONLY exit 1 ("no matches"), so 128 is rethrown and THIS GUARD exits 2.
   // (Measured: a bad PCRE gives 128, not 2 — the two exit codes belong to different processes.)
   const body = escapeRe(token)
+  // `(*SKIP)(*FAIL)` consumes an issue/PR/migration-prefixed occurrence and refuses it, so the
+  // survivor search agrees with `tokensOf` about what counts as a claim. A fixed-length lookbehind
+  // cannot express these prefixes — they carry optional whitespace and an optional `#` — which is
+  // why the earlier boundary-only pattern let `PR 1807` count as a surviving occurrence of 1807.
   const pattern =
     kind === 'value'
-      ? `(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`
+      ? `(?:#|PR\\s*#?|issues?\\s+#?|pull/|issues?/|GH-|mig(?:ration)?\\s+)\\s*${body}(*SKIP)(*FAIL)|(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`
       : `(?<![\\w.@-])${body}(?![\\w-])`
 
   let out

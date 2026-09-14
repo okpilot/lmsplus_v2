@@ -50,10 +50,14 @@ test('a near-identical sibling path is not mistaken for the edited file', {
   })
 })
 
-test('grades a path holding a non-UTF-8 byte', () => {
-  // MUTATION: pass paths to git through argv rather than diffing blob SHAs → Node re-encodes
-  // the argument as UTF-8, git is handed a name that matches nothing, and the file is never
-  // graded while the guard still exits 0.
+test('grades a path whose name survives an argv round-trip', () => {
+  // MUTATION: pass paths to git through argv rather than diffing blob SHAs → the guard decodes
+  // git's output as latin1, an argv round-trip then re-encodes it (U+00FF becomes C3 83 C2 BF),
+  // git is handed a name matching nothing, and the file is never graded while the guard exits 0.
+  //
+  // The name says "argv round-trip" and not "non-UTF-8 byte" deliberately: `toString('latin1')`
+  // makes a STRING, and Node writes U+00FF as the valid UTF-8 pair C3 BF, so this fixture holds
+  // no invalid byte. The raw-byte case is the Buffer-path test above.
   withRepo((r) => {
     seedFlagship(r)
     const odd = Buffer.concat([Buffer.from('docs/we'), Buffer.from([0xff]), Buffer.from('ird.md')])

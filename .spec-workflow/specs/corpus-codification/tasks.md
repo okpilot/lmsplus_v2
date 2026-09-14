@@ -68,7 +68,9 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
    pre-commit: its only escape hatch is a `Retracted-ok:` trailer, and that is the sole stage
    holding both the message and the staged index. The "~40 lines" estimate here was wrong by an
    order of magnitude and is left visible rather than quietly edited — the fail-open catalogue
-   alone exceeds it. Derive the real size with `wc -l .claude/hooks/check-retracted-phrase*.mjs`.
+   alone exceeds it. Derive the real size with `wc -l .claude/hooks/check-retracted-phrase.mjs` —
+   the IMPLEMENTATION, which is what the estimate was about. A `*` glob sweeps in the test suites
+   and the testkit and answers a different question.
    The detector as specced BELOW (see R0b-1's original description) was refuted by measurement
    before a line was written: 18% of commits blocked, almost all noise, and it missed its own
    motivating instance. What shipped adds a rarity window, ticket/migration-number exclusions,
