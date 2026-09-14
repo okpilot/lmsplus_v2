@@ -899,8 +899,9 @@ The failure looks STRUCTURAL rather than careless. It APPEARS to fire when an ag
 call is its own memory write — the terminal message becomes a note ABOUT the write and the report
 body is never delivered. The observable half is well attested; the scheduling explanation for it is
 an inference and no file in this repo establishes it, so do not act on the mechanism, only on the
-symptom. So it lands hardest on the `memory: project` agents, which is
-most of them.
+symptom. A first draft went on to conclude that it therefore lands hardest on the `memory: project`
+agents — an inference drawn from the very mechanism the previous sentence disclaims, which is the
+defect this section exists to stop. Which agents are worst affected is UNMEASURED.
 
 Put the requirement in every dispatch — it costs one line and it is the only mitigation that works,
 since a fresh agent cannot know what a previous one dropped. Promoted at count=6 in a single day
