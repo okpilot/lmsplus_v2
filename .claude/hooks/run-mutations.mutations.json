@@ -29,8 +29,11 @@
       "id": "aggregate-ignores-ok",
       "find": "    if (!points[j].ok && points[j].directive !== 'TODO' && points[j].directive !== 'SKIP') {",
       "replace": "    if (false) {",
-      "expectRed": ["counts a parent that fails on its own while every child passed"],
-      "note": "Anchor RE-POINTED when CR-local found the SKIP asymmetry: the `failed` filter excluded SKIP while isAggregate did not, so a failing parent with a skipped child reported SURVIVED. CR flagged the anchor break in the same finding."
+      "expectRed": [
+        "counts a parent that fails on its own while every child passed",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "Anchor RE-POINTED when CR-local found the SKIP asymmetry: the `failed` filter excluded SKIP while isAggregate did not, so a failing parent with a skipped child reported SURVIVED. CR flagged the anchor break in the same finding. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
     {
       "id": "todo-counts-as-red",
@@ -46,9 +49,10 @@
       "expectRed": [
         "does not count a TODO-directive failure as a red test",
         "strips a directive from the test name",
-        "a skipped test is not counted as a red test"
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
       ],
-      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
+      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
     {
       "id": "dash-mandatory",
@@ -67,9 +71,10 @@
         "counts a parent that fails on its own while every child passed",
         "does not count a TODO-directive failure as a red test",
         "reads a test point written without the \"-\" separator",
-        "a skipped test is not counted as a red test"
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
       ],
-      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
+      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
     {
       "id": "no-survived-branch",
@@ -303,8 +308,11 @@
       "id": "drop-skip-directive-filter",
       "find": "p.directive !== 'SKIP' && ",
       "replace": "",
-      "expectRed": ["a skipped test is not counted as a red test"],
-      "note": "The file header CLAIMED SKIP was excluded before the code did it — a false comment inside the commit whose subject is false comments. Code and comment now agree, and this pins it."
+      "expectRed": [
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "The file header CLAIMED SKIP was excluded before the code did it — a false comment inside the commit whose subject is false comments. Code and comment now agree, and this pins it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
     {
       "id": "aggregate-ignores-skip",
