@@ -1844,9 +1844,8 @@ the value detector requires three or more DIGITS. Spelled-out counts, and any cl
 numeral or a filename, are outside it. That is the clearest statement available of how narrow the
 mechanical slice is, and it is why §10 cl.3's grep remains the author's job.
 
-**Bounds are in the guard's header, and the mechanisms that are NOT mutation-pinned are named — not counted — in the test suite's preamble.** That list got SHORTER under cloud review: the latin1 path decode sat on it as untestable because "a fixture cannot create an invalid-byte filename", which was wrong about the REASON — the fixture built its path as a string, and Node re-encodes a string path to UTF-8 on the way to the syscall. A Buffer path does not. CodeRabbit spotted it; the decode is pinned now. An "untestable" label is a claim like any other and deserves the same suspicion** — the latin1 path
-decode (a fixture cannot create an invalid-byte filename through Node's string path API), an
-unreachable degenerate-token assertion, and the `git grep` exit-code discrimination. They are listed
+**Bounds are in the guard's header, and the mechanisms that are NOT mutation-pinned are named — not counted — in the test suite's preamble.** That list got SHORTER under cloud review: the latin1 path decode sat on it as untestable because "a fixture cannot create an invalid-byte filename", which was wrong about the REASON — the fixture built its path as a string, and Node re-encodes a string path to UTF-8 on the way to the syscall. A Buffer path does not. CodeRabbit spotted it; the decode is pinned now. An "untestable" label is a claim like any other and deserves the same suspicion. What remains unpinned is the unreachable degenerate-token
+assertion and the `git grep` exit-code discrimination. They are listed
 in the test file rather than left looking covered. Two mutation runs also found a redundant early
 return presented as a second mechanism, and a test whose comment claimed to pin the path decode when
 it pinned nothing of the sort; both were corrected rather than explained away.

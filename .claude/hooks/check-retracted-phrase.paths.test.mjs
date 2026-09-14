@@ -15,7 +15,13 @@ import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
-test('a near-identical sibling path is not mistaken for the edited file', () => {
+// Raw 0xFE/0xFF bytes are legal in a POSIX filename and rejected by macOS and Windows, so this
+// fixture can only exist on Linux — which is also the only platform CI runs it on. The sibling
+// test below is deliberately NOT skipped: it uses a latin1 STRING path, which Node re-encodes to
+// valid UTF-8, so it exercises argv re-encoding rather than a raw invalid byte and runs anywhere.
+test('a near-identical sibling path is not mistaken for the edited file', {
+  skip: process.platform !== 'linux',
+}, () => {
   // MUTATION: compare paths loosely in survivors() — a normalised form, a `String.includes`, or
   // a basename match instead of exact equality → the sibling is dropped as "self", the only
   // survivor disappears, and the guard exits 0 on a live retraction (fail-OPEN). That is the
