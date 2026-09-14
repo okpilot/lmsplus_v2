@@ -1788,7 +1788,11 @@ incomplete `1807`→`1806` correction cost a reviewer round. No block-rate figur
 detector as shipped: the replay harness is not committed, so no reader can reproduce one. (The 18%
 that appears above and in the footer measures the REJECTED spec design, which is a different
 detector and is cited to explain why it was rejected.) Slice 2's rule settles
-it — commit the harness or stop stating the number — and committing it is still an open task.
+it — commit the harness or stop stating the number. **Updated 2026-09-14: the harness Decision 67
+commits is the MUTATION harness (`run-mutations.mjs`), which is a DIFFERENT artifact from the
+block-rate REPLAY harness this paragraph is about. The replay harness is still uncommitted, so the
+second branch still applies here and no block-rate figure is quoted. Do not read Decision 67 as
+having closed this one.**
 
 That figure was FIRST recorded here as 0, measured before the detector's last two edits landed —
 stale on arrival while reading as verified, which is `code-style.md` §10 cl.7 committed by the
@@ -1821,7 +1825,9 @@ survivor search about what "the documented set" means — a value moved from a r
 no longer exonerates a corpus retraction. Both pinned. NO calibration figure is restated here, and no re-measurement is asserted either: the
 replay harness is not committed, so such a claim cannot be checked by a reader, and this spec's own
 slice-2 entry settles that case — commit the harness so the number is re-derivable, or stop stating
-it. Committing the harness remains an OPEN slice-2 task; until it lands, the second branch applies.
+it. Committing the MUTATION harness was a slice-2 task and landed 2026-09-14 (Decision 67); the
+block-rate REPLAY harness referred to here is a different artifact, is still uncommitted, and the
+second branch therefore still applies.
 
 **This branch's author wrote false claims repeatedly while building the guard against them, and
 each was caught by a DIFFERENT reviewer — none by re-reading.** No total is given, deliberately:

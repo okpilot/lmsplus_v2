@@ -140,21 +140,27 @@ jobs:
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
 
-      # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE:
-      # the mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway
-      # worktree. Its own suite runs here; the HARNESS RUN itself is a dev command, not a CI
-      # gate — it provisions a git worktree per mutation and runs every listed suite against each,
-      # so its wall-clock grows with the encoded set, while this suite already pins the logic that
-      # decides CAUGHT/SURVIVED/MISMATCH. (No figure is quoted here on purpose: one measured a
-      # commit earlier was already stale by 11 mutations — §10 cl.7. Time the run if you need it.)
-      # (An earlier version of this comment justified that with "on a PR it would re-grade what
-      # the merge-base already proved" — FALSE, and caught by code-reviewer on 98469ba0: the
-      # worktree is built from HEAD, so a PR ADDING mutation data grades entries the merge-base
-      # never had. Cost and coverage are the real reasons; that one was not.)
-      # Re-derive any claimed figure with `node .claude/hooks/run-mutations.mjs`, and
-      # `--coverage` for the encoded-vs-claimed gap.
+      # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE: the
+      # mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway worktree.
+      # BOTH steps are needed and they cover different things. The unit suite pins the LOGIC that
+      # decides CAUGHT/SURVIVED/MISMATCH; it never runs `modeRun` against the data files, so a
+      # stale anchor, a wrong target or an under-specific `expectRed` passes it untouched. Only
+      # the harness RUN grades the recipes.
+      #
+      # Two earlier versions of this comment argued the run did not belong in CI. Both were wrong,
+      # and are recorded because the reasoning is the instructive part: the first claimed a PR
+      # would "re-grade what the merge-base already proved" (false — the worktree is built from
+      # HEAD, so a PR ADDING data grades it for the first time); the second claimed the unit suite
+      # already covered it (false — see above, and CodeRabbit caught it). On this very branch a
+      # reformat ORPHANED three anchors at count=0 and four `expectRed` sets were under-specific;
+      # the unit suite was green throughout. `fetch-depth: 0` above is what lets the run create a
+      # worktree at HEAD.
       - name: Mutation harness — unit test
         run: node --test .claude/hooks/run-mutations.test.mjs
+
+      - name: Mutation harness — run every encoded mutation
+        timeout-minutes: 10
+        run: node .claude/hooks/run-mutations.mjs
 
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
