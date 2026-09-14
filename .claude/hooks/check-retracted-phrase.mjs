@@ -146,7 +146,15 @@ function inCorpus(path) {
  * noisy; excluding it silently unwatches a whole tree.
  */
 function completedSpecDirs(ref) {
-  const withTasks = splitNul(listTracked(ref, '.spec-workflow/specs/*/tasks.md'))
+  // Listed by DIRECTORY and filtered here, never by a `*/tasks.md` pathspec: `git ls-tree` does
+  // NOT expand glob pathspecs (it matches the `*` literally and returns nothing), while
+  // `git ls-files` does. Passing one glob to both silently made this return [] in --base mode —
+  // completed specs stayed in the corpus in CI but not at commit-msg, so a commit that passed the
+  // hook could fail CI on a token surviving only in a historical spec. Verified: ls-tree 0 hits,
+  // ls-files 19, on the same pathspec.
+  const withTasks = splitNul(listTracked(ref, '.spec-workflow/specs/')).filter((p) =>
+    p.endsWith('/tasks.md'),
+  )
   let live = []
   try {
     live = stripRef(

@@ -270,7 +270,8 @@ reviews:
         so a wrong claim here propagates into code. Flag:
         - An INCOMPLETE retraction: a value or filename this diff corrects here while the old text
           still stands in another doc. `.claude/hooks/check-retracted-phrase.mjs` blocks the exact
-          VERBATIM case at commit-msg, so what is left for review is the case it cannot see — a
+          VERBATIM case at commit-msg and again in CI across the branch, so what is left for
+          review is the case it cannot see — a
           PARAPHRASED restatement of the same claim, and a correction that deletes a stale value
           without replacing it (the guard's hunk gate needs a replacement to fire).
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not

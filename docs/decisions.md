@@ -1763,7 +1763,9 @@ the author to grep a retracted phrase repo-wide before claiming the class closed
 *"Claim-correction commit updates a count but leaves its arithmetic stale"* reached RULE CANDIDATE
 across five branches anyway — derive its current count from the tracker, not from this line.
 `.claude/hooks/check-retracted-phrase.mjs` now blocks at `commit-msg` when a value or filename this
-commit corrected in one corpus file still stands in one or two others.
+commit corrected in one corpus file still stands in one or two others, and again in CI over the
+whole branch range (`--base`), which iterates the commits so a waiver stays scoped to the commit
+whose author wrote it.
 
 **The design is what the measurement forced, and the first design was wrong.** Replayed against 120
 master commits, the rule as written in the spec — "a phrase removed here that still exists there" —
