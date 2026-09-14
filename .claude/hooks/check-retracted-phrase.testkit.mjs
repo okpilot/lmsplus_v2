@@ -1,8 +1,8 @@
 // Shared fixtures for the retracted-phrase guard's git-facing suites.
 //
 // Extracted at the THIRD copy (`code-style.md` § Extract at 3 Repetitions). Not a guard and not a
-// suite: it defines no tests, so it needs no `ci.yml` step — the three suites that import it each
-// have one, and a break here turns all three red at once, which is the point.
+// suite: it defines no tests, so it needs no `ci.yml` step — each importing suite has one, and a
+// break here turns every importer red at once, which is the point.
 
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'

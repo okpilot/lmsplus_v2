@@ -67,6 +67,7 @@
 | Pipeline test proved spec↔disk closure but no anchor for non-agent hook commands. | 2026-09-07 (7eaef31a PR #1268) | 1 | 2026-09-07 | RESOLVED same PR — `spec.hooks` compares every command exactly |
 | `addedText.includes(token)` substring false-exoneration in a mechanical guard — a longer number containing the retracted token as a substring exits 0 having checked nothing | 2026-09-14 (ff562c9f check-retracted-phrase.mjs) | 1 | 2026-09-14 | RESOLVED (ab310cc9) — `reAdded()` re-applies NUM_RE/FILE_RE boundary rules per token class; verified in both classes |
 | Commit message count wrong on the rule sweep being promoted — "65 MUTATION comments" while the actual is 63 (`grep -c` across the five suites returns 23+8+9+10+13=63) | 2026-09-14 (cb481470) | 1 | 2026-09-14 | WATCHING — false count is in the commit message only, not in any repo file; rule text says "every MUTATION: comment" without a number. §10 cl.7 violated in the commit that promotes §10 cl.7 awareness. |
+| False count IN A NEW FILE introduced by the commit fixing false counts — testkit says "three suites that import it" but only 2 suites import it (`grep -rn "from.*testkit"` returns 2 hits) | 2026-09-14 (236a043d) | 1 | 2026-09-14 | WATCHING — §10 cl.7 (recompute counts as the last authoring step) violated inside the commit whose subject is fixing that violation. |
 
 ## Durable knowledge
 

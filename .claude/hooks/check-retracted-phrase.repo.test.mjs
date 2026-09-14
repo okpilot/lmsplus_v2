@@ -22,7 +22,7 @@
 //      invariant in case either regex is widened, not as a live branch.
 //   3. the `err.status === 1 && !err.signal` discrimination on `git grep`. Forcing a non-1
 //      grep failure from a fixture is not something this harness can do reliably.
-// Do not delete any mechanism listed above on the grounds that "no test covers them" — that
+// Do not delete any mechanism listed above on the grounds that "no test covers them" — that is
 // exactly backwards.
 
 import assert from 'node:assert/strict'
@@ -379,5 +379,43 @@ test('a completed spec is not a surviving occurrence, a live one is', () => {
     r.write('.claude/limits.json', '{ "note": "value 1805" }\n')
     r.git('add', '-A')
     assert.equal(run(r, 'fix: correct it again\n').status, 1, 'live spec must count')
+  })
+})
+
+test('a longer number elsewhere is not counted as a surviving occurrence', () => {
+  // MUTATION: swap the survivor grep's `-P` + boundary pattern back for a bare `-F` + token →
+  // `grep -F` is a SUBSTRING match, so the unrelated `11807` below counts as a survivor of
+  // `1807` and this COMPLETE retraction is blocked. Fail-CLOSED rather than open, but with no
+  // honest remedy: the only way past is a waiver asserting a claim that was never stale.
+  //
+  // This is the mirror of the `reAdded` boundary bug. Both halves must agree on what "the same
+  // token" means; fixing one and not the other is how they drifted apart in the first place.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1807 lines)" }\n')
+    r.write('docs/unrelated.md', 'a different measurement entirely: 11807 rows\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1806 lines)" }\n')
+    r.git('add', '-A')
+    assert.equal(run(r, 'fix: correct the count\n').status, 0, '11807 is not an occurrence of 1807')
+  })
+})
+
+test('a longer filename elsewhere is not counted as a surviving occurrence', () => {
+  // MUTATION: as above, for the filename class — `my-plan.md` contains `plan.md`, so a bare `-F`
+  // reports it and blocks a finished rename. The two token classes carry DIFFERENT boundary
+  // rules, so a fix applied to only one of them leaves this half broken.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "see plan.md and also guard.test.mjs" }\n')
+    r.write('docs/other.md', 'refers to my-plan.md, a different file\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "note": "see roadmap.md and also guard.test.mjs" }\n')
+    r.git('add', '-A')
+    assert.equal(
+      run(r, 'fix: repoint the citation\n').status,
+      0,
+      'my-plan.md is not an occurrence of plan.md',
+    )
   })
 })

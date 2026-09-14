@@ -326,12 +326,26 @@ export function parseWaivers(message) {
 }
 
 /** Files in the live corpus whose indexed content contains `token`, excluding `self`. */
-function survivors(token, self, pathspecs, ref) {
+function survivors(token, kind, self, pathspecs, ref) {
   // A short or whitespace-padded needle makes `grep -F` match nearly everything, the rarity
   // gate then reads ">= 3", and the guard passes silently. Hard error, never a skip.
   if (token.length < 3 || token.trim() !== token) {
     throw new Error(`refusing to search for a degenerate token ${JSON.stringify(token)}`)
   }
+  // The SAME boundary rules `reAdded` applies, for the same reason. A bare `-F` is a SUBSTRING
+  // match: `11807` contains `1807`, `my-plan.md` contains `plan.md`. With the two halves
+  // disagreeing about what "the same token" is, a COMPLETE retraction gets blocked by an
+  // unrelated longer number — fail-CLOSED, but wrong, and with no remedy but a waiver that
+  // records a claim which was never stale.
+  //
+  // `-P` needs a PCRE-enabled git. Every mainstream build has one, and the failure is LOUD
+  // (non-zero exit, rethrown below, exit 2) rather than a silent fallback to over-matching.
+  const body = escapeRe(token)
+  const pattern =
+    kind === 'value'
+      ? `(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`
+      : `(?<![\\w.@-])${body}(?![\\w-])`
+
   let out
   try {
     // --cached: git commits the INDEX. Searching the working tree is wrong in both
@@ -345,9 +359,9 @@ function survivors(token, self, pathspecs, ref) {
       '-l',
       '-z',
       '-a',
-      '-F',
+      '-P',
       '-e',
-      token,
+      pattern,
       ...grepScope(ref), // after the pattern — see completedSpecDirs
       '--',
       ...pathspecs,
@@ -496,7 +510,7 @@ function checkCommit({ range, message, ref }) {
         if (c.kind === 'filename' && c.resolves && !c.sameExt) continue
         if (reAdded(c.token, c.kind, addedText)) continue
         if (waivers.has(c.token)) continue
-        const others = survivors(c.token, path, pathspecs, ref)
+        const others = survivors(c.token, c.kind, path, pathspecs, ref)
         // 0 = the retraction was complete. >= 3 = common vocabulary, not a distinctive claim.
         if (others.length >= 1 && others.length <= 2) {
           offenders.push({ path, token: c.token, kind: c.kind, others })
