@@ -358,6 +358,38 @@ function scratchBase(root, requested) {
 }
 
 /**
+ * Decide what a finished `spawnSync` result MEANS, before any of it is graded.
+ *
+ * Returns for a run whose output can be graded; throws for every shape that yields NO VERDICT.
+ *
+ * Pure, and extracted deliberately. `runMutation` is side effects end to end and the unit suite
+ * excludes it by design, so this — the only real DECISION in it — was reachable by no test at all.
+ * Out here it is both pinnable and readable; the caller keeps the side effects.
+ */
+export function assertSpawnUsable(mutId, r, timeoutMs) {
+  if (r.error) {
+    // ETIMEDOUT FIRST. `spawnSync` sets BOTH `error` and `signal` on a timeout, so a generic
+    // `error` branch reports "could not spawn node" for a suite that spawned perfectly well and
+    // then ran long — and the timeout message below, written for exactly this case, is never
+    // reached. Naming the wrong cause in a harness whose job is grading claims is the defect this
+    // harness exists to catch.
+    if (r.error.code === 'ETIMEDOUT') {
+      throw new Error(
+        `mutation ${mutId}: suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT`,
+      )
+    }
+    throw new Error(`mutation ${mutId}: could not spawn node — ${r.error.message}`)
+  }
+  // Reached only for a kill this harness did NOT ask for — an OOM killer, an operator, a parent
+  // process group teardown. The timeout path throws above, so a signal arriving here had none.
+  if (r.signal) {
+    throw new Error(
+      `mutation ${mutId}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`,
+    )
+  }
+}
+
+/**
  * Apply ONE mutation in a throwaway worktree and report the verdict.
  *
  * The ordering is the point: create the worktree, assert the anchor is unique, write, run,
@@ -397,8 +429,9 @@ function runMutation({ root, data, mut, base }) {
       // unbounded loop would block until CI killed the job — no verdict, no partial report.
       // Not hypothetical: `check-file-size-guard.mutations.json` records a break that HANGS,
       // which is why that entry encodes a return flip instead. A timeout sets `error` (ETIMEDOUT)
-      // AND `signal` — measured, not assumed — so the branches below read `error` first and must
-      // name the timeout there. Every route leads to exit 2: a harness failure, never a verdict.
+      // AND `signal` — measured, not assumed — so `assertSpawnUsable` reads `error` first and must
+      // name the timeout there. Every route THROUGH THAT HELPER leads to exit 2: a harness failure,
+      // never a verdict. `runMutation`'s normal return is a separate path and yields 0 or 1.
       timeout: SUITE_TIMEOUT_MS,
       // SIGKILL, not the SIGTERM default: `spawnSync` keeps WAITING when the child handles the
       // signal without exiting, so an interceptable kill turns the bound above into a
@@ -406,26 +439,7 @@ function runMutation({ root, data, mut, base }) {
       // the budget must hold for a suite that DOES, since a stall reports no verdict at all.
       killSignal: 'SIGKILL',
     })
-    if (r.error) {
-      // ETIMEDOUT FIRST. `spawnSync` sets BOTH `error` and `signal` on a timeout, so a generic
-      // `error` branch reports "could not spawn node" for a suite that spawned perfectly well and
-      // then ran long — and the timeout message below, written for exactly this case, is never
-      // reached. Naming the wrong cause in a harness whose job is grading claims is the defect
-      // this harness exists to catch.
-      if (r.error.code === 'ETIMEDOUT') {
-        throw new Error(
-          `mutation ${mut.id}: suite run exceeded ${SUITE_TIMEOUT_MS}ms and was killed — NO VERDICT`,
-        )
-      }
-      throw new Error(`mutation ${mut.id}: could not spawn node — ${r.error.message}`)
-    }
-    // Reached only for a kill this harness did NOT ask for — an OOM killer, an operator, a
-    // parent process group teardown. The timeout path exits above.
-    if (r.signal) {
-      throw new Error(
-        `mutation ${mut.id}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`,
-      )
-    }
+    assertSpawnUsable(mut.id, r, SUITE_TIMEOUT_MS)
     let tap
     try {
       tap = parseTap(r.stdout ?? '')

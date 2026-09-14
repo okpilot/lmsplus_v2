@@ -1,6 +1,6 @@
 {
   "target": ".claude/hooks/run-mutations.mjs",
-  "suites": [".claude/hooks/run-mutations.test.mjs"],
+  "suites": [".claude/hooks/run-mutations.test.mjs", ".claude/hooks/run-mutations.spawn.test.mjs"],
   "mutations": [
     {
       "id": "no-plan-check",
@@ -320,6 +320,74 @@
       "replace": "true) {",
       "expectRed": ["a skipped child does not make its failing parent look like an aggregate"],
       "note": "The second half of the two-sided gate. Added with the fix so the guard is not itself unpinned — adding an unpinned guard is the defect one level up."
+    },
+    {
+      "id": "spawn-drop-etimedout-branch",
+      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      throw new Error(`mutation ${mutId}: suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT`)\n    }\n",
+      "replace": "",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was",
+        "declares no verdict on a timeout rather than a result"
+      ],
+      "note": "The defect this branch was added to fix: a timeout then reports a spawn failure."
+    },
+    {
+      "id": "spawn-etimedout-drops-budget",
+      "find": "suite run exceeded ${timeoutMs}ms and was killed",
+      "replace": "suite run exceeded the budget and was killed",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was"
+      ],
+      "note": "Message stays true but stops being actionable — no reader can tell which budget."
+    },
+    {
+      "id": "spawn-etimedout-claims-a-verdict",
+      "find": "suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT",
+      "replace": "suite run exceeded ${timeoutMs}ms and was killed — SURVIVED",
+      "expectRed": ["declares no verdict on a timeout rather than a result"],
+      "note": "Turns a HARNESS failure into a claim about the TESTS — the exit 0/1/2 inversion."
+    },
+    {
+      "id": "spawn-error-guard-never-fires",
+      "find": "  if (r.error) {\n",
+      "replace": "  if (false) {\n",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was",
+        "prefers the timeout over the signal when a timeout set both",
+        "refuses a run whose binary never started"
+      ],
+      "note": "A timeout falls through to the signal branch, which then states no timeout was reported."
+    },
+    {
+      "id": "spawn-drop-generic-throw",
+      "find": "    throw new Error(`mutation ${mutId}: could not spawn node — ${r.error.message}`)\n",
+      "replace": "",
+      "expectRed": ["refuses a run whose binary never started"],
+      "note": "A binary that never started is graded as if the suite had run."
+    },
+    {
+      "id": "spawn-drop-signal-branch",
+      "find": "  if (r.signal) {\n    throw new Error(`mutation ${mutId}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`)\n  }\n",
+      "replace": "",
+      "expectRed": ["refuses a run killed by something other than the timeout"],
+      "note": "An externally killed run reaches the TAP parse with truncated output."
+    },
+    {
+      "id": "spawn-error-guard-compares-undefined",
+      "find": "  if (r.error) {\n",
+      "replace": "  if (r.error !== undefined) {\n",
+      "expectRed": ["grades a run that finished on its own, whether it passed or failed"],
+      "note": "An explicit error:null is dereferenced; truthiness is what unifies the two absent shapes."
+    },
+    {
+      "id": "spawn-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: suite run exceeded",
+      "replace": "`mutation: suite run exceeded",
+      "expectRed": ["names which mutation failed, so one bad run in a batch is findable"],
+      "note": "One bad run in a 91-mutation batch becomes untraceable."
     }
   ],
   "notEncoded": [

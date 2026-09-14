@@ -158,7 +158,7 @@ jobs:
       # checkout also has HEAD and `git worktree add --detach <dir> HEAD` works from it. The full
       # history above is there for the test-title guard's base diff, not for this step.)
       - name: Mutation harness — unit test
-        run: node --test .claude/hooks/run-mutations.test.mjs
+        run: node --test .claude/hooks/run-mutations.test.mjs .claude/hooks/run-mutations.spawn.test.mjs
 
       - name: Mutation harness — run every encoded mutation
         timeout-minutes: 10
