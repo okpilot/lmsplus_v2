@@ -10,7 +10,8 @@
 // and each was verified by making that break against a scratch copy and watching the suite go
 // red. Re-run that check with `--update`-style edits to a copy, never to the tracked file.
 //
-// THREE mechanisms in the guard are NOT pinned, listed here rather than left to look covered:
+// Some mechanisms in the guard are NOT pinned. They are NAMED rather than counted — a count
+// here goes stale the moment one is added or closed, and this list has already grown once:
 //   1. the latin1 decode of git's -z output. A fixture cannot create a genuinely invalid-byte
 //      filename through Node's string path API — the byte is re-encoded to valid UTF-8 on the
 //      way to the filesystem — so both decodes behave identically under test. It is

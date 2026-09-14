@@ -517,10 +517,27 @@ export function main(args) {
       return 2
     }
     // TWO-dot for commit ENUMERATION (agent-workflow.md); three-dot is for diffs.
+    // `--no-merges` is load-bearing, not tidiness. On a `pull_request` event `actions/checkout`
+    // checks out `refs/pull/N/merge`, so HEAD is a MERGE commit and `base.sha` is its first
+    // parent. The merge would enter the range as a unit whose diff is the WHOLE PR and whose
+    // message is an auto-generated "Merge ... into ..." carrying no `Retracted-ok:` trailer —
+    // so every waiver written in the PR becomes unreachable and the required check blocks with
+    // no remedy. A branch-internal merge of master breaks it the same way, and additionally
+    // grades tokens from commits authored elsewhere.
+    //
+    // ACCEPTED RESIDUE: a merge's CONFLICT RESOLUTION can introduce text present in neither
+    // parent, and skipping merges means CI never grades it. The commit-msg hook does — `git
+    // merge` runs it like any other commit — so this is reachable only when that hook was
+    // bypassed, which is the same hole CI exists to backstop. The alternative reviewed and
+    // rejected was checking out `head.sha` in CI rather than the merge ref: it covers the
+    // residue, but changes what EVERY step in that job sees (the test-title guard diffs against
+    // the base there too) for a gap this narrow. `--no-merges` stays correct under either
+    // checkout, which the ref change does not.
+    //
     // NOT `-z`: rev-list ACCEPTS the flag and ignores it, still emitting newline-separated
     // output. Splitting that on NUL yields ONE blob of concatenated SHAs, and every later
     // `<sha>^` then fails — the guard aborts at exit 2 instead of checking anything.
-    const shas = git(['rev-list', '--reverse', `${args[1]}..HEAD`])
+    const shas = git(['rev-list', '--reverse', '--no-merges', `${args[1]}..HEAD`])
       .toString('latin1')
       .split('\n')
       .filter(Boolean)

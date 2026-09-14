@@ -119,9 +119,11 @@ jobs:
       - name: Commit-claims guard — unit test
         run: node --test .claude/hooks/check-commit-claims.test.mjs
 
-      # Retracted-phrase guard (code-style.md §10 cl.3). The PR-diff run catches a
-      # retraction left incomplete ACROSS the branch, which the per-commit commit-msg
-      # hook cannot see. Both suites need their own step — there is no aggregator.
+      # Retracted-phrase guard (code-style.md §10 cl.3). This re-checks each commit in the
+      # range exactly as the commit-msg hook did, so its value is catching commits pushed
+      # with the hook bypassed — NOT a wider cross-branch analysis. Merge commits are skipped
+      # (see the guard's rev-list call), so nothing here sees more than one commit at a time.
+      # Each suite needs its own step — there is no aggregator.
       - name: Retracted-phrase guard (PR diff, code-style.md §10 cl.3)
         if: github.event_name == 'pull_request'
         run: node .claude/hooks/check-retracted-phrase.mjs --base ${{ github.event.pull_request.base.sha }}

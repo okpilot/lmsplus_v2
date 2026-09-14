@@ -1046,10 +1046,9 @@ git commit
       CI (lefthook.yml's pre-commit stanza has no test runner). The command list is
       DATA in `.claude/pipeline.json`; this line enumerated it until 2026-09-14 and had
       gone stale by omitting the file-size guard.
-    → [Lefthook commit-msg] commitlint validates message format + commit-claims guard
-      (BLOCKING) rejects a cited SHA that does not resolve (code-style.md §10 cl.6)
-      + retracted-phrase guard (BLOCKING) rejects a claim corrected here but left
-      standing in another corpus file (code-style.md §10 cl.3)
+    → [Lefthook commit-msg] BLOCKING. Enforces conventional message format, a cited SHA
+      that resolves (code-style.md §10 cl.6), and a corrected claim not left standing in
+      another corpus file (code-style.md §10 cl.3)
       [the authoritative command list per stage is `.claude/pipeline.json` `hooks`,
        which `.claude/pipeline.test.mjs` checks against lefthook.yml both ways —
        this diagram is a reading aid and goes stale every time a gate is added]

@@ -6,6 +6,20 @@
 
 ## Positive-pattern log
 
+### retracted-phrase guard -- --no-merges + merge test (2026-09-14, feat/retracted-phrase-guard round 2)
+
+APPROVED. 9 files reviewed (incl. agent-memory deltas), 0 critical, 0 issues, 1 suggestion (non-blocking).
+
+Key verifications:
+1. Mutation test pins `--no-merges`: removed flag from scratch copy, ran suite → merge test red (`1 !== 0`), other 4 green. Production code: all 5 green. The fixture correctly mirrors CI's direction (base checked out first, PR branch merged in as second parent, so merge diff = whole PR). First attempt had it reversed and passed with the flag removed — the comment's own warning is accurate.
+2. "test-title guard diffs against the base too" claim: ci.yml:97 `check-test-title-leakage.mjs --base ${{ github.event.pull_request.base.sha }}` — same parameter as the retracted-phrase step. Rejection of `head.sha` checkout is factually grounded.
+3. ci.yml and coderabbit.yaml descriptions accurate: `--no-merges` makes each rev-list entry a single non-merge commit (`sha^..sha`), so the CI step does exactly what the commit-msg hook does.
+4. Delegation edits (docs/decisions.md + docs/plan.md) do not delete information — all three commit-msg behaviors (conventional format, cited-SHA resolves, corrected-claim consistency) are named in prose, and pipeline.json has all three gates: `["claim-check", "commitlint", "retracted-phrase"]`.
+5. code-reviewer MEMORY "(54 total, was 52)" is for commit e8e3e20b (before: 0+21+31=52; after: 4+19+31=54). Current commit adds one more (5+19+31=55). Count is historically accurate for the commit it describes.
+6. "NO block-rate figure is quoted, here or below" refers to the CURRENT detector's calibration. The "18% block rate" in the footer is for the rejected spec design — a different detector. No contradiction.
+
+Suggestion: "here or below" in decisions.md:1783 could mislead since the footer does contain "18% block rate" (for the rejected design). A parenthetical clarifying it refers to the current detector would remove the ambiguity.
+
 ### pipeline-spec-as-data — `.claude/pipeline.test.mjs` staged diff, generation 7 (2026-09-08, chore/settle-policy-contradictions)
 
 REVISE — 1 ISSUE (comment-accuracy, §10), 0 CRITICAL. Reviewed the diff closing two demonstrated

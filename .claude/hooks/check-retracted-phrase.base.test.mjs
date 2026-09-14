@@ -180,3 +180,44 @@ test('a completed spec stays excluded in --base mode, exactly as at commit-msg',
     )
   })
 })
+
+test('a merge commit in the range does not swallow the waivers below it', () => {
+  // MUTATION: drop `--no-merges` from the rev-list enumeration → the merge enters the range as a
+  // unit whose diff is EVERY commit it brings in and whose message is an auto-generated
+  // "Merge ..." with no `Retracted-ok:` trailer. Every waiver written on the branch becomes
+  // unreachable and the required check blocks with no remedy.
+  //
+  // The fixture mirrors CI's actual shape and the direction matters: on a `pull_request` event
+  // `actions/checkout` checks out `refs/pull/N/merge`, whose FIRST parent is the base tip, so the
+  // merge's own diff is the whole PR. Merging the other way round — feature into the branch you
+  // are already on — makes the merge diff exclude the retraction, and the test then passes with
+  // `--no-merges` removed. It did, on the first attempt.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1807 lines)" }\n')
+    r.write('docs/sibling.md', 'the generated file is 1807 lines\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    const base = r.git('rev-parse', 'HEAD').trim()
+    const trunk = r.git('rev-parse', '--abbrev-ref', 'HEAD').trim()
+
+    // The PR branch: an incomplete retraction, waived deliberately by its author.
+    r.git('checkout', '-q', '-b', 'pr')
+    r.write('.claude/limits.json', '{ "note": "types.ts is GENERATED (1806 lines)" }\n')
+    r.git('add', '-A')
+    r.git(
+      'commit',
+      '-qm',
+      'fix: correct the count\n\nRetracted-ok: 1807 — docs/sibling.md quotes the pre-fix value on purpose',
+    )
+
+    // The merge ref CI stands on: base FIRST, PR second.
+    r.git('checkout', '-q', trunk)
+    r.git('merge', '--no-ff', '-q', '-m', 'Merge pr into trunk', 'pr')
+
+    assert.equal(
+      run(r, null, ['--base', base]).status,
+      0,
+      'the waiver inside the PR must still be reachable under the merge ref',
+    )
+  })
+})

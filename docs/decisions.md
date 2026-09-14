@@ -46,8 +46,8 @@
 ```
 pre-commit  → mechanical guards (list is DATA in .claude/pipeline.json — this line had gone
                stale by omitting the file-size guard)
-commit-msg  → commitlint (conventional commits) + check-commit-claims (a cited SHA must resolve)
-              + check-retracted-phrase (a corrected claim must not still stand elsewhere)
+commit-msg  → enforces conventional commit format, resolvable cited SHAs, and retracted-claim
+               consistency; the command list is DATA in .claude/pipeline.json
 pre-push    → security-auditor agent + pnpm audit
 post-commit → reminder to run subagents (non-blocking)
 ```
@@ -1763,9 +1763,12 @@ the author to grep a retracted phrase repo-wide before claiming the class closed
 *"Claim-correction commit updates a count but leaves its arithmetic stale"* reached RULE CANDIDATE
 across five branches anyway — derive its current count from the tracker, not from this line.
 `.claude/hooks/check-retracted-phrase.mjs` now blocks at `commit-msg` when a value or filename this
-commit corrected in one corpus file still stands in one or two others, and again in CI over the
-whole branch range (`--base`), which iterates the commits so a waiver stays scoped to the commit
-whose author wrote it.
+commit corrected in one corpus file still stands in one or two others. CI re-runs the SAME
+per-commit check over the branch range (`--base`), iterating commits so a waiver stays scoped to
+the commit whose author wrote it and skipping merges — on a `pull_request` event HEAD is the merge
+ref, and grading that as one unit would put the whole PR under a generated message no waiver can
+reach. The CI run therefore adds no analysis the hook does not do; its value is catching a commit
+pushed with the hook bypassed.
 
 **The design is what the measurement forced, and the first design was wrong.** Replayed against 120
 master commits, the rule as written in the spec — "a phrase removed here that still exists there" —
@@ -1775,9 +1778,13 @@ files is vocabulary, not a claim), exclusion of ticket references and migration 
 of `.claude/agent-memory/**` on all three sides (those files quote past false claims verbatim, so
 counting them both invents survivors and exonerates real retractions), and a correction gate at
 HUNK granularity — a removal fires only when the same hunk supplies a same-class replacement, which
-is what separates a correction from a deduplication or a rewrite. Final calibration: **2 blocks over
-those 120 commits (3 hits)**, while firing correctly on `3752c88a`, the real commit whose incomplete
-`1807`→`1806` correction cost a reviewer round.
+is what separates a correction from a deduplication or a rewrite. It was calibrated by replaying
+the detector over 120 master commits, and it fires correctly on `3752c88a` — the real commit whose
+incomplete `1807`→`1806` correction cost a reviewer round. No block-rate figure is quoted for the
+detector as shipped: the replay harness is not committed, so no reader can reproduce one. (The 18%
+that appears above and in the footer measures the REJECTED spec design, which is a different
+detector and is cited to explain why it was rejected.) Slice 2's rule settles
+it — commit the harness or stop stating the number — and committing it is still an open task.
 
 That figure was FIRST recorded here as 0, measured before the detector's last two edits landed —
 stale on arrival while reading as verified, which is `code-style.md` §10 cl.7 committed by the
@@ -1826,7 +1833,7 @@ own changes when the parent had changed it; and a `.coderabbit.yaml` mirror prom
 This is the evidence for §10 cl.5: reading a block finds incoherence, only RE-DERIVING finds a
 claim that is coherent and false. Every one of these read as verified.
 
-**Bounds are in the guard's header and three mechanisms are NOT mutation-pinned** — the latin1 path
+**Bounds are in the guard's header, and the mechanisms that are NOT mutation-pinned are named — not counted — in the test suite's preamble** — the latin1 path
 decode (a fixture cannot create an invalid-byte filename through Node's string path API), an
 unreachable degenerate-token assertion, and the `git grep` exit-code discrimination. They are listed
 in the test file rather than left looking covered. Two mutation runs also found a redundant early
