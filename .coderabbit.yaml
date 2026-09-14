@@ -192,8 +192,9 @@ reviews:
         - An INCOMPLETE retraction: a value or filename this diff corrects in one place while the
           old text still stands in another file. Mirrors the mechanical commit-msg guard
           .claude/hooks/check-retracted-phrase.mjs (code-style.md §10 cl.3), which covers only
-          .claude/, docs/, .spec-workflow/, CLAUDE.md and .coderabbit.yaml — so in application
-          code and in any paraphrased restatement, this review is the only check there is.
+          .claude/, docs/, .spec-workflow/, CLAUDE.md and .coderabbit.yaml — so in APPLICATION
+          CODE, which this block governs, that review is the only check there is. The corpus-side
+          paraphrase case is handled in the binding-docs block, not here: this glob never sees it.
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
           REPLACE and DROP+CREATE; ALTER FUNCTION, which changes SET search_path / SECURITY
@@ -267,6 +268,11 @@ reviews:
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
+        - An INCOMPLETE retraction: a value or filename this diff corrects here while the old text
+          still stands in another doc. `.claude/hooks/check-retracted-phrase.mjs` blocks the exact
+          VERBATIM case at commit-msg, so what is left for review is the case it cannot see — a
+          PARAPHRASED restatement of the same claim, and a correction that deletes a stale value
+          without replacing it (the guard's hunk gate needs a replacement to fire).
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
           re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
           form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +
@@ -500,6 +506,20 @@ reviews:
           illustrations, which as of 2026-08-24 were ON CONFLICT inference targets, EXECUTE
           format(...), POSIX bracket-class regex literals, (c) 42702, (d) 23502 and (e) 42804.
           (code-style.md §5 "Validate at Execution, Not Apply".)
+
+    # Hook test suites (node:test, .mjs). NOTE the extension: every MUTATION comment in this
+    # repo lives in `.claude/hooks/*.test.mjs`, and NO other glob in this file matches `.mjs`,
+    # so mirroring the rule under the `.test.{ts,tsx}` block below would never fire on a single
+    # real instance. An inert mirror is worse than none — it reads as covered.
+    - path: "**/*.test.mjs"
+      instructions: |
+        MUTATION comment accuracy (code-style.md §7). A `// MUTATION: <break>` line asserts that
+        making that break turns THIS test red. It is a prose claim and §10 governs it. Flag:
+        - A comment naming a mechanism the fixture cannot REACH — typically "delete A or B" where
+          an earlier guard rejects the input first, so deleting B leaves the test green. The
+          comment then claims coverage the suite has not got. The fix is to drop the unreachable
+          sub-claim, or say plainly that it is not pinned; both beat an unverified claim.
+        - A mechanism the guard implements that no MUTATION comment names at all.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

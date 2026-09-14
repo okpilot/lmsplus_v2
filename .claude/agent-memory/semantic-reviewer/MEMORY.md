@@ -66,6 +66,7 @@
 | Protocol split: examples removed from rules file, not added to agent file. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 1 | 2026-09-07 | WATCHING |
 | Pipeline test proved spec↔disk closure but no anchor for non-agent hook commands. | 2026-09-07 (7eaef31a PR #1268) | 1 | 2026-09-07 | RESOLVED same PR — `spec.hooks` compares every command exactly |
 | `addedText.includes(token)` substring false-exoneration in a mechanical guard — a longer number containing the retracted token as a substring exits 0 having checked nothing | 2026-09-14 (ff562c9f check-retracted-phrase.mjs) | 1 | 2026-09-14 | RESOLVED (ab310cc9) — `reAdded()` re-applies NUM_RE/FILE_RE boundary rules per token class; verified in both classes |
+| Commit message count wrong on the rule sweep being promoted — "65 MUTATION comments" while the actual is 63 (`grep -c` across the five suites returns 23+8+9+10+13=63) | 2026-09-14 (cb481470) | 1 | 2026-09-14 | WATCHING — false count is in the commit message only, not in any repo file; rule text says "every MUTATION: comment" without a number. §10 cl.7 violated in the commit that promotes §10 cl.7 awareness. |
 
 ## Durable knowledge
 
