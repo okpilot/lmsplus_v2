@@ -953,6 +953,24 @@ narrower grep; both numbers were right, for different questions. So the defect i
 going bad over time — it concentrated entirely in files written fresh in one sitting, which is
 where to look for it next.
 
+### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way (from 2026-09-14)
+
+When a check has one half that decides what a change ADDED and another that decides what SURVIVES
+elsewhere, the two must use IDENTICAL matching semantics. A split is invisible in review — each
+half reads correctly on its own — and shows up only as a wrong verdict on an input that crosses
+them.
+
+Worked example, and the one this was promoted from: `check-retracted-phrase.mjs` gave `reAdded()`
+anchored token boundaries so that `11807` would stop exonerating a retraction of `1807`, and left
+`survivors()` on a bare `grep -F`, which is a SUBSTRING match. The halves then disagreed about what
+"the same token" is, and an unrelated `11807` counted as a surviving occurrence — blocking a
+retraction that was complete. `my-plan.md` did the same to `plan.md`. The first half was fixed
+three commits before anyone noticed the second.
+
+The tell is a fix applied to one side of a comparison. When you correct matching semantics
+anywhere, find the other place that must agree with it and correct both, or state why they
+legitimately differ. Promoted at count=4 with the learner's substring-not-exact-identity row.
+
 ### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
 
 When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).

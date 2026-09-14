@@ -64,6 +64,23 @@ as sound.
 Being TOLD about those failures in your prompt did not prevent the next one — it was tried twice
 and a fresh wrong count came back both times. Pasting the artifact is what worked. So paste it.
 
+## Quoting CODE in your report
+The same rule, for a different artifact: when you cite a fragment of CODE as evidence — an `if`
+expression, a function signature, a return value, a constant's contents — paste the output of
+`grep -rn '<a distinctive token from that expression>' .` A code citation you cannot ground in a
+grep result is fabricated, however sound the conclusion resting on it.
+
+This one is measured, not theoretical. On `feat/retracted-phrase-guard` three separate reports
+cited code that does not exist: `if (!waivers.size) return 0` (nowhere in the repo — the real
+mechanism is `waivers.has(c.token)`), a five-element constant described as four, and a phrase
+"five file-size-guard suites" that appears in no file. Every one of those reports reached a CORRECT
+verdict, which is exactly what makes the habit dangerous — the next reader checks your evidence,
+not your verdict, and finds it invented.
+
+The third of those came AFTER this requirement was written into `.claude/rules/agent-doc-updater.md`
+and after the specific prior failures were named in the dispatch prompt. Neither stopped it. It is
+repeated HERE, in your own definition, because that is the only copy you are guaranteed to read.
+
 ## Citing a file in your report
 When you report that a file "cites", "mentions" or "references" specific content, paste the
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
