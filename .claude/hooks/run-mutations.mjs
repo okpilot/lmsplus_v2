@@ -396,8 +396,9 @@ function runMutation({ root, data, mut, base }) {
       // `node --test` applies no default per-test timeout, so a mutation that produces an
       // unbounded loop would block until CI killed the job — no verdict, no partial report.
       // Not hypothetical: `check-file-size-guard.mutations.json` records a break that HANGS,
-      // which is why that entry encodes a return flip instead. The kill surfaces as `error` or
-      // `signal`, and both route to exit 2 — a harness failure, never a test verdict.
+      // which is why that entry encodes a return flip instead. A timeout sets `error` (ETIMEDOUT)
+      // AND `signal` — measured, not assumed — so the branches below read `error` first and must
+      // name the timeout there. Every route leads to exit 2: a harness failure, never a verdict.
       timeout: SUITE_TIMEOUT_MS,
       // SIGKILL, not the SIGTERM default: `spawnSync` keeps WAITING when the child handles the
       // signal without exiting, so an interceptable kill turns the bound above into a
@@ -405,10 +406,24 @@ function runMutation({ root, data, mut, base }) {
       // the budget must hold for a suite that DOES, since a stall reports no verdict at all.
       killSignal: 'SIGKILL',
     })
-    if (r.error) throw new Error(`mutation ${mut.id}: could not spawn node — ${r.error.message}`)
+    if (r.error) {
+      // ETIMEDOUT FIRST. `spawnSync` sets BOTH `error` and `signal` on a timeout, so a generic
+      // `error` branch reports "could not spawn node" for a suite that spawned perfectly well and
+      // then ran long — and the timeout message below, written for exactly this case, is never
+      // reached. Naming the wrong cause in a harness whose job is grading claims is the defect
+      // this harness exists to catch.
+      if (r.error.code === 'ETIMEDOUT') {
+        throw new Error(
+          `mutation ${mut.id}: suite run exceeded ${SUITE_TIMEOUT_MS}ms and was killed — NO VERDICT`,
+        )
+      }
+      throw new Error(`mutation ${mut.id}: could not spawn node — ${r.error.message}`)
+    }
+    // Reached only for a kill this harness did NOT ask for — an OOM killer, an operator, a
+    // parent process group teardown. The timeout path exits above.
     if (r.signal) {
       throw new Error(
-        `mutation ${mut.id}: suite run killed by ${r.signal} (timeout ${SUITE_TIMEOUT_MS}ms) — NO VERDICT`,
+        `mutation ${mut.id}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`,
       )
     }
     let tap
