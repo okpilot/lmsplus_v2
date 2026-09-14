@@ -405,3 +405,24 @@ test('a dot in a filename token is treated as a literal character, not a wildcar
     )
   })
 })
+
+test('a submodule pointer does not abort the run', () => {
+  // MUTATION: drop the GITLINK_MODE skip in hunksFor → a submodule is a gitlink whose "blob" SHA
+  // is a COMMIT, `git cat-file blob` fails on it, and the guard aborts at exit 2 — blocking every
+  // commit that touches a submodule. Exit 2 is the could-not-run code, so the author is told the
+  // check broke rather than that their commit is wrong, with no waiver available.
+  withRepo((r) => {
+    seedFlagship(r)
+    // A real gitlink entry, added the way git itself records one.
+    const sha = r.git('rev-parse', 'HEAD').trim()
+    r.git('update-index', '--add', '--cacheinfo', `160000,${sha},vendor/dep`)
+    r.write(
+      '.claude/limits.json',
+      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
+    )
+    r.git('add', '.claude/limits.json')
+    const { status, stderr } = run(r, 'fix: correct the count beside a submodule\n')
+    assert.equal(status, 1, 'the retraction is still graded; the submodule is simply skipped')
+    assert.match(stderr, /retracted the value `1807`/)
+  })
+})

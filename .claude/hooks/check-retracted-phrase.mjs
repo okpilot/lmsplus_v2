@@ -431,17 +431,17 @@ function changedEntries(range) {
   for (let i = 0; i < fields.length; ) {
     const meta = fields[i]
     // `:<srcmode> <dstmode> <srcsha> <dstsha> <status>`
-    const m = /^:\S+ \S+ (\S+) (\S+) ([A-Z])\d*$/.exec(meta)
+    const m = /^:(\S+) (\S+) (\S+) (\S+) ([A-Z])\d*$/.exec(meta)
     if (!m) {
       // A desync shifts every later path by one and the guard then grades the WRONG files
       // at exit 0. Abort rather than skip.
       throw new Error(`unrecognised --raw record ${JSON.stringify(meta)}`)
     }
-    const [, src, dst, status] = m
+    const [, srcMode, dstMode, src, dst, status] = m
     // R/C carry TWO paths. Consuming the wrong number of fields is exactly how the NUL
     // stream desynchronises, shifting every later path by one.
     const pathCount = status === 'R' || status === 'C' ? 2 : 1
-    entries.push({ path: fields[i + pathCount], src, dst, status })
+    entries.push({ path: fields[i + pathCount], src, dst, status, srcMode, dstMode })
     i += 1 + pathCount
   }
   return entries
@@ -458,7 +458,15 @@ function blobLines(sha) {
  * still every bit "added", and must reach `addedText` to exonerate a token moved into it.
  * A deleted file has no added lines and the hunk gate rejects it by construction.
  */
+const GITLINK_MODE = '160000'
+
 function hunksFor(entry) {
+  // A SUBMODULE is a gitlink whose "blob" SHA is a COMMIT, so `git cat-file blob` on it fails and
+  // the guard aborts at exit 2 — blocking every commit that touches a submodule, in a repo that
+  // may have nothing to do with the corpus. A submodule pointer is a SHA, not prose, so there is
+  // nothing here to grade: skip it. Latent in this repo (no .gitmodules today) and cheap to
+  // prevent; found by CodeRabbit probing for gitlink entries.
+  if (entry.srcMode === GITLINK_MODE || entry.dstMode === GITLINK_MODE) return []
   const srcMissing = NULL_SHA.test(entry.src)
   const dstMissing = NULL_SHA.test(entry.dst)
   if (srcMissing && dstMissing) return []

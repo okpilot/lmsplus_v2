@@ -106,9 +106,9 @@ lmsplusv2/
     added. (Unit tests run in CI, not pre-commit.)
   - `commit-msg`: the stage's command list is DATA in `.claude/pipeline.json`, same as pre-commit
     above. Read it there — this line used to enumerate the gates and went stale the first time one
-    was added (Decision 66). What they ENFORCE, as opposed to which they are: a cited commit SHA
-    must resolve (Decision 64) and a claim corrected in one corpus file must not still stand in
-    another (Decision 66).
+    was added (Decision 66). What they enforce, rather than which commands run, is that a cited
+    commit SHA resolves (Decision 64) and that a claim corrected in one corpus file does not still
+    stand in another (Decision 66).
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)
 
