@@ -59,15 +59,20 @@ test('prefers the timeout over the signal when a timeout set both', () => {
 // A real spawn failure then returns as if the run were gradeable.
 test('refuses a run whose binary never started', () => {
   const r = { error: Object.assign(new Error('spawnSync node ENOENT'), { code: 'ENOENT' }) }
-  assert.throws(() => assertSpawnUsable('m1', r, 120000), /could not spawn node/)
+  assert.throws(() => assertSpawnUsable('spawn-enoent-id', r, 120000), /could not spawn node/)
+  assert.throws(() => assertSpawnUsable('spawn-enoent-id', r, 120000), /spawn-enoent-id/)
 })
 
 // MUTATION: delete the whole `if (r.signal)` block.
 // An externally killed run then reaches the TAP parse with truncated output.
 test('refuses a run killed by something other than the timeout', () => {
   assert.throws(
-    () => assertSpawnUsable('m1', { signal: 'SIGKILL' }, 120000),
+    () => assertSpawnUsable('kill-signal-id', { signal: 'SIGKILL' }, 120000),
     /killed by SIGKILL \(no timeout reported\)/,
+  )
+  assert.throws(
+    () => assertSpawnUsable('kill-signal-id', { signal: 'SIGKILL' }, 120000),
+    /kill-signal-id/,
   )
 })
 
@@ -83,11 +88,25 @@ test('grades a run that finished on its own, whether it passed or failed', () =>
   )
 })
 
-// MUTATION: interpolate a literal in place of `${mutId}` in any of the three throws.
-// A failing run in a 91-mutation batch then cannot be traced to the mutation that caused it.
+// MUTATION: interpolate a literal in place of `${mutId}` in the timeout throw.
+// A failing run in a batch this size — `node .claude/hooks/run-mutations.mjs` reports the total
+// it actually ran — then cannot be traced to the mutation that caused it.
+// (The fixture is timedOut() — only the ETIMEDOUT path is reached; the other two throws are
+// pinned implicitly by tests 5 and 6 above, which use distinctive mutIds and assert they appear.)
 test('names which mutation failed, so one bad run in a batch is findable', () => {
   assert.throws(
     () => assertSpawnUsable('drop-skip-directive-filter', timedOut(), 1),
     /drop-skip-directive-filter/,
+  )
+})
+
+// MUTATION: delete the `if (r == null)` guard at the top of assertSpawnUsable.
+// A null result then dereferences to a TypeError naming a property, which says nothing about
+// which mutation produced it — the one thing every other message here is careful to say.
+test('refuses a result that is not there at all, rather than dereferencing it', () => {
+  assert.throws(() => assertSpawnUsable('absent-id', null, 120000), /absent-id: no spawn result/)
+  assert.throws(
+    () => assertSpawnUsable('absent-id', undefined, 120000),
+    /absent-id: no spawn result/,
   )
 })

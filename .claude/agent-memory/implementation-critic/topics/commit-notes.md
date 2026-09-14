@@ -6,6 +6,20 @@
 
 ## Positive-pattern log
 
+### mutation-harness fixup — spawn tests + null guard (2026-09-14, feat/mutation-harness, round 2)
+
+REVISE. 5 files staged.
+
+**ISSUE — stale "91-mutation batch" note field survived the §10 fix.**
+The MUTATION comment in test 8 was correctly updated to remove the stale "91" literal (replaced with a command pointer). But the `note` field of the `spawn-throw-drops-mutation-id` mutation in `.claude/hooks/run-mutations.mutations.json` still reads `"One bad run in a 91-mutation batch becomes untraceable."`. The retracted phrase "91-mutation batch" was NOT grepped repo-wide before committing (§10 cl.3). Post-fixup total across all three data files: 19+29+54=102, confirming 91 was already stale before this commit too. The note field is human-readable documentation and is never printed by the harness, but §10 governs all doc-like assertions.
+
+Verified clean:
+- Three new MUTATION comments: all TRUE, all reachable, all expectRed sets EXACT.
+- `if (r == null)` guard: correct (`==` catches both null and undefined); test verifies both.
+- Command-pointer claim: line 553 of run-mutations.mjs prints `${total} mutations run, ...` — TRUE.
+- Tests 5 and 6: non-vacuous (first assert pins message text, second pins mutId — different mechanisms).
+- Agent memory deltas: both factually accurate; no false tracker row introduced.
+
 ### mutation-harness + MUTATION comment corrections (2026-09-14, feat/mutation-harness)
 
 APPROVED. 13 files reviewed, 0 critical, 0 issues, 0 suggestions.

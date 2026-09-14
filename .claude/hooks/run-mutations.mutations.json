@@ -387,7 +387,28 @@
       "find": "`mutation ${mutId}: suite run exceeded",
       "replace": "`mutation: suite run exceeded",
       "expectRed": ["names which mutation failed, so one bad run in a batch is findable"],
-      "note": "One bad run in a 91-mutation batch becomes untraceable."
+      "note": "One bad run in a large batch becomes untraceable — `node .claude/hooks/run-mutations.mjs` reports the total it ran."
+    },
+    {
+      "id": "spawn-drop-null-result-guard",
+      "find": "  if (r == null) throw new Error(`mutation ${mutId}: no spawn result to read — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["refuses a result that is not there at all, rather than dereferencing it"],
+      "note": "A TypeError is the only exit from this function that does not name the mutation."
+    },
+    {
+      "id": "spawn-generic-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: could not spawn node",
+      "replace": "`mutation: could not spawn node",
+      "expectRed": ["refuses a run whose binary never started"],
+      "note": "Pins the mutId in the ENOENT throw, which the timeout fixture cannot reach."
+    },
+    {
+      "id": "spawn-signal-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: suite run killed by",
+      "replace": "`mutation: suite run killed by",
+      "expectRed": ["refuses a run killed by something other than the timeout"],
+      "note": "Pins the mutId in the signal throw, likewise unreachable from the timeout fixture."
     }
   ],
   "notEncoded": [

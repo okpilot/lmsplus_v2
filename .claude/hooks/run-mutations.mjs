@@ -367,6 +367,10 @@ function scratchBase(root, requested) {
  * Out here it is both pinnable and readable; the caller keeps the side effects.
  */
 export function assertSpawnUsable(mutId, r, timeoutMs) {
+  // `spawnSync` always returns an object, so this is unreachable from the one production caller.
+  // It is here because the function is EXPORTED: the three throws below all name the mutation, and
+  // a bare TypeError would be the only way out of this function that does not.
+  if (r == null) throw new Error(`mutation ${mutId}: no spawn result to read — NO VERDICT`)
   if (r.error) {
     // ETIMEDOUT FIRST. `spawnSync` sets BOTH `error` and `signal` on a timeout, so a generic
     // `error` branch reports "could not spawn node" for a suite that spawned perfectly well and
