@@ -399,6 +399,11 @@ function runMutation({ root, data, mut, base }) {
       // which is why that entry encodes a return flip instead. The kill surfaces as `error` or
       // `signal`, and both route to exit 2 — a harness failure, never a test verdict.
       timeout: SUITE_TIMEOUT_MS,
+      // SIGKILL, not the SIGTERM default: `spawnSync` keeps WAITING when the child handles the
+      // signal without exiting, so an interceptable kill turns the bound above into a
+      // suggestion. Today's suites are bare `node --test` and trap nothing — the point is that
+      // the budget must hold for a suite that DOES, since a stall reports no verdict at all.
+      killSignal: 'SIGKILL',
     })
     if (r.error) throw new Error(`mutation ${mut.id}: could not spawn node — ${r.error.message}`)
     if (r.signal) {
