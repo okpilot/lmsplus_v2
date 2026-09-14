@@ -189,6 +189,11 @@ reviews:
         Comment accuracy (code-style.md §10). A comment or docblock asserting behaviour the code
         does not have is worse than no comment — it is what the next reader trusts when deciding
         whether a guard can safely be removed. Flag:
+        - An INCOMPLETE retraction: a value or filename this diff corrects in one place while the
+          old text still stands in another file. Mirrors the mechanical commit-msg guard
+          .claude/hooks/check-retracted-phrase.mjs (code-style.md §10 cl.3), which covers only
+          .claude/, docs/, .spec-workflow/, CLAUDE.md and .coderabbit.yaml — so in application
+          code and in any paraphrased restatement, this review is the only check there is.
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
           REPLACE and DROP+CREATE; ALTER FUNCTION, which changes SET search_path / SECURITY

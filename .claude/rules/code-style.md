@@ -992,6 +992,13 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    block alone has never caught a non-adjacent instance.
    A claim RE-TYPED unchanged inside a reflowed block is a NEW assertion: it arrives on a `+` line
    but reads as text you already had, so it slips the one review most likely to catch it.
+   **Mechanically enforced at `commit-msg` by `.claude/hooks/check-retracted-phrase.mjs`**, which
+   blocks when a value or filename this commit corrected in one corpus file still stands in one or
+   two others. Its bounds are in its own header and it does NOT discharge this clause: it reads
+   `.claude/`, `docs/`, `.spec-workflow/`, `CLAUDE.md` and `.coderabbit.yaml` only, needs the hunk
+   to contain the REPLACEMENT, and cannot see a paraphrase. The grep above is still yours to run.
+   The sole waiver is a `Retracted-ok: <token> — <reason>` trailer, which must say why the
+   surviving occurrence is not the same claim.
 
 4. **Verify the fix is STAGED, not merely written.** `git grep` reads the working tree, so it goes
    clean the moment the text is on disk. Run `git diff --staged` AND

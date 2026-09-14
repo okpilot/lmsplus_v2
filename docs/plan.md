@@ -1047,6 +1047,11 @@ git commit
       (docs/decisions.md:54; lefthook.yml's pre-commit stanza has no test runner).
     → [Lefthook commit-msg] commitlint validates message format + commit-claims guard
       (BLOCKING) rejects a cited SHA that does not resolve (code-style.md §10 cl.6)
+      + retracted-phrase guard (BLOCKING) rejects a claim corrected here but left
+      standing in another corpus file (code-style.md §10 cl.3)
+      [the authoritative command list per stage is `.claude/pipeline.json` `hooks`,
+       which `.claude/pipeline.test.mjs` checks against lefthook.yml both ways —
+       this diagram is a reading aid and goes stale every time a gate is added]
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a

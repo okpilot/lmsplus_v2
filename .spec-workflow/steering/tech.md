@@ -102,7 +102,10 @@ lmsplusv2/
     `.claude/pipeline.test.mjs` fails if it disagrees with `lefthook.yml` in either direction.
     Read it there — this line used to enumerate the hooks and went stale the first time one was
     added. (Unit tests run in CI, not pre-commit.)
-  - `commit-msg`: commitlint + the cited-SHA claim gate (Decision 64)
+  - `commit-msg`: commitlint + the cited-SHA claim gate (Decision 64) + the retracted-phrase
+    guard (Decision 66 — a claim corrected in one corpus file must not still stand in another).
+    Same caveat as pre-commit above: the authoritative list is DATA in `.claude/pipeline.json`,
+    and this line had already gone stale once before Decision 66 was added to it.
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)
 

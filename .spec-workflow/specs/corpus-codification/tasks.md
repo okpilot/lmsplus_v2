@@ -64,9 +64,17 @@
 
 Agreed with the user 2026-09-09. The order is the argument; do not reorder by "biggest number".
 
-1. **R0b-1 retracted-phrase check** — ~40 lines, pre-commit. Cheapest item on the list, and it
-   attacks a failure that recurred THREE times in slice 1 and is already logged in user memory as
-   having cost five CR rounds on an earlier PR. Best ratio available; introduces no new concept.
+1. ~~**R0b-1 retracted-phrase check**~~ — **DONE** (Decision 66). Landed at `commit-msg`, not
+   pre-commit: its only escape hatch is a `Retracted-ok:` trailer, and that is the sole stage
+   holding both the message and the staged index. The "~40 lines" estimate here was wrong by an
+   order of magnitude and is left visible rather than quietly edited — the fail-open catalogue
+   alone exceeds it. Derive the real size with `wc -l .claude/hooks/check-retracted-phrase*.mjs`.
+   The detector as specced BELOW (see R0b-1's original description) was refuted by measurement
+   before a line was written: 18% of commits blocked, almost all noise, and it missed its own
+   motivating instance. What shipped adds a rarity window, ticket/migration-number exclusions,
+   an agent-memory exclusion on all three sides, and a hunk-level correction gate.
+   Re-derive the calibration rather than trusting a number here — the harness is not committed,
+   so this is a claim you must re-measure if you want to rely on it.
 2. **R0-VALUE** — canonical numbers restated in prose. Zero ambiguity: a value either matches a
    canonical source or it does not. On the ratchet, so the existing corpus is frozen, not blocking.
 3. **R0-PATH** — the exclusion set is the real work (illustrations, context-relative paths,
@@ -176,7 +184,9 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       which `code-style.md` §10 cl.5 already concedes: re-reading finds incoherence, only
       re-deriving finds a claim that is coherent and false. Design for immediacy, not diligence.
 
-      **R0b-1 — RETRACTED-PHRASE CHECK. Highest value; §10 cl.3 made mechanical.**
+      **R0b-1 — RETRACTED-PHRASE CHECK. Highest value; §10 cl.3 made mechanical. SHIPPED —
+      see BUILD ORDER item 1 above and Decision 66; the design below is the ORIGINAL proposal,
+      kept because measurement refuted parts of it and that is the useful record.**
       If a commit REMOVES a distinctive phrase from one tracked file and that phrase still exists
       in another tracked file, block. Directly attacks "fixed the instance, not the class", which
       happened THREE times in this slice alone: a stale `1807` corrected in one file and left in
