@@ -526,7 +526,8 @@ export function main(args) {
     // grades tokens from commits authored elsewhere.
     //
     // ACCEPTED RESIDUE: a merge's CONFLICT RESOLUTION can introduce text present in neither
-    // parent, and skipping merges means CI never grades it. The commit-msg hook does — `git
+    // parent, and skipping merges means CI never grades it. `--no-merges` filters on parent
+    // COUNT, so an octopus merge is the same case, not an extra one. The commit-msg hook does — `git
     // merge` runs it like any other commit — so this is reachable only when that hook was
     // bypassed, which is the same hole CI exists to backstop. The alternative reviewed and
     // rejected was checking out `head.sha` in CI rather than the merge ref: it covers the

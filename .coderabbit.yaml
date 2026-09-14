@@ -520,7 +520,9 @@ reviews:
           an earlier guard rejects the input first, so deleting B leaves the test green. The
           comment then claims coverage the suite has not got. The fix is to drop the unreachable
           sub-claim, or say plainly that it is not pinned; both beat an unverified claim.
-        - A mechanism the guard implements that no MUTATION comment names at all.
+        - A mechanism the guard implements that no MUTATION comment names at all — UNLESS the
+          suite explicitly records it as not pinned and says why, which code-style.md §7 permits
+          and prefers to a claim that reads as verified and is not.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

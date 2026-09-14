@@ -1833,6 +1833,13 @@ own changes when the parent had changed it; and a `.coderabbit.yaml` mirror prom
 This is the evidence for §10 cl.5: reading a block finds incoherence, only RE-DERIVING finds a
 claim that is coherent and false. Every one of these read as verified.
 
+**A bound the branch demonstrated on itself:** CR-local round 3 found that a "three mechanisms"
+count had been corrected in one place and left standing in three others — the guard's exact target
+class, inside the guard's own tests. The guard did not and cannot catch it: `three` is a WORD, and
+the value detector requires three or more DIGITS. Spelled-out counts, and any claim not carrying a
+numeral or a filename, are outside it. That is the clearest statement available of how narrow the
+mechanical slice is, and it is why §10 cl.3's grep remains the author's job.
+
 **Bounds are in the guard's header, and the mechanisms that are NOT mutation-pinned are named — not counted — in the test suite's preamble** — the latin1 path
 decode (a fixture cannot create an invalid-byte filename through Node's string path API), an
 unreachable degenerate-token assertion, and the `git grep` exit-code discrimination. They are listed

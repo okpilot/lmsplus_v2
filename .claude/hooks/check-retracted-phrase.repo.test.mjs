@@ -22,70 +22,14 @@
 //      invariant in case either regex is widened, not as a live branch.
 //   3. the `err.status === 1 && !err.signal` discrimination on `git grep`. Forcing a non-1
 //      grep failure from a fixture is not something this harness can do reliably.
-// Do not delete these three on the grounds that "no test covers them" — that inference is
+// Do not delete any mechanism listed above on the grounds that "no test covers them" — that
 // exactly backwards.
 
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
-
-const GUARD = join(dirname(fileURLToPath(import.meta.url)), 'check-retracted-phrase.mjs')
-
-/** A throwaway repo, removed however the body exits. */
-function withRepo(fn) {
-  const dir = mkdtempSync(join(tmpdir(), 'retracted-phrase-'))
-  try {
-    const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
-    git('init', '-q', '.')
-    git('config', 'user.email', 't@example.com')
-    git('config', 'user.name', 'Test')
-    const write = (rel, body) => {
-      mkdirSync(join(dir, dirname(rel)), { recursive: true })
-      writeFileSync(join(dir, rel), body)
-    }
-    return fn({ dir, git, write })
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
-
-/** Run the guard with `message`, returning {status, stderr}. */
-function run({ dir }, message, args) {
-  const msgFile = join(dir, '.git', 'COMMIT_EDITMSG')
-  writeFileSync(msgFile, message ?? 'chore: x\n')
-  try {
-    execFileSync('node', [GUARD, ...(args ?? [msgFile])], {
-      cwd: dir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    return { status: 0, stderr: '' }
-  } catch (err) {
-    return { status: err.status, stderr: err.stderr ?? '' }
-  }
-}
-
-/** The flagship: a value corrected in one corpus file, left standing in another. */
-function seedFlagship({ git, write }) {
-  write(
-    '.claude/limits.json',
-    '{ "note": "types.ts is GENERATED (1807 lines) - the generator owns it" }\n',
-  )
-  write(
-    '.claude/hooks/check-file-size-guard.test.mjs',
-    '// a 1807-line GENERATED file is reported\n',
-  )
-  write(
-    '.claude/agent-memory/code-reviewer/MEMORY.md',
-    '| drift | types.ts cited as "1807-line" - actual 1806 |\n',
-  )
-  git('add', '-A')
-  git('commit', '-qm', 'init')
-}
+import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
 test('blocks when a corrected value still stands in another corpus file', () => {
   // MUTATION: break any link in the chain — the diff read, the hunk gate, the survivor grep,
@@ -227,7 +171,7 @@ test('a near-identical sibling path is not mistaken for the edited file', () => 
   // This does NOT pin the latin1 decode, despite the byte-level fixture: Node's string path API
   // re-encodes these names to VALID UTF-8 on the way to the filesystem (0xFE becomes C3 BE), so
   // both decodes keep the two paths distinct and the mutation is unobservable here. See the
-  // preamble, which lists that decode among the three unpinned mechanisms.
+  // preamble, which lists that decode among the mechanisms it records as unpinned.
   withRepo((r) => {
     const odd = (b) =>
       Buffer.concat([Buffer.from('docs/we'), Buffer.from([b]), Buffer.from('rd.md')]).toString(

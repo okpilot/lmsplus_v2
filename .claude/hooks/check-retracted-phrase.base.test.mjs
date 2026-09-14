@@ -7,70 +7,12 @@
 // This mode is where the guard and its commit-msg counterpart can DIVERGE, so the cases here are
 // mostly about the two agreeing: the same waiver, the same corpus, the same answer.
 //
-// Same MUTATION-PINNED discipline as its sibling; the three deliberately-unpinned mechanisms are
+// Same MUTATION-PINNED discipline as its sibling; the deliberately-unpinned mechanisms are
 // listed in that file's preamble and are not repeated here.
 
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
-
-const GUARD = join(dirname(fileURLToPath(import.meta.url)), 'check-retracted-phrase.mjs')
-
-/** A throwaway repo, removed however the body exits. */
-function withRepo(fn) {
-  const dir = mkdtempSync(join(tmpdir(), 'retracted-phrase-'))
-  try {
-    const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
-    git('init', '-q', '.')
-    git('config', 'user.email', 't@example.com')
-    git('config', 'user.name', 'Test')
-    const write = (rel, body) => {
-      mkdirSync(join(dir, dirname(rel)), { recursive: true })
-      writeFileSync(join(dir, rel), body)
-    }
-    return fn({ dir, git, write })
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
-
-/** Run the guard with `message`, returning {status, stderr}. */
-function run({ dir }, message, args) {
-  const msgFile = join(dir, '.git', 'COMMIT_EDITMSG')
-  writeFileSync(msgFile, message ?? 'chore: x\n')
-  try {
-    execFileSync('node', [GUARD, ...(args ?? [msgFile])], {
-      cwd: dir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    return { status: 0, stderr: '' }
-  } catch (err) {
-    return { status: err.status, stderr: err.stderr ?? '' }
-  }
-}
-
-/** The flagship: a value corrected in one corpus file, left standing in another. */
-function seedFlagship({ git, write }) {
-  write(
-    '.claude/limits.json',
-    '{ "note": "types.ts is GENERATED (1807 lines) - the generator owns it" }\n',
-  )
-  write(
-    '.claude/hooks/check-file-size-guard.test.mjs',
-    '// a 1807-line GENERATED file is reported\n',
-  )
-  write(
-    '.claude/agent-memory/code-reviewer/MEMORY.md',
-    '| drift | types.ts cited as "1807-line" - actual 1806 |\n',
-  )
-  git('add', '-A')
-  git('commit', '-qm', 'init')
-}
+import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
 test('--base mode honours a waiver written in the commit that needed it', () => {
   // MUTATION: stop passing each commit's own message into checkCommit in --base mode (leave it

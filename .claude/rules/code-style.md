@@ -946,8 +946,9 @@ purpose is catching false claims.
 
 The promotion sweep audited every `MUTATION:` claim in the file-size-guard suites and found them
 ALL accurate, each multi-mechanism one verified by execution. Count them with `grep -c 'MUTATION:'`,
-not `grep -c '// MUTATION:'` — two claims sit mid-line after other prose, and the narrower pattern
-silently misses them. Post-commit review flagged the wider figure as wrong on the strength of the
+not `grep -c '// MUTATION:'`: some claims sit mid-line after other prose and the narrower pattern
+silently misses them — derive the difference with
+`diff <(grep -c 'MUTATION:' <file>) <(grep -c '// MUTATION:' <file>)` rather than trusting a number. Post-commit review flagged the wider figure as wrong on the strength of the
 narrower grep; both numbers were right, for different questions. So the defect is not the convention
 going bad over time — it concentrated entirely in files written fresh in one sitting, which is
 where to look for it next.
