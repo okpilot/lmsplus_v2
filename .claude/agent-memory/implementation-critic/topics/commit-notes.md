@@ -909,3 +909,14 @@ so `"unanchored": "  "` falls through to the scan (safe direction).
 `docs/plan.md:1485` `#1192 (S/P1)` → `(S/P2)` is CORRECT (the issue body states "**Effort** S ·
 **Priority** P2"; the issue carries no labels) and closes the discrepancy logged at
 commit-notes.md L511 — but it is the one hunk the commit message does not mention.
+
+### notEncoded rmSync entry (2026-09-14, feat/mutation-harness, round 29)
+
+Data + memory only. All four factual claims in the new `notEncoded` entry verified by reading:
+
+1. `git` is `function git(args, cwd)` at line 320 — not exported, not injectable. TRUE ("closure" is loose terminology but "no injection point" is accurate).
+2. `assertSingleOccurrence` (line 420) runs AFTER `git(['worktree', 'add', ...])` (line 412). TRUE.
+3. No `MUTATION:` comment near `rmSync`. `--coverage` gap formula is `claims - encoded - notEncoded`; this entry now enters the `notEncoded` denominator. TRUE.
+4. Leaked dir is empty (worktree add failed → nothing populated); unique mkdtemp name prevents collision; disk-full would produce exit 2, not a wrong verdict. Bound holds. TRUE.
+
+code-reviewer memory delta: `gradeOne` is 22L, `modeRun` is 34L — verified against the working tree. `63eb9e37` commit message confirms extraction. TRUE.
