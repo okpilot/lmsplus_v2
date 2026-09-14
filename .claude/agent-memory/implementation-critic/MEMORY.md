@@ -82,6 +82,11 @@
 - **`get-active-practice-session.ts`'s Discovery soft-delete claim is VERIFIED** (do not re-flag): `start_discovery_session`, mig `20260629000200`, soft-deletes the caller's active discovery rows before inserting.
 - **localStorage read-then-delete in the discard handlers is cross-tab only** (#1205/#1207): two adjacent synchronous calls, strictly safer than the prior unconditional clear. Do not re-raise as a race.
 
+## Durable knowledge (guard-specific)
+
+- **`check-prose-claims.mjs` exemptions (verified 2026-09-14, `feat/prose-claims`):** `.coderabbit.yaml` exempt because `.yaml` → `COMMENT_EXT` → `commentProse()` → only `#`-prefixed lines, not YAML value strings. `limits.json` exempt because `.json` NOT in `COMMENT_EXT` → `proseLines()` returns `[]`. Both claims in the guard header are accurate.
+- **EVIDENCE: lines required even on a clean APPROVED verdict.** A prior session delivered "APPROVED, 0 findings" without evidence lines; the orchestrator could not verify it and re-requested the entire review. An evidence-free clean verdict is not usable.
+
 ## False positives (do not re-raise)
 
 - Full list → [false-positives](topics/false-positives.md). **Read it BEFORE raising any finding** — it is the enumeration; do not restate it here.

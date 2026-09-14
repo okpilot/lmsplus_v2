@@ -539,6 +539,57 @@ function updateBaseline(claims, previous) {
 
 // ---------------------------------------------------------------- main
 
+/**
+ * Print the findings and return the exit code. Pure output: it decides nothing.
+ *
+ * Split out of `main` because that function had grown past the §3 cap doing seven things, and
+ * reporting is the one with no control-flow dependency on the rest — the decisions are already
+ * made by the time anything here runs. Keeping the three blocks in one function rather than three
+ * is deliberate: their ORDER is the message (what is unusable, then what is new, then what no
+ * longer matches), and splitting them further would hide that ordering behind call sites.
+ */
+function reportFindings({ scopedProblems, fresh, stale, baseline }) {
+  if (scopedProblems.length > 0) {
+    console.error('✖ prose-claims guard: unusable `prose-claim-ok` waiver or unreadable file\n')
+    for (const p of scopedProblems) {
+      console.error(`  ${p.path}${p.n === null ? '' : `:${p.n}`}  ${p.problem}`)
+    }
+    console.error('')
+  }
+
+  if (fresh.length > 0) {
+    console.error(
+      `✖ prose-claims guard (code-style.md §1): prose restates a ${LIMITS_PATH} cap value.\n`,
+    )
+    for (const [, c] of fresh) {
+      console.error(`  ${c.path}:${c.n}  restates ${c.values.join(', ')}`)
+      console.error(`    ${excerpt(c.text)}`)
+    }
+    console.error('\n  → point at the data file instead of copying the number, e.g. "the cap in')
+    console.error(
+      `    ${LIMITS_PATH}" or \`node .claude/hooks/check-file-size-guard.mjs --stats\`.`,
+    )
+    console.error('  → or, if this prose genuinely must carry the number, mark the line:')
+    console.error('      <!-- prose-claim-ok: <why this prose must carry the number> -->')
+    console.error('      // prose-claim-ok: <why this prose must carry the number>\n')
+  }
+
+  if (stale.length > 0) {
+    console.error(`✖ prose-claims guard: ${BASELINE_PATH} rows describe no live claim.\n`)
+    for (const key of stale) console.error(`  ${key}  (was: ${baseline[key]})`)
+    console.error(`\n  → the claim line changed or went away. Record it:`)
+    console.error(`      node ${GUARD} --update-baseline\n`)
+  }
+
+  console.error(
+    'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/** (live specs)',
+  )
+  console.error(
+    `Excluded: ${MEMORY_PREFIX}**, ${[...EXCLUDED_PATHS].join(', ')}, completed specs, code/data lines`,
+  )
+  return 1
+}
+
 export function main(args) {
   const flags = args.filter((a) => a.startsWith('--'))
   const positional = args.filter((a) => !a.startsWith('--'))
@@ -598,45 +649,7 @@ export function main(args) {
 
   if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0
 
-  if (scopedProblems.length > 0) {
-    console.error('✖ prose-claims guard: unusable `prose-claim-ok` waiver or unreadable file\n')
-    for (const p of scopedProblems) {
-      console.error(`  ${p.path}${p.n === null ? '' : `:${p.n}`}  ${p.problem}`)
-    }
-    console.error('')
-  }
-
-  if (fresh.length > 0) {
-    console.error(
-      `✖ prose-claims guard (code-style.md §1): prose restates a ${LIMITS_PATH} cap value.\n`,
-    )
-    for (const [, c] of fresh) {
-      console.error(`  ${c.path}:${c.n}  restates ${c.values.join(', ')}`)
-      console.error(`    ${excerpt(c.text)}`)
-    }
-    console.error('\n  → point at the data file instead of copying the number, e.g. "the cap in')
-    console.error(
-      `    ${LIMITS_PATH}" or \`node .claude/hooks/check-file-size-guard.mjs --stats\`.`,
-    )
-    console.error('  → or, if this prose genuinely must carry the number, mark the line:')
-    console.error('      <!-- prose-claim-ok: <why this prose must carry the number> -->')
-    console.error('      // prose-claim-ok: <why this prose must carry the number>\n')
-  }
-
-  if (stale.length > 0) {
-    console.error(`✖ prose-claims guard: ${BASELINE_PATH} rows describe no live claim.\n`)
-    for (const key of stale) console.error(`  ${key}  (was: ${baseline[key]})`)
-    console.error(`\n  → the claim line changed or went away. Record it:`)
-    console.error(`      node ${GUARD} --update-baseline\n`)
-  }
-
-  console.error(
-    'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/** (live specs)',
-  )
-  console.error(
-    `Excluded: ${MEMORY_PREFIX}**, ${[...EXCLUDED_PATHS].join(', ')}, completed specs, code/data lines`,
-  )
-  return 1
+  return reportFindings({ scopedProblems, fresh, stale, baseline })
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {

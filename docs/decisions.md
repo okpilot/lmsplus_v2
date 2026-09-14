@@ -53,7 +53,7 @@ post-commit → reminder to run subagents (non-blocking)
 ```
 Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
-> Updated 2026-07-11: pre-commit runs biome + type-check + soft-delete-column guard + test-title-leakage guard (unit tests deliberately NOT in pre-commit — they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
+> Updated 2026-07-11: pre-commit runs mechanical guards — the list is DATA in `.claude/pipeline.json`, deliberately not restated here (unit tests are NOT in pre-commit; they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
@@ -1968,6 +1968,22 @@ finding that never happened.
 **Two baselined lines are FALSE POSITIVES and are recorded as such** — an agent-MEMORY budget that
 collides with a file cap, and a spec's size estimate — rather than narrowed away. A detector tuned
 until it has no false positives is one that has stopped detecting.
+
+**On the `--coverage` gap being 0, which Decision 67 might look like it forbids.** That decision
+says the gap is NOT padded to zero, because "forcing the denominator down would launder the one
+number the mode exists to produce". This guard reports 0 anyway, and the difference is real but is
+not laundering. Two of its four `notEncoded` entries are the sentence in each suite's header that
+DESCRIBES the convention and happens to contain the token — prose about a claim, not a claim, and
+`countMutationClaims` matches the bare token either way. The other two name breaks that ARE graded,
+under another id, where a second entry would encode the same mutation twice. So nothing ungraded is
+being hidden; the entries record why each counted token is not an outstanding claim.
+
+Decision 67's own gap is the same phenomenon left UNdeclared — its entry explains in prose that
+"several raw `MUTATION:` occurrences are prose and fixture text". Two conventions, one repo: this
+one puts the explanation in data where a reader can check it, that one puts it in a sentence. The
+difference is named here rather than left for someone to find, and the laundering it warns against
+— declaring a REAL claim unencodable to shrink the number — is a different act from declaring a
+non-claim a non-claim.
 
 **The block rate is not stated here.** `measure-prose-claims.mjs` is committed so it can be
 re-derived, and it is window-dependent: it read one value when the guard was built and a different

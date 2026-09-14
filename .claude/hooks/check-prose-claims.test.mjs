@@ -49,8 +49,9 @@ const values = (line) => claims(line).map((c) => c.value)
 // ---------------------------------------------------------------- derivation from limits
 
 test('derives the cap set from limits.json instead of a typed list', () => {
-  // MUTATION: replace capValues's loop body with a literal Set → the guard stops tracking
-  // limits.json, which is the exact defect it exists to prevent, committed inside it.
+  // MUTATION: add a value limits.json does not contain to the cap set (`caps.add(42)` beside the
+  // derived add) → derivation still happens, but an unrelated 42-line helper now reads as a cap
+  // claim. The assertion compares the WHOLE derived set, so any addition or omission reddens it.
   // GROUP: caps-not-derived-from-limits
   assert.deepEqual(
     [...CAPS].sort((a, b) => a - b),
@@ -317,9 +318,11 @@ test('treats a spec with an unreadable tasks.md as live', () => {
 // ---------------------------------------------------------------- staged enumeration
 
 test('takes both paths of a staged rename', () => {
-  // MUTATION: set `count` to 1 unconditionally in stagedPaths → the NUL stream desyncs on
-  // the first rename and every later path shifts by one, so the guard scopes the WRONG
-  // files at exit 0. (`--name-only` has the same effect by printing only the destination.)
+  // MUTATION: set `count` to 1 unconditionally in stagedPaths → the NUL stream desyncs on the
+  // first rename, so the rename's DESTINATION is read as the next status token, fails the
+  // `/^[A-Z]\d*$/` shape, and the desync check THROWS. Traced, not predicted: silent wrong
+  // scoping at exit 0 is what that check PREVENTS, not what this break produces — the test
+  // below pins the check itself. (`--name-only` loses the source the same way, one path.)
   const raw = Buffer.from(
     ['M', 'docs/a.md', 'R100', 'docs/old.md', 'docs/new.md', 'A', 'docs/c.md', ''].join('\0'),
   )
