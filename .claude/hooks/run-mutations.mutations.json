@@ -323,7 +323,7 @@
     },
     {
       "id": "spawn-drop-etimedout-branch",
-      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      throw new Error(`mutation ${mutId}: suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT`)\n    }\n",
+      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      throw new Error(\n        `mutation ${mutId}: suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT`,\n      )\n    }\n",
       "replace": "",
       "expectRed": [
         "names the timeout, not the spawn, when a suite runs long",
@@ -370,7 +370,7 @@
     },
     {
       "id": "spawn-drop-signal-branch",
-      "find": "  if (r.signal) {\n    throw new Error(`mutation ${mutId}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`)\n  }\n",
+      "find": "  if (r.signal) {\n    throw new Error(\n      `mutation ${mutId}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`,\n    )\n  }\n",
       "replace": "",
       "expectRed": ["refuses a run killed by something other than the timeout"],
       "note": "An externally killed run reaches the TAP parse with truncated output."
