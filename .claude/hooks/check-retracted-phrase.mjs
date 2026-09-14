@@ -338,8 +338,10 @@ function survivors(token, kind, self, pathspecs, ref) {
   // unrelated longer number — fail-CLOSED, but wrong, and with no remedy but a waiver that
   // records a claim which was never stale.
   //
-  // `-P` needs a PCRE-enabled git. Every mainstream build has one, and the failure is LOUD
-  // (non-zero exit, rethrown below, exit 2) rather than a silent fallback to over-matching.
+  // `-P` needs a PCRE-enabled git. Every mainstream build has one, and the failure is LOUD rather
+  // than a silent fallback to over-matching: git exits 128 on an unsupported or malformed pattern,
+  // the catch below recovers ONLY exit 1 ("no matches"), so 128 is rethrown and THIS GUARD exits 2.
+  // (Measured: a bad PCRE gives 128, not 2 — the two exit codes belong to different processes.)
   const body = escapeRe(token)
   const pattern =
     kind === 'value'

@@ -419,3 +419,23 @@ test('a longer filename elsewhere is not counted as a surviving occurrence', () 
     )
   })
 })
+
+test('a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep', () => {
+  // MUTATION: drop escapeRe from survivors() — token used as the raw PCRE body.
+  // The dot in 'plan.md' becomes a wildcard; 'plan_md' (boundary-passing, no literal dot)
+  // matches and counts as a surviving occurrence, blocking a finished retraction.
+  // This mirrors the reAdded() escaping test in check-retracted-phrase.test.mjs.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "consult plan.md for the schema" }\n')
+    r.write('docs/other.md', 'the generated file plan_md is at a different path\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "note": "consult schema.md for the schema" }\n')
+    r.git('add', '-A')
+    assert.equal(
+      run(r, 'fix: use the renamed reference\n').status,
+      0,
+      'plan_md is not an occurrence of plan.md — the dot must be escaped',
+    )
+  })
+})
