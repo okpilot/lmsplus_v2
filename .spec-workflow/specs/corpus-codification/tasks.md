@@ -120,6 +120,15 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
       dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
       stating a number. Do not keep asserting an unverifiable count.
+- [ ] **`--update-expected` on the mutation harness.** Same shape, and same rationale, as
+      `--update-baseline` on the file-size guard: adding a test to a suite can invalidate the
+      `expectRed` of every existing entry whose break also reddens it, and four entries needed
+      hand-widening on the harness's own branch within one commit of each other. A check that is
+      laborious to keep current gets disabled — that is recorded in the design as the single
+      biggest risk to this programme. MUST be human-invoked and write the diff for review; a
+      harness that rewrites its own expectations launders them. Re-derive the current pressure
+      with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
       ongoing cost — "three weeks of correcting prose only because of this". Widened the same day
