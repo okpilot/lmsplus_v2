@@ -28,12 +28,12 @@
     {
       "id": "aggregate-ignores-ok",
       "find": "    if (!points[j].ok && points[j].directive !== 'TODO' && points[j].directive !== 'SKIP') {",
-      "replace": "    if (false) {",
+      "replace": "    if (true) {",
       "expectRed": [
         "counts a parent that fails on its own while every child passed",
         "a skipped child does not make its failing parent look like an aggregate"
       ],
-      "note": "Anchor RE-POINTED when CR-local found the SKIP asymmetry: the `failed` filter excluded SKIP while isAggregate did not, so a failing parent with a skipped child reported SURVIVED. CR flagged the anchor break in the same finding. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
+      "note": "Unconditionally treat every point as an aggregate — the original semantics (`return true`), re-expressed for the multi-line `if` the SKIP fix introduced. Re-pointing it once INVERTED the mutation to `if (false)`, which silently changed which test it reddens; the harness caught that as a MISMATCH. Re-pointing an anchor is not a cosmetic edit — the REPLACE must preserve the break's meaning too."
     },
     {
       "id": "todo-counts-as-red",
