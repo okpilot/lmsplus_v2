@@ -431,17 +431,33 @@ test('rejects a data file whose mutations list is empty', () => {
 })
 
 test('rejects a target outside the worktree', () => {
-  // MUTATION: delete the `isAbsolute(...)` branch → an absolute target validates, and because
-  // join(root, '/etc/passwd') returns '/etc/passwd', the mutation would be written to the host
-  // tree instead of the throwaway worktree. A relative target must still pass, or the guard
-  // would reject every real data file — both halves are asserted here.
+  // MUTATION: delete the containment loop → a '..' target validates and the mutation is written
+  // OUTSIDE the throwaway worktree, which cleanup never removes. The traversal case is the one
+  // that matters: `join(root, '../../etc/x')` really is '/etc/x', while `join(root, '/etc/x')`
+  // stays contained at '<root>/etc/x'. An earlier guard rejected only ABSOLUTE paths under the
+  // opposite (false) premise, so it blocked the safe shape and admitted the dangerous one.
+  // A relative target must still pass, or every real data file is rejected — all three asserted.
   const abs = validateDataFile({
     target: '/etc/passwd',
     suites: ['t.mjs'],
     mutations: [{ id: 'a', find: 'x', replace: 'y', expectRed: ['t'] }],
   })
   assert.equal(abs.length, 1)
-  assert.match(abs[0], /repo-relative/)
+  assert.match(abs[0], /stay inside the worktree/)
+  const trav = validateDataFile({
+    target: '../../etc/passwd',
+    suites: ['t.mjs'],
+    mutations: [{ id: 'a', find: 'x', replace: 'y', expectRed: ['t'] }],
+  })
+  assert.equal(trav.length, 1)
+  assert.match(trav[0], /stay inside the worktree/)
+  const badSuite = validateDataFile({
+    target: 'f.mjs',
+    suites: ['../outside.test.mjs'],
+    mutations: [{ id: 'a', find: 'x', replace: 'y', expectRed: ['t'] }],
+  })
+  assert.equal(badSuite.length, 1)
+  assert.match(badSuite[0], /suites\[0\]/)
   const rel = validateDataFile({
     target: '.claude/hooks/f.mjs',
     suites: ['t.mjs'],

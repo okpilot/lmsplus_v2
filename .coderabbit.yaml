@@ -528,10 +528,12 @@ reviews:
           the claim reads as verified; what is wrong is the account of HOW, and a reader trusting
           it looks for a path that does not exist. Verify by reverting ONLY the named mechanism
           and READING the output, never by predicting it.
-        - A mutation whose edit was never confirmed to LAND. An anchor that does not match is a
-          no-op, and a no-op is indistinguishable from an unpinned test — both report SURVIVED.
-          Check the edit applied (a moved line count, a `grep -c` that changed) before believing
-          any verdict drawn from it.
+        - A mutation whose edit was never confirmed to LAND. Where a harness checks the anchor
+          first, a ZERO-match anchor aborts the run with no verdict rather than reporting
+          SURVIVED — the two outcomes must not be conflated. The silent case is the one that
+          survives that check: a replacement that matches and leaves the file UNCHANGED, which
+          is a no-op indistinguishable from an unpinned test. Confirm the source actually
+          changed before believing any verdict drawn from it.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

@@ -300,8 +300,11 @@ test('reAdded: a dot inside a filename token is treated as a literal character, 
   // MUTATION: match via `new RegExp('(?<![\\w.@-])(' + token + ')(?![\\w-])')` (boundaries kept
   // but no escaping) instead of delegating to tokensOf → the dot in 'plan.md' becomes a regex
   // wildcard; 'planXmd' satisfies the boundary pattern and the retraction is falsely exonerated.
-  // This break reddens only this test (the boundary-keeping prevents the FIX 4 tests from also
-  // failing). reAdded delegates to tokensOf, which uses FILE_RE — a regex that escapes the dot
+  // This break reddens only this test: keeping the boundaries leaves the two preceding reAdded
+  // tests green — 'a value token buried inside a longer number is not treated as re-added' and
+  // 'a filename token matched as a suffix of a longer name is not re-added'. ("FIX 4" appeared
+  // here for one commit and named nothing in the repo; it was a label from the dispatch that
+  // produced the edit.) reAdded delegates to tokensOf, which uses FILE_RE — a regex that escapes the dot
   // to `\.` — and then compares by string equality, so no unescaped regex is built from the token.
   assert.equal(reAdded('plan.md', 'filename', 'the doc planXmd is linked here'), false)
   assert.equal(reAdded('plan.md', 'filename', 'the doc plan.md is linked here'), true)

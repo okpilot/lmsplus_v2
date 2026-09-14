@@ -47,6 +47,9 @@ import { pathToFileURL } from 'node:url'
 
 const MAX_BUFFER = 64 * 1024 * 1024
 
+/** Per-mutation suite budget. A hanging break must fail the harness, never stall it. */
+const SUITE_TIMEOUT_MS = 120_000
+
 /** Mode flags. Options (`--guard`, `--scratch`) take a value and are NOT modes. */
 const MODE_FLAGS = new Set(['--list', '--coverage'])
 const OPTION_FLAGS = new Set(['--guard', '--scratch'])
@@ -181,10 +184,23 @@ export function validateDataFile(obj, label = '<data>') {
   } else if (!obj.suites.every(isNonEmptyString)) {
     problems.push(at('every `suites` entry must be a non-empty string'))
   }
-  if (isAbsolute(String(obj.target ?? ''))) {
-    // `target` is join()ed onto the worktree root, and join(root, '/etc/passwd') IS '/etc/passwd'
-    // — an absolute target would mutate the host tree instead of the throwaway copy.
-    problems.push(at('`target` must be a repo-relative path'))
+  // CONTAINMENT. An earlier version rejected only ABSOLUTE paths, under the false premise that
+  // `join(root, '/etc/passwd')` yields '/etc/passwd'. It does not — that is `resolve`. `join`
+  // gives '<root>/etc/passwd', which is contained and harmless. The real escape is a PARENT
+  // TRAVERSAL: `join(root, '../../etc/x')` IS '/etc/x', and `isAbsolute('../x')` is false, so the
+  // old guard let precisely the dangerous shape through while blocking the safe one. Measured,
+  // not reasoned. Applies to `suites` too: they are handed to `node --test` with cwd=worktree, so
+  // one resolving outside it runs the HOST suite against UNMUTATED code — a false SURVIVED.
+  for (const [label, val] of [
+    ['target', obj.target],
+    ...(Array.isArray(obj.suites) ? obj.suites.map((sv, i) => [`suites[${i}]`, sv]) : []),
+  ]) {
+    if (typeof val !== 'string' || val.length === 0) continue
+    if (isAbsolute(val) || val.split(/[\\/]/).includes('..')) {
+      problems.push(
+        at(`\`${label}\` must stay inside the worktree — no absolute path, no '..' segment`),
+      )
+    }
   }
   if (!Array.isArray(obj.mutations)) {
     problems.push(at('`mutations` must be an array'))
@@ -377,8 +393,19 @@ function runMutation({ root, data, mut, base }) {
       cwd: wt,
       maxBuffer: MAX_BUFFER,
       encoding: 'utf8',
+      // `node --test` applies no default per-test timeout, so a mutation that produces an
+      // unbounded loop would block until CI killed the job — no verdict, no partial report.
+      // Not hypothetical: `check-file-size-guard.mutations.json` records a break that HANGS,
+      // which is why that entry encodes a return flip instead. The kill surfaces as `error` or
+      // `signal`, and both route to exit 2 — a harness failure, never a test verdict.
+      timeout: SUITE_TIMEOUT_MS,
     })
     if (r.error) throw new Error(`mutation ${mut.id}: could not spawn node — ${r.error.message}`)
+    if (r.signal) {
+      throw new Error(
+        `mutation ${mut.id}: suite run killed by ${r.signal} (timeout ${SUITE_TIMEOUT_MS}ms) — NO VERDICT`,
+      )
+    }
     let tap
     try {
       tap = parseTap(r.stdout ?? '')

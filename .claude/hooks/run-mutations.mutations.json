@@ -299,10 +299,10 @@
     },
     {
       "id": "drop-absolute-target-check",
-      "find": "  if (isAbsolute(String(obj.target ?? ''))) {",
-      "replace": "  if (false) {",
+      "find": "    if (isAbsolute(val) || val.split(/[\\\\/]/).includes('..')) {",
+      "replace": "    if (false) {",
       "expectRed": ["rejects a target outside the worktree"],
-      "note": "join(root, '/etc/passwd') returns '/etc/passwd', so an absolute target writes to the host tree rather than the throwaway worktree."
+      "note": "Containment guard. Rewritten after cloud CodeRabbit found the original checked only isAbsolute under a FALSE premise about path.join: join(root,\"/etc/x\") is contained, join(root,\"../../etc/x\") escapes, and isAbsolute(\"../x\") is false — so it blocked the safe shape and admitted the dangerous one. Covers suites too, which run with cwd=worktree."
     },
     {
       "id": "drop-skip-directive-filter",

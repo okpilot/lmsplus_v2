@@ -958,8 +958,11 @@ and its refutation is the strongest argument for the harness below.** When
 `.claude/hooks/run-mutations.mjs` (Decision 67) EXECUTED those claims instead of reading them, one
 test in `check-file-size-guard.directive.test.mjs` turned out to pin nothing at all — it asserted
 `false`, which is `declaresUseServer`'s default return, so no break could redden it — under a
-comment naming a regex the function had not contained for two rewrites. A reading sweep cannot
-falsify a mutation claim; only running it can. **Re-derive rather than trust any audit sentence:
+comment naming a regex the function had not contained for two rewrites. Reading can falsify SOME
+mutation claims — an absent or unreachable mechanism shows up on inspection, which is how
+`reAdded`'s missing `escapeRe` was caught. What reading cannot establish is the positive half:
+that the named break actually turns the named tests RED. Only executing it proves that, and the
+sweep that claimed it had done so had not. **Re-derive rather than trust any audit sentence:
 `node .claude/hooks/run-mutations.mjs` re-runs every encoded claim, and `--coverage` reports the
 encoded-vs-claimed gap.** Count claims with `grep -o 'MUTATION:' <file> | wc -l` — a MATCH count, which is what
 `countMutationClaims` uses. NOT `grep -c`, which counts LINES and so misses a second claim on the

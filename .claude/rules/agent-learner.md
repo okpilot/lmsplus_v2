@@ -60,7 +60,10 @@ When a pattern is promoted to a hard rule (the count≥2 threshold above trigger
 instance and found them all accurate" is unfalsifiable prose and carries no evidentiary weight —
 §10 cl.5 governs it exactly as it governs any other claim. **Where the promoted rule has a
 MECHANICAL ENFORCER — a hook, a test harness, a CI script — run THAT as the sweep and paste its
-summary.** A prose re-reading is insufficient even when sincere.
+summary.** Where the enforcer distinguishes GRADED from UNGRADED work, paste both: a green
+`run-mutations.mjs` says every ENCODED mutation was caught and says nothing about the claims
+nobody encoded, which is what `--coverage` reports. A completeness claim needs the completeness
+command. A prose re-reading is insufficient even when sincere.
 
 Promoted at count=2 across distinct mechanisms, 2026-09-14. (i) `agent-doc-updater.md`'s
 pasted-grep requirement: naming the prior failure in the dispatch prompt did NOT prevent
