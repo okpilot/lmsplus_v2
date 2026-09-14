@@ -18,7 +18,9 @@
 //
 // Exit:   0 = every encoded mutation was CAUGHT
 //         1 = at least one SURVIVED or MISMATCHed — a finding about the TESTS
-//         2 = the harness COULD NOT RUN — a finding about the HARNESS
+//         2 = NO TRUSTWORTHY VERDICT — a finding about the HARNESS. Covers a fault in ANY
+//             single mutation (the batch still grades the rest and reports how many it could
+//             not), and the cases with nothing to grade at all.
 //
 // Why 1 and 2 are separate. A mutation reports SURVIVED when the suites stayed green, and
 // `code-style.md` §7 names the trap directly: "a `sed` whose anchor does not match is a no-op,
@@ -28,6 +30,9 @@
 // read as "that test pins nothing", and the cheapest remedy for a reader is to DELETE THE TEST.
 // The harness would then have destroyed the coverage it exists to measure. Exit 2 says "no
 // verdict was reached"; exit 1 says "a verdict was reached and it is bad". Do not unify them.
+// A fault no longer stops the batch: the rest is graded and the count reported. That makes the
+// ORDER load-bearing — `faults > 0` is checked BEFORE the survivor decision, so a run holding
+// one of each is 2, never 1. Inverting those two lines is the way this distinction dies quietly.
 //
 // Bounds, stated because understating them would be this tool's own defect:
 //   - it grades only what is ENCODED. A `MUTATION:` comment nobody translated into a data entry
@@ -39,7 +44,7 @@
 //     gets graded. The run measures the committed tree; that is what a commit message claims about.
 
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import { argv, exit } from 'node:process'
@@ -463,6 +468,15 @@ function runMutation({ root, data, mut, base }) {
       } catch {
         /* nothing further this process can do; the real error is the one being thrown */
       }
+      // The directory is made by `mkdtempSync` BEFORE the try, so a failed `worktree add` leaves
+      // a path git never registered: `worktree remove` refuses it and `prune` only tidies git's
+      // own admin entries. Neither deletes it. Harmless once; per-mutation fault isolation makes
+      // it once PER MUTATION, so remove the directory directly. A no-op when git already did.
+      try {
+        rmSync(wt, { recursive: true, force: true })
+      } catch {
+        /* the temp dir outlives this run; tmpdir() is reclaimed by the OS */
+      }
     }
   }
 }
@@ -512,6 +526,43 @@ function modeCoverage(root, guard) {
   return 0
 }
 
+/**
+ * Run ONE mutation and report it. Returns 'caught' | 'bad' | 'fault'; never throws.
+ *
+ * ISOLATE the fault, do NOT swallow it. Every OTHER mutation is independent of this one, so
+ * aborting the batch throws away every verdict it could still have earned — both stale anchors on
+ * this branch cost a full re-run for exactly that reason. The caller turns any 'fault' into exit
+ * 2: a run carrying one has NOT established that the encoded claims hold.
+ *
+ * 'fault' is EVERY throw from `runMutation`, not only a bad recipe. A stale anchor, an unreadable
+ * target and unparseable TAP are recipe faults you fix in the data file; a failed worktree, a
+ * spawn error and a suite timeout are ENVIRONMENTAL and the data file is innocent. Both land here
+ * and both mean the same thing about the RUN, which is why they share a verdict — but a reader
+ * told only about recipes will go audit a data file that is fine.
+ */
+function gradeOne({ root, data, mut, base }) {
+  let res
+  try {
+    res = runMutation({ root, data, mut, base })
+  } catch (err) {
+    console.log(`  FAULT     ${mut.id}`)
+    console.log(`    ${err.message}`)
+    return 'fault'
+  }
+  if (res.status === 'CAUGHT') {
+    console.log(`  CAUGHT    ${mut.id}`)
+    return 'caught'
+  }
+  console.log(`  ${res.status.padEnd(9)} ${mut.id}`)
+  console.log(`    expected red : ${mut.expectRed.join(' | ') || '(none)'}`)
+  console.log(`    actually red : ${res.failed.join(' | ') || '(none — the suites were green)'}`)
+  if (res.missing.length > 0) console.log(`    never went red: ${res.missing.join(' | ')}`)
+  if (res.unexpected.length > 0) {
+    console.log(`    also went red: ${res.unexpected.join(' | ')} — the claim is under-specific`)
+  }
+  return 'bad'
+}
+
 function modeRun(root, guard, scratch) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
@@ -531,38 +582,10 @@ function modeRun(root, guard, scratch) {
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
     for (const mut of data.mutations) {
       total++
-      // ISOLATE the fault, do NOT swallow it. A stale anchor, an unreadable target or a suite
-      // that never produced parseable TAP is a fault in the RECIPE, and every OTHER mutation is
-      // independent of it — so aborting the batch throws away every verdict it could still have
-      // earned. Both stale anchors on this branch cost a full re-run for exactly that reason.
-      // `faults` keeps exit 2 reachable: a run carrying one has NOT established that the encoded
-      // claims hold, and must never be read as if it had.
-      let res
-      try {
-        res = runMutation({ root, data, mut, base })
-      } catch (err) {
-        faults++
-        console.log(`  FAULT     ${mut.id}`)
-        console.log(`    ${err.message}`)
-        continue
-      }
-      if (res.status === 'CAUGHT') {
-        caught++
-        console.log(`  CAUGHT    ${mut.id}`)
-        continue
-      }
-      bad++
-      console.log(`  ${res.status.padEnd(9)} ${mut.id}`)
-      console.log(`    expected red : ${mut.expectRed.join(' | ') || '(none)'}`)
-      console.log(
-        `    actually red : ${res.failed.join(' | ') || '(none — the suites were green)'}`,
-      )
-      if (res.missing.length > 0) console.log(`    never went red: ${res.missing.join(' | ')}`)
-      if (res.unexpected.length > 0) {
-        console.log(
-          `    also went red: ${res.unexpected.join(' | ')} — the claim is under-specific`,
-        )
-      }
+      const outcome = gradeOne({ root, data, mut, base })
+      if (outcome === 'caught') caught++
+      else if (outcome === 'bad') bad++
+      else faults++
     }
   }
   console.log(

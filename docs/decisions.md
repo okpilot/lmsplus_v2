@@ -1876,9 +1876,13 @@ RECIPE; the mutated TREE is a worktree removed in a `finally`. `test-writer.md` 
 LEFT BEHIND as a bypass class, not worktree use.
 
 **Exit codes are 0/1/2 and must not be unified.** 0 = every encoded mutation was CAUGHT. 1 = a
-mutation SURVIVED or MISMATCHed, a finding about the TESTS. 2 = no verdict was reached, a finding
-about the HARNESS — which includes the cases where there is nothing to grade at all: no
-`*.mutations.json` found, or a committed `mutations: []`. Both returned 0 in the first cut, so the
+mutation SURVIVED or MISMATCHed, a finding about the TESTS. 2 = no trustworthy verdict, a finding
+about the HARNESS — a fault in ANY single mutation (a stale anchor, an unreadable target, a spawn
+failure, a suite timeout, unparseable TAP), or the cases with nothing to grade at all: no
+`*.mutations.json` found, or a committed `mutations: []`. A fault does NOT stop the batch — the
+rest is graded and the count of ungradeable ones is reported — so exit 2 outranks exit 1 and is
+checked first: a run carrying one of each has established nothing, and reporting it as 1 sends the
+reader to audit tests that never ran. Both returned 0 in the first cut, so the
 oracle reported "every mutation caught" having run none; closed in `5b47604c` after
 semantic-reviewer found them. §7 records why: "a `sed`
 whose anchor does not match is a no-op, and a no-op mutation is indistinguishable from an unpinned

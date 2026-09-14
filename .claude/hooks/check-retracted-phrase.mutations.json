@@ -261,6 +261,15 @@
       "replace": "if (EMPTY_REASONS.has(bare)) {",
       "expectRed": ["rejects a waiver reason that is too brief even if not a known empty phrase"],
       "note": "The 20-char floor was UNPINNED until this branch: the pre-existing test's five fixtures are all EMPTY_REASONS members, so that half rejected them first and the floor was never consulted. A test with a non-EMPTY_REASONS fixture ('insufficient detail', stripped length 18) was added and this entry pins it. Verified: deleting the floor reddens exactly one test."
+    },
+    {
+      "id": "readded-unescaped-boundary-regexp",
+      "find": "  const key = kind === 'value' ? 'nums' : 'files'\n  return addedText.split('\\n').some((line) => tokensOf(line)[key].includes(token))\n",
+      "replace": "  const re = new RegExp(`(?<![\\\\w.@-])(${token})(?![\\\\w-])`)\n  return addedText.split('\\n').some((line) => re.test(line))\n",
+      "expectRed": [
+        "reAdded: a dot inside a filename token is treated as a literal character, not a wildcard"
+      ],
+      "note": "Rebuilds the hand-written boundary regex WITHOUT escaping — the exact break the test comment names. Encoded after cloud CR-local found the notEncoded entry ASSERTING this was pinned when no entry encoded it."
     }
   ],
   "notEncoded": [
@@ -270,7 +279,7 @@
     },
     {
       "claim": "remove escapeRe from reAdded → the dot in 'plan.md' becomes a regex wildcard; 'planXmd' satisfies both boundaries and the retraction is falsely exonerated. (check-retracted-phrase.test.mjs, test \"reAdded: a dot inside a filename token is treated as a literal character, not a wildcard\")",
-      "why": "NARROWED after cloud CodeRabbit: the original rationale said no find/replace exists, which is wrong — the harness replaces arbitrary source text and the sibling entries readded-substring-numeric / readded-substring-filename already replace this very return line. The accurate statement is narrower: no mutation of the CURRENT text removes an ESCAPING step, because reAdded builds no regex at all — it delegates to tokensOf and compares by string equality. The boundary-keeping RegExp break the test comment names IS encodable and is pinned by that test; what is not encodable is the claim as the original comment worded it, which described a mechanism the function does not have."
+      "why": "NARROWED twice. The original rationale said no find/replace exists — wrong; the harness replaces arbitrary source text. The second wording then claimed the boundary-keeping RegExp break 'IS encodable and is pinned by that test', which was ALSO wrong: it was encodable and NOT encoded, so the dot-literal test was graded by nothing while this field asserted otherwise. Found by CR-local round 4 and now closed — the break is encoded as `readded-unescaped-boundary-regexp`, verified CAUGHT with that test as its exact red set. What remains genuinely not encodable is the claim AS THE COMMENT WORDS IT: 'remove escapeRe from reAdded' names a mechanism reAdded does not contain, because it builds no regex at all and delegates to tokensOf. A field whose job is to be honest about coverage carried a false coverage claim through two rewrites; that is the defect this guard exists to catch."
     }
   ]
 }

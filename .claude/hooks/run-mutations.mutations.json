@@ -409,6 +409,27 @@
       "replace": "`mutation: suite run killed by",
       "expectRed": ["refuses a run killed by something other than the timeout"],
       "note": "Pins the mutId in the signal throw, likewise unreachable from the timeout fixture."
+    },
+    {
+      "id": "drop-fault-isolation",
+      "find": "  let res\n  try {\n    res = runMutation({ root, data, mut, base })\n  } catch (err) {\n    console.log(`  FAULT     ${mut.id}`)\n    console.log(`    ${err.message}`)\n    return 'fault'\n  }\n",
+      "replace": "  const res = runMutation({ root, data, mut, base })\n",
+      "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
+      "note": "Without the catch the first fault unwinds to main()'s handler and the summary is never printed."
+    },
+    {
+      "id": "exit-order-bad-before-faults",
+      "find": "  if (faults > 0) return 2\n  return bad === 0 ? 0 : 1\n",
+      "replace": "  if (bad > 0) return 1\n  return faults > 0 ? 2 : 0\n",
+      "expectRed": ["exits 2 when a batch carries both a fault and a survivor, not 1"],
+      "note": "A batch with one of each then reports 'your TESTS have a hole' for a run that proved nothing."
+    },
+    {
+      "id": "drop-no-data-files-guard",
+      "find": "  if (files.length === 0) {\n    // NOT exit 0. Exit 0 asserts \"every encoded mutation was CAUGHT\"; a run that graded NOTHING\n    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`\n    // would otherwise turn this oracle permanently green while checking nothing — the precise\n    // failure mode the tool exists to detect in other people's tests.\n    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')\n  }\n",
+      "replace": "",
+      "expectRed": ["refuses to report success when there was nothing at all to grade"],
+      "note": "The single false-green path: 0 mutations, 0 caught, exit 0 — success having graded nothing."
     }
   ],
   "notEncoded": [
@@ -423,14 +444,6 @@
     {
       "claim": "MUTATION: make validateDataFile always push a problem → every data file is rejected and the harness exits 2 without running anything, while reporting a data-file fault.",
       "why": "The break is the ADDITION of an unconditional push at the function entry — not the removal or alteration of any existing text. Any substitution that achieves 'always push' (e.g. seeding the problems array) reddens 'accepts a well-formed data file', 'accepts an empty replacement as a deletion', and the relative-path half of 'rejects a target outside the worktree' simultaneously, producing a superset that pins nothing the individual field-rejection tests do not already cover."
-    },
-    {
-      "claim": "modeRun throws when no *.mutations.json exists (5b47604c) → without it the harness exits 0 having graded nothing",
-      "why": "NOT PINNED, and not pinnable at the unit tier: `modeRun` is not exported, and `main()` resolves the repo root via `git rev-parse --show-toplevel` with no injection point, so even running from a temp dir finds this repo's data files and never reaches the branch. Recorded here rather than left silent because it is the single most important false-green path in the tool and `--coverage` would otherwise not even show it as a gap — it carries no MUTATION: comment to count. Closing it needs an injectable root or an end-to-end tier, not a better fixture."
-    },
-    {
-      "claim": "per-mutation fault isolation in modeRun: a mutation whose recipe is broken (stale anchor, unreadable target, unparseable TAP) is counted as a FAULT and the batch continues; `faults > 0` returns 2, outranking a survivor's 1",
-      "why": "NOT PINNED at the unit tier, for the same structural reason as the entry above: `modeRun` is not exported and `main()` resolves the repo root with no injection point. VERIFIED END-TO-END INSTEAD, and the method is the claim's only evidence: one anchor in check-file-size-guard.mutations.json was deliberately pointed at text that matches nothing, the harness was run, and it reported `19 mutations run, 18 caught, 0 survived-or-mismatched, 1 could not be graded` at exit 2 — where the previous control flow aborted on the first fault and graded NONE. The anchor was then restored and the file is byte-identical to its committed state. Recorded here rather than left silent because the exit-code ORDER (fault outranks survivor) is the part a later refactor is most likely to invert, and inverting it turns 'this run proves nothing' into 'your tests have a hole'."
     }
   ]
 }
