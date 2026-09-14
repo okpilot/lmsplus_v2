@@ -523,6 +523,15 @@ reviews:
         - A mechanism the guard implements that no MUTATION comment names at all — UNLESS the
           suite explicitly records it as not pinned and says why, which code-style.md §7 permits
           and prefers to a claim that reads as verified and is not.
+        - A comment naming a mechanism that IS reachable while the described FAILURE MODE is
+          false — "passes silently" where the code actually throws. The test still reddens, so
+          the claim reads as verified; what is wrong is the account of HOW, and a reader trusting
+          it looks for a path that does not exist. Verify by reverting ONLY the named mechanism
+          and READING the output, never by predicting it.
+        - A mutation whose edit was never confirmed to LAND. An anchor that does not match is a
+          no-op, and a no-op is indistinguishable from an unpinned test — both report SURVIVED.
+          Check the edit applied (a moved line count, a `grep -c` that changed) before believing
+          any verdict drawn from it.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

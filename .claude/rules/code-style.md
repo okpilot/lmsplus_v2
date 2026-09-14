@@ -934,6 +934,14 @@ means the comment is under-specific, and green means it is false. Where a mechan
 cannot be reached, say so in the comment rather than implying coverage; an honest "NOT pinned, and
 here is why" is worth more than a claim that reads as verified and is not.
 
+**Naming a REACHABLE mechanism is not enough — the described FAILURE MODE must also be true.**
+Two comments on `run-mutations.test.mjs` named a reachable break and said it made validation
+"pass silently", when disabling the guard sends the value into an `else` whose `.forEach()` throws
+a TypeError. The tests reddened, so the mechanism was real; the account of HOW was false, and a
+reader trusting it would look for a silent-pass path that does not exist. Verify by reverting ONLY
+the named mechanism and reading the ACTUAL output — not by predicting it. Promoted at count=5,
+2026-09-14.
+
 **Verify that the mutation APPLIED before reading the result.** A `sed` whose anchor does not match
 is a no-op, and a no-op mutation is indistinguishable from an unpinned test — it reports SURVIVED
 either way. Check the edit landed (a changed line count, a `grep -c` that moved) before concluding

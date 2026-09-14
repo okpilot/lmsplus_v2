@@ -56,6 +56,22 @@ The learner proposes, the orchestrator decides. Apply a change when:
 ## Sweep On Rule Promotion
 When a pattern is promoted to a hard rule (the count≥2 threshold above triggers a write to `security.md`, `code-style.md`, or `biome.json`), the orchestrator must schedule a one-time repo sweep for all existing instances of the pattern — not only the call sites that triggered the promotion. The sweep produces either same-session fixes (≤10 lines per site) or GitHub Issues for each remaining offender. Without this step, the rule is enforced on new code while pre-existing offenders silently linger (e.g., issue #573 — `start_quiz_session` audit subquery missed when security.md §10 was promoted via #550 at count=3).
 
+**A sweep declared complete must STATE THE COMMAND and PASTE ITS OUTPUT.** "Audited every
+instance and found them all accurate" is unfalsifiable prose and carries no evidentiary weight —
+§10 cl.5 governs it exactly as it governs any other claim. **Where the promoted rule has a
+MECHANICAL ENFORCER — a hook, a test harness, a CI script — run THAT as the sweep and paste its
+summary.** A prose re-reading is insufficient even when sincere.
+
+Promoted at count=2 across distinct mechanisms, 2026-09-14. (i) `agent-doc-updater.md`'s
+pasted-grep requirement: naming the prior failure in the dispatch prompt did NOT prevent
+recurrence; only demanding the artifact did. (ii) `code-style.md` §7's own promotion sweep
+committed the sentence "audited every `MUTATION:` claim in the file-size-guard suites and found
+them ALL accurate, each multi-mechanism one verified by execution" — it had READ them. Six false
+claims landed in the next guard written, by the same author, while actively trying to comply, and
+one file-size-guard test turned out to pin nothing at all. A harness that would have caught it
+(`run-mutations.mjs`) was built days later; the sweep predates it, but the lesson is that the
+attestation was worthless without one.
+
 ### Downstream-enforcer sync (in addition to the code sweep)
 The code sweep above fixes existing *call sites*. It does NOT keep the **static rule mirrors** current. When a promotion writes to `docs/security.md` or `.claude/rules/security.md`, the orchestrator must also audit the enforcers that carry a hand-maintained mirror of those rules and add a matching entry **in the same session**:
 - **`.claude/agents/security-auditor.md`** — the pre-push gate's enumerated checklist. It does not auto-track `docs/security.md`; a promoted rule with no matching check is enforced everywhere *except* the final pre-push defense. (Observed drift: `docs/security.md` soft-delete-in-RPC / audit-subquery / multiple-permissive / sibling-guard-parity / single-active rules had no auditor checks until they were back-filled.)
