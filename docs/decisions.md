@@ -1804,9 +1804,10 @@ never reported the surviving copy. The boundary rules existed and were correct; 
 tokeniser, and this check simply did not re-apply them. Every one of the 43 tests passed. Fixed with
 a boundary-aware `reAdded()`, and the re-added scan narrowed to the corpus so it agrees with the
 survivor search about what "the documented set" means — a value moved from a rule file into source
-no longer exonerates a corpus retraction. Both pinned; the calibration was re-measured against the fixed guard and did not move (the figure
-and its re-derive caveat are stated once, above — restating it here is the §10 cl.7 habit this
-entry is about).
+no longer exonerates a corpus retraction. Both pinned. NO calibration figure is restated here, and no re-measurement is asserted either: the
+replay harness is not committed, so such a claim cannot be checked by a reader, and this spec's own
+slice-2 entry settles that case — commit the harness so the number is re-derivable, or stop stating
+it. Committing the harness remains an OPEN slice-2 task; until it lands, the second branch applies.
 
 **Five false claims were written on this branch by its own author, and each was caught by a
 different reviewer — none by re-reading.** The calibration figure (measured before the last two
