@@ -114,7 +114,7 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       Executing the claims refuted claims in every file that carried them, found one test
       pinning nothing and one mechanism (the 20-char waiver floor) pinned by nothing; all fixed
       on the branch. No total is stated — an earlier draft said SEVEN and its own enumeration
-      summed to eight. Re-derive with `node .claude/hooks/run-mutations.mjs` and `git log -p`.
+      summed to eight. Re-derive with `node .claude/hooks/run-mutations.mjs` and `git log -p 16d62fec..` ON THIS BRANCH (an unpinned `git log -p` sweeps in every later commit and stops reproducing).
       ORIGINAL ENTRY BELOW, kept because it names the defect this closed:
       **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
       caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness

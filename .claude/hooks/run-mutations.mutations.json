@@ -253,7 +253,7 @@
       "find": "  if (!Array.isArray(obj.mutations)) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
       "replace": "  if (false) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
       "expectRed": ["rejects a data file where mutations is not an array"],
-      "note": "Passing mutations as a string falls through to the `else`, whose `.forEach()` THROWS a TypeError out of validateDataFile — the test reddens by throwing, not by a vacuous exit-0 run. (Corrected after code-reviewer caught the original description.) Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
+      "note": "Passing mutations as a string falls through to the `else`, whose `.forEach()` THROWS a TypeError out of validateDataFile — the test reddens by throwing, not by a vacuous exit-0 run. (Corrected after code-reviewer caught the original description.) Anchor RE-POINTED when the empty-mutations check was inserted between the array check and its `else`; unrelated to the SKIP-filter reformat that re-pointed the two parseTap entries."
     },
     {
       "id": "mut-entry-not-object-allowed",

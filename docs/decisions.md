@@ -1896,7 +1896,7 @@ assertions for the first time refuted claims in every file that carried them. NO
 an earlier draft said "SEVEN", and its own bullets sum to eight false claims plus five
 under-specific ones — §10 cl.7, in the entry recording the tool built to catch exactly that. The
 categories below are checkable; a headline total is a derived number that goes stale the moment a
-category moves. Re-derive with `node .claude/hooks/run-mutations.mjs` and `git log -p`:
+category moves. Re-derive with `node .claude/hooks/run-mutations.mjs` and `git log -p 16d62fec..` ON THIS BRANCH (an unpinned `git log -p` sweeps in every later commit and stops reproducing):
 
 - `check-file-size-guard.directive.test.mjs` — a test asserting `false`, which is
   `declaresUseServer`'s DEFAULT RETURN, so no break could redden it, under a comment naming a regex
