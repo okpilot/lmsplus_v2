@@ -44,9 +44,10 @@
       "replace": "",
       "expectRed": [
         "does not count a TODO-directive failure as a red test",
-        "strips a directive from the test name"
+        "strips a directive from the test name",
+        "a skipped test is not counted as a red test"
       ],
-      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET."
+      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
     },
     {
       "id": "dash-mandatory",
@@ -64,9 +65,10 @@
         "reports the failing subtest and not the parent that merely propagates it",
         "counts a parent that fails on its own while every child passed",
         "does not count a TODO-directive failure as a red test",
-        "reads a test point written without the \"-\" separator"
+        "reads a test point written without the \"-\" separator",
+        "a skipped test is not counted as a red test"
       ],
-      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
+      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
     },
     {
       "id": "no-survived-branch",
@@ -177,14 +179,18 @@
       "id": "default-mode-list",
       "find": "    mode: modes.length === 0 ? 'run' : modes[0].slice(2),",
       "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
-      "expectRed": ["defaults to the run mode with no flags"],
-      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run."
+      "expectRed": [
+        "defaults to the run mode with no flags",
+        "reads the value of the --scratch option"
+      ],
+      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
     },
     {
       "id": "option-no-consume",
       "find": "      opts[a.slice(2)] = value\n      i++",
       "replace": "      opts[a.slice(2)] = value",
-      "expectRed": ["reads the value of an option flag"]
+      "expectRed": ["reads the value of an option flag", "reads the value of the --scratch option"],
+      "note": "expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
     },
     {
       "id": "option-no-value-ok",
