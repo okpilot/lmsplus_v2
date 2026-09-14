@@ -226,6 +226,10 @@ process.once('exit', () => {
 })
 
 // MUTATION: delete the try/catch wrapping runMutation in gradeOne (the fault-isolation block).
+// MUTATION: set `timeout:` in runMutation's spawnSync to 1 instead of SUITE_TIMEOUT_MS — the
+// fixture's valid mutation then times out too, so BOTH fault and the count reads 2, not 1.
+// That second break is what pins the timeout OPTION itself: every other encoded recipe drives
+// assertSpawnUsable with a synthetic result and never touches the real spawnSync call.
 // Without the catch, the stale anchor throws through modeRun into main()'s outer handler, which
 // logs "could not run — NO VERDICT" and exits 2 before the summary line is ever printed.
 // stdout then contains NO "2 mutations run", so this assertion goes red.

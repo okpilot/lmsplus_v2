@@ -438,6 +438,13 @@
       "replace": "",
       "expectRed": ["refuses to report success when there was nothing at all to grade"],
       "note": "The single false-green path: 0 mutations, 0 caught, exit 0 — success having graded nothing."
+    },
+    {
+      "id": "spawn-timeout-option-shrunk",
+      "find": "      timeout: SUITE_TIMEOUT_MS,\n",
+      "replace": "      timeout: 1,\n",
+      "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
+      "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
     }
   ],
   "notEncoded": [
