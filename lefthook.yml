@@ -54,6 +54,16 @@ pre-commit:
     test-title-leakage:
       glob: "*.test.{ts,tsx}"
       run: node .claude/hooks/check-test-title-leakage.mjs {staged_files}
+    # Forbid a `.claude/limits.json` cap VALUE being restated in PROSE as a claim about that
+    # cap (code-style.md §1, "Limits are data ... Never restate a number here"). Ratcheted
+    # against `.claude/prose-claims.json`, so pre-existing restatements do not block; only a
+    # NEW one does, and a shrink must be recorded the same way the file-size baseline is.
+    # NO glob, deliberately. The guard enumerates its own file list from `git diff --cached`
+    # rather than taking {staged_files}, and prose lives in `.md` as much as in code — a glob
+    # narrow enough to look tidy is how a guard ends up inert for exactly the files it covers,
+    # which is what happened to file-size-guard's own `.mjs` extension.
+    prose-claims:
+      run: node .claude/hooks/check-prose-claims.mjs
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test

@@ -77,8 +77,25 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
    an agent-memory exclusion on all three sides, and a hunk-level correction gate.
    Re-derive the calibration rather than trusting a number here — the harness is not committed,
    so this is a claim you must re-measure if you want to rely on it.
-2. **R0-VALUE** — canonical numbers restated in prose. Zero ambiguity: a value either matches a
-   canonical source or it does not. On the ratchet, so the existing corpus is frozen, not blocking.
+2. ~~**R0-VALUE** — canonical numbers restated in prose~~ — **DONE** (Decision 68). Landed as
+   `.claude/hooks/check-prose-claims.mjs` at pre-commit and in CI, ratcheted against
+   `.claude/prose-claims.json`, so the existing corpus is frozen rather than blocking — that part
+   of the description held.
+   **"Zero ambiguity: a value either matches a canonical source or it does not" did NOT.** It was
+   the premise that made this look like the easy item, and measurement refuted it before the
+   guard was tuned: the naive form floods, and three narrowings were each load-bearing — prose
+   lines only (the largest noise class is `"max": <n>` in the hook suites' own fixtures, which is
+   DATA, and §1's ban is on prose), context rather than a bare value, and a proximity bound
+   (without it, long markdown table rows and SQL snippets put an unrelated number and an unrelated
+   cap word on one physical line). Ambiguity was the whole job, exactly as R0-PATH predicts for
+   itself.
+   Two of the baselined lines are FALSE POSITIVES and are recorded as such rather than tuned
+   away: `.claude/commands/insights.md`'s agent-MEMORY budget, which collides with a file cap,
+   and a spec's size ESTIMATE for a migration. A guard that reaches zero false positives by
+   narrowing until it catches nothing is the failure mode this programme exists to avoid.
+   Re-derive the block rate with `node .claude/hooks/measure-prose-claims.mjs --commits 120`; the
+   script is COMMITTED for that reason. The figure moves with the window — it read one value when
+   the guard was built and a different one after the harness PR merged — so it is not stated here.
 3. **R0-PATH** — the exclusion set is the real work (illustrations, context-relative paths,
    placeholders, globs). ACCEPTANCE TEST ALREADY MEASURED: it must land near the low tens on the
    binding surface. A first probe said 1,655 and a second 95, both wrong — one truncated every

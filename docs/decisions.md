@@ -53,7 +53,7 @@ post-commit → reminder to run subagents (non-blocking)
 ```
 Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
-> Updated 2026-07-11: pre-commit runs biome + type-check + soft-delete-column guard + test-title-leakage guard (unit tests deliberately NOT in pre-commit — they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
+> Updated 2026-07-11: pre-commit runs mechanical guards — the list is DATA in `.claude/pipeline.json`, deliberately not restated here (unit tests are NOT in pre-commit; they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
@@ -386,7 +386,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Remove post-commit hooks from Lefthook (mechanical blocking gates only)
 - Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
 - Agent output flows back into the conversation — findings are immediately visible and actionable
-- Lefthook reduced to 3 layers: pre-commit (biome + types + tests), commit-msg (commitlint), pre-push (security-auditor + dep audit)
+- Lefthook reduced to 3 layers: pre-commit, commit-msg, pre-push — what each runs is data in `.claude/pipeline.json`, not restated here (unit tests are NOT in pre-commit)
 - Never push without explicit user approval
 
 **Principle:** If the main Claude session can't see the output, it doesn't exist.
@@ -1936,7 +1936,65 @@ ENCODED — a `MUTATION:` comment nobody translated is invisible to the run and 
 text, and forcing the denominator down would launder the one number the mode exists to produce.
 
 
-*Last updated: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 68: "never restate a number here" becomes a check, not an instruction (2026-09-14)
+
+`code-style.md` §1 has said *"Limits are data ... Never restate a number here"* since the caps
+became data. Nothing enforced it. `.claude/hooks/check-prose-claims.mjs` now blocks a
+`.claude/limits.json` cap VALUE being restated in PROSE as a claim about that cap — pre-commit on
+the staged set, and `--all` over the whole worktree in CI.
+
+**The spec's premise for this item was wrong, and that is the useful part.** It called R0-VALUE
+*"zero ambiguity: a value either matches a canonical source or it does not"*, which is why it
+looked like the cheap item on the list. Measurement refuted that before tuning. Three narrowings
+are each load-bearing, and dropping any one floods the run:
+
+1. **Prose lines only** — outside fenced and indented code in markdown, comment lines in code. The
+   largest single noise class is the hook suites' own `"max": <n>` fixtures, which are DATA, and
+   §1's ban is on prose. It also exempts `.coderabbit.yaml`'s `path_instructions` by construction,
+   which is right: that mirror is deliberate, because CodeRabbit cannot follow a pointer, and it is
+   machine-verified against `limits.json` by `check-file-size-guard.update.test.mjs`.
+2. **Context, not a bare value** — the number must carry the `<N>-line` shape AND a cap or
+   rule-KIND word derived from `limits.json` rather than typed into the guard.
+3. **Proximity** — the context word must sit near the number, not merely on the same physical
+   line. Without the bound, long markdown table rows and SQL snippets dominate the false positives.
+
+**Ratchet, same terms as the size guard**, against `.claude/prose-claims.json`: pre-existing
+restatements are baselined, a NEW one fails, and a baselined line that changes or vanishes fails
+until `--update-baseline` records it. Exit 0/1/2 stays split for the reason the harness's does —
+this guard ships a suppression marker, and if "could not run" shared an exit code with "you
+restated a cap", the cheapest way past a broken invocation would be a permanent waiver recording a
+finding that never happened.
+
+**Some baselined lines are FALSE POSITIVES** — a budget or an estimate whose number collides with a
+cap — and they are baselined rather than narrowed away. No count is given: the baseline is mutable
+data, and `.claude/prose-claims.json` is where a reader sees which rows exist. The baseline carries
+no false-positive field, so which ones they are is a judgement from the excerpt. A detector tuned
+until it has no false positives is one that has stopped detecting.
+
+**On the `--coverage` gap being 0, which Decision 67 might look like it forbids.** That decision
+says the gap is NOT padded to zero, because "forcing the denominator down would launder the one
+number the mode exists to produce". This guard reports 0 anyway, and the difference is real but is
+not laundering. Its `notEncoded` entries divide into two kinds: the sentence in each suite's header that DESCRIBES
+the convention and happens to contain the token — prose about a claim, not a claim, and
+`countMutationClaims` matches the bare token either way — and breaks that ARE graded under another
+id, where a second entry would encode the same mutation twice. Re-derive the split with
+`--coverage` rather than trusting a number here; the data moves. So nothing ungraded is
+being hidden; the entries record why each counted token is not an outstanding claim.
+
+Decision 67's own gap is the same phenomenon left UNdeclared — its entry explains in prose that
+"several raw `MUTATION:` occurrences are prose and fixture text". Two conventions, one repo: this
+one puts the explanation in data where a reader can check it, that one puts it in a sentence. The
+difference is named here rather than left for someone to find, and the laundering it warns against
+— declaring a REAL claim unencodable to shrink the number — is a different act from declaring a
+non-claim a non-claim.
+
+**The block rate is not stated here.** `measure-prose-claims.mjs` is committed so it can be
+re-derived, and it is window-dependent: it read one value when the guard was built and a different
+one after the harness PR merged. That is the §10 cl.7 defect this programme keeps re-committing,
+and shipping the script instead of the figure is the fix.
+
+
+*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

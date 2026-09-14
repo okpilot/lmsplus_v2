@@ -6,6 +6,19 @@
 
 ## Positive-pattern log
 
+### prose-claims guard (2026-09-14, feat/prose-claims)
+
+APPROVED. 13 files, ~1940 insertions. 0 critical, 0 issues, 0 suggestions.
+
+Five attack vectors all verified clean by execution:
+1. "By construction" exemption for `.coderabbit.yaml` path_instructions: confirmed — those YAML string values are NOT `#`-prefixed, so `commentProse()` never returns them.
+2. "`limits.json` can never flag itself": confirmed — `.json` is not in `COMMENT_EXT`, `proseLines()` returns `[]`.
+3. Registration complete: `node .claude/pipeline.test.mjs` → 93/93 pass. No-glob is correct and intentional.
+4. Decision 68 false positives: both baseline entries verified present with correct keys.
+5. Self-application genuinely clean: `node .claude/hooks/check-prose-claims.mjs --all` exits 0; new prose uses "the cap in limits.json" style rather than restating numeric values.
+
+Positive signal: a guard that targets false prose claims in the corpus was itself authored without restating any cap value numerically. The three-narrowing design (prose-lines only + context required + proximity bound) produces zero false-positives on the real corpus while the `.coderabbit.yaml` mirror covers the spelled-out/paraphrased cases the numeral guard cannot see.
+
 ### mutation-harness rule-promotions commit (2026-09-14, feat/mutation-harness, round 3)
 
 REVISE. 3 files staged. 1 ISSUE, 2 SUGGESTIONS.

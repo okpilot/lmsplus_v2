@@ -268,7 +268,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - Upgraded lefthook from ^1.10.0 to ^2.1.4
 - Config verification: lefthook.yml uses no deprecated options (skip_output, exclude regexp), so no syntax changes needed
 - All hooks verified working under Lefthook 2:
-  - pre-commit: biome check + type-check + pnpm test (parallel)
+  - pre-commit: mechanical guards — the list is data in `.claude/pipeline.json` (unit tests are NOT among them; they run in CI)
   - commit-msg: commitlint (conventional commits)
   - pre-push: security-auditor agent + pnpm audit (parallel)
 - Closes #214
@@ -659,7 +659,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 
 **Phase 5B-5 done (2026-03-11):** CI/QA pipelines (Lefthook + subagents + GitHub Actions):
 - **Lefthook local QA** (3-layer mechanical gates, all blocking):
-  - **Layer 1: pre-commit** (parallel): biome-check + type-check + test — catches broken code before git history
+  - **Layer 1: pre-commit**: mechanical guards, enumerated in `.claude/pipeline.json` — catches broken code before git history. Unit tests are deliberately NOT here
   - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
   - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
 - **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
@@ -833,7 +833,7 @@ Files to create (✅ = already created):
 
 ### 1C. Tooling config
 - `biome.json` — linting + formatting rules
-- `lefthook.yml` — pre-commit (biome), commit-msg (commitlint), pre-push (tsc + vitest)
+- `lefthook.yml` — the stages; `.claude/pipeline.json` is the machine-checked list of what each runs
 - `packages/typescript-config/` — base.json, nextjs.json, react-library.json
 - `turbo.json` — tasks: build, lint, test, check-types, e2e
 - Root `package.json` — pnpm workspaces, scripts
