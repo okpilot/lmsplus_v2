@@ -1869,8 +1869,12 @@ This resolves the apparent conflict with the discard requirement: what is commit
 RECIPE; the mutated TREE is a worktree removed in a `finally`. `test-writer.md` names a worktree
 LEFT BEHIND as a bypass class, not worktree use.
 
-**Exit codes are 0/1/2 and must not be unified.** 1 = a mutation SURVIVED or MISMATCHed, a finding
-about the TESTS. 2 = no verdict was reached, a finding about the HARNESS. §7 records why: "a `sed`
+**Exit codes are 0/1/2 and must not be unified.** 0 = every encoded mutation was CAUGHT. 1 = a
+mutation SURVIVED or MISMATCHed, a finding about the TESTS. 2 = no verdict was reached, a finding
+about the HARNESS — which includes the cases where there is nothing to grade at all: no
+`*.mutations.json` found, or a committed `mutations: []`. Both returned 0 in the first cut, so the
+oracle reported "every mutation caught" having run none; closed in `5b47604c` after
+semantic-reviewer found them. §7 records why: "a `sed`
 whose anchor does not match is a no-op, and a no-op mutation is indistinguishable from an unpinned
 test — it reports SURVIVED either way." Folded into one code, a broken harness reads as "this test
 pins nothing" and the cheapest remedy is to DELETE THE TEST — destroying the coverage the tool
