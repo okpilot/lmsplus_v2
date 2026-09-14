@@ -6,6 +6,22 @@
 
 ## Positive-pattern log
 
+### mutation-harness rule-promotions commit (2026-09-14, feat/mutation-harness, round 3)
+
+REVISE. 3 files staged. 1 ISSUE, 2 SUGGESTIONS.
+
+**ISSUE — "FIVE distinct agents" names four distinct agents.**
+`agent-workflow.md` new Delegation Protocol subsection ends with "across FIVE distinct agents — code-reviewer, semantic-reviewer twice, implementation-critic, test-writer." Count: code-reviewer(1) + semantic-reviewer(1 agent, 2 instances) + implementation-critic(1) + test-writer(1) = 4 distinct agents, 5 total instances. "Distinct" directly contradicts the list that follows it. §10 governs rule text; a wrong count in a rule file is the pattern this branch exists to prevent.
+
+**SUGGESTION — mechanism stated as certainty.**
+"It fires when an agent's last tool call is its own memory write: the write consumes the final slot" asserts internal Claude Code scheduling behavior with certainty. Observable: terminal messages reference "above" with nothing above. Mechanism "consumes the final slot" is an inference about runtime internals. Soften to "appears to fire when" or frame the consequence rather than the mechanism.
+
+**SUGGESTION — quoted message is a truncation.**
+`test-writer.md` says `run-mutations.mjs` "reports exit 2, 'stale against HEAD'". Actual message (line 266 confirmed): `'the data file is stale against HEAD (a no-op mutation reports SURVIVED)'`. The parenthetical is the sentence distinguishing harness failure from test failure — the same distinction the paragraph makes two sentences later. §10 requires accurate quotation from source.
+EVIDENCE: `sed -n '262,270p' .claude/hooks/run-mutations.mjs` → count=0 branch returns `'the data file is stale against HEAD (a no-op mutation reports SURVIVED)'`.
+
+Verified clean: f26abc16 is genuine second instance (commit message confirms "Anchors authored before a format pass are stale on arrival"). Learner MEMORY.md deltas (5 row changes) are arithmetically accurate. Rule-Mirror Sync: `.claude/rules/agent-test-writer.md` defers to canonical file — no update needed. No other mirror restates either rule.
+
 ### mutation-harness fixup — spawn tests + null guard (2026-09-14, feat/mutation-harness, round 2)
 
 REVISE. 5 files staged.

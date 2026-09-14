@@ -82,6 +82,19 @@ protects and confirm exactly that test goes red, then discard the break. On PR #
 all four post-commit agents and could not fail: forcing its function to return a constant left
 16/16 green. `code-style.md` §7 states the rule; executing it is yours, not a reviewer's to catch.
 
+**Write any text ANCHOR after a format pass, never before.** An anchor — a `find` string in a
+`<guard>.mutations.json`, or any quoted fragment a later tool must re-locate — is matched
+byte-for-byte against the file as COMMITTED. The pre-commit formatter runs after you stop looking:
+Biome rewraps a long line, and an anchor authored against the unwrapped text silently stops
+matching code that has not otherwise changed. Format the file first (or let the hook run once),
+THEN read the anchor out of the formatted source.
+
+This one failed loudly and that was luck: `run-mutations.mjs` reports a zero-match anchor as exit 2 with
+"the data file is stale against HEAD (a no-op mutation reports SURVIVED)" — the parenthetical IS
+the point, naming the wrong verdict you would otherwise have read. Without that separation the no-op mutation reddens nothing, reports SURVIVED, and
+indicts a sound test. Promoted at count=2, 2026-09-14 (`f26abc16`); the first instance was three
+anchors orphaned by a reformat during authoring.
+
 **Never mutate in place.** Work in a scratch copy or a throwaway worktree, so nothing survives.
 BEFORE mutating, record BOTH `git rev-parse HEAD` AND `git stash list --format='%H'` — two of the
 checks below are COMPARISONS, and a comparison with no captured baseline is satisfied by any later
