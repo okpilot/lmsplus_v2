@@ -12,16 +12,17 @@
 //
 // Some mechanisms in the guard are NOT pinned. They are NAMED rather than counted — a count
 // here goes stale the moment one is added or closed, and this list has already grown once:
-//   1. the latin1 decode of git's -z output. A fixture cannot create a genuinely invalid-byte
-//      filename through Node's string path API — the byte is re-encoded to valid UTF-8 on the
-//      way to the filesystem — so both decodes behave identically under test. It is
-//      defence-in-depth: paths reach git only as blob SHAs, so a consistent mangling is
-//      harmless, and only a COLLISION between two distinct paths could cause a miss.
-//   2. the `token.length < 3` assertion in survivors(). Unreachable today: NUM_RE requires
-//      three digits and FILE_RE an extension, so no shorter token can be produced. Kept as an
-//      invariant in case either regex is widened, not as a live branch.
-//   3. the `err.status === 1 && !err.signal` discrimination on `git grep`. Forcing a non-1
-//      grep failure from a fixture is not something this harness can do reliably.
+//   - the `token.length < 3` assertion in survivors(). Unreachable today: NUM_RE requires
+//     three digits and FILE_RE an extension, so no shorter token can be produced. Kept as an
+//     invariant in case either regex is widened, not as a live branch.
+//   - the `err.status === 1 && !err.signal` discrimination on `git grep`. Forcing a non-1
+//     grep failure from a fixture is not something this harness can do reliably.
+//
+// The latin1 decode of git's `-z` output USED to be listed here, on the grounds that a fixture
+// could not create a genuinely invalid-byte filename. That was wrong about the reason: the old
+// fixture built its names as latin1 STRINGS, and Node re-encodes a string path to UTF-8 on the
+// way to the syscall. A BUFFER path does not, and the decode is now pinned in
+// check-retracted-phrase.paths.test.mjs. An "untestable" claim is worth re-examining.
 // Do not delete any mechanism listed above on the grounds that "no test covers them" — that is
 // exactly backwards.
 

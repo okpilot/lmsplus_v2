@@ -21,20 +21,22 @@ test('a near-identical sibling path is not mistaken for the edited file', () => 
   // survivor disappears, and the guard exits 0 on a live retraction (fail-OPEN). That is the
   // shape of the `./`-prefix hole already recorded against check-file-size-guard.mjs.
   //
-  // This does NOT pin the latin1 decode, despite the byte-level fixture: Node's string path API
-  // re-encodes these names to VALID UTF-8 on the way to the filesystem (0xFE becomes C3 BE), so
-  // both decodes keep the two paths distinct and the mutation is unobservable here. See the
-  // preamble, which lists that decode among the mechanisms it records as unpinned.
+  // It ALSO pins the latin1 decode of git's `-z` output, which this suite's preamble listed as
+  // unpinnable until CodeRabbit pointed out why the old fixture could not reach it: it built the
+  // names as latin1 STRINGS, and Node re-encodes a string path to UTF-8 on the way to the syscall
+  // (0xFE became C3 BE), so the files never carried an invalid byte at all. A BUFFER path reaches
+  // the syscall byte-for-byte. Decoded as utf8 both names collapse to the same U+FFFD string, the
+  // sibling is dropped as "self", and the survivor vanishes.
   withRepo((r) => {
     const odd = (b) =>
-      Buffer.concat([Buffer.from('docs/we'), Buffer.from([b]), Buffer.from('rd.md')]).toString(
-        'latin1',
-      )
+      Buffer.concat([Buffer.from('docs/we'), Buffer.from([b]), Buffer.from('rd.md')])
+    const abs = (rel) => Buffer.concat([Buffer.from(`${r.dir}/`), rel])
+    mkdirSync(join(r.dir, 'docs'), { recursive: true })
     const [a, b] = [odd(0xfe), odd(0xff)]
-    for (const p of [a, b]) r.write(p, 'the count is 1807 here\n')
+    for (const rel of [a, b]) writeFileSync(abs(rel), 'the count is 1807 here\n')
     r.git('add', '-A')
     r.git('commit', '-qm', 'two odd paths')
-    r.write(a, 'the count is 1806 here\n')
+    writeFileSync(abs(a), 'the count is 1806 here\n')
     r.git('add', '-A')
     const { status, stderr } = run(r, 'fix: correct one of them\n')
     assert.equal(status, 1)
