@@ -75,9 +75,15 @@ const MEMORY_PREFIX = '.claude/agent-memory/'
  * Longest-first is DEFENCE IN DEPTH, not the mechanism. What actually stops `.tsx` being
  * partially matched as `.ts` is FILE_RE's trailing `(?![\w-])`, which rejects the short match
  * and forces a backtrack into the longer alternative — verified by reordering `ts` before `tsx`
- * with the lookahead intact and still tokenising `quiz-config-form.tsx`. The ordering alone,
- * with the lookahead removed, yields `.ts`. Either guard suffices; the pair is kept because
- * each is cheap. This comment previously credited the ordering alone, which was false.
+ * with the lookahead intact and still tokenising `quiz-config-form.tsx`. Removing the lookahead
+ * ALONE also still yields `.tsx` — JS alternation is leftmost-alternative-first, so longest-first
+ * ordering then does the work. Only removing BOTH shortens the match to `.ts`, which is why the
+ * suite's entry records the conjunction rather than either guard. Either suffices; the pair is
+ * kept because each is cheap.
+ *
+ * Two corrections deep: this first credited the ordering alone (false), and the fix then claimed
+ * the ordering alone yields `.ts` — also false, measured against the MUTATED `ts`-first order
+ * instead of the real one. Verify against the order the file actually declares.
  */
 const FILE_EXT = ['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts', 'js', 'md', 'sh']
 

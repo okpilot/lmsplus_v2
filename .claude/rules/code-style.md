@@ -966,7 +966,9 @@ encoded-vs-claimed gap.** Count claims with `grep -o 'MUTATION:' <file> | wc -l`
 same line, disagreeing with `--coverage` for precisely the mid-line reason this paragraph is
 about. And not `grep -c '// MUTATION:'` either: some claims sit mid-line after other prose and the narrower pattern
 silently misses them — derive the difference with
-`diff <(grep -c 'MUTATION:' <file>) <(grep -c '// MUTATION:' <file>)` rather than trusting a number. Post-commit review flagged the wider figure as wrong on the strength of the
+`diff <(grep -o 'MUTATION:' <file> | wc -l) <(grep -o '// MUTATION:' <file> | wc -l)` rather than
+trusting a number — MATCH counts on both sides, since `grep -c` is what this very paragraph just
+forbade and would reproduce the defect it documents. Post-commit review flagged the wider figure as wrong on the strength of the
 narrower grep; both numbers were right, for different questions. The defect concentrates in files
 written fresh in one sitting, which is where to look for it next — but note that it also survived a
 deliberate audit of exactly those files, so "we already swept this" is not evidence of anything.
