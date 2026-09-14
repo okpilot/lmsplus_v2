@@ -211,8 +211,16 @@ const stripRef = (ref, paths) =>
 function listTracked(ref, pathspec) {
   const args =
     ref === '--cached'
-      ? ['ls-files', '-z', ...(pathspec ? ['--', pathspec] : [])]
-      : ['ls-tree', '-r', '-z', '--name-only', ref, ...(pathspec ? ['--', pathspec] : [])]
+      ? ['ls-files', '-z', '--full-name', ...(pathspec ? ['--', pathspec] : [])]
+      : [
+          'ls-tree',
+          '-r',
+          '-z',
+          '--full-tree', // same reason as --full-name on grep/ls-files: repo-root-relative output
+          '--name-only',
+          ref,
+          ...(pathspec ? ['--', pathspec] : []),
+        ]
   return git(args)
 }
 
@@ -362,6 +370,11 @@ function survivors(token, kind, self, pathspecs, ref) {
       '-z',
       '-a',
       '-P',
+      // Output paths are CWD-relative without this. From a subdirectory git returns
+      // `../.claude/limits.json`, `inCorpus` rejects the `../` prefix, every corpus file is
+      // skipped and the guard exits 0 having checked NOTHING. The `:(top)` pathspecs anchor the
+      // INPUT scope only — they say nothing about how git spells what it gives back.
+      '--full-name',
       '-e',
       pattern,
       ...grepScope(ref), // after the pattern — see completedSpecDirs
@@ -404,6 +417,10 @@ function changedEntries(range) {
     '--raw',
     '-z',
     '-M',
+    // `diff.relative` can be set globally; with it, a diff run from a subdirectory OMITS every
+    // change outside that directory entirely. Not a spelling problem like the flags above — a
+    // silently truncated changed-file list.
+    '--no-relative',
   ])
   const fields = splitNul(buf)
   const entries = []

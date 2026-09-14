@@ -52,8 +52,16 @@ test('blocks when a corrected value still stands in another corpus file', () => 
 test('passes once the correction is finished everywhere', () => {
   // MUTATION: make the rarity floor 0 instead of 1 → a fully completed correction blocks its
   // own commit, and the guard becomes impossible to satisfy.
+  //
+  // The memory row below carries the CORRECTED value deliberately. Sharing the flagship's stale
+  // row would make this fixture identical to the agent-memory test's, and BOTH would then redden
+  // on either mutation — neither pinning its own claim (CR, PR #1274).
   withRepo((r) => {
     seedFlagship(r)
+    r.write(
+      '.claude/agent-memory/code-reviewer/MEMORY.md',
+      '| drift | types.ts cited as "1806-line" - correct |\n',
+    )
     r.write(
       '.claude/limits.json',
       '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
@@ -437,5 +445,29 @@ test('a dot in a filename token is treated as a literal character, not a wildcar
       0,
       'plan_md is not an occurrence of plan.md — the dot must be escaped',
     )
+  })
+})
+
+test('finds a survivor when invoked from a subdirectory, not just the repo root', () => {
+  // MUTATION: drop `--full-name` from the survivor grep (or `--full-tree` / `--no-relative` from
+  // their calls) → git spells its output relative to the CWD, so from `docs/` it returns
+  // `../.claude/limits.json`. `inCorpus` rejects the `../` prefix, EVERY corpus file is skipped,
+  // and the guard exits 0 having checked nothing. A clean fail-OPEN.
+  //
+  // Unreachable from the repo root, which is where lefthook and CI both run it — so every other
+  // fixture in these suites passes with the flags removed. That is exactly why this one runs the
+  // guard from a subdirectory instead.
+  withRepo((r) => {
+    seedFlagship(r)
+    r.write(
+      '.claude/limits.json',
+      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
+    )
+    // A real subdirectory to stand in. Its content is irrelevant; only the CWD matters.
+    r.write('docs/anything.md', 'a file so the directory exists\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct the count\n', undefined, join(r.dir, 'docs'))
+    assert.equal(status, 1, 'the guard must work the same from any directory in the repo')
+    assert.match(stderr, /retracted the value `1807`/)
   })
 })

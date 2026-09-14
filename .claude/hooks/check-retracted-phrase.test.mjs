@@ -118,9 +118,13 @@ test('reduces a path to its basename and ignores a hostname', () => {
 const hunk = (rem, add) => ({ rem, add })
 
 test('a hunk that only deletes yields no candidate', () => {
-  // MUTATION: drop the hunk.add.length check in candidatesFor → a pure deletion is treated as
-  // a correction. Deduplicating prose then blocks on every number it removes, which is the
-  // 18%-of-commits noise floor the naive design produced.
+  // MUTATION: make candidatesFor return `[...remN]` unconditionally instead of gating on
+  // `addN.length > 0` → a pure deletion is treated as a correction, and deduplicating prose then
+  // blocks on every number it removes. That is the 18%-of-commits noise floor of the naive design.
+  //
+  // The gate is `addN.length > 0`, NOT a check on `hunk.add.length` — this comment named the
+  // latter until CR caught it, which was a check deleted several commits earlier as redundant.
+  // A comment naming a mechanism that no longer exists is the §7 defect in its purest form.
   assert.deepEqual(candidatesFor(hunk(['the count was 1807'], [])).nums, [])
 })
 

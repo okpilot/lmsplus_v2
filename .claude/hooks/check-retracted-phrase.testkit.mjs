@@ -20,6 +20,13 @@ export function withRepo(fn) {
     git('init', '-q', '.')
     git('config', 'user.email', 't@example.com')
     git('config', 'user.name', 'Test')
+    // Isolate from the RUNNER's global git config. A global `commit.gpgsign=true` makes every
+    // fixture commit demand a signing key, and a global `core.hooksPath` runs someone else's
+    // hooks inside these throwaway repos — either way the suite fails on a machine, not on a
+    // defect, and the failure looks like a guard bug. Local config wins over global.
+    git('config', 'commit.gpgsign', 'false')
+    git('config', 'tag.gpgsign', 'false')
+    git('config', 'core.hooksPath', join(dir, '.git', 'no-hooks'))
     const write = (rel, body) => {
       mkdirSync(join(dir, dirname(rel)), { recursive: true })
       writeFileSync(join(dir, rel), body)
@@ -31,12 +38,14 @@ export function withRepo(fn) {
 }
 
 /** Run the guard with `message`, returning {status, stderr}. */
-export function run({ dir }, message, args) {
+export function run({ dir }, message, args, cwd) {
   const msgFile = join(dir, '.git', 'COMMIT_EDITMSG')
   writeFileSync(msgFile, message ?? 'chore: x\n')
   try {
     execFileSync('node', [GUARD, ...(args ?? [msgFile])], {
-      cwd: dir,
+      // `cwd` defaults to the repo root, which is where lefthook and CI run it. A fixture passes
+      // a SUBDIRECTORY to reach the cwd-relative-path failure mode.
+      cwd: cwd ?? dir,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     })

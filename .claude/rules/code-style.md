@@ -1046,8 +1046,10 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Mechanically enforced at `commit-msg` by `.claude/hooks/check-retracted-phrase.mjs`**, which
    blocks when a value or filename this commit corrected in one corpus file still stands in one or
    two others. Its bounds are in its own header and it does NOT discharge this clause: it reads
-   `.claude/`, `docs/`, `.spec-workflow/`, `CLAUDE.md` and `.coderabbit.yaml` only, needs the hunk
-   to contain the REPLACEMENT, and cannot see a paraphrase. The grep above is still yours to run.
+   `.claude/`, `docs/`, `.spec-workflow/`, `CLAUDE.md` and `.coderabbit.yaml` only — excluding
+   `.claude/agent-memory/**`, which quotes past false claims verbatim, and any spec whose tasks are
+   all `[x]`, which `agent-workflow.md § Rule-Mirror Sync` designates a historical record. It also
+   needs the hunk to contain the REPLACEMENT, and cannot see a paraphrase or a spelled-out count. The grep above is still yours to run.
    The sole waiver is a `Retracted-ok: <token> — <reason>` trailer, which must say why the
    surviving occurrence is not the same claim.
 
