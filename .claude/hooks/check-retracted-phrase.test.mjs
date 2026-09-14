@@ -9,7 +9,13 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { candidatesFor, parseHunks, parseWaivers, tokensOf } from './check-retracted-phrase.mjs'
+import {
+  candidatesFor,
+  parseHunks,
+  parseWaivers,
+  reAdded,
+  tokensOf,
+} from './check-retracted-phrase.mjs'
 
 const nums = (line) => tokensOf(line).nums
 const files = (line) => tokensOf(line).files
@@ -65,8 +71,11 @@ test('ignores a version segment and a number glued to a word', () => {
 })
 
 test('ignores digits inside a submodule pointer', () => {
-  // MUTATION: delete the "Subproject commit" skip → a digit run inside a submodule SHA is
-  // read as a claim about the world.
+  // NOT MUTATION-PINNED, and says so rather than pretending: deleting the "Subproject commit"
+  // skip leaves this green. A real SHA is 40 unbroken hex characters, so every digit run in it is
+  // already rejected by NUM_RE's own boundaries — preceded or followed by a hex letter. The skip
+  // guards a FUTURE widening of that regex, not a currently reachable branch. Verified by
+  // executing the deletion (test-writer, 2026-09-14). The test still documents the behaviour.
   assert.deepEqual(nums('Subproject commit 1807abc4122def0000111122223333444455556666'), [])
 })
 
@@ -243,4 +252,32 @@ test('ignores prose that merely mentions the trailer name', () => {
   // message discussing the hatch accidentally invokes it.
   const { waivers } = parseWaivers(`fix: x\n\nWe considered a Retracted-ok: 1807 — ${REASON}\n`)
   assert.equal(waivers.size, 0)
+})
+
+// ------------------------------------------------------------------ reAdded
+
+test('reAdded: a value token buried inside a longer number is not treated as re-added', () => {
+  // MUTATION: replace re.test(addedText) with bare addedText.includes(token) → '11807' contains
+  // '1807', so the retraction is falsely exonerated. The repo test pins the same gap via the CLI;
+  // this unit test pins the mechanism directly without going through git.
+  assert.equal(reAdded('1807', 'value', 'pool holds 11807 rows today'), false)
+  assert.equal(reAdded('1807', 'value', 'count corrected to 1807 here'), true)
+})
+
+test('reAdded: a filename token matched as a suffix of a longer name is not re-added', () => {
+  // MUTATION: replace re.test(addedText) with bare addedText.includes(token) → 'check-foo.mjs'
+  // contains 'foo.mjs', so a filename retraction is falsely exonerated by a co-occurring longer
+  // name. FILE_RE's lookbehind excludes hyphens, so 'check-foo.mjs' (hyphen before 'f') does not
+  // satisfy the boundary. The two repo tests never exercise this path — both use numeric tokens.
+  assert.equal(reAdded('foo.mjs', 'filename', 'check-foo.mjs is referenced here'), false)
+  assert.equal(reAdded('foo.mjs', 'filename', 'foo.mjs is referenced here'), true)
+})
+
+test('reAdded: a dot inside a filename token is treated as a literal character, not a wildcard', () => {
+  // MUTATION: remove escapeRe from reAdded → the dot in 'plan.md' becomes a regex wildcard;
+  // 'planXmd' (space before 'p', space after 'd') satisfies both boundaries and the retraction is
+  // falsely exonerated. Every filename token contains at least one dot, so removing escapeRe
+  // widens the match for every filename candidate.
+  assert.equal(reAdded('plan.md', 'filename', 'the doc planXmd is linked here'), false)
+  assert.equal(reAdded('plan.md', 'filename', 'the doc plan.md is linked here'), true)
 })

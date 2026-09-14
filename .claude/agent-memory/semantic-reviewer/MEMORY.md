@@ -65,7 +65,7 @@
 | Evidence block verifies the WRONG proposition (3 instances). Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 3 | 2026-09-07 | WATCHING |
 | Protocol split: examples removed from rules file, not added to agent file. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 1 | 2026-09-07 | WATCHING |
 | Pipeline test proved spec↔disk closure but no anchor for non-agent hook commands. | 2026-09-07 (7eaef31a PR #1268) | 1 | 2026-09-07 | RESOLVED same PR — `spec.hooks` compares every command exactly |
-| `addedText.includes(token)` substring false-exoneration in a mechanical guard — a longer number containing the retracted token as a substring exits 0 having checked nothing | 2026-09-14 (ff562c9f check-retracted-phrase.mjs) | 1 | 2026-09-14 | WATCHING — when a guard uses `.includes(token)` for a re-addition check, use the same boundary regex as the tokenizer |
+| `addedText.includes(token)` substring false-exoneration in a mechanical guard — a longer number containing the retracted token as a substring exits 0 having checked nothing | 2026-09-14 (ff562c9f check-retracted-phrase.mjs) | 1 | 2026-09-14 | RESOLVED (ab310cc9) — `reAdded()` re-applies NUM_RE/FILE_RE boundary rules per token class; verified in both classes |
 
 ## Durable knowledge
 

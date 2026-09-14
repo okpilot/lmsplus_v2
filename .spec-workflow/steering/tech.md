@@ -91,9 +91,11 @@ lmsplusv2/
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
 - **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook,
-  alongside a second gate there — a commit SHA cited in the message must resolve. Mechanism and
-  its measured bounds: `docs/decisions.md` Decision 64. Do not restate them here; the stage's
-  command list is DATA in `.claude/pipeline.json`.
+  alongside the other gates on that stage — a cited commit SHA must resolve (Decision 64), and a
+  claim corrected in one corpus file must not still stand in another (Decision 66). Mechanisms and
+  measured bounds live in those decisions; do not restate them here, and do not count the gates —
+  "a second gate" stood here and went stale the moment a third landed. The stage's command list is
+  DATA in `.claude/pipeline.json`.
 - **Code review**: CodeRabbit (automated on PRs) + 4 post-commit Claude Code subagents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run in-session after every commit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
   - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard grades
@@ -102,10 +104,11 @@ lmsplusv2/
     `.claude/pipeline.test.mjs` fails if it disagrees with `lefthook.yml` in either direction.
     Read it there — this line used to enumerate the hooks and went stale the first time one was
     added. (Unit tests run in CI, not pre-commit.)
-  - `commit-msg`: commitlint + the cited-SHA claim gate (Decision 64) + the retracted-phrase
-    guard (Decision 66 — a claim corrected in one corpus file must not still stand in another).
-    Same caveat as pre-commit above: the authoritative list is DATA in `.claude/pipeline.json`,
-    and this line had already gone stale once before Decision 66 was added to it.
+  - `commit-msg`: the stage's command list is DATA in `.claude/pipeline.json`, same as pre-commit
+    above. Read it there — this line used to enumerate the gates and went stale the first time one
+    was added (Decision 66). What they ENFORCE, as opposed to which they are: a cited commit SHA
+    must resolve (Decision 64) and a claim corrected in one corpus file must not still stand in
+    another (Decision 66).
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
   - `post-commit`: agent reminder (non-blocking)
 

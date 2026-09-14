@@ -1804,7 +1804,19 @@ never reported the surviving copy. The boundary rules existed and were correct; 
 tokeniser, and this check simply did not re-apply them. Every one of the 43 tests passed. Fixed with
 a boundary-aware `reAdded()`, and the re-added scan narrowed to the corpus so it agrees with the
 survivor search about what "the documented set" means — a value moved from a rule file into source
-no longer exonerates a corpus retraction. Both pinned; the calibration is unchanged at 2 of 120.
+no longer exonerates a corpus retraction. Both pinned; the calibration was re-measured against the fixed guard and did not move (the figure
+and its re-derive caveat are stated once, above — restating it here is the §10 cl.7 habit this
+entry is about).
+
+**Five false claims were written on this branch by its own author, and each was caught by a
+different reviewer — none by re-reading.** The calibration figure (measured before the last two
+detector edits, stale on arrival); two MUTATION comments claiming a test pinned a mechanism it did
+not; a tracker row describing a `tech.md` fix as a DEFERRAL when it had only extended the
+enumeration; and this commit's own message listing `tech.md` among its changes when the parent had
+made them — a commit message cannot be corrected afterwards, which is the entire argument for the
+next build-order item. A fourth overclaiming MUTATION comment was found by test-writer and a stale
+"a second gate" count by re-deriving while in the file. This is the evidence for §10 cl.5: reading
+a block finds incoherence, only RE-DERIVING finds a claim that is coherent and false.
 
 **Bounds are in the guard's header and three mechanisms are NOT mutation-pinned** — the latin1 path
 decode (a fixture cannot create an invalid-byte filename through Node's string path API), an
