@@ -22,8 +22,10 @@ It is a RATCHET on the same terms as the size guard, against `.claude/prose-clai
 restatement that predates the guard is baselined rather than blocking, a NEW one fails, and a
 baselined line that CHANGES or disappears fails until `--update-baseline` records it. Its
 suppression marker is deliberately unavailable for a broken invocation — that route exits 2, not
-1, so a waiver can never stand in for a check that did not run. Two of the baselined lines are
-false positives and are recorded as such in the baseline rather than tuned away.
+1, so a waiver can never stand in for a check that did not run. Some baselined lines are false positives — a budget or an estimate that collides with a cap
+value. They are baselined rather than tuned away, and which ones they are is a judgement a
+reader makes from the excerpt: the baseline stores the key and the line, and carries NO
+false-positive field. A guard narrowed until it has no false positives has stopped detecting.
 
 - **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
   longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row

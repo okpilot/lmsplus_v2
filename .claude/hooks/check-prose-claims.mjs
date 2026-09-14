@@ -192,9 +192,16 @@ export function markdownProse(content) {
     const fenceOpen = /^\s{0,3}(`{3,}|~{3,})/.exec(line)
     if (fence) {
       // A closer must be at least as long as its opener and of the same character.
-      if (fenceOpen && fenceOpen[1][0] === fence[0] && fenceOpen[1].length >= fence.length) {
-        fence = null
-      }
+      // The closer must ALSO carry nothing but whitespace after its marker. Without that,
+      // an INNER opener like ```js closes the outer fence and every following line is graded
+      // as prose — the guard would then read code as claims, which is the noisiest possible
+      // failure. CommonMark requires it; the first cut checked only length and character.
+      const closes =
+        fenceOpen &&
+        fenceOpen[1][0] === fence[0] &&
+        fenceOpen[1].length >= fence.length &&
+        line.slice(fenceOpen[0].length).trim() === ''
+      if (closes) fence = null
       return
     }
     if (fenceOpen) {
@@ -207,11 +214,39 @@ export function markdownProse(content) {
   return out
 }
 
-/** Comment lines of a code file, as `{ n, text }`. */
+/**
+ * Comment lines of a code file, as `{ n, text }`.
+ *
+ * Tracks BLOCK-comment state rather than matching each line's leading marker. A `/* ... *\/`
+ * whose body carries no leading `*` is valid, common, and was invisible to the first cut — so a
+ * sentence restating a utility cap, written inside one, bypassed the guard entirely. Found by
+ * cloud review, reproduced before fixing. (This sentence originally CARRIED the value it
+ * describes, and this guard blocked its own commit for it.) The trailing-comment case (`code(); // note`) stays
+ * EXCLUDED: a comment after source is not prose, and admitting it is how a guard starts
+ * grading code.
+ */
 export function commentProse(content) {
   const out = []
+  let inBlock = false
   content.split('\n').forEach((line, i) => {
-    if (COMMENT_RE.test(line)) out.push({ n: i + 1, text: line })
+    // A block opens ONLY when the line BEGINS with the marker. A bare indexOf finds `/*` inside
+    // a string or a regex too, and a first cut of this fix did exactly that: one test fixture
+    // opened a phantom block and every line after it was graded as prose, flooding the run with
+    // 17 false findings — including `.coderabbit.yaml`'s deliberately pinned mirror. Over-reach
+    // is the worse failure: under-reach misses a claim, over-reach grades code as prose and
+    // trains the reader to waive. The narrower rule still covers the reported hole, whose body
+    // sits under an opener at column 0.
+    const opens = /^\s*\/\*/.test(line)
+    const closes = line.includes('*/')
+    if (inBlock) {
+      out.push({ n: i + 1, text: line })
+      if (closes) inBlock = false
+      return
+    }
+    if (COMMENT_RE.test(line)) {
+      out.push({ n: i + 1, text: line })
+      if (opens && !closes) inBlock = true
+    }
   })
   return out
 }
@@ -325,9 +360,14 @@ export function parseWaiver(text) {
  * recorded line count. Replacing a baselined line therefore yields a stale row (reported)
  * AND a new violation (caught), which is the intended pair.
  */
-export function claimKey(path, text) {
+export function claimKey(path, text, occurrence = 0) {
   const digest = createHash('sha256').update(text.trim(), 'utf8').digest('hex').slice(0, 16)
-  return `${path}@${digest}`
+  // The occurrence suffix is what keeps a SECOND identical restatement from inheriting the
+  // first one's baseline row. Keyed on path+text alone, copy two of the same sentence in the
+  // same file collapsed onto copy one's key and passed — a hole found by cloud review and
+  // reproduced before fixing. Occurrence 0 keeps its bare key so existing baseline rows,
+  // which are the overwhelming majority, are not all invalidated at once.
+  return occurrence === 0 ? `${path}@${digest}` : `${path}@${digest}#${occurrence}`
 }
 
 /** A short, reviewable excerpt stored as the baseline row's VALUE. */
@@ -348,6 +388,7 @@ export function evaluate(files, readFile, limits) {
   const caps = capValues(limits)
   const ctxRe = contextRe(limits)
   const claims = new Map()
+  const seen = new Map()
   const problems = []
 
   for (const path of files) {
@@ -370,7 +411,15 @@ export function evaluate(files, readFile, limits) {
         continue
       }
       if (waiver) continue
-      claims.set(claimKey(path, text), { path, n, text, values: found.map((f) => f.value) })
+      const seenKey = `${path}\u0000${text.trim()}`
+      const occurrence = seen.get(seenKey) ?? 0
+      seen.set(seenKey, occurrence + 1)
+      claims.set(claimKey(path, text, occurrence), {
+        path,
+        n,
+        text,
+        values: found.map((f) => f.value),
+      })
     }
   }
   return { claims, problems }

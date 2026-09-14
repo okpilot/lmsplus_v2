@@ -337,3 +337,45 @@ test('aborts on a desynchronised name-status stream', () => {
     /unrecognised/,
   )
 })
+
+// ---------------------------------------------------------------- block comments and fences
+
+// MUTATION: delete the `if (inBlock)` branch at the top of commentProse's callback.
+// A block whose body carries no leading `*` is then invisible again, which is the hole cloud
+// review found: a cap restated inside one bypassed the guard entirely.
+test('reads the body of a block comment whose lines carry no leading star', () => {
+  const src = ['/*', '  a util cap sentence', '*/', 'const x = 1'].join('\n')
+  assert.deepEqual(
+    commentProse(src).map((p) => p.text.trim()),
+    ['/*', 'a util cap sentence', '*/'],
+  )
+})
+
+// MUTATION: change the opener test to `line.includes('/*')` instead of the anchored
+// `/^\s*\/\*/` → a `/*` inside a string or regex opens a phantom block and every later line is
+// graded as prose. The first cut of this fix did exactly that and produced 17 false findings.
+test('does not open a block on a slash-star inside a string', () => {
+  const src = ["const re = '/*'", 'const cap = 1', 'more code'].join('\n')
+  assert.deepEqual(commentProse(src), [])
+})
+
+// MUTATION: drop the `line.slice(fenceOpen[0].length).trim() === ''` term from the fence
+// closer → an inner ```js opener closes the outer fence and the code after it is graded as
+// prose. CommonMark requires a bare closer; the first cut checked only length and character.
+test('does not let an info-string opener close an open fence', () => {
+  const md = ['```', 'inner ```js opener', 'still code', '```', 'real prose'].join('\n')
+  assert.deepEqual(
+    markdownProse(md).map((p) => p.text),
+    ['real prose'],
+  )
+})
+
+// MUTATION: drop the occurrence argument from the claimKey call in evaluate (pass only
+// path/text) → two identical restatements in one file collapse onto one key, so once the first
+// is baselined the second is admitted silently. Found by cloud review.
+test('keys a repeated identical claim separately from its first occurrence', () => {
+  const limits = { rules: [{ kind: 'utility/helper', max: 200 }] }
+  const line = 'the util cap is 200 lines'
+  const res = evaluate(['docs/x.md'], () => [line, 'filler', line].join('\n'), limits)
+  assert.equal(res.claims.size, 2)
+})

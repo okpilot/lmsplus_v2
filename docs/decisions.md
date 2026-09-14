@@ -386,7 +386,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Remove post-commit hooks from Lefthook (mechanical blocking gates only)
 - Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
 - Agent output flows back into the conversation — findings are immediately visible and actionable
-- Lefthook reduced to 3 layers: pre-commit (biome + types + tests), commit-msg (commitlint), pre-push (security-auditor + dep audit)
+- Lefthook reduced to 3 layers: pre-commit, commit-msg, pre-push — what each runs is data in `.claude/pipeline.json`, not restated here (unit tests are NOT in pre-commit)
 - Never push without explicit user approval
 
 **Principle:** If the main Claude session can't see the output, it doesn't exist.
@@ -1965,17 +1965,20 @@ this guard ships a suppression marker, and if "could not run" shared an exit cod
 restated a cap", the cheapest way past a broken invocation would be a permanent waiver recording a
 finding that never happened.
 
-**Two baselined lines are FALSE POSITIVES and are recorded as such** — an agent-MEMORY budget that
-collides with a file cap, and a spec's size estimate — rather than narrowed away. A detector tuned
+**Some baselined lines are FALSE POSITIVES** — a budget or an estimate whose number collides with a
+cap — and they are baselined rather than narrowed away. No count is given: the baseline is mutable
+data, and `.claude/prose-claims.json` is where a reader sees which rows exist. The baseline carries
+no false-positive field, so which ones they are is a judgement from the excerpt. A detector tuned
 until it has no false positives is one that has stopped detecting.
 
 **On the `--coverage` gap being 0, which Decision 67 might look like it forbids.** That decision
 says the gap is NOT padded to zero, because "forcing the denominator down would launder the one
 number the mode exists to produce". This guard reports 0 anyway, and the difference is real but is
-not laundering. Two of its four `notEncoded` entries are the sentence in each suite's header that
-DESCRIBES the convention and happens to contain the token — prose about a claim, not a claim, and
-`countMutationClaims` matches the bare token either way. The other two name breaks that ARE graded,
-under another id, where a second entry would encode the same mutation twice. So nothing ungraded is
+not laundering. Its `notEncoded` entries divide into two kinds: the sentence in each suite's header that DESCRIBES
+the convention and happens to contain the token — prose about a claim, not a claim, and
+`countMutationClaims` matches the bare token either way — and breaks that ARE graded under another
+id, where a second entry would encode the same mutation twice. Re-derive the split with
+`--coverage` rather than trusting a number here; the data moves. So nothing ungraded is
 being hidden; the entries record why each counted token is not an outstanding claim.
 
 Decision 67's own gap is the same phenomenon left UNdeclared — its entry explains in prose that
@@ -1991,7 +1994,7 @@ one after the harness PR merged. That is the §10 cl.7 defect this programme kee
 and shipping the script instead of the figure is the fix.
 
 
-*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing and two baselined lines are false positives, recorded rather than tuned away. No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

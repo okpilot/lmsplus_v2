@@ -60,8 +60,24 @@ function splitNul(buf) {
 
 /** `{path, src, dst}` per changed entry of one commit. Rename detection ON, both paths kept. */
 function changedEntries(sha) {
+  // `--no-commit-id` because `diff-tree` leads with the SHA, which the record parser below
+  // rejects — caught immediately when the first run aborted on it.
+  // `--root` rather than `${sha}^`: the root commit HAS no parent, so the parent form makes git
+  // exit non-zero and the whole measurement aborts at exit 2 the moment `--commits` reaches the
+  // depth of history. `diff-tree --root` emits the root commit against the empty tree instead.
   const fields = splitNul(
-    git(['--no-pager', 'diff', `${sha}^`, sha, '--raw', '-z', '-M', '--no-relative']),
+    git([
+      '--no-pager',
+      'diff-tree',
+      '--root',
+      '-r',
+      '--no-commit-id',
+      sha,
+      '--raw',
+      '-z',
+      '-M',
+      '--no-relative',
+    ]),
   )
   const entries = []
   for (let i = 0; i < fields.length; ) {
@@ -89,7 +105,11 @@ function keysOf(path, content, caps, ctx) {
   if (content === null) return keys
   for (const { text } of proseLines(path, content)) {
     if (findClaims(text, caps, ctx).length === 0) continue
-    if (parseWaiver(text)) continue
+    // An UNUSABLE waiver is not a waiver. The guard reports it as a problem and blocks; skipping
+    // it here would let the measurement call a commit clean that the guard would have stopped,
+    // which is the one direction a measurement must not be wrong in.
+    const waiver = parseWaiver(text)
+    if (waiver && !waiver.problem) continue
     keys.add(claimKey(path, text))
   }
   return keys

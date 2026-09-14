@@ -96,9 +96,10 @@
     },
     {
       "id": "markdown-fence-closes-on-anything",
-      "find": "      if (fenceOpen && fenceOpen[1][0] === fence[0] && fenceOpen[1].length >= fence.length) {",
-      "replace": "      if (fenceOpen) {",
-      "expectRed": ["closes a fence only on a fence of the same character and length"]
+      "find": "        fenceOpen[1][0] === fence[0] &&\n        fenceOpen[1].length >= fence.length &&\n",
+      "replace": "        true &&\n",
+      "expectRed": ["closes a fence only on a fence of the same character and length"],
+      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for."
     },
     {
       "id": "indented-block-list-carveout-dropped",
@@ -108,9 +109,10 @@
     },
     {
       "id": "code-file-data-lines-read-as-prose",
-      "find": "    if (COMMENT_RE.test(line)) out.push({ n: i + 1, text: line })",
-      "replace": "    out.push({ n: i + 1, text: line })",
-      "expectRed": ["reads only comment lines in a code file, never its data"]
+      "find": "    if (COMMENT_RE.test(line)) {\n      out.push({ n: i + 1, text: line })\n      if (opens && !closes) inBlock = true\n    }\n",
+      "replace": "    out.push({ n: i + 1, text: line })\n    if (opens && !closes) inBlock = true\n",
+      "expectRed": ["reads only comment lines in a code file, never its data"],
+      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for."
     },
     {
       "id": "unknown-extension-falls-through-to-markdown",
@@ -297,6 +299,34 @@
       "find": "    if (problems.length > 0) {",
       "replace": "    if (false) {",
       "expectRed": ["--update-baseline refuses to write from an incomplete read"]
+    },
+    {
+      "id": "block-body-unread",
+      "find": "    if (inBlock) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "replace": "    if (false) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "expectRed": ["reads the body of a block comment whose lines carry no leading star"],
+      "note": "Restores the hole cloud review found: a cap restated inside a star-less block comment is invisible."
+    },
+    {
+      "id": "block-opener-unanchored",
+      "find": "    const opens = /^\\s*\\/\\*/.test(line)\n",
+      "replace": "    const opens = line.includes('/*')\n",
+      "expectRed": ["does not open a block on a slash-star inside a string"],
+      "note": "Restores the over-reach the first cut of the fix had: a slash-star in a string opens a phantom block and floods the run."
+    },
+    {
+      "id": "fence-closer-ignores-trailing",
+      "find": "        line.slice(fenceOpen[0].length).trim() === ''\n",
+      "replace": "        true\n",
+      "expectRed": ["does not let an info-string opener close an open fence"],
+      "note": "An inner ```js opener then closes the outer fence and the code after it is graded as prose."
+    },
+    {
+      "id": "duplicate-claims-share-one-key",
+      "find": "      claims.set(claimKey(path, text, occurrence), {\n",
+      "replace": "      claims.set(claimKey(path, text), {\n",
+      "expectRed": ["keys a repeated identical claim separately from its first occurrence"],
+      "note": "Restores the collapse cloud review found: once the first copy is baselined, a second identical restatement inherits its key and is admitted silently."
     }
   ],
   "notEncoded": [
