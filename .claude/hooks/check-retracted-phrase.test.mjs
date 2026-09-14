@@ -198,13 +198,30 @@ test('accepts a waiver naming one token with a substantive reason', () => {
 })
 
 test('rejects a waiver whose reason asserts nothing', () => {
-  // MUTATION: delete EMPTY_REASONS or the length floor → "false positive" is accepted, the
-  // hatch becomes free, and a free suppression is used reflexively until the guard is dead.
+  // MUTATION: delete the length floor → "false positive" is accepted, the hatch becomes free,
+  // and a free suppression is used reflexively until the guard is dead. (EMPTY_REASONS alone
+  // does not make this test fail — all five fixtures are < 20 non-whitespace chars, so the
+  // length floor independently rejects them. See the next test for EMPTY_REASONS's own pin.)
   for (const bad of ['false positive', 'noise', 'n/a', 'intentional', 'ok']) {
     const { waivers, problems } = parseWaivers(`fix: x\n\nRetracted-ok: 1807 — ${bad}\n`)
     assert.equal(waivers.size, 0, bad)
     assert.equal(problems.length, 1, bad)
   }
+})
+
+test('rejects a waiver whose bare reason is in EMPTY_REASONS despite passing the length floor', () => {
+  // MUTATION: delete EMPTY_REASONS from the condition → this fixture is accepted because it
+  // has 21 non-whitespace chars (passes the length-floor check of < 20), yet its bare form
+  // is "not applicable" — which is in EMPTY_REASONS. Without this test, removing EMPTY_REASONS
+  // from the guard is invisible: the five fixtures in the test above are all caught by the
+  // length floor before EMPTY_REASONS is ever consulted.
+  //   'not applicable!!!!!!!!' → replace(/\s/g,'').length = 21 (>= 20: passes length floor)
+  //   bare = 'not applicable' (punctuation stripped by [^a-z ]) → in EMPTY_REASONS → rejected
+  const { waivers, problems } = parseWaivers(
+    'fix: x\n\nRetracted-ok: 1807 — not applicable!!!!!!!!\n',
+  )
+  assert.equal(waivers.size, 0)
+  assert.equal(problems.length, 1)
 })
 
 test('rejects a waiver with no token', () => {

@@ -330,6 +330,46 @@ test('a token re-added elsewhere in the same commit was reworded, not retracted'
   })
 })
 
+test('a LONGER number containing the token does not exonerate the retraction', () => {
+  // MUTATION: swap reAdded() back for a bare `addedText.includes(c.token)` → `'11807'` contains
+  // `'1807'`, the retraction is exonerated, and the surviving copy is never reported (fail-OPEN).
+  // `'1807'` contains `'807'` the same way, so the three-digit class breaks identically.
+  // The boundary rules live in NUM_RE, but those run when TOKENISING — the re-added check has to
+  // re-apply them itself, and for a year it did not.
+  withRepo((r) => {
+    seedFlagship(r)
+    r.write(
+      '.claude/limits.json',
+      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
+    )
+    // A co-occurring, entirely unrelated number that merely CONTAINS the retracted one.
+    r.write('docs/plan.md', 'unrelated: the pool holds 11807 rows today\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct the count, mention an unrelated total\n')
+    assert.equal(status, 1)
+    assert.match(stderr, /retracted the value `1807`/)
+  })
+})
+
+test('a token re-added only in application code does not exonerate a corpus retraction', () => {
+  // MUTATION: accumulate addedText from every non-memory entry instead of corpus entries only →
+  // a value moved OUT of the documented corpus into source exonerates a corpus retraction that
+  // is still incomplete. The survivor search is corpus-scoped, so the re-added check must be too,
+  // or the two halves disagree about what "the documented set" means.
+  withRepo((r) => {
+    seedFlagship(r)
+    r.write(
+      '.claude/limits.json',
+      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
+    )
+    r.write('apps/web/generated-note.ts', '// the generated file is 1807 lines\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: move the note into source\n')
+    assert.equal(status, 1)
+    assert.match(stderr, /retracted the value `1807`/)
+  })
+})
+
 test('reports a usage error as could-not-run, never as a finding', () => {
   // MUTATION: fold exit 2 into exit 1 → an environmental failure is indistinguishable from a
   // real finding, and the cheapest way to clear it is a permanent waiver that masks the
@@ -352,6 +392,25 @@ test('runs on a repository with no commits yet', () => {
     r.write('docs/a.md', 'the value is 1807 here\n')
     r.git('add', '-A')
     assert.equal(run(r, 'feat: first commit\n').status, 0)
+  })
+})
+
+test('CLAUDE.md counts as a surviving corpus file (exact-match root entry)', () => {
+  // MUTATION: drop `path === root` from inCorpus → CLAUDE.md and .coderabbit.yaml are never
+  // matched (both are non-directory CORPUS entries that require exact equality, not a prefix).
+  // A retraction whose only survivor lives in CLAUDE.md exits 0 instead of 1 — fail-OPEN.
+  // No existing test catches this: every other fixture uses survivors inside .claude/ or docs/,
+  // which match the prefix branch and are unaffected by this change.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "value": "1807" }\n')
+    r.write('CLAUDE.md', '# guide\n\nthe limit is 1807 rows\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "value": "1806" }\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct the value\n')
+    assert.equal(status, 1, 'CLAUDE.md must be counted as a corpus survivor')
+    assert.match(stderr, /1807/)
   })
 })
 

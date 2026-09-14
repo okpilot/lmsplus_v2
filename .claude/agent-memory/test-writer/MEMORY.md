@@ -18,6 +18,7 @@
 | Two sibling error-path tests both happen to produce the SAME numeric literal from two different formulas (e.g. `pageSize` vs `to-from+1`, both = 2), so neither catches a mutant that swaps one formula for the other — only a fixture where the formulas diverge (the last, remainder-sized page) does | 2026-09-01 | 1 | 2026-09-01 | WATCHING |
 | A guard's "fires on X alone" fixture (e.g. `x === 0` → sentinel) only ever paired X with a second field ALSO at its zero/default value (e.g. `(0, 0)`), so a mutant that AND-tightens the guard to require both fields at default (`x === 0 && y === 0`) goes undetected — need a fixture with X at trigger value and Y at a NON-default value to isolate the single-field guard | 2026-09-02 | 1 | 2026-09-02 | WATCHING |
 | `pipeline.test.mjs` subset-extraction: emptiness-only pins miss a SELECTIVE filter shrink or an extraction collapsed to the sentinel alone — detail: [durable-knowledge § pipeline-subset-extraction](topics/durable-knowledge.md#pipeline-subset-extraction) | 2026-09-08 | 2 | 2026-09-08 | WATCHING |
+| MUTATION comment says "delete A or B" when deleting only A is invisible — both guards happen to catch the same fixtures, so only one is independently pinned. Confirmed: EMPTY_REASONS in `check-retracted-phrase.test.mjs`; all 5 fixtures < 20 non-ws chars, length-floor catches them before EMPTY_REASONS is consulted. Fix: add a fixture that passes the length floor but hits EMPTY_REASONS (pad bare-reason with punctuation to ≥ 20 non-ws chars). | 2026-09-14 | 1 | 2026-09-14 | WATCHING |
 
 ## Durable knowledge
 

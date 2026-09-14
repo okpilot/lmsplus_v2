@@ -179,6 +179,26 @@ function corpusPathspecs() {
   return specs
 }
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Was `token` re-added anywhere in this commit — as a WHOLE token, not as a substring?
+ *
+ * A bare `addedText.includes(token)` is a fail-OPEN, and a sharp one: `'11807'.includes('1807')`
+ * is true, so correcting 1807 in one file while any co-occurring line adds 11807 exonerates the
+ * retraction and the surviving copy is never reported. `'1807'.includes('807')` breaks the
+ * three-digit case the same way. The boundary rules live in NUM_RE and FILE_RE, but those run
+ * when tokenising — this check has to re-apply them itself.
+ */
+export function reAdded(token, kind, addedText) {
+  const body = escapeRe(token)
+  const re =
+    kind === 'value'
+      ? new RegExp(`(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`)
+      : new RegExp(`(?<![\\w.@-])${body}(?![\\w-])`)
+  return re.test(addedText)
+}
+
 /** Tokens of each class on one line. Returned as plain strings — the literal grep needle. */
 export function tokensOf(line) {
   const nums = []
@@ -419,16 +439,19 @@ export function main(args) {
   const pathspecs = corpusPathspecs()
   const tracked = new Set(splitNul(git(['ls-files', '-z'])).map((p) => p.split('/').pop()))
 
-  // Every added line in the commit. A token reappearing here was REWORDED, not retracted.
-  // Memory files are excluded: a tracker row quoting the old claim would otherwise exonerate
-  // the very retraction it is recording. Waiver trailers live in the message, not the diff,
-  // so they cannot leak into this set.
+  // Every added line in the CORPUS side of this commit. A token reappearing here was REWORDED,
+  // not retracted. Memory files are excluded: a tracker row quoting the old claim would otherwise
+  // exonerate the very retraction it is recording. Waiver trailers live in the message, not the
+  // diff, so they cannot leak into this set.
   let addedText = ''
   const perFile = new Map()
   for (const entry of entries) {
     const hunks = hunksFor(entry)
     perFile.set(entry.path, hunks)
-    if (!entry.path.startsWith(MEMORY_PREFIX)) {
+    // CORPUS-scoped, to match the survivor search. Accumulating app-code additions too would
+    // mean a token moved OUT of the documented set — corpus to source — exonerates a corpus
+    // retraction that is still incomplete. `inCorpus` already excludes agent memory.
+    if (inCorpus(entry.path)) {
       for (const h of hunks) addedText += `${h.add.join('\n')}\n`
     }
   }
@@ -452,7 +475,7 @@ export function main(args) {
       ]
       for (const c of candidates) {
         if (c.kind === 'filename' && c.resolves && !c.sameExt) continue
-        if (addedText.includes(c.token)) continue
+        if (reAdded(c.token, c.kind, addedText)) continue
         if (waivers.has(c.token)) continue
         const others = survivors(c.token, path, pathspecs)
         // 0 = the retraction was complete. >= 3 = common vocabulary, not a distinctive claim.

@@ -1796,6 +1796,16 @@ onto an already-violating codebase. This one is diff-scoped by construction: a r
 property of an act of removal, not of the tree, so there is no standing violation to freeze. A
 baseline could only ever be appended after a block, which is a permanent free suppression list.
 
+**The post-commit cycle found a fail-open the whole design had missed, and it is worth recording
+because of where it hid.** The re-added-token check was a bare `addedText.includes(token)` — a
+substring test with no word boundary. `'11807'.includes('1807')` is true, so a commit correcting
+`1807` while any co-occurring line mentioned an unrelated `11807` exonerated the retraction and
+never reported the surviving copy. The boundary rules existed and were correct; they lived in the
+tokeniser, and this check simply did not re-apply them. Every one of the 43 tests passed. Fixed with
+a boundary-aware `reAdded()`, and the re-added scan narrowed to the corpus so it agrees with the
+survivor search about what "the documented set" means — a value moved from a rule file into source
+no longer exonerates a corpus retraction. Both pinned; the calibration is unchanged at 2 of 120.
+
 **Bounds are in the guard's header and three mechanisms are NOT mutation-pinned** — the latin1 path
 decode (a fixture cannot create an invalid-byte filename through Node's string path API), an
 unreachable degenerate-token assertion, and the `git grep` exit-code discrimination. They are listed
