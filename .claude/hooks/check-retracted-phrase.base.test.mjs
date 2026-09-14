@@ -11,6 +11,7 @@
 // listed in that file's preamble and are not repeated here.
 
 import assert from 'node:assert/strict'
+import { join } from 'node:path'
 import test from 'node:test'
 import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
@@ -161,5 +162,49 @@ test('a merge commit in the range does not swallow the waivers below it', () => 
       0,
       'the waiver inside the PR must still be reachable under the merge ref',
     )
+  })
+})
+
+test('--base mode excludes a completed spec from a subdirectory too', () => {
+  // MUTATION: drop `--full-tree` from listTracked's ls-tree branch → from a subdirectory the
+  // listing comes back empty, `completedSpecDirs` returns [], no spec is excluded, and the
+  // completed spec's copy of the value counts as a survivor. Only `--base` mode reaches ls-tree,
+  // and only a subdirectory reaches the CWD-relative behaviour, so this is the single fixture
+  // that touches both at once.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "value 1807" }\n')
+    r.write('.spec-workflow/specs/done/tasks.md', '- [x] finished\nthe value 1807 was used\n')
+    r.write('docs/anything.md', 'a subdirectory to stand in\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    const base = r.git('rev-parse', 'HEAD').trim()
+    r.write('.claude/limits.json', '{ "note": "value 1806" }\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'fix: correct the value')
+    assert.equal(
+      run(r, null, ['--base', base], join(r.dir, 'docs')).status,
+      0,
+      'a completed spec must stay excluded in --base mode from any directory',
+    )
+  })
+})
+
+test('a LIVE spec still counts as a survivor when run from a subdirectory', () => {
+  // MUTATION: drop `--full-name` from the grep inside completedSpecDirs → the `- [ ]` search
+  // returns `../.spec-workflow/...`, so no directory matches and EVERY spec looks completed.
+  // All of them are then excluded from the corpus and a survivor living in a LIVE spec is never
+  // counted — a fail-OPEN produced by over-exclusion rather than under-matching, which is why
+  // the completed-spec fixtures above cannot catch it.
+  withRepo((r) => {
+    r.write('.claude/limits.json', '{ "note": "value 1807" }\n')
+    r.write('.spec-workflow/specs/live/tasks.md', '- [ ] still open\nthe value 1807 is used here\n')
+    r.write('docs/anything.md', 'a subdirectory to stand in\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/limits.json', '{ "note": "value 1806" }\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct it\n', undefined, join(r.dir, 'docs'))
+    assert.equal(status, 1, 'a live spec is part of the corpus from any directory')
+    assert.match(stderr, /retracted the value `1807`/)
   })
 })

@@ -152,7 +152,10 @@ function completedSpecDirs(ref) {
   // completed specs stayed in the corpus in CI but not at commit-msg, so a commit that passed the
   // hook could fail CI on a token surviving only in a historical spec. Verified: ls-tree 0 hits,
   // ls-files 19, on the same pathspec.
-  const withTasks = splitNul(listTracked(ref, '.spec-workflow/specs/')).filter((p) =>
+  // `:(top)` on BOTH pathspecs below, and `--full-name` on the grep: without them a run from a
+  // subdirectory resolves `.spec-workflow/specs/` against the CWD and spells its results `../…`,
+  // so no completed spec is ever excluded. This call was missed by the first path-anchoring pass.
+  const withTasks = splitNul(listTracked(ref, ':(top).spec-workflow/specs/')).filter((p) =>
     p.endsWith('/tasks.md'),
   )
   let live = []
@@ -164,6 +167,7 @@ function completedSpecDirs(ref) {
           'grep',
           '-l',
           '-z',
+          '--full-name', // repo-root-relative output; see the comment above `withTasks`
           '-F',
           '-e',
           '- [ ]',
@@ -172,7 +176,7 @@ function completedSpecDirs(ref) {
           // "unable to resolve revision: -l" — exit 2 on every run.
           ...grepScope(ref),
           '--',
-          '.spec-workflow/specs/*/tasks.md',
+          ':(top).spec-workflow/specs/*/tasks.md',
         ]),
       ),
     )
@@ -460,6 +464,10 @@ function hunksFor(entry) {
   if (srcMissing && dstMissing) return []
   if (srcMissing) return [{ rem: [], add: blobLines(entry.dst) }]
   if (dstMissing) return [{ rem: blobLines(entry.src), add: [] }]
+  // `--no-relative` here too, and it is NOT redundant with the one on the raw diff: a
+  // BLOB-to-BLOB diff also honours `diff.relative`, and from a subdirectory it returns EMPTY —
+  // no hunks, no candidates, exit 0 having graded nothing. Measured; neither reviewer predicted
+  // it, and the test written to cover the raw-diff flag is what surfaced it.
   const buf = git([
     '--no-pager',
     'diff',
@@ -467,6 +475,7 @@ function hunksFor(entry) {
     '--no-textconv',
     '--text',
     '-U0',
+    '--no-relative',
     entry.src,
     entry.dst,
   ])

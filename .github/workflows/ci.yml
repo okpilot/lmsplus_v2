@@ -137,6 +137,9 @@ jobs:
       - name: Retracted-phrase guard — --base (branch-range) tests
         run: node --test .claude/hooks/check-retracted-phrase.base.test.mjs
 
+      - name: Retracted-phrase guard — path-handling tests
+        run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
+
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the

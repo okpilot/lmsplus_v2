@@ -26,8 +26,8 @@
 // exactly backwards.
 
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import test from 'node:test'
 import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
@@ -76,9 +76,14 @@ test('passes once the correction is finished everywhere', () => {
 })
 
 test('does not count an agent-memory file as a surviving occurrence', () => {
-  // MUTATION: drop the agent-memory exclusion from the survivor pathspec → a tracker row
-  // quoting the old claim counts as a survivor, so every corrected claim blocks forever and
-  // the guard is disabled within a week.
+  // MUTATION: drop the MEMORY_PREFIX check from `inCorpus` → a tracker row quoting the old claim
+  // counts as a survivor, so every corrected claim blocks forever and the guard is disabled
+  // within a week.
+  //
+  // NOT the `:(top,exclude)` pathspec in `corpusPathspecs`, which this comment named until
+  // test-writer measured it: dropping that alone leaves the suite green, because `inCorpus`
+  // filters the same paths out of the grep's RESULTS regardless. The pathspec is
+  // defence-in-depth — it saves git the work — and `inCorpus` is what this test pins.
   withRepo((r) => {
     seedFlagship(r)
     // Leave ONLY the memory file holding the old value.
@@ -167,53 +172,6 @@ test('grades the INDEX, not the working tree', () => {
     const { status, stderr } = run(r, 'fix: correct the count\n')
     assert.equal(status, 1)
     assert.match(stderr, /1807/)
-  })
-})
-
-test('a near-identical sibling path is not mistaken for the edited file', () => {
-  // MUTATION: compare paths loosely in survivors() — a normalised form, a `String.includes`, or
-  // a basename match instead of exact equality → the sibling is dropped as "self", the only
-  // survivor disappears, and the guard exits 0 on a live retraction (fail-OPEN). That is the
-  // shape of the `./`-prefix hole already recorded against check-file-size-guard.mjs.
-  //
-  // This does NOT pin the latin1 decode, despite the byte-level fixture: Node's string path API
-  // re-encodes these names to VALID UTF-8 on the way to the filesystem (0xFE becomes C3 BE), so
-  // both decodes keep the two paths distinct and the mutation is unobservable here. See the
-  // preamble, which lists that decode among the mechanisms it records as unpinned.
-  withRepo((r) => {
-    const odd = (b) =>
-      Buffer.concat([Buffer.from('docs/we'), Buffer.from([b]), Buffer.from('rd.md')]).toString(
-        'latin1',
-      )
-    const [a, b] = [odd(0xfe), odd(0xff)]
-    for (const p of [a, b]) r.write(p, 'the count is 1807 here\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'two odd paths')
-    r.write(a, 'the count is 1806 here\n')
-    r.git('add', '-A')
-    const { status, stderr } = run(r, 'fix: correct one of them\n')
-    assert.equal(status, 1)
-    assert.match(stderr, /retracted the value `1807`/)
-  })
-})
-
-test('grades a path holding a non-UTF-8 byte', () => {
-  // MUTATION: pass paths to git through argv rather than diffing blob SHAs → Node re-encodes
-  // the argument as UTF-8, git is handed a name that matches nothing, and the file is never
-  // graded while the guard still exits 0.
-  withRepo((r) => {
-    seedFlagship(r)
-    const odd = Buffer.concat([Buffer.from('docs/we'), Buffer.from([0xff]), Buffer.from('ird.md')])
-    const p = join(r.dir, odd.toString('latin1'))
-    mkdirSync(dirname(p), { recursive: true })
-    writeFileSync(p, 'the count is 1807 here\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'add odd path')
-    writeFileSync(p, 'the count is 1806 here\n')
-    r.git('add', '-A')
-    const { status, stderr } = run(r, 'fix: correct the count\n')
-    assert.equal(status, 1)
-    assert.match(stderr, /retracted the value `1807`/)
   })
 })
 
@@ -445,29 +403,5 @@ test('a dot in a filename token is treated as a literal character, not a wildcar
       0,
       'plan_md is not an occurrence of plan.md — the dot must be escaped',
     )
-  })
-})
-
-test('finds a survivor when invoked from a subdirectory, not just the repo root', () => {
-  // MUTATION: drop `--full-name` from the survivor grep (or `--full-tree` / `--no-relative` from
-  // their calls) → git spells its output relative to the CWD, so from `docs/` it returns
-  // `../.claude/limits.json`. `inCorpus` rejects the `../` prefix, EVERY corpus file is skipped,
-  // and the guard exits 0 having checked nothing. A clean fail-OPEN.
-  //
-  // Unreachable from the repo root, which is where lefthook and CI both run it — so every other
-  // fixture in these suites passes with the flags removed. That is exactly why this one runs the
-  // guard from a subdirectory instead.
-  withRepo((r) => {
-    seedFlagship(r)
-    r.write(
-      '.claude/limits.json',
-      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
-    )
-    // A real subdirectory to stand in. Its content is irrelevant; only the CWD matters.
-    r.write('docs/anything.md', 'a file so the directory exists\n')
-    r.git('add', '-A')
-    const { status, stderr } = run(r, 'fix: correct the count\n', undefined, join(r.dir, 'docs'))
-    assert.equal(status, 1, 'the guard must work the same from any directory in the repo')
-    assert.match(stderr, /retracted the value `1807`/)
   })
 })
