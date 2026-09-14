@@ -140,6 +140,22 @@ jobs:
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
 
+      # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
+      # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
+      # against `.claude/prose-claims.json`, so a restatement that reached master before this
+      # guard existed is baselined rather than blocking, and a NEW one fails the job. This also
+      # catches a baseline row whose line has since changed or gone — the same shrink-must-be-
+      # recorded rule the file-size ratchet has, for the same reason: an unrecorded shrink means
+      # the file and the baseline disagree about what is being graded.
+      - name: Prose-claims guard (whole worktree, ratcheted)
+        run: node .claude/hooks/check-prose-claims.mjs --all
+
+      - name: Prose-claims guard — unit test
+        run: node --test .claude/hooks/check-prose-claims.test.mjs
+
+      - name: Prose-claims guard — git-facing tests
+        run: node --test .claude/hooks/check-prose-claims.repo.test.mjs
+
       # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE: the
       # mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway worktree.
       # BOTH steps are needed and they cover different things. The unit suite pins the LOGIC that

@@ -63,6 +63,7 @@
     "pre-commit": [
       "biome-check",
       "file-size-guard",
+      "prose-claims",
       "soft-delete-guard",
       "test-title-leakage",
       "type-check"

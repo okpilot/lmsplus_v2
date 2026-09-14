@@ -1,0 +1,27 @@
+{
+  "_": "Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by .claude/hooks/check-prose-claims.mjs, which never writes this file. Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with `node .claude/hooks/check-prose-claims.mjs --update-baseline` and REVIEW THE DIFF — a `+` line is a new prose restatement being accepted.",
+  "claims": {
+    ".claude/commands/insights.md@5bd4bddfca3a3747": "- **Memory budget**: run `wc -lc .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over **200 lines OR over 25 K...",
+    ".claude/hooks/check-file-size-guard.directive.test.mjs@0f1417e36ee481fb": "// MUTATION: restore `/^\\s*['\"]use server['\"]/m` → this matches and a 200-line utility takes",
+    ".claude/hooks/check-file-size-guard.directive.test.mjs@627822f1602ced60": "// would answer false, handing a real Server Action the 200-line utility cap — the direction",
+    ".claude/hooks/check-file-size-guard.directive.test.mjs@949f53d564b0da4a": "// the 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did",
+    ".claude/hooks/check-file-size-guard.mjs@9befcf7c81edc7f2": "* happens to begin with the quoted directive — handing a 200-line utility the 100-line Server",
+    ".claude/hooks/check-file-size-guard.mjs@b8514a6708152933": "* 200-line utility cap. No tracked file has that shape either. Handled anyway: which",
+    ".claude/hooks/check-retracted-phrase.base.test.mjs@2454a61054c15977": "// on 2026-09-14 when that file reached 493 of its 500-line cap and these cases could not be",
+    ".claude/hooks/check-retracted-phrase.paths.test.mjs@f461f3e1579c435b": "// check-retracted-phrase.repo.test.mjs on 2026-09-14 when that file crossed its 500-line cap —",
+    ".claude/hooks/check-retracted-phrase.test.mjs@e404c2653acd5abf": "// check-retracted-phrase.repo.test.mjs so neither file approaches the 500-line test cap.",
+    ".spec-workflow/specs/925-app-integration-tier/PHASE3-PLAN.md@a678ee64b0af527a": "- fixtures.ts is 198/200 lines, **no clean split seam** (all 3 exports are coupled session seeders). Phase 3 adds **0...",
+    ".spec-workflow/specs/redteam-quiz-session-bugs/design.md@d27339db6c6e4bbb": "- `packages/db/migrations/082_quiz_sessions_immutable_score_columns.sql` (new, ~80 lines)",
+    "docs/decisions.md@c216b51067c8cc0b": "caps are achievable and the violators are drift. The 500-line test-file cap was previously a",
+    "docs/decisions.md@dcd8eb2acbbc915d": "**Context**: VFR RT Training Phase 2 must let `batch_submit_quiz` record `short_answer` + `dialog_fill` answers at se...",
+    "docs/decisions.md@de0c40084b2501a1": "it used to carry had drifted — it invented an \"any file: max 300 lines\" rule that never",
+    "docs/plan.md@1ccf3d2b5f9e2e9c": "- ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit",
+    "docs/plan.md@73c01eee4865e6c2": "- All 8 list reads routed through it with a deterministic total order; `users` stays `.single()`; phase-2 `quiz_sessi...",
+    "docs/plan.md@eec1cb456c5312ff": "- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.t...",
+    "docs/tech-debt-batches.md@1a3013aa56b2872c": "| 36 | Refactor: Split useQuizState hook (80-line limit) |",
+    "docs/tech-debt-batches.md@27ffd0d2c8bd68cc": "| 71 | refactor: split StatsDisplay in statistics-tab.tsx (148/150 line limit) |",
+    "docs/tech-debt-batches.md@a30f5d2155e4e011": "| 2 | refactor: split quiz/actions.ts to stay under 100-line limit |",
+    "docs/tech-debt-batches.md@b79b93717829748f": "*Completed 2026-03-14. Split quiz/actions.test.ts (300 lines) into 3 co-located files (start.test.ts, submit.test.ts,...",
+    "docs/tech-debt-batches.md@c1b3d70202fc4bc6": "| 92 | Refactor use-session-state.ts to comply with 80-line hook limit |"
+  }
+}

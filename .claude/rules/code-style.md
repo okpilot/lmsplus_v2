@@ -11,6 +11,20 @@
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at
 pre-commit and in CI. Never restate a number here.
 
+"Never restate a number here" is itself now mechanically enforced, by
+`.claude/hooks/check-prose-claims.mjs` at pre-commit and in CI: it blocks a cap VALUE from
+`limits.json` being restated in PROSE as a claim about that cap. Until it existed the sentence
+above was an instruction nobody could check, and the caps had already been copied into nine
+hand-maintained places once — which is why they became data in the first place. Prose goes stale
+silently; `limits.json` is the only copy that is executed.
+
+It is a RATCHET on the same terms as the size guard, against `.claude/prose-claims.json`: a
+restatement that predates the guard is baselined rather than blocking, a NEW one fails, and a
+baselined line that CHANGES or disappears fails until `--update-baseline` records it. Its
+suppression marker is deliberately unavailable for a broken invocation — that route exits 2, not
+1, so a waiver can never stand in for a check that did not run. Two of the baselined lines are
+false positives and are recorded as such in the baseline rather than tuned away.
+
 - **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
   longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row
   (its file gone, now compliant, or excluded). Pre-existing violations are frozen in `limits.json`

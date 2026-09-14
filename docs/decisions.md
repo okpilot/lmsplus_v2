@@ -1936,7 +1936,46 @@ ENCODED — a `MUTATION:` comment nobody translated is invisible to the run and 
 text, and forcing the denominator down would launder the one number the mode exists to produce.
 
 
-*Last updated: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 68: "never restate a number here" becomes a check, not an instruction (2026-09-14)
+
+`code-style.md` §1 has said *"Limits are data ... Never restate a number here"* since the caps
+became data. Nothing enforced it. `.claude/hooks/check-prose-claims.mjs` now blocks a
+`.claude/limits.json` cap VALUE being restated in PROSE as a claim about that cap — pre-commit on
+the staged set, and `--all` over the whole worktree in CI.
+
+**The spec's premise for this item was wrong, and that is the useful part.** It called R0-VALUE
+*"zero ambiguity: a value either matches a canonical source or it does not"*, which is why it
+looked like the cheap item on the list. Measurement refuted that before tuning. Three narrowings
+are each load-bearing, and dropping any one floods the run:
+
+1. **Prose lines only** — outside fenced and indented code in markdown, comment lines in code. The
+   largest single noise class is the hook suites' own `"max": <n>` fixtures, which are DATA, and
+   §1's ban is on prose. It also exempts `.coderabbit.yaml`'s `path_instructions` by construction,
+   which is right: that mirror is deliberate, because CodeRabbit cannot follow a pointer, and it is
+   machine-verified against `limits.json` by `check-file-size-guard.update.test.mjs`.
+2. **Context, not a bare value** — the number must carry the `<N>-line` shape AND a cap or
+   rule-KIND word derived from `limits.json` rather than typed into the guard.
+3. **Proximity** — the context word must sit near the number, not merely on the same physical
+   line. Without the bound, long markdown table rows and SQL snippets dominate the false positives.
+
+**Ratchet, same terms as the size guard**, against `.claude/prose-claims.json`: pre-existing
+restatements are baselined, a NEW one fails, and a baselined line that changes or vanishes fails
+until `--update-baseline` records it. Exit 0/1/2 stays split for the reason the harness's does —
+this guard ships a suppression marker, and if "could not run" shared an exit code with "you
+restated a cap", the cheapest way past a broken invocation would be a permanent waiver recording a
+finding that never happened.
+
+**Two baselined lines are FALSE POSITIVES and are recorded as such** — an agent-MEMORY budget that
+collides with a file cap, and a spec's size estimate — rather than narrowed away. A detector tuned
+until it has no false positives is one that has stopped detecting.
+
+**The block rate is not stated here.** `measure-prose-claims.mjs` is committed so it can be
+re-derived, and it is window-dependent: it read one value when the guard was built and a different
+one after the harness PR merged. That is the §10 cl.7 defect this programme keeps re-committing,
+and shipping the script instead of the figure is the fix.
+
+
+*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing and two baselined lines are false positives, recorded rather than tuned away. No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

@@ -274,6 +274,15 @@ reviews:
           bypassed hook, so what is left for review is the case it cannot see — a
           PARAPHRASED restatement of the same claim, and a correction that deletes a stale value
           without replacing it (the guard's hunk gate needs a replacement to fire).
+        - A FILE-SIZE CAP restated in prose. `.claude/limits.json` is the only executed copy and
+          `code-style.md` §1 says never to restate a number; `.claude/hooks/check-prose-claims.mjs`
+          blocks a new one at pre-commit and in CI, ratcheted against `.claude/prose-claims.json`.
+          What it cannot see is a cap SPELLED OUT or PARAPHRASED — "the five-hundred-line cap", "a
+          cap of about five hundred" — because it matches the numeral shape. Flag those; a prose
+          cap is stale the moment limits.json moves, and unlike the numeral form nothing will
+          catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
+          cannot follow a pointer, and `check-file-size-guard.update.test.mjs` machine-verifies
+          them against limits.json in CI, so they are pinned rather than drifting.
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
           re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
           form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +
