@@ -71,7 +71,14 @@ const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-wor
  */
 const MEMORY_PREFIX = '.claude/agent-memory/'
 
-/** Longest-first so `.tsx` cannot be partially matched as `.ts`. */
+/**
+ * Longest-first is DEFENCE IN DEPTH, not the mechanism. What actually stops `.tsx` being
+ * partially matched as `.ts` is FILE_RE's trailing `(?![\w-])`, which rejects the short match
+ * and forces a backtrack into the longer alternative — verified by reordering `ts` before `tsx`
+ * with the lookahead intact and still tokenising `quiz-config-form.tsx`. The ordering alone,
+ * with the lookahead removed, yields `.ts`. Either guard suffices; the pair is kept because
+ * each is cheap. This comment previously credited the ordering alone, which was false.
+ */
 const FILE_EXT = ['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts', 'js', 'md', 'sh']
 
 const FILE_RE = new RegExp(

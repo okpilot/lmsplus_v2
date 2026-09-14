@@ -1,0 +1,232 @@
+{
+  "target": ".claude/hooks/run-mutations.mjs",
+  "suites": [".claude/hooks/run-mutations.test.mjs"],
+  "mutations": [
+    {
+      "id": "no-plan-check",
+      "find": "  if (!sawPlan) {\n    throw new Error('TAP stream carried no top-level plan line (1..N) — the run did not complete')\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "throws on a stream that never emitted a plan line",
+        "does not treat a subtest plan as the top-level plan"
+      ],
+      "note": "A crashed or truncated runner would otherwise read as a fully green run — SURVIVED — and the harness would blame the test for its own failure."
+    },
+    {
+      "id": "plan-ignores-indent",
+      "find": "      if (indent === 0) sawPlan = true",
+      "replace": "      sawPlan = true",
+      "expectRed": ["does not treat a subtest plan as the top-level plan"]
+    },
+    {
+      "id": "aggregate-always-false",
+      "find": "function isAggregate(points, i) {",
+      "replace": "function isAggregate(points, i) {\n  return false",
+      "expectRed": ["reports the failing subtest and not the parent that merely propagates it"],
+      "note": "Without leaf-only reporting an exact-set comparison is unsatisfiable for any suite using subtests."
+    },
+    {
+      "id": "aggregate-ignores-ok",
+      "find": "    if (!points[j].ok && points[j].directive !== 'TODO') return true",
+      "replace": "    return true",
+      "expectRed": ["counts a parent that fails on its own while every child passed"]
+    },
+    {
+      "id": "todo-counts-as-red",
+      "find": "    .filter((p, i) => !p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
+      "replace": "    .filter((p, i) => !p.ok && !isAggregate(points, i))",
+      "expectRed": ["does not count a TODO-directive failure as a red test"]
+    },
+    {
+      "id": "no-directive-strip",
+      "find": "    if (d) {\n      directive = d[1].toUpperCase()\n      name = name.slice(0, d.index).trim()\n    }",
+      "replace": "",
+      "expectRed": [
+        "does not count a TODO-directive failure as a red test",
+        "strips a directive from the test name"
+      ],
+      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET."
+    },
+    {
+      "id": "dash-mandatory",
+      "find": "/^(not )?ok(?:\\s+(\\d+))?(?:\\s+-)?\\s*(.*)$/",
+      "replace": "/^(not )?ok(?:\\s+(\\d+))?\\s+-\\s*(.*)$/",
+      "expectRed": ["reads a test point written without the \"-\" separator"]
+    },
+    {
+      "id": "invert-failed-filter",
+      "find": "    .filter((p, i) => !p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
+      "replace": "    .filter((p, i) => p.ok && p.directive !== 'TODO' && !isAggregate(points, i))",
+      "expectRed": [
+        "reads the names of the tests that failed",
+        "reports a green run as no failures rather than as unparseable",
+        "reports the failing subtest and not the parent that merely propagates it",
+        "counts a parent that fails on its own while every child passed",
+        "does not count a TODO-directive failure as a red test",
+        "reads a test point written without the \"-\" separator"
+      ],
+      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset."
+    },
+    {
+      "id": "no-survived-branch",
+      "find": "  if (actual.length === 0) return { status: 'SURVIVED', missing: expected, unexpected: [] }\n",
+      "replace": "",
+      "expectRed": ["reports SURVIVED when nothing went red at all"]
+    },
+    {
+      "id": "superset-is-caught",
+      "find": "  if (missing.length === 0 && unexpected.length === 0) {",
+      "replace": "  if (missing.length === 0) {",
+      "expectRed": ["reports MISMATCH when the break reddens more tests than the claim names"],
+      "note": "This is the exact-set decision itself. Weakening it here launders the under-specific claim code-style.md §7 forbids."
+    },
+    {
+      "id": "subset-is-caught",
+      "find": "  if (missing.length === 0 && unexpected.length === 0) {",
+      "replace": "  if (unexpected.length === 0) {",
+      "expectRed": ["reports MISMATCH when a named test stayed green while another failed"]
+    },
+    {
+      "id": "no-dedup",
+      "find": "  const expected = [...new Set(expectRed)]",
+      "replace": "  const expected = [...expectRed]",
+      "expectRed": ["reports each differing name once however often it was repeated"],
+      "note": "The test this pins was itself a FALSE MUTATION claim until 2026-09-14: it asserted CAUGHT on (['a','a'], ['a']), which `includes` satisfies with both Sets deleted. Found by running this harness against itself."
+    },
+    {
+      "id": "narrow-mutation-grep",
+      "find": "/MUTATION:/g",
+      "replace": "/\\/\\/ MUTATION:/g",
+      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
+      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED."
+    },
+    {
+      "id": "linecount-not-matchcount",
+      "find": "  return (String(text).match(/MUTATION:/g) ?? []).length",
+      "replace": "  return String(text).split('\\n').length",
+      "expectRed": [
+        "counts a MUTATION: claim that does not begin its line",
+        "counts zero on text that makes no claim"
+      ]
+    },
+    {
+      "id": "no-target-check",
+      "find": "  if (!isNonEmptyString(obj.target)) problems.push(at('`target` must be a non-empty string'))\n",
+      "replace": "",
+      "expectRed": ["rejects a data file with no target"]
+    },
+    {
+      "id": "suites-length-ok",
+      "find": "  if (!Array.isArray(obj.suites) || obj.suites.length === 0) {",
+      "replace": "  if (!Array.isArray(obj.suites)) {",
+      "expectRed": ["rejects a data file with an empty suites list"],
+      "note": "An empty suites list spawns `node --test` with no files: exit 0, empty plan, every mutation in that file reports SURVIVED."
+    },
+    {
+      "id": "no-find-check",
+      "find": "      if (!isNonEmptyString(mut.find)) w('`find` must be a non-empty string')\n",
+      "replace": "",
+      "expectRed": ["rejects a mutation with an empty find anchor"]
+    },
+    {
+      "id": "no-expectred-check",
+      "find": "      if (!Array.isArray(mut.expectRed) || mut.expectRed.length === 0) {",
+      "replace": "      if (false) {",
+      "expectRed": ["rejects a mutation with no expectRed"]
+    },
+    {
+      "id": "no-dup-id-check",
+      "find": "      else if (seen.has(mut.id)) w('duplicate `id`')\n",
+      "replace": "",
+      "expectRed": ["rejects two mutations sharing an id"]
+    },
+    {
+      "id": "replace-must-be-nonempty",
+      "find": "      if (typeof mut.replace !== 'string') w('`replace` must be a string (may be empty)')",
+      "replace": "      if (!isNonEmptyString(mut.replace)) w('`replace` must be a string (may be empty)')",
+      "expectRed": ["accepts an empty replacement as a deletion"],
+      "note": "Deleting a guard is the most direct mutation there is; requiring a non-empty replacement makes it unexpressible."
+    },
+    {
+      "id": "no-notencoded-why-check",
+      "find": "          !isNonEmptyString(n.claim) ||\n          !isNonEmptyString(n.why)",
+      "replace": "          !isNonEmptyString(n.claim)",
+      "expectRed": ["rejects a notEncoded entry with no stated reason"]
+    },
+    {
+      "id": "no-array-toplevel-check",
+      "find": "  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {",
+      "replace": "  if (obj === null || typeof obj !== 'object') {",
+      "expectRed": ["rejects a top level that is not an object"]
+    },
+    {
+      "id": "anchor-zero-ok",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count > 1) {",
+      "expectRed": ["refuses an anchor that matches nothing, naming the count"],
+      "note": "The single most important entry in this file. A stale anchor applies as a no-op, the suites stay green, and the mutation reports SURVIVED — code-style.md §7's named trap."
+    },
+    {
+      "id": "anchor-two-ok",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count === 0) {",
+      "expectRed": ["refuses an ambiguous anchor that occurs twice"]
+    },
+    {
+      "id": "default-mode-list",
+      "find": "    mode: modes.length === 0 ? 'run' : modes[0].slice(2),",
+      "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
+      "expectRed": ["defaults to the run mode with no flags"],
+      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run."
+    },
+    {
+      "id": "option-no-consume",
+      "find": "      opts[a.slice(2)] = value\n      i++",
+      "replace": "      opts[a.slice(2)] = value",
+      "expectRed": ["reads the value of an option flag"]
+    },
+    {
+      "id": "option-no-value-ok",
+      "find": "      if (value === undefined || value.startsWith('--')) {",
+      "replace": "      if (false) {",
+      "expectRed": ["blocks an option flag given with no value"],
+      "note": "`opts.guard` becomes undefined, selectFiles reads that as \"no guard\", and the run silently widens to every data file."
+    },
+    {
+      "id": "two-modes-allowed",
+      "find": "  if (new Set(modes).size > 1) {",
+      "replace": "  if (false) {",
+      "expectRed": ["blocks two mode flags given together", "exits 2, not 1, on a usage error"]
+    },
+    {
+      "id": "unknown-flag-ignored",
+      "find": "    return { error: `unknown flag ${a}` }",
+      "replace": "    continue",
+      "expectRed": ["blocks an unknown flag"]
+    },
+    {
+      "id": "positional-allowed",
+      "find": "      return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }",
+      "replace": "      return { error: `unknown flag ${a}` }",
+      "expectRed": ["blocks a bare positional argument"],
+      "note": "Deleting the branch outright still errors, via the unknown-flag path — so the test asserts the MESSAGE. This entry swaps the message rather than the behaviour for exactly that reason."
+    },
+    {
+      "id": "usage-error-exits-1",
+      "find": "    return 2\n  }\n  const root = repoRoot()",
+      "replace": "    return 1\n  }\n  const root = repoRoot()",
+      "expectRed": ["exits 2, not 1, on a usage error"],
+      "note": "Collapses the 1-vs-2 distinction the header exists to defend: a harness fault reported as a test finding gets remedied by deleting the test."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "MUTATION: make parseTap throw whenever `failed` is empty → SURVIVED becomes an exit-2 harness fault and is never reported.",
+      "why": "The break is the ADDITION of a throw, not the removal or alteration of existing text, so there is no unique `find` anchor for it. The find/replace schema expresses deletions and substitutions of code that is present; an insertion at an arbitrary point is not addressable without an anchor that says nothing about the mechanism."
+    },
+    {
+      "claim": "MUTATION: replace the CAUGHT branch's condition with `false` → nothing is ever caught.",
+      "why": "Encodable, but it is strictly dominated by `superset-is-caught` and `subset-is-caught`, which mutate the same condition in the two directions that can actually ship. A blanket `false` reddens most of the compareResult block and would pin nothing the other two do not."
+    }
+  ]
+}

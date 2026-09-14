@@ -1,0 +1,172 @@
+{
+  "target": ".claude/hooks/check-file-size-guard.mjs",
+  "suites": [
+    ".claude/hooks/check-file-size-guard.test.mjs",
+    ".claude/hooks/check-file-size-guard.args.test.mjs",
+    ".claude/hooks/check-file-size-guard.cli.test.mjs",
+    ".claude/hooks/check-file-size-guard.update.test.mjs",
+    ".claude/hooks/check-file-size-guard.directive.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "block-comment-branch-deleted",
+      "find": "    } else if (c === '/' && content[i + 1] === '*') {\n      const end = content.indexOf('*/', i + 2)\n      if (end === -1) return false // unterminated comment — no prologue follows it\n      i = end + 2\n",
+      "replace": "",
+      "expectRed": [
+        "a block comment whose line begins with the directive is not a declaration",
+        "a use server directive that is the SECOND prologue entry still counts",
+        "a comment directly abutting a prologue literal (no separating newline) still continues it"
+      ],
+      "note": "Encodes the MECHANISM the block-comment case rests on, not the mutation its comment names. The comment says 'restore /^\\s*[\\'\"]use server[\\'\"]/m', which is a rewrite of declaresUseServer rather than a substring edit; deleting the block-comment skip branch is the substring-expressible break of the same guarantee. SUPERSET: also reddens two sibling prologue cases."
+    },
+    {
+      "id": "prologue-drop-cr-whitespace",
+      "find": "if (c === ' ' || c === '\\t' || c === '\\r' || c === '\\n' || c === '\\uFEFF') {",
+      "replace": "if (c === ' ' || c === '\\t' || c === '\\n' || c === '\\uFEFF') {",
+      "expectRed": ["a BOM or CR in the prologue is skipped like any other whitespace"],
+      "note": "Shares its test with prologue-drop-bom-whitespace: the fixture carries both a BOM and a CR, so either half of the whitespace set pins it."
+    },
+    {
+      "id": "prologue-drop-bom-whitespace",
+      "find": "if (c === ' ' || c === '\\t' || c === '\\r' || c === '\\n' || c === '\\uFEFF') {",
+      "replace": "if (c === ' ' || c === '\\t' || c === '\\r' || c === '\\n') {",
+      "expectRed": ["a BOM or CR in the prologue is skipped like any other whitespace"],
+      "note": "Shares its test with prologue-drop-cr-whitespace — see that entry."
+    },
+    {
+      "id": "block-comment-unterminated-returns-true",
+      "find": "if (end === -1) return false",
+      "replace": "if (end === -1) return true",
+      "expectRed": ["an unterminated block comment leaves no reachable prologue"],
+      "note": "Named as a RETURN FLIP, not a deletion: deleting the guard leaves the first assertion green and HANGS on the second. The suite can only decline to hang, so the flip is what is pinned."
+    },
+    {
+      "id": "prologue-stops-at-first-literal",
+      "find": "      if (lit.value === 'use server') return true\n      i = next",
+      "replace": "      if (lit.value === 'use server') return true\n      return false",
+      "expectRed": [
+        "a use server directive that is the SECOND prologue entry still counts",
+        "an escaped quote inside a prologue literal does not end it early",
+        "a comment directly abutting a prologue literal (no separating newline) still continues it"
+      ],
+      "note": "SUPERSET of the comment: the comment names only the second-prologue-entry case, but the loop continuation is also what carries the escaped-quote and abutting-comment fixtures past their leading `use strict`."
+    },
+    {
+      "id": "string-literal-drop-escape-branch",
+      "find": "    if (c === '\\\\') {\n      j += 2\n    } else if (c === quote) {",
+      "replace": "    if (c === quote) {",
+      "expectRed": ["an escaped quote inside a prologue literal does not end it early"]
+    },
+    {
+      "id": "prologue-entry-drop-comment-check",
+      "find": "  if (content[k] === '/' && (content[k + 1] === '/' || content[k + 1] === '*')) return k\n",
+      "replace": "",
+      "expectRed": [
+        "a comment directly abutting a prologue literal (no separating newline) still continues it"
+      ]
+    },
+    {
+      "id": "directive-checked-before-statement-end",
+      "find": "      const next = endOfPrologueEntry(content, lit.end)\n      if (next === -1) return false // the string was an expression, so the prologue is over\n      if (lit.value === 'use server') return true",
+      "replace": "      if (lit.value === 'use server') return true\n      const next = endOfPrologueEntry(content, lit.end)\n      if (next === -1) return false // the string was an expression, so the prologue is over",
+      "expectRed": ["a directive-shaped literal that is an EXPRESSION is not a declaration"]
+    },
+    {
+      "id": "line-comment-at-eof-returns-true",
+      "find": "if (nl === -1) return false",
+      "replace": "if (nl === -1) return true",
+      "expectRed": [
+        "a line comment that runs off the end of the file with no trailing newline is not a declaration"
+      ]
+    },
+    {
+      "id": "string-literal-eof-closes-literal",
+      "find": "      j += 1\n    }\n  }\n  return null\n}",
+      "replace": "      j += 1\n    }\n  }\n  return { value: content.slice(i + 1, j), end: j }\n}",
+      "expectRed": [
+        "a literal that runs off the end of the file with no closing quote is unterminated"
+      ]
+    },
+    {
+      "id": "drop-two-mode-flag-guard",
+      "find": "  if (new Set(flags).size > 1) {\n    console.error(\n      `[file-size] ${[...new Set(flags)].join(' and ')} are separate modes — run one — BLOCKING`,\n    )\n    return 1\n  }\n",
+      "replace": "",
+      "expectRed": ["passing two mode flags together blocks instead of silently running one"]
+    },
+    {
+      "id": "drop-path-normalisation",
+      "find": "    const rel = isAbsolute(f) ? relative(process.cwd(), f) : f\n    return rel.replace(/^\\.\\//, '')",
+      "replace": "    return f",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected"
+      ],
+      "note": "Half of one MUTATION comment that names two mechanisms (\"drop the normalisation and the unknown-argument check\"); drop-unknown-path-check is the other half. Each is independently red on that test."
+    },
+    {
+      "id": "drop-unknown-path-check",
+      "find": "  if (unknownPaths.length > 0) {\n    console.error(\n      `[file-size] argument(s) match no tracked path: ${unknownPaths.join(' ')} — BLOCKING`,\n    )\n    return 1\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected",
+        "a staged deletion is not rejected as an unknown path",
+        "a staged rename does not reject the SOURCE path as unknown"
+      ],
+      "note": "SUPERSET: the other half of the two-mechanism comment on the path-spelling test. It also reddens the staged-deletion and staged-rename tests, whose fail-closed halves assert this branch."
+    },
+    {
+      "id": "drop-staged-deletion-exemption",
+      "find": "!all.includes(f) && !deleted.has(f)",
+      "replace": "!all.includes(f)",
+      "expectRed": [
+        "a staged deletion is not rejected as an unknown path",
+        "a staged rename does not reject the SOURCE path as unknown",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "removing a non-ASCII file does not read as an unknown path"
+      ],
+      "note": "SUPERSET of the comment, and it crosses suites: also reddens the rename tests and `removing a non-ASCII file does not read as an unknown path` in check-file-size-guard.cli.test.mjs."
+    },
+    {
+      "id": "drop-no-renames",
+      "find": "'--no-renames', ",
+      "replace": "",
+      "expectRed": [
+        "a staged rename does not reject the SOURCE path as unknown",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check"
+      ],
+      "note": "One mechanism deliberately shared by two tests — the args suite header says so, and the observed red set matches it exactly."
+    },
+    {
+      "id": "staged-deletion-git-failure-fails-open",
+      "find": "  } catch (err) {\n    console.error(`[file-size] cannot list staged deletions — BLOCKING: ${err.message}`)\n    return 1\n  }",
+      "replace": "  } catch {\n    deleted = new Set()\n  }",
+      "expectRed": ["a git failure listing staged deletions blocks instead of failing open"]
+    },
+    {
+      "id": "drop-decode-collision-check",
+      "find": "    if (exact.has(all[i])) {\n      console.error(`[file-size] two tracked paths decode identically — BLOCKING: ${all[i]}`)\n      return 1\n    }\n",
+      "replace": "",
+      "expectRed": [
+        "two tracked paths whose bytes differ but decode alike BLOCK rather than one being dropped"
+      ]
+    },
+    {
+      "id": "index-read-via-git-show",
+      "find": "    return readIndexBlob(target)",
+      "replace": "    return execFileSync('git', ['show', ':' + f], {\n      encoding: 'utf8',\n      maxBuffer: 64 * 1024 * 1024,\n    })",
+      "expectRed": [
+        "a staged path with non-UTF-8 bytes is graded from the index, not called unreadable"
+      ]
+    },
+    {
+      "id": "drop-line-comment-branch",
+      "find": "} else if (c === '/' && content[i + 1] === '/') {",
+      "replace": "} else if (false) {",
+      "expectRed": [
+        "a header comment DENYING the use server directive is not a declaration",
+        "a comment directly abutting a prologue literal (no separating newline) still continues it"
+      ],
+      "note": "Encoded only after the test was FIXED on this branch. It previously asserted `false` alone — the function's default return — so no mutation could redden it; the harness found that and the fix added the positive companion assertion (prologue reads THROUGH a line comment to a real directive). Reddens two tests; the superset is recorded here rather than in the comment, per code-style.md §7."
+    }
+  ],
+  "notEncoded": []
+}

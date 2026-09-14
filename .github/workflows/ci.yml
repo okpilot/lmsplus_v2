@@ -140,6 +140,15 @@ jobs:
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
 
+      # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE:
+      # the mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway
+      # worktree. Its own suite runs here; the HARNESS run itself is a dev command, not a CI
+      # gate — it grades the COMMITTED tree, so on a PR it would re-grade what the merge-base
+      # already proved. Re-derive any claimed figure with
+      # `node .claude/hooks/run-mutations.mjs` and `--coverage` for the encoded-vs-claimed gap.
+      - name: Mutation harness — unit test
+        run: node --test .claude/hooks/run-mutations.test.mjs
+
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the

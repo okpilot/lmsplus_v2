@@ -944,14 +944,22 @@ overclaimed by naming an unreachable second mechanism, one named a skip that a s
 boundary already made unreachable. Three were written by the author of the guard whose whole
 purpose is catching false claims.
 
-The promotion sweep audited every `MUTATION:` claim in the file-size-guard suites and found them
-ALL accurate, each multi-mechanism one verified by execution. Count them with `grep -c 'MUTATION:'`,
+The promotion sweep claimed it audited every `MUTATION:` claim in the file-size-guard suites and
+found them ALL accurate, "each multi-mechanism one verified by execution". **That claim was false,
+and its refutation is the strongest argument for the harness below.** When
+`.claude/hooks/run-mutations.mjs` (Decision 67) EXECUTED those claims instead of reading them, one
+test in `check-file-size-guard.directive.test.mjs` turned out to pin nothing at all — it asserted
+`false`, which is `declaresUseServer`'s default return, so no break could redden it — under a
+comment naming a regex the function had not contained for two rewrites. A reading sweep cannot
+falsify a mutation claim; only running it can. **Re-derive rather than trust any audit sentence:
+`node .claude/hooks/run-mutations.mjs` re-runs every encoded claim, and `--coverage` reports the
+encoded-vs-claimed gap.** Count claims with `grep -c 'MUTATION:'`,
 not `grep -c '// MUTATION:'`: some claims sit mid-line after other prose and the narrower pattern
 silently misses them — derive the difference with
 `diff <(grep -c 'MUTATION:' <file>) <(grep -c '// MUTATION:' <file>)` rather than trusting a number. Post-commit review flagged the wider figure as wrong on the strength of the
-narrower grep; both numbers were right, for different questions. So the defect is not the convention
-going bad over time — it concentrated entirely in files written fresh in one sitting, which is
-where to look for it next.
+narrower grep; both numbers were right, for different questions. The defect concentrates in files
+written fresh in one sitting, which is where to look for it next — but note that it also survived a
+deliberate audit of exactly those files, so "we already swept this" is not evidence of anything.
 
 ### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way (from 2026-09-14)
 

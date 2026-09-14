@@ -108,7 +108,13 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       implement it or delete a false claim. Without it,
       slice 1's exact-match ratchet fails CI on every legitimate shrink and gets disabled.
       Human-invoked; must never self-rewrite silently.
-- [ ] **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
+- [x] **Commit the mutation harness.** DONE 2026-09-14 (Decision 67) — `run-mutations.mjs` +
+      `<guard>.mutations.json` data + a throwaway worktree. Re-derive any figure with
+      `node .claude/hooks/run-mutations.mjs`; `--coverage` shows the encoded-vs-claimed gap.
+      Executing the claims refuted SEVEN of them, found one test pinning nothing and one
+      mechanism (the 20-char waiver floor) pinned by nothing; all fixed on the branch.
+      ORIGINAL ENTRY BELOW, kept because it names the defect this closed:
+      **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
       caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness
       lives in the scratch directory and is deleted. That is the same unfalsifiable-claim class
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
