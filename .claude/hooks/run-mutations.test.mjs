@@ -457,3 +457,12 @@ test('a skipped test is not counted as a red test', () => {
   const tap = 'TAP version 13\nnot ok 1 - skipped case # SKIP\nnot ok 2 - genuinely red\n1..2\n'
   assert.deepEqual(parseTap(tap).failed, ['genuinely red'])
 })
+
+test('a skipped child does not make its failing parent look like an aggregate', () => {
+  // MUTATION: drop `points[j].directive !== 'SKIP'` from isAggregate → the parent is treated as
+  // merely propagating its skipped child and is dropped, while the child is dropped by the
+  // `failed` filter; `failed` comes back EMPTY and the run reports SURVIVED though a test was
+  // red. Both halves of this comparison must treat directives alike (code-style.md §7).
+  const tap = 'TAP version 13\n    not ok 1 - kid # SKIP\n    1..1\nnot ok 1 - parent\n1..1\n'
+  assert.deepEqual(parseTap(tap).failed, ['parent'])
+})

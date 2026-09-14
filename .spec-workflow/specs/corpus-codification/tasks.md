@@ -111,8 +111,10 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 - [x] **Commit the mutation harness.** DONE 2026-09-14 (Decision 67) — `run-mutations.mjs` +
       `<guard>.mutations.json` data + a throwaway worktree. Re-derive any figure with
       `node .claude/hooks/run-mutations.mjs`; `--coverage` shows the encoded-vs-claimed gap.
-      Executing the claims refuted SEVEN of them, found one test pinning nothing and one
-      mechanism (the 20-char waiver floor) pinned by nothing; all fixed on the branch.
+      Executing the claims refuted claims in every file that carried them, found one test
+      pinning nothing and one mechanism (the 20-char waiver floor) pinned by nothing; all fixed
+      on the branch. No total is stated — an earlier draft said SEVEN and its own enumeration
+      summed to eight. Re-derive with `node .claude/hooks/run-mutations.mjs` and `git log -p`.
       ORIGINAL ENTRY BELOW, kept because it names the defect this closed:
       **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
       caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness

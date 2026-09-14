@@ -119,7 +119,15 @@ function isAggregate(points, i) {
   const { depth } = points[i]
   for (let j = i - 1; j >= 0; j--) {
     if (points[j].depth <= depth) return false
-    if (!points[j].ok && points[j].directive !== 'TODO') return true
+    // BOTH halves of this comparison must treat directives identically — `code-style.md` §7,
+    // "Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way". The `failed` filter
+    // above excludes SKIP; when this one did not, a parent failing in its own body with a single
+    // `not ok ... # SKIP` child was dropped as an aggregate AND the child was dropped as skipped,
+    // leaving `failed` empty — SURVIVED reported while a test was red. Caught by CR-local, on a
+    // rule promoted from this branch family and then broken by fixing only one side of it.
+    if (!points[j].ok && points[j].directive !== 'TODO' && points[j].directive !== 'SKIP') {
+      return true
+    }
   }
   return false
 }
@@ -353,7 +361,15 @@ function runMutation({ root, data, mut, base }) {
       throw new Error(`mutation ${mut.id}: cannot read target ${data.target} — ${err.message}`)
     }
     assertSingleOccurrence(source, mut.find, mut.id)
-    writeFileSync(targetPath, source.replace(mut.find, mut.replace), 'utf8')
+    // A FUNCTION replacer is required. With a string pattern, `$&`, `$'`, `` $` `` and `$$` in
+    // the REPLACEMENT are still expanded, so a mutation whose replacement code contains any of
+    // them would write text the data file does not declare — while assertSingleOccurrence had
+    // just reported a clean single match. The verdict would then describe a break nobody wrote.
+    writeFileSync(
+      targetPath,
+      source.replace(mut.find, () => mut.replace),
+      'utf8',
+    )
 
     // cwd is the WORKTREE ROOT, not the suite's directory: the suites resolve
     // `.claude/limits.json` by a CWD-relative path and fail with ENOENT from anywhere else.

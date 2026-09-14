@@ -27,9 +27,10 @@
     },
     {
       "id": "aggregate-ignores-ok",
-      "find": "    if (!points[j].ok && points[j].directive !== 'TODO') return true",
-      "replace": "    return true",
-      "expectRed": ["counts a parent that fails on its own while every child passed"]
+      "find": "    if (!points[j].ok && points[j].directive !== 'TODO' && points[j].directive !== 'SKIP') {",
+      "replace": "    if (false) {",
+      "expectRed": ["counts a parent that fails on its own while every child passed"],
+      "note": "Anchor RE-POINTED when CR-local found the SKIP asymmetry: the `failed` filter excluded SKIP while isAggregate did not, so a failing parent with a skipped child reported SURVIVED. CR flagged the anchor break in the same finding."
     },
     {
       "id": "todo-counts-as-red",
@@ -304,6 +305,13 @@
       "replace": "",
       "expectRed": ["a skipped test is not counted as a red test"],
       "note": "The file header CLAIMED SKIP was excluded before the code did it — a false comment inside the commit whose subject is false comments. Code and comment now agree, and this pins it."
+    },
+    {
+      "id": "aggregate-ignores-skip",
+      "find": "points[j].directive !== 'SKIP') {",
+      "replace": "true) {",
+      "expectRed": ["a skipped child does not make its failing parent look like an aggregate"],
+      "note": "The second half of the two-sided gate. Added with the fix so the guard is not itself unpinned — adding an unpinned guard is the defect one level up."
     }
   ],
   "notEncoded": [

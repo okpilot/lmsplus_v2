@@ -153,8 +153,10 @@ jobs:
       # HEAD, so a PR ADDING data grades it for the first time); the second claimed the unit suite
       # already covered it (false — see above, and CodeRabbit caught it). On this very branch a
       # reformat ORPHANED three anchors at count=0 and four `expectRed` sets were under-specific;
-      # the unit suite was green throughout. `fetch-depth: 0` above is what lets the run create a
-      # worktree at HEAD.
+      # the unit suite was green throughout. (An earlier version of this comment credited
+      # `fetch-depth: 0` for making the worktree possible — FALSE, caught by CR-local: a shallow
+      # checkout also has HEAD and `git worktree add --detach <dir> HEAD` works from it. The full
+      # history above is there for the test-title guard's base diff, not for this step.)
       - name: Mutation harness — unit test
         run: node --test .claude/hooks/run-mutations.test.mjs
 
