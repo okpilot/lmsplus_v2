@@ -62,6 +62,16 @@ Keeps project documentation in sync with code changes. Watches for schema change
   tracker rather than quoting a figure here — every learner pass moves it.
 
 ### NEVER
+- Cite a flag, function, method or field as IMPLEMENTED without a pasted `grep` proving it
+  exists. A name that appears in the dispatch prompt, a commit message, a spec entry or a plan is
+  a PROMPT EXAMPLE, never evidence it is in the code. Promoted at count=4 (2026-09-14): a report
+  claimed commit `57aa0d44` implemented a `--update-expected` flag and that the spec item should
+  be ticked DONE — `grep -rn 'update-expected' .claude/hooks/*.mjs` returns nothing (the string
+  now appears in `*.mutations.json` NOTES, which is why the command is scoped to the code surface:
+  this rule's own pasted artifact stopped reproducing within one branch of being written), and that commit
+  changed one JSON data file. Applying it would have marked an UNBUILT feature complete in the
+  programme's own tracker. The DO-side pasted-grep rule already existed; it is repeated here
+  because the NEVER list is what gets read first.
 - Let the agent make architecture decisions — it documents decisions, it doesn't make them.
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").

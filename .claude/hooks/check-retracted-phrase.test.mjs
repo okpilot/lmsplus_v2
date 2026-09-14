@@ -97,8 +97,11 @@ test('tokenises a filename with a known extension', () => {
 })
 
 test('does not split a .tsx filename into a .ts one', () => {
-  // MUTATION: reorder FILE_EXT so "ts" precedes "tsx" → "quiz-config-form.tsx" matches as
-  // "quiz-config-form.ts", a file that may not exist, inverting the existence tier's verdict.
+  // MUTATION: reorder FILE_EXT so "ts" precedes "tsx" AND remove FILE_RE's trailing
+  // `(?![\w-])` lookahead — neither break alone reddens this test. With the lookahead intact,
+  // ts-before-tsx ordering still lets the lookahead reject the short match and backtrack to
+  // tsx. With longest-first ordering, removing the lookahead still keeps tsx winning. Only
+  // both removed together shorten the match to .ts and invert the existence-tier verdict.
   assert.deepEqual(files('quiz-config-form.tsx renders it'), ['quiz-config-form.tsx'])
 })
 
@@ -211,15 +214,30 @@ test('accepts a waiver naming one token with a substantive reason', () => {
 })
 
 test('rejects a waiver whose reason asserts nothing', () => {
-  // MUTATION: delete the length floor → "false positive" is accepted, the hatch becomes free,
-  // and a free suppression is used reflexively until the guard is dead. (EMPTY_REASONS alone
-  // does not make this test fail — all five fixtures are < 20 non-whitespace chars, so the
-  // length floor independently rejects them. See the next test for EMPTY_REASONS's own pin.)
+  // NOT independently pinned by either guard alone. All five fixtures are members of
+  // EMPTY_REASONS AND have stripped length < 20, so each guard catches them independently.
+  // Deleting only the length floor leaves EMPTY_REASONS to catch all five; deleting only
+  // EMPTY_REASONS leaves the floor to catch all five. Only removing BOTH makes this test fail.
+  // This test exercises EMPTY_REASONS values; for each guard pinned independently, see the
+  // two tests that follow.
   for (const bad of ['false positive', 'noise', 'n/a', 'intentional', 'ok']) {
     const { waivers, problems } = parseWaivers(`fix: x\n\nRetracted-ok: 1807 — ${bad}\n`)
     assert.equal(waivers.size, 0, bad)
     assert.equal(problems.length, 1, bad)
   }
+})
+
+test('rejects a waiver reason that is too brief even if not a known empty phrase', () => {
+  // MUTATION: delete `reason.replace(/\s/g, '').length < 20` from the condition → this
+  // fixture is accepted because 'insufficient detail' is NOT in EMPTY_REASONS, so removing
+  // the length floor is the only change that makes it pass. The five fixtures in the test
+  // above are all caught by EMPTY_REASONS too, so the floor is never independently exercised
+  // there; this fixture pins it in isolation.
+  //   'insufficient detail' → replace(/\s/g,'').length = 18 (< 20: caught by length floor)
+  //   bare = 'insufficient detail' → NOT in EMPTY_REASONS → floor is sole mechanism
+  const { waivers, problems } = parseWaivers('fix: x\n\nRetracted-ok: 1807 — insufficient detail\n')
+  assert.equal(waivers.size, 0)
+  assert.equal(problems.length, 1)
 })
 
 test('rejects a waiver whose bare reason is in EMPTY_REASONS despite passing the length floor', () => {
@@ -261,27 +279,33 @@ test('ignores prose that merely mentions the trailer name', () => {
 // ------------------------------------------------------------------ reAdded
 
 test('reAdded: a value token buried inside a longer number is not treated as re-added', () => {
-  // MUTATION: replace re.test(addedText) with bare addedText.includes(token) → '11807' contains
-  // '1807', so the retraction is falsely exonerated. The repo test pins the same gap via the CLI;
-  // this unit test pins the mechanism directly without going through git.
+  // MUTATION: change reAdded to use bare `line.includes(token)` instead of delegating to
+  // tokensOf → '11807'.includes('1807') is true, so the retraction is falsely exonerated.
+  // The repo test pins the same gap via the CLI; this unit test pins the mechanism directly.
   assert.equal(reAdded('1807', 'value', 'pool holds 11807 rows today'), false)
   assert.equal(reAdded('1807', 'value', 'count corrected to 1807 here'), true)
 })
 
 test('reAdded: a filename token matched as a suffix of a longer name is not re-added', () => {
-  // MUTATION: replace re.test(addedText) with bare addedText.includes(token) → 'check-foo.mjs'
-  // contains 'foo.mjs', so a filename retraction is falsely exonerated by a co-occurring longer
-  // name. FILE_RE's lookbehind excludes hyphens, so 'check-foo.mjs' (hyphen before 'f') does not
-  // satisfy the boundary. The two repo tests never exercise this path — both use numeric tokens.
+  // MUTATION: change reAdded to use bare `line.includes(token)` instead of delegating to
+  // tokensOf → 'check-foo.mjs'.includes('foo.mjs') is true, so a filename retraction is
+  // falsely exonerated by a co-occurring longer name. FILE_RE's lookbehind excludes hyphens,
+  // so 'check-foo.mjs' (hyphen before 'f') does not satisfy the boundary. The two repo tests
+  // never exercise this path — both use numeric tokens.
   assert.equal(reAdded('foo.mjs', 'filename', 'check-foo.mjs is referenced here'), false)
   assert.equal(reAdded('foo.mjs', 'filename', 'foo.mjs is referenced here'), true)
 })
 
 test('reAdded: a dot inside a filename token is treated as a literal character, not a wildcard', () => {
-  // MUTATION: remove escapeRe from reAdded → the dot in 'plan.md' becomes a regex wildcard;
-  // 'planXmd' (space before 'p', space after 'd') satisfies both boundaries and the retraction is
-  // falsely exonerated. Every filename token contains at least one dot, so removing escapeRe
-  // widens the match for every filename candidate.
+  // MUTATION: match via `new RegExp('(?<![\\w.@-])(' + token + ')(?![\\w-])')` (boundaries kept
+  // but no escaping) instead of delegating to tokensOf → the dot in 'plan.md' becomes a regex
+  // wildcard; 'planXmd' satisfies the boundary pattern and the retraction is falsely exonerated.
+  // This break reddens only this test: keeping the boundaries leaves the two preceding reAdded
+  // tests green — 'a value token buried inside a longer number is not treated as re-added' and
+  // 'a filename token matched as a suffix of a longer name is not re-added'. ("FIX 4" appeared
+  // here for one commit and named nothing in the repo; it was a label from the dispatch that
+  // produced the edit.) reAdded delegates to tokensOf, which uses FILE_RE — a regex that escapes the dot
+  // to `\.` — and then compares by string equality, so no unescaped regex is built from the token.
   assert.equal(reAdded('plan.md', 'filename', 'the doc planXmd is linked here'), false)
   assert.equal(reAdded('plan.md', 'filename', 'the doc plan.md is linked here'), true)
 })

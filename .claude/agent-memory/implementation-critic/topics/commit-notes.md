@@ -6,6 +6,55 @@
 
 ## Positive-pattern log
 
+### mutation-harness rule-promotions commit (2026-09-14, feat/mutation-harness, round 3)
+
+REVISE. 3 files staged. 1 ISSUE, 2 SUGGESTIONS.
+
+**ISSUE — "FIVE distinct agents" names four distinct agents.**
+`agent-workflow.md` new Delegation Protocol subsection ends with "across FIVE distinct agents — code-reviewer, semantic-reviewer twice, implementation-critic, test-writer." Count: code-reviewer(1) + semantic-reviewer(1 agent, 2 instances) + implementation-critic(1) + test-writer(1) = 4 distinct agents, 5 total instances. "Distinct" directly contradicts the list that follows it. §10 governs rule text; a wrong count in a rule file is the pattern this branch exists to prevent.
+
+**SUGGESTION — mechanism stated as certainty.**
+"It fires when an agent's last tool call is its own memory write: the write consumes the final slot" asserts internal Claude Code scheduling behavior with certainty. Observable: terminal messages reference "above" with nothing above. Mechanism "consumes the final slot" is an inference about runtime internals. Soften to "appears to fire when" or frame the consequence rather than the mechanism.
+
+**SUGGESTION — quoted message is a truncation.**
+`test-writer.md` says `run-mutations.mjs` "reports exit 2, 'stale against HEAD'". Actual message (line 266 confirmed): `'the data file is stale against HEAD (a no-op mutation reports SURVIVED)'`. The parenthetical is the sentence distinguishing harness failure from test failure — the same distinction the paragraph makes two sentences later. §10 requires accurate quotation from source.
+EVIDENCE: `sed -n '262,270p' .claude/hooks/run-mutations.mjs` → count=0 branch returns `'the data file is stale against HEAD (a no-op mutation reports SURVIVED)'`.
+
+Verified clean: f26abc16 is genuine second instance (commit message confirms "Anchors authored before a format pass are stale on arrival"). Learner MEMORY.md deltas (5 row changes) are arithmetically accurate. Rule-Mirror Sync: `.claude/rules/agent-test-writer.md` defers to canonical file — no update needed. No other mirror restates either rule.
+
+### mutation-harness fixup — spawn tests + null guard (2026-09-14, feat/mutation-harness, round 2)
+
+REVISE. 5 files staged.
+
+**ISSUE — stale "91-mutation batch" note field survived the §10 fix.**
+The MUTATION comment in test 8 was correctly updated to remove the stale "91" literal (replaced with a command pointer). But the `note` field of the `spawn-throw-drops-mutation-id` mutation in `.claude/hooks/run-mutations.mutations.json` still reads `"One bad run in a 91-mutation batch becomes untraceable."`. The retracted phrase "91-mutation batch" was NOT grepped repo-wide before committing (§10 cl.3). Post-fixup total across all three data files: 19+29+54=102, confirming 91 was already stale before this commit too. The note field is human-readable documentation and is never printed by the harness, but §10 governs all doc-like assertions.
+
+Verified clean:
+- Three new MUTATION comments: all TRUE, all reachable, all expectRed sets EXACT.
+- `if (r == null)` guard: correct (`==` catches both null and undefined); test verifies both.
+- Command-pointer claim: line 553 of run-mutations.mjs prints `${total} mutations run, ...` — TRUE.
+- Tests 5 and 6: non-vacuous (first assert pins message text, second pins mutId — different mechanisms).
+- Agent memory deltas: both factually accurate; no false tracker row introduced.
+
+### mutation-harness + MUTATION comment corrections (2026-09-14, feat/mutation-harness)
+
+APPROVED. 13 files reviewed, 0 critical, 0 issues, 0 suggestions.
+
+Key verifications:
+1. All anchor uniqueness checks: PASS. Ran python3 `source.count(mut['find'])` against staged targets for all 3 data files — every anchor occurs exactly once.
+2. `compareResult` superset = MISMATCH: code `if (missing.length === 0 && unexpected.length === 0)` — superset triggers unexpected.length > 0 → MISMATCH. Correct.
+3. Worktree cleanup in `finally`: verified code has a `finally` block calling `git(['worktree', 'remove', '--force', wt])`.
+4. `countMutationClaims` uses `/MUTATION:/g` not `/\/\/ MUTATION:/g`: verified at line `return (String(text).match(/MUTATION:/g) ?? []).length`.
+5. Two-mode flag returns `{ error }` → `return 2` path verified.
+6. All three test suites pass: run-mutations.test.mjs 35/35, check-retracted-phrase.test.mjs 32/32, directive.test.mjs 11/11.
+7. Decision 67 SEVEN count: traced 6 directly (tsx ordering, length-floor, escapeRe, FILE_EXT source comment, no-dedup, narrow-mutation-grep) + 7th (linecount 2-line fixture vacuity in run-mutations.test.mjs). Count confirmed.
+8. New waiver-floor test: 'insufficient detail' stripped length = 18 (< 20) and NOT in EMPTY_REASONS — floor is sole mechanism. Correct.
+9. pipeline.json/lefthook.yml NOT modified: consistent with harness being a dev script, not a gate. Plan explicitly permits this.
+10. `assertSingleOccurrence` throws → propagates to top-level `try { exit(main()) } catch { exit(2) }` — exits 2. Correct.
+
+Positive pattern: A strongly self-referential commit (harness tested against its own tests, MUTATION comments corrected by the tool that evaluates them) had zero false claims introduced. The SEVEN count was fully traceable. The `notEncoded` entries are honest about mechanisms that cannot be expressed as find/replace, with falsifiable `why` fields (SURVIVED was re-derived, not assumed).
+
+
 ### retracted-phrase guard -- --no-merges + merge test (2026-09-14, feat/retracted-phrase-guard round 2)
 
 APPROVED. 9 files reviewed (incl. agent-memory deltas), 0 critical, 0 issues, 1 suggestion (non-blocking).
@@ -860,3 +909,14 @@ so `"unanchored": "  "` falls through to the scan (safe direction).
 `docs/plan.md:1485` `#1192 (S/P1)` → `(S/P2)` is CORRECT (the issue body states "**Effort** S ·
 **Priority** P2"; the issue carries no labels) and closes the discrepancy logged at
 commit-notes.md L511 — but it is the one hunk the commit message does not mention.
+
+### notEncoded rmSync entry (2026-09-14, feat/mutation-harness, round 29)
+
+Data + memory only. All four factual claims in the new `notEncoded` entry verified by reading:
+
+1. `git` is `function git(args, cwd)` at line 320 — not exported, not injectable. TRUE ("closure" is loose terminology but "no injection point" is accurate).
+2. `assertSingleOccurrence` (line 420) runs AFTER `git(['worktree', 'add', ...])` (line 412). TRUE.
+3. No `MUTATION:` comment near `rmSync`. `--coverage` gap formula is `claims - encoded - notEncoded`; this entry now enters the `notEncoded` denominator. TRUE.
+4. Leaked dir is empty (worktree add failed → nothing populated); unique mkdtemp name prevents collision; disk-full would produce exit 2, not a wrong verdict. Bound holds. TRUE.
+
+code-reviewer memory delta: `gradeOne` is 22L, `modeRun` is 34L — verified against the working tree. `63eb9e37` commit message confirms extraction. TRUE.

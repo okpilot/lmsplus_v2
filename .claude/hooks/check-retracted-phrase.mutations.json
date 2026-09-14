@@ -1,0 +1,285 @@
+{
+  "target": ".claude/hooks/check-retracted-phrase.mjs",
+  "suites": [
+    ".claude/hooks/check-retracted-phrase.test.mjs",
+    ".claude/hooks/check-retracted-phrase.repo.test.mjs",
+    ".claude/hooks/check-retracted-phrase.base.test.mjs",
+    ".claude/hooks/check-retracted-phrase.paths.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "num-trailing-lookahead-tighten",
+      "find": "(?![0-9A-Za-z_.])/g",
+      "replace": "(?![0-9A-Za-z_.-])/g",
+      "expectRed": ["tokenises a number welded to a following word by a hyphen"]
+    },
+    {
+      "id": "num-lookbehind-allow-paren",
+      "find": "(?<![0-9A-Za-z_$#.-])(\\d{3,13})",
+      "replace": "(?<![0-9A-Za-z_$#.(-])(\\d{3,13})",
+      "expectRed": [
+        "tokenises a number inside parentheses",
+        "a hunk swapping one value for another yields the old value",
+        "finds a survivor when invoked from a subdirectory, not just the repo root",
+        "a global diff.relative does not hide changes from the guard",
+        "blocks when a corrected value still stands in another corpus file",
+        "an agent-memory file quoting the old value does not exonerate the retraction",
+        "a waiver naming a different token does not clear the finding",
+        "grades the INDEX, not the working tree",
+        "a rename in the same commit does not desync the path stream",
+        "a LONGER number containing the token does not exonerate the retraction",
+        "a token re-added only in application code does not exonerate a corpus retraction",
+        "a submodule pointer does not abort the run"
+      ],
+      "note": "superset: the corpus-facing suites exercise the same tokenisation end to end"
+    },
+    {
+      "id": "num-drop-year-skip",
+      "find": "/^(19|20)\\d{2}$/.test(tok)",
+      "replace": "false",
+      "expectRed": ["ignores a four-digit year"]
+    },
+    {
+      "id": "num-drop-issue-prefix-skip",
+      "find": "ISSUE_PREFIX_RE.test(line.slice(0, m.index))",
+      "replace": "false",
+      "expectRed": [
+        "ignores a number written as an issue or PR reference",
+        "ignores a migration number"
+      ],
+      "note": "superset: also un-pins the migration-prefix case below it"
+    },
+    {
+      "id": "issue-prefix-drop-migration",
+      "find": "|GH-|mig(?:ration)?\\s+)\\s*$/i",
+      "replace": "|GH-)\\s*$/i",
+      "expectRed": ["ignores a migration number"]
+    },
+    {
+      "id": "num-drop-leading-zero-skip",
+      "find": "tok.startsWith('0')",
+      "replace": "false",
+      "expectRed": ["ignores a zero-padded migration fragment"]
+    },
+    {
+      "id": "num-drop-boundary-classes",
+      "find": "/(?<![0-9A-Za-z_$#.-])(\\d{3,13})(?![0-9A-Za-z_.])/g",
+      "replace": "/(\\d{3,13})/g",
+      "expectRed": ["ignores a version segment and a number glued to a word"]
+    },
+    {
+      "id": "num-lower-digit-floor",
+      "find": "(\\d{3,13})",
+      "replace": "(\\d{2,13})",
+      "expectRed": ["ignores a number below three digits"]
+    },
+    {
+      "id": "file-ext-generic-list",
+      "find": "['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts', 'js', 'md', 'sh']",
+      "replace": "['[a-z]{1,5}']",
+      "expectRed": [
+        "tokenises a filename with a known extension",
+        "reduces a path to its basename and ignores a hostname"
+      ],
+      "note": ". Identical edit to file-ext-generic-list-hostname — two claims name the same break, so one mutation reddens both tests and each entry records the same pair"
+    },
+    {
+      "id": "file-ext-generic-list-hostname",
+      "find": "['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts', 'js', 'md', 'sh']",
+      "replace": "['[a-z]{1,5}']",
+      "expectRed": [
+        "tokenises a filename with a known extension",
+        "reduces a path to its basename and ignores a hostname"
+      ],
+      "note": ". Identical edit to file-ext-generic-list — see that entry"
+    },
+    {
+      "id": "file-re-lookbehind-exclude-slash",
+      "find": "(?<![\\\\w.@-])([A-Za-z0-9_]",
+      "replace": "(?<![\\\\w./@-])([A-Za-z0-9_]",
+      "expectRed": ["reduces a path to its basename and ignores a hostname"]
+    },
+    {
+      "id": "candidates-nums-ungated",
+      "find": "nums: addN.length > 0 ? [...remN] : [],",
+      "replace": "nums: [...remN],",
+      "expectRed": [
+        "a hunk that only deletes yields no candidate",
+        "a hunk that rewrites prose without a replacement value yields no candidate",
+        "a replacement that also appears on the removed lines does not satisfy the gate"
+      ],
+      "note": "superset: the gate is what all three correction-gate cases rest on"
+    },
+    {
+      "id": "candidates-gate-on-any-added-line",
+      "find": "nums: addN.length > 0 ? [...remN] : [],",
+      "replace": "nums: hunk.add.length > 0 ? [...remN] : [],",
+      "expectRed": [
+        "a hunk that rewrites prose without a replacement value yields no candidate",
+        "a replacement that also appears on the removed lines does not satisfy the gate"
+      ]
+    },
+    {
+      "id": "candidates-replacement-wrong-class",
+      "find": "const addN = flat(hunk.add, 'nums')",
+      "replace": "const addN = flat(hunk.add, 'files')",
+      "expectRed": [
+        "a hunk swapping one value for another yields the old value",
+        "--base mode does not let one commit's waiver clear another commit's finding",
+        "an intermediate commit is graded against its OWN tree, not HEAD",
+        "a LIVE spec still counts as a survivor when run from a subdirectory",
+        "a near-identical sibling path is not mistaken for the edited file",
+        "grades a path whose name survives an argv round-trip",
+        "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
+        "a completed spec is not a surviving occurrence, a live one is"
+      ],
+      "note": "the comment says \"any break\", which is inherently broad — this is the narrowest same-class break found; a coarser one (addN = []) reddens 17 tests in the other suites instead of 7"
+    },
+    {
+      "id": "candidates-drop-remN-filter",
+      "find": "flat(hunk.add, 'nums').filter((t) => !remN.has(t))",
+      "replace": "flat(hunk.add, 'nums')",
+      "expectRed": [
+        "a replacement that also appears on the removed lines does not satisfy the gate"
+      ]
+    },
+    {
+      "id": "candidates-stop-populating-replacements",
+      "find": "replacements: addF",
+      "replace": "replacements: []",
+      "expectRed": ["a filename swap carries its same-extension replacements"]
+    },
+    {
+      "id": "hunks-no-reset-on-at-at",
+      "find": "      hunks.push({ rem: [], add: [] })\n      continue",
+      "replace": "      if (hunks.length === 0) hunks.push({ rem: [], add: [] })\n      continue",
+      "expectRed": ["parses removed and added lines per hunk"]
+    },
+    {
+      "id": "hunks-drop-cr-strip",
+      "find": "raw.replace(/\\r$/, '')",
+      "replace": "raw",
+      "expectRed": ["strips a trailing carriage return from diff lines"]
+    },
+    {
+      "id": "hunks-collect-before-first-at-at",
+      "find": "    if (hunks.length === 0) continue\n",
+      "replace": "    if (hunks.length === 0) hunks.push({ rem: [], add: [] })\n",
+      "expectRed": [
+        "ignores the file header lines that precede the first hunk",
+        "aborts when a non-empty body yields no hunks",
+        "accepts a binary patch without aborting"
+      ],
+      "note": "superset: collecting before the first @@ also makes the abort and binary-patch cases parse differently"
+    },
+    {
+      "id": "hunks-no-abort-on-unparsable",
+      "find": "throw new Error('diff body produced no hunks and is not a recognised binary patch')",
+      "replace": "return []",
+      "expectRed": ["aborts when a non-empty body yields no hunks"]
+    },
+    {
+      "id": "hunks-drop-binary-marker",
+      "find": "if (/^(Binary files .* differ|GIT binary patch)/.test(line)) binary = true\n",
+      "replace": "",
+      "expectRed": ["accepts a binary patch without aborting"]
+    },
+    {
+      "id": "waiver-break-trailer-re",
+      "find": "TRAILER_RE = /^Retracted-ok:",
+      "replace": "TRAILER_RE = /^NEVER-MATCHES-Retracted-ok:",
+      "expectRed": [
+        "accepts a waiver naming one token with a substantive reason",
+        "rejects a waiver whose reason asserts nothing",
+        "rejects a waiver whose bare reason is in EMPTY_REASONS despite passing the length floor",
+        "a waiver for one token does not waive another",
+        "--base mode honours a waiver written in the commit that needed it",
+        "a merge commit in the range does not swallow the waivers below it",
+        "a valid waiver trailer permits the commit",
+        "rejects a waiver reason that is too brief even if not a known empty phrase"
+      ],
+      "note": "superset: the trailer is the only entry point to every waiver path UNDER-SPECIFIC until 98469ba0's own harness run caught it: breaking TRAILER_RE reddens every waiver test, including the length-floor test added in that same commit. Recorded rather than trimmed — a superset is the comment being under-specific."
+    },
+    {
+      "id": "waiver-drop-empty-reasons",
+      "find": " || EMPTY_REASONS.has(bare)",
+      "replace": "",
+      "expectRed": [
+        "rejects a waiver whose bare reason is in EMPTY_REASONS despite passing the length floor"
+      ]
+    },
+    {
+      "id": "waiver-token-group-optional",
+      "find": "/^Retracted-ok:\\s*(\\S+)\\s*[—:-]",
+      "replace": "/^Retracted-ok:\\s*(\\S*)\\s*[—:-]",
+      "expectRed": ["rejects a waiver with no token"]
+    },
+    {
+      "id": "waiver-key-not-exact-token",
+      "find": "waivers.set(token, reason)",
+      "replace": "waivers.set(token.slice(0, -1), reason)",
+      "expectRed": [
+        "accepts a waiver naming one token with a substantive reason",
+        "a waiver for one token does not waive another",
+        "--base mode honours a waiver written in the commit that needed it",
+        "a merge commit in the range does not swallow the waivers below it",
+        "a valid waiver trailer permits the commit"
+      ],
+      "note": "superset: also breaks the accept-a-valid-waiver case"
+    },
+    {
+      "id": "waiver-trailer-not-anchored",
+      "find": "TRAILER_RE = /^Retracted-ok:",
+      "replace": "TRAILER_RE = /Retracted-ok:",
+      "expectRed": ["ignores prose that merely mentions the trailer name"]
+    },
+    {
+      "id": "readded-substring-numeric",
+      "find": "return addedText.split('\\n').some((line) => tokensOf(line)[key].includes(token))",
+      "replace": "return addedText.includes(token)",
+      "expectRed": [
+        "reAdded: a value token buried inside a longer number is not treated as re-added",
+        "reAdded: a filename token matched as a suffix of a longer name is not re-added",
+        "a LONGER number containing the token does not exonerate the retraction"
+      ],
+      "note": ". Identical edit to readded-substring-filename: both comments name the same break and it reddens both tests. NOTE: both comments name \"re.test(addedText)\", a mechanism reAdded no longer contains — it delegates to tokensOf and compares tokens by string equality. The behaviour is pinned; the named mechanism is stale"
+    },
+    {
+      "id": "readded-substring-filename",
+      "find": "return addedText.split('\\n').some((line) => tokensOf(line)[key].includes(token))",
+      "replace": "return addedText.includes(token)",
+      "expectRed": [
+        "reAdded: a value token buried inside a longer number is not treated as re-added",
+        "reAdded: a filename token matched as a suffix of a longer name is not re-added",
+        "a LONGER number containing the token does not exonerate the retraction"
+      ],
+      "note": ". Identical edit to readded-substring-numeric — see that entry"
+    },
+    {
+      "id": "waiver-drop-length-floor-pinned",
+      "find": "if (reason.replace(/\\s/g, '').length < 20 || EMPTY_REASONS.has(bare)) {",
+      "replace": "if (EMPTY_REASONS.has(bare)) {",
+      "expectRed": ["rejects a waiver reason that is too brief even if not a known empty phrase"],
+      "note": "The 20-char floor was UNPINNED until this branch: the pre-existing test's five fixtures are all EMPTY_REASONS members, so that half rejected them first and the floor was never consulted. A test with a non-EMPTY_REASONS fixture ('insufficient detail', stripped length 18) was added and this entry pins it. Verified: deleting the floor reddens exactly one test."
+    },
+    {
+      "id": "readded-unescaped-boundary-regexp",
+      "find": "  const key = kind === 'value' ? 'nums' : 'files'\n  return addedText.split('\\n').some((line) => tokensOf(line)[key].includes(token))\n",
+      "replace": "  const re = new RegExp(`(?<![\\\\w.@-])(${token})(?![\\\\w-])`)\n  return addedText.split('\\n').some((line) => re.test(line))\n",
+      "expectRed": [
+        "reAdded: a dot inside a filename token is treated as a literal character, not a wildcard"
+      ],
+      "note": "Rebuilds the hand-written boundary regex WITHOUT escaping — the exact break the test comment names. Encoded after cloud CR-local found the notEncoded entry ASSERTING this was pinned when no entry encoded it."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "reorder FILE_EXT so \"ts\" precedes \"tsx\" → \"quiz-config-form.tsx\" matches as \"quiz-config-form.ts\", a file that may not exist, inverting the existence tier's verdict. (check-retracted-phrase.test.mjs, test \"does not split a .tsx filename into a .ts one\")",
+      "why": "SURVIVED — the comment overclaims. Applying exactly that reorder (FILE_EXT = [ts, tsx, jsx, ...]) leaves all four suites green: 31/31 and 34/34 pass. FILE_RE's trailing lookahead (?![\\w-]) independently rejects the \".ts\" partial match and forces the regex to backtrack into \"tsx\". Removing the lookahead ALONE is also green, because longest-first ordering then does the work. The test is pinned only by the CONJUNCTION: removing both (ts-first order AND the lookahead) is the one edit that reddens it, and reddens exactly it. (The source comment that carried the same overclaim was CORRECTED on this branch; the quote is not repeated here so it cannot outlive the fix.)"
+    },
+    {
+      "claim": "remove escapeRe from reAdded → the dot in 'plan.md' becomes a regex wildcard; 'planXmd' satisfies both boundaries and the retraction is falsely exonerated. (check-retracted-phrase.test.mjs, test \"reAdded: a dot inside a filename token is treated as a literal character, not a wildcard\")",
+      "why": "NARROWED twice. The original rationale said no find/replace exists — wrong; the harness replaces arbitrary source text. The second wording then claimed the boundary-keeping RegExp break 'IS encodable and is pinned by that test', which was ALSO wrong: it was encodable and NOT encoded, so the dot-literal test was graded by nothing while this field asserted otherwise. Found by CR-local round 4 and now closed — the break is encoded as `readded-unescaped-boundary-regexp`, verified CAUGHT with that test as its exact red set. What remains genuinely not encodable is the claim AS THE COMMENT WORDS IT: 'remove escapeRe from reAdded' names a mechanism reAdded does not contain, because it builds no regex at all and delegates to tokensOf. A field whose job is to be honest about coverage carried a false coverage claim through two rewrites; that is the defect this guard exists to catch."
+    }
+  ]
+}

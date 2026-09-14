@@ -523,6 +523,17 @@ reviews:
         - A mechanism the guard implements that no MUTATION comment names at all — UNLESS the
           suite explicitly records it as not pinned and says why, which code-style.md §7 permits
           and prefers to a claim that reads as verified and is not.
+        - A comment naming a mechanism that IS reachable while the described FAILURE MODE is
+          false — "passes silently" where the code actually throws. The test still reddens, so
+          the claim reads as verified; what is wrong is the account of HOW, and a reader trusting
+          it looks for a path that does not exist. Verify by reverting ONLY the named mechanism
+          and READING the output, never by predicting it.
+        - A mutation whose edit was never confirmed to LAND. Where a harness checks the anchor
+          first, a ZERO-match anchor aborts the run with no verdict rather than reporting
+          SURVIVED — the two outcomes must not be conflated. The silent case is the one that
+          survives that check: a replacement that matches and leaves the file UNCHANGED, which
+          is a no-op indistinguishable from an unpinned test. Confirm the source actually
+          changed before believing any verdict drawn from it.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

@@ -108,12 +108,29 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       implement it or delete a false claim. Without it,
       slice 1's exact-match ratchet fails CI on every legitimate shrink and gets disabled.
       Human-invoked; must never self-rewrite silently.
-- [ ] **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
+- [x] **Commit the mutation harness.** DONE 2026-09-14 (Decision 67) — `run-mutations.mjs` +
+      `<guard>.mutations.json` data + a throwaway worktree. Re-derive any figure with
+      `node .claude/hooks/run-mutations.mjs`; `--coverage` shows the encoded-vs-claimed gap.
+      Executing the claims refuted claims in every file that carried them, found one test
+      pinning nothing and one mechanism (the 20-char waiver floor) pinned by nothing; all fixed
+      on the branch. No total is stated — an earlier draft said SEVEN and its own enumeration
+      summed to eight. Re-derive with `node .claude/hooks/run-mutations.mjs` and the commit history of PR #1276, which is where they were found (a POINTER, deliberately not a `git log -p 16d62fec..` command: an unpinned range resolves to whatever HEAD is when you run it and stops reproducing, and the bound that would fix it — the merge commit — does not exist while the PR is open. The runnable half is the harness command above; this half is for reading, and says so).
+      ORIGINAL ENTRY BELOW, kept because it names the defect this closed:
+      **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
       caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness
       lives in the scratch directory and is deleted. That is the same unfalsifiable-claim class
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
       dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
       stating a number. Do not keep asserting an unverifiable count.
+- [ ] **`--update-expected` on the mutation harness.** Same shape, and same rationale, as
+      `--update-baseline` on the file-size guard: adding a test to a suite can invalidate the
+      `expectRed` of every existing entry whose break also reddens it, and four entries needed
+      hand-widening on the harness's own branch within one commit of each other. A check that is
+      laborious to keep current gets disabled — that is recorded in the design as the single
+      biggest risk to this programme. MUST be human-invoked and write the diff for review; a
+      harness that rewrites its own expectations launders them. Re-derive the current pressure
+      with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
       ongoing cost — "three weeks of correcting prose only because of this". Widened the same day
