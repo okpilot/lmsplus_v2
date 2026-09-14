@@ -91,8 +91,10 @@
       "replace": "    if (fenceOpen) {\n      return\n    }",
       "expectRed": [
         "skips a fenced code block",
-        "closes a fence only on a fence of the same character and length"
-      ]
+        "closes a fence only on a fence of the same character and length",
+        "does not let an info-string opener close an open fence"
+      ],
+      "note": " WIDENED when the block-comment and fence fixes added tests that this same break also reddens. The overlap is real — these mechanisms share a scanner — and the exact-set comparison surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "markdown-fence-closes-on-anything",
@@ -111,8 +113,12 @@
       "id": "code-file-data-lines-read-as-prose",
       "find": "    if (COMMENT_RE.test(line)) {\n      out.push({ n: i + 1, text: line })\n      if (opens && !closes) inBlock = true\n    }\n",
       "replace": "    out.push({ n: i + 1, text: line })\n    if (opens && !closes) inBlock = true\n",
-      "expectRed": ["reads only comment lines in a code file, never its data"],
-      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for."
+      "expectRed": [
+        "reads only comment lines in a code file, never its data",
+        "reads the body of a block comment whose lines carry no leading star",
+        "does not open a block on a slash-star inside a string"
+      ],
+      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for. WIDENED when the block-comment and fence fixes added tests that this same break also reddens. The overlap is real — these mechanisms share a scanner — and the exact-set comparison surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "unknown-extension-falls-through-to-markdown",

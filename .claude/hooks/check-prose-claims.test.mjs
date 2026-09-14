@@ -355,15 +355,24 @@ test('reads the body of a block comment whose lines carry no leading star', () =
 // `/^\s*\/\*/` → a `/*` inside a string or regex opens a phantom block and every later line is
 // graded as prose. The first cut of this fix did exactly that and produced 17 false findings.
 test('does not open a block on a slash-star inside a string', () => {
-  const src = ["const re = '/*'", 'const cap = 1', 'more code'].join('\n')
-  assert.deepEqual(commentProse(src), [])
+  // The fixture line must BE a comment: `opens` is only consulted inside the COMMENT_RE branch,
+  // so a non-comment line carrying the marker cannot reach the mechanism at all. A first version
+  // of this test used `const re = '/*'` and SURVIVED the mutation for exactly that reason.
+  const src = ['// see /* for the shape', 'const cap = 1', 'more code'].join('\n')
+  assert.deepEqual(
+    commentProse(src).map((c) => c.text),
+    ['// see /* for the shape'],
+  )
 })
 
 // MUTATION: drop the `line.slice(fenceOpen[0].length).trim() === ''` term from the fence
 // closer → an inner ```js opener closes the outer fence and the code after it is graded as
 // prose. CommonMark requires a bare closer; the first cut checked only length and character.
 test('does not let an info-string opener close an open fence', () => {
-  const md = ['```', 'inner ```js opener', 'still code', '```', 'real prose'].join('\n')
+  // The inner opener must start its own line — the fence regex anchors at column 0..3, so a
+  // mid-line occurrence never produces a match and the trailing-content check is never reached.
+  // A first version put it mid-line and SURVIVED the mutation.
+  const md = ['```', '```js', 'still code', '```', 'real prose'].join('\n')
   assert.deepEqual(
     markdownProse(md).map((p) => p.text),
     ['real prose'],
