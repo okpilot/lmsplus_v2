@@ -427,6 +427,10 @@
     {
       "claim": "modeRun throws when no *.mutations.json exists (5b47604c) → without it the harness exits 0 having graded nothing",
       "why": "NOT PINNED, and not pinnable at the unit tier: `modeRun` is not exported, and `main()` resolves the repo root via `git rev-parse --show-toplevel` with no injection point, so even running from a temp dir finds this repo's data files and never reaches the branch. Recorded here rather than left silent because it is the single most important false-green path in the tool and `--coverage` would otherwise not even show it as a gap — it carries no MUTATION: comment to count. Closing it needs an injectable root or an end-to-end tier, not a better fixture."
+    },
+    {
+      "claim": "per-mutation fault isolation in modeRun: a mutation whose recipe is broken (stale anchor, unreadable target, unparseable TAP) is counted as a FAULT and the batch continues; `faults > 0` returns 2, outranking a survivor's 1",
+      "why": "NOT PINNED at the unit tier, for the same structural reason as the entry above: `modeRun` is not exported and `main()` resolves the repo root with no injection point. VERIFIED END-TO-END INSTEAD, and the method is the claim's only evidence: one anchor in check-file-size-guard.mutations.json was deliberately pointed at text that matches nothing, the harness was run, and it reported `19 mutations run, 18 caught, 0 survived-or-mismatched, 1 could not be graded` at exit 2 — where the previous control flow aborted on the first fault and graded NONE. The anchor was then restored and the file is byte-identical to its committed state. Recorded here rather than left silent because the exit-code ORDER (fault outranks survivor) is the part a later refactor is most likely to invert, and inverting it turns 'this run proves nothing' into 'your tests have a hole'."
     }
   ]
 }

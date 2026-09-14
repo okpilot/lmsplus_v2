@@ -524,13 +524,28 @@ function modeRun(root, guard, scratch) {
   const base = scratchBase(root, scratch)
   let caught = 0
   let bad = 0
+  let faults = 0
   let total = 0
   for (const file of files) {
     const data = loadDataFile(file)
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
     for (const mut of data.mutations) {
       total++
-      const res = runMutation({ root, data, mut, base })
+      // ISOLATE the fault, do NOT swallow it. A stale anchor, an unreadable target or a suite
+      // that never produced parseable TAP is a fault in the RECIPE, and every OTHER mutation is
+      // independent of it — so aborting the batch throws away every verdict it could still have
+      // earned. Both stale anchors on this branch cost a full re-run for exactly that reason.
+      // `faults` keeps exit 2 reachable: a run carrying one has NOT established that the encoded
+      // claims hold, and must never be read as if it had.
+      let res
+      try {
+        res = runMutation({ root, data, mut, base })
+      } catch (err) {
+        faults++
+        console.log(`  FAULT     ${mut.id}`)
+        console.log(`    ${err.message}`)
+        continue
+      }
       if (res.status === 'CAUGHT') {
         caught++
         console.log(`  CAUGHT    ${mut.id}`)
@@ -550,7 +565,13 @@ function modeRun(root, guard, scratch) {
       }
     }
   }
-  console.log(`\n${total} mutations run, ${caught} caught, ${bad} survived-or-mismatched`)
+  console.log(
+    `\n${total} mutations run, ${caught} caught, ${bad} survived-or-mismatched, ${faults} could not be graded`,
+  )
+  // Order matters and is NOT arbitrary. A fault outranks a survivor: exit 1 says "your TESTS have
+  // a hole", exit 2 says "this RUN proves nothing". A batch with one of each is the second, and
+  // reporting it as the first would send the reader to audit tests that were never graded.
+  if (faults > 0) return 2
   return bad === 0 ? 0 : 1
 }
 
