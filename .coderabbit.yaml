@@ -417,6 +417,18 @@ reviews:
           question-images bucket ONLY and does not transfer to any other public bucket. The
           lapse is NOT mechanically enforced — you see a diff, not live org state — so this
           exception stays active after multi-org onboarding until a human retires it (#1282).
+          ONE PARTIAL TRIGGER YOU CAN APPLY, because it needs only the diff: if the diff
+          would let a SECOND ORGANIZATION EXIST at runtime — a migration seeding a second
+          row in organizations, a signup or provisioning endpoint that creates one, admin
+          tooling that creates one — treat this exception as SPENT for that diff and raise
+          the unscoped question-images read as a real finding, citing #814 as the gate that
+          must land first. The test is whether a second org can come into existence, NOT
+          whether the diff touches org-related code: an ALTER TABLE organizations, a new RLS
+          policy on it, or a function that merely READS it is ordinary work — do not fire on
+          those. This does NOT make the lapse mechanically enforced, and closes the
+          likeliest path rather than the class: an organization created
+          through the dashboard or the Management API never passes through a diff, so for
+          that case the preceding sentence holds unchanged.
           (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
