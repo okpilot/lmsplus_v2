@@ -39,7 +39,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). New mechanism: `check-mirror-sync.mjs '<anchor>'` errors on a multi-occurrence anchor — caught only by executing it, not reading it. Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum (counts are enumerations in disguise). Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 49 | 2026-09-15 | RULE CANDIDATE (49) — +1 (c7805f83): Decision 69 prose overclaims derivation scope; Decision 70 intra-file inconsistency + archaeology paragraph. +1 (`b944f177`): Decision 70 claimed "path_instructions covers every prose surface" while commit disclosed chat/commit-message review excluded. Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 50 | 2026-09-15 | RULE CANDIDATE (50) — `65a165e5`: stale count in comment block (same-artifact, counted once). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 11 | 2026-09-15 | RULE CANDIDATE (11) — text exists (§10 cl.2). New instance: CR-local (not any internal reviewer) caught it — `docs/decisions.md:2030` listed 6 mirror locations and read as complete. Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 4 | 2026-09-14 | RULE CANDIDATE (4) — sweep must paste the enforcer's output, not re-read prose. Detail: cross-agent-lessons.md |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 6 | 2026-09-14 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
@@ -138,7 +138,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 - POSITIVE (c7805f83 impl-critic): caught "blocks only" overclaim in claim-accuracy fix draft before commit. agent-critic.md's "highest-risk site" note confirmed sufficient — no new rule promotion needed (already placed correctly in agent-critic.md + §10 cl.5 covers it).
 - WHY-clause falsity: explanatory sentences (the reason a fact is true) are less likely to be verified than the fact itself. All 5 bucket-paragraph false claims were in WHY positions. Row 60 (PROMOTED) governs; this is WHERE to look first when verifying doc-only commits.
 - POSITIVE (16382b62): doc-updater pasted commands+output for ALL counts — row 68 ("subagent asserts verification it did not perform") did NOT recur. Pasted-artifact requirement worked; dispatch-line reminder alone had not.
-- POSITIVE (6753ad76): all four core post-commit agents CLEAN on a security-path suppression edit. CR-local ran M=3 rounds (security-path floor), round 3 applied a cheap fix, round 4 (ceiling) returned 2 trivial PROCESS findings and zero apply-worthy code edits. NB: this bullet originally asserted round 4 was clean BEFORE round 4 had run — corrected after execution.
+- POSITIVE (6753ad76): four core agents CLEAN on security-path suppression. CR-local M=3; round 4 ceiling had 0 apply-worthy code findings (bullet corrected — round 4 hadn't run when first written).
+- POSITIVE (`65a165e5`): cloud CR (config loaded) caught test-parser fail-open on inline input — 4 internal agents + impl-critic missed it on b944f177/b812d107. Count=1 — watch.
 
 ## Topic pointers
 

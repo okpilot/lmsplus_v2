@@ -6,6 +6,16 @@
 
 ## Positive-pattern log
 
+### CR-fixup: folded-scalar pin + decisions.md archaeology drop (2026-09-15, docs/recover-question-images-decision)
+
+APPROVED. 2 files staged. 0 critical, 0 issues, 0 suggestions.
+
+Key verifications:
+1. MUTATION comment reachability: `lines[i].trim()` is `'tone_instructions: >'` for the folded form; any inline value produces a different string → assertion fires. Mechanism is REACHABLE and failure mode is TRUE. EVIDENCE: `node .claude/hooks/check-file-size-guard.update.test.mjs` → pass 12, fail 0.
+2. "8 commits" is deleted from `docs/decisions.md` as archaeology; the claim is NOT retracted — it remains TRUE in the test comment (`b0ea0d58^..68b03052`; EVIDENCE: `git rev-list --count b0ea0d58^..68b03052` = 8) and in learner MEMORY.md. Deletion is RULE 0 archaeology removal, not a §10 cl.3 retraction.
+3. Surviving `docs/decisions.md` paragraph: all claims TRUE. 250-char cap is the schema fact; config rejection on exceeded cap is documented by CodeRabbit; `path_instructions` FILE-only scope is the acknowledged narrowing.
+4. Decision 70 self-consistent after deletion: no dangling antecedent, no contradicted claim.
+
 ### prose-claims guard (2026-09-14, feat/prose-claims)
 
 APPROVED. 13 files, ~1940 insertions. 0 critical, 0 issues, 0 suggestions.
