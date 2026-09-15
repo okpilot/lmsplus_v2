@@ -37,10 +37,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | check-test-title-leakage.mjs misses bare snake_case token | 2 | 2026-08-17 | RULE CANDIDATE (2) → extend hook DISALLOWED_PATTERNS or §7 note |
 | Status/error-posture change leaves a sibling spec | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation |
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
-| Proposed verification command silently verifies nothing | 6 | 2026-09-13 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
+| Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). New mechanism: `check-mirror-sync.mjs '<anchor>'` errors on a multi-occurrence anchor — caught only by executing it, not reading it. Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum (counts are enumerations in disguise). Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 41 | 2026-09-14 | RULE CANDIDATE (41). Detail: topic file |
-| Rules-file bullet closes an enumeration of a structurally OPEN set | 10 | 2026-09-10 | RULE CANDIDATE (10) — text exists (§10 cl.2). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 45 | 2026-09-15 | RULE CANDIDATE (45). Detail: topic file |
+| Rules-file bullet closes an enumeration of a structurally OPEN set | 11 | 2026-09-15 | RULE CANDIDATE (11) — text exists (§10 cl.2). New instance: CR-local (not any internal reviewer) caught it — `docs/decisions.md:2030` listed 6 mirror locations and read as complete. Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 4 | 2026-09-14 | RULE CANDIDATE (4) — sweep must paste the enforcer's output, not re-read prose. Detail: cross-agent-lessons.md |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 6 | 2026-09-14 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
 | Verification/gate check accepts category-membership or substring match, not exact identity — SWAP passes clean | 4 | 2026-09-14 | RULE CANDIDATE (4). Detail: cross-agent-lessons.md |
@@ -63,10 +63,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence |
 | Doc-updater reports 1 stale claim; whole-block read finds more | 3 | 2026-09-07 | PROMOTED → `agent-doc-updater.md` § DO. Detail: topic file |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
-| Corrected claim partially retracted — old wording persists elsewhere | 7 | 2026-09-14 | RULE CANDIDATE (7). Detail: topic |
+| Corrected claim partially retracted — old wording persists elsewhere | 8 | 2026-09-15 | RULE CANDIDATE (8) — 4th instance on ONE branch (`docs/recover-question-images-decision`); every instance was a PARAPHRASE, so the byte-identical `check-retracted-phrase.mjs` gate caught none. Propose promotion text: § Rule-Mirror Sync addendum requiring a manual second pass over structurally-parallel positions (headers, footers, summary lines) in the SAME file whenever a claim is corrected — grep cannot substitute here. Detail: topic |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
 | Subagent asserts a verification/write it did not perform — evidence invented, conclusion mostly true | 15 | 2026-09-10 | PROMOTED → agent-workflow.md § Finding Validation. Detail: topic file |
-| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 22 | 2026-09-14 | RULE CANDIDATE (22) — cl.6 taken by SHA-citation gate; propose cl.8. Detail: topic file |
+| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 23 | 2026-09-15 | RULE CANDIDATE (23) — cl.6 taken by SHA-citation gate; propose cl.8. New: Decision 69 classified plan.md/tech.md as mere pointers while they still restated mechanics — the classification itself was false vs the mirrors it described (CR-local round 2). Detail: topic file |
 | Coherent-but-false claim survives active same-paragraph edits across 3 same-day commits | 1 | 2026-09-02 | PROMOTED → code-style.md §10 cl.3 addendum + new cl.5 (`18757ddf`). Detail in topic file |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING — no check for same-file duplicate anchors. Log and watch |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
@@ -89,7 +89,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo — self-caught via verify-after-mutation | 1 | 2026-09-08 | WATCHING — same Bash residual hole, distinct actor/race. Detail: cross-agent-lessons.md |
 | doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 4 | 2026-09-14 | RULE CANDIDATE (4). Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
-| Commit-message count computed pre-edit; own edits make it stale on arrival | 3 | 2026-09-10 | PROMOTED → code-style.md §10 cl.7. Detail: cross-agent-lessons.md |
+| Commit-message count computed pre-edit; own edits make it stale on arrival | 4 | 2026-09-15 | PROMOTED → code-style.md §10 cl.7. Recurred AFTER promotion ("3 lines" stated for a count the same commit's own edit made 4) — fixed by DELETING the count rather than correcting it. The promoted rule is not yet self-enforcing. Detail: cross-agent-lessons.md |
 | Hook script's git-diff filter argument doesn't cover git's R(ename) status | 1 | 2026-09-10 | WATCHING — cousin of PROMOTED row 88. Detail: topic file |
 | Orchestrator's own SKIP-with-reason rests on a wrong stated premise, reversed by an external reviewer round | 1 | 2026-09-10 | WATCHING — inverse of usual Finding Validation direction. Detail: topic file |
 | Regex→hand-parser rewrite of a blocking gate: fix commit's own corpus-diff claim is insufficient | 2 | 2026-09-13 | RULE CANDIDATE (2). Detail: topic |
@@ -101,6 +101,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Agent terminal message self-referential with no prior report body delivered | 6 | 2026-09-14 | PROMOTED → agent-workflow.md § Delegation Protocol. Detail: cross-agent-lessons.md |
 | Orchestrator excludes a known-drift-prone rule-mirror from a sweep on an unverified runtime-access claim | 1 | 2026-09-15 | WATCHING — `security-auditor.md` skipped on a false "has Read access" claim. Detail: cross-agent-lessons.md |
 | Single-line grep false-negative on text present but line-wrapped inside a YAML block scalar | 1 | 2026-09-15 | WATCHING — distinct from paraphrase-blindness; text was byte-identical, just folded. Detail: cross-agent-lessons.md |
+| A documented suppression/exemption cannot self-expire — the diff-scanner enforcing it has no way to count the condition (e.g. orgs) that would retire it | 1 | 2026-09-15 | WATCHING — `security-auditor.md` onboarding-gate suppression, CR-local rounds 2+3 (deduped, same finding re-raised once), deferred #1282. Log and watch |
+| semantic-reviewer bounds out a §10 cl.2 violation as "refinement" because the prose reads smoothly — CR-local catches it on the same round the bound-out happened | 1 | 2026-09-15 | WATCHING — classification-boundary gap, not a floor defect: an enumeration-of-an-open-set IS a determinate rule violation, never wording preference. Log and watch |
 
 ## Durable knowledge (cross-agent)
 
@@ -123,6 +125,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 - SWEEP COMPLETENESS: "Audited and found ALL accurate" is unfalsifiable — §10 cl.5. Must paste the enforcer's output when one exists. See row 44.
 - POSITIVE (`feat/mutation-harness`): mutation harness caught 6 false MUTATION: claims in its own tests while being written, 90/90 caught when claims are correct. "Run the new tool first on its own source" is the cheapest possible sweep.
 - POSITIVE (`9b06fa56`, terminal-message rule): first post-promotion cycle came back clean, all 4 agents self-contained. One cycle is weak evidence. Topic file.
+- `docs/recover-question-images-decision`: 3 DISTINCT already-tracked patterns (rows 40/66/92) each fired once more on this one branch, all "prose ABOUT a correct code change was itself wrong." Not a new unifying pattern — the three rows stay separate — but the CO-OCCURRENCE is itself a signal: documentation-fixup commits are where §10 defects concentrate, confirming row 53's cluster finding rather than adding a fourth mechanism.
 
 ## Topic pointers
 
