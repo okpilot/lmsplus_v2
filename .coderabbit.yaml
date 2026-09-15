@@ -265,7 +265,7 @@ reviews:
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
     # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
     # revised in flight, so reviewing them is churn.
-    # Rule 0 — applies to every prose surface, INCLUDING spec tasks.md (which the
+    # Rule 0 — every file this glob matches, INCLUDING spec tasks.md (which the
     # comment-accuracy entry below deliberately excludes).
     - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"
       instructions: |
