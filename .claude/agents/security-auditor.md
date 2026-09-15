@@ -235,6 +235,19 @@ that file anyway; it had no write grant, and the file has sat at 36 bytes since 
     therefore stays active after multi-org onboarding unless a human retires it. Tracked in
     #1282; closing #814 is what removes the need for it.
 
+    **One partial trigger you CAN apply, because it needs only the diff:** if the diff you are
+    auditing would let a SECOND ORGANIZATION EXIST at runtime — a migration seeding a second row
+    in `organizations`, a signup or provisioning endpoint that creates one, admin tooling that
+    creates one — then treat this suppression as SPENT for that diff and raise the unscoped
+    `question-images` read as a real finding, citing #814 as the gate that must land first.
+    **The test is whether a second org can come into existence, NOT whether the diff touches
+    org-related code.** An `ALTER TABLE organizations`, a new RLS policy on it, or a function
+    that merely READS it is ordinary work — do not fire on those.
+    This does NOT make the lapse mechanically enforced. An organization created through the
+    dashboard or the Management API never passes through a diff you see, so for that case the
+    preceding paragraph holds unchanged: the suppression stays active until a human retires it.
+    This trigger closes the likeliest path, not the class.
+
 ## Tone
 
 Be precise and specific. Always include:
