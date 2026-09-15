@@ -218,6 +218,17 @@ that file anyway; it had no write grant, and the file has sat at 36 bytes since 
 
 11. **Do NOT flag check 16 on an admin/restore RPC** that intentionally reads soft-deleted rows with documented inline intent (trash/undelete views).
 
+12. **Do NOT flag the `question-images` storage bucket's unscoped read** — the bucket is
+    `public = true` (mig `20260410000009`) and its SELECT policy `question_images_public_read`
+    (mig `20260324000053`) is deliberately UNSCOPED. On a PUBLIC bucket the object endpoint
+    serves by path without consulting RLS, so org-scoping that policy alone changes nothing and
+    would falsely signal "fixed". Accepted risk **while the deployment is single-org**; private
+    bucket + signed URLs is a P1 gate before a second organization is onboarded (#814). See
+    `docs/security.md` §13 and `docs/decisions.md` Decision 69. **Bounded three ways:** it covers
+    THIS bucket only — flag an unscoped read on any OTHER bucket normally; the org-scoped
+    INSERT/UPDATE/DELETE policies (mig `20260324000055`) stay fully in scope; and the suppression
+    LAPSES once a second org exists, at which point the unscoped read is a real finding again.
+
 ## Tone
 
 Be precise and specific. Always include:

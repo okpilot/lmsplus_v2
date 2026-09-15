@@ -25,10 +25,13 @@
    table with role-gated writes, permissive policies OR together so the unqualified one supplies a
    weaker write path and the role gate never binds; **(b)** on a table with no intended user-scoped
    write path, the unqualified policy IS the entire access control. See `docs/security.md` §3.
-   **Storage carve-out:** the `question-images` bucket is `public = true` and its SELECT policy
-   is deliberately unscoped — on a public bucket the object endpoint bypasses RLS, so scoping
-   that policy alone is theatre. Documented-and-intentional, not a gap; the write policies are
-   the real enforcement. `docs/security.md` §13 is authoritative, not this summary.
+   **Storage carve-out — TIME-BOUND:** the `question-images` bucket is `public = true` and its
+   SELECT policy is deliberately unscoped — on a public bucket the object endpoint bypasses RLS,
+   so scoping that policy alone is theatre. Documented-and-intentional **while the deployment is
+   single-org**, not a gap; the write policies are the real enforcement. The acceptance LAPSES
+   when a second org is onboarded — private bucket + signed URLs is a P1 gate (#814) that must
+   land first. It covers THIS bucket only, and does not transfer to any other public bucket.
+   `docs/security.md` §13 is authoritative, not this summary.
 3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never client-side.
 4. **Zod validation** — every Server Action and API route parses input with Zod before using it.
 5. **Audit log** — `audit_events` is append-only. No PERMITTING UPDATE or DELETE policy. Ever.

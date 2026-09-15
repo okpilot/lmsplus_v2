@@ -2027,8 +2027,12 @@ SELECT policy. Cross-org image visibility is an **accepted risk for the single-o
 **Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
 real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
 
-**Implementation**: Docs-only. This entry + the `docs/database.md` storage note + the
-`docs/security.md` §13 accepted-exception note. #366 closed as decided; #814 carries the refactor.
+**Implementation**: Docs and rule-mirrors only, no schema change. This entry + the
+`docs/database.md` storage note + the `docs/security.md` §13 accepted-exception note + the
+`.claude/rules/security.md` rule-2 carve-out + the `.coderabbit.yaml` migrations-RLS exception +
+`.claude/agents/security-auditor.md` suppression 12 (the pre-push gate reads only its OWN
+definition plus the diff — `docs/security.md` is `Read`-able but never fed to it, so a pointer
+there would not have reached it). #366 closed as decided; #814 carries the refactor.
 
 **Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
 and left in a `git stash` that was never committed, so #366 was closed as *decided* with the
