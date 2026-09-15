@@ -918,7 +918,7 @@ documented-and-intentional, **not** a gap.
 
 The genuine fix — private bucket plus signed URLs — is a **P1 gate that must land before a second
 organization is onboarded**, tracked in **#814** (which carries the current implementation approach;
-**#847** is a hard prerequisite, because the import script writes images outside any org-id folder).
+**#847** is a hard prerequisite, because the import script writes images outside any org-id folder). **#847 as currently scoped does NOT close this loop** — its acceptance criteria randomize the FILENAME (`${subjectCode}/${randomUUID()}.${ext}`) and keep the `subjectCode` folder, so the path still never becomes `{org_id}`; its scope must widen before #814 can land. The accepted-risk lapse condition — the single-org limit above, not #847's scope gap — is **not mechanically enforced by any gate** — nothing can see the org count at review time — so it holds until a human retires it; tracked in #1282.
 
 ---
 

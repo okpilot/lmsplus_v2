@@ -2017,12 +2017,12 @@ deployment is single-org, so cross-org visibility is not exploitable today.
 SELECT policy. Cross-org image visibility is an **accepted risk for the single-org deployment**.
 
 - Rejected **org-scoping the SELECT policy in isolation**: theatre on a public bucket, and it would
-  falsely signal "fixed".
+  falsely signal "fixed". This lapse condition is **not mechanically enforced by any gate** — nothing can see the org count at review time — so it holds until a human retires it; tracked in #1282.
 - The real fix — private bucket plus signed URLs — is deferred and tracked as a **P1 gate that MUST
   land before a second organization is onboarded**: **#814**, which holds the current implementation
   approach. **#847** is a hard prerequisite: `apps/web/scripts/import-questions.ts` writes images to
   `${subjectCode}/${filename}`, outside any org-id folder, so every bulk-imported image would fall
-  outside an org predicate.
+  outside an org predicate. **#847 as currently scoped does NOT close this loop** — its acceptance criteria randomize the FILENAME (`${subjectCode}/${randomUUID()}.${ext}`) and keep the `subjectCode` folder, so the path still never becomes `{org_id}`; its scope must widen before #814 can land.
 
 **Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
 real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
@@ -2064,7 +2064,7 @@ import-format entry that mentions the bucket only in passing. The stash was reco
 decision numbers 41 and 44, which the stashed draft used, were both taken in the interim.
 
 
-*Last updated: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814, hard prerequisite #847). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+*Last updated: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one
