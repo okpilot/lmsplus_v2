@@ -346,12 +346,25 @@ test('.coderabbit.yaml tone_instructions stays inside the schema maxLength', () 
   // The schema (line 1 of .coderabbit.yaml names it) caps tone_instructions at 250 characters.
   // Exceeding it does NOT warn: CodeRabbit rejects the WHOLE config and reviews with defaults,
   // so every path_instructions block above — including the cap mirror the test above pins —
-  // silently stops applying. That ran for 8 commits before a review noticed.
+  // silently stops applying. The field sat over the cap for 8 commits
+  // (b0ea0d58^..68b03052); the first review after it grew ran on defaults.
   // Re-derive the cap rather than trusting this number:
   //   curl -sL https://coderabbit.ai/integrations/schema.v2.json | jq .properties.tone_instructions
   //
-  // MUTATION: restore the pre-fix 928-char tone_instructions (the RULE 0 paragraph that lived in
-  // this field) → red. Verified by executing that restore, not by predicting it.
+  // Two independent mechanisms — each has its own mutation that pins it in isolation:
+  //
+  // MUTATION A (blank-line guard): restore the pre-fix 928-char tone_instructions (16382b62).
+  // It contains an internal blank line between the intro and the RULE 0 paragraph, so this fires
+  // the internal-blank-line assertion BEFORE reaching the length check. Fires with:
+  //   "tone_instructions has an internal blank line; folding is not a plain join"
+  //
+  // MUTATION B (length guard): replace with a >250-char value with NO internal blank lines, e.g.
+  //   tone_instructions: >\n  <251 x-chars>\n
+  // This bypasses the blank-line guard and fires the length assertion with:
+  //   "tone_instructions is N chars, over the schema maxLength of 250"
+  //
+  // Deleting the length assertion alone leaves Mutation A still red (blank-line fires).
+  // Both verified by executing, not by predicting.
   const MAX = 250
   const lines = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
   const i = lines.findIndex((l) => l.startsWith('tone_instructions:'))
