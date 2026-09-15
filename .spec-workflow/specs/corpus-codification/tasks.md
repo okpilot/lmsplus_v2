@@ -245,6 +245,13 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       passed it on §10 cl.2. That contrast is the argument for R0b-2: the discipline already
       applied to the artifact, and the message is the surface that escaped it.
 
+      **R0b-3 — EDIT WITH A TOOL THAT FAILS LOUDLY.** Behavioural, not a hook, and stated because
+      it bit: a `s.replace()` in a script silently no-ops when the anchor is absent. That is
+      exactly how a "fixed" misquote survived an entire commit in this slice and had to be found
+      by a reviewer two commits later. Prefer the editor tool, which errors on a missing anchor;
+      where a script is genuinely needed, ASSERT the anchor before writing. Cheap to state,
+      impossible to enforce mechanically, and worth writing down because the failure is SILENT.
+
       **R0b-4 — NORMALIZE WHITESPACE BEFORE MATCHING (`check-mirror-sync.mjs`).** New mechanism,
       learner count=1, 2026-09-15. A parity check for a clause present in `.coderabbit.yaml`
       reported it ABSENT: the wording is byte-identical but folded across two lines inside a YAML
@@ -257,13 +264,6 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       comparing. Scope: `check-mirror-sync.mjs` plus a pinned mutation in its test suite — a
       wrapped-YAML fixture that goes red if the normalization is removed. Do it in the slice that
       next touches that hook; not worth its own PR.
-
-      **R0b-3 — EDIT WITH A TOOL THAT FAILS LOUDLY.** Behavioural, not a hook, and stated because
-      it bit: a `s.replace()` in a script silently no-ops when the anchor is absent. That is
-      exactly how a "fixed" misquote survived an entire commit in this slice and had to be found
-      by a reviewer two commits later. Prefer the editor tool, which errors on a missing anchor;
-      where a script is genuinely needed, ASSERT the anchor before writing. Cheap to state,
-      impossible to enforce mechanically, and worth writing down because the failure is SILENT.
 
       **What this cannot do.** None of it makes the author reliable. It makes the failure loud and
       immediate instead of expensive and late — which, measured on this session, is the whole

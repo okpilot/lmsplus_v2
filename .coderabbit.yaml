@@ -408,8 +408,12 @@ reviews:
           object endpoint serves by path without consulting RLS, so org-scoping the SELECT
           policy alone changes nothing and would falsely signal "fixed". The org-scoped
           INSERT/UPDATE/DELETE policies (20260324000055) are the real enforcement and DO
-          stay in scope. Private bucket + signed URLs is a P1 gate before multi-org
-          onboarding (#814). (docs/decisions.md Decision 69, docs/security.md §13.)
+          stay in scope. TIME-BOUND, and NOT a permanent carve-out: it holds ONLY while the
+          deployment is single-org, and the acceptance LAPSES the moment a second
+          organization is onboarded, at which point the unscoped read is a real finding
+          again — private bucket + signed URLs (#814) must land first. It covers the
+          question-images bucket ONLY and does not transfer to any other public bucket.
+          (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
           UPDATE or DELETE policy. (Each does carry permissive USING (false) policies; those match
