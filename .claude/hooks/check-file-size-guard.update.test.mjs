@@ -351,7 +351,7 @@ test('.coderabbit.yaml tone_instructions stays inside the schema maxLength', () 
   // Re-derive the cap rather than trusting this number:
   //   curl -sL https://coderabbit.ai/integrations/schema.v2.json | jq .properties.tone_instructions
   //
-  // Two independent mechanisms — each has its own mutation that pins it in isolation:
+  // Three independent mechanisms — each has its own mutation that pins it in isolation:
   //
   // MUTATION A (blank-line guard): restore the pre-fix 928-char tone_instructions (16382b62).
   // It contains an internal blank line between the intro and the RULE 0 paragraph, so this fires
@@ -363,8 +363,10 @@ test('.coderabbit.yaml tone_instructions stays inside the schema maxLength', () 
   // This bypasses the blank-line guard and fires the length assertion with:
   //   "tone_instructions is N chars, over the schema maxLength of 250"
   //
+  // MUTATION C (folded-form guard): at the assertion below — change the field to an inline value.
+  //
   // Deleting the length assertion alone leaves Mutation A still red (blank-line fires).
-  // Both verified by executing, not by predicting.
+  // All three verified by executing, not by predicting.
   const MAX = 250
   const lines = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
   const i = lines.findIndex((l) => l.startsWith('tone_instructions:'))
