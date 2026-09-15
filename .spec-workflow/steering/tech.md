@@ -1,5 +1,7 @@
 # Technology Stack
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 ## Project Type
 
 Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approved Training Organisations (ATOs) with a question bank trainer, quiz engine, progress tracking, admin tools, and regulatory audit trail. Deployed as a monorepo with shared packages.

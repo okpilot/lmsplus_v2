@@ -1,5 +1,7 @@
 # GitHub Projects — Board Sync Rules
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 > Project: "LMS Plus v2 — Build Plan" (#2)
 > URL: https://github.com/users/okpilot/projects/2
 > Repo: okpilot/lmsplus_v2

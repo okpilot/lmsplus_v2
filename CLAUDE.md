@@ -2,6 +2,16 @@
 
 EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 
+## RULE 0 — NO PROSE (overrides everything below)
+
+State what is true. Delete the rest.
+
+- No justification, no precedent, no archaeology, no "why this changed". That is what `git log` is for.
+- Fix the thing. Do NOT add a sentence explaining the fix.
+- Every sentence is a claim that can be false and must be verified. Fewer sentences, fewer defects.
+- If a fact is derivable, ship the command, not the paragraph.
+- Applies to docs, rules, agent files, commit messages and replies. Docstrings are fine where they earn their place.
+
 ## ⚠️ PRIME DIRECTIVE — Orchestrator Protocol
 
 **You (the orchestrator) are the planner and reviewer. You do NOT write code directly unless the change is trivial (< 10 lines, single file).**

@@ -1,5 +1,7 @@
 # Code Style Rules — LMS Plus v2
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 > These rules apply to all code in this repository.
 > The code-reviewer agent checks every commit against them.
 > Violations are flagged as warnings (non-blocking) or errors (blocking on merge).

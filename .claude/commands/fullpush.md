@@ -1,5 +1,7 @@
 Pre-push quality gate. Run this BEFORE pushing to catch drift, lazy triage, and missed issues.
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 ## Self-Audit Checklist
 
 Before doing anything else, answer these questions honestly. Do NOT skip any. Print each answer.

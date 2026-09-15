@@ -1,5 +1,7 @@
 Review the current feature or recent changes for code quality, security, and correctness.
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 ## What to do
 1. Run `git fetch origin` (abort if it fails — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` (full branch diff) or `git diff --staged` to see recent changes
 2. Check against `.claude/rules/code-style.md` — flag any violations

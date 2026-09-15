@@ -1,5 +1,7 @@
 # Agent Rules — learner
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
 > Model: sonnet | Trigger: after a full post-commit cycle COMPLETES — all four core agents' completion notifications RECEIVED and their results read, AND any fixes they prompted are committed | Non-blocking
 
 ## Purpose

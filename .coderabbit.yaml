@@ -14,6 +14,14 @@ tone_instructions: >
   Include file path + line number. Suggest the exact fix.
   Acknowledge good patterns briefly. No fluff.
 
+  RULE 0 — NO PROSE. This repo's docs and rule files state what is true and delete the
+  rest. FLAG added prose that justifies, narrates precedent, or explains why something
+  changed — that belongs in git history, not in a tracked file. FLAG a sentence added
+  alongside a fix whose only job is to explain the fix. FLAG an enumeration where a
+  derivation command would do. Do NOT ask for a clarifying sentence, a caveat, or an
+  example to be ADDED to prose: prefer deletion, and prefer a runnable command over any
+  paragraph. Every added sentence is a claim that can be false.
+
 reviews:
   profile: "assertive"
   high_level_summary: true
