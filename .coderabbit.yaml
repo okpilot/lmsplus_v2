@@ -10,19 +10,10 @@
 
 language: "en-US"
 tone_instructions: >
-  Be precise and direct. Lead with the issue, not the explanation.
-  Include file path + line number. Suggest the exact fix.
-  Acknowledge good patterns briefly. No fluff.
-
-  RULE 0 — NO PROSE. This repo's docs and rule files state what is true and delete the
-  rest. FLAG added prose that justifies, narrates precedent, or explains why something
-  changed — that belongs in git history, not in a tracked file. FLAG a sentence added
-  alongside a fix whose only job is to explain the fix. FLAG an enumeration where a
-  derivation command would do. Do NOT ask for a clarifying sentence, a caveat, or an
-  example to be ADDED to prose: prefer deletion, and prefer a runnable command over any
-  paragraph. Every added sentence is a claim that can be false. Evidence is NOT prose: a
-  skip reason, an EVIDENCE: line, a finding's stated basis, or a required status/summary
-  is mandated by our rules — never flag one as prose, and never ask for its removal.
+  Be precise and direct. Lead with the issue, not the explanation. Include file
+  path + line number. Suggest the exact fix. Note good patterns. No fluff.
+  Prefer deleting prose over adding a caveat, and a runnable command over a
+  paragraph.
 
 reviews:
   profile: "assertive"
@@ -274,6 +265,22 @@ reviews:
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
     # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
     # revised in flight, so reviewing them is churn.
+    # Rule 0 — applies to every prose surface, INCLUDING spec tasks.md (which the
+    # comment-accuracy entry below deliberately excludes).
+    - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"
+      instructions: |
+        RULE 0 — NO PROSE. These files state what is true and delete the rest.
+        - FLAG added prose that justifies, narrates precedent, or explains why something
+          changed. That belongs in git history, not in a tracked file.
+        - FLAG a sentence added alongside a fix whose only job is to explain the fix.
+        - FLAG an enumeration where a derivation command would do.
+        - Do NOT ask for a clarifying sentence, a caveat, or an example to be ADDED to
+          prose. Prefer deletion, and prefer a runnable command over any paragraph.
+        - Every added sentence is a claim that can be false.
+        - Evidence is NOT prose: a skip reason, an EVIDENCE: line, a finding's stated
+          basis, or a required status/summary is mandated by our rules — never flag one
+          as prose, and never ask for its removal.
+
     - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/requirements.md,.spec-workflow/specs/**/design.md}"
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,

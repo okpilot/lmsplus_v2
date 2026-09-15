@@ -2089,9 +2089,13 @@ Rule 0 sits above the PRIME DIRECTIVE in `CLAUDE.md`, and as a one-line banner e
 git grep -l 'RULE 0 — NO PROSE\.' -- :/
 ```
 
-`.coderabbit.yaml` `tone_instructions` carries the reviewer-facing form: CodeRabbit FLAGS added
-prose instead of asking for more, and is told not to request a clarifying sentence, caveat or
-example — prefer deletion, and prefer a runnable command over any paragraph.
+`.coderabbit.yaml` carries the reviewer-facing form as a `path_instructions` entry covering every
+prose surface: CodeRabbit FLAGS added prose instead of asking for more, and is told not to request
+a clarifying sentence, caveat or example — prefer deletion, and prefer a runnable command over any
+paragraph. NOT `tone_instructions`: the schema caps that field at 250 characters and rejects the
+whole config when it is exceeded — the field sat over the cap for 8 commits here, and the first
+review after it grew ran on defaults.
+Pinned by `check-file-size-guard.update.test.mjs`.
 
 **Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
 advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
