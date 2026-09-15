@@ -228,6 +228,10 @@ that file anyway; it had no write grant, and the file has sat at 36 bytes since 
     THIS bucket only — flag an unscoped read on any OTHER bucket normally; the org-scoped
     INSERT/UPDATE/DELETE policies (mig `20260324000055`) stay fully in scope; and the suppression
     LAPSES once a second org exists, at which point the unscoped read is a real finding again.
+    **That lapse is NOT mechanically enforced and this suppression cannot enforce it** — you
+    receive a diff, not live database state, so you have no way to count organizations. It
+    therefore stays active after multi-org onboarding unless a human retires it. Tracked in
+    #1282; closing #814 is what removes the need for it.
 
 ## Tone
 

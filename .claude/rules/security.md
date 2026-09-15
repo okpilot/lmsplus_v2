@@ -31,6 +31,8 @@
    single-org**, not a gap; the write policies are the real enforcement. The acceptance LAPSES
    when a second org is onboarded — private bucket + signed URLs is a P1 gate (#814) that must
    land first. It covers THIS bucket only, and does not transfer to any other public bucket.
+   The lapse is NOT mechanically enforced — no gate can see the org count — so it holds until a
+   human retires it (#1282).
    `docs/security.md` §13 is authoritative, not this summary.
 3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never client-side.
 4. **Zod validation** — every Server Action and API route parses input with Zod before using it.

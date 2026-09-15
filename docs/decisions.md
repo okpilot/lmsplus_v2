@@ -2042,13 +2042,18 @@ It returns more files than are named here: `docs/decisions.md` is this entry its
 bucket.
 
 Other files POINT at this decision without restating the mechanics, and need no sync when the
-wording here changes: `docs/plan.md` and `.spec-workflow/steering/tech.md` (3 and 2 lines
-respectively, counting lines that CITE Decision 69 — a `question-images` grep returns a different
-number, because `plan.md` also mentions the bucket where it says nothing about this decision).
+wording here changes: `docs/plan.md` and `.spec-workflow/steering/tech.md`. No count is stated for
+either — `grep -n 'Decision 69' docs/plan.md .spec-workflow/steering/tech.md` is the derivation, and
+it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
+time because the same commit that asserted it added another citation (§10 cl.7).
+Both were REDUCED to pointers on 2026-09-15: they previously restated the write/read split and the
+single-org acceptance, which made them mirrors in fact while being described as pointers. Reducing
+them was preferred over promoting them, because every additional copy of the mechanics is another
+place to go stale.
 The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
 a pointer is not.
 
-#366 closed as decided; #814 carries the refactor.
+Issue state: #366 closed as decided; #814 carries the refactor.
 
 **Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
 and left in a `git stash` that was never committed, so #366 was closed as *decided* with the

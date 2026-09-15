@@ -412,7 +412,9 @@ reviews:
           deployment is single-org, and the acceptance LAPSES the moment a second
           organization is onboarded, at which point the unscoped read is a real finding
           again — private bucket + signed URLs (#814) must land first. It covers the
-          question-images bucket ONLY and does not transfer to any other public bucket.
+          question-images bucket ONLY and does not transfer to any other public bucket. The
+          lapse is NOT mechanically enforced — you see a diff, not live org state — so this
+          exception stays active after multi-org onboarding until a human retires it (#1282).
           (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
