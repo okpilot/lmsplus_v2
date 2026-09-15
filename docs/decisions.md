@@ -1994,7 +1994,52 @@ one after the harness PR merged. That is the §10 cl.7 defect this programme kee
 and shipping the script instead of the figure is the fix.
 
 
-*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 69: `question-images` stays public-read; org-private is a pre-multi-org gate (2026-06-09)
+
+**Date**: 2026-06-09 (recorded 2026-09-15 — see *Provenance* below)
+
+**Context**: Issue #366 (CodeRabbit, PR #355) flagged that migration `20260324000055` org-scoped the
+`question-images` bucket's INSERT/UPDATE/DELETE policies but left `20260324000053`'s SELECT policy
+(`question_images_public_read`) unscoped — any authenticated user can read any org's images. A
+Supabase advisor finding (`public_bucket_allows_listing`, folded in from #589) added that the bucket
+is `public = true`, so the public object endpoint serves files by path with no auth at all.
+
+Key technical fact: **org-scoping the SELECT policy alone does NOT make images org-private while the
+bucket is public.** Supabase's `/storage/v1/object/public/...` endpoint bypasses RLS for
+GET-by-path; the SELECT policy governs only `.list()` enumeration and the authenticated object API.
+Tightening the SELECT policy would pass the advisor lint while leaving public GET wide open.
+
+Question images are also low-sensitivity: the correct answer is stripped server-side by
+`get_quiz_questions()`, and the image itself is an aviation diagram shown to every student. The
+deployment is single-org, so cross-org visibility is not exploitable today.
+
+**Decision**: Accept public-read. The bucket remains `public = true` with the unscoped authenticated
+SELECT policy. Cross-org image visibility is an **accepted risk for the single-org deployment**.
+
+- Rejected **org-scoping the SELECT policy in isolation**: theatre on a public bucket, and it would
+  falsely signal "fixed".
+- The real fix — private bucket plus signed URLs — is deferred and tracked as a **P1 gate that MUST
+  land before a second organization is onboarded**: **#814**, which holds the current implementation
+  approach. **#847** is a hard prerequisite: `apps/web/scripts/import-questions.ts` writes images to
+  `${subjectCode}/${filename}`, outside any org-id folder, so every bulk-imported image would fall
+  outside an org predicate.
+
+**Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
+real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
+
+**Implementation**: Docs-only. This entry + the `docs/database.md` storage note + the
+`docs/security.md` §13 accepted-exception note. #366 closed as decided; #814 carries the refactor.
+
+**Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
+and left in a `git stash` that was never committed, so #366 was closed as *decided* with the
+decision recorded nowhere in the repo. The 2026-08-19 backlog audit hit the gap from the other side:
+it recorded that #814's citation of "Decision 41" was wrong and that the promised `docs/security.md`
+§13 note "does not exist", and re-pointed the stance at Decision 14 — an unrelated 2026-03-11
+import-format entry that mentions the bucket only in passing. The stash was recovered on 2026-09-15;
+decision numbers 41 and 44, which the stashed draft used, were both taken in the interim.
+
+
+*Last updated: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814, hard prerequisite #847). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

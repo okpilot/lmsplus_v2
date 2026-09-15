@@ -903,6 +903,23 @@ const { data } = await adminClient.from('users').select('*')
 
 **Why:** `adminClient` bypasses RLS entirely. Without explicit org-scoping, an admin at org A who knows a user UUID from org B can read, update, or deactivate that user. Three occurrences of this gap across different sessions (2026-03-13, 2026-03-14, 2026-03-25) prompted this rule.
 
+### Accepted exception: `question-images` storage bucket is public-read (Decision 69)
+
+The `question-images` bucket is intentionally **not** tenant-scoped on read. It is `public = true`
+(`supabase/migrations/20260410000009`), and its SELECT policy `question_images_public_read`
+(`supabase/migrations/20260324000053`) is unscoped, so any authenticated user — and, via the public
+object endpoint, anyone with the URL — can read any org's images.
+
+This is an **accepted risk for the current single-org deployment** (`docs/decisions.md` Decision 69):
+question images are non-sensitive (correct answers are stripped by `get_quiz_questions()`; the image
+is a diagram), and org-scoping the SELECT policy alone is theatre while the bucket is public — the
+public GET endpoint bypasses RLS. A security audit should treat the unscoped read as
+documented-and-intentional, **not** a gap.
+
+The genuine fix — private bucket plus signed URLs — is a **P1 gate that must land before a second
+organization is onboarded**, tracked in **#814** (which carries the current implementation approach;
+**#847** is a hard prerequisite, because the import script writes images outside any org-id folder).
+
 ---
 
 ## 14. Dependency Security
