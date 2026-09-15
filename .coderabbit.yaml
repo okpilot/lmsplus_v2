@@ -428,7 +428,8 @@ reviews:
           those. This does NOT make the lapse mechanically enforced, and closes the
           likeliest path rather than the class: an organization created
           through the dashboard or the Management API never passes through a diff, so for
-          that case the preceding sentence holds unchanged.
+          that case the preceding text holds unchanged and this exception stays active
+          until a human retires it.
           (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
