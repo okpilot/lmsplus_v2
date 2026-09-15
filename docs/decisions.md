@@ -2027,12 +2027,28 @@ SELECT policy. Cross-org image visibility is an **accepted risk for the single-o
 **Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
 real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
 
-**Implementation**: Docs and rule-mirrors only, no schema change. This entry + the
-`docs/database.md` storage note + the `docs/security.md` §13 accepted-exception note + the
-`.claude/rules/security.md` rule-2 carve-out + the `.coderabbit.yaml` migrations-RLS exception +
-`.claude/agents/security-auditor.md` suppression 12 (the pre-push gate reads only its OWN
-definition plus the diff — `docs/security.md` is `Read`-able but never fed to it, so a pointer
-there would not have reached it). #366 closed as decided; #814 carries the refactor.
+**Implementation**: Docs and rule-mirrors only, no schema change.
+
+The carve-out is RESTATED — and so must be kept in sync with this entry — in `docs/database.md`'s
+storage note, `docs/security.md` §13, `.claude/rules/security.md` rule 2, `.coderabbit.yaml`'s
+migrations-RLS instructions, and `.claude/agents/security-auditor.md` suppression 12. That last one
+needs inline text specifically because the pre-push gate reads only its OWN definition plus the
+diff: `docs/security.md` is `Read`-able but never fed to it, so a pointer there would not have
+reached it. Derive the current set rather than trusting this sentence:
+`grep -rl question-images docs/ .claude/rules/ .claude/agents/ .coderabbit.yaml .spec-workflow/`
+lists every file that mentions the bucket at all — read each to sort restatements from pointers.
+It returns more files than are named here: `docs/decisions.md` is this entry itself, and
+`.spec-workflow/specs/corpus-codification/tasks.md` matches only on the branch NAME, not the
+bucket.
+
+Other files POINT at this decision without restating the mechanics, and need no sync when the
+wording here changes: `docs/plan.md` and `.spec-workflow/steering/tech.md` (3 and 2 lines
+respectively, counting lines that CITE Decision 69 — a `question-images` grep returns a different
+number, because `plan.md` also mentions the bucket where it says nothing about this decision).
+The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
+a pointer is not.
+
+#366 closed as decided; #814 carries the refactor.
 
 **Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
 and left in a `git stash` that was never committed, so #366 was closed as *decided* with the
