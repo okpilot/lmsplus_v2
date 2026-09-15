@@ -2093,8 +2093,7 @@ git grep -l 'RULE 0 — NO PROSE\.' -- :/
 file globs: CodeRabbit FLAGS added prose instead of asking for more, and is told not to request
 a clarifying sentence, caveat or example — prefer deletion, and prefer a runnable command over any
 paragraph. NOT `tone_instructions`: the schema caps that field at 250 characters and rejects the
-whole config when it is exceeded — the field sat over the cap for 8 commits here, and the first
-review after it grew ran on defaults. One narrowing is unrecoverable: `path_instructions` matches
+whole config when it is exceeded. One narrowing is unrecoverable: `path_instructions` matches
 FILES, so CodeRabbit chat replies and commit-message review are no longer covered.
 Pinned by `check-file-size-guard.update.test.mjs`.
 

@@ -369,6 +369,15 @@ test('.coderabbit.yaml tone_instructions stays inside the schema maxLength', () 
   const lines = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
   const i = lines.findIndex((l) => l.startsWith('tone_instructions:'))
   assert.notEqual(i, -1, '.coderabbit.yaml has no tone_instructions key')
+  // The loop below measures only the INDENTED lines after the key, so an INLINE value
+  // (`tone_instructions: "<300 chars>"`) would leave `body` empty and score 0 — the guard would
+  // pass on exactly the input it exists to catch. Pin the folded form so that cannot happen.
+  // MUTATION: change the field to an inline value of any length -> this assertion fires.
+  assert.equal(
+    lines[i].trim(),
+    'tone_instructions: >',
+    'tone_instructions must be a folded scalar; the length check below cannot measure an inline value',
+  )
 
   // `>` folds: non-blank continuation lines join with a space, and the scalar ends at the first
   // line that is neither indented nor blank. Blank-line-to-newline folding is not reproduced —
