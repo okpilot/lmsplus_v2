@@ -2002,7 +2002,11 @@ and shipping the script instead of the figure is the fix.
 `question-images` bucket's INSERT/UPDATE/DELETE policies but left `20260324000053`'s SELECT policy
 (`question_images_public_read`) unscoped — any authenticated user can read any org's images. A
 Supabase advisor finding (`public_bucket_allows_listing`, folded in from #589) added that the bucket
-is `public = true`, so the public object endpoint serves files by path with no auth at all.
+is `public = true`, so the public object endpoint serves files by path with no auth at all. The
+repo does NOT establish that flag for production: `20260410000009` sets it under
+`ON CONFLICT (id) DO NOTHING`, a no-op on the pre-existing dashboard-created prod bucket. It was
+confirmed live by unauthenticated probe on 2026-09-15 — see `docs/security.md` §13 for the probe
+and its discriminator.
 
 Key technical fact: **org-scoping the SELECT policy alone does NOT make images org-private while the
 bucket is public.** Supabase's `/storage/v1/object/public/...` endpoint bypasses RLS for
@@ -2029,7 +2033,8 @@ real refactor to its actual trigger (multi-org go-live) rather than to a recurri
 
 **Implementation**: Docs and rule-mirrors only, no schema change.
 
-The carve-out is RESTATED — and so must be kept in sync with this entry — in `docs/database.md`'s
+The carve-out is RESTATED — and so must be kept in sync with this entry — in these files, named
+as an ILLUSTRATION as of 2026-09-15 and not as a closed set: `docs/database.md`'s
 storage note, `docs/security.md` §13, `.claude/rules/security.md` rule 2, `.coderabbit.yaml`'s
 migrations-RLS instructions, and `.claude/agents/security-auditor.md` suppression 12. That last one
 needs inline text specifically because the pre-push gate reads only its OWN definition plus the
@@ -2042,7 +2047,8 @@ It returns more files than are named here: `docs/decisions.md` is this entry its
 bucket.
 
 Other files POINT at this decision without restating the mechanics, and need no sync when the
-wording here changes: `docs/plan.md` and `.spec-workflow/steering/tech.md`. No count is stated for
+wording here changes — again an illustration as of 2026-09-15, not a closed set: `docs/plan.md` and
+`.spec-workflow/steering/tech.md`. No count is stated for
 either — `grep -n 'Decision 69' docs/plan.md .spec-workflow/steering/tech.md` is the derivation, and
 it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
 time because the same commit that asserted it added another citation (§10 cl.7).

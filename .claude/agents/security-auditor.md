@@ -219,7 +219,9 @@ that file anyway; it had no write grant, and the file has sat at 36 bytes since 
 11. **Do NOT flag check 16 on an admin/restore RPC** that intentionally reads soft-deleted rows with documented inline intent (trash/undelete views).
 
 12. **Do NOT flag the `question-images` storage bucket's unscoped read** — the bucket is
-    `public = true` (mig `20260410000009`) and its SELECT policy `question_images_public_read`
+    `public = true` (verified on prod by probe 2026-09-15; mig `20260410000009` sets the flag for
+    FRESH environments only — its `ON CONFLICT DO NOTHING` is a no-op on the pre-existing prod
+    bucket, so do not cite it as the source) and its SELECT policy `question_images_public_read`
     (mig `20260324000053`) is deliberately UNSCOPED. On a PUBLIC bucket the object endpoint
     serves by path without consulting RLS, so org-scoping that policy alone changes nothing and
     would falsely signal "fixed". Accepted risk **while the deployment is single-org**; private

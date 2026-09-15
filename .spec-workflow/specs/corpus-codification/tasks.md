@@ -254,8 +254,10 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 
       **R0b-4 — NORMALIZE WHITESPACE BEFORE MATCHING (`check-mirror-sync.mjs`).** New mechanism,
       learner count=1, 2026-09-15. A parity check for a clause present in `.coderabbit.yaml`
-      reported it ABSENT: the wording is byte-identical but folded across two lines inside a YAML
-      block scalar, and a single-line grep cannot see it. DISTINCT from the paraphrase-blindness
+      reported it ABSENT: the wording is identical APART FROM WHITESPACE but folded across two
+      lines inside a YAML block scalar, and a single-line grep cannot see it. Not byte-identical —
+      folding inserts a newline and the block's indentation, which is precisely why normalizing
+      whitespace before matching is the fix. DISTINCT from the paraphrase-blindness
       `agent-workflow.md § Rule-Mirror Sync` already concedes as OPEN — that one is about text
       that DIFFERS; this is text that MATCHES and is invisible anyway, so it is mechanically
       fixable where paraphrase-blindness is not. The failure direction is the dangerous one: it

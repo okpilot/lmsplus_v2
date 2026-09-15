@@ -402,7 +402,9 @@ reviews:
           it for a missing WITH CHECK. DO flag any unqualified (FOR ALL) tenant_isolation
           policy: the invariant is that no table in public carries one. (docs/security.md §3.)
           ACCEPTED EXCEPTION — storage: the question-images bucket is public (public = true,
-          20260410000009) and its SELECT policy question_images_public_read
+          verified on prod 2026-09-15; migration 20260410000009 sets it for fresh environments
+          only, being ON CONFLICT DO NOTHING over a pre-existing bucket) and its SELECT policy
+          question_images_public_read
           (20260324000053) is deliberately UNSCOPED. Do NOT flag it, or an equivalent
           unscoped read on that bucket, as a too-broad predicate: on a PUBLIC bucket the
           object endpoint serves by path without consulting RLS, so org-scoping the SELECT

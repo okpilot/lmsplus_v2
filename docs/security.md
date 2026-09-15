@@ -905,10 +905,22 @@ const { data } = await adminClient.from('users').select('*')
 
 ### Accepted exception: `question-images` storage bucket is public-read (Decision 69)
 
-The `question-images` bucket is intentionally **not** tenant-scoped on read. It is `public = true`
-(`supabase/migrations/20260410000009`), and its SELECT policy `question_images_public_read`
-(`supabase/migrations/20260324000053`) is unscoped, so any authenticated user — and, via the public
-object endpoint, anyone with the URL — can read any org's images.
+The `question-images` bucket is intentionally **not** tenant-scoped on read. Two independent facts
+combine here, and they are established DIFFERENTLY — do not cite one for the other:
+
+- **The SELECT policy `question_images_public_read` is unscoped**
+  (`supabase/migrations/20260324000053`; `20260324000055` org-scoped only the INSERT/UPDATE/DELETE
+  policies and left this one standing). Any authenticated user can read any org's images. This one
+  the repo does establish.
+- **The bucket carries `public = true`, so the object endpoint serves files by path with no auth at
+  all.** `supabase/migrations/20260410000009` sets that flag — but under
+  `ON CONFLICT (id) DO NOTHING`, which makes it a NO-OP wherever the bucket already exists. That
+  includes PRODUCTION: the migration's own header records that the bucket "was only created
+  manually in the dashboard", so the migration guarantees the flag for FRESH environments (local,
+  CI) and asserts nothing about prod. Prod's flag was confirmed `true` by unauthenticated probe on
+  2026-09-15: `GET /storage/v1/object/public/question-images/<absent-key>` returns `NoSuchKey`,
+  whereas a private bucket returns `NoSuchBucket` (discriminator verified against a local control
+  bucket). Re-derive it that way rather than citing the migration.
 
 This is an **accepted risk for the current single-org deployment** (`docs/decisions.md` Decision 69):
 question images are non-sensitive (correct answers are stripped by `get_quiz_questions()`; the image
