@@ -195,10 +195,10 @@ Full CRUD admin tool for managing questions at `/app/admin/questions`:
 - **List view**: server-side filtered table (subject/topic/subtopic cascading, difficulty, status, text search via URL searchParams)
 - **Create/Edit**: dialog-based form with option editor (4 options, correct radio), syllabus cascader, image upload, difficulty/status
 - **Bulk actions**: row selection checkboxes, bulk activate/deactivate
-- **Image upload**: to Supabase Storage `question-images` bucket with org-scoped path isolation
+- **Image upload**: to Supabase Storage `question-images` bucket with org-scoped path isolation on write (read is unscoped — Decision 69)
 - **Soft-delete**: with zero-row no-op check pattern
-- **Migrations 052–055**: admin RLS on questions (org-scoped), storage policies (path-based org enforcement)
-- **Security**: path traversal prevention, blob URL revocation, cross-tenant isolation on all write/delete paths
+- **Migrations 052–055**: admin RLS on questions (org-scoped), storage WRITE policies (path-based org enforcement)
+- **Security**: path traversal prevention, blob URL revocation, cross-tenant isolation on all write/delete paths (read-side isolation is deliberately absent — Decision 69)
 - 1479 tests (120 files), all passing
 
 ---
@@ -582,7 +582,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - 45 new tests covering admin guards, RLS policies, and CRUD Server Actions
 
 **Admin Question Editor done (2026-03-24, issue #271, PR #355):**
-- Migrations 052–055: admin INSERT/UPDATE on `questions` (org-scoped), storage policies for `question-images` bucket (path-based org isolation)
+- Migrations 052–055: admin INSERT/UPDATE on `questions` (org-scoped), storage WRITE policies for `question-images` bucket (path-based org isolation; read unscoped per Decision 69)
 - Server Actions: `upsertQuestion` (create with org/bank resolution, edit with version bump), `softDeleteQuestion` (zero-row no-op check), `uploadQuestionImage` (2MB limit, org-prefixed paths), `bulkUpdateStatus` (activate/deactivate with deleted_at guard)
 - Components: QuestionTable, QuestionFiltersBar (cascading subject/topic/subtopic + difficulty + status + search), QuestionFormDialog, OptionEditor, SyllabusCascader, ImageUploadField, BulkActionsBar, DifficultyStatusSelect
 - Custom hook: `useQuestionFormState` — manages all form state + reset on dialog close

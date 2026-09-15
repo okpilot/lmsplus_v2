@@ -47,7 +47,8 @@ lmsplusv2/
 ### Data Storage
 
 - **Primary storage**: Supabase (managed Postgres). 17+ tables with RLS on every table. Soft delete (`deleted_at`) on all mutable tables.
-- **File storage**: Supabase Storage (`question-images` bucket) with org-scoped path isolation.
+- **File storage**: Supabase Storage (`question-images` bucket) with org-scoped path isolation on
+  WRITE; read is deliberately unscoped and the bucket is public (`docs/decisions.md` Decision 69).
 - **Client-side persistence**: localStorage for quiz session recovery (7-day staleness, private-mode safe).
 - **Caching**: Turborepo build cache. Vercel edge cache for static assets. No application-level Redis.
 - **Data formats**: JSON/JSONB (question options, session config, audit metadata), SQL for all persistence.
@@ -55,7 +56,8 @@ lmsplusv2/
 ### External Integrations
 
 - **Supabase Auth**: Email + password authentication. JWT sessions (1hr expiry, 7-day sliding refresh). PKCE flow for password recovery.
-- **Supabase Storage**: Image upload for question images. Org-scoped path enforcement via storage policies.
+- **Supabase Storage**: Image upload for question images. Org-scoped path enforcement on the WRITE
+  policies; read is deliberately unscoped — accepted risk while single-org (Decision 69).
 - **Sentry**: Error tracking and performance monitoring. Source map upload during build.
 - **Vercel**: Hosting with Skew Protection (4hr max age). Serverless functions for Server Actions.
 - **SonarCloud**: Static analysis with 80% new-code coverage gate.

@@ -401,6 +401,15 @@ reviews:
           authenticated admin is denied. A FOR SELECT policy takes USING only; do NOT flag
           it for a missing WITH CHECK. DO flag any unqualified (FOR ALL) tenant_isolation
           policy: the invariant is that no table in public carries one. (docs/security.md §3.)
+          ACCEPTED EXCEPTION — storage: the question-images bucket is public (public = true,
+          20260410000009) and its SELECT policy question_images_public_read
+          (20260324000053) is deliberately UNSCOPED. Do NOT flag it, or an equivalent
+          unscoped read on that bucket, as a too-broad predicate: on a PUBLIC bucket the
+          object endpoint serves by path without consulting RLS, so org-scoping the SELECT
+          policy alone changes nothing and would falsely signal "fixed". The org-scoped
+          INSERT/UPDATE/DELETE policies (20260324000055) are the real enforcement and DO
+          stay in scope. Private bucket + signed URLs is a P1 gate before multi-org
+          onboarding (#814). (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
           UPDATE or DELETE policy. (Each does carry permissive USING (false) policies; those match
