@@ -2043,8 +2043,10 @@ needs inline text specifically because the pre-push gate reads only its OWN defi
 diff: `docs/security.md` is `Read`-able but never fed to it, so a pointer there would not have
 reached it. Derive the current set rather than trusting this sentence:
 `grep -rl question-images docs/ .claude/rules/ .claude/agents/ .coderabbit.yaml .spec-workflow/`
-lists every file that mentions the bucket at all — read each to sort restatements from pointers.
-It returns more files than are named here: `docs/decisions.md` is this entry itself, and
+lists every file in those paths that mentions the bucket — read each to sort restatements from
+pointers. It does not reach app code or migrations, which name the bucket without mirroring the
+carve-out (`git grep -l question-images -- :/`).
+The scoped grep returns more files than are named here: `docs/decisions.md` is this entry itself, and
 `.spec-workflow/specs/corpus-codification/tasks.md` matches only on the branch NAME, not the
 bucket.
 
@@ -2080,9 +2082,6 @@ sentences means fewer defects. If a fact is derivable, ship the command, not the
 
 Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required
 status/summary stays wherever a rule asks for it — the verification half of Rule 0 requires them.
-Added after CR-local read the first cut and found `agent-coderabbit-local.md`,
-`agent-code-reviewer.md`, `agent-critic.md` and `wrapup.md` all requiring exactly what
-"no justification" appeared to forbid.
 
 Rule 0 sits above the PRIME DIRECTIVE in `CLAUDE.md`, and as a one-line banner everywhere else:
 
@@ -2094,11 +2093,11 @@ git grep -l 'RULE 0 — NO PROSE\.' -- :/
 prose instead of asking for more, and is told not to request a clarifying sentence, caveat or
 example — prefer deletion, and prefer a runnable command over any paragraph.
 
-**Not mechanically enforced.** No hook measures prose; the banner is advisory and `.coderabbit.yaml`
-is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
+**Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
+advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
 `corpus-codification` spec already lists its deletion set.
 
-*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures prose. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures Rule 0 compliance or prose volume. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one
