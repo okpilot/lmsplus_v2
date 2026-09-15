@@ -20,7 +20,9 @@ tone_instructions: >
   alongside a fix whose only job is to explain the fix. FLAG an enumeration where a
   derivation command would do. Do NOT ask for a clarifying sentence, a caveat, or an
   example to be ADDED to prose: prefer deletion, and prefer a runnable command over any
-  paragraph. Every added sentence is a claim that can be false.
+  paragraph. Every added sentence is a claim that can be false. Evidence is NOT prose: a
+  skip reason, an EVIDENCE: line, a finding's stated basis, or a required status/summary
+  is mandated by our rules — never flag one as prose, and never ask for its removal.
 
 reviews:
   profile: "assertive"

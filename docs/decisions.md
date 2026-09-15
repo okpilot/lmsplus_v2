@@ -1,6 +1,6 @@
 # Decisions & Ideas Ledger
 
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 > Running log of all decisions, ideas, and open questions.
 > Sources: `app-design-document.md`, `step-zero-research.md`, conversation notes.
@@ -2072,7 +2072,33 @@ import-format entry that mentions the bucket only in passing. The stash was reco
 decision numbers 41 and 44, which the stashed draft used, were both taken in the interim.
 
 
-*Last updated: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 70: RULE 0 — NO PROSE outranks every other rule in the corpus (2026-09-15)
+
+State what is true; delete the rest. No justification, no precedent, no archaeology — that is what
+`git log` is for. Every sentence is a claim that can be false and must be verified, so fewer
+sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
+Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required
+status/summary stays wherever a rule asks for it — the verification half of Rule 0 requires them.
+Added after CR-local read the first cut and found `agent-coderabbit-local.md`,
+`agent-code-reviewer.md`, `agent-critic.md` and `wrapup.md` all requiring exactly what
+"no justification" appeared to forbid.
+
+Rule 0 sits above the PRIME DIRECTIVE in `CLAUDE.md`, and as a one-line banner everywhere else:
+
+```bash
+git grep -l 'RULE 0 — NO PROSE\.' -- :/
+```
+
+`.coderabbit.yaml` `tone_instructions` carries the reviewer-facing form: CodeRabbit FLAGS added
+prose instead of asking for more, and is told not to request a clarifying sentence, caveat or
+example — prefer deletion, and prefer a runnable command over any paragraph.
+
+**Not mechanically enforced.** No hook measures prose; the banner is advisory and `.coderabbit.yaml`
+is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
+`corpus-codification` spec already lists its deletion set.
+
+*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures prose. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

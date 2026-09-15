@@ -10,6 +10,7 @@ State what is true. Delete the rest.
 - Fix the thing. Do NOT add a sentence explaining the fix.
 - Every sentence is a claim that can be false and must be verified. Fewer sentences, fewer defects.
 - If a fact is derivable, ship the command, not the paragraph.
+- Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 - Applies to docs, rules, agent files, commit messages and replies. Docstrings are fine where they earn their place.
 
 ## ⚠️ PRIME DIRECTIVE — Orchestrator Protocol

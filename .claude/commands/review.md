@@ -1,6 +1,6 @@
 Review the current feature or recent changes for code quality, security, and correctness.
 
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 ## What to do
 1. Run `git fetch origin` (abort if it fails — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` (full branch diff) or `git diff --staged` to see recent changes
