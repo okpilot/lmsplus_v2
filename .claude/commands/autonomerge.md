@@ -1,5 +1,7 @@
 Complete the described work autonomously through the full pipeline, open the PR, report status — and then **stop. You do NOT merge.** The user keeps merge authority.
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > ## ⚠️ THIS COMMAND DOES **NOT** MERGE.
 > Same autonomous work as `/automerge`, but it **halts at the open, green PR** and hands off to the user. Never run `gh pr merge` under this command.
 > If you want it to merge itself once CI is green and CR is clean, use **`/automerge`** instead.

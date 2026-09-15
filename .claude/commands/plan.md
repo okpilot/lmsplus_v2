@@ -1,5 +1,7 @@
 Enter planning mode for the next task.
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 ## What to do
 1. **Check the board** — is there a related issue? If yes, move to **In Progress**. If no, create one.
 2. **Read context** — `docs/plan.md` + relevant docs (database.md, security.md, decisions.md)

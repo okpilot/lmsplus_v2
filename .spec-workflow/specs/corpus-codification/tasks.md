@@ -237,12 +237,35 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       re-derived later, so the number should not be there at all: name the derivation instead.
       Same rule already applied to `limits.json`; the message is the surface that escaped it.
 
+      **R0b-2 evidence, 2026-09-15 (`docs/recover-question-images-decision`).** Recurred, and
+      the shipped FILE was correct — only the message was wrong: "named three locations; there
+      are now five" against a list holding six, because the two figures counted different bases.
+      Caught by semantic-reviewer, one round late, and fixed by amending an unpushed message. The
+      shipped Decision entry NAMES its mirrors and states no total, which is why every reviewer
+      passed it on §10 cl.2. That contrast is the argument for R0b-2: the discipline already
+      applied to the artifact, and the message is the surface that escaped it.
+
       **R0b-3 — EDIT WITH A TOOL THAT FAILS LOUDLY.** Behavioural, not a hook, and stated because
       it bit: a `s.replace()` in a script silently no-ops when the anchor is absent. That is
       exactly how a "fixed" misquote survived an entire commit in this slice and had to be found
       by a reviewer two commits later. Prefer the editor tool, which errors on a missing anchor;
       where a script is genuinely needed, ASSERT the anchor before writing. Cheap to state,
       impossible to enforce mechanically, and worth writing down because the failure is SILENT.
+
+      **R0b-4 — NORMALIZE WHITESPACE BEFORE MATCHING (`check-mirror-sync.mjs`).** New mechanism,
+      learner count=1, 2026-09-15. A parity check for a clause present in `.coderabbit.yaml`
+      reported it ABSENT: the wording is identical APART FROM WHITESPACE but folded across two
+      lines inside a YAML block scalar, and a single-line grep cannot see it. Not byte-identical —
+      folding inserts a newline and the block's indentation, which is precisely why normalizing
+      whitespace before matching is the fix. DISTINCT from the paraphrase-blindness
+      `agent-workflow.md § Rule-Mirror Sync` already concedes as OPEN — that one is about text
+      that DIFFERS; this is text that MATCHES and is invisible anyway, so it is mechanically
+      fixable where paraphrase-blindness is not. The failure direction is the dangerous one: it
+      reports a mirror MISSING when present, so the natural response is to add a duplicate.
+      Fix: normalize runs of whitespace (newlines included) in both haystack and anchor before
+      comparing. Scope: `check-mirror-sync.mjs` plus a pinned mutation in its test suite — a
+      wrapped-YAML fixture that goes red if the normalization is removed. Do it in the slice that
+      next touches that hook; not worth its own PR.
 
       **What this cannot do.** None of it makes the author reliable. It makes the failure loud and
       immediate instead of expensive and late — which, measured on this session, is the whole

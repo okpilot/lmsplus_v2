@@ -1,5 +1,7 @@
 # Technology Stack
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 ## Project Type
 
 Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approved Training Organisations (ATOs) with a question bank trainer, quiz engine, progress tracking, admin tools, and regulatory audit trail. Deployed as a monorepo with shared packages.
@@ -47,7 +49,8 @@ lmsplusv2/
 ### Data Storage
 
 - **Primary storage**: Supabase (managed Postgres). 17+ tables with RLS on every table. Soft delete (`deleted_at`) on all mutable tables.
-- **File storage**: Supabase Storage (`question-images` bucket) with org-scoped path isolation.
+- **File storage**: Supabase Storage (`question-images` bucket). Access model — including which
+  operations are org-scoped — is `docs/decisions.md` Decision 69; do not restate it here.
 - **Client-side persistence**: localStorage for quiz session recovery (7-day staleness, private-mode safe).
 - **Caching**: Turborepo build cache. Vercel edge cache for static assets. No application-level Redis.
 - **Data formats**: JSON/JSONB (question options, session config, audit metadata), SQL for all persistence.
@@ -55,7 +58,8 @@ lmsplusv2/
 ### External Integrations
 
 - **Supabase Auth**: Email + password authentication. JWT sessions (1hr expiry, 7-day sliding refresh). PKCE flow for password recovery.
-- **Supabase Storage**: Image upload for question images. Org-scoped path enforcement via storage policies.
+- **Supabase Storage**: Image upload for question images. Policy model: `docs/decisions.md`
+  Decision 69.
 - **Sentry**: Error tracking and performance monitoring. Source map upload during build.
 - **Vercel**: Hosting with Skew Protection (4hr max age). Serverless functions for Server Actions.
 - **SonarCloud**: Static analysis with 80% new-code coverage gate.
