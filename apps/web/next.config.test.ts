@@ -8,9 +8,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock @sentry/nextjs so withSentryConfig is a passthrough — avoids Sentry
-// side effects (webpack plugin init, deprecation warnings) polluting the test pool.
-vi.mock('@sentry/nextjs', () => ({
+// Mock @sentry/nextjs/config so withSentryConfig is a passthrough — avoids Sentry
+// side effects (webpack plugin init) polluting the test pool.
+vi.mock('@sentry/nextjs/config', () => ({
   withSentryConfig: (config: unknown) => config,
 }))
 
