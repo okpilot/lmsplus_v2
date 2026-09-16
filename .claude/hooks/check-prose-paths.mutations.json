@@ -188,7 +188,8 @@
         "accepts an inline waiver carrying a written reason",
         "rejects a waiver whose reason asserts nothing",
         "an inline waiver with a written reason clears the finding",
-        "--update-baseline refuses to write from an incomplete read"
+        "--update-baseline refuses to write from an incomplete read",
+        "scope footer is present when only a waiver problem is found"
       ]
     },
     {
@@ -198,7 +199,8 @@
       "expectRed": [
         "rejects a waiver whose reason asserts nothing",
         "an inline waiver with a written reason clears the finding",
-        "--update-baseline refuses to write from an incomplete read"
+        "--update-baseline refuses to write from an incomplete read",
+        "scope footer is present when only a waiver problem is found"
       ]
     },
     {
@@ -222,7 +224,8 @@
       "replace": "  return []",
       "expectRed": [
         "reports a baseline row that describes no live finding as stale",
-        "reports a stale baseline row even when its file is not staged"
+        "reports a stale baseline row even when its file is not staged",
+        "scope footer is absent when the only failure is a stale baseline row"
       ]
     },
     {
@@ -265,7 +268,8 @@
         "grades the INDEX, not the working tree",
         "ignores a citation in a spec but grades one in steering",
         "treats an absent baseline as empty and blocks, rather than passing",
-        "never rewrites the baseline from an enforcement run"
+        "never rewrites the baseline from an enforcement run",
+        "scope footer is present when a fresh finding is blocked"
       ]
     },
     {
@@ -284,7 +288,10 @@
       "id": "stale-term-dropped-from-early-return",
       "find": "  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
       "replace": "  if (fresh.length === 0 && scopedProblems.length === 0) return 0",
-      "expectRed": ["reports a stale baseline row even when its file is not staged"]
+      "expectRed": [
+        "reports a stale baseline row even when its file is not staged",
+        "scope footer is absent when the only failure is a stale baseline row"
+      ]
     },
     {
       "id": "staged-mode-reads-the-worktree",
@@ -350,7 +357,8 @@
       "replace": "    if (false) {",
       "expectRed": [
         "--update-baseline refuses to write from an incomplete read",
-        "an inline waiver with a written reason clears the finding"
+        "an inline waiver with a written reason clears the finding",
+        "scope footer is present when only a waiver problem is found"
       ]
     },
     {
@@ -371,6 +379,30 @@
       "replace": "seen.set(dupKey, occurrence)",
       "expectRed": ["reports two physically distinct identical lines as separate findings"],
       "note": "Pins the occurrence counter INDEPENDENTLY of pathKey. Otherwise the counter is only ever exercised jointly with pathKey, so either could break while the pair still looked correct."
+    },
+    {
+      "id": "footer-always-prints",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (true) {",
+      "expectRed": ["scope footer is absent when the only failure is a stale baseline row"],
+      "note": "Pins that the footer is suppressed for stale-row-only failures. Inverting to true makes the footer appear even when the only failure is a baseline-maintenance task, which the comment says it must not."
+    },
+    {
+      "id": "footer-never-prints",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "scope footer is present when a fresh finding is blocked",
+        "scope footer is present when only a waiver problem is found"
+      ],
+      "note": "Pins that the footer IS printed when corpus-scan findings exist. Replacing the condition with false suppresses the footer on every failure."
+    },
+    {
+      "id": "footer-ignores-scoped-problems",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (fresh.length > 0) {",
+      "expectRed": ["scope footer is present when only a waiver problem is found"],
+      "note": "Pins the || RHS independently. Dropping scopedProblems.length > 0 suppresses the footer when the only failure is a bad waiver \u2014 a corpus scan did happen, but the context is hidden."
     }
   ],
   "notEncoded": [
@@ -380,7 +412,7 @@
     },
     {
       "claim": "check-prose-paths.repo.test.mjs header: the same convention sentence",
-      "why": "same reason — a description of what a MUTATION comment is, not one."
+      "why": "same reason \u2014 a description of what a MUTATION comment is, not one."
     }
   ]
 }

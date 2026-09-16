@@ -361,7 +361,10 @@ test('treats an unreadable corpus file as a problem, never a skipped file', () =
 
 test('reports two physically distinct identical lines as separate findings', () => {
   // `evaluate` batches one `git check-ignore` call, so it needs a git repo as cwd — the suite's
-  // own, which no case here mutates.
+  // own, which no case here mutates. Unlike every other case in this file it therefore
+  // resolves against the REAL repo rather than a throwaway one: `docs/gone.md` must stay // prose-path-ok: naming the absent sentinel IS the point — if this path ever resolved the test would be broken
+  // absent, or `resolves` finds it via existsSync, both lines stop being findings, and
+  // this reddens for a reason that has nothing to do with the counter it pins.
   // MUTATION: change `seen.set(dupKey, occurrence + 1)` to `seen.set(dupKey, occurrence)` in
   // evaluate → occurrence never increments; both identical lines get occurrence=0; the second
   // finding's key overwrites the first in the findings Map; findings.size drops to 1; once the
@@ -371,3 +374,51 @@ test('reports two physically distinct identical lines as separate findings', () 
   const res = evaluate(['docs/a.md'], read, index)
   assert.equal(res.findings.size, 2)
 })
+
+// ---------------------------------------------------------------- scope footer gating
+
+test('scope footer is absent when the only failure is a stale baseline row', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    r.git('add', '-A')
+    baseline(r)
+    r.git('commit', '-qm', 'init')
+    // Fix the dead citation — baseline row becomes stale; fresh and scopedProblems are empty
+    r.write('docs/a.md', 'no citation here\n')
+    r.git('add', '-A')
+    const res = run(r)
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /describe no live finding/)
+    // MUTATION: change `if (fresh.length > 0 || scopedProblems.length > 0)` to `if (true)` →
+    // the scope footer prints on every failure including stale-row maintenance, answering a
+    // question the reader did not ask.
+    assert.doesNotMatch(res.stderr, /Searched:/)
+  }))
+
+test('scope footer is present when a fresh finding is blocked', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/a.md', `intro\n${DEAD}\n`)
+    r.git('add', '-A')
+    const res = run(r)
+    assert.equal(res.status, 1)
+    // MUTATION: change `if (fresh.length > 0 || scopedProblems.length > 0)` to `if (false)` →
+    // the scope footer is suppressed even when corpus-scan findings are present.
+    assert.match(res.stderr, /Searched:/)
+  }))
+
+test('scope footer is present when only a waiver problem is found', () =>
+  withRepo((r) => {
+    // A bad prose-path-ok waiver creates scopedProblems, NOT a fresh finding.
+    // fresh.length === 0, scopedProblems.length === 1 — exercises the || RHS independently.
+    r.write('docs/a.md', `intro\n${DEAD} <!-- prose-path-ok: ok -->\n`)
+    r.git('add', '-A')
+    const res = run(r)
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /must state WHY/)
+    // MUTATION: drop `|| scopedProblems.length > 0` from the footer condition →
+    // the scope footer is suppressed when only a waiver problem exists.
+    assert.match(res.stderr, /Searched:/)
+  }))
