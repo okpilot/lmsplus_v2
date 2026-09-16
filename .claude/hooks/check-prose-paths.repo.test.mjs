@@ -361,10 +361,11 @@ test('treats an unreadable corpus file as a problem, never a skipped file', () =
 
 test('reports two physically distinct identical lines as separate findings', () => {
   // `evaluate` batches one `git check-ignore` call, so it needs a git repo as cwd — the suite's
-  // own, which no case here mutates. Unlike every other case in this file it therefore
-  // resolves against the REAL repo rather than a throwaway one: `docs/gone.md` must stay // prose-path-ok: naming the absent sentinel IS the point — if this path ever resolved the test would be broken
-  // absent, or `resolves` finds it via existsSync, both lines stop being findings, and
-  // this reddens for a reason that has nothing to do with the counter it pins.
+  // own, which no case here mutates. Like the other direct-`evaluate` cases above (and unlike
+  // every `withRepo` case, which sandboxes its paths), it therefore resolves against the REAL
+  // repo: the sentinels those cases share must stay absent, or `resolves` finds one via // prose-path-ok: naming the absent sentinels IS the point — if either resolved these tests would be broken
+  // existsSync, the lines stop being findings, and they redden for a reason unrelated to what
+  // they pin.
   // MUTATION: change `seen.set(dupKey, occurrence + 1)` to `seen.set(dupKey, occurrence)` in
   // evaluate → occurrence never increments; both identical lines get occurrence=0; the second
   // finding's key overwrites the first in the findings Map; findings.size drops to 1; once the
