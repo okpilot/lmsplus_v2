@@ -97,6 +97,17 @@ the point, naming the wrong verdict you would otherwise have read. Without that 
 indicts a sound test. Promoted at count=2, 2026-09-14 (`f26abc16`); the first instance was three
 anchors orphaned by a reformat during authoring.
 
+**Edit a `.mutations.json` as TEXT, never by re-serialising it.** Reading it with `json.load` and
+writing it back with `json.dumps` (or `JSON.parse`/`JSON.stringify`, or `jq` at any `--indent`)
+reformats every line whose hand-written layout differs from the serialiser's, and your real change
+vanishes into it: a single-figure field edit came back as a diff an order of magnitude larger,
+because the round-trip expanded every single-element array onto three lines. Do NOT reach for a formatting flag — `--sort-keys`
+reorders every key and is worse. Do an exact-string replacement per field, then CHECK
+`git diff --stat` before reporting: if the changed-line count is not close to the number of fields
+you meant to change, restore with `git checkout HEAD -- <file>` and redo it surgically. A reformat
+is semantically harmless, so nothing fails and review reads it as noise — the stat is the only thing
+that catches it.
+
 **Never mutate in place.** Work in a scratch copy or a throwaway worktree, so nothing survives.
 BEFORE mutating, record BOTH `git rev-parse HEAD` AND `git stash list --format='%H'` — two of the
 checks below are COMPARISONS, and a comparison with no captured baseline is satisfied by any later

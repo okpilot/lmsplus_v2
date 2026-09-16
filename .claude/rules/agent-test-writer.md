@@ -39,6 +39,23 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Ignore test failures as "flaky" without investigation.
 - Let the agent create `__tests__/` directories — tests are co-located with source files.
 - Let the agent test pre-hydration state in jsdom (it's a known limitation — `useEffect` runs before assertions in `act()`).
+- Let a tracked JSON file be REWRITTEN to change a few fields — neither by the agent nor by
+  yourself. Parsing and re-serialising (`json.dumps`, `JSON.stringify`, `jq` without byte-identical
+  formatting) reformats every line the source happened to format differently, and the real change
+  drowns: on `feat/prose-path-guard` a 9-field edit to `check-prose-paths.mutations.json` came back
+  as a diff an order of magnitude larger, because the round-trip expanded every single-element
+  array onto three lines. Count them for the file in front of you rather than trusting a figure
+  here — `grep -cE '\[ *"[^"]*" *\]' <file>` — the number moves every time a mutation is added.
+  **Do not reach for a formatting FLAG to fix this** — `--sort-keys` reorders every key and makes it
+  worse, and no `--indent` value reproduces a hand-formatted file's per-line choices. Edit the TEXT:
+  an exact-string replacement per field. **Verify by diff stat before committing** — the changed-line
+  count should be within a line or two of the number of fields you meant to change; if it is an
+  order of magnitude larger, `git checkout HEAD -- <file>` and redo it surgically. Promoted at
+  count=2 across distinct commits: archive row 549 (2026-08-15, test-writer,
+  `check-file-size-guard.mutations.json`, 178 lines) and this branch, where the test-writer and the
+  orchestrator hit it independently. Both times the ONLY thing that caught it was reading the stat.
+  A reformat is semantically harmless and reviews as noise, which is why it survives review — after
+  re-doing the edit, confirm the parsed structures still match rather than re-running a long harness.
 
 ## What The Agent Produces
 - Co-located `.test.ts` / `.test.tsx` files next to source files
@@ -57,4 +74,4 @@ If the test-writer creates a test that fails because the production code has a b
 
 ---
 
-*Last updated: 2026-09-07*
+*Last updated: 2026-09-16*
