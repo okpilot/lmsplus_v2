@@ -409,7 +409,12 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        merge diffs, so a phrase living only on an unmerged branch, or introduced only in a merge
        resolution, returns empty while existing in a tree. Read an empty result as *not reachable
        from HEAD* — add `--all` and `--diff-merges=first-parent` before concluding anything
-       stronger. Within that bound an empty result means the grep-based refutation is unavailable,
+       stronger, and pair that flag with `--no-patch`: `--diff-merges=<format>` implies `-p`, so
+       without it each hit is followed by a whole patch and every hit after the first scrolls out
+       of view. It drops NO commit — `--no-patch` returns the identical list. Misreading that
+       flood as suppression has produced a confident wrong conclusion twice on
+       `feat/prose-path-guard` (an implementation-critic, then the orchestrator checking it,
+       2026-09-16). Within that bound an empty result means the grep-based refutation is unavailable,
        whatever the claim's merits. Precedent (`827c363b`, 2026-09-16): an implementation-critic grepped the
        committed parent for a retracted phrase, found nothing, and reported the tracker row citing
        it as FABRICATED. The row was true — it recorded STAGED work — and acting on the finding

@@ -6,6 +6,68 @@
 
 ## Positive-pattern log
 
+### §10 cl.7 correction + mirrors REVISE (2026-09-16, feat/prose-path-guard)
+
+REVISE. 5 files staged. 2 issues, 1 suggestion.
+
+ISSUE 1 — "left no artifact in ANY tree" is FALSE for both pre-commit phrases.
+The staged text claims `git log --all --diff-merges=first-parent -S '<phrase>' -- :/` establishes
+that "rewrites most of it" and "neither result is ever a bare one-line answer" left no artifact.
+Both commands return `1ef2eabf` (the commit that added them as historical citations in code-style.md).
+EVIDENCE:
+- `git log --all --diff-merges=first-parent -S 'rewrites most of it' -- :/ --format='%h %s'` → `1ef2eabf docs(pipeline): extend the count clause to extent quantifiers`
+- `git log --all --diff-merges=first-parent -S 'neither result is ever a bare one-line answer' -- :/ --format='%h %s'` → `1ef2eabf docs(pipeline): extend the count clause to extent quantifiers`
+Both phrases also remain in the staged code-style.md (lines 1164-1165).
+
+ISSUE 2 — `--diff-merges=first-parent` suppresses `fa43f72c` from `-S` results.
+Without the flag: both `fa43f72c` (introduced) and `bccd4fd3` (changed) appear.
+With the flag: only `bccd4fd3` appears. `fa43f72c` is NOT a merge commit (single parent: `827c363b`).
+This means the prescribed command, used to verify the provenance claim "added in fa43f72c", would NOT show fa43f72c.
+EVIDENCE:
+- `git log --all -S 'Unlike every other case in this file' -- :/ --format='%h %p'` → both commits
+- `git log --all --diff-merges=first-parent -S '...' -- :/` → only `bccd4fd3`
+
+**REFUTED by the orchestrator (2026-09-16), and the refutation itself needed two attempts.**
+The flag drops nothing. `--diff-merges=<format>` implies `-p`, so the later hits are still
+printed — buried under each hit's full patch. Both EVIDENCE commands above also put `--format`
+AFTER the `--`, where it is a PATHSPEC, not an option.
+Correct spelling, all three hits, with and without the flag:
+- `git log --all -S '<phrase>' --format='%h %s' -- :/` → `a4ecd165 bccd4fd3 fa43f72c`
+- `git log --all --diff-merges=first-parent --no-patch -S '<phrase>' --format='%h %s' -- :/`
+  → `a4ecd165 bccd4fd3 fa43f72c`
+Remedy applied to `agent-workflow.md`: prescribe `--no-patch` alongside the flag.
+
+SUGGESTION — tasks.md quotation case mismatch.
+tasks.md staged: `"recompute any count, and test any extent quantifier, as the last authoring step"`
+code-style.md cl.7: `**Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against`
+Differs in: "EXTENT QUANTIFIER" vs "extent quantifier", "LAST" vs "last".
+
+### §10 cl.7 extent-quantifier promotion APPROVED (2026-09-16, feat/prose-path-guard)
+
+APPROVED. 2 files staged. 0 critical, 0 issues, 0 suggestions.
+
+Claims verified:
+1. "the measured figure was 43": `grep -cE '\[ *"[^"]*" *\]' check-prose-paths.mutations.json` → 43. ✓
+2. "the measurement was a tenth": `jq --indent 2 . run-mutations.mutations.json > /tmp/x && diff run-mutations.mutations.json /tmp/x | grep -c '^<'` → 47/468 ≈ 10%. ✓
+3. "rename shape returns exactly one line": throwaway repo `git log -S <phrase> --format='%h %s'` on a `git mv`-renamed file → LINE_COUNT=1. ✓
+4. "The first two were fixed by shipping the command": current `.claude/agents/test-writer.md` says "Measure the file in front of you rather than trusting a figure here — `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`" for both the single-element-array context and the jq-rewrite context. ✓
+5. "the third by restating": current agent-workflow.md has the restated conditional form (no "neither result is ever" claim). ✓
+6. No new unmeasured extent quantifiers in the added text: all `most/every/never/always/neither/all` occurrences in the new text are either the named target words or quoted historical false claims. ✓
+7. "over two commits": instances (b) "rewrites most of it" and (c) "neither result is ever" span `9f5b5a52` → `fc6fab85`. Instance (a) "44 single-element arrays" was pre-commit (never git-added). "over two commits" correctly describes the committed-instance span; (a) being pre-commit is tighter. ✓
+8. Self-referential closing sentence ("This clause's own first draft then said 'all three were fixed by shipping the command'"): UNVERIFIABLE — no git artifact for a pre-commit draft. Not a false claim we can disprove.
+
+Pattern note: "over N commits" in a promotion note can include pre-commit instances (caught before git-add). Not a mismatch — pre-commit is better than committed.
+
+### prose-path-guard: git-log-S parenthetical BLOCKED (2026-09-16, feat/prose-path-guard)
+
+BLOCKED. 2 files staged. 1 critical (blocking).
+
+FINDING: `agent-workflow.md` new parenthetical "(In both shapes the INTRODUCTION is still reported, so neither result is ever a bare one-line answer.)" is FALSE. In the RENAME shape, `git log -S 'PHRASE' --format='%h %s'` returns exactly ONE line (only the introduction commit). EVIDENCE: throwaway repo test — REPO B (rename): output = `42cd3ac introduce phrase in fileA`, line count = 1. The "both files persist" shape returns 2 lines (introduction + move commit). The parenthetical claim "neither result is ever a bare one-line answer" fails on the rename shape.
+
+Claims that DID verify TRUE:
+- `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'` runs cleanly on all 5 mutations files; all produce non-zero counts and grow (7/32/45/15/47 changed lines across the 5 files). ✓
+- Command in `.claude/agents/test-writer.md` is IDENTICAL to the new text. ✓
+
 ### CR-fixup: folded-scalar pin + decisions.md archaeology drop (2026-09-15, docs/recover-question-images-decision)
 
 APPROVED. 2 files staged. 0 critical, 0 issues, 0 suggestions.

@@ -38,11 +38,15 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - **Inline guard waivers**: the retracted-phrase hatch above is a commit-message TRAILER;
      the ratcheted guards ship INLINE markers instead, and until 2026-09-16 nothing audited
      them.
-     `git grep -c -e 'prose-claim-ok:' -e 'prose-path-ok:' -- ':!.claude/hooks/' ':!.claude/commands/'`
-     Both exclusions are load-bearing and the check FAILS OPEN without them: each marker
-     appears in its own guard's source and suites, and this bullet names both tokens.
-     A residue survives them and is NOT tuned away — a rule that DESCRIBES the marker matches
-     too (`code-style.md` §9). So READ the list, never trust its length: a waiver carries a
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' -- ':!.claude/commands/'`
+     The one exclusion drops this bullet's own copy of the command. Do NOT also exclude
+     `.claude/hooks/`: the guards' sources and suites carry LIVE waivers, so excluding that
+     directory hides exactly what this audit exists to see — and hides it silently, however
+     many land there.
+     A residue survives and is NOT tuned away: a rule that DESCRIBES the marker matches
+     (`code-style.md` §9), as do each guard's own `WAIVER_RE` and its `console.error` help
+     text, and the fixture strings the suites write into sandbox repos. So READ the list,
+     never trust its length — which is why this greps `-n` and not `-c`: a waiver carries a
      written reason, a description carries a `<placeholder>`.
      A waiver states why the prose MUST carry that number or that unresolvable path. "False
      positive" is already refused by the guards (a reason under 20 non-whitespace characters,

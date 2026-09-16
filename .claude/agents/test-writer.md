@@ -103,8 +103,7 @@ reformats every line whose hand-written layout differs from the serialiser's, an
 vanishes into it: a single-figure field edit came back as a diff an order of magnitude larger,
 because the round-trip expanded every single-element array onto three lines. Do NOT reach for a formatting flag — `--sort-keys`
 reorders every key and is worse, and no `--indent` value reproduces a hand-formatted file's
-per-line choices either — `jq --indent 2` still rewrites part of every mutations file in this repo
-and grows the total. Measure the one in front of you rather than trusting a fraction quoted here:
+per-line choices either. Measure the one in front of you rather than trusting a fraction quoted here:
 `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`. Do an exact-string replacement per field, then CHECK
 `git diff --stat` before reporting: if the changed-line count is not close to the number of fields
 you meant to change, restore with `git checkout HEAD -- <file>` and redo it surgically. A reformat
