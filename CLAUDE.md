@@ -2,6 +2,17 @@
 
 EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 
+## RULE 0 — NO PROSE (overrides everything below)
+
+State what is true. Delete the rest.
+
+- No justification, no precedent, no archaeology, no "why this changed". That is what `git log` is for.
+- Fix the thing. Do NOT add a sentence explaining the fix.
+- Every sentence is a claim that can be false and must be verified. Fewer sentences, fewer defects.
+- If a fact is derivable, ship the command, not the paragraph.
+- Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+- Applies to docs, rules, agent files, commit messages and replies. Docstrings are fine where they earn their place.
+
 ## ⚠️ PRIME DIRECTIVE — Orchestrator Protocol
 
 **You (the orchestrator) are the planner and reviewer. You do NOT write code directly unless the change is trivial (< 10 lines, single file).**
@@ -248,7 +259,7 @@ post-commit agents. Never push until every agent required by the selected path r
 
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking):
-- **pre-commit:** mechanical guards only — lint/format, types, and the schema/size/test-title checks. Each also runs in the CI lint job with its unit suites. Unit tests are deliberately excluded here; the full suite runs in CI. **The command list is DATA in `.claude/pipeline.json` — do not enumerate it here.** This bullet named its commands until 2026-09-14 and the two sibling diagrams that copied it (`docs/plan.md`, `docs/decisions.md`) had both already gone stale by omitting the file-size guard, which is what a hand-maintained mirror does
+- **pre-commit:** mechanical guards only. Each also runs in the CI lint job with its unit suites. Unit tests are deliberately excluded here; the full suite runs in CI. **The command list is DATA in `.claude/pipeline.json` — do not enumerate it here.** This bullet named its commands until 2026-09-14 and the two sibling diagrams that copied it (`docs/plan.md`, `docs/decisions.md`) had both already gone stale by omitting the file-size guard, which is what a hand-maintained mirror does
 - **commit-msg:** what these gates enforce, rather than which commands run (same rule as above — `.claude/pipeline.json` is the list): conventional commit format; a cited SHA must resolve, with coverage that is PARTIAL and proves only that the commit EXISTS — see `code-style.md` §10 cl.6 and `docs/decisions.md` Decision 64; and a claim this commit corrected in one corpus file must not still stand in another (`code-style.md` §10 cl.3, Decision 66). That last one is why a gate lives on this stage at all: its only escape hatch is a `Retracted-ok: <token> — <reason>` trailer, and no EARLIER stage can read a commit message (CI reads it too, later, via `--base`).
 - **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
 

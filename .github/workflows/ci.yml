@@ -140,6 +140,46 @@ jobs:
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
 
+      # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
+      # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
+      # against `.claude/prose-claims.json`, so a restatement that reached master before this
+      # guard existed is baselined rather than blocking, and a NEW one fails the job. This also
+      # catches a baseline row whose line has since changed or gone — the same shrink-must-be-
+      # recorded rule the file-size ratchet has, for the same reason: an unrecorded shrink means
+      # the file and the baseline disagree about what is being graded.
+      - name: Prose-claims guard (whole worktree, ratcheted)
+        run: node .claude/hooks/check-prose-claims.mjs --all
+
+      - name: Prose-claims guard — unit test
+        run: node --test .claude/hooks/check-prose-claims.test.mjs
+
+      - name: Prose-claims guard — git-facing tests
+        run: node --test .claude/hooks/check-prose-claims.repo.test.mjs
+
+      # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE: the
+      # mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway worktree.
+      # BOTH steps are needed and they cover different things. The unit suite pins the LOGIC that
+      # decides CAUGHT/SURVIVED/MISMATCH; it never runs `modeRun` against the data files, so a
+      # stale anchor, a wrong target or an under-specific `expectRed` passes it untouched. Only
+      # the harness RUN grades the recipes.
+      #
+      # Two earlier versions of this comment argued the run did not belong in CI. Both were wrong,
+      # and are recorded because the reasoning is the instructive part: the first claimed a PR
+      # would "re-grade what the merge-base already proved" (false — the worktree is built from
+      # HEAD, so a PR ADDING data grades it for the first time); the second claimed the unit suite
+      # already covered it (false — see above, and CodeRabbit caught it). On this very branch a
+      # reformat ORPHANED three anchors at count=0 and four `expectRed` sets were under-specific;
+      # the unit suite was green throughout. (An earlier version of this comment credited
+      # `fetch-depth: 0` for making the worktree possible — FALSE, caught by CR-local: a shallow
+      # checkout also has HEAD and `git worktree add --detach <dir> HEAD` works from it. The full
+      # history above is there for the test-title guard's base diff, not for this step.)
+      - name: Mutation harness — unit test
+        run: node --test .claude/hooks/run-mutations.test.mjs .claude/hooks/run-mutations.spawn.test.mjs
+
+      - name: Mutation harness — run every encoded mutation
+        timeout-minutes: 10
+        run: node .claude/hooks/run-mutations.mjs
+
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the

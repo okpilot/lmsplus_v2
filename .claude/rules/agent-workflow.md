@@ -1,5 +1,7 @@
 # Agent Workflow — Pipeline & Orchestrator Rules
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > How the orchestrator (Claude) plans, validates, and coordinates work.
 > Per-agent handling rules are in separate `agent-*.md` files in this directory.
 
@@ -424,6 +426,13 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        is exhaustive: `createClient<` matches exactly those two call sites" — `packages/db/src/admin.ts:13`
        is a third. The enumeration was scoped to *scripts* and correct there; the unqualified
        repo-wide restatement was not, and it is now permanent in the history.
+     - *"this path is already covered by Y"* → open Y and confirm it covers the path CLAIMED, not
+       merely that it exists. A verdict can be right while the evidence offered for it is invented,
+       and the verdict is what makes the evidence read as checked. test-writer's "no test warranted"
+       was correct; its stated ground — that a timeout was "already covered end-to-end" by the
+       hanging entry in `check-file-size-guard.mutations.json` — was refuted by that entry's OWN
+       note, which records it as a return flip precisely BECAUSE a hang cannot be survived. Nothing
+       in the corpus triggers a real timeout. One grep, in a file the agent had been pointed at.
      - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
      - *"I ran / verified / updated / wrote X"* — an agent reporting its OWN ACTION, not a fact
        about the code → inspect the ARTIFACT that action would have left:
@@ -880,6 +889,27 @@ DONE WHEN: [measurable exit criteria]
 CONSTRAINTS: [what NOT to do, file boundaries, limits, security rules]
 CONTEXT: [file paths, type signatures, patterns to follow, related tests]
 ```
+
+### The TERMINAL MESSAGE is the whole report — nothing else reaches the orchestrator
+
+An agent's final message is the ONLY channel back. The orchestrator cannot read a subagent
+transcript, so a finding that is not restated in that message does not exist. "The review stands as
+reported above", "memory updated", and any reference to an earlier turn are forbidden AS THE SOLE
+CONTENT: there is no above.
+
+The failure looks STRUCTURAL rather than careless. It APPEARS to fire when an agent's last tool
+call is its own memory write — the terminal message becomes a note ABOUT the write and the report
+body is never delivered. The observable half is well attested; the scheduling explanation for it is
+an inference and no file in this repo establishes it, so do not act on the mechanism, only on the
+symptom. A first draft went on to conclude that it therefore lands hardest on the `memory: project`
+agents — an inference drawn from the very mechanism the previous sentence disclaims, which is the
+defect this section exists to stop. Which agents are worst affected is UNMEASURED.
+
+Put the requirement in every dispatch — it costs one line and it is the only mitigation that works,
+since a fresh agent cannot know what a previous one dropped. Promoted at count=6 in a single day
+(2026-09-14, `feat/mutation-harness`), across five invocations of four distinct agents —
+code-reviewer, semantic-reviewer (twice), implementation-critic, test-writer. Each cost a re-ask round, and one
+arrived carrying only a tracker note while alluding to two findings it had not stated.
 
 ### State the MECHANISM behind a constraint, not just the prohibition
 

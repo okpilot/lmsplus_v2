@@ -1,5 +1,7 @@
 # Code Style Rules — LMS Plus v2
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > These rules apply to all code in this repository.
 > The code-reviewer agent checks every commit against them.
 > Violations are flagged as warnings (non-blocking) or errors (blocking on merge).
@@ -10,6 +12,22 @@
 
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at
 pre-commit and in CI. Never restate a number here.
+
+"Never restate a number here" is itself now mechanically enforced, by
+`.claude/hooks/check-prose-claims.mjs` at pre-commit and in CI: it blocks a cap VALUE from
+`limits.json` being restated in PROSE as a claim about that cap. Until it existed the sentence
+above was an instruction nobody could check, and the caps had already been copied into nine
+hand-maintained places once — which is why they became data in the first place. Prose goes stale
+silently; `limits.json` is the only copy that is executed.
+
+It is a RATCHET on the same terms as the size guard, against `.claude/prose-claims.json`: a
+restatement that predates the guard is baselined rather than blocking, a NEW one fails, and a
+baselined line that CHANGES or disappears fails until `--update-baseline` records it. Its
+suppression marker is deliberately unavailable for a broken invocation — that route exits 2, not
+1, so a waiver can never stand in for a check that did not run. Some baselined lines are false positives — a budget or an estimate that collides with a cap
+value. They are baselined rather than tuned away, and which ones they are is a judgement a
+reader makes from the excerpt: the baseline stores the key and the line, and carries NO
+false-positive field. A guard narrowed until it has no false positives has stopped detecting.
 
 - **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
   longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row
@@ -934,6 +952,14 @@ means the comment is under-specific, and green means it is false. Where a mechan
 cannot be reached, say so in the comment rather than implying coverage; an honest "NOT pinned, and
 here is why" is worth more than a claim that reads as verified and is not.
 
+**Naming a REACHABLE mechanism is not enough — the described FAILURE MODE must also be true.**
+Two comments on `run-mutations.test.mjs` named a reachable break and said it made validation
+"pass silently", when disabling the guard sends the value into an `else` whose `.forEach()` throws
+a TypeError. The tests reddened, so the mechanism was real; the account of HOW was false, and a
+reader trusting it would look for a silent-pass path that does not exist. Verify by reverting ONLY
+the named mechanism and reading the ACTUAL output — not by predicting it. Promoted at count=5,
+2026-09-14.
+
 **Verify that the mutation APPLIED before reading the result.** A `sed` whose anchor does not match
 is a no-op, and a no-op mutation is indistinguishable from an unpinned test — it reports SURVIVED
 either way. Check the edit landed (a changed line count, a `grep -c` that moved) before concluding
@@ -944,14 +970,29 @@ overclaimed by naming an unreachable second mechanism, one named a skip that a s
 boundary already made unreachable. Three were written by the author of the guard whose whole
 purpose is catching false claims.
 
-The promotion sweep audited every `MUTATION:` claim in the file-size-guard suites and found them
-ALL accurate, each multi-mechanism one verified by execution. Count them with `grep -c 'MUTATION:'`,
-not `grep -c '// MUTATION:'`: some claims sit mid-line after other prose and the narrower pattern
+The promotion sweep claimed it audited every `MUTATION:` claim in the file-size-guard suites and
+found them ALL accurate, "each multi-mechanism one verified by execution". **That claim was false,
+and its refutation is the strongest argument for the harness below.** When
+`.claude/hooks/run-mutations.mjs` (Decision 67) EXECUTED those claims instead of reading them, one
+test in `check-file-size-guard.directive.test.mjs` turned out to pin nothing at all — it asserted
+`false`, which is `declaresUseServer`'s default return, so no break could redden it — under a
+comment naming a regex the function had not contained for two rewrites. Reading can falsify SOME
+mutation claims — an absent or unreachable mechanism shows up on inspection, which is how
+`reAdded`'s missing `escapeRe` was caught. What reading cannot establish is the positive half:
+that the named break actually turns the named tests RED. Only executing it proves that, and the
+sweep that claimed it had done so had not. **Re-derive rather than trust any audit sentence:
+`node .claude/hooks/run-mutations.mjs` re-runs every encoded claim, and `--coverage` reports the
+encoded-vs-claimed gap.** Count claims with `grep -o 'MUTATION:' <file> | wc -l` — a MATCH count, which is what
+`countMutationClaims` uses. NOT `grep -c`, which counts LINES and so misses a second claim on the
+same line, disagreeing with `--coverage` for precisely the mid-line reason this paragraph is
+about. And not `grep -c '// MUTATION:'` either: some claims sit mid-line after other prose and the narrower pattern
 silently misses them — derive the difference with
-`diff <(grep -c 'MUTATION:' <file>) <(grep -c '// MUTATION:' <file>)` rather than trusting a number. Post-commit review flagged the wider figure as wrong on the strength of the
-narrower grep; both numbers were right, for different questions. So the defect is not the convention
-going bad over time — it concentrated entirely in files written fresh in one sitting, which is
-where to look for it next.
+`diff <(grep -o 'MUTATION:' <file> | wc -l) <(grep -o '// MUTATION:' <file> | wc -l)` rather than
+trusting a number — MATCH counts on both sides, since `grep -c` is what this very paragraph just
+forbade and would reproduce the defect it documents. Post-commit review flagged the wider figure as wrong on the strength of the
+narrower grep; both numbers were right, for different questions. The defect concentrates in files
+written fresh in one sitting, which is where to look for it next — but note that it also survived a
+deliberate audit of exactly those files, so "we already swept this" is not evidence of anything.
 
 ### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way (from 2026-09-14)
 

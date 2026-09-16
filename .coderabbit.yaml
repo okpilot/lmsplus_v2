@@ -10,9 +10,10 @@
 
 language: "en-US"
 tone_instructions: >
-  Be precise and direct. Lead with the issue, not the explanation.
-  Include file path + line number. Suggest the exact fix.
-  Acknowledge good patterns briefly. No fluff.
+  Be precise and direct. Lead with the issue, not the explanation. Include file
+  path + line number. Suggest the exact fix. Note good patterns. No fluff.
+  Prefer deleting prose over adding a caveat, and a runnable command over a
+  paragraph.
 
 reviews:
   profile: "assertive"
@@ -264,6 +265,22 @@ reviews:
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
     # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
     # revised in flight, so reviewing them is churn.
+    # Rule 0 — every file this glob matches, INCLUDING spec tasks.md (which the
+    # comment-accuracy entry below deliberately excludes).
+    - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"
+      instructions: |
+        RULE 0 — NO PROSE. These files state what is true and delete the rest.
+        - FLAG added prose that justifies, narrates precedent, or explains why something
+          changed. That belongs in git history, not in a tracked file.
+        - FLAG a sentence added alongside a fix whose only job is to explain the fix.
+        - FLAG an enumeration where a derivation command would do.
+        - Do NOT ask for a clarifying sentence, a caveat, or an example to be ADDED to
+          prose. Prefer deletion, and prefer a runnable command over any paragraph.
+        - Every added sentence is a claim that can be false.
+        - Evidence is NOT prose: a skip reason, an EVIDENCE: line, a finding's stated
+          basis, or a required status/summary is mandated by our rules — never flag one
+          as prose, and never ask for its removal.
+
     - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/requirements.md,.spec-workflow/specs/**/design.md}"
       instructions: |
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
@@ -274,6 +291,15 @@ reviews:
           bypassed hook, so what is left for review is the case it cannot see — a
           PARAPHRASED restatement of the same claim, and a correction that deletes a stale value
           without replacing it (the guard's hunk gate needs a replacement to fire).
+        - A FILE-SIZE CAP restated in prose. `.claude/limits.json` is the only executed copy and
+          `code-style.md` §1 says never to restate a number; `.claude/hooks/check-prose-claims.mjs`
+          blocks a new one at pre-commit and in CI, ratcheted against `.claude/prose-claims.json`.
+          What it cannot see is a cap SPELLED OUT or PARAPHRASED — "the five-hundred-line cap", "a
+          cap of about five hundred" — because it matches the numeral shape. Flag those; a prose
+          cap is stale the moment limits.json moves, and unlike the numeral form nothing will
+          catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
+          cannot follow a pointer, and `check-file-size-guard.update.test.mjs` machine-verifies
+          them against limits.json in CI, so they are pinned rather than drifting.
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
           re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
           form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +
@@ -392,6 +418,36 @@ reviews:
           authenticated admin is denied. A FOR SELECT policy takes USING only; do NOT flag
           it for a missing WITH CHECK. DO flag any unqualified (FOR ALL) tenant_isolation
           policy: the invariant is that no table in public carries one. (docs/security.md §3.)
+          ACCEPTED EXCEPTION — storage: the question-images bucket is public (public = true,
+          verified on prod 2026-09-15; migration 20260410000009 sets it for fresh environments
+          only, being ON CONFLICT DO NOTHING over a pre-existing bucket) and its SELECT policy
+          question_images_public_read
+          (20260324000053) is deliberately UNSCOPED. Do NOT flag it, or an equivalent
+          unscoped read on that bucket, as a too-broad predicate: on a PUBLIC bucket the
+          object endpoint serves by path without consulting RLS, so org-scoping the SELECT
+          policy alone changes nothing and would falsely signal "fixed". The org-scoped
+          INSERT/UPDATE/DELETE policies (20260324000055) are the real enforcement and DO
+          stay in scope. TIME-BOUND, and NOT a permanent carve-out: it holds ONLY while the
+          deployment is single-org, and the acceptance LAPSES the moment a second
+          organization is onboarded, at which point the unscoped read is a real finding
+          again — private bucket + signed URLs (#814) must land first. It covers the
+          question-images bucket ONLY and does not transfer to any other public bucket. The
+          lapse is NOT mechanically enforced — you see a diff, not live org state — so this
+          exception stays active after multi-org onboarding until a human retires it (#1282).
+          ONE PARTIAL TRIGGER YOU CAN APPLY, because it needs only the diff: if the diff
+          would let a SECOND ORGANIZATION EXIST at runtime — a migration seeding a second
+          row in organizations, a signup or provisioning endpoint that creates one, admin
+          tooling that creates one — treat this exception as SPENT for that diff and raise
+          the unscoped question-images read as a real finding, citing #814 as the gate that
+          must land first. The test is whether a second org can come into existence, NOT
+          whether the diff touches org-related code: an ALTER TABLE organizations, a new RLS
+          policy on it, or a function that merely READS it is ordinary work — do not fire on
+          those. This does NOT make the lapse mechanically enforced, and closes the
+          likeliest path rather than the class: an organization created
+          through the dashboard or the Management API never passes through a diff, so for
+          that case the preceding text holds unchanged and this exception stays active
+          until a human retires it.
+          (docs/decisions.md Decision 69, docs/security.md §13.)
         - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
         - Immutable tables (student_responses, quiz_session_answers, audit_events): no PERMITTING
           UPDATE or DELETE policy. (Each does carry permissive USING (false) policies; those match
@@ -523,6 +579,17 @@ reviews:
         - A mechanism the guard implements that no MUTATION comment names at all — UNLESS the
           suite explicitly records it as not pinned and says why, which code-style.md §7 permits
           and prefers to a claim that reads as verified and is not.
+        - A comment naming a mechanism that IS reachable while the described FAILURE MODE is
+          false — "passes silently" where the code actually throws. The test still reddens, so
+          the claim reads as verified; what is wrong is the account of HOW, and a reader trusting
+          it looks for a path that does not exist. Verify by reverting ONLY the named mechanism
+          and READING the output, never by predicting it.
+        - A mutation whose edit was never confirmed to LAND. Where a harness checks the anchor
+          first, a ZERO-match anchor aborts the run with no verdict rather than reporting
+          SURVIVED — the two outcomes must not be conflated. The silent case is the one that
+          survives that check: a replacement that matches and leaves the file UNCHANGED, which
+          is a no-op indistinguishable from an unpinned test. Confirm the source actually
+          changed before believing any verdict drawn from it.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

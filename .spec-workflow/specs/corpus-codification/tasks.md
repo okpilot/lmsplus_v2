@@ -77,8 +77,25 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
    an agent-memory exclusion on all three sides, and a hunk-level correction gate.
    Re-derive the calibration rather than trusting a number here — the harness is not committed,
    so this is a claim you must re-measure if you want to rely on it.
-2. **R0-VALUE** — canonical numbers restated in prose. Zero ambiguity: a value either matches a
-   canonical source or it does not. On the ratchet, so the existing corpus is frozen, not blocking.
+2. ~~**R0-VALUE** — canonical numbers restated in prose~~ — **DONE** (Decision 68). Landed as
+   `.claude/hooks/check-prose-claims.mjs` at pre-commit and in CI, ratcheted against
+   `.claude/prose-claims.json`, so the existing corpus is frozen rather than blocking — that part
+   of the description held.
+   **"Zero ambiguity: a value either matches a canonical source or it does not" did NOT.** It was
+   the premise that made this look like the easy item, and measurement refuted it before the
+   guard was tuned: the naive form floods, and three narrowings were each load-bearing — prose
+   lines only (the largest noise class is `"max": <n>` in the hook suites' own fixtures, which is
+   DATA, and §1's ban is on prose), context rather than a bare value, and a proximity bound
+   (without it, long markdown table rows and SQL snippets put an unrelated number and an unrelated
+   cap word on one physical line). Ambiguity was the whole job, exactly as R0-PATH predicts for
+   itself.
+   Two of the baselined lines are FALSE POSITIVES and are recorded as such rather than tuned
+   away: `.claude/commands/insights.md`'s agent-MEMORY budget, which collides with a file cap,
+   and a spec's size ESTIMATE for a migration. A guard that reaches zero false positives by
+   narrowing until it catches nothing is the failure mode this programme exists to avoid.
+   Re-derive the block rate with `node .claude/hooks/measure-prose-claims.mjs --commits 120`; the
+   script is COMMITTED for that reason. The figure moves with the window — it read one value when
+   the guard was built and a different one after the harness PR merged — so it is not stated here.
 3. **R0-PATH** — the exclusion set is the real work (illustrations, context-relative paths,
    placeholders, globs). ACCEPTANCE TEST ALREADY MEASURED: it must land near the low tens on the
    binding surface. A first probe said 1,655 and a second 95, both wrong — one truncated every
@@ -108,12 +125,29 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       implement it or delete a false claim. Without it,
       slice 1's exact-match ratchet fails CI on every legitimate shrink and gets disabled.
       Human-invoked; must never self-rewrite silently.
-- [ ] **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
+- [x] **Commit the mutation harness.** DONE 2026-09-14 (Decision 67) — `run-mutations.mjs` +
+      `<guard>.mutations.json` data + a throwaway worktree. Re-derive any figure with
+      `node .claude/hooks/run-mutations.mjs`; `--coverage` shows the encoded-vs-claimed gap.
+      Executing the claims refuted claims in every file that carried them, found one test
+      pinning nothing and one mechanism (the 20-char waiver floor) pinned by nothing; all fixed
+      on the branch. No total is stated — an earlier draft said SEVEN and its own enumeration
+      summed to eight. Re-derive with `node .claude/hooks/run-mutations.mjs` and the commit history of PR #1276, which is where they were found (a POINTER, deliberately not a `git log -p 16d62fec..` command: an unpinned range resolves to whatever HEAD is when you run it and stops reproducing, and the bound that would fix it — the merge commit — does not exist while the PR is open. The runnable half is the harness command above; this half is for reading, and says so).
+      ORIGINAL ENTRY BELOW, kept because it names the defect this closed:
+      **Commit the mutation harness.** Every commit in slice 1 asserts "N mutations run, N
       caught"; reviewers flagged TWICE that the figure is unverifiable, because the harness
       lives in the scratch directory and is deleted. That is the same unfalsifiable-claim class
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
       dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
       stating a number. Do not keep asserting an unverifiable count.
+- [ ] **`--update-expected` on the mutation harness.** Same shape, and same rationale, as
+      `--update-baseline` on the file-size guard: adding a test to a suite can invalidate the
+      `expectRed` of every existing entry whose break also reddens it, and four entries needed
+      hand-widening on the harness's own branch within one commit of each other. A check that is
+      laborious to keep current gets disabled — that is recorded in the design as the single
+      biggest risk to this programme. MUST be human-invoked and write the diff for review; a
+      harness that rewrites its own expectations launders them. Re-derive the current pressure
+      with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
       ongoing cost — "three weeks of correcting prose only because of this". Widened the same day
@@ -203,12 +237,35 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       re-derived later, so the number should not be there at all: name the derivation instead.
       Same rule already applied to `limits.json`; the message is the surface that escaped it.
 
+      **R0b-2 evidence, 2026-09-15 (`docs/recover-question-images-decision`).** Recurred, and
+      the shipped FILE was correct — only the message was wrong: "named three locations; there
+      are now five" against a list holding six, because the two figures counted different bases.
+      Caught by semantic-reviewer, one round late, and fixed by amending an unpushed message. The
+      shipped Decision entry NAMES its mirrors and states no total, which is why every reviewer
+      passed it on §10 cl.2. That contrast is the argument for R0b-2: the discipline already
+      applied to the artifact, and the message is the surface that escaped it.
+
       **R0b-3 — EDIT WITH A TOOL THAT FAILS LOUDLY.** Behavioural, not a hook, and stated because
       it bit: a `s.replace()` in a script silently no-ops when the anchor is absent. That is
       exactly how a "fixed" misquote survived an entire commit in this slice and had to be found
       by a reviewer two commits later. Prefer the editor tool, which errors on a missing anchor;
       where a script is genuinely needed, ASSERT the anchor before writing. Cheap to state,
       impossible to enforce mechanically, and worth writing down because the failure is SILENT.
+
+      **R0b-4 — NORMALIZE WHITESPACE BEFORE MATCHING (`check-mirror-sync.mjs`).** New mechanism,
+      learner count=1, 2026-09-15. A parity check for a clause present in `.coderabbit.yaml`
+      reported it ABSENT: the wording is identical APART FROM WHITESPACE but folded across two
+      lines inside a YAML block scalar, and a single-line grep cannot see it. Not byte-identical —
+      folding inserts a newline and the block's indentation, which is precisely why normalizing
+      whitespace before matching is the fix. DISTINCT from the paraphrase-blindness
+      `agent-workflow.md § Rule-Mirror Sync` already concedes as OPEN — that one is about text
+      that DIFFERS; this is text that MATCHES and is invisible anyway, so it is mechanically
+      fixable where paraphrase-blindness is not. The failure direction is the dangerous one: it
+      reports a mirror MISSING when present, so the natural response is to add a duplicate.
+      Fix: normalize runs of whitespace (newlines included) in both haystack and anchor before
+      comparing. Scope: `check-mirror-sync.mjs` plus a pinned mutation in its test suite — a
+      wrapped-YAML fixture that goes red if the normalization is removed. Do it in the slice that
+      next touches that hook; not worth its own PR.
 
       **What this cannot do.** None of it makes the author reliable. It makes the failure loud and
       immediate instead of expensive and late — which, measured on this session, is the whole

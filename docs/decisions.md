@@ -1,5 +1,7 @@
 # Decisions & Ideas Ledger
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > Running log of all decisions, ideas, and open questions.
 > Sources: `app-design-document.md`, `step-zero-research.md`, conversation notes.
 
@@ -53,7 +55,7 @@ post-commit → reminder to run subagents (non-blocking)
 ```
 Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
-> Updated 2026-07-11: pre-commit runs biome + type-check + soft-delete-column guard + test-title-leakage guard (unit tests deliberately NOT in pre-commit — they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
+> Updated 2026-07-11: pre-commit runs mechanical guards — the list is DATA in `.claude/pipeline.json`, deliberately not restated here (unit tests are NOT in pre-commit; they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
@@ -386,7 +388,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Remove post-commit hooks from Lefthook (mechanical blocking gates only)
 - Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
 - Agent output flows back into the conversation — findings are immediately visible and actionable
-- Lefthook reduced to 3 layers: pre-commit (biome + types + tests), commit-msg (commitlint), pre-push (security-auditor + dep audit)
+- Lefthook reduced to 3 layers: pre-commit, commit-msg, pre-push — what each runs is data in `.claude/pipeline.json`, not restated here (unit tests are NOT in pre-commit)
 - Never push without explicit user approval
 
 **Principle:** If the main Claude session can't see the output, it doesn't exist.
@@ -1788,7 +1790,11 @@ incomplete `1807`→`1806` correction cost a reviewer round. No block-rate figur
 detector as shipped: the replay harness is not committed, so no reader can reproduce one. (The 18%
 that appears above and in the footer measures the REJECTED spec design, which is a different
 detector and is cited to explain why it was rejected.) Slice 2's rule settles
-it — commit the harness or stop stating the number — and committing it is still an open task.
+it — commit the harness or stop stating the number. **Updated 2026-09-14: the harness Decision 67
+commits is the MUTATION harness (`run-mutations.mjs`), which is a DIFFERENT artifact from the
+block-rate REPLAY harness this paragraph is about. The replay harness is still uncommitted, so the
+second branch still applies here and no block-rate figure is quoted. Do not read Decision 67 as
+having closed this one.**
 
 That figure was FIRST recorded here as 0, measured before the detector's last two edits landed —
 stale on arrival while reading as verified, which is `code-style.md` §10 cl.7 committed by the
@@ -1821,7 +1827,9 @@ survivor search about what "the documented set" means — a value moved from a r
 no longer exonerates a corpus retraction. Both pinned. NO calibration figure is restated here, and no re-measurement is asserted either: the
 replay harness is not committed, so such a claim cannot be checked by a reader, and this spec's own
 slice-2 entry settles that case — commit the harness so the number is re-derivable, or stop stating
-it. Committing the harness remains an OPEN slice-2 task; until it lands, the second branch applies.
+it. Committing the MUTATION harness was a slice-2 task and landed 2026-09-14 (Decision 67); the
+block-rate REPLAY harness referred to here is a different artifact, is still uncommitted, and the
+second branch therefore still applies.
 
 **This branch's author wrote false claims repeatedly while building the guard against them, and
 each was caught by a DIFFERENT reviewer — none by re-reading.** No total is given, deliberately:
@@ -1850,6 +1858,255 @@ in the test file rather than left looking covered. Two mutation runs also found 
 return presented as a second mechanism, and a test whose comment claimed to pin the path decode when
 it pinned nothing of the sort; both were corrected rather than explained away.
 
-*Last updated: 2026-09-14 — Decision 66: `code-style.md` §10 cl.3 becomes a mechanical commit-msg gate (`check-retracted-phrase.mjs`); the spec's own detector design was refuted by a 120-commit replay (18% block rate, missed its own motivating case) and rebuilt around a rarity window, a hunk-level correction gate and several exclusions; its inline escape hatch was mechanically impossible and became a commit-message trailer. No baseline, and the unpinned mechanisms are named rather than counted. Prior: 2026-09-13 — Decision 65 amended: the violation total carries the date it was
+## Decision 67: mutation claims become DATA a command re-runs, not a sentence a reader trusts (2026-09-14)
+
+**Context.** Every commit in slice 1 and in PR #1274 asserted "N mutations run, N caught" for the
+`.claude/hooks/*.mjs` guards. Reviewers flagged that figure as unverifiable TWICE and were right
+both times: `.claude/agents/test-writer.md` requires a mutation to be made in a location that is
+DESTROYED, so the evidence and the requirement to discard it were the same artifact. The claim
+could never be re-run. That is the unfalsifiable-claim class this whole programme exists to remove,
+sitting in the programme's own commit messages.
+
+**Decision.** `.claude/hooks/run-mutations.mjs` stores mutations as DATA (`<guard>.mutations.json`)
+and applies them at runtime to a throwaway `git worktree`, so the number is reproduced by executing
+a command instead of by trusting a sentence. Re-derive with `node .claude/hooks/run-mutations.mjs`;
+`--coverage` reports the encoded-vs-claimed gap. **Commit messages stop stating the figure and
+name the command instead** (§10 cl.7 already preferred the derivation over the number).
+
+This resolves the apparent conflict with the discard requirement: what is committed is the mutation
+RECIPE; the mutated TREE is a worktree removed in a `finally`. `test-writer.md` names a worktree
+LEFT BEHIND as a bypass class, not worktree use.
+
+**Exit codes are 0/1/2 and must not be unified.** 0 = every encoded mutation was CAUGHT. 1 = a
+mutation SURVIVED or MISMATCHed, a finding about the TESTS. 2 = no trustworthy verdict, a finding
+about the HARNESS — a fault in ANY single mutation (a stale anchor, an unreadable target, a spawn
+failure, a suite timeout, unparseable TAP), or the cases with nothing to grade at all: no
+`*.mutations.json` found, or a committed `mutations: []`. A fault does NOT stop the batch — the
+rest is graded and the count of ungradeable ones is reported — so exit 2 outranks exit 1 and is
+checked first: a run carrying one of each has established nothing, and reporting it as 1 sends the
+reader to audit tests that never ran. Both returned 0 in the first cut, so the
+oracle reported "every mutation caught" having run none; closed in `5b47604c` after
+semantic-reviewer found them. §7 records why: "a `sed`
+whose anchor does not match is a no-op, and a no-op mutation is indistinguishable from an unpinned
+test — it reports SURVIVED either way." Folded into one code, a broken harness reads as "this test
+pins nothing" and the cheapest remedy is to DELETE THE TEST — destroying the coverage the tool
+exists to measure. (Distinct from Decision 66's exit-2 rationale, which is about a suppression
+mechanism this tool does not have.)
+
+**`expectRed` is compared as an EXACT SET.** A break reddening a superset of the named tests reports
+MISMATCH, not CAUGHT — §7 calls a comment naming fewer tests than it actually breaks
+"under-specific", and silently passing it would launder that defect.
+
+**What executing the claims found — the justification, and it is uncomfortable.** Running these
+assertions for the first time refuted claims in every file that carried them. NO TOTAL IS STATED:
+an earlier draft said "SEVEN", and its own bullets sum to eight false claims plus five
+under-specific ones — §10 cl.7, in the entry recording the tool built to catch exactly that. The
+categories below are checkable; a headline total is a derived number that goes stale the moment a
+category moves. Re-derive with `node .claude/hooks/run-mutations.mjs` and the commit history of PR #1276, which is where they were found (a POINTER, deliberately not a `git log -p 16d62fec..` command: an unpinned range resolves to whatever HEAD is when you run it and stops reproducing, and the bound that would fix it — the merge commit — does not exist while the PR is open. The runnable half is the harness command above; this half is for reading, and says so):
+
+- `check-file-size-guard.directive.test.mjs` — a test asserting `false`, which is
+  `declaresUseServer`'s DEFAULT RETURN, so no break could redden it, under a comment naming a regex
+  the function had not contained for two rewrites. Fixed by adding the positive companion assertion
+  (the prologue reads THROUGH a line comment to a real directive), then verified red.
+- `check-retracted-phrase.test.mjs` — three false claims. "Reorder `FILE_EXT`" and "remove the
+  lookahead" are each independently green; only the CONJUNCTION reddens the test. "Delete the length
+  floor" is green because all five fixtures are also `EMPTY_REASONS` members — **so nothing pinned
+  the 20-character floor at all**; a test with a non-`EMPTY_REASONS` fixture now does. "Remove
+  `escapeRe` from `reAdded`" names a mechanism `reAdded` does not contain.
+- `check-retracted-phrase.mjs` itself — "Longest-first so `.tsx` cannot be partially matched as
+  `.ts`" credited the ordering, when `FILE_RE`'s trailing `(?![\w-])` is what forces the backtrack.
+- Five further comments UNDER-SPECIFY; one reddens a test in a different suite than its own guard's.
+- The harness found three false claims in ITS OWN tests, including one where both `new Set(...)`
+  calls could be deleted with the test still green.
+
+Every one survived the full post-commit cycle and CodeRabbit on the original PRs. None was findable
+by reading, which is the entire point: a reading sweep cannot falsify a mutation claim.
+
+**The uncomfortable part, recorded rather than smoothed over.** §7 "A `MUTATION:` Comment Is a Prose
+Claim" was promoted at count=4 on this exact defect, on this branch family, days earlier — and its
+own promotion sweep asserted it had audited every claim in the file-size-guard suites and found them
+"ALL accurate, each multi-mechanism one verified by execution". That sentence was false, and the
+very next guard written after the promotion reproduced the defect six more times, by the same
+author, while actively trying to comply. **A rule whose author cannot follow it in the commit that
+promotes it is not doing the work** — which is this programme's founding observation, now
+demonstrated against itself. §7 has been corrected in place to say so.
+
+**Bounds, stated because understating them would be this tool's own defect.** It grades only what is
+ENCODED — a `MUTATION:` comment nobody translated is invisible to the run and visible only under
+`--coverage`. It grades the COMMITTED tree, so uncommitted edits are not what is measured. The
+`--coverage` gap is NOT padded to zero: several raw `MUTATION:` occurrences are prose and fixture
+text, and forcing the denominator down would launder the one number the mode exists to produce.
+
+
+## Decision 68: "never restate a number here" becomes a check, not an instruction (2026-09-14)
+
+`code-style.md` §1 has said *"Limits are data ... Never restate a number here"* since the caps
+became data. Nothing enforced it. `.claude/hooks/check-prose-claims.mjs` now blocks a
+`.claude/limits.json` cap VALUE being restated in PROSE as a claim about that cap — pre-commit on
+the staged set, and `--all` over the whole worktree in CI.
+
+**The spec's premise for this item was wrong, and that is the useful part.** It called R0-VALUE
+*"zero ambiguity: a value either matches a canonical source or it does not"*, which is why it
+looked like the cheap item on the list. Measurement refuted that before tuning. Three narrowings
+are each load-bearing, and dropping any one floods the run:
+
+1. **Prose lines only** — outside fenced and indented code in markdown, comment lines in code. The
+   largest single noise class is the hook suites' own `"max": <n>` fixtures, which are DATA, and
+   §1's ban is on prose. It also exempts `.coderabbit.yaml`'s `path_instructions` by construction,
+   which is right: that mirror is deliberate, because CodeRabbit cannot follow a pointer, and it is
+   machine-verified against `limits.json` by `check-file-size-guard.update.test.mjs`.
+2. **Context, not a bare value** — the number must carry the `<N>-line` shape AND a cap or
+   rule-KIND word derived from `limits.json` rather than typed into the guard.
+3. **Proximity** — the context word must sit near the number, not merely on the same physical
+   line. Without the bound, long markdown table rows and SQL snippets dominate the false positives.
+
+**Ratchet, same terms as the size guard**, against `.claude/prose-claims.json`: pre-existing
+restatements are baselined, a NEW one fails, and a baselined line that changes or vanishes fails
+until `--update-baseline` records it. Exit 0/1/2 stays split for the reason the harness's does —
+this guard ships a suppression marker, and if "could not run" shared an exit code with "you
+restated a cap", the cheapest way past a broken invocation would be a permanent waiver recording a
+finding that never happened.
+
+**Some baselined lines are FALSE POSITIVES** — a budget or an estimate whose number collides with a
+cap — and they are baselined rather than narrowed away. No count is given: the baseline is mutable
+data, and `.claude/prose-claims.json` is where a reader sees which rows exist. The baseline carries
+no false-positive field, so which ones they are is a judgement from the excerpt. A detector tuned
+until it has no false positives is one that has stopped detecting.
+
+**On the `--coverage` gap being 0, which Decision 67 might look like it forbids.** That decision
+says the gap is NOT padded to zero, because "forcing the denominator down would launder the one
+number the mode exists to produce". This guard reports 0 anyway, and the difference is real but is
+not laundering. Its `notEncoded` entries divide into two kinds: the sentence in each suite's header that DESCRIBES
+the convention and happens to contain the token — prose about a claim, not a claim, and
+`countMutationClaims` matches the bare token either way — and breaks that ARE graded under another
+id, where a second entry would encode the same mutation twice. Re-derive the split with
+`--coverage` rather than trusting a number here; the data moves. So nothing ungraded is
+being hidden; the entries record why each counted token is not an outstanding claim.
+
+Decision 67's own gap is the same phenomenon left UNdeclared — its entry explains in prose that
+"several raw `MUTATION:` occurrences are prose and fixture text". Two conventions, one repo: this
+one puts the explanation in data where a reader can check it, that one puts it in a sentence. The
+difference is named here rather than left for someone to find, and the laundering it warns against
+— declaring a REAL claim unencodable to shrink the number — is a different act from declaring a
+non-claim a non-claim.
+
+**The block rate is not stated here.** `measure-prose-claims.mjs` is committed so it can be
+re-derived, and it is window-dependent: it read one value when the guard was built and a different
+one after the harness PR merged. That is the §10 cl.7 defect this programme keeps re-committing,
+and shipping the script instead of the figure is the fix.
+
+
+## Decision 69: `question-images` stays public-read; org-private is a pre-multi-org gate (2026-06-09)
+
+**Date**: 2026-06-09 (recorded 2026-09-15 — see *Provenance* below)
+
+**Context**: Issue #366 (CodeRabbit, PR #355) flagged that migration `20260324000055` org-scoped the
+`question-images` bucket's INSERT/UPDATE/DELETE policies but left `20260324000053`'s SELECT policy
+(`question_images_public_read`) unscoped — any authenticated user can read any org's images. A
+Supabase advisor finding (`public_bucket_allows_listing`, folded in from #589) added that the bucket
+is `public = true`, so the public object endpoint serves files by path with no auth at all. The
+repo does NOT establish that flag for production: `20260410000009` sets it under
+`ON CONFLICT (id) DO NOTHING`, a no-op on the pre-existing dashboard-created prod bucket. It was
+confirmed live by unauthenticated probe on 2026-09-15 — see `docs/security.md` §13 for the probe
+and its discriminator.
+
+Key technical fact: **org-scoping the SELECT policy alone does NOT make images org-private while the
+bucket is public.** Supabase's `/storage/v1/object/public/...` endpoint bypasses RLS for
+GET-by-path; the SELECT policy governs only `.list()` enumeration and the authenticated object API.
+Tightening the SELECT policy would pass the advisor lint while leaving public GET wide open.
+
+Question images are also low-sensitivity: the correct answer is stripped server-side by
+`get_quiz_questions()`, and the image itself is an aviation diagram shown to every student. The
+deployment is single-org, so cross-org visibility is not exploitable today.
+
+**Decision**: Accept public-read. The bucket remains `public = true` with the unscoped authenticated
+SELECT policy. Cross-org image visibility is an **accepted risk for the single-org deployment**.
+
+- Rejected **org-scoping the SELECT policy in isolation**: theatre on a public bucket, and it would
+  falsely signal "fixed". This lapse condition is **not mechanically enforced by any gate** — nothing can see the org count at review time — so it holds until a human retires it; tracked in #1282.
+- The real fix — private bucket plus signed URLs — is deferred and tracked as a **P1 gate that MUST
+  land before a second organization is onboarded**: **#814**, which holds the current implementation
+  approach. **#847** is a hard prerequisite: `apps/web/scripts/import-questions.ts` writes images to
+  `${subjectCode}/${filename}`, outside any org-id folder, so every bulk-imported image would fall
+  outside an org predicate. **#847 as currently scoped does NOT close this loop** — its acceptance criteria randomize the FILENAME (`${subjectCode}/${randomUUID()}.${ext}`) and keep the `subjectCode` folder, so the path still never becomes `{org_id}`; its scope must widen before #814 can land.
+
+**Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
+real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
+
+**Implementation**: Docs and rule-mirrors only, no schema change.
+
+The carve-out is RESTATED — and so must be kept in sync with this entry — in these files, named
+as an ILLUSTRATION as of 2026-09-15 and not as a closed set: `docs/database.md`'s
+storage note, `docs/security.md` §13, `.claude/rules/security.md` rule 2, `.coderabbit.yaml`'s
+migrations-RLS instructions, and `.claude/agents/security-auditor.md` suppression 12. That last one
+needs inline text specifically because the pre-push gate reads only its OWN definition plus the
+diff: `docs/security.md` is `Read`-able but never fed to it, so a pointer there would not have
+reached it. Derive the current set rather than trusting this sentence:
+`grep -rl question-images docs/ .claude/rules/ .claude/agents/ .coderabbit.yaml .spec-workflow/`
+lists every file in those paths that mentions the bucket — read each to sort restatements from
+pointers. It does not reach app code or migrations, which name the bucket without mirroring the
+carve-out (`git grep -l question-images -- :/`).
+The scoped grep returns more files than are named here: `docs/decisions.md` is this entry itself, and
+`.spec-workflow/specs/corpus-codification/tasks.md` matches only on the branch NAME, not the
+bucket.
+
+Other files POINT at this decision without restating the mechanics, and need no sync when the
+wording here changes — again an illustration as of 2026-09-15, not a closed set: `docs/plan.md` and
+`.spec-workflow/steering/tech.md`. No count is stated for
+either — `grep -n 'Decision 69' docs/plan.md .spec-workflow/steering/tech.md` is the derivation, and
+it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
+time because the same commit that asserted it added another citation (§10 cl.7).
+Both were REDUCED to pointers on 2026-09-15: they previously restated the write/read split and the
+single-org acceptance, which made them mirrors in fact while being described as pointers. Reducing
+them was preferred over promoting them, because every additional copy of the mechanics is another
+place to go stale.
+The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
+a pointer is not.
+
+Issue state: #366 closed as decided; #814 carries the refactor.
+
+**Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
+and left in a `git stash` that was never committed, so #366 was closed as *decided* with the
+decision recorded nowhere in the repo. The 2026-08-19 backlog audit hit the gap from the other side:
+it recorded that #814's citation of "Decision 41" was wrong and that the promised `docs/security.md`
+§13 note "does not exist", and re-pointed the stance at Decision 14 — an unrelated 2026-03-11
+import-format entry that mentions the bucket only in passing. The stash was recovered on 2026-09-15;
+decision numbers 41 and 44, which the stashed draft used, were both taken in the interim.
+
+
+## Decision 70: RULE 0 — NO PROSE outranks every other rule in the corpus (2026-09-15)
+
+State what is true; delete the rest. No justification, no precedent, no archaeology — that is what
+`git log` is for. Every sentence is a claim that can be false and must be verified, so fewer
+sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
+Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required
+status/summary stays wherever a rule asks for it — the verification half of Rule 0 requires them.
+
+Rule 0 sits above the PRIME DIRECTIVE in `CLAUDE.md`, and as a one-line banner everywhere else:
+
+```bash
+git grep -l 'RULE 0 — NO PROSE\.' -- :/
+```
+
+`.coderabbit.yaml` carries the reviewer-facing form as a `path_instructions` entry over the prose
+file globs: CodeRabbit FLAGS added prose instead of asking for more, and is told not to request
+a clarifying sentence, caveat or example — prefer deletion, and prefer a runnable command over any
+paragraph. NOT `tone_instructions`: the schema caps that field at 250 characters and rejects the
+whole config when it is exceeded. One narrowing is unrecoverable: `path_instructions` matches
+FILES, so CodeRabbit chat replies and commit-message review are no longer covered.
+Pinned by `check-file-size-guard.update.test.mjs`.
+
+**Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
+advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
+`corpus-codification` spec already lists its deletion set.
+
+*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures Rule 0 compliance or prose volume. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+(`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
+commit messages state the command, not the figure. Executing the existing claims for the first time
+refuted claims in every file that carried them, plus one test that pinned nothing and one
+mechanism nothing pinned (no total stated — an earlier draft's SEVEN did not survive its own
+enumeration, §10 cl.7) — including inside §7's own promotion sweep, which had asserted it verified them all by
+execution. Exit 0/1/2 kept distinct so a broken harness is never read as an unpinned test. Prior: 2026-09-14 — Decision 66: `code-style.md` §10 cl.3 becomes a mechanical commit-msg gate (`check-retracted-phrase.mjs`); the spec's own detector design was refuted by a 120-commit replay (18% block rate, missed its own motivating case) and rebuilt around a rarity window, a hunk-level correction gate and several exclusions; its inline escape hatch was mechanically impossible and became a commit-message trailer. No baseline, and the unpinned mechanisms are named rather than counted. Prior: 2026-09-13 — Decision 65 amended: the violation total carries the date it was
 measured and the command to re-derive it, and the DELETE-vs-PIN line states the rule instead of
 asserting what the set currently contains (§10 cl.2). Prior: 2026-09-09 — Decision 65: file-size limits become data plus a ratchet; the DELETE-vs-PIN distinction is recorded because a mirror whose consumer cannot dereference a pointer is load-bearing, not duplication. Both post-commit CRITICALs (same-path content swap; a committed dangling symlink permanently unreadable and so exempt from every limit at exit 0) were closed before the follow-up commit. Prior: 2026-09-09 — Decision 64 CORRECTED by its own pre-push sweep: the entry claimed the gate "never fires on a true claim" while a later section of the same entry disclosed a shape that does; it carried two contradictory tallies of the branch's own regex-widening defects; and it recorded ONE uncovered detection position where calling `extractRefs` finds more — now a named, uncounted list (§10 cl.2). That list's own first item then needed a SECOND rewrite: carried over unchanged, it still claimed "only the FIRST SHA" of a multi-SHA parenthetical leaks, which holds only when the `(` opens a line and understates every other position; a first attempt to fix it overcorrected to "neither leaks", equally wrong. Split by position, each shape executed. Still documented rather than patched because every widening on this branch introduced a fresh silent drop and all of them fail SAFE. The guard's test suite was also the only hook suite absent from `ci.yml`; wired, and its mutation-blind mechanisms pinned. Prior: 2026-09-08 — Decision 64: commit messages get a mechanical claim gate — a cited SHA must resolve (`check-commit-claims.mjs`, commit-msg). The EVIDENCE:-line design row 42 escalated for was prototyped, measured at an 84% block rate, and REJECTED as row 40 in hook form; the gate verifies the checkable subset instead (recall 280 of 352 real commit-SHA citations, over a 400-message window measured in flight, a snapshot to re-derive rather than quote; the only 4 tokens it would block sit in two squash merges citing their own pre-squash commits, which resolved at commit-msg time). Row 42 stays open — the gate cannot see behavioural mischaracterisation. Prior: 2026-09-07 — Decision 63: the open policy contradictions settled by the user (test-file size exemption derived not enumerated; red-team filings keep counting toward the defer ratio with a second named justification; test-writer's tests ride the round's one fixup commit; "let the user decide" routed into the three terminal states in BOTH code-reviewer and security-auditor; agent-memory-only commits skip implementation-critic to terminate the memory/critic regress) and `.claude/**` brought under the lint, which no gate reached — one real O(n^2) warning fixed in `check-mirror-sync.mjs`. Prior: 2026-09-07 — Decision 62: pipeline facts move to `.claude/pipeline.json`, validated by `.claude/pipeline.test.mjs`, every assertion mutation-verified; post-commit review found two CRITICAL holes in the first cut (model-literal accepted any known model; the frontmatter parser swallowed a body) — both closed; `agent-tools.test.mjs` deleted as a strict subset; one audit finding (`agent-workflow.md:224`) was REFUTED by reading #1266's commit message, which kept the line deliberately — the audits are leads, not findings. Coverage is stated precisely in the entry: path-list COMPLETENESS is not asserted. The policy contradictions and the `.claude/commands/*` restatements are recorded as OPEN, not resolved. Prior: 2026-09-07 — Decision 61 rationale CORRECTED: it said CR-local replaced its resetting counter "for the same reason". It did not. CR-local argued a local stability proof is unnecessary because cloud CR is the authoritative gate (`27d6df94`); this decision argues the floor is arithmetically unreachable. Same defect, same fix, two INDEPENDENT routes — which strengthens the case rather than weakening it, since neither leans on the other. Prior: 2026-09-06 — Decision 61: post-commit reviewer rounds adopt CR-local's EXTEND-BY-ONE mechanic; an APPLY finding extends the loop by a round instead of resetting a consecutive-clean counter, which with the 4-round ceiling could make M=3 unreachable — not always, but whenever a later finding or a coverage round consumed the remaining rounds (#1255, evidenced on PR #1248 where two rounds and four agents produced zero code defects). The concept is renamed minimum-rounds-met + last-round-clean; NO comment-only-diff exception is added and the mechanical path-glob derivation is unchanged. Prior: 2026-09-06 — Decision 60 consequence CORRECTED: the recorded "the attempts table has no such gap" claim was FALSE. That table's "Answered" header mismatches its NUMERATOR (`correctCount / answeredItems`), and the change also cost the student↔admin denominator agreement (admin "1 / 3" vs the student's "3/10" for the same attempt), so BOTH admin lists carry a header/cell gap — not student-detail alone. Found by manual eval, measured on a seeded 10-question internal exam. Prior: 2026-09-02 — Decision 60 divergence CLOSED (#990): all THREE list surfaces (two admin, one student-facing) now render the item/item fraction through the shared `formatCorrectFraction`, and the decision's original exact-adjacency audit grep is recorded as a FALSE-CLEAN — it missed the two student-facing sites, which put spaces around the slash. Prior: 2026-08-24 — Decision 60: the report "Correct" fraction is item/item in every mode (`correctCount / answeredItems`, em dash when nothing was answered) — the exam branch divided an ITEM-level `correct_count` by a QUESTION-level `total_questions` and can render "29 / 25" for live VFR RT exams (reproduced locally; no production render observed); `Skipped` now renders for exams and in the mobile layout (2x2) because it is what carries the paper-size signal the old denominator used to, and renders an em dash when `answeredQuestions` overshoots the question total — a clamped 0 would read as authoritative while being wrong in the student's favour. The admin route's raw answer-ROW `answeredQuestions`, which first exposed this, was fixed in #991; the guard stays as defence for any caller passing inconsistent values. Note the fix derives the distinct count in the query helper (a `Set` over the fetched answer rows), NOT via a SQL `COUNT(DISTINCT ...)`. Prior: 2026-08-20 — Decision 59: EVERY `tenant_isolation` policy is `FOR SELECT` (the policy exists only on org-scoped tables; it is not added to every table), on either of two INDEPENDENT grounds (role-gated writes, or no intended user-scoped write path) — supersedes Decision 53 points 2 and 4; `organizations`/`question_banks`/`courses`/`lessons` narrowed in mig `20260820000100`, closing GHSA-hjp9-x868-7wgw §2, with the exposure verified against production for the first time since the access token was rotated (#1183); invariant recorded that no table in `public` carries an unqualified `tenant_isolation` (#1175). Prior: 2026-08-19 — Decision 58: post-commit proportionality — the repeated-numeric-literal sub-rules are DROPPED (doc-updater no longer chases a stale count across tech.md/decisions.md/plan.md; those literals will drift and stay drifted), and NO no-executable-change exemption is added — an oracle was built and reverted after measuring that it would have fired on 1 of the last 300 commits (#1222, #1232, #1231, #1164). Prior: 2026-08-18 — Decision 57: the authoring gate R3 stays exact-match while the grader is typo-tolerant; the divergence is recorded rather than closed, because a simulated tolerant R3 newly fails zero of the 50 shipped questions and porting would reverse `normalize-answer.ts`'s own instruction and add a second untested SQL↔TS parity contract (#1194). Prior: 2026-08-15 — Decisions 55 & 56: Part 2 blanks pinned by dialogue not a scene line (authoring rule R7); grading tolerates typos but never digits (`answer_matches`, mig 158; graders repointed across migs 158–160). Prior: 2026-08-11 — Decision 54: VFR RT content lives in the org's existing question bank; the licence/course model stays deferred. Prior: 2026-08-09 — Decision 53: `tenant_isolation` must be `FOR SELECT` on any table that also has role-gated write policies (unqualified = `FOR ALL`, and permissive policies OR together, so the `is_admin()` gate never binds); `questions` narrowed in mig `20260809000100`, DELETE left with no permissive policy; carve-out mirrored into `docs/security.md` §3, `.claude/rules/security.md` rule 2 and `.coderabbit.yaml` | Earlier 2026-07-03 — Decision 49 amended: save-for-later drafts now close their practice sessions on save + resume mints fresh sessions (#1085) | Earlier 2026-07-02 — Decision 52: `diagram_label` question type — inline SVG component registry keyed by `image_ref` (not a static image), distractor labels allowed, 9-zone RWY 27/09 LH pattern seed, general `diagram_config` schema; per-zone answer rows reusing the Decision-51 model; INVERTED self-defence vs `ordering` (distinct zone_id/label_id is the integrity key, partial submission + unused labels explicitly allowed); migs 150–156 (VFR RT Phase 6) | Earlier 2026-06-30 — Decision 51: `ordering` question type stores PER-SLOT answer rows (dialog_fill-clone) for partial credit, deviating from spec N7's single-JSON-row; mig-144 trigger widening; `_grade_record_ordering` REVOKE-gated per-slot helper (mig 147); get_quiz_questions shuffled delivery (mig 145); batch_submit_quiz ordering dispatch + partial-credit rollup (mig 148) (VFR RT Phase 5) | Earlier 2026-06-30 — Decision 50: dnd-kit (core/sortable/utilities) for drag-and-drop question types (ordering, diagram_label); sensors [Pointer, Touch(delay250/tol5), Keyboard] for iPad (VFR RT Phase 5) | Earlier 2026-06-29 — Decision 49: single active quiz_sessions row per account across all modes (#1011) — global partial unique index `uq_one_active_session_per_student` + per-start-RPC `another_session_active` guard + Discovery-as-real-row + `endDiscovery` + `ActivePracticeBanner` recovery; Decision 48 amended (Discovery now a real ephemeral `mode='discovery'` DB row, still non-resumable + nothing-scored). | Earlier 2026-06-27 — Decision 48 reworked: Discovery reuses the real quiz runner via an ephemeral pre-marked sessionStorage handoff (navigate to `/app/quiz/session`, correct option pre-marked, explanation behind its tab, Exit not Finish, nothing persisted; persisted `ActiveSession` typed resumable-only). | Earlier 2026-06-26 — Decision 48 UI label: Study Mode surfaced as Discovery (first/default segment of New Quiz ModeToggle; internal identifiers remain `study`) | Decision 48: Study Mode `get_study_questions` RPC returns MC answers on-demand (deliberate exposure; exam-integrity enforced by the active-exam-session guard — raises `active_exam_session` mid-exam, red-team EO6) | Earlier 2026-06-21 — Decision 47: batch_submit_quiz per-type dispatch via internal helpers gated by REVOKE EXECUTE FROM PUBLIC, anon, authenticated (single authz boundary in the dispatcher) + DISTINCT-question partial-credit scoring matching the exam (VFR RT Phase 2.3) | Earlier 2026-06-21 — Decision 46: app-layer DB integration test tier (`apps/web/vitest.integration.config.ts`, real-DB under RLS) + mechanical schema-contract guards (soft-delete column guard, test-helpers import ban) + HARD new-query-site integration-test policy (#925) | Earlier 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

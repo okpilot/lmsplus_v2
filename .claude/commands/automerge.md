@@ -1,5 +1,7 @@
 Complete the described work autonomously through the full pipeline — and **merge it yourself** once CI is fully green and CodeRabbit has requested no changes.
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > ## ⚠️ THIS COMMAND **MERGES**.
 > It will squash-merge the PR without further confirmation once the gate below passes.
 > If you want to keep merge authority yourself, use **`/autonomerge`** instead (same work, stops at the open PR).

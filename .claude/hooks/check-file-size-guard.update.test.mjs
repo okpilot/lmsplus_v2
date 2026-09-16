@@ -341,3 +341,70 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
     if (m) assert.ok(declared.has(Number(m[1])), `.coderabbit.yaml states ${m[1]}, not a limit`)
   }
 })
+
+test('.coderabbit.yaml tone_instructions stays inside the schema maxLength', () => {
+  // The schema (line 1 of .coderabbit.yaml names it) caps tone_instructions at 250 characters.
+  // Exceeding it does NOT warn: CodeRabbit rejects the WHOLE config and reviews with defaults,
+  // so every path_instructions block above — including the cap mirror the test above pins —
+  // silently stops applying. The field sat over the cap for 8 commits
+  // (b0ea0d58^..68b03052); the first review after it grew ran on defaults.
+  // Re-derive the cap rather than trusting this number:
+  //   curl -sL https://coderabbit.ai/integrations/schema.v2.json | jq .properties.tone_instructions
+  //
+  // Three independent mechanisms — each has its own mutation that pins it in isolation:
+  //
+  // MUTATION A (blank-line guard): restore the pre-fix 928-char tone_instructions (16382b62).
+  // It contains an internal blank line between the intro and the RULE 0 paragraph, so this fires
+  // the internal-blank-line assertion BEFORE reaching the length check. Fires with:
+  //   "tone_instructions has an internal blank line; folding is not a plain join"
+  //
+  // MUTATION B (length guard): replace with a >250-char value with NO internal blank lines, e.g.
+  //   tone_instructions: >\n  <251 x-chars>\n
+  // This bypasses the blank-line guard and fires the length assertion with:
+  //   "tone_instructions is N chars, over the schema maxLength of 250"
+  //
+  // MUTATION C (folded-form guard): at the assertion below — change the field to an inline value.
+  //
+  // Deleting the length assertion alone leaves Mutation A still red (blank-line fires).
+  // All three verified by executing, not by predicting.
+  const MAX = 250
+  const lines = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
+  const i = lines.findIndex((l) => l.startsWith('tone_instructions:'))
+  assert.notEqual(i, -1, '.coderabbit.yaml has no tone_instructions key')
+  // The loop below measures only the INDENTED lines after the key, so an INLINE value
+  // (`tone_instructions: "<300 chars>"`) would leave `body` empty and score 0 — the guard would
+  // pass on exactly the input it exists to catch. Pin the folded form so that cannot happen.
+  // MUTATION: change the field to an inline value of any length -> this assertion fires.
+  assert.equal(
+    lines[i].trim(),
+    'tone_instructions: >',
+    'tone_instructions must be a folded scalar; the length check below cannot measure an inline value',
+  )
+
+  // `>` folds: non-blank continuation lines join with a space, and the scalar ends at the first
+  // line that is neither indented nor blank. Blank-line-to-newline folding is not reproduced —
+  // assert the field has none, so the simple join cannot silently under-count.
+  const body = []
+  for (let j = i + 1; j < lines.length; j++) {
+    if (lines[j].trim() === '') {
+      // A blank line either ENDS the scalar or sits inside it. Look ahead: still-indented
+      // content means it was internal, and folding it as a plain join would UNDER-count the
+      // field — the one direction this guard must never fail in. Testing `/^\s/` first cannot
+      // make that call, because `/^\s/.test('')` is false and a truly empty internal line
+      // would break out and silently truncate.
+      const next = lines.slice(j + 1).find((l) => l.trim() !== '')
+      assert.ok(
+        next === undefined || !/^\s/.test(next),
+        'tone_instructions has an internal blank line; folding is not a plain join',
+      )
+      break
+    }
+    if (!/^\s/.test(lines[j])) break
+    body.push(lines[j].trim())
+  }
+  const folded = `${body.join(' ')}\n`
+  assert.ok(
+    folded.length <= MAX,
+    `tone_instructions is ${folded.length} chars, over the schema maxLength of ${MAX} — CodeRabbit will reject the entire config`,
+  )
+})

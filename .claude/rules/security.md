@@ -1,5 +1,7 @@
 # Security Rules — LMS Plus v2
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > Full binding security reference: `docs/security.md`
 > This file is a quick summary. When writing any DB/auth/API code, read `docs/security.md` first.
 
@@ -25,6 +27,15 @@
    table with role-gated writes, permissive policies OR together so the unqualified one supplies a
    weaker write path and the role gate never binds; **(b)** on a table with no intended user-scoped
    write path, the unqualified policy IS the entire access control. See `docs/security.md` §3.
+   **Storage carve-out — TIME-BOUND:** the `question-images` bucket is `public = true` and its
+   SELECT policy is deliberately unscoped — on a public bucket the object endpoint bypasses RLS,
+   so scoping that policy alone is theatre. Documented-and-intentional **while the deployment is
+   single-org**, not a gap; the write policies are the real enforcement. The acceptance LAPSES
+   when a second org is onboarded — private bucket + signed URLs is a P1 gate (#814) that must
+   land first. It covers THIS bucket only, and does not transfer to any other public bucket.
+   The lapse is NOT mechanically enforced — no gate can see the org count — so it holds until a
+   human retires it (#1282).
+   `docs/security.md` §13 is authoritative, not this summary.
 3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never client-side.
 4. **Zod validation** — every Server Action and API route parses input with Zod before using it.
 5. **Audit log** — `audit_events` is append-only. No PERMITTING UPDATE or DELETE policy. Ever.

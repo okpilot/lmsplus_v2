@@ -1,0 +1,468 @@
+{
+  "target": ".claude/hooks/run-mutations.mjs",
+  "suites": [".claude/hooks/run-mutations.test.mjs", ".claude/hooks/run-mutations.spawn.test.mjs"],
+  "mutations": [
+    {
+      "id": "no-plan-check",
+      "find": "  if (!sawPlan) {\n    throw new Error('TAP stream carried no top-level plan line (1..N) — the run did not complete')\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "throws on a stream that never emitted a plan line",
+        "does not treat a subtest plan as the top-level plan"
+      ],
+      "note": "A crashed or truncated runner would otherwise read as a fully green run — SURVIVED — and the harness would blame the test for its own failure."
+    },
+    {
+      "id": "plan-ignores-indent",
+      "find": "      if (indent === 0) sawPlan = true",
+      "replace": "      sawPlan = true",
+      "expectRed": ["does not treat a subtest plan as the top-level plan"]
+    },
+    {
+      "id": "aggregate-always-false",
+      "find": "function isAggregate(points, i) {",
+      "replace": "function isAggregate(points, i) {\n  return false",
+      "expectRed": ["reports the failing subtest and not the parent that merely propagates it"],
+      "note": "Without leaf-only reporting an exact-set comparison is unsatisfiable for any suite using subtests."
+    },
+    {
+      "id": "aggregate-ignores-ok",
+      "find": "    if (!points[j].ok && points[j].directive !== 'TODO' && points[j].directive !== 'SKIP') {",
+      "replace": "    if (true) {",
+      "expectRed": [
+        "counts a parent that fails on its own while every child passed",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "Unconditionally treat every point as an aggregate — the original semantics (`return true`), re-expressed for the multi-line `if` the SKIP fix introduced. Re-pointing it once INVERTED the mutation to `if (false)`, which silently changed which test it reddens; the harness caught that as a MISMATCH. Re-pointing an anchor is not a cosmetic edit — the REPLACE must preserve the break's meaning too."
+    },
+    {
+      "id": "todo-counts-as-red",
+      "find": "    .filter(\n      (p, i) =>\n        !p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "replace": "    .filter(\n      (p, i) => !p.ok && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "expectRed": ["does not count a TODO-directive failure as a red test"],
+      "note": "Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2."
+    },
+    {
+      "id": "no-directive-strip",
+      "find": "    if (d) {\n      directive = d[1].toUpperCase()\n      name = name.slice(0, d.index).trim()\n    }",
+      "replace": "",
+      "expectRed": [
+        "does not count a TODO-directive failure as a red test",
+        "strips a directive from the test name",
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "Two tests, one mechanism: dropping the strip also leaves `directive` null, so the TODO filter stops firing. Both names are listed because expectRed is compared as an EXACT SET. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
+    },
+    {
+      "id": "dash-mandatory",
+      "find": "/^(not )?ok(?:\\s+(\\d+))?(?:\\s+-)?\\s*(.*)$/",
+      "replace": "/^(not )?ok(?:\\s+(\\d+))?\\s+-\\s*(.*)$/",
+      "expectRed": ["reads a test point written without the \"-\" separator"]
+    },
+    {
+      "id": "invert-failed-filter",
+      "find": "    .filter(\n      (p, i) =>\n        !p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "replace": "    .filter(\n      (p, i) =>\n        p.ok && p.directive !== 'TODO' && p.directive !== 'SKIP' && !isAggregate(points, i),\n    )",
+      "expectRed": [
+        "reads the names of the tests that failed",
+        "reports a green run as no failures rather than as unparseable",
+        "reports the failing subtest and not the parent that merely propagates it",
+        "counts a parent that fails on its own while every child passed",
+        "does not count a TODO-directive failure as a red test",
+        "reads a test point written without the \"-\" separator",
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
+    },
+    {
+      "id": "no-survived-branch",
+      "find": "  if (actual.length === 0) return { status: 'SURVIVED', missing: expected, unexpected: [] }\n",
+      "replace": "",
+      "expectRed": ["reports SURVIVED when nothing went red at all"]
+    },
+    {
+      "id": "superset-is-caught",
+      "find": "  if (missing.length === 0 && unexpected.length === 0) {",
+      "replace": "  if (missing.length === 0) {",
+      "expectRed": ["reports MISMATCH when the break reddens more tests than the claim names"],
+      "note": "This is the exact-set decision itself. Weakening it here launders the under-specific claim code-style.md §7 forbids."
+    },
+    {
+      "id": "subset-is-caught",
+      "find": "  if (missing.length === 0 && unexpected.length === 0) {",
+      "replace": "  if (unexpected.length === 0) {",
+      "expectRed": ["reports MISMATCH when a named test stayed green while another failed"]
+    },
+    {
+      "id": "no-dedup",
+      "find": "  const expected = [...new Set(expectRed)]",
+      "replace": "  const expected = [...expectRed]",
+      "expectRed": ["reports each differing name once however often it was repeated"],
+      "note": "The test this pins was itself a FALSE MUTATION claim until 2026-09-14: it asserted CAUGHT on (['a','a'], ['a']), which `includes` satisfies with both Sets deleted. Found by running this harness against itself."
+    },
+    {
+      "id": "narrow-mutation-grep",
+      "find": "/MUTATION:/g",
+      "replace": "/\\/\\/ MUTATION:/g",
+      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
+      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED."
+    },
+    {
+      "id": "linecount-not-matchcount",
+      "find": "  return (String(text).match(/MUTATION:/g) ?? []).length",
+      "replace": "  return String(text).split('\\n').length",
+      "expectRed": [
+        "counts a MUTATION: claim that does not begin its line",
+        "counts zero on text that makes no claim"
+      ]
+    },
+    {
+      "id": "no-target-check",
+      "find": "  if (!isNonEmptyString(obj.target)) problems.push(at('`target` must be a non-empty string'))\n",
+      "replace": "",
+      "expectRed": ["rejects a data file with no target"]
+    },
+    {
+      "id": "suites-length-ok",
+      "find": "  if (!Array.isArray(obj.suites) || obj.suites.length === 0) {",
+      "replace": "  if (!Array.isArray(obj.suites)) {",
+      "expectRed": ["rejects a data file with an empty suites list"],
+      "note": "An empty suites list spawns `node --test` with no files: exit 0, empty plan, every mutation in that file reports SURVIVED."
+    },
+    {
+      "id": "no-find-check",
+      "find": "      if (!isNonEmptyString(mut.find)) w('`find` must be a non-empty string')\n",
+      "replace": "",
+      "expectRed": ["rejects a mutation with an empty find anchor"]
+    },
+    {
+      "id": "no-expectred-check",
+      "find": "      if (!Array.isArray(mut.expectRed) || mut.expectRed.length === 0) {",
+      "replace": "      if (false) {",
+      "expectRed": ["rejects a mutation with no expectRed"]
+    },
+    {
+      "id": "no-dup-id-check",
+      "find": "      else if (seen.has(mut.id)) w('duplicate `id`')\n",
+      "replace": "",
+      "expectRed": ["rejects two mutations sharing an id"]
+    },
+    {
+      "id": "replace-must-be-nonempty",
+      "find": "      if (typeof mut.replace !== 'string') w('`replace` must be a string (may be empty)')",
+      "replace": "      if (!isNonEmptyString(mut.replace)) w('`replace` must be a string (may be empty)')",
+      "expectRed": ["accepts an empty replacement as a deletion"],
+      "note": "Deleting a guard is the most direct mutation there is; requiring a non-empty replacement makes it unexpressible."
+    },
+    {
+      "id": "no-notencoded-why-check",
+      "find": "          !isNonEmptyString(n.claim) ||\n          !isNonEmptyString(n.why)",
+      "replace": "          !isNonEmptyString(n.claim)",
+      "expectRed": ["rejects a notEncoded entry with no stated reason"]
+    },
+    {
+      "id": "no-array-toplevel-check",
+      "find": "  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {",
+      "replace": "  if (obj === null || typeof obj !== 'object') {",
+      "expectRed": ["rejects a top level that is not an object"]
+    },
+    {
+      "id": "anchor-zero-ok",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count > 1) {",
+      "expectRed": [
+        "refuses an anchor that matches nothing, naming the count",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "exits 2 when a batch carries both a fault and a survivor, not 1"
+      ],
+      "note": "The single most important entry in this file. A stale anchor applies as a no-op, the suites stay green, and the mutation reports SURVIVED — code-style.md §7's named trap. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
+    },
+    {
+      "id": "anchor-two-ok",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count === 0) {",
+      "expectRed": ["refuses an ambiguous anchor that occurs twice"]
+    },
+    {
+      "id": "anchor-count-not-two",
+      "find": "  if (count !== 1) {",
+      "replace": "  if (count !== 2) {",
+      "expectRed": [
+        "accepts an anchor that occurs exactly once",
+        "refuses an ambiguous anchor that occurs twice",
+        "grades every mutation after a stale-anchor fault, not just those before it"
+      ],
+      "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
+    },
+    {
+      "id": "default-mode-list",
+      "find": "    mode: modes.length === 0 ? 'run' : modes[0].slice(2),",
+      "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
+      "expectRed": [
+        "defaults to the run mode with no flags",
+        "reads the value of the --scratch option",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "exits 2 when a batch carries both a fault and a survivor, not 1",
+        "refuses to report success when there was nothing at all to grade"
+      ],
+      "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
+    },
+    {
+      "id": "option-no-consume",
+      "find": "      opts[a.slice(2)] = value\n      i++",
+      "replace": "      opts[a.slice(2)] = value",
+      "expectRed": ["reads the value of an option flag", "reads the value of the --scratch option"],
+      "note": "expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
+    },
+    {
+      "id": "option-no-value-ok",
+      "find": "      if (value === undefined || value.startsWith('--')) {",
+      "replace": "      if (false) {",
+      "expectRed": ["blocks an option flag given with no value"],
+      "note": "`opts.guard` becomes undefined, selectFiles reads that as \"no guard\", and the run silently widens to every data file."
+    },
+    {
+      "id": "two-modes-allowed",
+      "find": "  if (new Set(modes).size > 1) {",
+      "replace": "  if (false) {",
+      "expectRed": ["blocks two mode flags given together", "exits 2, not 1, on a usage error"]
+    },
+    {
+      "id": "unknown-flag-ignored",
+      "find": "    return { error: `unknown flag ${a}` }",
+      "replace": "    continue",
+      "expectRed": ["blocks an unknown flag"]
+    },
+    {
+      "id": "positional-allowed",
+      "find": "      return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }",
+      "replace": "      return { error: `unknown flag ${a}` }",
+      "expectRed": ["blocks a bare positional argument"],
+      "note": "Deleting the branch outright still errors, via the unknown-flag path — so the test asserts the MESSAGE. This entry swaps the message rather than the behaviour for exactly that reason."
+    },
+    {
+      "id": "usage-error-exits-1",
+      "find": "    return 2\n  }\n  const root = repoRoot()",
+      "replace": "    return 1\n  }\n  const root = repoRoot()",
+      "expectRed": ["exits 2, not 1, on a usage error"],
+      "note": "Collapses the 1-vs-2 distinction the header exists to defend: a harness fault reported as a test finding gets remedied by deleting the test."
+    },
+    {
+      "id": "suites-entry-not-string",
+      "find": "  } else if (!obj.suites.every(isNonEmptyString)) {\n    problems.push(at('every `suites` entry must be a non-empty string'))\n  }",
+      "replace": "  }",
+      "expectRed": ["rejects a suites list that contains a non-string entry"],
+      "note": "Dropping the every-string check lets null or a number pass; `node --test null` then crashes the runner rather than surfacing a clean validation error."
+    },
+    {
+      "id": "mutations-not-array-allowed",
+      "find": "  if (!Array.isArray(obj.mutations)) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
+      "replace": "  if (false) {\n    problems.push(at('`mutations` must be an array'))\n  } else if (obj.mutations.length === 0) {",
+      "expectRed": ["rejects a data file where mutations is not an array"],
+      "note": "Passing mutations as a string falls through to the `else`, whose `.forEach()` THROWS a TypeError out of validateDataFile — the test reddens by throwing, not by a vacuous exit-0 run. (Corrected after code-reviewer caught the original description.) Anchor RE-POINTED when the empty-mutations check was inserted between the array check and its `else`; unrelated to the SKIP-filter reformat that re-pointed the two parseTap entries."
+    },
+    {
+      "id": "mut-entry-not-object-allowed",
+      "find": "      if (mut === null || typeof mut !== 'object' || Array.isArray(mut)) {\n        w('must be an object')\n        return\n      }",
+      "replace": "",
+      "expectRed": ["rejects a mutation entry that is not an object"],
+      "note": "Without the guard a non-object entry falls through to id/find/replace checks, producing misleading 'must be a non-empty string' errors on undefined properties."
+    },
+    {
+      "id": "replace-typeof-removed",
+      "find": "      if (typeof mut.replace !== 'string') w('`replace` must be a string (may be empty)')",
+      "replace": "",
+      "expectRed": ["rejects a mutation whose replace is not a string"],
+      "note": "A numeric replace passes validation and coerces silently at apply time; the wrong value is written to the worktree with no diagnostic."
+    },
+    {
+      "id": "expectred-entry-not-string",
+      "find": "      } else if (!mut.expectRed.every(isNonEmptyString)) {\n        w('every `expectRed` entry must be a non-empty string')\n      }",
+      "replace": "      }",
+      "expectRed": ["rejects a mutation whose expectRed contains a non-string entry"],
+      "note": "A null entry in expectRed passes validation; compareResult includes it in the exact-set comparison and no real test name matches it, so every such mutation reports MISMATCH."
+    },
+    {
+      "id": "notencoded-array-check-removed",
+      "find": "!Array.isArray(obj.notEncoded)",
+      "replace": "false",
+      "expectRed": ["rejects a notEncoded value that is not an array"],
+      "note": "Passing notEncoded as a non-array object bypasses the forEach; a claim-without-why is never validated and passes silently. Note: deleting the whole line would orphan the `else` below and cause a syntax error that reddens every test."
+    },
+    {
+      "id": "scratch-hardcoded-null",
+      "find": "    scratch: opts.scratch,",
+      "replace": "    scratch: null,",
+      "expectRed": ["reads the value of the --scratch option"],
+      "note": "Hardcoding null silently ignores --scratch; the harness always uses tmpdir. The existing --guard test cannot catch this because it asserts scratch: null."
+    },
+    {
+      "id": "drop-empty-mutations-check",
+      "find": "  } else if (obj.mutations.length === 0) {",
+      "replace": "  } else if (false) {",
+      "expectRed": ["rejects a data file whose mutations list is empty"],
+      "note": "Found by semantic-reviewer on 98469ba0: asymmetric with `suites`, which was already length-checked. An empty list grades nothing and exited 0 — the oracle reporting success having run no mutation."
+    },
+    {
+      "id": "drop-absolute-target-check",
+      "find": "    if (isAbsolute(val) || val.split(/[\\\\/]/).includes('..')) {",
+      "replace": "    if (false) {",
+      "expectRed": ["rejects a target outside the worktree"],
+      "note": "Containment guard. Rewritten after cloud CodeRabbit found the original checked only isAbsolute under a FALSE premise about path.join: join(root,\"/etc/x\") is contained, join(root,\"../../etc/x\") escapes, and isAbsolute(\"../x\") is false — so it blocked the safe shape and admitted the dangerous one. Covers suites too, which run with cwd=worktree."
+    },
+    {
+      "id": "drop-skip-directive-filter",
+      "find": "p.directive !== 'SKIP' && ",
+      "replace": "",
+      "expectRed": [
+        "a skipped test is not counted as a red test",
+        "a skipped child does not make its failing parent look like an aggregate"
+      ],
+      "note": "The file header CLAIMED SKIP was excluded before the code did it — a false comment inside the commit whose subject is false comments. Code and comment now agree, and this pins it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
+    },
+    {
+      "id": "aggregate-ignores-skip",
+      "find": "points[j].directive !== 'SKIP') {",
+      "replace": "true) {",
+      "expectRed": ["a skipped child does not make its failing parent look like an aggregate"],
+      "note": "The second half of the two-sided gate. Added with the fix so the guard is not itself unpinned — adding an unpinned guard is the defect one level up."
+    },
+    {
+      "id": "spawn-drop-etimedout-branch",
+      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      throw new Error(\n        `mutation ${mutId}: suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT`,\n      )\n    }\n",
+      "replace": "",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was",
+        "declares no verdict on a timeout rather than a result"
+      ],
+      "note": "The defect this branch was added to fix: a timeout then reports a spawn failure."
+    },
+    {
+      "id": "spawn-etimedout-drops-budget",
+      "find": "suite run exceeded ${timeoutMs}ms and was killed",
+      "replace": "suite run exceeded the budget and was killed",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was"
+      ],
+      "note": "Message stays true but stops being actionable — no reader can tell which budget."
+    },
+    {
+      "id": "spawn-etimedout-claims-a-verdict",
+      "find": "suite run exceeded ${timeoutMs}ms and was killed — NO VERDICT",
+      "replace": "suite run exceeded ${timeoutMs}ms and was killed — SURVIVED",
+      "expectRed": ["declares no verdict on a timeout rather than a result"],
+      "note": "Turns a HARNESS failure into a claim about the TESTS — the exit 0/1/2 inversion."
+    },
+    {
+      "id": "spawn-error-guard-never-fires",
+      "find": "  if (r.error) {\n",
+      "replace": "  if (false) {\n",
+      "expectRed": [
+        "names the timeout, not the spawn, when a suite runs long",
+        "reports the budget that was exceeded, not merely that one was",
+        "prefers the timeout over the signal when a timeout set both",
+        "refuses a run whose binary never started"
+      ],
+      "note": "A timeout falls through to the signal branch, which then states no timeout was reported."
+    },
+    {
+      "id": "spawn-drop-generic-throw",
+      "find": "    throw new Error(`mutation ${mutId}: could not spawn node — ${r.error.message}`)\n",
+      "replace": "",
+      "expectRed": ["refuses a run whose binary never started"],
+      "note": "A binary that never started is graded as if the suite had run."
+    },
+    {
+      "id": "spawn-drop-signal-branch",
+      "find": "  if (r.signal) {\n    throw new Error(\n      `mutation ${mutId}: suite run killed by ${r.signal} (no timeout reported) — NO VERDICT`,\n    )\n  }\n",
+      "replace": "",
+      "expectRed": ["refuses a run killed by something other than the timeout"],
+      "note": "An externally killed run reaches the TAP parse with truncated output."
+    },
+    {
+      "id": "spawn-error-guard-compares-undefined",
+      "find": "  if (r.error) {\n",
+      "replace": "  if (r.error !== undefined) {\n",
+      "expectRed": ["grades a run that finished on its own, whether it passed or failed"],
+      "note": "An explicit error:null is dereferenced; truthiness is what unifies the two absent shapes."
+    },
+    {
+      "id": "spawn-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: suite run exceeded",
+      "replace": "`mutation: suite run exceeded",
+      "expectRed": ["names which mutation failed, so one bad run in a batch is findable"],
+      "note": "One bad run in a large batch becomes untraceable — `node .claude/hooks/run-mutations.mjs` reports the total it ran."
+    },
+    {
+      "id": "spawn-drop-null-result-guard",
+      "find": "  if (r == null) throw new Error(`mutation ${mutId}: no spawn result to read — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["refuses a result that is not there at all, rather than dereferencing it"],
+      "note": "A TypeError is the only exit from this function that does not name the mutation."
+    },
+    {
+      "id": "spawn-generic-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: could not spawn node",
+      "replace": "`mutation: could not spawn node",
+      "expectRed": ["refuses a run whose binary never started"],
+      "note": "Pins the mutId in the ENOENT throw, which the timeout fixture cannot reach."
+    },
+    {
+      "id": "spawn-signal-throw-drops-mutation-id",
+      "find": "`mutation ${mutId}: suite run killed by",
+      "replace": "`mutation: suite run killed by",
+      "expectRed": ["refuses a run killed by something other than the timeout"],
+      "note": "Pins the mutId in the signal throw, likewise unreachable from the timeout fixture."
+    },
+    {
+      "id": "drop-fault-isolation",
+      "find": "  let res\n  try {\n    res = runMutation({ root, data, mut, base })\n  } catch (err) {\n    console.log(`  FAULT     ${mut.id}`)\n    console.log(`    ${err.message}`)\n    return 'fault'\n  }\n",
+      "replace": "  const res = runMutation({ root, data, mut, base })\n",
+      "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
+      "note": "Without the catch the first fault unwinds to main()'s handler and the summary is never printed."
+    },
+    {
+      "id": "exit-order-bad-before-faults",
+      "find": "  if (faults > 0) return 2\n  return bad === 0 ? 0 : 1\n",
+      "replace": "  if (bad > 0) return 1\n  return faults > 0 ? 2 : 0\n",
+      "expectRed": ["exits 2 when a batch carries both a fault and a survivor, not 1"],
+      "note": "A batch with one of each then reports 'your TESTS have a hole' for a run that proved nothing."
+    },
+    {
+      "id": "drop-no-data-files-guard",
+      "find": "  if (files.length === 0) {\n    // NOT exit 0. Exit 0 asserts \"every encoded mutation was CAUGHT\"; a run that graded NOTHING\n    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`\n    // would otherwise turn this oracle permanently green while checking nothing — the precise\n    // failure mode the tool exists to detect in other people's tests.\n    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')\n  }\n",
+      "replace": "",
+      "expectRed": ["refuses to report success when there was nothing at all to grade"],
+      "note": "The single false-green path: 0 mutations, 0 caught, exit 0 — success having graded nothing."
+    },
+    {
+      "id": "spawn-timeout-option-shrunk",
+      "find": "      timeout: SUITE_TIMEOUT_MS,\n",
+      "replace": "      timeout: 1,\n",
+      "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
+      "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "MUTATION: make parseTap throw whenever `failed` is empty → SURVIVED becomes an exit-2 harness fault and is never reported.",
+      "why": "The break is the ADDITION of a throw, not the removal or alteration of existing text, so there is no unique `find` anchor for it. The find/replace schema expresses deletions and substitutions of code that is present; an insertion at an arbitrary point is not addressable without an anchor that says nothing about the mechanism."
+    },
+    {
+      "claim": "MUTATION: replace the CAUGHT branch's condition with `false` → nothing is ever caught.",
+      "why": "Encodable, but it is strictly dominated by `superset-is-caught` and `subset-is-caught`, which mutate the same condition in the two directions that can actually ship. A blanket `false` reddens most of the compareResult block and would pin nothing the other two do not."
+    },
+    {
+      "claim": "MUTATION: make validateDataFile always push a problem → every data file is rejected and the harness exits 2 without running anything, while reporting a data-file fault.",
+      "why": "The break is the ADDITION of an unconditional push at the function entry — not the removal or alteration of any existing text. Any substitution that achieves 'always push' (e.g. seeding the problems array) reddens 'accepts a well-formed data file', 'accepts an empty replacement as a deletion', and the relative-path half of 'rejects a target outside the worktree' simultaneously, producing a superset that pins nothing the individual field-rejection tests do not already cover."
+    },
+    {
+      "claim": "the rmSync fallback in runMutation's finally removes a temp dir that `git worktree add` failed to register, which `worktree remove` refuses and `prune` does not touch",
+      "why": "NOT PINNED and not cheaply pinnable, established by looking rather than assuming — the same claim was wrong twice on this branch. The `git` helper is an unexported module-level closure, so there is no injection point; and the spawn route cannot reach it, because the fault fixture throws from `assertSingleOccurrence`, which runs AFTER `worktree add` has already succeeded. Forcing `worktree add` to fail needs an engineered condition (no HEAD, a path collision, a full disk) that is neither cheap nor reliable. Recorded here because it carries no MUTATION: comment, so `--coverage` cannot report it as a gap at all — a silent hole is exactly what this list exists for. The bound on the damage is what makes leaving it acceptable: deleting the line leaks one temp dir per faulted mutation under tmpdir(), and can never produce a wrong verdict or a wrong exit code."
+    }
+  ]
+}

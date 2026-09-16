@@ -1,0 +1,356 @@
+{
+  "target": ".claude/hooks/check-prose-claims.mjs",
+  "suites": [
+    ".claude/hooks/check-prose-claims.test.mjs",
+    ".claude/hooks/check-prose-claims.repo.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "caps-not-derived-from-limits",
+      "find": "    if (Number.isInteger(rule?.max)) caps.add(rule.max)",
+      "replace": "    if (Number.isInteger(rule?.max)) { caps.add(rule.max); caps.add(42) }",
+      "expectRed": [
+        "derives the cap set from limits.json instead of a typed list",
+        "ignores a line count that is not a cap value"
+      ],
+      "note": "a value the rule set does not contain enters the cap set, so an unrelated 42-line helper becomes a claim"
+    },
+    {
+      "id": "caps-empty-check-removed",
+      "find": "  if (caps.size === 0) {",
+      "replace": "  if (false) {",
+      "expectRed": ["refuses a limits file that yields no enforceable cap"]
+    },
+    {
+      "id": "kind-words-drop-short-forms",
+      "find": "  const words = new Set(EXTRA_KIND_WORDS)",
+      "replace": "  const words = new Set()",
+      "expectRed": ["derives kind words from the rule set and keeps the short forms"]
+    },
+    {
+      "id": "line-shape-plural-only",
+      "find": "(?:\\s*-\\s*|\\s+)lines?\\b/gi",
+      "replace": "(?:\\s*-\\s*|\\s+)lines\\b/gi",
+      "expectRed": ["flags a cap value restated in prose as a line count"],
+      "note": "singular \"500-line cap\" — the commonest phrasing in this corpus — stops matching"
+    },
+    {
+      "id": "line-shape-cap-membership-removed",
+      "find": "Number(m[1])\n    if (!caps.has(value)) continue",
+      "replace": "Number(m[1])\n    if (false) continue",
+      "expectRed": [
+        "ignores a line count that is not a cap value",
+        "ignores a number glued to a word, a version segment or a ticket reference"
+      ],
+      "note": "superset: \"1500 lines cap\" is only rejected by the cap-membership test once the lookbehind has let the whole 1500 through"
+    },
+    {
+      "id": "line-shape-context-not-required",
+      "find": "    if (!nearby(line, ctxRe, m.index, m.index + m[0].length)) continue",
+      "replace": "    if (false) continue",
+      "expectRed": [
+        "ignores a cap value with no cap or kind word on the line",
+        "requires the context word within the proximity bound, not merely on the line",
+        "flags the compliance-ratio shape when the word line is adjacent"
+      ],
+      "note": "superset: the ratio fixture also carries \"80 lines\", which only the context test keeps out of the line-count shape"
+    },
+    {
+      "id": "proximity-bound-widened",
+      "find": "<= PROXIMITY) return true",
+      "replace": "<= PROXIMITY + 1) return true",
+      "expectRed": ["requires the context word within the proximity bound, not merely on the line"]
+    },
+    {
+      "id": "ratio-shape-removed",
+      "find": "    claims.push({ value, shape: 'ratio', index: m.index })",
+      "replace": "",
+      "expectRed": ["flags the compliance-ratio shape when the word line is adjacent"]
+    },
+    {
+      "id": "ratio-line-word-not-required",
+      "find": "    if (!nearby(line, LINE_WORD_RE, m.index, m.index + m[0].length)) continue",
+      "replace": "    if (false) continue",
+      "expectRed": ["ignores a ratio with no line word near it"]
+    },
+    {
+      "id": "line-shape-lookbehind-dropped",
+      "find": "/(?<![\\w.$#-])(\\d{2,5})(?:\\s*-\\s*|\\s+)lines?\\b/gi",
+      "replace": "/(\\d{2,5})(?:\\s*-\\s*|\\s+)lines?\\b/gi",
+      "expectRed": ["ignores a number glued to a word, a version segment or a ticket reference"]
+    },
+    {
+      "id": "line-shape-separator-optional",
+      "find": "(\\d{2,5})(?:\\s*-\\s*|\\s+)lines?",
+      "replace": "(\\d{2,5})\\s*-?\\s*lines?",
+      "expectRed": ["ignores a number welded to the word lines with no separator"]
+    },
+    {
+      "id": "markdown-fence-not-tracked",
+      "find": "    if (fenceOpen) {\n      fence = fenceOpen[1]\n      return\n    }",
+      "replace": "    if (fenceOpen) {\n      return\n    }",
+      "expectRed": [
+        "skips a fenced code block",
+        "closes a fence only on a fence of the same character and length",
+        "does not let an info-string opener close an open fence"
+      ],
+      "note": " WIDENED when the block-comment and fence fixes added tests that this same break also reddens. The overlap is real — these mechanisms share a scanner — and the exact-set comparison surfaced it rather than passing a superset as CAUGHT."
+    },
+    {
+      "id": "markdown-fence-closes-on-anything",
+      "find": "        fenceOpen[1][0] === fence[0] &&\n        fenceOpen[1].length >= fence.length &&\n",
+      "replace": "        true &&\n",
+      "expectRed": ["closes a fence only on a fence of the same character and length"],
+      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for."
+    },
+    {
+      "id": "indented-block-list-carveout-dropped",
+      "find": " && !/^[ \\t]+(?:[-*+>|]|\\d+[.)])(?:\\s|$)/.test(line)",
+      "replace": "",
+      "expectRed": ["skips an indented code block but keeps an indented list item"]
+    },
+    {
+      "id": "code-file-data-lines-read-as-prose",
+      "find": "    if (COMMENT_RE.test(line)) {\n      out.push({ n: i + 1, text: line })\n      if (opens && !closes) inBlock = true\n    }\n",
+      "replace": "    out.push({ n: i + 1, text: line })\n    if (opens && !closes) inBlock = true\n",
+      "expectRed": [
+        "reads only comment lines in a code file, never its data",
+        "reads the body of a block comment whose lines carry no leading star",
+        "does not open a block on a slash-star inside a string"
+      ],
+      "note": " Anchor REPOINTED after the block-comment and fence fixes moved this code; the harness flagged it at count 0 before commit, which is what that check is for. WIDENED when the block-comment and fence fixes added tests that this same break also reddens. The overlap is real — these mechanisms share a scanner — and the exact-set comparison surfaced it rather than passing a superset as CAUGHT."
+    },
+    {
+      "id": "unknown-extension-falls-through-to-markdown",
+      "find": "  if (COMMENT_EXT.has(ext)) return commentProse(content)\n  return []",
+      "replace": "  if (COMMENT_EXT.has(ext)) return commentProse(content)\n  return markdownProse(content)",
+      "expectRed": ["treats a file with no prose form as carrying none"],
+      "note": ".claude/limits.json, the canonical file, would start flagging its own data rows"
+    },
+    {
+      "id": "waiver-never-recognised",
+      "find": "  const m = WAIVER_RE.exec(text)",
+      "replace": "  const m = null",
+      "expectRed": [
+        "accepts an inline waiver carrying a written reason",
+        "rejects a waiver whose reason asserts nothing",
+        "a waived line yields no claim and therefore no baseline row",
+        "an unusable waiver is reported as a problem, never a silent pass",
+        "an inline waiver with a written reason clears the finding",
+        "--update-baseline refuses to write from an incomplete read"
+      ],
+      "note": "superset: the escape hatch is pinned end to end, including the --update-baseline refusal that depends on an unusable waiver"
+    },
+    {
+      "id": "waiver-reason-floor-removed",
+      "find": "  if (reason.replace(/\\s/g, '').length < 20 || EMPTY_REASONS.has(bare)) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "rejects a waiver whose reason asserts nothing",
+        "an unusable waiver is reported as a problem, never a silent pass",
+        "an inline waiver with a written reason clears the finding",
+        "--update-baseline refuses to write from an incomplete read"
+      ]
+    },
+    {
+      "id": "claim-key-not-whitespace-stable",
+      "find": "createHash('sha256').update(text.trim(), 'utf8')",
+      "replace": "createHash('sha256').update(text, 'utf8')",
+      "expectRed": ["keys a claim on its content, not on its line number"],
+      "note": "a reflow or an indent change alone would then invalidate the row — the same failure mode as keying on the line number"
+    },
+    {
+      "id": "waived-line-still-becomes-a-claim",
+      "find": "      if (waiver) continue",
+      "replace": "",
+      "expectRed": [
+        "a waived line yields no claim and therefore no baseline row",
+        "an inline waiver with a written reason clears the finding"
+      ]
+    },
+    {
+      "id": "unusable-waiver-not-reported",
+      "find": "        problems.push({ path, n, problem: waiver.problem })",
+      "replace": "",
+      "expectRed": [
+        "an unusable waiver is reported as a problem, never a silent pass",
+        "an inline waiver with a written reason clears the finding",
+        "--update-baseline refuses to write from an incomplete read"
+      ]
+    },
+    {
+      "id": "unreadable-file-skipped-silently",
+      "find": "      problems.push({ path, n: null, problem: `unreadable (${err.code ?? err.message})` })",
+      "replace": "",
+      "expectRed": ["an unreadable corpus file is a problem, never a skipped file"]
+    },
+    {
+      "id": "stale-baseline-rows-never-reported",
+      "find": "  return Object.keys(baseline ?? {}).filter((key) => !claims.has(key))",
+      "replace": "  return []",
+      "expectRed": [
+        "reports a baseline row that describes no live claim as stale",
+        "blocks when a baseline row no longer describes a live claim"
+      ]
+    },
+    {
+      "id": "completed-spec-test-inverted",
+      "find": "    if (!content.includes('- [ ]')) done.push(",
+      "replace": "    if (content.includes('- [ ]')) done.push(",
+      "expectRed": [
+        "excludes a spec whose tasks are all complete",
+        "ignores a claim in a spec whose tasks are all complete"
+      ]
+    },
+    {
+      "id": "unreadable-tasks-read-as-complete",
+      "find": "      continue // unreadable reads as LIVE",
+      "replace": "      done.push(path.slice(0, -'/tasks.md'.length))\n      continue",
+      "expectRed": ["treats a spec with an unreadable tasks.md as live"]
+    },
+    {
+      "id": "staged-rename-consumes-one-path",
+      "find": "    const count = status[0] === 'R' || status[0] === 'C' ? 2 : 1",
+      "replace": "    const count = 1",
+      "expectRed": ["takes both paths of a staged rename"]
+    },
+    {
+      "id": "staged-desync-absorbed",
+      "find": "      throw new Error(`unrecognised --name-status record ${JSON.stringify(status)}`)",
+      "replace": "      i += 1\n      continue",
+      "expectRed": ["aborts on a desynchronised name-status stream"]
+    },
+    {
+      "id": "new-claims-never-block",
+      "find": "  const fresh = [...claims.entries()].filter(",
+      "replace": "  const fresh = [].filter(",
+      "expectRed": [
+        "blocks a commit that stages a new prose claim",
+        "treats an absent baseline as empty and blocks, rather than passing",
+        "never rewrites the baseline from an enforcement run",
+        "grades the INDEX, not the working tree",
+        "ignores a claim in a spec whose tasks are all complete"
+      ],
+      "note": "superset: the completed-spec case asserts that the LIVE spec still blocks, which is a new-claim finding"
+    },
+    {
+      "id": "baseline-ignored-when-selecting-findings",
+      "find": "    ([key, c]) => baseline[key] === undefined && inScope(c.path),",
+      "replace": "    ([, c]) => inScope(c.path),",
+      "expectRed": ["does not block a claim already carried by the baseline"]
+    },
+    {
+      "id": "blocking-scope-unbounded",
+      "find": "  const inScope = (path) => scope === null || scope.has(path)",
+      "replace": "  const inScope = () => true",
+      "expectRed": ["does not block a claim in a file the commit did not touch"]
+    },
+    {
+      "id": "agent-memory-not-excluded",
+      "find": "  if (path.startsWith(MEMORY_PREFIX)) return false",
+      "replace": "",
+      "expectRed": ["ignores a claim in agent memory"]
+    },
+    {
+      "id": "run-log-not-excluded",
+      "find": "  if (EXCLUDED_PATHS.has(path)) return false",
+      "replace": "",
+      "expectRed": ["ignores a claim in the dated run log"]
+    },
+    {
+      "id": "completed-specs-stay-in-the-corpus",
+      "find": "  return candidates.filter((p) => !completed.some((dir) => p.startsWith(`${dir}/`)))",
+      "replace": "  return candidates",
+      "expectRed": ["ignores a claim in a spec whose tasks are all complete"]
+    },
+    {
+      "id": "staged-mode-reads-the-worktree",
+      "find": "  const read = (path) => (staged ? readIndexBlob(path) : readFileSync(path, 'utf8'))",
+      "replace": "  const read = (path) => readFileSync(path, 'utf8')",
+      "expectRed": ["grades the INDEX, not the working tree"]
+    },
+    {
+      "id": "unreadable-limits-falls-back",
+      "find": "  const limits = JSON.parse(readFileSync(LIMITS_PATH, 'utf8'))",
+      "replace": "  let limits\n  try {\n    limits = JSON.parse(readFileSync(LIMITS_PATH, 'utf8'))\n  } catch {\n    limits = { rules: [{ kind: 'test file', glob: '**/*', max: 500 }] }\n  }",
+      "expectRed": ["exits 2, not 1, when limits.json cannot be read"]
+    },
+    {
+      "id": "baseline-shape-unchecked",
+      "find": "  if (claims === null || typeof claims !== 'object' || Array.isArray(claims)) {",
+      "replace": "  if (false) {",
+      "expectRed": ["exits 2 when the baseline file is malformed"]
+    },
+    {
+      "id": "absent-baseline-aborts",
+      "find": "    if (err.code === 'ENOENT') return {}",
+      "replace": "    if (false) return {}",
+      "expectRed": ["treats an absent baseline as empty and blocks, rather than passing"]
+    },
+    {
+      "id": "enforcement-run-writes-the-baseline",
+      "find": "  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
+      "replace": "  writeFileSync(BASELINE_PATH, `${JSON.stringify({ claims: {} }, null, 2)}\\n`)\n  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
+      "expectRed": ["never rewrites the baseline from an enforcement run"],
+      "note": "the guard laundering its own finding — exit codes are unaffected, only the file on disk changes, which is exactly the property under test"
+    },
+    {
+      "id": "update-baseline-adds-rows-silently",
+      "find": "  for (const k of added) console.error(`  + ${k}  ${next[k]}`)",
+      "replace": "",
+      "expectRed": ["--update-baseline prints every added row before writing"]
+    },
+    {
+      "id": "update-baseline-writes-from-partial-read",
+      "find": "    if (problems.length > 0) {",
+      "replace": "    if (false) {",
+      "expectRed": ["--update-baseline refuses to write from an incomplete read"]
+    },
+    {
+      "id": "block-body-unread",
+      "find": "    if (inBlock) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "replace": "    if (false) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "expectRed": ["reads the body of a block comment whose lines carry no leading star"],
+      "note": "Restores the hole cloud review found: a cap restated inside a star-less block comment is invisible."
+    },
+    {
+      "id": "block-opener-unanchored",
+      "find": "    const opens = /^\\s*\\/\\*/.test(line)\n",
+      "replace": "    const opens = line.includes('/*')\n",
+      "expectRed": ["does not open a block on a slash-star inside a string"],
+      "note": "Restores the over-reach the first cut of the fix had: a slash-star in a string opens a phantom block and floods the run."
+    },
+    {
+      "id": "fence-closer-ignores-trailing",
+      "find": "        line.slice(fenceOpen[0].length).trim() === ''\n",
+      "replace": "        true\n",
+      "expectRed": ["does not let an info-string opener close an open fence"],
+      "note": "An inner ```js opener then closes the outer fence and the code after it is graded as prose."
+    },
+    {
+      "id": "duplicate-claims-share-one-key",
+      "find": "      claims.set(claimKey(path, text, occurrence), {\n",
+      "replace": "      claims.set(claimKey(path, text), {\n",
+      "expectRed": ["keys a repeated identical claim separately from its first occurrence"],
+      "note": "Restores the collapse cloud review found: once the first copy is baselined, a second identical restatement inherits its key and is admitted silently."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "check-prose-claims.test.mjs header: the sentence describing the convention contains the token `MUTATION:`",
+      "why": "prose about the convention, not a claim about a break. countMutationClaims matches the bare token, so it inflates the denominator; there is nothing here to break."
+    },
+    {
+      "claim": "check-prose-claims.repo.test.mjs header: the same convention sentence",
+      "why": "same reason — a description of what a MUTATION comment is, not one."
+    },
+    {
+      "claim": "repo.test.mjs 'blocks when a baseline row no longer describes a live claim' — its MUTATION comment names the stale-row branch",
+      "why": "already graded, under the id `stale-baseline-rows-never-reported`, whose expectRed carries both this case and its unit-suite sibling. A second entry for the same break would be the same mutation twice."
+    },
+    {
+      "claim": "repo.test.mjs 'an inline waiver with a written reason clears the finding' — its MUTATION comment names the waiver reason floor",
+      "why": "already graded, under `waiver-reason-floor-removed` (and, for the hatch's existence, `waiver-never-recognised`); both list this case in expectRed. A dedicated entry would duplicate an encoded break."
+    }
+  ]
+}

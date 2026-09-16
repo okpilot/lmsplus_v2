@@ -16,12 +16,20 @@ import { declaresUseServer } from './check-file-size-guard.mjs'
 // ---------------------------------------------------------- declaresUseServer
 
 test('a header comment DENYING the use server directive is not a declaration', () => {
-  // MUTATION: unanchor the regex (drop ^\s*) → this matches and two real helper files
-  // (resume-helpers.ts, load-draft-helpers.ts) get misread as Server Actions. Those
-  // files exist BECAUSE someone split a file to obey this rule; flagging them inverts
-  // the finding. This is a real false positive that occurred during scoping.
+  // MUTATION: delete the line-comment branch from the prologue scan → the SECOND assertion
+  // goes red; the scan stops at `//` instead of reading through it, so the real directive on
+  // the next line is never reached.
+  //
+  // The first assertion pins NOTHING on its own: `false` is this function's default return, so
+  // every way of breaking the scan still satisfies it. That was verified, not reasoned —
+  // deleting the only branch the fixture reaches left it green. The positive companion is what
+  // makes the pair falsifiable (`code-style.md` §7, "A Test Must Fail If Its Mechanism Is
+  // Removed"). The comment this replaced named "unanchor the regex (drop ^\s*)"; there is no
+  // regex — `declaresUseServer` has been a character scanner for two rewrites.
   const denial = "// Hoisted out of resume.ts. No `'use server'` — these are pure transforms.\n"
   assert.equal(declaresUseServer(denial), false)
+  // The prologue reads THROUGH a line comment to a real directive.
+  assert.equal(declaresUseServer(`${denial}'use server'\nexport const x = 1\n`), true)
 })
 
 test('recognises the directive in single or double quotes at line start', () => {
