@@ -1140,7 +1140,8 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    copy here, which goes stale the first time one is added (clause 2). The positions themselves are
    fixed by the code's structure; read `extractRefs` for them.
 
-7. **Recompute any count as the LAST authoring step, against the final diff.** Distinct from
+7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
+   the final diff.** Distinct from
    cl.2: that one says do not enumerate an open set at all. This one governs a count you have
    decided to state — a dated snapshot, a compliance ratio in a commit message. Measuring it
    before your own commit's remaining edits land makes it stale ON ARRIVAL, and it reads as
@@ -1149,6 +1150,23 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    every one taken before that same commit split two files and added a third. Where the number
    is derivable, prefer shipping the derivation as a runnable command over stating it
    (`check-file-size-guard.mjs --stats` exists for exactly this reason).
+
+   **"Count" was read narrowly and the gap cost three claims on one branch.** `most`, `every`,
+   `never`, `always` and `neither` assert an EXTENT, not a number, so an author who knows this
+   clause still writes them unmeasured. They carry the same burden: replace the word with the
+   command that establishes the extent, or test it against a fixture that could falsify it —
+   a UNIVERSAL needs the case you expect to fail, not the case you expect to pass. Promoted at
+   count=3 (2026-09-16, `feat/prose-path-guard`), two of them committed and one caught pre-commit
+   and so leaving no artifact: "44 single-element arrays"
+   when the measured figure was 43 and even that counted the wrong thing; "rewrites most of it"
+   when the measurement was a tenth; and "neither result is ever a bare one-line answer" about a
+   command whose rename shape returns exactly one line. The first two were fixed by shipping the
+   command; the third by restating it as the conditional a fixture actually supports, which is
+   the remedy when the extent is real but narrower than the word claimed. That third one was
+   written INTO the sentence being edited to correct a different false claim, so cl.5 applies on
+   top: it was coherent, and only re-deriving it caught it. This clause's own first draft then
+   said "all three were fixed by shipping the command" — false for exactly that reason, caught by
+   applying the clause to itself before committing it.
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
