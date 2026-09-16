@@ -2101,55 +2101,18 @@ Pinned by `check-file-size-guard.update.test.mjs`.
 advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
 `corpus-codification` spec already lists its deletion set.
 
-## Decision 71: a path cited in prose becomes a check; the "no judgment" premise was wrong (2026-09-16)
+## Decision 71: a path cited in prose becomes a check (2026-09-16)
 
-BUILD ORDER item 3 of the corpus-codification programme. `code-style.md` §9 has always said that
-when a core file is renamed you must "grep all docs for stale references before committing."
-Nothing ran that grep. `.claude/hooks/check-prose-paths.mjs` now blocks a file path written in
-PROSE that does not resolve on disk — pre-commit on the staged set, `--all` over the worktree in
-CI, ratcheted against `.claude/prose-paths.json`.
+BUILD ORDER item 3 of the corpus-codification programme. `.claude/hooks/check-prose-paths.mjs`
+blocks a file path written in PROSE that does not resolve on disk — pre-commit on the staged set,
+`--all` over the worktree in CI, ratcheted against `.claude/prose-paths.json`. Suppression marker:
+`prose-path-ok: <reason>`; a broken invocation exits 2, not 1, so a waiver can never stand in for a
+check that did not run.
 
-**The spec's premise was wrong.** It called R0-PATH judgment-free on the grounds that a path
-either resolves or it does not. Resolution IS binary; deciding whether a token is a path CLAIM is
-the entire job, and it is carried by the six structural narrowings and twelve exclusion classes
-enumerated in the guard's header.
+Derive the funnel with `node .claude/hooks/measure-prose-paths.mjs`. No figure is stated here
+(§10 cl.7).
 
-**No funnel figure is stated here or in the guard header** (§10 cl.7; Decision 68 set the
-precedent). `measure-prose-paths.mjs` is committed and prints it.
-
-**Yield.** On the binding surface the guard flags far more than it finds: most of what it catches
-is historical narrative, self-negating prose ("`x.ts` was deleted"), illustrative examples,
-external slugs and third-party package internals — all frozen in the baseline, none of them
-defects. Derive the split rather than trusting a ratio: the baseline is `.claude/prose-paths.json`
-and the live funnel is one command. A ratchet's value is on NEW prose.
-
-**What it corrected on the way in.** `docs/database.md`'s `active_flagged_questions` callsite list
-named a file that no longer exists, pointed at the wrong half of a renamed pair, and omitted a real
-callsite while claiming to list them all — replaced with the corrected set plus the derivation
-command, since "all callsites" is an open set (§10 cl.2). `.claude/handover.md` still announced
-#991 as NOT STARTED with two UNTRACKED migrations, one under a filename that never existed; the
-work shipped as `e89ead6a` and both migrations are tracked. The fix for that had been WRITTEN
-(`e7393e40`) and never merged — stranded on an abandoned branch, which is precisely the failure a
-diff-scoped reviewer cannot see and this guard can.
-
-**It also found a dead exclusion in its own predecessor.** `check-prose-claims.mjs` excludes
-`.claude/run-log.md` by exact path; that file was deleted in `3f55bc25` (#1246). The exclusion is <!-- prose-path-ok: this sentence's SUBJECT is the deletion; naming the dead path is the claim itself, not a stale citation of it -->
-inert rather than wrong and is left alone — removing it would orphan a mutation anchor for no
-behavioural gain — but the `.coderabbit.yaml` comments that cite it as a live example are now
-baselined prose, which is the honest record of it.
-
-**Bounds.** It grades whether a path RESOLVES, never whether the claim around it is true; it cannot see a paraphrase; it cannot
-distinguish self-negating prose or historical narrative from a stale citation; and a path inside a
-third-party package's distribution is indistinguishable from a repo path that went missing. The
-full list is in the guard's header. It reduces the class; it does not close it.
-
-**Two things this commit fixed in the tooling it touched.** `measure-prose-claims.mjs` carried a
-comment claiming its corpus was "re-derived from its module rather than retyped" directly above
-four lines that retyped it — a false claim about the code beneath it, inside the measurement tool
-for the programme whose subject is false claims; `inCorpus` is exported now and the sentence is
-true by construction. And `/insights` audited only the retracted-phrase TRAILER, so both inline
-suppression markers had shipped unaudited; the audit now covers them, with its own fail-open
-exclusions named.
-
+Bounds and exclusion classes are enumerated in the guard's own header. It reduces the class; it
+does not close it.
 
 *Last updated: 2026-09-16*

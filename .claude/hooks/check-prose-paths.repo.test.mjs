@@ -297,7 +297,7 @@ test('--update-baseline prints every added row before writing', () =>
     assert.match(res.stderr, /REVIEW THE DIFF/)
   }))
 
-test('--update-baseline refuses to write from an incomplete read', () =>
+test('--update-baseline refuses to write when any file could not be graded', () =>
   withRepo((r) => {
     r.write('docs/a.md', `${DEAD} <!-- prose-path-ok: ok -->\n`)
     r.git('add', '-A')
@@ -307,7 +307,10 @@ test('--update-baseline refuses to write from an incomplete read', () =>
     const res = run(r, ['--update-baseline'])
     // GROUP: unusable-waiver-not-reported, waiver-never-recognised, waiver-reason-floor-removed
     assert.equal(res.status, 2)
-    assert.match(res.stderr, /incomplete read/)
+    // The fixture feeds an UNUSABLE WAIVER, not an unreadable file — assert the cause the
+    // guard actually reports, so a message that named only the other one would redden here.
+    assert.match(res.stderr, /an unreadable file or an unusable waiver/)
+    assert.match(res.stderr, /the reason must state WHY/)
   }))
 
 // ---------------------------------------------------------------- waivers, end to end
@@ -363,7 +366,7 @@ test('reports two physically distinct identical lines as separate findings', () 
   // `evaluate` batches one `git check-ignore` call, so it needs a git repo as cwd — the suite's
   // own, which no case here mutates. Like the other direct-`evaluate` cases above (and unlike
   // every `withRepo` case, which sandboxes its paths), it therefore resolves against the REAL
-  // repo: the sentinels those cases share must stay absent, or `resolves` finds one via // prose-path-ok: naming the absent sentinels IS the point — if either resolved these tests would be broken
+  // repo: the sentinels those cases share must stay absent, or `resolves` finds one via
   // existsSync, the lines stop being findings, and they redden for a reason unrelated to what
   // they pin.
   // MUTATION: change `seen.set(dupKey, occurrence + 1)` to `seen.set(dupKey, occurrence)` in

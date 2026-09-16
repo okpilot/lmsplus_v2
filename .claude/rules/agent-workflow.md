@@ -400,19 +400,11 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        `git show <sha>^:<path>` both return 0, and that 0 is the EXPECTED result, not a refutation.
        Reporting FABRICATED on the strength of it inverts the evidence. Only a phrase that was
        COMMITTED and later retracted is answerable by `git show <sha>^:<path>`; confirm you are in
-       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST. A phrase present in any
-       tree has a commit taking its count 0 -> n, so `-S` finds the INTRODUCTION even when a later
-       commit merely moved it. Do not reason further about what `-S` does to a MOVE: it reports the
-       MOVE COMMIT when both files persist, and misses it when git resolves the change as a RENAME,
-       so a single fixture "proves" either answer. (The INTRODUCTION is reported in both
-       shapes — which in the RENAME shape is the whole result, a single line.) **Bounded by REACHABILITY, not by counting:** `git log` walks HEAD's ancestry and suppresses
-       merge diffs, so a phrase living only on an unmerged branch, or introduced only in a merge
-       resolution, returns empty while existing in a tree. Read an empty result as *not reachable
-       from HEAD* — add `--all` and `--diff-merges=first-parent` before concluding anything
-       stronger, and pair that flag with `--no-patch`: `--diff-merges=<format>` implies `-p`, so
-       without it each hit is followed by a whole patch and every hit after the first scrolls out
-       of view. It drops NO commit — `--no-patch` returns the identical list. Within that bound an
-       empty result means the grep-based refutation is unavailable, whatever the claim's merits.
+       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST; `-S` finds the
+       INTRODUCTION. **Bounded by REACHABILITY:** `git log` walks HEAD's ancestry and suppresses
+       merge diffs, so add `--all --diff-merges=first-parent --no-patch` before reading an empty
+       result as anything stronger than *not reachable from HEAD*. Within that bound an empty
+       result means the grep-based refutation is unavailable, whatever the claim's merits.
      - *"this file is new"* (and *"+N tests"*, which needs a DIFFERENT command — see below) →
        `git show --stat <sha> -- <path>` for a claim about a
        COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
@@ -936,10 +928,8 @@ forbidding the write outright, in CONSTRAINTS:
 Add that line whenever a lost report is expensive to recover — always when `SendMessage` is disabled
 in the session, since the only remaining recourse is a full re-run at full token cost.
 
-**This is a SYMPTOM fix.** What the line does structurally is make report composition the LAST
-step, which is the observable property that was missing. Do not rewrite it into a claim about
-scheduling — the mechanism is unproven. Promoted at count=9 (2026-09-16); the reminder-only remedy
-was tried first and recurred.
+It makes report composition the LAST step. Do not rewrite it into a claim about scheduling — that
+mechanism is unproven.
 
 ### State the MECHANISM behind a constraint, not just the prohibition
 

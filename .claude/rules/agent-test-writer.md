@@ -40,18 +40,11 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Let the agent create `__tests__/` directories — tests are co-located with source files.
 - Let the agent test pre-hydration state in jsdom (it's a known limitation — `useEffect` runs before assertions in `act()`).
 - Let a tracked JSON file be REWRITTEN to change a few fields — neither by the agent nor by
-  yourself. Parsing and re-serialising (`json.dumps`, `JSON.stringify`, `jq` without byte-identical
-  formatting) reformats every line the source happened to format differently, and the real change
-  drowns. Measure the file in front of you:
-  `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'` — the same command
-  `.claude/agents/test-writer.md` carries, so the two mirrors cannot disagree.
-  **Do not reach for a formatting FLAG to fix this** — `--sort-keys` reorders every key and makes it
-  worse, and no `--indent` value reproduces a hand-formatted file's per-line choices. Edit the TEXT:
-  an exact-string replacement per field. **Verify by diff stat before committing** — the changed-line
-  count should be within a line or two of the number of fields you meant to change; if it is an
-  order of magnitude larger, `git checkout HEAD -- <file>` and redo it surgically. Promoted at
-  count=2 across distinct commits. A reformat is semantically harmless and reviews as noise, which
-  is why the stat is the only thing that catches it.
+  yourself. Never re-serialise (`json.dumps`, `JSON.stringify`, `jq`) and never reach for
+  `--sort-keys` or `--indent`. Edit the TEXT: an exact-string replacement per field. Measure with
+  `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`, and check `git diff --stat`
+  before committing — if the changed-line count is not close to the number of fields you
+  meant to change, `git checkout HEAD -- <file>` and redo it surgically.
 
 ## What The Agent Produces
 - Co-located `.test.ts` / `.test.tsx` files next to source files

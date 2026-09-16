@@ -68,8 +68,9 @@
 //     and "see `x.ts`" are the same token to it, and the first is a correct sentence;
 //   - it cannot tell HISTORICAL narrative from a current claim. A rule recounting what a
 //     2026-07 commit did names paths that were real then and are not now;
-//   - a path inside a THIRD-PARTY package's distribution (`lib/typescript.js` in the // prose-path-ok: the whole point of this bound is a path that does not resolve HERE; it resolves inside a dependency this guard cannot see
-//     TypeScript npm package) is indistinguishable from a repo path that went missing;
+//   - a path inside a THIRD-PARTY package's distribution is indistinguishable from a repo path
+//     that went missing. Example, in the TypeScript npm package:
+//     `lib/typescript.js` // prose-path-ok: this bound IS a path that does not resolve HERE; it resolves inside a dependency this guard cannot see
 //   - a token that resolves only because an UNTRACKED file of that name happens to sit in the
 //     worktree passes. Resolution is "on disk", and that is deliberately the weaker test.
 // It reduces the class; it does not close it.
@@ -744,7 +745,9 @@ export function main(args) {
     if (problems.length > 0) {
       // Writing a baseline from a partial read would record the corpus as smaller than it is,
       // and every citation in the unread file would then be invisible forever.
-      console.error('✖ prose-paths guard: cannot rewrite the baseline from an incomplete read')
+      console.error(
+        '✖ prose-paths guard: cannot rewrite the baseline — an unreadable file or an unusable waiver',
+      )
       for (const p of problems) console.error(`  ${p.path}: ${p.problem}`)
       return 2
     }

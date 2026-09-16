@@ -182,8 +182,7 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
          restated in prose in a matching context ("N lines", "N-line", "cap ... N").
          Allow: the canonical file, a mirror a test pins, and data lines — the ban is on PROSE.
       2. **PATH** — a file path written in prose that does not resolve on disk. BUILT
-         (Decision 71). Resolution is binary; deciding whether a token is a path CLAIM is not —
-         six structural narrowings carry that, enumerated in the guard's own header.
+         (Decision 71).
       3. **ENUMERATION** — "all ten", "the eight", "both", "three of", "N of M". Flags the
          PATTERN and demands either a derivation command in the same block or an explicit as-of
          date, which is `code-style.md` §10 cl.2 made mechanical. Highest false-positive rate of
