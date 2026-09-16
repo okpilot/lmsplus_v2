@@ -88,7 +88,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo | 1 | 2026-09-08 | WATCHING — Bash residual hole. Detail: topic file |
 | doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 4 | 2026-09-14 | RULE CANDIDATE (4). Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
-| Commit message claims file 'already carries/has X' when X landed same commit | 3 | 2026-09-15 | RULE CANDIDATE (3) → §10, verify via `git show HEAD~1:<path>` |
+| Commit message claims file 'already carries/has X' when X landed same commit | 4 | 2026-09-16 | RULE CANDIDATE (4) → §10, verify via `git show HEAD~1:<path>` |
 | Commit-message count computed pre-edit; own edits make it stale on arrival | 6 | 2026-09-16 | PROMOTED → §10 cl.7. Recurred three times post. Detail: topic file |
 | Hook script's git-diff filter argument doesn't cover git's R(ename) status | 1 | 2026-09-10 | WATCHING — cousin of PROMOTED row 88. Detail: topic file |
 | Orchestrator's own SKIP-with-reason rests on a wrong stated premise, reversed by an external reviewer round | 1 | 2026-09-10 | WATCHING. Detail: topic file |
@@ -139,7 +139,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - CR-local uniquely catches CI-environment defects internal agents can't see. Topic file.
 - "0 net-new rows" never holds — every slice produces new row-42/69 instances. Topic file.
 - `dep1277` (2026-09-16): CR-local ran 3 clean rounds, missed all 3 GH-Actions pin-comment instances — `.github/` is outside every corpus-scoped hook. Coverage gap, not a CR-local defect.
-- POSITIVE (`feat/prose-path-guard`): 3-commit review chain converged to zero findings by the third cycle. Terminal-message CONSTRAINTS fix held across all ~10 dispatches — no recurrence. Convergence by rule, not by cap. `a4ecd165` cycle: one-round refinement cap (agent-critic.md) correctly applied by orchestrator to close loop — code-reviewer WARNING bounded out as refinement on just-rewritten prose, not chased. Enforcement is an ORCHESTRATOR duty; a fresh critic cannot know prior rounds.
+- POSITIVE (`feat/prose-path-guard`): First 3-commit chain (ending `a4ecd165`) converged zero findings. Terminal-message CONSTRAINTS fix held ~10 dispatches, no recurrence. `a4ecd165`: one-round refinement cap correctly applied — code-reviewer WARNING bounded as refinement, not chased. ORCHESTRATOR duty. Second chain (commits 11-13): position-3 cycle (`4c335a60`) had 1 ISSUE — commit message misattributed which commit created first agent-memory marker hit; fixed by message-only amend. Chain at cap; branch escalates.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers

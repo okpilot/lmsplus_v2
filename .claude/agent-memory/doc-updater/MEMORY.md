@@ -144,3 +144,11 @@ A commit touching ONLY `.claude/agent-memory/**` runs under the docs-only exempt
   - Steering: no references to Decisions 71–65 or to the waiver audit, git flags, mutations machinery, or prose checks.
   - **NO BINDING DOC EDITS NEEDED.** The rule files (agent-workflow.md, test-writer.md) and commands (insights.md) are not binding docs for doc-updater scope.
 
+- **Commit `4c335a60` fix(pipeline): stop the waiver audit's residue list closing an open set — AUDIT CLEAN** (2026-09-16). Commit touches only `.claude/agent-memory/**` and `.claude/commands/insights.md`. The insights.md change clarifies that the waiver audit's residue list is OPEN (ILLUSTRATIONS per §10 cl.2), not exhaustive, and adds a specific class: `.claude/agent-memory/**` notes citing markers or the audit command. Binding-doc audit scope: does any binding doc cite or enumerate the residue classes?
+  - `docs/plan.md`: no mentions of residue list, waiver classes, or insights.md residues.
+  - `docs/decisions.md`: mentions `/insights` audit at lines 1810-1811, 1810-1811 (waiver frequency auditing), 2169 (retracted-phrase trailer auditing) — all correctly characterizing the function, none describing an exhaustive residue list.
+  - `docs/database.md`: no mentions of waiver residues or insights.md.
+  - `docs/security.md`: no mentions of waiver residues or insights.md.
+  - Steering (product.md, tech.md, structure.md): no mentions of waiver residues, residue classes, or insights.md. Command: `grep -n "residue\|waiver\|WAIVER\|agent-memory.*marker" .spec-workflow/steering/*` (no output).
+  - **NO BINDING DOC EDITS NEEDED.** The change to insights.md is documentation-only and does not require any binding doc updates.
+
