@@ -44,8 +44,11 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
   formatting) reformats every line the source happened to format differently, and the real change
   drowns: on `feat/prose-path-guard` a 9-field edit to `check-prose-paths.mutations.json` came back
   as a diff an order of magnitude larger, because the round-trip expanded every single-element
-  array onto three lines. Count them for the file in front of you rather than trusting a figure
-  here — `grep -cE '\[ *"[^"]*" *\]' <file>` — the number moves every time a mutation is added.
+  array onto three lines. Measure the file in front of you rather than trusting a figure
+  here — `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'` — every mutations
+  file in this repo changes lines and grows under it, and the number moves every time a mutation is
+  added. Use this same command in `.claude/agents/test-writer.md`; two mirrors offering two
+  different self-checks is how they start to disagree.
   **Do not reach for a formatting FLAG to fix this** — `--sort-keys` reorders every key and makes it
   worse, and no `--indent` value reproduces a hand-formatted file's per-line choices. Edit the TEXT:
   an exact-string replacement per field. **Verify by diff stat before committing** — the changed-line

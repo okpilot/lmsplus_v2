@@ -402,9 +402,10 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        COMMITTED and later retracted is answerable by `git show <sha>^:<path>`; confirm you are in
        that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST. A phrase present in any
        tree has a commit taking its count 0 -> n, so `-S` finds the INTRODUCTION even when a later
-       commit merely moved it. Do not reason further about what `-S` does to a MOVE: it reports one
-       when both files persist and misses one git resolves as a RENAME, so a single fixture
-       "proves" either answer. **Bounded by REACHABILITY, not by counting:** `git log` walks HEAD's ancestry and suppresses
+       commit merely moved it. Do not reason further about what `-S` does to a MOVE: it reports the
+       MOVE COMMIT when both files persist, and misses it when git resolves the change as a RENAME,
+       so a single fixture "proves" either answer. (The INTRODUCTION is reported in both
+       shapes — which in the RENAME shape is the whole result, a single line.) **Bounded by REACHABILITY, not by counting:** `git log` walks HEAD's ancestry and suppresses
        merge diffs, so a phrase living only on an unmerged branch, or introduced only in a merge
        resolution, returns empty while existing in a tree. Read an empty result as *not reachable
        from HEAD* — add `--all` and `--diff-merges=first-parent` before concluding anything
