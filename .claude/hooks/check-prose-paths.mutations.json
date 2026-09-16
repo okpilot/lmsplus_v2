@@ -80,8 +80,15 @@
     },
     {
       "id": "placeholder-class-removed",
-      "find": "  if (PLACEHOLDER.test(t)) return 'placeholder'",
+      "find": "  if (PLACEHOLDER.test(t) || t.includes('<') || t.includes('>')) return 'placeholder'",
       "replace": "  if (false) return 'placeholder'",
+      "expectRed": ["names the pattern-shaped classes rather than reporting them"]
+    },
+    {
+      "id": "unpaired-angle-placeholder-class-removed",
+      "find": "  if (PLACEHOLDER.test(t) || t.includes('<') || t.includes('>')) return 'placeholder'",
+      "replace": "  if (PLACEHOLDER.test(t)) return 'placeholder'",
+      "NOTE": "Removes ONLY the unpaired-angle half. PLACEHOLDER still matches `path/to/x.ts` and `<name>/x.ts`, so the group's other assertions stay green and the trailing `.claude/agents/<name` case is what reddens.",
       "expectRed": ["names the pattern-shaped classes rather than reporting them"]
     },
     {

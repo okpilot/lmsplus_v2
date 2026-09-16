@@ -265,7 +265,10 @@ export function classify(tok, line, index, isIgnored) {
   // this branch is the belt to that suspenders: a specifier reached by some other route (a
   // line-initial position, a future regex edit) is still named rather than reported.
   if (NPM.test(t)) return 'npm-package-specifier'
-  if (PLACEHOLDER.test(t)) return 'placeholder'
+  // An UNPAIRED `<` or `>` counts too. TRAIL strips a trailing `>` before classification, so
+  // a token ending in `<name>` arrives here as `<name` and PLACEHOLDER's `<[^>]*>` no longer
+  // matches it. Without this the guard reports a stand-in name as a dead path.
+  if (PLACEHOLDER.test(t) || t.includes('<') || t.includes('>')) return 'placeholder'
   // A glob asserts a PATTERN, not a file. `.claude/hooks/*.mjs` is true whether or not any
   // particular member exists, and matching it against the tree would grade the wrong claim.
   if (GLOB.test(t)) return 'glob'
@@ -657,7 +660,7 @@ function updateBaseline(findings, previous) {
   for (const k of added) console.error(`  + ${k}  ${next[k]}`)
 
   const body = {
-    _: `Prose citations of a path that does not resolve, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, which never writes this file. Keys are <path>@<sha256-16 of the trimmed prose line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line accepts prose naming a file that is not there.`,
+    _: `Prose citations of a path that does not resolve, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, whose ENFORCEMENT path never writes this file — only the human-invoked --update-baseline does, via updateBaseline(). Keys are <path>@<sha256-16 of the trimmed prose line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line accepts prose naming a file that is not there.`,
     claims: next,
   }
   writeFileSync(BASELINE_PATH, `${JSON.stringify(body, null, 2)}\n`)

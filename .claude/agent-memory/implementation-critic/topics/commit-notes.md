@@ -6,6 +6,11 @@
 
 ## Positive-pattern log
 
+### CR-local round-4 fixup — ISSUE raised (2026-09-16, feat/prose-path-guard)
+
+ISSUE — Fix updates `prose-paths.json`'s `_` field but not the template literal at `updateBaseline()` line 663 in `check-prose-paths.mjs`, which still reads "which never writes this file". The next `--update-baseline` run regenerates the old false claim, reverting the fix.
+Pattern: §10 cl.5 — fixing the ARTIFACT without fixing the SOURCE. Both files were open in the same review; checking all claims in the block while a file is open would have caught the stale template.
+
 ### mutation-pinned test commit — ISSUE raised (2026-09-16, feat/prose-path-guard)
 
 ISSUE — `MUTATION:` comment describes the classify path as the failure mode but the actual failing assertion is `normalise('./docs/plan.md')` at test line 157, not `cls(...)` at line 158.

@@ -88,9 +88,13 @@ export function main(args) {
   console.log(`  raw candidate tokens:                            ${raw}`)
   console.log(`  non-resolving:                                   ${candidates.length}`)
   console.log(`  residual after the exclusion classes:            ${residual.length}`)
-  console.log(`  on the binding surface:                          ${onBinding.length}`)
+  // PRE-WAIVER, and the label says so. `residual` is every candidate `classify` calls
+  // FINDING_CLASS; the guard's `evaluate` additionally drops a line carrying a valid waiver
+  // (`if (waiver) continue`), so both figures sit ABOVE what the guard blocks, by the number of
+  // waived lines. Quoting either as "what the guard enforces" quotes a wrong number.
+  console.log(`  on the binding surface (pre-waiver):             ${onBinding.length}`)
   console.log(
-    `  distinct prose lines on the binding surface:     ${new Set(onBinding.map((c) => `${c.path} ${c.n}`)).size}`,
+    `  distinct prose lines, binding, pre-waiver:       ${new Set(onBinding.map((c) => `${c.path} ${c.n}`)).size}`,
   )
   if (problems.length > 0) {
     console.log(`  UNREADABLE files (excluded from every count above): ${problems.length}`)

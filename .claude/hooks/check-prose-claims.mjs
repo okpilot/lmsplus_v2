@@ -577,7 +577,7 @@ function updateBaseline(claims, previous) {
   for (const k of added) console.error(`  + ${k}  ${next[k]}`)
 
   const body = {
-    _: `Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, which never writes this file. Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line is a new prose restatement being accepted.`,
+    _: `Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, whose ENFORCEMENT path never writes this file — only the human-invoked --update-baseline does, via updateBaseline(). Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line is a new prose restatement being accepted.`,
     claims: next,
   }
   writeFileSync(BASELINE_PATH, `${JSON.stringify(body, null, 2)}\n`)

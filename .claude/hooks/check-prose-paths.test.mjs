@@ -169,6 +169,10 @@ test('names the pattern-shaped classes rather than reporting them', () => {
   assert.equal(cls('apps/**'), 'glob')
   assert.equal(cls('path/to/x.ts'), 'placeholder')
   assert.equal(cls('<name>/x.ts'), 'placeholder')
+  // TRAIL has already stripped the closing `>` by the time classify runs, so this is the
+  // shape a trailing `<name>` in prose actually arrives as. PLACEHOLDER alone does not match
+  // it — the unpaired-angle half of the branch is what does.
+  assert.equal(cls('.claude/agents/<name'), 'placeholder')
   assert.equal(cls('a{b}/c.ts'), 'brace-expansion')
 })
 
@@ -312,8 +316,9 @@ test('takes both paths of a staged rename', () => {
 })
 
 test('aborts on a desynchronised name-status stream', () => {
-  // MUTATION: `continue` instead of throwing on an unrecognised status → a desync is absorbed
-  // and the guard grades a scope nobody chose, at exit 0.
+  // MUTATION: `void status` instead of throwing on an unrecognised status → a desync is
+  // absorbed and the guard grades a scope nobody chose, at exit 0. `continue` is NOT the
+  // break: the loop carries no update expression, so skipping `i += 1 + count` hangs.
   assert.throws(() => stagedPaths(Buffer.from(['M', 'a.md', 'b.md'].join('\0'))), /unrecognised/)
 })
 

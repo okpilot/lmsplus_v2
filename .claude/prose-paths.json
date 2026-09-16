@@ -1,5 +1,5 @@
 {
-  "_": "Prose citations of a path that does not resolve, grandfathered. SHRINK-ONLY: enforced by .claude/hooks/check-prose-paths.mjs, which never writes this file. Keys are <path>@<sha256-16 of the trimmed prose line>, so a row goes stale the moment its line is edited. Regenerate with `node .claude/hooks/check-prose-paths.mjs --update-baseline` and REVIEW THE DIFF — a `+` line accepts prose naming a file that is not there.",
+  "_": "Prose citations of a path that does not resolve, grandfathered. SHRINK-ONLY: enforced by .claude/hooks/check-prose-paths.mjs, whose ENFORCEMENT path never writes this file — only the human-invoked --update-baseline does, via updateBaseline(). Keys are <path>@<sha256-16 of the trimmed prose line>, so a row goes stale the moment its line is edited. Regenerate with `node .claude/hooks/check-prose-paths.mjs --update-baseline` and REVIEW THE DIFF — a `+` line accepts prose naming a file that is not there.",
   "claims": {
     ".claude/agents/test-writer.md@ec5fbb9d4db9aa92": "- Co-locate: `src/actions.ts` → `src/actions.test.ts`",
     ".claude/commands/fullpush.md@cb8369147620eb13": "6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migr...",
