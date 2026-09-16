@@ -321,7 +321,10 @@ const extOf = (path) => {
  * correctly for its own question — a cap VALUE sitting in a yaml string is data. A PATH in a
  * yaml string is not: `.coderabbit.yaml`'s `path_instructions` are hand-written prose
  * addressed to a reviewer and they name files by path. Comment-only grading misses every one
- * of them, and 4 of the 24 tokens on the binding surface live in that file.
+ * of them, and a meaningful share of the binding surface lives in that file. No ratio is
+ * stated: the terms are different units that drift independently (tokens vs distinct prose
+ * lines) and an earlier draft of this very sentence mixed them. Re-derive with
+ * `node .claude/hooks/measure-prose-paths.mjs`.
  */
 export function prosePathLines(path, content) {
   const ext = extOf(path)
@@ -691,13 +694,18 @@ function reportFindings({ scopedProblems, fresh, stale, baseline }) {
     console.error(`      node ${GUARD} --update-baseline\n`)
   }
 
-  console.error(
-    'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/steering/**',
-  )
-  console.error(
-    `Excluded: .claude/agent-memory/**, ${SPEC_PREFIX}**, *.json, code/data lines, globs,`,
-  )
-  console.error('  placeholders, URLs, npm specifiers, gitignored artifacts, frozen migrations')
+  // Scope context explains a CORPUS SCAN result. A stale-row-only failure is baseline
+  // maintenance — the scan found nothing — so printing what was searched there answers a
+  // question the reader did not ask.
+  if (fresh.length > 0 || scopedProblems.length > 0) {
+    console.error(
+      'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/steering/**',
+    )
+    console.error(
+      `Excluded: .claude/agent-memory/**, ${SPEC_PREFIX}**, *.json, code/data lines, globs,`,
+    )
+    console.error('  placeholders, URLs, npm specifiers, gitignored artifacts, frozen migrations')
+  }
   return 1
 }
 

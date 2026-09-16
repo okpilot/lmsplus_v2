@@ -12,6 +12,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|
 | Client terminal path never calls a Server Action to end the DB session → orphaned `quiz_sessions` row | 2026-04 (b9829c0) | 3 | 2026-04-13 (PR #523) | RULE CANDIDATE — every terminal path MUST end/delete its DB row |
+| Pre-commit guard reads WORKTREE while git commits the INDEX — fail-open none caught internally (check-file-size-guard predecessor) | 2026 | 1 | 2026-09-16 (aa26cf9d) | RESOLVED in `check-prose-paths.mjs` — `readIndexBlob` reads the index; `git diff --cached` scopes staged files. VERIFY in every NEW pre-commit guard. |
 | Cross-surface answer-oracle (Study Mode `get_study_questions` shared MC pool) | 2026-06-26 (mig 135) | 1 | 2026-06-27 (14a8b9c5 EO6 hardening) | RESOLVED-WATCH → [tracker-archive](topics/tracker-archive.md) |
 | Stale test comment describes a removed guard/code path — passes for the wrong reason, invites wrong re-addition (5 instances) | 2026-04 (PR #523) | 5 | 2026-06-09 (202c6fa8 #326) | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Test mock string drift: test mocks the ACTION (not the RPC), echoes its own stale value on rename → passes silently | 2026-04-26 (use-exam-start) | 2 | 2026-04 | WATCHING — on string rename, grep `.test.ts` for old string |

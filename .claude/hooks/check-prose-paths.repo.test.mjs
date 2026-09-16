@@ -358,3 +358,16 @@ test('treats an unreadable corpus file as a problem, never a skipped file', () =
   assert.equal(res.problems.length, 1)
   assert.match(res.problems[0].problem, /EACCES/)
 })
+
+test('reports two physically distinct identical lines as separate findings', () => {
+  // `evaluate` batches one `git check-ignore` call, so it needs a git repo as cwd — the suite's
+  // own, which no case here mutates.
+  // MUTATION: change `seen.set(dupKey, occurrence + 1)` to `seen.set(dupKey, occurrence)` in
+  // evaluate → occurrence never increments; both identical lines get occurrence=0; the second
+  // finding's key overwrites the first in the findings Map; findings.size drops to 1; once the
+  // first copy is baselined its identical twin is silently excused.
+  const index = buildIndex(['docs/a.md'])
+  const read = () => 'see docs/gone.md for details\nsee docs/gone.md for details\n'
+  const res = evaluate(['docs/a.md'], read, index)
+  assert.equal(res.findings.size, 2)
+})

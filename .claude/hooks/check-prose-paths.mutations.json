@@ -211,7 +211,10 @@
       "id": "path-key-ignores-occurrence",
       "find": "  return occurrence === 0 ? ",
       "replace": "  return true ? ",
-      "expectRed": ["keys a repeated identical line separately from its first occurrence"]
+      "expectRed": [
+        "keys a repeated identical line separately from its first occurrence",
+        "reports two physically distinct identical lines as separate findings"
+      ]
     },
     {
       "id": "stale-rows-never-reported",
@@ -361,6 +364,13 @@
       "find": "      problems.push({ path, n: null, problem: `unreadable (${err.code ?? err.message})` })",
       "replace": "      void err",
       "expectRed": ["treats an unreadable corpus file as a problem, never a skipped file"]
+    },
+    {
+      "id": "seen-occurrence-never-increments",
+      "find": "seen.set(dupKey, occurrence + 1)",
+      "replace": "seen.set(dupKey, occurrence)",
+      "expectRed": ["reports two physically distinct identical lines as separate findings"],
+      "note": "Pins the occurrence counter INDEPENDENTLY of pathKey. Otherwise the counter is only ever exercised jointly with pathKey, so either could break while the pair still looked correct."
     }
   ],
   "notEncoded": [
