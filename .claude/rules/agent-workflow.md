@@ -411,16 +411,8 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        from HEAD* — add `--all` and `--diff-merges=first-parent` before concluding anything
        stronger, and pair that flag with `--no-patch`: `--diff-merges=<format>` implies `-p`, so
        without it each hit is followed by a whole patch and every hit after the first scrolls out
-       of view. It drops NO commit — `--no-patch` returns the identical list. Misreading that
-       flood as suppression has produced a confident wrong conclusion twice on
-       `feat/prose-path-guard` (an implementation-critic, then the orchestrator checking it,
-       2026-09-16). Within that bound an empty result means the grep-based refutation is unavailable,
-       whatever the claim's merits. Precedent (`827c363b`, 2026-09-16): an implementation-critic grepped the
-       committed parent for a retracted phrase, found nothing, and reported the tracker row citing
-       it as FABRICATED. The row was true — it recorded STAGED work — and acting on the finding
-       would have overwritten a correct row with a false one. `git log -S` on that phrase returns
-       exactly one commit, and the hit is in the memory file that RECORDS the finding, never in the
-       source the claim was about.
+       of view. It drops NO commit — `--no-patch` returns the identical list. Within that bound an
+       empty result means the grep-based refutation is unavailable, whatever the claim's merits.
      - *"this file is new"* (and *"+N tests"*, which needs a DIFFERENT command — see below) →
        `git show --stat <sha> -- <path>` for a claim about a
        COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
@@ -944,18 +936,10 @@ forbidding the write outright, in CONSTRAINTS:
 Add that line whenever a lost report is expensive to recover — always when `SendMessage` is disabled
 in the session, since the only remaining recourse is a full re-run at full token cost.
 
-**This is still a SYMPTOM fix, and the distinction is load-bearing** — the paragraph above disclaims
-the scheduling mechanism as unproven, and prescribing a remedy that presupposed it would contradict
-that in the same section. The line is prescribed because it WORKED, twice, where the reminder alone
-did not; it is not evidence for any account of WHY. What it does structurally is make report
-composition the LAST step, which is the observable property that was missing. Do not rewrite it into
-a claim about scheduling. Promoted at
-count=6 in a single day (2026-09-14, `feat/mutation-harness`) across five invocations of four
-distinct agents — code-reviewer, semantic-reviewer (twice), implementation-critic, test-writer; count
-9 as of 2026-09-16, the two most recent being the post-promotion recurrences that refuted the
-reminder-only remedy (implementation-critic and semantic-reviewer, `feat/prose-path-guard`). Each
-cost a re-ask round, and one arrived carrying only a tracker note while alluding to two findings it
-had not stated.
+**This is a SYMPTOM fix.** What the line does structurally is make report composition the LAST
+step, which is the observable property that was missing. Do not rewrite it into a claim about
+scheduling — the mechanism is unproven. Promoted at count=9 (2026-09-16); the reminder-only remedy
+was tried first and recurred.
 
 ### State the MECHANISM behind a constraint, not just the prohibition
 

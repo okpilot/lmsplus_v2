@@ -2109,37 +2109,19 @@ Nothing ran that grep. `.claude/hooks/check-prose-paths.mjs` now blocks a file p
 PROSE that does not resolve on disk — pre-commit on the staged set, `--all` over the worktree in
 CI, ratcheted against `.claude/prose-paths.json`.
 
-**The spec's premise for this item was wrong, and that is the useful part — again.** It called
-R0-PATH "the strongest detector: a path either exists or it does not, so there is no judgment and
-no LLM." RESOLUTION is binary. Deciding whether a token IS A PATH CLAIM is the entire job, and
-measurement refuted the premise before anything was tuned. Four probe iterations, each a shape
-error rather than the extension-truncation bug that killed two earlier attempts:
+**The spec's premise was wrong.** It called R0-PATH judgment-free on the grounds that a path
+either resolves or it does not. Resolution IS binary; deciding whether a token is a path CLAIM is
+the entire job, and it is carried by the six structural narrowings and twelve exclusion classes
+enumerated in the guard's header.
 
-- accepting any slashed token drowns in ENGLISH ALTERNATION — `status/summary`, `try/catch`,
-  `INSERT/UPDATE/DELETE`, `correct/incorrect` — the single largest class by an order of magnitude,
-  plus git refs (`origin/master...HEAD`), Next.js routes and `/usr/bin/env`;
-- accepting bare basenames makes `Next.js` and `process.env` the top hits, because `.js` and
-  `.env` match ordinary English words;
-- indexing only FILE suffixes calls every context-relative reference (`topics/attack-surface.md`,
-  `lib/queries/`) a miss;
-- the six structural narrowings in the guard's header do ~97% of the reduction. The twelve
-  exclusion classes do the rest. This is the second consecutive build-order item whose
-  "this one is easy" premise did not survive contact, and the spec had predicted it of this very
-  item while still calling it judgment-free.
+**No funnel figure is stated here or in the guard header** (§10 cl.7; Decision 68 set the
+precedent). `measure-prose-paths.mjs` is committed and prints it.
 
-**No funnel figure is stated here or in the guard header.** `measure-prose-paths.mjs` is committed
-and prints it. Four numbers written into this commit would have gone stale inside it: the commit
-ships a baseline, this entry, two suites and a rule edit, every one of which adds corpus prose.
-That is §10 cl.7, and Decision 68 set the precedent.
-
-**The honest yield, stated because a flattering one would be this programme's own defect.** On the
-binding surface the guard flags far more than it finds: most of what it catches is historical
-narrative, self-negating prose ("`x.ts` was deleted"), illustrative examples, external slugs and
-third-party package internals — all frozen in the baseline, none of them defects. Derive the split
-rather than trusting a ratio here: the baseline is `.claude/prose-paths.json` and the live funnel
-is one command. That is NOT an argument against shipping, and the reason matters: a ratchet's value
-is on NEW prose. The standing set is accumulated history that will not be written again in that
-form; the defects this actually corrected were both RECENT.
+**Yield.** On the binding surface the guard flags far more than it finds: most of what it catches
+is historical narrative, self-negating prose ("`x.ts` was deleted"), illustrative examples,
+external slugs and third-party package internals — all frozen in the baseline, none of them
+defects. Derive the split rather than trusting a ratio: the baseline is `.claude/prose-paths.json`
+and the live funnel is one command. A ratchet's value is on NEW prose.
 
 **What it corrected on the way in.** `docs/database.md`'s `active_flagged_questions` callsite list
 named a file that no longer exists, pointed at the wrong half of a renamed pair, and omitted a real
@@ -2156,8 +2138,7 @@ inert rather than wrong and is left alone — removing it would orphan a mutatio
 behavioural gain — but the `.coderabbit.yaml` comments that cite it as a live example are now
 baselined prose, which is the honest record of it.
 
-**Bounds, stated because understating them would be this guard's own defect.** It grades whether a
-path RESOLVES, never whether the claim around it is true; it cannot see a paraphrase; it cannot
+**Bounds.** It grades whether a path RESOLVES, never whether the claim around it is true; it cannot see a paraphrase; it cannot
 distinguish self-negating prose or historical narrative from a stale citation; and a path inside a
 third-party package's distribution is indistinguishable from a repo path that went missing. The
 full list is in the guard's header. It reduces the class; it does not close it.

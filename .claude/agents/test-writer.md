@@ -100,15 +100,14 @@ anchors orphaned by a reformat during authoring.
 **Edit a `.mutations.json` as TEXT, never by re-serialising it.** Reading it with `json.load` and
 writing it back with `json.dumps` (or `JSON.parse`/`JSON.stringify`, or `jq` at any `--indent`)
 reformats every line whose hand-written layout differs from the serialiser's, and your real change
-vanishes into it: a single-figure field edit came back as a diff an order of magnitude larger,
-because the round-trip expanded every single-element array onto three lines. Do NOT reach for a formatting flag — `--sort-keys`
-reorders every key and is worse, and no `--indent` value reproduces a hand-formatted file's
-per-line choices either. Measure the one in front of you rather than trusting a fraction quoted here:
-`jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`. Do an exact-string replacement per field, then CHECK
-`git diff --stat` before reporting: if the changed-line count is not close to the number of fields
-you meant to change, restore with `git checkout HEAD -- <file>` and redo it surgically. A reformat
-is semantically harmless, so nothing fails and review reads it as noise — the stat is the only thing
-that catches it.
+vanishes into it. Do NOT reach for a formatting flag — `--sort-keys` reorders every key and is
+worse, and no `--indent` value reproduces a hand-formatted file's per-line choices either. Measure
+the one in front of you:
+`jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`. Do an exact-string
+replacement per field, then CHECK `git diff --stat` before reporting: if the changed-line count is
+not close to the number of fields you meant to change, restore with `git checkout HEAD -- <file>`
+and redo it surgically. A reformat is semantically harmless, so nothing fails and review reads it
+as noise — the stat is the only thing that catches it.
 
 **Never mutate in place.** Work in a scratch copy or a throwaway worktree, so nothing survives.
 BEFORE mutating, record BOTH `git rev-parse HEAD` AND `git stash list --format='%H'` — two of the
