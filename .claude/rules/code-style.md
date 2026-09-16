@@ -1151,22 +1151,30 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    is derivable, prefer shipping the derivation as a runnable command over stating it
    (`check-file-size-guard.mjs --stats` exists for exactly this reason).
 
-   **"Count" was read narrowly and the gap cost three claims on one branch.** `most`, `every`,
-   `never`, `always` and `neither` assert an EXTENT, not a number, so an author who knows this
-   clause still writes them unmeasured. They carry the same burden: replace the word with the
-   command that establishes the extent, or test it against a fixture that could falsify it —
-   a UNIVERSAL needs the case you expect to fail, not the case you expect to pass. Promoted at
-   count=3 (2026-09-16, `feat/prose-path-guard`), two of them committed and one caught pre-commit
-   and so leaving no artifact: "44 single-element arrays"
-   when the measured figure was 43 and even that counted the wrong thing; "rewrites most of it"
-   when the measurement was a tenth; and "neither result is ever a bare one-line answer" about a
-   command whose rename shape returns exactly one line. The first two were fixed by shipping the
-   command; the third by restating it as the conditional a fixture actually supports, which is
-   the remedy when the extent is real but narrower than the word claimed. That third one was
-   written INTO the sentence being edited to correct a different false claim, so cl.5 applies on
-   top: it was coherent, and only re-deriving it caught it. This clause's own first draft then
-   said "all three were fixed by shipping the command" — false for exactly that reason, caught by
-   applying the clause to itself before committing it.
+   **"Count" was read narrowly and the gap cost three claims on one branch.** A word asserting
+   how much of a set something covers asserts an EXTENT rather than a number, and the set of such
+   words is OPEN, so cl.2 governs it: do not work from a list. `most`, `every` and `neither` are
+   the three that fired here, named as ILLUSTRATIONS. They carry a count's burden: replace the
+   word with the command that establishes the extent, or test it against a fixture that could
+   falsify it — a UNIVERSAL needs the case you expect to fail, not the case you expect to pass.
+   Promoted at count=3 (2026-09-16, `feat/prose-path-guard`). ONE was committed and later
+   corrected — "Unlike every other case in this file", added in `fa43f72c` and narrowed in
+   `bccd4fd3`. The other TWO were caught while authoring, so neither was ever a LIVE claim in a
+   committed tree — their only presence in any tree is as QUOTATIONS of themselves, in this
+   clause and in `1ef2eabf`. `git log --all -S '<phrase>' -- :/` establishes that, and note what
+   it actually prints: those citation commits and no others, so a HIT is not a refutation — read
+   WHICH commit it names. Put every revision option BEFORE the `--`; anything after it is a
+   PATHSPEC, which silently narrows the result rather than erroring.
+   "rewrites most of it" when the measurement was a tenth, fixed by shipping the command; and
+   "neither result is ever a bare one-line answer" about a command whose rename shape returns
+   exactly one line, fixed by restating it as the conditional a fixture actually supports — the
+   remedy when the extent is real but narrower than the word claimed. That last one was written
+   INTO the sentence being edited to correct a different false claim, so cl.5 applies on top: it
+   was coherent, and only re-deriving it caught it. **This clause has now been wrong about itself
+   twice.** Its first draft said "all three were fixed by shipping the command"; its second
+   claimed a committed/pre-commit split of two-and-one that no tree supports, and counted a plain
+   COUNT defect ("44 single-element arrays", measured 43) as a fourth extent instance. Both were
+   caught by applying the clause to its own text — the first pre-commit, the second by review.
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The

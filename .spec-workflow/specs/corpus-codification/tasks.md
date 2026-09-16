@@ -161,7 +161,7 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       `7ca1f522` — and BROKEN IN THAT SAME COMMIT, which hardcoded cap literals into the guard
       and its tests. They were swept out of six files in `54fb4c6b`, whose own message records
       that the sweep REINTRODUCED the identical defect twice, inside the comment being used to
-      remove it. A separate rule, §10 cl.7 ("recompute any count as the last authoring step"),
+      remove it. A separate rule, §10 cl.7 ("Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step"),
       was authored later in `63c2356d` and had its own breakage: the spec's Slice-1 block written
       at commit 2 of 5, corrected in `f50619c1`.
       Four instances, two rules, one session, all by the author while actively trying to comply —
