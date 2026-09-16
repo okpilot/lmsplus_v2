@@ -8,10 +8,18 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock @sentry/nextjs so withSentryConfig is a passthrough — avoids Sentry
-// side effects (webpack plugin init, deprecation warnings) polluting the test pool.
-vi.mock('@sentry/nextjs', () => ({
-  withSentryConfig: (config: unknown) => config,
+// withSentryConfigSpy is wrapped in vi.hoisted so the mock factory below (itself
+// hoisted above these imports by Vitest) can close over it, and so a test can
+// assert it was actually invoked — proving this vi.mock specifier still matches
+// the one next.config.ts imports from. If the two specifiers ever drift apart,
+// the real @sentry/nextjs SDK loads silently in its place (see the "loads the
+// config through the mocked @sentry/nextjs/config withSentryConfig" test below).
+const withSentryConfigSpy = vi.hoisted(() => vi.fn((config: unknown) => config))
+
+// Mock @sentry/nextjs/config so withSentryConfig is a passthrough — avoids Sentry
+// side effects (webpack plugin init) polluting the test pool.
+vi.mock('@sentry/nextjs/config', () => ({
+  withSentryConfig: withSentryConfigSpy,
 }))
 
 // Helper: load next.config.ts fresh after NODE_ENV and optional env vars have been set.
@@ -51,11 +59,19 @@ async function getCspForEnv(
 describe('next.config — security headers', () => {
   beforeEach(() => {
     vi.resetModules()
+    withSentryConfigSpy.mockClear()
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.resetModules()
+  })
+
+  describe('withSentryConfig wiring', () => {
+    it('loads the config through the mocked @sentry/nextjs/config withSentryConfig', async () => {
+      await loadConfig('production')
+      expect(withSentryConfigSpy).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('CSP in production', () => {

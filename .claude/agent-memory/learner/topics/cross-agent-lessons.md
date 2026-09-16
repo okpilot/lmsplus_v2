@@ -2179,3 +2179,90 @@ sibling `chore/file-size-codification` slice.
 
 - **Single-line grep false-negative on text present but line-wrapped inside a YAML block scalar (count=1).** Same branch, commit `7afd5750`: a parity grep for the accepted-exception wording across mirrors came back false-clean on `.coderabbit.yaml` because the wording is byte-identical but folded across multiple lines inside a YAML block scalar (`|`-style multi-line string), and the grep pattern was written as one contiguous phrase. `agent-workflow.md`'s "grep is a FIRST PASS" paragraph already warns that a phrase-grep cannot find a PARAPHRASE — this is a narrower and newer failure: the phrase was not paraphrased, it was literally present, just line-wrapped by YAML folding, so even an exact-phrase grep misses it. Log and watch — on a 2nd instance, propose extending the Rule-Mirror Sync grep guidance to normalize whitespace/newlines before matching (e.g. `tr '\n' ' '` the candidate file, or match on a shorter sub-phrase unlikely to straddle a YAML fold) when the mirror target is a YAML block scalar.
 
+
+## Row detail relocated 2026-09-16 (batch 5, MEMORY.md over budget)
+
+- **Corrected claim partially retracted — old wording persists elsewhere (count=12).** +1 (16382b62): RULE 0 carve-out wider form existed in .coderabbit.yaml but not in CLAUDE.md banner or 49 agent files; impl-critic + CR-local caught it, all 50 surfaces widened. Mirror-lag direction reversed (mirror was MORE correct than canonical). +1 (`21a33700`): "applies to every prose surface" retracted from decisions.md in `b812d107` but survived in .coderabbit.yaml comment line 268; found by orchestrator manual grep, not by hook.
+- **Subagent asserts a verification/write it did not perform — evidence invented, conclusion mostly true (count=17, PROMOTED).** b0ea0d58: doc-updater reported "CLAUDE.md — has RULE 0 banner ✓" (false). `b812d107`: doc-updater justified "no changes needed" by claiming commit "updates timestamp to 2026-09-15" — `git show b812d107 -- docs/decisions.md` contains no such footer.
+- **Verification evidence answers a different proposition than the finding's claim — real check, wrong question (count=4).** 16382b62: code-reviewer grep'd for phrase "deletion set" to verify spec ENUMERATES deletion targets; phrase absent, content present. `b944f177`: code-reviewer ran `b0ea0d58^..b944f177` to verify "8-commit count" — 9-commit range, wrong window. Distinct from rows 68/60.
+- **Commit message claims file 'already carries/has X' when X landed in the same commit (count=3).** semantic-reviewer's own tracker at count=3 across distinct commits (16382b62 is instance 3: "already carried the wider form" — false, it landed same commit). Promote → code-style.md §10: before writing "already carries/has Y" about a file, run `git show HEAD~1:<path>` to verify prior state.
+- **Commit-message count computed pre-edit; own edits make it stale on arrival (count=5, PROMOTED → code-style.md §10 cl.7).** Recurred AFTER promotion twice: ("3 lines" vs 4); and the RULE 0 commit's pre-amend message "50 files" vs 49 — the commit introducing RULE 0 ("every sentence is a claim that can be false") carried an unverified count (cl.7 itself landed in 87dd0783). Fixed by deleting the count. Rule not yet self-enforcing.
+- **Reviewer proposes max-scope remedy; split reveals a cheap in-scope partial mitigation the reviewer missed (count=1, WATCHING).** 6753ad76 CR-local round 3: CR proposed blocking second-org provisioning (≥30 LOC, scope expansion, #1282); a 13-line diff-visible trigger existed and was not proposed. Judgment: instance 1 candidate (`e5344f7c` hedge-vs-verify) is a DIFFERENT mechanism (verify the claim, not just fix its granularity) absorbed under Finding Validation row 68. Log and watch.
+
+## Row detail relocated 2026-09-16 (batch 6, MEMORY.md over budget)
+
+- **A documented suppression/exemption cannot self-expire (count=1, WATCHING).** `security-auditor.md` onboarding-gate suppression, CR-local rounds 2+3 (deduped). Partial mitigation applied 6753ad76: diff-visible trigger spends suppression on new-org-provisioning diff. Full fix (#1282) still deferred.
+- **`check-retracted-phrase.mjs` trigger gap — pure deletion without replacement in hunk bypasses hook even when survivor exists (count=1, WATCHING).** `21a33700`: "applies to every prose surface" removed from decisions.md in `b812d107` without replacement; hook didn't fire; phrase survived in .coderabbit.yaml line 268; found by orchestrator manual §10 cl.3 grep. Distinct from #1285 (matching gap).
+
+### dep1277 branch (Dependabot GH Actions bump), learner pass 2026-09-16
+
+**New row — trailing tag comment vs SHA pin (count=3, RULE CANDIDATE).** Three distinct-commit
+instances of "a `# vN` comment beside a SHA-pinned GitHub Action doesn't name the tag the SHA
+resolves to": (1) archived 2026-07-23 `c54ac71e` — 6 `ci.yml` setup-cli pins said `# v1` while
+pinned at a v3.0.0 SHA, applied as a plan-critic SUGGESTION, never given its own tracker row; (2)
+`56143caa`→fixed `d368afba` (this branch) — Dependabot's own bump retyped a stale `# v4` comment
+onto `+` lines for `pnpm/action-setup` whose SHA is actually v6.0.10→v6.1.0 (§10 cl.3: a claim
+re-typed on a `+` line is a NEW assertion, not a carry-forward); (3) semantic-reviewer, reviewing
+`d368afba`, found `actions/setup-node` labelled `# v6` while pinned at a v7.0.0 SHA — pre-existing,
+never touched by ANY bump, fixed in `35c1b184`. Title broadened from "bump retypes" to cover both
+sub-mechanisms (retyped-by-bump vs never-verified) because the remedy is identical either way: a
+mechanical check comparing the comment against the resolved SHA. Proposed rule: a check (see stage
+argument below) that resolves each pin's trailing tag comment against its SHA and flags a mismatch.
+
+**New row — moving upstream ref (count=1, WATCHING, deliberately kept separate).** The
+orchestrator's own mechanical sweep of all 13 pins on this branch, fixed in `35c1b184`, found that
+`pnpm/action-setup`'s JUST-corrected `# v6` comment was ALSO wrong: `v6` is a live annotated tag
+upstream that now dereferences to v6.5.0, while the pin is v6.0.10 (the corrected comment was
+accurate for maybe a day). This is a DIFFERENT mechanism from the row above, not a 4th instance of
+it: instances 1-2 are AUTHORING-time errors — a check run at commit time would have caught both,
+because the comment was already wrong the moment it landed. Instance 3 is a LIVENESS defect — the
+same check, run at authoring time when `# v6` was written, would have PASSED (v6 then resolved to
+v6.0.10). It only became false afterward because upstream repointed the tag. A pre-commit-only
+enforcer is therefore INSUFFICIENT for this sub-class by construction, however well it is written —
+it needs to be re-run periodically against live upstream state. Endorsing test-writer's argument:
+build the check as a SCHEDULED/pre-push job (`git ls-remote --tags <repo>` against each pin), not
+(only) a pre-commit one. test-writer's own dispatch note "if this recurs a third time, add a
+pre-push/CI check" — it already has (this branch alone supplies instances 2 AND 3 on the SAME
+commit, `35c1b184`), so the enforcer should be built now rather than watched further.
+
+**Coverage-gap observation, not a new row.** CR-local ran 3 stability rounds on this branch, all
+clean, zero findings — it missed the entire class. `.github/` is outside every corpus-scoped hook
+(`check-prose-claims.mjs` / `check-retracted-phrase.mjs` corpus is `['CLAUDE.md', '.coderabbit.yaml',
+'.claude/', 'docs/', '.spec-workflow/']`), and `.coderabbit.yaml`'s `path_instructions` were never
+audited for GH Actions pin-comment accuracy. Logged as a durable-knowledge bullet, not a tracker row
+— it is a scope gap in existing tooling, not a new recurring MISTAKE pattern.
+
+**Title-only compaction (2026-09-16, MEMORY.md over 24.4KB budget), full titles preserved here:**
+- Row (WATCHING, count=1): "A documented suppression/exemption cannot self-expire — the diff-scanner enforcing it has no way to count the condition (e.g. orgs) that would retire it" — unchanged in MEMORY.md, listed here only because it was one of the longest rows swept for byte savings elsewhere in this pass.
+- Row (WATCHING, count=1): "semantic-reviewer bounds out a §10 cl.2 violation as 'refinement' because the prose reads smoothly — CR-local catches it on the same round the bound-out happened" — full title retained in MEMORY.md; status text trimmed only.
+- Row (WATCHING, count=2): "A live count in a dispatch prompt or repo-wide grep goes stale mid-cycle from a sibling agent's parallel write" — full title retained; status trimmed to "both counts true when written; accepted async-dispatch limitation."
+- Row (WATCHING, count=1): "Config field content silently disables the entire config when schema-enforced maxLength exceeded — no error, no diagnostic" — full title retained; status trimmed to the one-line `b0ea0d58` fact.
+
+### Durable-knowledge bullets relocated 2026-09-16 (MEMORY.md compaction, full text preserved)
+
+- SWEEP PROPOSED, not run (per agent-learner.md § Sweep-On-Rule-Promotion, off `18757ddf`'s §10 clause-3/5 promotion): other CLAUDE.md / `.claude/rules/*.md` prose narrating a THIRD-PARTY tool's internal mechanism may carry the same un-re-derived-claim risk `byte-for-byte` did. Scope: grep both for verb phrases describing external-tool internals (`compares`, `regenerates`, `computes`, `detects`, `validates`) not sourced from a same-session code read, and re-derive each hit. Orchestrator to scope/run.
+- CORROBORATION: reminders caught 0/3 recurrences; artifact re-check caught 3/3 — naming a prior failure in a dispatch prompt is weak; requiring a pasted artifact works.
+- Row 683: 1st post-push escape — semantic-reviewer reported GOOD without re-deriving the claim.
+- OPEN AMBIGUITY: an unwritten "2nd-branch" gate (when does a finding on a NEW branch count as a 2nd occurrence of a pattern first seen on a different branch) has been applied inconsistently across curation passes — no fixed rule yet, judged case by case.
+- Biggest recurring defect across the whole tracker: a CLAUDE.md/rules-file fix that is applied to ONE member of a sibling-file group but not swept across the rest of the group. Recurs under many different row numbers; not itself a single row.
+- POSITIVE: closed-enumeration→derivation ended a 7-commit chain (`12bc77f5`).
+- POSITIVE (2ad23ddf): propose-then-falsify — ONE trial, watch for a 2nd.
+- semantic-reviewer MEMORY.md near 25KB cap — schedule compaction.
+- CR-local Q2: 0/4 clean, closed at ceiling not floor+clean — compounds row 42/69.
+- RESOLVED (row-90): naming insufficient; artifact-check in agent DEFINITION is the fix.
+- POSITIVE (`feat/retracted-phrase-guard`): highest-value finding came from EXECUTING boundary cases, not inferring.
+- POSITIVE (`9b06fa56`) then FALSIFIED (`6753ad76`): dispatch-line mitigation insufficient at least once.
+- `docs/recover-question-images-decision`: rows 40/42/62/66/69/92 + reinterpret-row all fired; 5 consecutive false claims in one WHY paragraph (database.md bucket section).
+- POSITIVE (c7805f83 impl-critic): caught "blocks only" overclaim in claim-accuracy fix draft before commit; no new rule promotion needed (already covered by agent-critic.md + §10 cl.5).
+- POSITIVE (16382b62): doc-updater pasted commands+output for ALL counts — row 68 did NOT recur. Pasted-artifact requirement worked; dispatch-line reminder alone had not.
+- POSITIVE (6753ad76): four core agents CLEAN on security-path suppression; CR-local M=3, round 4 ceiling had 0 apply-worthy code findings.
+- POSITIVE (`65a165e5`): cloud CR (config loaded) caught test-parser fail-open on inline input — 4 internal agents + impl-critic missed it on b944f177/b812d107. Count=1 — watch.
+
+### Row-title compaction 2026-09-16 batch 2 (full titles, MEMORY.md keeps short form)
+
+- "A documented suppression/exemption cannot self-expire — the diff-scanner enforcing it has no way to count the condition (e.g. orgs) that would retire it" (count=1, WATCHING, #1282 deferred).
+- "semantic-reviewer bounds out a §10 cl.2 violation as 'refinement' because the prose reads smoothly — CR-local catches it on the same round the bound-out happened" (count=1, WATCHING — classification-boundary gap, not a floor defect).
+- "A live count in a dispatch prompt or repo-wide grep goes stale mid-cycle from a sibling agent's parallel write" (count=2, WATCHING — both counts true when written; accepted async-dispatch limitation).
+- "Config field content silently disables the entire config when schema-enforced maxLength exceeded — no error, no diagnostic" (count=1, WATCHING — `b0ea0d58` maxLength overflow silently disabled the whole CR config for 8 commits).
+- "`vi.mock` targets an exact specifier; a production import migrating to a new path (e.g. deprecated root→subpath) leaves the mock silently inert while old assertions stay green" (count=1, WATCHING — `ac213f98`/`2596a8ef`: `withSentryConfig` moved `@sentry/nextjs`→`@sentry/nextjs/config`; test-writer proved the drift by mutation in a scratch worktree and pinned the specifier).
+- "`pnpm.overrides` pin forces a package below a DIFFERENT dependent's own declared range; full suite passes so it goes unnoticed" (count=1, WATCHING — `ac213f98`: `undici` override `>=7.28.0 <8` forces `jsdom@30.0.1`'s `undici` down to 7.29.0 against jsdom's declared `^8.9.0`; pre-existing, SKIPPED not applied, latent-but-harmless).
