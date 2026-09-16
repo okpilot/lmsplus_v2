@@ -43,11 +43,14 @@ Weekly self-review: analyse project health, audit agent system, and update memor
      `.claude/hooks/`: the guards' sources and suites carry LIVE waivers, so excluding that
      directory hides exactly what this audit exists to see — and hides it silently, however
      many land there.
-     A residue survives and is NOT tuned away: a rule that DESCRIBES the marker matches
+     A residue survives and is NOT tuned away. The classes below are ILLUSTRATIONS, not a
+     closed list (`code-style.md` §10 cl.2): a rule that DESCRIBES the marker matches
      (`code-style.md` §9), as do each guard's own `WAIVER_RE` and its `console.error` help
-     text, and the fixture strings the suites write into sandbox repos. So READ the list,
-     never trust its length — which is why this greps `-n` and not `-c`: a waiver carries a
-     written reason, a description carries a `<placeholder>`.
+     text, the fixture strings the suites write into sandbox repos, and any
+     `.claude/agent-memory/**` note quoting a marker or this very command — that last class
+     grows every time an agent cites it. So READ the list, never trust its length — which is
+     why this greps `-n` and not `-c`: a waiver carries a written reason, a description
+     carries a `<placeholder>`.
      A waiver states why the prose MUST carry that number or that unresolvable path. "False
      positive" is already refused by the guards (a reason under 20 non-whitespace characters,
      or one on their empty-reason list, is a FINDING). Unlike a baseline row, which

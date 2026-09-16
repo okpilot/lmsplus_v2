@@ -6,6 +6,23 @@
 
 ## Positive-pattern log
 
+### CR-local round-1 fixup REVISE (2026-09-16, feat/prose-path-guard)
+
+REVISE. 10 files staged. 0 critical, 1 issue, 0 suggestions.
+
+ISSUE — `agent-workflow.md` new text uses "on this branch" — a relative branch reference in a
+durable rules file. After merge to master "this branch" loses meaning. Tracker pattern:
+"RELATIVE commit reference in a DURABLE rules file — true at authoring, FALSE one commit later."
+Fix: Replace "twice on this branch" with "twice on `feat/prose-path-guard`".
+EVIDENCE: `git show ':'.claude/rules/agent-workflow.md'' | grep -n 'on this branch'` →
+`416:       flood as suppression has produced a confident wrong conclusion twice on this branch`
+
+All 4 plan items verified clean:
+- 3 live waivers confirmed by `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' -- ':!.claude/commands/'` — exactly check-prose-paths.mjs:71, check-prose-paths.repo.test.mjs:366, docs/decisions.md:2154
+- test-writer.md open-set "part of every mutations file in this repo" correctly deleted
+- decisions.md body sections 14-71 all present (decisions cited in footer preserved)
+- `--no-patch` verified: `diff <(git log --diff-merges=first-parent --format="%H" -20) <(git log --diff-merges=first-parent --no-patch --format="%H" -20)` → IDENTICAL
+
 ### §10 cl.7 correction + mirrors REVISE (2026-09-16, feat/prose-path-guard)
 
 REVISE. 5 files staged. 2 issues, 1 suggestion.

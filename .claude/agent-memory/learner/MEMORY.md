@@ -39,7 +39,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum. Surface extends beyond plan.md |
 | Fix commit correcting §10 violations introduces fresh §10 | 55 | 2026-09-16 | RULE CANDIDATE (55). Detail: topic file |
-| Rules-file bullet closes an enumeration of a structurally OPEN set | 11 | 2026-09-15 | RULE CANDIDATE (11) — text exists (§10 cl.2). Detail: topic file |
+| Rules-file bullet closes an enumeration of a structurally OPEN set | 13 | 2026-09-16 | RULE CANDIDATE (13) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 4 | 2026-09-14 | RULE CANDIDATE (4). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 6 | 2026-09-14 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
 | Verification/gate check accepts category-membership/substring, not exact identity | 4 | 2026-09-14 | RULE CANDIDATE (4). Topic file. |
@@ -53,14 +53,14 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2) |
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4) |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2) |
-| Self-invalidating relative reference in durable rules/doc file | 3 | 2026-08-19 | RULE CANDIDATE (3) |
+| Self-invalidating relative reference in durable rules/doc file | 4 | 2026-09-16 | RULE CANDIDATE (4) |
 | Verification gate's pass condition is empty result — fails open on malformed input | 6 | 2026-09-14 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
 | Mirror sweep scoped by file extension, not claim phrase — misses .ts hits | 4 | 2026-09-08 | RULE CANDIDATE (4). Detail: topic file |
 | Correct advice with invented rationale (false WHY) | 9 | 2026-09-16 | PROMOTED → § Finding Validation. Topic file. |
 | Post-cycle agent-memory delta written but not committed before push — caught only by pre-push sweep | 3 | 2026-08-20 | RULE CANDIDATE (3) |
 | Derivation query replacing an open-set enumeration is unverified before publish | 3 | 2026-09-15 | RULE CANDIDATE (3) → §10 cl.2 addendum. Detail: topic file |
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence |
-| Doc-updater reports 1 stale claim; whole-block read finds more | 3 | 2026-09-07 | PROMOTED → `agent-doc-updater.md` § DO. Detail: topic file |
+| Doc-updater reports 1 stale claim; whole-block read finds more | 4 | 2026-09-16 | PROMOTED → `agent-doc-updater.md` § DO. Recurred f431ea74: missed 3 Decision-69 refs. Detail: topic file |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
 | Corrected claim partially retracted — old wording persists elsewhere | 13 | 2026-09-16 | RULE CANDIDATE (13). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
@@ -98,7 +98,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Tracker row written against staged/draft code state — corrected before commit lands | 1 | 2026-09-14 | WATCHING. Detail: topic file |
 | Fix to gate stage-1 changes input shape, breaking stage-2's assumption | 1 | 2026-09-14 | WATCHING. Detail: cross-agent-lessons.md |
 | Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 2 | 2026-09-14 | PROMOTED → test-writer.md § Mutation-check. |
-| Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. Mitigation "put the requirement in every dispatch" proven insufficient (fired twice while present). Forbidding memory write in CONSTRAINTS is what worked. RESOLVED-WATCH 2026-09-16 (10 dispatches clean post-fix on feat/prose-path-guard). Topic file. |
+| Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. RESOLVED-WATCH 2026-09-16 (10 clean dispatches). Topic file. |
 | Orchestrator excludes a known-drift-prone rule-mirror from a sweep on an unverified claim | 1 | 2026-09-15 | WATCHING — false "has Read access" claim. Topic file. |
 | Single-line grep false-negative on text present but line-wrapped in a YAML block scalar | 1 | 2026-09-15 | WATCHING — distinct from paraphrase-blindness. Topic file. |
 | Documented suppression/exemption cannot self-expire (diff-scanner can't count its retiring condition) | 1 | 2026-09-15 | WATCHING (#1282 deferred). Detail: cross-agent-lessons.md |
@@ -106,7 +106,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Reviewer proposes max-scope remedy; split reveals a cheap in-scope mitigation the reviewer missed | 1 | 2026-09-15 | WATCHING — 6753ad76 CR-local round 3. Topic file. |
 | Reviewer reinterprets a false claim into a nearby true one — reports clean | 2 | 2026-09-15 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
 | Mirror closing sentence cross-references consequence rather than stating inline | 1 | 2026-09-15 | WATCHING — efe89098 SUGGESTION. Log and watch. |
-| doc-updater makes assertions without pasting verification command | 4 | 2026-09-16 | RULE CANDIDATE (4). Topic file. Instance 4 (`abcb1188` cycle): reported the learner tracker at 137 lines / 19,332 bytes in a fenced block with no `wc -lc` output pasted; actual 147 / 19,969. Conclusion (headroom real) unaffected. |
+| doc-updater makes assertions without pasting verification command | 5 | 2026-09-16 | RULE CANDIDATE (5). Topic file. |
 | Command shipped per §10 cl.2 but accompanied by prose overclaiming its scope | 1 | 2026-09-15 | WATCHING — distinct from rows 62/83. Detail: cross-agent-lessons.md |
 | Live count in a dispatch prompt/repo grep goes stale mid-cycle from a sibling agent's parallel write | 2 | 2026-09-16 | WATCHING (2) — accepted async-dispatch limitation. Detail: cross-agent-lessons.md |
 | `check-retracted-phrase.mjs` trigger gap — pure deletion bypasses hook even when survivor exists | 1 | 2026-09-15 | WATCHING — `21a33700`. Topic file. |
@@ -120,7 +120,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | impl-critic measures function length declaration-to-next-declaration, sweeping following JSDoc into count | 1 | 2026-09-16 | WATCHING — `827c363b`. Log and watch. |
 | Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 1 | 2026-09-16 | WATCHING — feat/prose-path-guard (two cascades same branch). Harness caught it. Log and watch. |
 | doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). Row-109 remedy (demand artifact) did not prevent this. feat/prose-path-guard `a4ecd165`. |
-| git flags/options placed AFTER `--`, treated as pathspecs — git narrows silently, wrong conclusion drawn | 2 | 2026-09-16 | RULE CANDIDATE (2; orchestrator fed 3, only 2 evidenced — reconciled 2026-09-16). Two distinct agents on feat/prose-path-guard, both evidenced: semantic-reviewer (`1ef2eabf` cycle, `-- :/ origin/master..HEAD`) and impl-critic (`a4ecd165` staged, `-- :/ --format=...`). Both drew a CONFIDENT wrong conclusion; the impl-critic's was the exact opposite of the truth (claimed a flag drops non-merge commits; it does not). Mitigation in §10 cl.7 + dispatch prompts. Mechanical guard rejected by test-writer (correct: failure surface is agent reasoning, not corpus text). |
+| git flags/options placed AFTER `--`, treated as pathspecs — git narrows silently, wrong conclusion drawn | 2 | 2026-09-16 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
+| Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING — f431ea74: insights.md audit excluded .claude/hooks/, claiming this prevented fail-open; exclusion was itself the fail-open. Fixed. |
+| Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. Pure duplication. Fixed. |
+| CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 called them "literals". Pass 1 was correct. CR's fix was also wrong. |
+| `--diff-merges=<format>` implies `-p`; output misread as commit suppression | 1 | 2026-09-16 | WATCHING — f431ea74: prescribed without `--no-patch`; hits buried under patches, misread as suppression by impl-critic then orchestrator. Distinct from row 123. |
 
 ## Durable knowledge (cross-agent)
 

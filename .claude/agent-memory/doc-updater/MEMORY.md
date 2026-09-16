@@ -137,3 +137,10 @@ A commit touching ONLY `.claude/agent-memory/**` runs under the docs-only exempt
 ---
 
 *Last updated: 2026-09-16*
+
+- **Commit `f431ea74` fix(pipeline): close a fail-open in the waiver audit and three false claims — AUDIT CLEAN** (2026-09-16). The commit removes duplication from `docs/decisions.md` footer (Decisions 71–65 recapitulated below their own sections). Binding-doc audit scope: does any binding doc cite a Decision that was removed from the footer?
+  - `docs/plan.md`: cites Decision 69 (image upload policy) at lines 200, 202, 203, 587 — Decision 69 still has its own section in the body. Clean.
+  - `docs/database.md`: cites Decision 69 at line 843 — Decision 69 still has its own section. Clean.
+  - Steering: no references to Decisions 71–65 or to the waiver audit, git flags, mutations machinery, or prose checks.
+  - **NO BINDING DOC EDITS NEEDED.** The rule files (agent-workflow.md, test-writer.md) and commands (insights.md) are not binding docs for doc-updater scope.
+
