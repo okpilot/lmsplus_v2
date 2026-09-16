@@ -401,6 +401,15 @@
       "note": "Pins that the footer IS printed when corpus-scan findings exist. Replacing the condition with false suppresses the footer on every failure."
     },
     {
+      "id": "gitignore-dir-pattern-single-spelling",
+      "find": "list.flatMap((t) => [t, `${t}/`])",
+      "replace": "list.flatMap((t) => [t])",
+      "expectRed": [
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ],
+      "note": "A directory-only .gitignore pattern matches a slash-less path only while the directory EXISTS. Asking check-ignore about the normalised spelling alone made the verdict depend on untracked build output — green locally after a build, RED in a clean CI checkout. Caught by CI on PR #1295, not by three CR-local rounds."
+    },
+    {
       "id": "normalise-keeps-dot-slash-prefix",
       "find": "export const normalise = (tok) => tok.replace(/^\\.\\//, '').replace(/\\/+$/, '')",
       "replace": "export const normalise = (tok) => tok.replace(/\\/+$/, '')",

@@ -313,6 +313,32 @@ test('--update-baseline refuses to write when any file could not be graded', () 
     assert.match(res.stderr, /the reason must state WHY/)
   }))
 
+test('a directory-only gitignore pattern excuses the path even when the directory is absent', () =>
+  withRepo((r) => {
+    // NON-VACUITY, asserted first: with no .gitignore the SAME line IS a finding, so the token
+    // really does reach the ignore check. A one-segment token like `build/` would be dropped by
+    // an earlier narrowing and make the second half pass for an unrelated reason.
+    r.write('docs/a.md', 'output lands in `apps/build/` and is not tracked\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'fixture')
+    assert.equal(run(r, ['--all']).status, 1)
+
+    // The guard strips the fixture token's trailing slash, and a DIRECTORY-ONLY pattern matches a
+    // slash-less path only while the directory EXISTS — that is the only way git can tell it is a
+    // directory. This fixture deliberately never creates that directory, so on disk it is exactly
+    // a clean CI checkout, where the old single-spelling query reported the line as a dead path.
+    //
+    // MUTATION: drop the `${t}/` term from the flatMap in ignoredTokens → check-ignore is asked
+    // only about `apps/build`, nothing matches a directory-only pattern with no directory present,
+    // the token classifies `unresolved` instead of `gitignored-artifact`, and the second
+    // assertion reddens on the status (1, not 0). Verified by execution.
+    r.write('.gitignore', '/apps/build/\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'ignore')
+    const res = run(r, ['--all'])
+    assert.equal(res.status, 0)
+  }))
+
 // ---------------------------------------------------------------- waivers, end to end
 
 test('an inline waiver with a written reason clears the finding', () =>

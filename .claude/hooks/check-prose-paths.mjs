@@ -430,9 +430,17 @@ export function ignoredTokens(tokens) {
   // batch submittable without changing a single verdict.
   const list = [...tokens].filter((t) => !t.split('/').includes('..'))
   if (list.length === 0) return new Set()
-  const input = Buffer.from(`${list.join('\0')}\0`, 'utf8')
+  // Ask about BOTH spellings of every token. A DIRECTORY-ONLY pattern (`/.next/`,
+  // `**/.claude/worktrees/`) matches a slash-less path only while the directory EXISTS on disk,
+  // because that is the only way git can tell the path is a directory. `normalise` strips the
+  // trailing slash, so querying its output alone makes the verdict depend on untracked build
+  // output: green on a machine that has run `pnpm build`, RED in a clean checkout. The
+  // trailing-slash form matches either way. Map every hit back to the bare token so `isIgnored`
+  // stays keyed on what `normalise` produces.
+  const input = Buffer.from(`${list.flatMap((t) => [t, `${t}/`]).join('\0')}\0`, 'utf8')
   try {
-    return new Set(splitNul(git(['check-ignore', '-z', '--stdin'], { input })))
+    const hits = splitNul(git(['check-ignore', '-z', '--stdin'], { input }))
+    return new Set(hits.map((h) => h.replace(/\/+$/, '')))
   } catch (err) {
     if (err.status === 1) return new Set()
     throw err
