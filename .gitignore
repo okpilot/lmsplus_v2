@@ -110,3 +110,8 @@ apps/web/scripts/seed-907-pagination-eval.ts
 # numbered directory that IS repo content.
 /01. Product Maturity/
 /02. AI ELP/
+
+# Scratch worktrees created by .claude/hooks/run-mutations.mjs and worktree-isolated agents.
+# Ignored in .git/info/exclude on the machine this was written on, which is local-only — CI has
+# no such rule, so the prose-paths guard saw an untracked, unignored path and failed.
+.claude/worktrees/
