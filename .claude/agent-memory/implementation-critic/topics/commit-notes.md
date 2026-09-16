@@ -6,6 +6,17 @@
 
 ## Positive-pattern log
 
+### CR-local round-2 fixup REVISE → APPROVED (2026-09-16, feat/prose-path-guard)
+
+Round 2 raised ISSUE on "nothing else" claim — REVISED. Round 3 re-review: APPROVED.
+
+ISSUE raised in round 2: `insights.md` claimed filter drops "nothing else". Revision replaced it with an open-set assertion ("set is OPEN, state none, derive with…"). Verified correct:
+- No count stated in revised text ✓
+- All 3 live waivers still surface under `| grep -v "git grep -n -e"`: check-prose-paths.mjs:71, check-prose-paths.repo.test.mjs:366, docs/decisions.md:2154 ✓
+- "A quotation is never a waiver" is TRUE — no dropped line is in `prose-path-ok: <reason>` form ✓
+- `.claude/commands/` exclusion claim accurate ✓
+- 48/48 tests pass ✓
+
 ### CR-local round-1 fixup REVISE (2026-09-16, feat/prose-path-guard)
 
 REVISE. 10 files staged. 0 critical, 1 issue, 0 suggestions.

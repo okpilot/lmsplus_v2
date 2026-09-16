@@ -29,6 +29,7 @@ import {
   inPathCorpus,
   looksLikePath,
   main,
+  normalise,
   PATH_RE,
   parseWaiver,
   pathKey,
@@ -139,6 +140,22 @@ test('counts a tracked file and a tracked directory as resolving', () => {
   assert.equal(resolves('docs/plan.md', INDEX), true)
   assert.equal(resolves('apps/web/lib/report-queries', INDEX), true)
   assert.equal(resolves('docs/gone.md', INDEX), false)
+})
+
+test('strips a ./ prefix before any index lookup so a ./- prefixed citation resolves correctly', () => {
+  // normalise is exported (not just internal) so measure-prose-paths.mjs can import it —
+  // a second copy there would diverge on the first regex edit and silently move tokens
+  // between the classes it counts (commit 82cdba3d).
+  //
+  // MUTATION: remove the .replace(/^\.\//, '') term from normalise. Verified by execution in a
+  // scratch copy: exactly one test fails and it is THIS one — no other case reddens. It fails
+  // on the FIRST assertion — normalise returns './docs/plan.md' unstripped — so the cls()
+  // assertion is NOT reached under this mutation. cls() pins the end-to-end path separately:
+  // a ./-prefixed token misses every index set (trackedSet, dirSet and suffixes all hold
+  // paths without the prefix) and classify, which has no existsSync fallback of its own,
+  // would report 'unresolved' instead of 'context-relative'.
+  assert.equal(normalise('./docs/plan.md'), 'docs/plan.md')
+  assert.equal(cls('./docs/plan.md'), 'context-relative')
 })
 
 // ---------------------------------------------------------------- exclusion classes
