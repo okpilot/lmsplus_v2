@@ -168,7 +168,7 @@ in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → 
 6. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
-`CLAUDE.md`, or a changed `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
+`CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
 7. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
 **Docs-only exemption:** touches ONLY `docs/**/*.md` (not `docs/security.md`), root `*.md` (not
