@@ -311,9 +311,10 @@ reviews:
           ("the admin client module") that names no path to check; and a path described as
           current when the surrounding prose is historical. Do NOT flag a path the prose itself
           says is gone ("`x.ts` was deleted"), a path in a third-party package's distribution,
-          a glob, a `<placeholder>`, or a path written relative to a directory under discussion
-          — those are the guard's known false-positive classes and are frozen in its baseline,
-          not defects.
+          a glob, a placeholder — paired `<name>`, or an unpaired `<` / `>` left behind when
+          trailing punctuation is stripped — or a path written relative to a directory under
+          discussion — those are the guard's known false-positive classes and are frozen in
+          its baseline, not defects.
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
           re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
           form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +

@@ -452,3 +452,26 @@ test('scope footer is present when only a waiver problem is found', () =>
     // the scope footer is suppressed when only a waiver problem exists.
     assert.match(res.stderr, /Searched:/)
   }))
+
+// ---------------------------------------------------------------- exclusion class, end to end
+
+// GROUP: placeholder-class-removed, unpaired-angle-placeholder-class-removed
+test('does not flag a placeholder ending in > when TRAIL strips the bracket before classify', () =>
+  withRepo((r) => {
+    // `.claude` must be a tracked top-level entry so looksLikePath accepts the token.
+    r.write('.claude/hooks/guard.mjs', '// placeholder guard\n')
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    // PATH_RE captures `.claude/agents/<name>`, then TRAIL (/[.,;:)\]'"`>]+$/) strips the
+    // trailing `>`, producing `.claude/agents/<name`. PLACEHOLDER alone does not match it
+    // (no closing `>` remains), so without `t.includes('<')` it reaches 'unresolved'.
+    // NON-VACUITY: without the `.claude` top-level entry the token does not pass looksLikePath
+    // and never reaches classify — no finding for the wrong reason. The fixture file written
+    // under that directory above is what guarantees the entry is present.
+    r.write('docs/a.md', 'intro\nlaunch the agent at .claude/agents/<name> passing the task\n')
+    r.git('add', '-A')
+    // MUTATION: remove `|| t.includes('<') || t.includes('>')` from classify's placeholder
+    // branch → `.claude/agents/<name` (TRAIL-stripped) classifies as 'unresolved' and blocks.
+    assert.equal(run(r).status, 0)
+  }))

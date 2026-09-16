@@ -6,6 +6,14 @@
 
 ## Positive-pattern log
 
+### fixup: test + mutations + coderabbit mirror — ISSUE raised (2026-09-16, feat/prose-path-guard)
+
+ISSUE — code-reviewer MEMORY.md states "classify 62L→65L" for `4714a817`. Actual measures:
+- `de6418be` (immediately before `4714a817`): lines 253-303 = 51 lines
+- After `4714a817`: lines 253-306 = 54 lines
+Command: `node -e "… brace-depth scan…"` → 54 lines. Claim off by 11.
+Pattern: §10 cl.7 — count in a durable document stated without re-derivation.
+
 ### CR-local round-4 fixup — ISSUE raised (2026-09-16, feat/prose-path-guard)
 
 ISSUE — Fix updates `prose-paths.json`'s `_` field but not the template literal at `updateBaseline()` line 663 in `check-prose-paths.mjs`, which still reads "which never writes this file". The next `--update-baseline` run regenerates the old false claim, reverting the fix.
