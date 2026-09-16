@@ -20,7 +20,7 @@ State what is true. Delete the rest.
 ### The rules, in order of priority:
 
 1. **NEVER start without a plan** — multi-file needs Plan Mode first.
-2. **NEVER explore the codebase yourself** — Explore agents (Sonnet) do it.
+2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
 5. **ALWAYS run post-commit agents** — only NAMED § Post-commit review exemptions reduce the set.
@@ -29,7 +29,7 @@ State what is true. Delete the rest.
 ```
 1. Explore → subagents map code
 2. Root cause → verify it's the RIGHT fix
-3. Interview → surface ambiguities (skip for clear bug fixes)
+3. Interview → surface ambiguities (auto-skip: single-file bug w/ clear repro, zero ambiguities, or user says skip)
 4. Spec → 3+ files (spec-workflow MCP)
 5. Plan
 6. Validate → plan vs codebase (below)
