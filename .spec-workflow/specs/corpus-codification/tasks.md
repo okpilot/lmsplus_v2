@@ -162,6 +162,20 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       review` and `agent-workflow.md` together — both state the condition, so fixing one leaves the
       other governing.
 
+- [ ] **Cap the injected rules corpus, shrink-only.** `CLAUDE.md` plus `.claude/rules/**` loads
+      into every session and is inherited by every agent dispatch, so its size is a per-invocation
+      cost and its staleness steers work that never needed the rule. It is the one corpus with no
+      cap, while `.claude/limits.json` already ratchets every FILE in the repo. Same mechanism, new
+      shape: an AGGREGATE rule over a file SET rather than a per-file cap. Derive the baseline at
+      the commit that ships this (`wc -l CLAUDE.md .claude/rules/*.md`) and store it in the data
+      file — the only copy that is executed; do not write the figure into prose here, which is the
+      defect `check-prose-claims.mjs` exists to block. Shrink-only: the total may fall and the
+      baseline moves down under `--update-baseline`; growth BLOCKS. A cap is what turns "add a
+      paragraph" from free into a trade-off, and a trade-off is the only thing that has ever
+      stopped accretion. Pairs with the delete-on-ship condition — a commit adding a mechanical
+      check must delete the prose that check replaced, or the corpus carries both forever, which is
+      what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
+
 - [ ] **Delete the `MUTATION:` comment, or generate it.** Each one is a SECOND copy of a claim
       already encoded in a `*.mutations.json` entry, and only the data file is executed — so the
       prose copy is free to go false, which is the exact defect class `code-style.md` §7 keeps
