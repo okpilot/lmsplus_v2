@@ -400,9 +400,16 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
        `git show <sha>^:<path>` both return 0, and that 0 is the EXPECTED result, not a refutation.
        Reporting FABRICATED on the strength of it inverts the evidence. Only a phrase that was
        COMMITTED and later retracted is answerable by `git show <sha>^:<path>`; confirm you are in
-       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST — an empty result means
-       the phrase never landed in any tree and the grep-based refutation is unavailable, whatever
-       the claim's merits. Precedent (`827c363b`, 2026-09-16): an implementation-critic grepped the
+       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST. A phrase present in any
+       tree has a commit taking its count 0 -> n, so `-S` finds the INTRODUCTION even when a later
+       commit merely moved it. Do not reason further about what `-S` does to a MOVE: it reports one
+       when both files persist and misses one git resolves as a RENAME, so a single fixture
+       "proves" either answer. **Bounded by REACHABILITY, not by counting:** `git log` walks HEAD's ancestry and suppresses
+       merge diffs, so a phrase living only on an unmerged branch, or introduced only in a merge
+       resolution, returns empty while existing in a tree. Read an empty result as *not reachable
+       from HEAD* — add `--all` and `--diff-merges=first-parent` before concluding anything
+       stronger. Within that bound an empty result means the grep-based refutation is unavailable,
+       whatever the claim's merits. Precedent (`827c363b`, 2026-09-16): an implementation-critic grepped the
        committed parent for a retracted phrase, found nothing, and reported the tracker row citing
        it as FABRICATED. The row was true — it recorded STAGED work — and acting on the finding
        would have overwritten a correct row with a false one. `git log -S` on that phrase returns
@@ -929,7 +936,14 @@ forbidding the write outright, in CONSTRAINTS:
 > last act.
 
 Add that line whenever a lost report is expensive to recover — always when `SendMessage` is disabled
-in the session, since the only remaining recourse is a full re-run at full token cost. Promoted at
+in the session, since the only remaining recourse is a full re-run at full token cost.
+
+**This is still a SYMPTOM fix, and the distinction is load-bearing** — the paragraph above disclaims
+the scheduling mechanism as unproven, and prescribing a remedy that presupposed it would contradict
+that in the same section. The line is prescribed because it WORKED, twice, where the reminder alone
+did not; it is not evidence for any account of WHY. What it does structurally is make report
+composition the LAST step, which is the observable property that was missing. Do not rewrite it into
+a claim about scheduling. Promoted at
 count=6 in a single day (2026-09-14, `feat/mutation-harness`) across five invocations of four
 distinct agents — code-reviewer, semantic-reviewer (twice), implementation-critic, test-writer; count
 9 as of 2026-09-16, the two most recent being the post-promotion recurrences that refuted the
