@@ -106,6 +106,13 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 6. **Slice 3 archaeology deletion** — the large size win, no new machinery, pure deletion.
 7. **R0-ENUMERATION** — last. Noisiest detector; ships once the exclusion discipline is proven.
 
+**OPEN — re-argue the position of item 6 before starting it.** The order above rests on "deletion
+is a ONE-TIME win on text that is not decaying, while the guards stop the recurring cost". PR #1295
+is evidence against it: the guards' own review cycles cost more per commit than that argument
+assumed, and the corpus they govern is what makes each cycle expensive. Slice 3 may be the highest-
+value item rather than the sixth. Re-run the argument with the measured cost, not the estimate,
+and move item 6 if it wins.
+
 Before item 4: take the two pipeline-cost items in slice 2 (the fixup-cycle exemption, and the
 `MUTATION:` comment duplication). Both are small, neither needs new machinery, and the first
 cuts the review cost of every item after it.
@@ -327,6 +334,35 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 ## Slice 3 — archaeology deletion (pure deletion, no checks to write)
 
 Largest size win in the programme; ~500-700 lines, one PR, no new machinery.
+
+### The classification every line in the corpus is sorted by
+
+Agreed with the user 2026-09-16. Sort each line into ONE row, then put it where the row says. A
+line that fits no row is garbage and is deleted.
+
+| Type | What it is | Where it lives |
+|---|---|---|
+| **Check** | A rule that is mechanically testable | `.claude/hooks/` + its data file. The rules corpus carries a POINTER, never a restatement |
+| **Rule** | "Always do X / never do Y", not yet checkable | The rules corpus: short, commanding |
+| **Reason** | Why the rule exists | A decision record, linked from the rule only when a reader would otherwise re-derive it wrong |
+| **Reference** | How the system works — data models, domain knowledge | `docs/`, loaded when the task needs it |
+| **Code comment** | Why THIS line is odd | In the code, and only there. Never promoted to a rule |
+| **Judgment** | Convergence timing, PR-split calls, deferral honesty | One explicitly NON-BINDING doc, loaded on demand. Named here because `## Never` says these cannot be codified, and text with no home leaks back into the rules corpus — which is where it sits today |
+| **History** | "We changed this because last week…" | Nowhere. `git log` already has it. Delete |
+
+Two clauses that make the table survive contact:
+
+1. **A rule that CAN be a Check must not stay prose.** Without this the table is a filing system;
+   with it, it is a ratchet.
+2. **Mechanism yes, justification no.** "No explanations" is refuted by this repo:
+   `agent-workflow.md § State the MECHANISM behind a constraint` exists because a critic reasoned
+   AROUND a bare prohibition and produced a CRITICAL argued from the weakest source. Keep the
+   clause that changes what a reader would DO ("local grants drift ADDITIVELY"); delete the
+   promotion story around it. One clause, not a paragraph.
+
+- [ ] **Probe first: apply the table to `agent-workflow.md` alone and measure what falls out.**
+      It is the largest offender. Derive before and after with `wc -l`, and do not sweep the rest
+      until one file has proved the table cuts what it claims to cut.
 
 - [ ] `code-style.md` §8 — restates §1-§7 (~21 lines)
 - [ ] `agent-workflow.md § Orchestrator Role` — restates the sections above it (~46)
