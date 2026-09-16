@@ -119,6 +119,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | impl-critic measures function length declaration-to-next-declaration, sweeping following JSDoc into count | 1 | 2026-09-16 | WATCHING — `827c363b`. Log and watch. |
 | Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 1 | 2026-09-16 | WATCHING — feat/prose-path-guard (two cascades same branch). Harness caught it. Log and watch. |
+| doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). Row-109 remedy (demand artifact) did not prevent this. feat/prose-path-guard `a4ecd165`. |
+| git flags/options placed AFTER `--`, treated as pathspecs — git narrows silently, wrong conclusion drawn | 2 | 2026-09-16 | RULE CANDIDATE (2; orchestrator fed 3, only 2 evidenced — reconciled 2026-09-16). Two distinct agents on feat/prose-path-guard, both evidenced: semantic-reviewer (`1ef2eabf` cycle, `-- :/ origin/master..HEAD`) and impl-critic (`a4ecd165` staged, `-- :/ --format=...`). Both drew a CONFIDENT wrong conclusion; the impl-critic's was the exact opposite of the truth (claimed a flag drops non-merge commits; it does not). Mitigation in §10 cl.7 + dispatch prompts. Mechanical guard rejected by test-writer (correct: failure surface is agent reasoning, not corpus text). |
 
 ## Durable knowledge (cross-agent)
 
@@ -133,7 +135,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - CR-local uniquely catches CI-environment defects internal agents can't see. Topic file.
 - "0 net-new rows" never holds — every slice produces new row-42/69 instances. Topic file.
 - `dep1277` (2026-09-16): CR-local ran 3 clean rounds, missed all 3 GH-Actions pin-comment instances — `.github/` is outside every corpus-scoped hook. Coverage gap, not a CR-local defect.
-- POSITIVE (`feat/prose-path-guard`): 3-commit review chain converged to zero findings by the third cycle. Terminal-message CONSTRAINTS fix held across all ~10 dispatches — no recurrence. Convergence by rule, not by cap.
+- POSITIVE (`feat/prose-path-guard`): 3-commit review chain converged to zero findings by the third cycle. Terminal-message CONSTRAINTS fix held across all ~10 dispatches — no recurrence. Convergence by rule, not by cap. `a4ecd165` cycle: one-round refinement cap (agent-critic.md) correctly applied by orchestrator to close loop — code-reviewer WARNING bounded out as refinement on just-rewritten prose, not chased. Enforcement is an ORCHESTRATOR duty; a fresh critic cannot know prior rounds.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers
