@@ -126,14 +126,18 @@
       "replace": "  if (false) return 'gitignored-artifact'",
       "expectRed": [
         "names a gitignored artifact rather than reporting it",
-        "ignores a gitignored artifact"
+        "ignores a gitignored artifact",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
       ]
     },
     {
       "id": "english-alternation-ignores-trailing-slash",
       "find": "  if (!tok.endsWith('/') && t.split('/').every((seg) => /^[A-Za-z]+$/.test(seg))) {",
       "replace": "  if (t.split('/').every((seg) => /^[A-Za-z]+$/.test(seg))) {",
-      "expectRed": ["names the English-shaped classes but keeps a directory reference reportable"]
+      "expectRed": [
+        "names the English-shaped classes but keeps a directory reference reportable",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
     },
     {
       "id": "slash-joined-list-class-removed",
@@ -272,7 +276,8 @@
         "ignores a citation in a spec but grades one in steering",
         "treats an absent baseline as empty and blocks, rather than passing",
         "never rewrites the baseline from an enforcement run",
-        "scope footer is present when a fresh finding is blocked"
+        "scope footer is present when a fresh finding is blocked",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
       ]
     },
     {
@@ -304,9 +309,12 @@
     },
     {
       "id": "check-ignore-output-discarded",
-      "find": "    return new Set(splitNul(git(['check-ignore', '-z', '--stdin'], { input })))",
-      "replace": "    return new Set(input ? [] : [])",
-      "expectRed": ["ignores a gitignored artifact"]
+      "find": "    const hits = splitNul(git(['check-ignore', '-z', '--stdin'], { input }))",
+      "replace": "    const hits = input ? [] : []",
+      "expectRed": [
+        "ignores a gitignored artifact",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
     },
     {
       "id": "unreadable-baseline-swallowed",
@@ -332,7 +340,8 @@
       "replace": "  const baseline = readBaseline()\n  updateBaseline(findings, baseline)",
       "expectRed": [
         "never rewrites the baseline from an enforcement run",
-        "scopes a finding to the staged files, but --all grades the whole worktree"
+        "scopes a finding to the staged files, but --all grades the whole worktree",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
       ],
       "note": "superset: with the enforcement run writing the baseline, the staged run in the scoping case grandfathers the finding its own `--all` half then expects to be reported."
     },
