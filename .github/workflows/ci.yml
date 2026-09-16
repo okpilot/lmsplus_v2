@@ -156,6 +156,23 @@ jobs:
       - name: Prose-claims guard — git-facing tests
         run: node --test .claude/hooks/check-prose-claims.repo.test.mjs
 
+      # Prose-paths guard (code-style.md §9/§10: a file path written in prose must resolve).
+      # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
+      # against `.claude/prose-paths.json`, so a path that was already broken before this guard
+      # existed is baselined rather than blocking, and a NEW one fails the job. This also catches
+      # a baseline row whose line has since changed or gone — the same shrink-must-be-recorded
+      # rule the file-size and prose-claims ratchets have, for the same reason: an unrecorded
+      # change means the file and the baseline disagree about what is being graded.
+      # Each artifact needs its own step — there is no glob and no aggregator.
+      - name: Prose-paths guard (whole worktree, ratcheted)
+        run: node .claude/hooks/check-prose-paths.mjs --all
+
+      - name: Prose-paths guard — unit test
+        run: node --test .claude/hooks/check-prose-paths.test.mjs
+
+      - name: Prose-paths guard — git-facing tests
+        run: node --test .claude/hooks/check-prose-paths.repo.test.mjs
+
       # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE: the
       # mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway worktree.
       # BOTH steps are needed and they cover different things. The unit suite pins the LOGIC that

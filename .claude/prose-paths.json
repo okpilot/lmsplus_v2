@@ -1,0 +1,27 @@
+{
+  "_": "Prose citations of a path that does not resolve, grandfathered. SHRINK-ONLY: enforced by .claude/hooks/check-prose-paths.mjs, which never writes this file. Keys are <path>@<sha256-16 of the trimmed prose line>, so a row goes stale the moment its line is edited. Regenerate with `node .claude/hooks/check-prose-paths.mjs --update-baseline` and REVIEW THE DIFF — a `+` line accepts prose naming a file that is not there.",
+  "claims": {
+    ".claude/agents/test-writer.md@ec5fbb9d4db9aa92": "- Co-locate: `src/actions.ts` → `src/actions.test.ts`",
+    ".claude/commands/fullpush.md@cb8369147620eb13": "6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migr...",
+    ".claude/handover.md@2c2a0135c0321e51": "- `.claude/index.json` — *generated*: rule handle → file → anchor → mechanical enforcer →",
+    ".claude/hooks/check-prose-claims.mjs@268bddd3d89eae24": "* corrected into a pointer. Excluded by exact path, not by prefix, so a future `.claude/run-log/` tree",
+    ".claude/hooks/review-gate.test.mjs@c12e4f8b911b6448": "/** Write a gate file inside dir/.claude/review-gate.json. */",
+    ".claude/rules/agent-memory.md@90d9a2c14c32978e": "3. **Topic pointers** — one line each: `- [theme](topics/theme.md) — one-line hook`.",
+    ".coderabbit.yaml@03622d1de53ace61": "# trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and",
+    ".coderabbit.yaml@1b60ade6a8e0835a": "# and so would also sweep in .claude/run-log.md and .claude/agent-memory/** — write-once",
+    ".coderabbit.yaml@8c19f0a9ecf7dc58": "# a docs/README.md would match too if one were ever added (none exists today). Reviewing",
+    ".coderabbit.yaml@e3dd325cf4abef8b": "SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/",
+    ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).",
+    "docs/decisions.md@acce9f225945d6a7": "**Context**: App-layer query code (`apps/web/lib/queries/**` + `apps/web/app/**` Server Actions — over 100 `.from()`/...",
+    "docs/decisions.md@b35fd51aac613102": "the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-control checks are a",
+    "docs/plan.md@036624274b8dd630": "- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts, discard.ts ...",
+    "docs/plan.md@2a6ee4d060053047": "- Consolidated duplicate QuestionFilter type: canonical def in lib/queries/quiz.ts, all other imports reference it",
+    "docs/plan.md@2d7a72494b88dca7": "- `dependabot.yml` — automated dependency updates, weekly schedule, `tech-debt` label, commits with `ci` or `chore` p...",
+    "docs/plan.md@37cc77857385585f": "- Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically",
+    "docs/plan.md@6dcd98a42356740e": "- `app/app/quiz/actions/lookup-helpers.ts` and `app/app/quiz/actions/filter-helpers.ts` deleted (functions removed; n...",
+    "docs/plan.md@f2535ea0605399c5": "- `lib/queries/quiz.ts:getRandomQuestionIds` — now a thin `rpc<{id}[]>(supabase, 'get_random_question_ids', …)` calle...",
+    "docs/tech-debt-batches.md@4e66eeefebd6e7e1": "| 3 | refactor: extract shared RPC types from quiz/types.ts and review/types.ts |",
+    "docs/tech-debt-batches.md@a30f5d2155e4e011": "| 2 | refactor: split quiz/actions.ts to stay under 100-line limit |",
+    "docs/tech-debt-batches.md@b79b93717829748f": "*Completed 2026-03-14. Split quiz/actions.test.ts (300 lines) into 3 co-located files (start.test.ts, submit.test.ts,..."
+  }
+}

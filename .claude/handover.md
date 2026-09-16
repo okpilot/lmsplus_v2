@@ -14,7 +14,7 @@ being true.
 |---|---|
 | **PR #1246** | OPEN. Deps + rules + hook. CI green; cloud CR has run twice, all findings applied. No commit count here on purpose — it grows with every commit on the branch and was already stale once (`7`, when the branch held 11). Derive it: `git rev-list --count origin/master..HEAD`. |
 | **#1245** (dependabot, 20 bumps) | MERGED `77fe140b` |
-| **W1 PR 3b (#991)** | **NOT STARTED** — next product work. Two migrations written but UNTRACKED (see §5) |
+| **W1 PR 3b (#991)** | MERGED `e89ead6a` (PR #1247). Both migrations tracked. |
 | Corpus amnesty | Investigated, not started. §3–§4 is the plan. |
 
 ## 2. The problem this session diagnosed
@@ -80,21 +80,6 @@ First pass ≈ **750 KB of 3.2 MB**, zero information loss.
 deletions are provably lossless, so there is nothing for a critic to judge, and reviewing them with
 the current pipeline would spend the day producing prose about deleting prose. That is the failure
 mode being removed.
-
-## 5. Then #991 (W1 PR 3b)
-
-Two migrations exist, **untracked**, in the working tree:
-
-- `supabase/migrations/20260824000100_get_admin_report_answer_keys.sql`
-- `supabase/migrations/20260824000200_internal_exam_history_distinct_and_gates.sql`
-
-Scope is **wider than the issue text**: `apps/web/lib/queries/admin-quiz-report.ts` contains zero
-occurrences of `question_type`, and `apps/web/lib/queries/report-question-builder.ts:91` defaults a
-missing type to `multiple_choice` — so a non-MC question on that route renders as an MC card with
-empty options. Mis-typed, not merely mis-counted.
-
-**#991 touches `supabase/migrations/**` — never auto-merged.** Merging deploys to the production
-database. Take it to a green open PR and hand it over.
 
 ## 6. Machine-readable index (proposed, not built)
 

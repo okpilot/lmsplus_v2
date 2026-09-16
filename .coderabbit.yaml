@@ -300,6 +300,17 @@ reviews:
           catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
           cannot follow a pointer, and `check-file-size-guard.update.test.mjs` machine-verifies
           them against limits.json in CI, so they are pinned rather than drifting.
+        - A FILE PATH cited in prose that does not resolve on disk.
+          `.claude/hooks/check-prose-paths.mjs` blocks a new one at pre-commit and in CI,
+          ratcheted against `.claude/prose-paths.json`, so what is left for review is what it
+          structurally CANNOT see. Flag these: a path that RESOLVES while the sentence around it
+          is false (the guard grades existence only, never the claim); a PARAPHRASED reference
+          ("the admin client module") that names no path to check; and a path described as
+          current when the surrounding prose is historical. Do NOT flag a path the prose itself
+          says is gone ("`x.ts` was deleted"), a path in a third-party package's distribution,
+          a glob, a `<placeholder>`, or a path written relative to a directory under discussion
+          — those are the guard's known false-positive classes and are frozen in its baseline,
+          not defects.
         - A claim about a DB guard, grant, column, RPC signature, policy or constraint that is not
           re-derived from the LATEST migration for the matching signature. Trace EVERY supersession
           form to HEAD, sorted by timestamp prefix: CREATE OR REPLACE FUNCTION and DROP FUNCTION +

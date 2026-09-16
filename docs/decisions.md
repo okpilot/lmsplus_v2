@@ -2101,7 +2101,77 @@ Pinned by `check-file-size-guard.update.test.mjs`.
 advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
 `corpus-codification` spec already lists its deletion set.
 
-*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures Rule 0 compliance or prose volume. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 71: a path cited in prose becomes a check; the "no judgment" premise was wrong (2026-09-16)
+
+BUILD ORDER item 3 of the corpus-codification programme. `code-style.md` §9 has always said that
+when a core file is renamed you must "grep all docs for stale references before committing."
+Nothing ran that grep. `.claude/hooks/check-prose-paths.mjs` now blocks a file path written in
+PROSE that does not resolve on disk — pre-commit on the staged set, `--all` over the worktree in
+CI, ratcheted against `.claude/prose-paths.json`.
+
+**The spec's premise for this item was wrong, and that is the useful part — again.** It called
+R0-PATH "the strongest detector: a path either exists or it does not, so there is no judgment and
+no LLM." RESOLUTION is binary. Deciding whether a token IS A PATH CLAIM is the entire job, and
+measurement refuted the premise before anything was tuned. Four probe iterations, each a shape
+error rather than the extension-truncation bug that killed two earlier attempts:
+
+- accepting any slashed token drowns in ENGLISH ALTERNATION — `status/summary`, `try/catch`,
+  `INSERT/UPDATE/DELETE`, `correct/incorrect` — the single largest class by an order of magnitude,
+  plus git refs (`origin/master...HEAD`), Next.js routes and `/usr/bin/env`;
+- accepting bare basenames makes `Next.js` and `process.env` the top hits, because `.js` and
+  `.env` match ordinary English words;
+- indexing only FILE suffixes calls every context-relative reference (`topics/attack-surface.md`,
+  `lib/queries/`) a miss;
+- the six structural narrowings in the guard's header do ~97% of the reduction. The twelve
+  exclusion classes do the rest. This is the second consecutive build-order item whose
+  "this one is easy" premise did not survive contact, and the spec had predicted it of this very
+  item while still calling it judgment-free.
+
+**No funnel figure is stated here or in the guard header.** `measure-prose-paths.mjs` is committed
+and prints it. Four numbers written into this commit would have gone stale inside it: the commit
+ships a baseline, this entry, two suites and a rule edit, every one of which adds corpus prose.
+That is §10 cl.7, and Decision 68 set the precedent.
+
+**The honest yield, stated because a flattering one would be this programme's own defect.** On the
+binding surface the guard flags far more than it finds: most of what it catches is historical
+narrative, self-negating prose ("`x.ts` was deleted"), illustrative examples, external slugs and
+third-party package internals — all frozen in the baseline, none of them defects. Derive the split
+rather than trusting a ratio here: the baseline is `.claude/prose-paths.json` and the live funnel
+is one command. That is NOT an argument against shipping, and the reason matters: a ratchet's value
+is on NEW prose. The standing set is accumulated history that will not be written again in that
+form; the defects this actually corrected were both RECENT.
+
+**What it corrected on the way in.** `docs/database.md`'s `active_flagged_questions` callsite list
+named a file that no longer exists, pointed at the wrong half of a renamed pair, and omitted a real
+callsite while claiming to list them all — replaced with the corrected set plus the derivation
+command, since "all callsites" is an open set (§10 cl.2). `.claude/handover.md` still announced
+#991 as NOT STARTED with two UNTRACKED migrations, one under a filename that never existed; the
+work shipped as `e89ead6a` and both migrations are tracked. The fix for that had been WRITTEN
+(`e7393e40`) and never merged — stranded on an abandoned branch, which is precisely the failure a
+diff-scoped reviewer cannot see and this guard can.
+
+**It also found a dead exclusion in its own predecessor.** `check-prose-claims.mjs` excludes
+`.claude/run-log.md` by exact path; that file was deleted in `3f55bc25` (#1246). The exclusion is <!-- prose-path-ok: this sentence's SUBJECT is the deletion; naming the dead path is the claim itself, not a stale citation of it -->
+inert rather than wrong and is left alone — removing it would orphan a mutation anchor for no
+behavioural gain — but the `.coderabbit.yaml` comments that cite it as a live example are now
+baselined prose, which is the honest record of it.
+
+**Bounds, stated because understating them would be this guard's own defect.** It grades whether a
+path RESOLVES, never whether the claim around it is true; it cannot see a paraphrase; it cannot
+distinguish self-negating prose or historical narrative from a stale citation; and a path inside a
+third-party package's distribution is indistinguishable from a repo path that went missing. The
+full list is in the guard's header. It reduces the class; it does not close it.
+
+**Two things this commit fixed in the tooling it touched.** `measure-prose-claims.mjs` carried a
+comment claiming its corpus was "re-derived from its module rather than retyped" directly above
+four lines that retyped it — a false claim about the code beneath it, inside the measurement tool
+for the programme whose subject is false claims; `inCorpus` is exported now and the sentence is
+true by construction. And `/insights` audited only the retracted-phrase TRAILER, so both inline
+suppression markers had shipped unaudited; the audit now covers them, with its own fail-open
+exclusions named.
+
+
+*Last updated: 2026-09-16 — Decision 71: a file path cited in PROSE that does not resolve on disk becomes a check (`check-prose-paths.mjs`, pre-commit + CI, ratcheted against `.claude/prose-paths.json`), mechanising half of the grep `code-style.md` §9 had only ever asked for. The spec's premise — "a path either exists or it does not, so there is no judgment and no LLM" — was REFUTED by measurement: resolution is binary, but deciding whether a token is a path CLAIM is the whole job, and six structural narrowings carry it. No funnel figure is stated anywhere and `measure-prose-paths.mjs` is committed instead, because four numbers would have gone stale inside this very commit (§10 cl.7). The yield is not dressed up: most of what it flags is historical narrative, self-negating prose and third-party internals, all baselined and none defects — derive the split from `.claude/prose-paths.json`. On the way in it found a dead exclusion in its own predecessor, a stale callsite list in `docs/database.md`, and a handover section whose fix had been written and never merged. Prior: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures Rule 0 compliance or prose volume. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

@@ -1061,6 +1061,23 @@ The `code-reviewer` agent flags these after every commit:
 
 This prevents documentation from drifting and confusing future readers.
 
+**Half of this is now mechanical.** `.claude/hooks/check-prose-paths.mjs` blocks, at pre-commit
+and in CI, a file path written in PROSE that does not resolve on disk — the grep above, run for
+you, over the binding corpus. Until it existed this section was an instruction with no artifact,
+and nothing ever failed when it was skipped.
+
+It is a RATCHET against `.claude/prose-paths.json`, on the same terms as the file-size and
+prose-claims guards: a citation already dead on master is baselined rather than blocking, a NEW
+one fails, and a baselined line that changes or vanishes fails until `--update-baseline` records
+it. Its suppression marker is `prose-path-ok: <reason>`, and it is deliberately unavailable for a
+broken invocation — that route exits 2, not 1, so a waiver can never stand in for a check that
+did not run.
+
+**Only half, and the boundary matters.** It grades whether a path RESOLVES, never whether the
+claim wrapped around it is true, and it cannot tell self-negating prose ("`x.ts` was deleted")
+or historical narrative from a stale citation. The remaining bounds are enumerated in the
+guard's own header — read them there rather than trusting a summary here.
+
 ---
 
 ## 10. Comment Accuracy — any claim, not just SQL

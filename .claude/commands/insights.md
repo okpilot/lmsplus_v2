@@ -35,6 +35,21 @@ Weekly self-review: analyse project health, audit agent system, and update memor
      claim someone chose not to finish correcting. Read the reasons. If waivers are running above
      roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
      a hatch used reflexively is how this guard dies quietly
+   - **Inline guard waivers**: the retracted-phrase hatch above is a commit-message TRAILER;
+     the ratcheted guards ship INLINE markers instead, and until 2026-09-16 nothing audited
+     them.
+     `git grep -c -e 'prose-claim-ok:' -e 'prose-path-ok:' -- ':!.claude/hooks/' ':!.claude/commands/'`
+     Both exclusions are load-bearing and the check FAILS OPEN without them: each marker
+     appears in its own guard's source and suites, and this bullet names both tokens.
+     A residue survives them and is NOT tuned away — a rule that DESCRIBES the marker matches
+     too (`code-style.md` §9). So READ the list, never trust its length: a waiver carries a
+     written reason, a description carries a `<placeholder>`.
+     A waiver states why the prose MUST carry that number or that unresolvable path. "False
+     positive" is already refused by the guards (a reason under 20 non-whitespace characters,
+     or one on their empty-reason list, is a FINDING). Unlike a baseline row, which
+     grandfathers what already existed, a waiver is a live choice made on a line someone was
+     editing. Growth means the detector is mis-tuned and must be RE-NARROWED — never that the
+     baseline should absorb it.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
    - **Implementation-critic**: check pre-commit findings log — are staged-change reviews catching issues before commit?
 8. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.

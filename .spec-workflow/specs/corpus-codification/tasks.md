@@ -96,11 +96,14 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
    Re-derive the block rate with `node .claude/hooks/measure-prose-claims.mjs --commits 120`; the
    script is COMMITTED for that reason. The figure moves with the window — it read one value when
    the guard was built and a different one after the harness PR merged — so it is not stated here.
-3. **R0-PATH** — the exclusion set is the real work (illustrations, context-relative paths,
-   placeholders, globs). ACCEPTANCE TEST ALREADY MEASURED: it must land near the low tens on the
-   binding surface. A first probe said 1,655 and a second 95, both wrong — one truncated every
-   `.claude/` path, the other truncated `.tsx` to `.ts` and `.json` to `.js`. A detector reporting
-   wildly outside the measured range is broken, and that is knowable in seconds.
+3. ~~**R0-PATH**~~ — **DONE** (`check-prose-paths.mjs`, Decision 71). The exclusion set WAS the
+   real work, as predicted: six structural narrowings, not one resolution check. The acceptance
+   test held — it landed in the low tens on the binding surface. Two further probes were wrong
+   after the two recorded here (1,655 and 95), each a path-SHAPE error rather than the
+   extension-truncation bug; a detector reporting wildly outside the measured range is broken,
+   and that stayed knowable in seconds. Re-derive the funnel with
+   `node .claude/hooks/measure-prose-paths.mjs`; no figure is stated here, for the same reason as
+   item 2.
 4. **R0b-2** — reject counts in commit messages (extend `check-commit-claims.mjs`). Small, and a
    commit message is the one surface that cannot be corrected afterwards.
 5. **Slice 2's original three** — hook tests wired into CI, companion tests for new
@@ -184,11 +187,15 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       1. **VALUE** — a canonical value (`limits.json` `rules[].max`; later any registered source)
          restated in prose in a matching context ("N lines", "N-line", "cap ... N").
          Allow: the canonical file, a mirror a test pins, and data lines — the ban is on PROSE.
-      2. **PATH** — a file path written in prose that does not resolve on disk. The strongest
-         detector: a path either exists or it does not, so there is no judgment and no LLM.
-         Would have caught the `check-file-size-guard.test.mjs` misattribution three times in
-         this slice, instantly. Needs care for globs, patterns, and paths naming things that do
-         not exist yet.
+      2. **PATH** — a file path written in prose that does not resolve on disk. BUILT, and the
+         "strongest detector: a path either exists or it does not, so there is no judgment and
+         no LLM" premise written here was REFUTED on the way in (Decision 71). Resolution IS
+         binary; deciding whether a token is a path CLAIM is not, and that is the whole job —
+         six structural narrowings carry it, and what survives them is mostly historical
+         narrative and self-negating prose rather than defects. It did catch the
+         `check-file-size-guard.test.mjs` misattribution class. Globs, patterns, and paths naming
+         things that do not exist yet needed the care predicted; third-party package internals
+         were a bound nobody predicted.
       3. **ENUMERATION** — "all ten", "the eight", "both", "three of", "N of M". Flags the
          PATTERN and demands either a derivation command in the same block or an explicit as-of
          date, which is `code-style.md` §10 cl.2 made mechanical. Highest false-positive rate of

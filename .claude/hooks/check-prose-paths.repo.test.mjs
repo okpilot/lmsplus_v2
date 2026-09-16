@@ -1,0 +1,360 @@
+// Run: node --test .claude/hooks/check-prose-paths.repo.test.mjs
+//
+// The git-facing and subprocess paths of the prose-paths guard: corpus scoping, the baseline
+// ratchet, the staged/index read, the gitignore round trip and the exit-code split. The pure
+// decision logic lives in check-prose-paths.test.mjs, so neither file approaches the
+// test-file cap in .claude/limits.json.
+//
+// Every case is MUTATION-PINNED: the opening comment names the break that turns it red, and
+// every break was EXECUTED before being written down (`code-style.md` §7 — a `MUTATION:` line
+// is a prose claim). Some breaks redden a GROUP of cases rather than one; those carry a
+// `GROUP:` marker naming the mutation id. The EXACT set each break reddens is DATA, in
+// check-prose-paths.mutations.json, and `node .claude/hooks/run-mutations.mjs --guard
+// check-prose-paths` re-derives it — do not hand-maintain a second copy here.
+
+import assert from 'node:assert/strict'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { buildIndex, evaluate } from './check-prose-paths.mjs'
+
+const GUARD = join(dirname(fileURLToPath(import.meta.url)), 'check-prose-paths.mjs')
+
+/** A citation of a file that is not there. `docs/` is a real top-level entry in every fixture. */
+const DEAD = 'see docs/gone.md for the full list'
+
+/** A throwaway repo, removed however the body exits. */
+function withRepo(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'prose-paths-'))
+  try {
+    const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
+    git('init', '-q', '.')
+    git('config', 'user.email', 't@example.com')
+    git('config', 'user.name', 'Test')
+    // Isolate from the RUNNER's global git config: a global `commit.gpgsign=true` makes every
+    // fixture commit demand a signing key, and a global `core.hooksPath` runs someone else's
+    // hooks inside these throwaway repos. Either way the suite fails on a machine, not on a
+    // defect, and the failure looks like a guard bug.
+    git('config', 'commit.gpgsign', 'false')
+    git('config', 'core.hooksPath', join(dir, '.git', 'no-hooks'))
+    const write = (rel, body) => {
+      mkdirSync(join(dir, dirname(rel)), { recursive: true })
+      writeFileSync(join(dir, rel), body)
+    }
+    write('.claude/prose-paths.json', JSON.stringify({ claims: {} }))
+    return fn({ dir, git, write })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Run the guard in `dir`. `spawnSync`, not `execFileSync`: the latter surfaces stderr only on
+ * the THROWING path, so a case asserting on the diagnostics of a SUCCESSFUL run (every
+ * `--update-baseline` case) would compare against an empty string and pass vacuously in one
+ * direction.
+ */
+function run({ dir }, args = []) {
+  const r = spawnSync('node', [GUARD, ...args], { cwd: dir, encoding: 'utf8' })
+  if (r.error) throw r.error
+  return { status: r.status, stderr: r.stderr ?? '', stdout: r.stdout ?? '' }
+}
+
+/** Baseline the whole corpus. */
+function baseline({ dir }) {
+  execFileSync('node', [GUARD, '--update-baseline'], { cwd: dir, stdio: 'ignore' })
+}
+
+// ---------------------------------------------------------------- enforcement
+
+test('blocks a commit that stages a citation of a file that is not there', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/a.md', `intro\n${DEAD}\n`)
+    r.git('add', '-A')
+    // MUTATION: filter `fresh` to `baseline[key] !== undefined` → a finding absent from the
+    // baseline stops being a finding, and the guard reports clean on everything forever.
+    const res = run(r)
+    // GROUP: new-findings-never-block
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /docs\/a\.md:2 {2}docs\/gone\.md/)
+    assert.match(res.stderr, /does not/)
+  }))
+
+test('does not block a citation already carried by the baseline', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    r.git('add', '-A')
+    baseline(r)
+    r.git('commit', '-qm', 'init')
+    r.write('docs/a.md', `${DEAD}\nan unrelated edit\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the `baseline[key] === undefined` test from `fresh` → every
+    // grandfathered citation blocks every commit that touches its file, and the ratchet
+    // becomes a gate nobody can pass.
+    assert.equal(run(r).status, 0)
+  }))
+
+// GROUP: scope-ignored, new-findings-never-block, enforcement-run-writes-the-baseline
+test('scopes a finding to the staged files, but --all grades the whole worktree', () =>
+  withRepo((r) => {
+    r.write('docs/untouched.md', `${DEAD}\n`)
+    r.write('docs/b.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/b.md', 'intro\nedit\n')
+    r.git('add', '-A')
+    // MUTATION: make `inScope` return true unconditionally → introducing the guard blocks
+    // every commit in the repo until the whole corpus is clean, which is why the baseline
+    // exists at all. The `--all` half is what proves the finding was really there.
+    assert.equal(
+      run(r).status,
+      0,
+      'pre-commit: the dead path is in a file this commit did not touch',
+    )
+    assert.equal(run(r, ['--all']).status, 1, 'CI: the whole worktree is graded')
+  }))
+
+// GROUP: stale-rows-never-reported, stale-term-dropped-from-early-return
+test('reports a stale baseline row even when its file is not staged', () =>
+  withRepo((r) => {
+    r.write('docs/untouched.md', `${DEAD}\n`)
+    r.write('docs/b.md', 'intro\n')
+    r.git('add', '-A')
+    baseline(r)
+    r.git('commit', '-qm', 'init')
+    r.write('docs/untouched.md', 'the list moved into the spec\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'fix the citation')
+    r.write('docs/b.md', 'intro\nedit\n')
+    r.git('add', '-A')
+    // MUTATION: drop the `stale.length > 0` term from the early-return condition → a citation
+    // that is corrected or deleted leaves its baseline row behind forever, and the shrink-only
+    // half of the ratchet stops existing. Stale rows are deliberately NOT scoped to the staged
+    // set: the row is a property of the data file, so this commit must report it.
+    const res = run(r)
+    // GROUP: stale-rows-never-reported
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /describe no live finding/)
+    assert.match(res.stderr, /docs\/untouched\.md@/)
+  }))
+
+// GROUP: staged-mode-reads-the-worktree, new-findings-never-block
+test('grades the INDEX, not the working tree', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/a.md', `intro\n${DEAD}\n`)
+    r.git('add', '-A')
+    r.write('docs/a.md', 'intro\n') // worktree cleaned up, index still carries the citation
+    // MUTATION: make `read` use readFileSync in staged mode → the guard grades bytes git is
+    // not committing, and a dead citation staged then reverted in the worktree ships clean.
+    // GROUP: new-findings-never-block
+    assert.equal(run(r).status, 1)
+  }))
+
+test('accepts a path that is present on disk but untracked', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/notes.md', 'untracked, but it IS there\n')
+    r.write('docs/a.md', 'intro\nsee docs/notes.md for the notes\n')
+    r.git('add', 'docs/a.md')
+    // MUTATION: make `resolves` return false instead of `existsSync(t)` → the guard asserts a
+    // file is absent while it is sitting on disk, which is a false claim made to enforce a
+    // rule about accuracy. Resolution is deliberately the weaker "on disk" test.
+    assert.equal(run(r).status, 0)
+  }))
+
+// ---------------------------------------------------------------- corpus scoping
+
+test('ignores a citation in agent memory', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.claude/agent-memory/learner/MEMORY.md', `| row | ${DEAD} |\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the `if (!inCorpus(path)) return false` test from inPathCorpus → agent
+    // memory, the run log and every file outside the corpus roots are graded, so a tracker row
+    // QUOTING a path that has since gone becomes a blocking offence.
+    assert.equal(run(r).status, 0)
+  }))
+
+// GROUP: spec-tree-not-excluded, new-findings-never-block
+test('ignores a citation in a spec but grades one in steering', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('.spec-workflow/specs/x/design.md', `${DEAD}\n`)
+    r.write('.spec-workflow/steering/tech.md', `${DEAD}\n`)
+    r.git('add', '-A')
+    // MUTATION: delete the SPEC_PREFIX test in inPathCorpus → a spec, whose job is naming
+    // files before they exist, blocks the commit alongside steering. Steering must still be
+    // graded, which is the other half of this case.
+    const res = run(r)
+    // GROUP: new-findings-never-block
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /steering\/tech\.md/)
+    assert.doesNotMatch(res.stderr, /specs\/x\/design\.md/)
+  }))
+
+// GROUP: gitignored-class-removed, check-ignore-output-discarded
+test('ignores a gitignored artifact', () =>
+  withRepo((r) => {
+    r.write('.gitignore', 'build/\n')
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/a.md', 'intro\nthe bundle lands at build/out.js\n')
+    r.git('add', '-A')
+    // MUTATION: return an empty Set instead of reading `git check-ignore`'s output → every
+    // generated artifact named in prose is reported, and the remedy is a waiver on each one.
+    // This case is the one that exercises the real batched round trip.
+    assert.equal(run(r).status, 0)
+  }))
+
+// ---------------------------------------------------------------- fail closed
+
+test('exits 2, not 1, when the baseline cannot be read at all', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    r.git('add', '-A')
+    rmSync(join(r.dir, '.claude/prose-paths.json'))
+    mkdirSync(join(r.dir, '.claude/prose-paths.json'))
+    // MUTATION: swallow the non-ENOENT error in readBaseline (return `{}`), or return 1 rather
+    // than 2 from the CLI catch → "could not run" becomes indistinguishable from a finding,
+    // and the cheapest remedy for a broken invocation is a permanent waiver.
+    const res = run(r)
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /could not run — BLOCKING/)
+    assert.match(res.stderr, /Do NOT write a prose-path-ok waiver/)
+  }))
+
+test('exits 2 when the baseline is malformed', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    r.write('.claude/prose-paths.json', '{ "claims": [] }')
+    r.git('add', '-A')
+    // MUTATION: accept a non-object `claims` in readBaseline → an array baseline reads as
+    // empty, every grandfathered citation becomes a finding, and the diagnostic blames the
+    // prose rather than the data file.
+    const res = run(r)
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /`claims` must be an object/)
+  }))
+
+// GROUP: absent-baseline-rethrown, new-findings-never-block
+test('treats an absent baseline as empty and blocks, rather than passing', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    rmSync(join(r.dir, '.claude/prose-paths.json'))
+    r.git('add', '-A')
+    // MUTATION: rethrow ENOENT in readBaseline, or return the live finding set from it → the
+    // first-run case either aborts at exit 2 with no remedy, or passes clean. The direction
+    // that fails CLOSED is to treat it as empty, so every citation is a visible finding.
+    // GROUP: new-findings-never-block
+    assert.equal(run(r).status, 1)
+  }))
+
+// ---------------------------------------------------------------- the ratchet is visible
+
+// GROUP: enforcement-run-writes-the-baseline, new-findings-never-block
+test('never rewrites the baseline from an enforcement run', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    baseline(r)
+    r.git('commit', '-qm', 'init')
+    const before = readFileSync(join(r.dir, '.claude/prose-paths.json'), 'utf8')
+    r.write('docs/a.md', `intro\n${DEAD}\n`)
+    r.git('add', '-A')
+    // MUTATION: call updateBaseline from the enforcement path → the guard launders its own
+    // finding into a clean run and the baseline grows with nothing in the diff to review.
+    // GROUP: new-findings-never-block
+    assert.equal(run(r).status, 1)
+    assert.equal(readFileSync(join(r.dir, '.claude/prose-paths.json'), 'utf8'), before)
+  }))
+
+test('--update-baseline prints every added row before writing', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD}\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the `+` loop in updateBaseline → rows are added with no diagnostic, so a
+    // reviewer sees only a JSON diff and has nothing telling them a citation of an absent file
+    // was grandfathered and needs an argument.
+    const res = run(r, ['--update-baseline'])
+    assert.equal(res.status, 0)
+    assert.match(res.stderr, /\+ docs\/a\.md@/)
+    assert.match(res.stderr, /REVIEW THE DIFF/)
+  }))
+
+test('--update-baseline refuses to write from an incomplete read', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', `${DEAD} <!-- prose-path-ok: ok -->\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the `problems.length > 0` guard in the --update-baseline branch → a
+    // baseline written from a partial read records the corpus as smaller than it is, and every
+    // citation in the unread file is invisible from then on.
+    const res = run(r, ['--update-baseline'])
+    // GROUP: unusable-waiver-not-reported, waiver-never-recognised, waiver-reason-floor-removed
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /incomplete read/)
+  }))
+
+// ---------------------------------------------------------------- waivers, end to end
+
+test('an inline waiver with a written reason clears the finding', () =>
+  withRepo((r) => {
+    r.write('docs/a.md', 'intro\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write(
+      'docs/a.md',
+      `intro\n${DEAD} <!-- prose-path-ok: the file lands in the next slice -->\n`,
+    )
+    r.git('add', '-A')
+    // GROUP: unusable-waiver-not-reported, waived-line-still-a-finding, waiver-never-recognised, waiver-reason-floor-removed
+    assert.equal(run(r).status, 0)
+    // MUTATION: drop the EMPTY_REASONS/length floor from parseWaiver → the second half goes
+    // green too, and the hatch costs nothing.
+    r.write('docs/a.md', `intro\n${DEAD} <!-- prose-path-ok: ok -->\n`)
+    r.git('add', '-A')
+    const res = run(r)
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /must state WHY/)
+  }))
+
+// ---------------------------------------------------------------- per-line grouping
+
+test('groups every dead path on one line into a single finding row', () => {
+  // `evaluate` batches one `git check-ignore` call, so it needs a git repo as cwd — the suite's
+  // own, which no case here mutates. Neither token below is ignored anywhere.
+  const index = buildIndex(['docs/a.md'])
+  const read = () => 'see docs/gone.md and docs/also-gone.md for the list\n'
+  // MUTATION: key `perLine` on the token rather than on path + line number → one sentence
+  // naming two absent files becomes two baseline rows that must be fixed and recorded
+  // separately, when the unit under baseline is the LINE.
+  const res = evaluate(['docs/a.md'], read, index)
+  assert.equal(res.findings.size, 1)
+  assert.deepEqual([...res.findings.values()][0].tokens, ['docs/gone.md', 'docs/also-gone.md'])
+})
+
+test('treats an unreadable corpus file as a problem, never a skipped file', () => {
+  const read = () => {
+    throw Object.assign(new Error('nope'), { code: 'EACCES' })
+  }
+  // MUTATION: `continue` without pushing to `problems` in collectCandidates's read catch →
+  // a permission bit or a mid-run tree change makes a whole file invisible at exit 0.
+  const res = evaluate(['docs/a.md'], read, buildIndex(['docs/a.md']))
+  assert.equal(res.problems.length, 1)
+  assert.match(res.problems[0].problem, /EACCES/)
+})
