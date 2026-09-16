@@ -106,6 +106,10 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 6. **Slice 3 archaeology deletion** — the large size win, no new machinery, pure deletion.
 7. **R0-ENUMERATION** — last. Noisiest detector; ships once the exclusion discipline is proven.
 
+Before item 4: take the two pipeline-cost items in slice 2 (the fixup-cycle exemption, and the
+`MUTATION:` comment duplication). Both are small, neither needs new machinery, and the first
+cuts the review cost of every item after it.
+
 **Why not delete first, since that is the biggest number.** Deletion is a ONE-TIME win on text
 that is not decaying. Items 1-4 stop the bleeding, and the bleeding is the recurring cost — a
 measured five-to-one ratio of stale-claim findings to real runtime defects across slice 1. Once
@@ -144,6 +148,29 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       biggest risk to this programme. MUST be human-invoked and write the diff for review; a
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+
+- [ ] **Stop a fixup commit from forcing a second full cycle.** `CLAUDE.md § Post-commit review`
+      grants the review-follow-up path only to a commit that touches no config and only files its
+      parent touched. A commit applying its parent cycle's own findings routinely breaks both
+      conditions at once, and does so by OBEYING another rule: `agent-coderabbit-sync.md` requires
+      re-mirroring into `.coderabbit.yaml` in the same commit whenever a guard's detection pattern
+      changes, and that mirror is config the parent never touched. So the reduced path is
+      unreachable exactly when it was designed to apply, and each cycle's fixup spawns another full
+      cycle. Observed on PR #1295: the fixup commit for one cycle's findings triggered a second
+      four-agent cycle, whose findings were themselves prose. Fix: allow the reduced path when the
+      extra paths are MIRRORS the parent's own change required. Edit `CLAUDE.md § Post-commit
+      review` and `agent-workflow.md` together — both state the condition, so fixing one leaves the
+      other governing.
+
+- [ ] **Delete the `MUTATION:` comment, or generate it.** Each one is a SECOND copy of a claim
+      already encoded in a `*.mutations.json` entry, and only the data file is executed — so the
+      prose copy is free to go false, which is the exact defect class `code-style.md` §7 keeps
+      promoting rules about. PR #1295 found one in each of two sibling guards: one named a break
+      that HANGS rather than the encoded one, the other named a break that no longer existed.
+      Either drop the comments and let `node .claude/hooks/run-mutations.mjs --list` answer the
+      question, or generate them from the data file so drift is impossible. This removes a
+      recurring finding class instead of reviewing it harder, which is the programme's whole
+      thesis applied to its own machinery.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
