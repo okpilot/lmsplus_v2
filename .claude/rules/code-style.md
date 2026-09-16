@@ -1,51 +1,28 @@
 # Code Style Rules — LMS Plus v2
-
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
-
-> These rules apply to all code in this repository.
-> The code-reviewer agent checks every commit against them.
-> Violations are flagged as warnings (non-blocking) or errors (blocking on merge).
-
+The code-reviewer agent checks every commit diff against these rules. Violations are warnings (non-blocking) or errors (blocking on merge).
 ---
-
 ## 1. File Size Limits
-
-Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at
-pre-commit and in CI. Never restate a number here.
-
-"Never restate a number here" is itself now mechanically enforced, by
-`.claude/hooks/check-prose-claims.mjs` at pre-commit and in CI: it blocks a cap VALUE from
-`limits.json` being restated in PROSE as a claim about that cap. Until it existed the sentence
-above was an instruction nobody could check, and the caps had already been copied into nine
-hand-maintained places once — which is why they became data in the first place. Prose goes stale
-silently; `limits.json` is the only copy that is executed.
-
-It is a RATCHET on the same terms as the size guard, against `.claude/prose-claims.json`: a
-restatement that predates the guard is baselined rather than blocking, a NEW one fails, and a
-baselined line that CHANGES or disappears fails until `--update-baseline` records it. Its
-suppression marker is deliberately unavailable for a broken invocation — that route exits 2, not
-1, so a waiver can never stand in for a check that did not run. Some baselined lines are false positives — a budget or an estimate that collides with a cap
-value. They are baselined rather than tuned away, and which ones they are is a judgement a
-reader makes from the excerpt: the baseline stores the key and the line, and carries NO
-false-positive field. A guard narrowed until it has no false positives has stopped detecting.
-
+Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI.
+`.claude/hooks/check-prose-claims.mjs` blocks a cap VALUE from `limits.json` being restated in PROSE as a claim about that cap, at pre-commit and in CI, ratcheted against `.claude/prose-claims.json`.
 - **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
   longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row
   (its file gone, now compliant, or excluded). Pre-existing violations are frozen in `limits.json`
-  `baseline` and may only shrink — but a shrink must be RECORDED, so it blocks until it is:
-  `check-file-size-guard.mjs --update-baseline` writes the change for review. Green means *you
-  did not make it worse*, never *the repo is clean*.
+  `baseline` and may only shrink — a shrink must be RECORDED via
+  `check-file-size-guard.mjs --update-baseline`. Green means *you did not make it worse*, never
+  *the repo is clean*.
+- The suppression marker is unavailable for a broken invocation — that route exits 2, not 1, so a
+  waiver can never stand in for a check that did not run.
+- Some baselined lines are FALSE POSITIVES (a budget or estimate colliding with a cap value) and are
+  baselined rather than tuned away: a guard narrowed until it has no false positives has stopped
+  detecting.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
   action takes the utility cap; a Server Action outside `actions/` still takes the action cap.
 
 **Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
-include the extraction in the SAME commit. Does NOT apply to a migration covered by the
-unsplittable-DDL-object note on the SQL migration rule in `.claude/limits.json`: an atomic DDL
-object cannot be split, so there is nothing to extract. Run `wc -l` on every file you plan to grow during Plan
-Validation and budget the split up front.
-
+include the extraction in the SAME commit. Does NOT apply to an unsplittable-DDL migration (see the
+note on the SQL migration rule in `.claude/limits.json`). Run `wc -l` on every file you plan to grow
+during Plan Validation and budget the split up front.
 **The golden rule:** if you need to scroll to understand a file, it's too long.
-
 A page file should look like this:
 ```tsx
 // app/dashboard/page.tsx — CORRECT: pure composition, no logic
@@ -67,22 +44,17 @@ export default async function DashboardPage() {
 ```
 
 ---
-
 ## 2. Component Rules
-
 ### Single Responsibility
 One component does one thing. If you can describe what a component does and need the word "and", split it.
-
 ```
 ✅ QuestionCard          — displays a single question
 ✅ AnswerOptions         — handles option selection + submit
 ✅ FeedbackPanel         — shows result after submission
 ❌ QuestionWithAnswersAndFeedback  — does all three
 ```
-
 ### No Business Logic in Components
 Components handle display and user interaction. All logic lives elsewhere.
-
 ```tsx
 // ❌ WRONG — logic inside component
 export function SubjectCard({ subjectId }: Props) {
@@ -101,25 +73,19 @@ export function SubjectCard({ mastery }: Props) {
   return <div>{mastery}%</div>
 }
 ```
-
 ### Extract at 3 Repetitions
 If a JSX pattern appears 3+ times, extract it into a component.
-
 ### `'use client'` Boundary — Push Down, Not Up
 Default to Server Components. Add `'use client'` only at the lowest component that needs interactivity.
-
 ```
 ✅ Page (server) → Section (server) → InteractiveButton (client)
 ❌ Page (client) → everything is client-side rendered
 ```
 
 ---
-
 ## 3. Function Rules
-
 ### Max 30 Lines Per Function
 If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting.
-
 ```ts
 // ❌ WRONG — 60-line function doing everything
 export async function submitAnswer(input: unknown) {
@@ -142,16 +108,11 @@ export async function submitAnswer(input: unknown) {
   return { isCorrect, explanation: await getExplanation(questionId) }
 }
 ```
-
 **At the boundary:** Server Action orchestrators (30–35 lines) are acceptable when each line is a single responsibility (validation, auth, RPC call, side effect). If adding a new step requires scrolling, extract it.
-
-**Exception — React render/return bodies (pure JSX composition).** A React function-component or custom-hook **render/return body** may reach **30–35 lines** when the body is **pure JSX/element composition** — laying out and wiring child elements/props — with **no branching logic and no data transformation**. Such a body has zero extractable logic, and splitting it only to satisfy the count produces artificial wrapper components that hurt readability. This mirrors the Server-Action-orchestrator boundary above (each line one responsibility).
-
+**Exception — React render/return bodies (pure JSX composition).** A React function-component or custom-hook **render/return body** may reach **30–35 lines** when the body is **pure JSX/element composition** — laying out and wiring child elements/props — with **no branching logic and no data transformation**. This mirrors the Server-Action-orchestrator boundary above (each line one responsibility).
 The exception is **hard-bounded at 35 lines**: anything past 35 is still a violation, and any non-composition logic disqualifies the whole body regardless of length. If the body needs an `if`/loop/`.map` **with logic** (a conditional branch, a computed value, a data reshape), the cap stays 30 and the logic is extracted into a helper or a child component. A bare `.map(item => <Row key={item.id} {...item} />)` rendering a list is composition (allowed); a `.map` that computes or transforms is logic (not allowed).
-
 ### Max 3 Parameters
 If a function needs more than 3 parameters, use an options object.
-
 ```ts
 // ❌ WRONG
 function scheduleReview(userId, questionId, wasCorrect, responseTime, sessionId) {}
@@ -165,12 +126,9 @@ function scheduleReview(opts: {
   sessionId: string
 }) {}
 ```
-
 **Exception: Infrastructure/utility functions** — Some utility functions are idiomatic exceptions (e.g., `updateFsrsCard(supabase, userId, questionId, isCorrect)` is 4 params but each maps to a distinct semantic role in the domain). Document the exception with a JSDoc comment if > 3 params.
-
 ### Early Returns Over Nesting
 Fail fast. Avoid deeply nested if/else chains.
-
 ```ts
 // ❌ WRONG — 3 levels deep
 function processResult(session: Session | null) {
@@ -192,16 +150,11 @@ function processResult(session: Session | null) {
   return getNextQuestion(session)
 }
 ```
-
 ### Max Nesting: 3 Levels
 Functions, loops, conditionals — count the levels of indent. At 4+, extract.
-
 ---
-
 ## 4. File and Folder Organisation
-
 ### Feature-Based, Not Type-Based
-
 ```
 // ❌ WRONG — type-based (everything scattered)
 components/
@@ -231,9 +184,7 @@ app/
       subject-grid.tsx
     page.tsx
 ```
-
 ### Naming Conventions
-
 | Thing | Convention | Example |
 |-------|-----------|---------|
 | React component file | `kebab-case.tsx` | `question-card.tsx` |
@@ -244,10 +195,8 @@ app/
 | Type file | `types.ts` | per feature folder |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | DB migration | `YYYYMMDDHHMMSS_description.sql` | `20260311000001_initial_schema.sql` |
-
 ### No Barrel Files (index.ts re-exports)
 Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks.
-
 ```ts
 // ❌ WRONG — packages/ui/src/index.ts re-exporting everything
 export * from './question-card'
@@ -259,13 +208,9 @@ import { QuestionCard } from '@repo/ui/question-card'
 ```
 
 ---
-
 ## 5. TypeScript Rules
-
 ### No Deprecated React Event Types
-
 `React.FormEvent` is deprecated in React 19. Use `React.SubmitEvent<HTMLFormElement>` for form submit handlers.
-
 ```tsx
 // ❌ WRONG — deprecated in React 19
 function handleSubmit(e: React.FormEvent) { ... }
@@ -274,11 +219,8 @@ function handleSubmit(e: React.FormEvent<HTMLFormElement>) { ... }
 // ✅ CORRECT
 function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) { ... }
 ```
-
 ### Mark Component Props as `Readonly`
-
-React function-component props are an immutable contract — a component must never mutate them. Wrap the props parameter's type in `Readonly<…>`, covering both inline-object and named-type annotations. The codebase already follows this convention (77 component files); this rule formalises it so the remaining drift stops.
-
+React function-component props are an immutable contract. Wrap the props parameter's type in `Readonly<…>`, covering both inline-object and named-type annotations.
 ```tsx
 // ❌ WRONG — mutable props
 export function QuestionCard({ prompt }: { prompt: string }) { ... }
@@ -288,14 +230,10 @@ function ActivePracticeBanner({ session }: ActivePracticeProps) { ... }
 export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
-
-This applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-
-**Not Biome-enforceable** — Biome 2.5.0 has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via the code-reviewer agent, CodeRabbit (`.coderabbit.yaml` mirror), and SonarCloud (`typescript:S6759` — "mark the props of the component as read-only"). Severity: **WARNING** (cosmetic; no runtime impact) — write it `Readonly` from the start so Sonar stops flagging it. Pre-existing offenders are swept separately (#1027).
-
+Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
+**Not Biome-enforceable** — Biome has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via code-reviewer, CodeRabbit, and SonarCloud (`typescript:S6759`). Severity: **WARNING**. Pre-existing offenders are swept separately (#1027) — do not flag them.
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
-
 ```ts
 // ❌ WRONG
 function processData(data: any) { return data.value }
@@ -307,7 +245,6 @@ function processData(data: unknown) {
   }
 }
 ```
-
 ### No Non-Null Assertions Without Comment
 ```ts
 // ❌ WRONG
@@ -317,7 +254,6 @@ const userId = session.user!.id
 // Middleware guarantees session exists on /app/* routes
 const userId = session.user!.id
 ```
-
 ### No Type Casting Unvalidated External Data
 ```ts
 // ❌ WRONG
@@ -326,9 +262,7 @@ const body = await req.json() as SubmitAnswerInput
 // ✅ CORRECT
 const body = SubmitAnswerSchema.parse(await req.json())
 ```
-
 When casting DB/RPC results via `as unknown as T`, pair the cast with a runtime guard before using the data. `as unknown as` silences TypeScript but creates no runtime guarantee.
-
 ```ts
 // ❌ WRONG — cast assumes shape, .includes() throws on non-array
 const config = (session as unknown as { ids: string[] }).ids
@@ -338,13 +272,9 @@ if (!config?.includes(questionId)) { ... }
 const config = (session as unknown as { ids: unknown }).ids
 if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 ```
-
-**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` can throw an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression — the cast is erased at compile time, so the failure surfaces wherever the value is later dereferenced rather than as a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use.
-
+**Applies in test files too** — an unguarded cast on an RPC/`.select()` result throws an opaque `TypeError` instead of a clean assertion failure. Guard first: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof`.
 ### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
-
-In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — so an empty array is still handled by the array branch instead of falling through to a wrong default — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path, silently producing a wrong submission row.
-
+In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path.
 ```ts
 // ❌ WRONG — empty array is truthy; a length-only check drops the empty case down a wrong branch
 if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map(...)
@@ -352,19 +282,13 @@ if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map
 // ✅ CORRECT — Array.isArray keeps the empty array in the array branch, not a wrong default
 if (Array.isArray(a.blankAnswers)) row.blanks = a.blankAnswers.map(...)
 ```
-
 When adding a NEW question-type branch, copy the guard shape from an EXISTING array-valued branch, not the nearest branch by position.
-
 ### Soft-Delete Filter Requires the Column to Exist
-
-Only apply `.is('deleted_at', null)` (or `AND deleted_at IS NULL`) to a table that actually HAS a `deleted_at` column. Filtering a non-existent column is a schema-contract bug: PostgREST returns `42703 column ... does not exist` at runtime, but mocked Vitest chains ignore `.is()`, `tsc` accepts any string column name, and Biome can't see the schema — so it passes every pre-commit gate and breaks only in production. The no-soft-delete tables that lacked the `deleted_at` column as of 2026-07-12 (`e12ed809`) — the guard below derives the real set from the schema, so this list is a reading aid, not the authority — were `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`, `exam_config_distributions`, `fsrs_cards`, `user_consents` (hard-delete-by-design, immutable, or updated-in-place). `docs/database.md` §3 documents the fuller no-soft-delete matrix (which also includes hard-delete-exception tables that retain a `deleted_at` column). A **schema-derived** chain-aware mechanical guard enforces this at pre-commit + CI (`.claude/hooks/check-soft-delete-guard.mjs`, generalized in #933): it parses `packages/db/src/types.ts` (`public.Tables.<name>.Row`) and blocks `.is('<column>')` on any table whose columns don't include `<column>` — so it protects the ten tables above *and any future no-`deleted_at` table* automatically, generalizing beyond `deleted_at` to any non-existent column (an unknown/unmodeled table is skipped, never flagged). Origin: `.is('deleted_at', null)` on `easa_subjects` reached production and escaped every gate except semantic-reviewer (#925).
-
+Only apply `.is('deleted_at', null)` to a table with a real `deleted_at` column — a non-existent column passes mocked Vitest chains, `tsc`, and Biome, and breaks only in production (`42703`). Mechanically enforced at pre-commit + CI (`.claude/hooks/check-soft-delete-guard.mjs`): parses `packages/db/src/types.ts` and blocks `.is('<column>')` on any table missing it, generalized beyond `deleted_at`. `docs/database.md` §3 has the fuller matrix.
 ### Prefer `type` Over `interface`
 Use `interface` only for objects that will be extended/implemented. Use `type` for everything else.
-
 ### Destructure Supabase Mutation Results
-All Supabase mutation calls (`.insert()`, `.update()`, `.delete()`, `.upsert()`) must destructure `{ error }` from the return value. The Supabase client never throws on query errors — errors live in `result.error`. Awaiting without destructuring silently drops DB errors.
-
+All Supabase mutation calls (`.insert()`, `.update()`, `.delete()`, `.upsert()`) must destructure `{ error }` from the return value — the client never throws on query errors, so awaiting without destructuring silently drops them.
 ```ts
 // ❌ WRONG — error silently dropped
 await supabase.from('quiz_drafts').delete().eq('student_id', userId)
@@ -378,9 +302,7 @@ if (error) {
 }
 return { success: true }
 ```
-
-**Zero-row no-op check:** For any DELETE or UPDATE that's expected to mutate rows — ownership-scoped via RLS, admin-context via service-key, or a test-cleanup helper — chain `.select('id')` and verify the returned array length. Supabase returns 200 OK with zero affected rows when the filter matches nothing or RLS blocks the write. Without this check, cross-user, wrong-ID, or filter-regressed calls silently succeed.
-
+**Zero-row no-op check:** any DELETE/UPDATE expected to mutate rows chains `.select('id')` and checks the returned length — Supabase returns 200 OK with zero affected rows on a filter miss or RLS block, so a cross-user or wrong-ID call otherwise silently succeeds.
 ```ts
 // ❌ WRONG — RLS blocks cross-user delete, but returns no error
 const { error } = await supabase.from('comments').delete().eq('id', commentId)
@@ -405,15 +327,11 @@ if ((discarded?.length ?? 0) > 0) {
   console.log(`[cleanup] discarded ${discarded?.length} session(s)`)
 }
 ```
-
 ### Destructure SELECT Query Results Too
-
-`.select()` reads are subject to the same rule as mutations: destructure `{ error }` and check it before consuming `data`. Supabase does not throw on query errors — errors live in `result.error`. A read that destructures only `{ data }` silently treats an RLS-blocked or transport-failed query as an empty result (PostgREST returns `200 OK` with `null`/`[]`).
-
+`.select()` reads follow the same rule — destructuring only `{ data }` silently treats an RLS-blocked or transport-failed query as an empty result (`200 OK` with `null`/`[]`).
 Match the surrounding error posture:
 - **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
 - **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages Returned to Callers*).
-
 ```ts
 // ❌ WRONG — RLS-blocked read looks like an empty list
 const { data: topics } = await supabase.from('easa_topics').select('id').eq('subject_id', id)
@@ -424,9 +342,7 @@ const { data: topics, error } = await supabase.from('easa_topics').select('id').
 if (error) throw new Error(`Failed to fetch topics: ${error.message}`)
 return (topics ?? []).map(...)
 ```
-
 **`.single()` / `.maybeSingle()` exception:** when a "no rows" result is an expected branch (e.g. computing the next `sort_order` on the first insert), `PGRST116` is not a failure — exempt it explicitly and handle real errors only:
-
 ```ts
 const { data: maxRow, error } = await supabase
   .from('easa_subjects').select('sort_order').order('sort_order', { ascending: false }).limit(1).single<{ sort_order: number }>()
@@ -437,29 +353,20 @@ if (error && error.code !== 'PGRST116') {
 }
 const sortOrder = (maxRow?.sort_order ?? -1) + 1
 ```
-
 **Exception:** read-only test/setup helpers may wrap multiple chained reads in a single try/catch when the entire setup is atomic.
-
 ### `ON CONFLICT` Requires a UNIQUE Inference Target — Validate at Execution, Not Apply
-
-An `INSERT ... ON CONFLICT (col, ...) [WHERE pred] DO ...` needs a **UNIQUE** index or constraint matching exactly that column set (and partial predicate). A plain `CREATE INDEX` (non-unique) does **not** qualify — Postgres raises `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`.
-
-**Which constraint class arbitrates which form** (this subsection is the single source of truth for it — §10 points here rather than restating it):
+An `INSERT ... ON CONFLICT (col, ...) [WHERE pred] DO ...` needs a **UNIQUE** index/constraint matching exactly that column set. A plain `CREATE INDEX` (non-unique) does **not** qualify — Postgres raises `42P10`.
+**Which constraint class arbitrates which form:**
 
 | Form | Valid arbiter | Notes |
 |---|---|---|
-| `ON CONFLICT DO NOTHING` (no `conflict_target`) | any usable constraint or unique index, **including exclusion constraints** | Omitting the target means "absorb a conflict on anything usable". Only `NOT DEFERRABLE` constraints and unique indexes are usable as arbiters. |
+| `ON CONFLICT DO NOTHING` (no `conflict_target`) | any usable constraint or unique index, **including exclusion constraints** | Only `NOT DEFERRABLE` constraints and unique indexes are usable as arbiters. |
 | `ON CONFLICT (col, …) DO NOTHING` / `DO UPDATE` (column inference) | a matching **NOT DEFERRABLE UNIQUE** constraint or index | An exclusion constraint **cannot** arbitrate a `DO UPDATE`; `42P10` otherwise. |
-| `EXCEPTION WHEN unique_violation` (`23505`) | a **UNIQUE** constraint or index specifically | An exclusion constraint raises `exclusion_violation` (`23P01`), a different code — so a `unique_violation` handler never fires for it. |
+| `EXCEPTION WHEN unique_violation` (`23505`) | a **UNIQUE** constraint or index specifically | An exclusion constraint raises `exclusion_violation` (`23P01`) instead — a `unique_violation` handler never fires for it. |
 
 A replay/idempotency branch is only *reachable* when its arbiter above actually exists, so any comment asserting replay behaviour depends on that constraint as much as on the function body.
-
-Critically, when the `INSERT ... ON CONFLICT` lives inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**. So `supabase db reset` applies the migration 100% clean, and `pg_get_functiondef(...) ILIKE '%on conflict%'` confirms the clause is present, yet the function throws `42P10` the first time it actually runs. Clean apply + structural grep is therefore **insufficient** for any migration that changes a plpgsql body containing `ON CONFLICT`, `EXECUTE format(...)`, regex literals (POSIX `[][...]` bracket-class shorthand is invalid in Postgres ARE — applies clean, throws `2201B` on first call; caught in mig 101, 2026-06-10), or other deferred-validation SQL — you must **execute the function** (a functional SQL test or the relevant red-team / integration spec) before trusting it.
-
-Other execution-only failure modes in this class — ILLUSTRATIONS, not a checklist. Derive
-membership from the paragraph above: any plpgsql body whose SQL is validated at EXECUTION. The
-remedy is always *execute the function*, never *match it against this list*.
-
+Inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**: `supabase db reset` applies clean and a structural grep confirms the clause, yet the function throws `42P10` on first run. Clean apply + structural grep is **insufficient** for any plpgsql body with `ON CONFLICT`, `EXECUTE format(...)`, regex literals, or other deferred-validation SQL — you must **execute the function** before trusting it.
+Other execution-only failure modes (illustrations, not a checklist — any plpgsql body validated at EXECUTION):
 - **`42702` ambiguous column** — an unqualified column shadowed by a same-named `RETURNS TABLE` OUT
   parameter. Always alias the source table: `FROM users u WHERE u.id = auth.uid()`.
 - **`42804` result-type mismatch** — dropping a `::int` cast on an aggregate feeding a
@@ -467,11 +374,9 @@ remedy is always *execute the function*, never *match it against this list*.
 - **`23502` NOT NULL** — NULL propagating through a helper (`normalize_answer(NULL)`) into a NOT NULL
   column. Coalesce at the call site; check whether sibling callers already do.
 
-Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`, same columns + predicate) — `pg_index.indimmediate` is what encodes non-deferrability, and a `DEFERRABLE` unique constraint passes an `indisunique`-only check while still being unusable as an arbiter. If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085).
-
+Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists AND is non-deferrable (`indisunique = true AND indimmediate = true`) — a `DEFERRABLE` unique constraint passes an `indisunique`-only check while unusable as an arbiter. If making an existing index unique requires destructive de-duplication, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check instead.
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
-The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
-
+`:` aliases the result key but does NOT expand a foreign key — on resolution failure (FK ambiguous, schema drift) it returns null silently. Use `!fk_column_name` to hint the FK explicitly; resolution failures then error loudly.
 ```ts
 // ❌ WRONG — `:` is an alias, returns null on resolution failure
 .select('id, consumed_session_id, quiz_sessions:consumed_session_id (ended_at)')
@@ -479,12 +384,9 @@ The `:` operator in `.select()` aliases the result key but does NOT expand a for
 // ✅ CORRECT — `!` is the FK hint, errors loudly on resolution failure
 .select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
 ```
-
 Same shape applies to nested resources, joined columns, and renamed embeds. Reserve `:` for genuine column-rename in the result, never as a substitute for `!` on FK expansion.
-
 ### Coerce BIGINT / NUMERIC Columns with `Number()`
 PostgREST serializes `BIGINT` (`int8`), `NUMERIC`, and `DECIMAL` columns as JSON **strings**, not numbers — to preserve precision. Reading them into a `number`-typed field without coercion produces silent bugs: `===`/`<`/`>` comparisons fail (`"1" === 1` is `false`), arithmetic yields `NaN`, and `.toFixed()` throws. Coerce with `Number()` at the read site, before any comparison, arithmetic, or method call. Preserve `null` explicitly (`Number(null)` is `0`, not `null`).
-
 ```ts
 // ❌ WRONG — total_count is BIGINT, arrives as "42"; the singular check never fires
 const totalCount = rows[0]?.total_count ?? 0
@@ -496,13 +398,9 @@ const totalCount = Number(rows[0]?.total_count ?? 0)
 // ✅ CORRECT — NUMERIC with null preserved
 scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage)
 ```
-
 Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number.
-
 ### Sanitize Error Messages Returned to Callers
-
-Every `if (error)` block in a Server Action — or in any exported function or library/SDK wrapper that returns a result type with an `error` field — must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly through an exported result type — internal error strings from **any** source (Postgres, Resend, Stripe, or any third-party SDK) can expose internal implementation details; log the raw error server-side and return a generic domain string.
-
+Every `if (error)` in a Server Action or exported function/SDK wrapper must match a known code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side and return a generic string. Never return `error.message` through an exported result type — it can expose internal implementation details.
 ```ts
 // ❌ WRONG — raw DB error leaked to client
 if (error) return { success: false, error: error.message }
@@ -513,11 +411,8 @@ if (error) {
   return { success: false, error: 'Failed to save question' }
 }
 ```
-
 ### Escape Dynamic Values in HTML/SVG/XML Templates
-
-Any function that builds an HTML, SVG, or XML string via template literals must escape caller-supplied or DB-derived parameters with an HTML-entity escape helper (`esc()` or an equivalent entity-encoder) before interpolation — **even when current call sites are server-trusted**. Escape at the interpolation site, not at the call sites: a future caller passing untrusted input is the injection vector, and call-site escaping is invisible to the template author.
-
+Any HTML/SVG/XML template-literal builder must escape caller-supplied or DB-derived parameters with an HTML-entity escape helper before interpolation — even when current call sites are server-trusted. Escape at the interpolation site, not the call sites: a future caller is the injection vector.
 ```ts
 // ❌ WRONG — DB-derived value interpolated raw into SVG markup
 return `<text x="10" y="20">${question.prompt}</text>`
@@ -526,10 +421,8 @@ return `<text x="10" y="20">${question.prompt}</text>`
 // copy the inline pattern from an existing builder (seed-quiz-setup-eval.ts or email/templates/internal-exam-code.ts).
 return `<text x="10" y="20">${esc(question.prompt)}</text>`
 ```
-
 ### Log Every Error Path, Including Rollbacks
-Every error path — including compensating (rollback) paths — must emit `console.error` before returning. Secondary error paths are not exempt from observability. If a rollback fails silently, the system enters an inconsistent state with no server-side signal.
-
+Every error path, including compensating (rollback) paths, must emit `console.error` before returning — a silent rollback failure leaves an inconsistent state with no signal.
 ```ts
 // ❌ WRONG — rollback failure is invisible
 if (insertErr) {
@@ -547,10 +440,8 @@ if (insertErr) {
   return { success: false, error: 'Failed to create student' }
 }
 ```
-
 ### No Hardcoded Supabase URLs
-Never hardcode Supabase project-ref URLs (e.g. `https://xxxxx.supabase.co`) in source files. Derive from `process.env.NEXT_PUBLIC_SUPABASE_URL` in client components and from server-only env vars in Server Actions. Hardcoded URLs break local development where Supabase runs at `http://localhost:54321`.
-
+Never hardcode Supabase project-ref URLs. Derive from `process.env.NEXT_PUBLIC_SUPABASE_URL` (client) or server-only env vars (Server Actions) — a hardcoded URL breaks local dev (`http://localhost:54321`).
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
@@ -560,21 +451,16 @@ export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
 ```
 
 ---
-
 ## 6. Next.js App Router Patterns
-
 ### Server Actions for All Mutations
 No API routes for mutations — use Server Actions.
-
 ```ts
 // ✅ CORRECT
 'use server'
 export async function submitAnswer(input: unknown) { ... }
 ```
-
 ### API Routes Only for External Consumers
 Route Handlers (`route.ts`) are for webhooks, third-party callbacks, and REST endpoints consumed outside the app.
-
 ### Data Fetching in Server Components
 ```tsx
 // ✅ CORRECT — no useEffect, no loading state, no client-side fetch
@@ -583,25 +469,19 @@ export default async function DashboardPage() {
   return <SubjectGrid subjects={progress.subjects} />
 }
 ```
-
 ### No `useEffect` for Data Fetching
 `useEffect` for data fetching is a Next.js anti-pattern. Use Server Components or React Query if client-side freshness is needed.
-
 ### Approved `useEffect` Pattern: Hydration Guard
 `useEffect` is valid and required for guarding client-only interactions against SSR hydration mismatches. This is not a data-fetching anti-pattern — the code-reviewer should not flag it.
-
 ```tsx
 // ✅ CORRECT — prevents hydration mismatch on client-only state
 const [hydrated, setHydrated] = useState(false)
 useEffect(() => { setHydrated(true) }, [])
 if (!hydrated) return <Skeleton />
 ```
-
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
-
 ### Re-throw Redirect Errors in Server Component Catch Blocks
 Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping a call that may invoke these must check `isRedirectError(error)` and re-throw if true. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
-
 ```tsx
 // ❌ WRONG — swallows redirect, shows fallback instead of redirecting
 try {
@@ -622,15 +502,8 @@ try {
   return <ErrorFallback />
 }
 ```
-
 ### Mirror Callback-Critical State in a Ref (stale-closure guard)
-
-A React state variable read directly inside a callback captures the **render-time snapshot**. If the callback can fire before the next render commits (event handlers stored in a hook, `onAnswerRecorded`-style props, timers, async continuations), that snapshot is stale. State whose value must be **current at callback execution time** — not just at definition time — must be mirrored in a `useRef` and read via `ref.current` inside the callback.
-
-The danger is a **split between where state is produced and where it is later read**: one callback updates the state via `setState`, and a *different* callback — defined in the same hook, capturing the same render's closure — reads it before the next render commits. The reader gets the stale snapshot.
-
-Both callbacks below live in the **same hook**, capturing the same render's closure — that shared scope is what makes the stale read possible.
-
+A React state variable read inside a callback captures the **render-time snapshot** — stale if the callback can fire before the next render commits (hook-stored handlers, timers, async continuations). Mirror callback-critical state in a `useRef` and read `ref.current` inside the callback. Danger case: one callback in a hook updates state via `setState`; a different callback in the same hook, same closure, reads it before the next render — and gets the stale snapshot.
 ```tsx
 // ❌ WRONG — wrappedNavigateTo closes over the render-time `feedback`; if the user
 // answers then immediately navigates, the checkpoint persists the pre-answer Map.
@@ -656,18 +529,11 @@ function useExamNavigation() {
   return { onAnswerRecorded, wrappedNavigateTo }
 }
 ```
-
-The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it. Promoted at count=2 — `df5d354` (stale `currentIndex` in `handleSave` after a hook split) and `e137e93` (stale `feedback` Map read in `wrappedNavigateTo`'s checkpoint).
-
+The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it.
 ### Await Server Actions Before Terminal Navigation
-
-A **terminal navigation** — `router.push(...)`, `router.replace(...)`, or `window.location.assign(...)` to a different page the user cannot return from by staying in place — must be the **last statement** on its path. `router.refresh()` is **not** terminal: it revalidates in place and the user stays, so a racing Server Action has no pending navigation to cancel.
-
-A Server Action that runs before a terminal navigation must not merely be *sequenced* before the call. A slow Server Action's App Router revalidation can cancel the pending soft navigation **even when invoked before** `router.push`, stranding the user on the current page.
-
-- **Critical mutations** — those that must *settle* before the user leaves (e.g. `discardQuiz`, `deleteDraft`): **await** them before the terminal navigation so the action resolves before the nav fires (an un-awaited or post-nav revalidation can cancel the pending soft-nav); make the handler `async` if needed. Sequencing-before is *not* sufficient — in #909 (`f1333974`/`d6e3ed17`) `deleteDraft` was already before `router.push` but, being a slow round-trip, resolved after it and cancelled the nav; the fix was to await.
-- **Non-critical fire-and-forget cleanup** (e.g. `clearDeploymentPin`): at minimum fire it **before** the terminal navigation so the navigation stays the last statement — in #568 (`68216d56`) firing `clearDeploymentPin` *after* `router.push` cancelled the soft nav. For slow non-critical cleanup, bound the await (`Promise.race([action(), timeout])`, clearing the timer in `.finally`) and pair with a `window.location.assign` hard-nav fallback.
-
+A **terminal navigation** (`router.push`/`replace`, `window.location.assign` to a page the user can't return to) must be the **last statement** on its path. `router.refresh()` is not terminal — it revalidates in place, so a racing Server Action can't cancel it. Sequencing a Server Action before a terminal nav is not sufficient: a slow revalidation can still cancel the pending soft-nav even when invoked first.
+- **Critical mutations** (must settle before leaving, e.g. `discardQuiz`): **await** before the terminal navigation.
+- **Non-critical cleanup** (e.g. `clearDeploymentPin`): fire it before the nav at minimum; bound a slow one (`Promise.race` + timeout) and pair with a `window.location.assign` fallback.
 ```ts
 // ❌ WRONG — a Server Action fired AFTER the terminal navigation can cancel the soft-nav
 router.replace('/app/quiz')
@@ -682,15 +548,9 @@ router.replace('/app/quiz')                                // terminal nav: last
 clearDeploymentPin().catch(() => {})
 router.push('/app/quiz')
 ```
-
-The awaited mutation's `.catch(() => {})` above is intentional: the `await` is for **ordering** (let the action settle so it cannot cancel the nav), not a success guarantee — `discardQuiz` is best-effort cleanup, so we navigate regardless of its outcome. When the action's *success* is a precondition for navigating, branch on the error instead of swallowing it (don't `.catch(() => {})`).
-
-A sync React state update between the action and the navigation (e.g. `setLoading(false)`) is fine — it is not a Server Action and does not displace the navigation as the last effectful statement. Promoted at count=2 — #568 (`68216d56`), #909 (`f1333974`/`d6e3ed17`); sweep #941.
-
+`.catch(() => {})` above is for **ordering**, not a success guarantee — best-effort cleanup navigates regardless of outcome. When success IS a precondition, branch on the error instead of swallowing it. A sync state update (e.g. `setLoading(false)`) between action and nav is fine — not a Server Action, doesn't displace the nav as the last effectful statement.
 ### Synchronous Re-Entry Guard for Multi-Source Async Handlers
-
-An async submit/close/finish handler that can fire from **more than one source** — a countdown/timer auto-fire, a manual button click, a keyboard shortcut, a form `onSubmit` — must gate re-entry with a **synchronous `useRef` one-shot lock**, checked-and-set before the first `await`/transition. Async React state — a `useState` loading flag, `useTransition`'s `isPending` — is **not** a valid re-entry lock: between the triggering event and the state commit there is a window where two sources both read the stale "not pending" value and both run the action (double submit, double RPC, double navigation). The on-screen `disabled={pending}` attribute only blocks the *button* path; a timer or programmatic caller bypasses it entirely.
-
+An async handler firing from **more than one source** (timer, click, keyboard, form submit) must gate re-entry with a **synchronous `useRef` one-shot lock**, checked-and-set before the first `await`. Async state (`useState`, `isPending`) is **not** a valid lock — a window exists where two sources both read stale "not pending" and both run the action. `disabled={pending}` only blocks the button path; a timer bypasses it.
 ```tsx
 // ❌ WRONG — isPending/loading is async; a timer fire + a click in the same tick both pass
 const [isPending, startTransition] = useTransition()
@@ -710,25 +570,18 @@ function handleSubmit() {
   })
 }
 ```
-
-Reset `ref.current = false` on the **retryable failure path** (a save/post the user can re-attempt, a rejected exam code). **Omit the reset** when the action is terminal — an exam start that navigates away, a final submit that closes the dialog — so a late duplicate can't re-fire after success. For a validator that early-returns *before* starting the action, set the ref **after** validation passes (never on the early-return), or a corrected re-attempt is wrongly blocked. Promoted at count=3 — quiz session hooks, the stale-closure ref-mirroring sibling above, and the VFR-RT runner Finish race (timer `onExpired` + manual click) in PR #923. The mechanical analog: prefer one `*Ref` one-shot over an `isPending`/`loading`-only guard on any handler reachable from a timer.
-
+Reset `ref.current = false` only on a **retryable failure**; omit the reset when the action is terminal (so a late duplicate can't re-fire after success). For an early-returning validator, set the ref **after** validation passes, never on the early-return.
 ---
-
 ## 7. Testing Rules
-
 ### Co-locate Tests
 ```
 question-card.tsx
 question-card.test.tsx     ← same folder
 ```
-
 ### One Test File Per Source File
 Do not put all tests in a single `__tests__` folder.
-
 ### New Hooks and Utilities Must Ship With Tests
-Any new file in a `_hooks/` or `_utils/` directory, or any new utility in `lib/`, must include a co-located `.test.ts` file in the same commit. Do not rely on the test-writer agent to backfill — write the test alongside the code.
-
+Any new file in `_hooks/`/`_utils/`, or new utility in `lib/`, ships a co-located `.test.ts` in the same commit — do not rely on test-writer to backfill.
 ### Test Naming: Describe Behaviour, Not Implementation
 ```ts
 // ❌ WRONG
@@ -737,8 +590,7 @@ it('calls updateFsrsState', () => { ... })
 // ✅ CORRECT
 it('schedules a shorter review interval when the answer is wrong', () => { ... })
 ```
-
-**Disallowed in `it(...)` titles** (impl-detail leakage — promoted 2026-04-28 after PR #523 rounds 9–11):
+**Disallowed in `it(...)` titles** (impl-detail leakage):
 
 | Pattern | Why it leaks impl |
 |---------|-------------------|
@@ -756,27 +608,13 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 - `it('does not call the RPC when the input is empty', ...)` — describes the externally observable side-effect.
 
 The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
-
-A mechanical guard enforces this at pre-commit + CI: the `check-test-title-leakage.mjs` hook (PR #946). It is **diff-scoped and grandfathered** — it flags only `it()` / `test()` / `it.each()` / `test.each()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
-
+A mechanical guard enforces this at pre-commit + CI: the `check-test-title-leakage.mjs` hook. It is **diff-scoped and grandfathered** — it flags only `it()` / `test()` / `it.each()` / `test.each()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
 ### Test Comments: Audit After Renaming
-
-Omit narrative comments above an `it(...)` if the test name fully describes the behaviour. Comments that paraphrase the title rot when the title changes; reserve comments for non-obvious WHY (hidden invariants, jsdom workarounds, ordering constraints).
-
-**When renaming a test title to be behavior-first, audit any inline comment inside the test body.** Comments often describe a broader implementation scenario than the renamed (more specific) test exercises — once the title narrows, the comment is stale or misleading. Drop it unless it points to a non-obvious WHY that the new title doesn't carry. Promoted 2026-04-28 after stale `JSON.stringify(NaN) → null` / `typeof guard` comments survived a round-9 rename and were re-flagged in round 11.
-
+Omit narrative comments above `it(...)` when the name fully describes the behaviour; reserve comments for non-obvious WHY. When renaming a title to be behavior-first, audit inline body comments too — a comment describing the old, broader scenario goes stale once the title narrows. Drop it unless it carries a non-obvious WHY.
 ### jsdom Limitation: Pre-Hydration State Is Not Testable
-
-`@testing-library/react` wraps `render()` in `act()`, which flushes all effects synchronously. This means a hydration guard's pre-hydration state (e.g., disabled button, skeleton) is never observable in jsdom — `useEffect` runs before your assertions can run.
-
-**Do not write tests for the pre-hydration branch.** Only test the post-hydration (normal) state. This is a jsdom constraint, not a missing test.
-
-### Assert URL on Router-Navigation Mocks (from 2026-04-27)
-
-When a test mocks `router.push`, `router.replace`, or imports `redirect` from `next/navigation`, every assertion on that mock **must** check the URL/path argument — not just `.toHaveBeenCalled()`. Use `.toHaveBeenCalledWith('/expected/path')` or pass an explicit string match to `.lastCalledWith`.
-
-`router.back()` is zero-argument and excluded from this rule — assert the observable navigation result (final URL or history state) rather than a destination argument.
-
+`render()` wraps in `act()`, flushing all effects synchronously — a hydration guard's pre-hydration state is never observable in jsdom. Do not write tests for the pre-hydration branch; only the post-hydration state. jsdom constraint, not a missing test.
+### Assert URL on Router-Navigation Mocks
+A test mocking `router.push`/`replace`/`redirect` must assert the URL/path argument, not just `.toHaveBeenCalled()`. `router.back()` is zero-argument and excluded — assert the observable result instead. **Scope: tests added from 2026-04-27 onward.** Existing tests are migrated as touched, never in a sweep.
 ```ts
 // ❌ WRONG — counts calls but misses wrong redirect target
 expect(mockPush).toHaveBeenCalled()
@@ -784,15 +622,8 @@ expect(mockPush).toHaveBeenCalled()
 // ✅ CORRECT — asserts the exact destination
 expect(mockPush).toHaveBeenCalledWith('/app/exam/results/abc123')
 ```
-
-**Applies to new tests added from 2026-04-27 onward.** Existing tests are migrated as touched, not in a sweep. Reason: PR #523 round 7 missed a wrong-redirect bug because the test only counted calls.
-
-### Lifecycle Integration Test for New Feature Modes (from 2026-04-27)
-
-Every new feature mode or flag that branches behavior at component, hook, or RPC level (e.g., `mode: 'exam'`, `isExam`, `isAdmin` toggles) requires at least **one** integration test exercising the **full lifecycle**: entry path → in-progress state → exit path → post-exit URL/state.
-
-Component-level tests with the flag toggled on are **necessary but not sufficient**. A lifecycle test connects the dots across the flow.
-
+### Lifecycle Integration Test for New Feature Modes
+Every new feature mode/flag branching behavior at component/hook/RPC level requires ≥1 integration test exercising the full lifecycle: entry → in-progress → exit → post-exit state. Component-level tests with the flag toggled on are necessary but not sufficient.
 ```ts
 // ❌ INSUFFICIENT — tests the flag in isolation, not the flow
 it('shows countdown timer when isExam is true', () => { ... })
@@ -805,14 +636,8 @@ it('routes to results page after exam timer expires and auto-submits', () => {
   // 4. assert router.push called with '/app/exam/results/<id>'
 })
 ```
-
-### Refresh / Reload Test for Stateful UI (from 2026-04-27)
-
-Any UI flow that holds client-side state across renders (in-memory answer buffer, multi-step form state, persistent timer) requires a test simulating **page reload mid-flow**.
-
-- **Vitest:** mount the consumer with empty `localStorage` + a fixture representing an active server session, assert recovery render.
-- **Playwright:** explicit `page.reload()` mid-spec, assert resume.
-
+### Refresh / Reload Test for Stateful UI
+Any UI flow holding client-side state across renders requires a test simulating **page reload mid-flow**: Vitest — mount with empty `localStorage` + an active-session fixture, assert recovery render; Playwright — explicit `page.reload()` mid-spec, assert resume.
 ```ts
 // ✅ CORRECT — Vitest reload simulation
 it('recovers in-progress exam from server session when localStorage is empty', () => {
@@ -823,20 +648,14 @@ it('recovers in-progress exam from server session when localStorage is empty', (
   expect(screen.getByRole('timer')).toBeInTheDocument()
 })
 ```
-
-### E2E Spec Hermiticity (from 2026-04-30)
-
-Every Playwright E2E spec that mutates shared seed data **must** restore state in `test.afterEach` (or `afterAll` for describe-scoped fixtures). Without restoration, downstream specs in the same Playwright project see polluted state and fail with what looks like flakiness but is deterministic cross-spec coupling.
-
-The required shape:
-
+### E2E Spec Hermiticity
+Every Playwright E2E spec mutating shared seed data **must** restore state in `test.afterEach` (or `afterAll`) — otherwise downstream specs see polluted state that looks like flakiness but is deterministic coupling. Required shape:
 1. **Stable marker constant** for test-created rows, exported from a shared helper module — never a magic string inlined per test. Examples: `E2E_STUDENT_EMAIL_PREFIX = 'e2e-student-mgmt-'`, `E2E_ADMIN_Q_MARKER = '[E2E_ADMIN_Q]'`.
 2. **Test-created rows carry the marker** in a queryable column (text prefix preferred over JSON metadata so PostgREST `.like()` works).
 3. **Single `afterEach` at the describe level** calls a shared cleanup helper. `afterEach` runs even after a failed test — that is what we want.
-4. **Soft-delete, not hard-delete**, when the table has FK children. `student_responses`, `quiz_session_answers`, `flagged_questions`, and `question_comments` all reference `questions(id)`. Hard DELETE risks 23503 FK violations and also violates `docs/security.md` rule 6. **Exception — hard-delete-by-design tables:** a few tables have no `deleted_at` column and no FK children, so soft-delete is impossible and `.delete()` is the correct cleanup. The current case is `quiz_drafts` (ephemeral "save for later" storage, hard-deleted by the app on submit/cancel — mig `20260312000009`; the 20-draft cap trigger counts `count(*)` with no soft-delete filter, so cleanup queries must NOT add `.is('deleted_at', null)`). A soft-delete attempt on such a table errors at runtime (`column "deleted_at" does not exist`) and leaves state the next test inherits.
+4. **Soft-delete, not hard-delete**, when the table has FK children (`student_responses`, `quiz_session_answers`, `flagged_questions`, `question_comments` reference `questions(id)`) — hard DELETE risks `23503` and violates `docs/security.md` rule 6. **Exception:** hard-delete-by-design tables with no `deleted_at` and no FK children (e.g. `quiz_drafts`) use `.delete()` — a soft-delete attempt there errors at runtime (`column "deleted_at" does not exist`).
 5. **Zero-row no-op chain** (`.select('id')` + log only when `data.length > 0`) per Section 5 — keeps the helper silent on filter-only tests, surfaces actual mutation when something happened.
 6. **Helper has unit tests** (Vitest) covering: org-lookup error path, each update error path, no-op silence, each log path. Use the `vi.hoisted` + `buildChain` queue/shift pattern when the helper makes multiple sequential calls on the same table.
-
 ```ts
 // ✅ CORRECT — admin-questions.spec.ts pattern
 import { restoreSeededQuestionsState } from './helpers/supabase'
@@ -856,40 +675,20 @@ test.describe('Admin Student Management — Create', () => {
   // tests that create students...
 })
 ```
-
-### Multi-Step Cleanup Needs a Per-Step Error Accumulator (from 2026-06-14)
-
-Any `afterEach`/`afterAll` (or shared cleanup helper) with **2 or more distinct cleanup steps** — separate DB mutations or restore operations — must isolate each step in its own `try/catch` and accumulate errors, instead of `await`-ing them sequentially with no isolation. A bare throw in step N (a failed delete, an RLS rejection surfaced via `{ error }`) otherwise skips steps N+1…M, leaking their rows into the next spec — the exact cross-spec coupling the hermiticity rule above prevents.
-
-The required shape (canonical example: `rpc-void-internal-exam-code.spec.ts`):
-
+### Multi-Step Cleanup Needs a Per-Step Error Accumulator
+Any cleanup helper with **2+ distinct steps** must isolate each in its own `try/catch` and accumulate errors — a bare throw in step N otherwise skips N+1…M, leaking rows into the next spec. Required shape (canonical: `rpc-void-internal-exam-code.spec.ts`):
 1. `const errors: string[] = []` at the top of the block.
 2. Each step in its own `try { … if (error) throw … } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) } finally { <reset this step's tracking var/set> }`. The `finally` reset (`createdIds.clear()`, `mutated = false`) runs on both success and failure, so a failed step cannot replay stale ids into the next cleanup.
 3. After all steps: `if (errors.length > 0) throw new Error(\`afterEach: ${errors.join('; ')}\`)` — surfaces every failure at once without any step skipping a later one.
 
-**Dependent steps:** when a later step depends on an earlier one — an FK ordering (delete a parent row after its FK children, insert children after their parent) OR a data dependency (the step needs a value the earlier step resolved, e.g. a looked-up `userId`) — additionally guard the dependent step with `errors.length === 0` so a failed prerequisite doesn't run the dependent step and trigger a spurious error that masks the real cause. Independent steps (the common case) do not need this guard.
-
-**Best-effort steps:** a cleanup step whose failure does NOT leak shared seed state into the next spec — e.g. `auth.admin.deleteUser` on a user that carries immutable `audit_events` FK references (so the delete can never fully succeed), where the row is reused across runs — should log-and-continue (`console.error`), NOT accumulate into the fatal error list. Accumulating it would make a deliberately-tolerated failure fail CI. Reserve the accumulator + final throw for steps whose failure WOULD leak state (the soft-delete/restore of shared rows).
-
-Complements (does not duplicate) the Biome `noUnsafeFinally` rule — that bans `throw` inside `finally`; this rule governs the cross-step isolation structure. **Single-step cleanups** (one mutation, or one shared-helper call that internally isolates) are exempt.
-
-### Paginated Fetch Needs a Caller-Level Page-Error Test (from 2026-06-01)
-
-Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper) must have a co-located test asserting that a **page-fetch error after a successful count** propagates correctly. Set it up one of two ways depending on how the suite mocks the helper:
-- **Real helper, mocked queries:** mock the count query to succeed with a non-zero total AND the first page query to return `{ data: null, error }`.
-- **Helper mocked as a dependency:** mock `fetchAllRows` to return its page-error result `{ data: [], error }` (the shape it returns after discarding partial pages).
-
-Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract). A page resolving `{ data: null, error: null }` — a null payload with no `error` — is equally an error now: `fetchAllRows` rejects it as a count/page disagreement, where it used to pass silently as an empty page.
-
-`fetchAllRows` discards partial pages on a page error and returns `{ data: [], error }`, so the failure mode this guards against is a **silently-truncated result that looks complete** (e.g. a GDPR export section missing rows with no signal). A test that only mocks the count error is insufficient — the page-error path is the one that regresses silently.
-
-### Red-Team Isolation/Negative Assertions Must Be Non-Vacuous (from 2026-06-04)
-
-A red-team test that asserts a **negative** — `expect(...).not.toContain(victim)`, `expect(rows).toHaveLength(0)`, "the row still exists / was not modified", an empty cross-tenant result — must first assert that the **protected state genuinely exists**, or the negative passes vacuously when the collection is empty for an unrelated reason.
-
-- **Isolation (cross-user / cross-org):** before asserting the attacker sees zero of the victim's rows, assert the attacker's *own* result is non-empty (`expect(rows.length).toBeGreaterThan(0)`) AND/OR that the victim's row exists via the service-role client. Seed a victim-owned row so that "0 rows" proves RLS rejection, not an empty table.
-- **State-flip / no-op (delete/update blocked):** read the protected value *before* the blocked mutation and assert it is unchanged *after* — and confirm the row existed in the first place.
-
+**Dependent steps** (FK ordering, or a value from an earlier step): guard with `errors.length === 0` so a failed prerequisite doesn't cascade a spurious error. Independent steps don't need this. **Best-effort steps** (failure doesn't leak state, e.g. `auth.admin.deleteUser` on a row with immutable FK refs that can never fully delete): log-and-continue, don't accumulate — reserve the accumulator for steps whose failure WOULD leak state.
+Complements Biome's `noUnsafeFinally` (bans `throw` in `finally`) — this governs cross-step isolation. Single-step cleanups are exempt.
+### Paginated Fetch Needs a Caller-Level Page-Error Test
+Any caller of `fetchAllRows` (or a `.range()` pagination helper) needs a co-located test asserting a **page-fetch error after a successful count** propagates: mock the count to succeed non-zero and the first page to return `{ data: null, error }` (real helper), or mock `fetchAllRows` to return `{ data: [], error }` (mocked dependency). Assert the caller surfaces the error. A null payload with no error is equally an error — `fetchAllRows` rejects it as a count/page disagreement rather than passing it as an empty page. Guards against a silently-truncated result that looks complete (e.g. a GDPR export missing rows with no signal).
+### Red-Team Isolation/Negative Assertions Must Be Non-Vacuous
+A red-team test asserting a **negative** (`.not.toContain(victim)`, empty cross-tenant result, unmodified row) must first assert the **protected state genuinely exists** — otherwise the negative passes vacuously on an empty collection.
+- **Isolation:** assert the attacker's own result is non-empty AND/OR the victim's row exists via service-role client, so "0 rows" proves RLS rejection, not an empty table.
+- **State-flip/no-op:** read the protected value before the blocked mutation, assert unchanged after, and confirm the row existed first.
 ```ts
 // ❌ WRONG — vacuous if the cross-org admin simply has no students
 expect(rows.map((r) => r.id)).not.toContain(victimUserId)
@@ -898,124 +697,29 @@ expect(rows.map((r) => r.id)).not.toContain(victimUserId)
 expect(rows.length).toBeGreaterThan(0)
 expect(rows.map((r) => r.id)).not.toContain(victimUserId)
 ```
-
-### Red-Team RPC Specs Must Assert the Full Output Contract (from 2026-06-04)
-
+### Red-Team RPC Specs Must Assert the Full Output Contract
 A red-team spec exercising an RPC's **success or idempotent-replay** path must assert the RPC's documented **return payload**, not merely that it executed without error:
-
-1. **Output shape** — assert the returned fields (names + values) match the documented contract (e.g. `score_percentage`, `passed`, `total_questions`, `answered_count`), not just `error === null`.
-2. **Idempotent / re-read paths** — seed **≥2 distinct fixture values** (e.g. one passing `75/true` AND one sub-pass `50/false`) so a regression that hardcodes a single return value fails at least one case. A single seed can't distinguish "re-reads from the DB" from "returns a hardcoded constant that happens to match".
-3. **Numeric fields** — assert numeric fields are within expected bounds, and for zero-case scenarios (e.g. a session with no answers) assert exact equality to zero, since BIGINT/NUMERIC wire values can regress silently.
-
-### New Supabase Query Sites Require an Integration Test (HARD — from #925)
-
-Every NEW `.from('<table>')` or `.rpc('<fn>')` site in **app-layer code** (`apps/web/lib/queries/**`, `apps/web/app/**` Server Actions) must ship with a co-located `*.integration.test.ts` exercising it against the real local Postgres (the integration tier — `apps/web/vitest.integration.config.ts`), not only a mocked-client unit test. Mocked clients can't see the real schema, so schema-contract bugs (wrong column, wrong RLS scope, BIGINT-as-string) pass mocked tests and `tsc`. **Scope:** this is about app-layer query code — NOT `packages/db` migration / RPC-definition PRs, which have their own `__integration__` suite and migration tests; do not cite this rule to block a migration PR. Applies to NEW code; the ~40 pre-existing uncovered app-layer sites are tracked as backlog (#926) so the rule doesn't block its own introduction.
-
-### Integration-Test Negative Assertions Must Be Reachable (from #925)
-
-In app-layer integration tests, verify every negative / isolation assertion is actually reachable given real DB semantics — three tier-specific failure modes make them silently vacuous:
-1. **RLS already enforces the exclusion the helper re-filters** → the helper's own filter is untestable via the restricted (student) client; the assertion passes regardless of the helper's logic. Use a service-role client to assert the helper's own filtering.
-2. **Shared `beforeAll` seeding makes count-isolation one-sided** → "org A sees 3 rows, not 6" adds no signal over the ordinary functional test when both orgs are seeded before any test runs. Assert from BOTH the actor and the victim perspective.
-3. **A DISTINCT-aggregate caps the observed value below a bound** → a secondary bound-check (e.g. `.not.toBe(5)`) may be unreachable; verify the leaked value is distinguishable from the expected before asserting.
-
-### A Test Must Fail If Its Mechanism Is Removed (general, from 2026-08-15)
-
-Before trusting any assertion, ask: **if I deleted the code this test exists to protect, would it go
-red?** If not, the test documents an outcome rather than pinning a mechanism. The two sub-rules that
-follow are worked examples of this principle; it also covers cases neither of them names.
-
-The recurring shape is a SECOND guard that reaches the same result first, so the guard under test is
-never consulted (learner count=4):
-- Four digit-rule fixtures used tokens of ≤4 characters, so the unrelated *length floor* rejected
-  them — delete the digit rule and all four still passed.
-- A budget fixture used `cleared to land`; `land` is four characters, so again the length floor fired
-  before the whole-answer budget was reached.
-- A resume assertion checked an attribute driven by a prop that predates the fix, so it passed with
-  the fix reverted — the mock never declared the prop under test at all.
-- Two REVOKE tests asserted only `error != null`, which a misspelled RPC name equally satisfies.
-
-Cheapest proof, and the one to prefer over argument: **revert the production change locally and watch
-the test fail**, then restore. Where that is impractical, pick a fixture whose expected value differs
-from every value an unrelated guard could produce.
-
-### A `MUTATION:` Comment Is a Prose Claim, Subject to §10 (from 2026-09-14)
-
-A `// MUTATION: <break>` line asserts that making `<break>` turns THIS test red. That is a claim
-about behaviour, so §10 governs it exactly as it governs any other comment — and it rots the same
-way. Writing `MUTATION: X` does not make X true.
-
-List only mechanisms the fixture can actually REACH. The recurring defect is a comment naming two
-mechanisms ("delete A **or** B") where B is unreachable given the fixture: an earlier guard rejects
-the input first, so deleting B leaves the test green and the comment silently overclaims. Verify by
-reverting ONLY the named mechanism and confirming that exactly those tests go red — a superset
-means the comment is under-specific, and green means it is false. Where a mechanism genuinely
-cannot be reached, say so in the comment rather than implying coverage; an honest "NOT pinned, and
-here is why" is worth more than a claim that reads as verified and is not.
-
-**Naming a REACHABLE mechanism is not enough — the described FAILURE MODE must also be true.**
-Two comments on `run-mutations.test.mjs` named a reachable break and said it made validation
-"pass silently", when disabling the guard sends the value into an `else` whose `.forEach()` throws
-a TypeError. The tests reddened, so the mechanism was real; the account of HOW was false, and a
-reader trusting it would look for a silent-pass path that does not exist. Verify by reverting ONLY
-the named mechanism and reading the ACTUAL output — not by predicting it. Promoted at count=5,
-2026-09-14.
-
-**Verify that the mutation APPLIED before reading the result.** A `sed` whose anchor does not match
-is a no-op, and a no-op mutation is indistinguishable from an unpinned test — it reports SURVIVED
-either way. Check the edit landed (a changed line count, a `grep -c` that moved) before concluding
-anything.
-
-Promoted at count=4 across two commits (2026-09-14, `feat/retracted-phrase-guard`): three comments
-overclaimed by naming an unreachable second mechanism, one named a skip that a sibling regex
-boundary already made unreachable. Three were written by the author of the guard whose whole
-purpose is catching false claims.
-
-The promotion sweep claimed it audited every `MUTATION:` claim in the file-size-guard suites and
-found them ALL accurate, "each multi-mechanism one verified by execution". **That claim was false,
-and its refutation is the strongest argument for the harness below.** When
-`.claude/hooks/run-mutations.mjs` (Decision 67) EXECUTED those claims instead of reading them, one
-test in `check-file-size-guard.directive.test.mjs` turned out to pin nothing at all — it asserted
-`false`, which is `declaresUseServer`'s default return, so no break could redden it — under a
-comment naming a regex the function had not contained for two rewrites. Reading can falsify SOME
-mutation claims — an absent or unreachable mechanism shows up on inspection, which is how
-`reAdded`'s missing `escapeRe` was caught. What reading cannot establish is the positive half:
-that the named break actually turns the named tests RED. Only executing it proves that, and the
-sweep that claimed it had done so had not. **Re-derive rather than trust any audit sentence:
-`node .claude/hooks/run-mutations.mjs` re-runs every encoded claim, and `--coverage` reports the
-encoded-vs-claimed gap.** Count claims with `grep -o 'MUTATION:' <file> | wc -l` — a MATCH count, which is what
-`countMutationClaims` uses. NOT `grep -c`, which counts LINES and so misses a second claim on the
-same line, disagreeing with `--coverage` for precisely the mid-line reason this paragraph is
-about. And not `grep -c '// MUTATION:'` either: some claims sit mid-line after other prose and the narrower pattern
-silently misses them — derive the difference with
-`diff <(grep -o 'MUTATION:' <file> | wc -l) <(grep -o '// MUTATION:' <file> | wc -l)` rather than
-trusting a number — MATCH counts on both sides, since `grep -c` is what this very paragraph just
-forbade and would reproduce the defect it documents. Post-commit review flagged the wider figure as wrong on the strength of the
-narrower grep; both numbers were right, for different questions. The defect concentrates in files
-written fresh in one sitting, which is where to look for it next — but note that it also survived a
-deliberate audit of exactly those files, so "we already swept this" is not evidence of anything.
-
-### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way (from 2026-09-14)
-
-When a check has one half that decides what a change ADDED and another that decides what SURVIVES
-elsewhere, the two must use IDENTICAL matching semantics. A split is invisible in review — each
-half reads correctly on its own — and shows up only as a wrong verdict on an input that crosses
-them.
-
-Worked example, and the one this was promoted from: `check-retracted-phrase.mjs` gave `reAdded()`
-anchored token boundaries so that `11807` would stop exonerating a retraction of `1807`, and left
-`survivors()` on a bare `grep -F`, which is a SUBSTRING match. The halves then disagreed about what
-"the same token" is, and an unrelated `11807` counted as a surviving occurrence — blocking a
-retraction that was complete. `my-plan.md` did the same to `plan.md`. The first half was fixed
-three commits before anyone noticed the second.
-
-The tell is a fix applied to one side of a comparison. When you correct matching semantics
-anywhere, find the other place that must agree with it and correct both, or state why they
-legitimately differ. Promoted at count=4 with the learner's substring-not-exact-identity row.
-
-### Guard Against COALESCE/Fallback-Coincidence Test Vacuity (from 2026-07-03)
-
-When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, the assertion is partially vacuous — a regression that drops the guard still yields the fallback and the test passes. Either seed a fixture whose REAL value differs from the fallback, or document the partial-vacuity limitation inline (naming what the assertion cannot prove and what the primary guard is).
-
+1. **Output shape** — assert returned fields match the documented contract, not just `error === null`.
+2. **Idempotent/re-read paths** — seed ≥2 distinct fixture values so a hardcoded-return regression fails at least one case.
+3. **Numeric fields** — assert expected bounds; zero-case scenarios assert exact equality (BIGINT/NUMERIC wire values regress silently).
+### New Supabase Query Sites Require an Integration Test (HARD)
+Every NEW `.from('<table>')`/`.rpc('<fn>')` site in app-layer code (`apps/web/lib/queries/**`, `apps/web/app/**` Server Actions) ships with a co-located `*.integration.test.ts` against real local Postgres (`apps/web/vitest.integration.config.ts`) — mocked clients can't see the real schema, so schema-contract bugs pass mocked tests and `tsc`. Scope: app-layer only, not `packages/db` migration/RPC PRs (own suite). Applies to new code; pre-existing sites are backlog.
+### Integration-Test Negative Assertions Must Be Reachable
+Verify every negative/isolation assertion is reachable given real DB semantics:
+1. **RLS already enforces the exclusion** the helper re-filters → untestable via the restricted client; use service-role to assert the helper's own filtering.
+2. **Shared `beforeAll` seeding** makes count-isolation one-sided → assert from BOTH actor and victim perspective.
+3. **A DISTINCT-aggregate caps the observed value** → verify the leaked value is distinguishable from expected before asserting a bound.
+### A Test Must Fail If Its Mechanism Is Removed
+Before trusting any assertion: if the protected code were deleted, would the test go red? If not, it documents an outcome rather than pins a mechanism. Recurring shape: a SECOND guard reaches the same result first, so the guard under test is never consulted (e.g. a length floor rejects a fixture before the rule under test fires; a REVOKE test asserting only `error != null` passes on a misspelled RPC name too). Cheapest proof: revert the production change locally, watch the test fail, restore. Otherwise pick a fixture whose expected value differs from every value an unrelated guard could produce.
+### A `MUTATION:` Comment Is a Prose Claim, Subject to §10
+A `// MUTATION: <break>` line asserts `<break>` turns THIS test red — a behaviour claim, governed by §10 like any other comment. List only mechanisms the fixture can actually REACH: naming two mechanisms where one is unreachable (an earlier guard rejects the input first) silently overclaims. Verify by reverting ONLY the named mechanism — exactly those tests should go red; a superset is under-specific, green is false. Where a mechanism can't be reached, say so rather than implying coverage.
+**Naming a reachable mechanism isn't enough — the described FAILURE MODE must be true too.** A comment can name a real break yet mischaracterize how it fails (claims "pass silently", actually throws downstream). Reddening proves the mechanism, not the account of HOW — verify by reading the actual output, not predicting it.
+**Verify the mutation actually APPLIED before reading the result** — a `sed` with a non-matching anchor is a silent no-op, indistinguishable from an unpinned test (both report SURVIVED). Check the edit landed before concluding anything.
+Re-derive rather than trust an audit claim: `node .claude/hooks/run-mutations.mjs` re-runs every encoded claim; `--coverage` reports the encoded-vs-claimed gap. Count claims with `grep -o 'MUTATION:' <file> | wc -l` (a MATCH count) — not `grep -c` (counts lines, misses a second claim per line) and not `grep -c '// MUTATION:'` (misses mid-line claims); derive any difference with `diff <(grep -o 'MUTATION:' <file> | wc -l) <(grep -o '// MUTATION:' <file> | wc -l)`.
+### Both Halves of a Two-Sided Gate Must Compare Tokens the Same Way
+When one half of a check decides what a change ADDED and another decides what SURVIVES elsewhere, both must use IDENTICAL matching semantics — a split is invisible per-half in review and shows up only as a wrong verdict on a crossing input. (E.g., one half anchored token boundaries, the other used substring `grep -F`; an unrelated superstring then counted as a surviving occurrence.) The tell is a fix applied to one side of a comparison — find the other place that must agree and correct both, or state why they legitimately differ.
+### Guard Against COALESCE/Fallback-Coincidence Test Vacuity
+When a test asserts a value producible by BOTH the correct-guard path AND a `COALESCE`/fallback default, it's partially vacuous — a regression dropping the guard still yields the fallback and passes. Seed a fixture whose REAL value differs from the fallback, or document the limitation inline.
 ```ts
 // ❌ VACUOUS — the fixture's real actor_role is also 'student', so a regression dropping the
 // `deleted_at IS NULL` filter (security.md rule 10) from the role lookup still returns 'student'
@@ -1027,14 +731,9 @@ seedActor({ role: 'admin' })            // real role ≠ the 'student' fallback
 expect(row.actor_role).toBe('admin')
 ```
 
-Sibling to "Red-Team RPC Specs Must Assert the Full Output Contract" (the two-seed rule above). Promoted at count=3 (2026-06-04 AQ idempotency-seed assertion; #839 replay assertion 2026-06-24; #1069 grader `oral_exam.graded` role assertion — which already carries an inline limitation comment as the documented-limitation escape hatch).
-
 ---
-
 ## 8. What the Code Reviewer Checks Automatically
-
 The `code-reviewer` agent flags these after every commit:
-
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
 - Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
@@ -1048,116 +747,61 @@ The `code-reviewer` agent flags these after every commit:
 - Missing tests for new utility functions
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
 - Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5)
-
 ---
-
 ## 9. Critical Lifecycle Rule: File Renames & Documentation
-
 **When renaming core files** (e.g., `middleware.ts` → `proxy.ts`), **always grep all docs for stale references before committing**. Pattern to check:
 - `docs/*.md` for code examples
 - `.claude/rules/*.md` for file paths
 - MEMORY.md for references
 - Agent memory files (`.claude/agent-memory/`) for notes
 
-This prevents documentation from drifting and confusing future readers.
-
 `.claude/hooks/check-prose-paths.mjs` runs at pre-commit and in CI. It blocks a file path written
 in PROSE that does not resolve on disk. Its suppression marker is `prose-path-ok: <reason>`.
 Read the guard's header for its mechanics and bounds.
-
 ---
-
 ## 10. Comment Accuracy — any claim, not just SQL
-
 A comment or doc that asserts behaviour the code does not have. A wrong comment is worse than none —
 it is what the next reader trusts when deciding whether a guard can safely be removed.
-
 1. **Never propagate a claim from another doc — re-derive it from the code.** A doc is evidence of
    what someone believed, never of what the code does.
-
 2. **Never enumerate an OPEN set — state how to derive it.** A set that can gain a member (files in
    a directory, tables carrying a policy, sites matching a pattern) gets a DERIVATION: a command, a
    query, a pointer to the authoritative list. Name members only as explicit ILLUSTRATIONS or with
    an as-of date. CLOSED sets are fine.
-
-3. **A partial comment edit is the tell.** If you edit any part of a comment block, read the whole
-   block — then grep the retracted phrase repo-wide:
-   `git grep -nF -- '<retracted phrase>' -- :/` (or `grep -RFn -- '<phrase>' .` from the root).
-   Both `-F` and the explicit repo-wide path are load-bearing and both fail OPEN: without `-F` the
-   phrase is a regex; without `-- :/` `git grep` searches only the current subtree. Reading the
-   block alone has never caught a non-adjacent instance.
-   A claim RE-TYPED unchanged inside a reflowed block is a NEW assertion: it arrives on a `+` line
-   but reads as text you already had, so it slips the one review most likely to catch it.
-   **Mechanically enforced at `commit-msg` by `.claude/hooks/check-retracted-phrase.mjs`**, which
-   blocks when a value or filename this commit corrected in one corpus file still stands in one or
-   two others. Its bounds are in its own header and it does NOT discharge this clause: it reads
-   `.claude/`, `docs/`, `.spec-workflow/`, `CLAUDE.md` and `.coderabbit.yaml` only — excluding
-   `.claude/agent-memory/**`, which quotes past false claims verbatim, and any spec whose tasks are
-   all `[x]`, which `agent-workflow.md § Rule-Mirror Sync` designates a historical record. It also
-   needs the hunk to contain the REPLACEMENT, and cannot see a paraphrase or a spelled-out count. The grep above is still yours to run.
-   The sole waiver is a `Retracted-ok: <token> — <reason>` trailer, which must say why the
-   surviving occurrence is not the same claim.
-
-4. **Verify the fix is STAGED, not merely written.** `git grep` reads the working tree, so it goes
-   clean the moment the text is on disk. Run `git diff --staged` AND
-   `git status --short --untracked-files=all` — an untracked replacement file never appears in the
-   staged diff, and the explicit flag is needed because `status.showUntrackedFiles=no` silently
-   drops every `??` line.
-
-5. **Re-reading a block finds incoherence; only re-deriving finds a claim that is coherent and
-   false.** Clause 3 gets you to READ the block; that is not the same as CHECKING it. While a
-   source file is open to verify one claim, re-derive every claim in the block that THAT file can
-   answer, before closing it — nobody reopens a file for the claim they were not suspicious of.
-   Precedent (2026-09-02, PR #1259): an impl-critic opened `generate-agent-files.js` to disprove
-   one claim in a CLAUDE.md paragraph and left the neighbouring byte-for-byte claim — answered in
-   the immediately preceding function of the same open file — standing through two further commits
-   that each corrected a DIFFERENT false claim in that same paragraph.
-
-6. **A commit message may not cite a SHA that does not resolve.** Mechanically enforced at
-   `commit-msg` by `.claude/hooks/check-commit-claims.mjs`: a hex token in commit-reference
-   position must resolve via `git rev-parse --verify` — no `--quiet`, which collapses an
-   AMBIGUOUS prefix and an ABSENT one into the same exit-1-empty-stderr signature. **Its bounds,
-   stated because understating them would be this very defect:** it proves the commit EXISTS, never
-   that the claim about it is true. It does not check counts, or whether a self-reported
-   verification happened. A commit-message claim of either kind is still yours to derive. And
-   detection is PARTIAL: uncovered positions exit 0 on a fabricated SHA, so a green gate is not
-   evidence that every cited SHA was checked. Derive the current set by replaying real messages
-   through `extractRefs` (`docs/decisions.md` Decision 64), never from a list.
-   The commit-context WORD LIST is an OPEN set — read `TRIGGER_WORDS` in the hook rather than a
-   copy here, which goes stale the first time one is added (clause 2). The positions themselves are
-   fixed by the code's structure; read `extractRefs` for them.
-
+3. **A partial comment edit is the tell.** Editing part of a comment block means reading the whole
+   block, then grepping the retracted phrase repo-wide: `git grep -nF -- '<retracted phrase>' -- :/`
+   (or `grep -RFn -- '<phrase>' .` from the root). Both `-F` and the repo-wide path are load-bearing
+   — without them a regex or a subtree-only search fails open. A claim re-typed unchanged inside a reflowed block is a NEW assertion on a `+` line
+   that reads as old text. Mechanically enforced at `commit-msg` by
+   `.claude/hooks/check-retracted-phrase.mjs`, scoped to `.claude/`, `docs/`, `.spec-workflow/`,
+   `CLAUDE.md`, `.coderabbit.yaml` (excludes agent-memory and all-`[x]` specs); it needs the hunk to
+   contain the replacement and can't see a paraphrase — the grep above is still yours to run.
+   Waiver: `Retracted-ok: <token> — <reason>` trailer.
+4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
+   clean the moment text is on disk. Run `git diff --staged` AND
+   `git status --short --untracked-files=all` (the flag is needed because
+   `status.showUntrackedFiles=no` silently drops `??` lines).
+5. **Re-reading finds incoherence; only re-deriving finds a claim that's coherent and false.**
+   While a source file is open to verify one claim, re-derive every OTHER claim in the block that
+   file can answer before closing it.
+6. **A commit message may not cite a SHA that does not resolve.** Enforced at `commit-msg` by
+   `.claude/hooks/check-commit-claims.mjs` via `git rev-parse --verify` (no `--quiet`, which
+   conflates ambiguous and absent). Bounds: proves the commit EXISTS, never that the claim about it
+   is true; detection is PARTIAL, so a green gate isn't proof every cited SHA was checked. Read
+   `TRIGGER_WORDS`/`extractRefs` in the hook rather than a copy here.
 7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
-   the final diff.** Distinct from
-   cl.2: that one says do not enumerate an open set at all. This one governs a count you have
-   decided to state — a dated snapshot, a compliance ratio in a commit message. Measuring it
-   before your own commit's remaining edits land makes it stale ON ARRIVAL, and it reads as
-   verified because it was, once. Promoted at count=2 (learner, 2026-09-09): one commit stated
-   four figures — a file total, a compliance ratio, a corpus line count and a file's length —
-   every one taken before that same commit split two files and added a third. Where the number
-   is derivable, prefer shipping the derivation as a runnable command over stating it
-   (`check-file-size-guard.mjs --stats` exists for exactly this reason).
+   the final diff.** Distinct from cl.2 (enumerating an open set): this governs a count you've
+   decided to state — measuring it before your commit's remaining edits land makes it stale on
+   arrival. Prefer shipping the derivation as a runnable command over stating the number
+   (`check-file-size-guard.mjs --stats`). **"Count" includes EXTENT QUANTIFIERS** (`most`, `every`,
+   `neither` — an open, illustrative set, governed by cl.2): replace the word with the command that
+   establishes the extent, or test it against a falsifying fixture — a UNIVERSAL needs the case
+   expected to FAIL.
 
-   **"Count" includes EXTENT QUANTIFIERS.** A word asserting how much of a set something covers
-   asserts an extent rather than a number, and the set of such words is OPEN, so cl.2 governs it:
-   do not work from a list (`most`, `every`, `neither` are ILLUSTRATIONS). They carry a count's
-   burden: replace the word with the command that establishes the extent, or test it against a
-   fixture that could falsify it — a UNIVERSAL needs the case you expect to FAIL, not the case you
-   expect to pass. Where the extent is real but narrower than the word claimed, restate it as the
-   conditional a fixture actually supports. Promoted at count=3 (2026-09-16).
-
-Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
-object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
-supersession forms are an OPEN set — enumerated in `agent-workflow.md § "name EVERY supersession
-form"` — and reach beyond the function body: `ALTER FUNCTION` replaces `search_path` /
-`SECURITY DEFINER` in place, `ALTER POLICY` replaces `USING` / `WITH CHECK` in place, and triggers,
-CHECK/UNIQUE constraints, backing indexes and GRANTs can each carry the guard being asserted. A
-replay branch is only reachable while its arbiter constraint exists (§5). Call out idempotent-replay
-branches whenever a returned id is later used as a scoped-mutation or teardown target.
-
+Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
+the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set
+(`agent-workflow.md § "name EVERY supersession form"`) reaching beyond the function body
+(`ALTER FUNCTION`, `ALTER POLICY`, triggers, constraints, indexes, GRANTs). A replay branch is only
+reachable while its arbiter constraint exists (§5).
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules in
 `.claude/rules/agent-*.md` and `.claude/agents/*.md`.
-
----
-
-*Last updated: 2026-09-16*
