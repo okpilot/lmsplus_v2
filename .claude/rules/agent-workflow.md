@@ -388,98 +388,33 @@ list under-reports. Fixing one does not fix the other.
 
 ## Finding Validation (MANDATORY before fixing)
 
-When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Validate first:
+A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
 
-1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
-   - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
-     - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
-     - *"phrase X is fabricated / was never in this file"* → establish WHICH STATE the claim is
-       about before picking a command, and note that for one whole class **no tree answers it**.
-       A phrase retracted while AUTHORING — written, caught, fixed before `git add` — is absent
-       from the commit, from `HEAD~1`, and from every other tree. `git show <sha>:<path>` and
-       `git show <sha>^:<path>` both return 0, and that 0 is the EXPECTED result, not a refutation.
-       Reporting FABRICATED on the strength of it inverts the evidence. Only a phrase that was
-       COMMITTED and later retracted is answerable by `git show <sha>^:<path>`; confirm you are in
-       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST; `-S` finds the
-       INTRODUCTION. **Bounded by REACHABILITY:** `git log` walks HEAD's ancestry and suppresses
-       merge diffs, so add `--all --diff-merges=first-parent --no-patch` before reading an empty
-       result as anything stronger than *not reachable from HEAD*. Within that bound an empty
-       result means the grep-based refutation is unavailable, whatever the claim's merits.
-     - *"this file is new"* (and *"+N tests"*, which needs a DIFFERENT command — see below) →
-       `git show --stat <sha> -- <path>` for a claim about a
-       COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
-       `--diff-merges=first-parent`); for uncommitted work `git status --porcelain --untracked-files=all` FIRST and
-       then `git diff HEAD --stat -- <path>`, because a file that was created but never `git add`-ed is
-       in neither HEAD nor the index and so is invisible to any `git diff` form — the commonest shape
-       of a "I created that file" claim. For the NEW half specifically, bind the check to the CLAIMED
-       commit: `git show --diff-filter=A --format=%H <sha> -- <path>` is non-empty only if THAT commit
-       added the path. `git log --diff-filter=A --format=%H -- <path>` alone finds the addition
-       ANYWHERE in history — take `--format=%H` because the bare form prints a whole commit block
-       (hash, Author, Date, message) rather than bare SHAs, and `%H` additionally pins the FULL hash,
-       which `%h` and a `log.abbrevCommit=true` config do not. It cannot BY
-       ITSELF refute "commit X created it": one returned SHA differing from the claimed one IS a
-       refutation, but several (a path deleted and re-added — this very file has two) need each read
-       to see which event the claim is about. A *"+N tests"* claim is NOT answered by any `--stat` form
-       above — `--stat` counts LINES, not tests —
-       read the PATCH, picking the form for the state the claim is in: COMMITTED
-       `git show <sha> -- <path>`, plus
-       `--diff-merges=first-parent` when `<sha>` is a merge, since a patch read is subject to the
-       same combined-diff omission as a stat read; TRACKED-uncommitted `git diff HEAD -- <path>`;
-       UNTRACKED, read the file itself, because it is in neither HEAD nor the index. Then count the
-       added `it(` / `test(` calls plus any `it.each(` / `test.each(` blocks, which contribute one
-       test per data row and do NOT match a grep for `it(`; a stat total is not a test count. NOT bare `git diff --stat`: it compares the worktree
-       against the index, so it reports nothing for anything already staged or committed — which is
-       most claims a reviewer makes. A claimed-new file with "+18 tests" was a MODIFIED file whose
-       real delta was 8.
-     - *"function A calls B"* / *"the siblings all do X"* → grep the call sites or read `pg_proc.prosrc`. A doc claimed a function called `normalize_answer`; it never has.
-     - *"a critic/reviewer told me X"* → verify X yourself before repeating it in a commit message,
-       a plan, or a rule. A critic's claim is evidence that it believed something, never that the
-       code does it. Precedent: `3a50780a`'s commit message states "impl-critic confirmed that pair
-       is exhaustive: `createClient<` matches exactly those two call sites" — `packages/db/src/admin.ts:13`
-       is a third. The enumeration was scoped to *scripts* and correct there; the unqualified
-       repo-wide restatement was not, and it is now permanent in the history.
-     - *"this path is already covered by Y"* → open Y and confirm it covers the path CLAIMED, not
-       merely that it exists. A verdict can be right while the evidence offered for it is invented,
-       and the verdict is what makes the evidence read as checked. test-writer's "no test warranted"
-       was correct; its stated ground — that a timeout was "already covered end-to-end" by the
-       hanging entry in `check-file-size-guard.mutations.json` — was refuted by that entry's OWN
-       note, which records it as a return flip precisely BECAUSE a hang cannot be survived. Nothing
-       in the corpus triggers a real timeout. One grep, in a file the agent had been pointed at.
-     - *"this changed the failure mode"* → read the OLD body. A CR finding said a helper turned an abort into a silent wrong answer; the old code coalesced identically and never aborted. (The conclusion — a parity gap — was still right, but for an entirely different reason, and acting on the stated mechanism would have produced the wrong fix.)
-     - *"I ran / verified / updated / wrote X"* — an agent reporting its OWN ACTION, not a fact
-       about the code → inspect the ARTIFACT that action would have left:
-       `git status --porcelain --untracked-files=all` (the bare form honours `status.showUntrackedFiles`,
-       so a repo setting it to `no` hides every untracked leftover — `code-style.md` §10 clause 4),
-       `git diff HEAD -- <path>` (NOT bare `git diff` — that shows only UNSTAGED changes, so an agent
-       that staged its write reads as having written nothing), and for a write already committed
-       `git show --stat <claimed sha> -- <path>` — an EMPTY stat means THAT commit did not touch the
-       path, whatever other history the file carries, and a NON-EMPTY one proves it did; the file
-       merely EXISTING proves nothing in either direction.
-       On a MERGE commit add `--diff-merges=first-parent`: the default combined diff omits any path
-       that matches a parent, so a merge that DID bring the file in stats EMPTY and reads as a false
-       claim. This caveat attaches to `git show --stat` itself, so it governs the "this file is new"
-       bullet above equally — it is not specific to this one.
-       NOT `git log -1 -- <path>` compared against the claimed SHA: that returns only the NEWEST
-       commit touching the path, so ANY later commit that also touched it makes a TRUE claim compare
-       unequal and be rejected. Read the file, or re-run the check. **Scope: claims you
-       are about to ACT ON or RELAY to the user — not every sentence of every report.** A report's
-       conclusion is often right while its stated evidence is invented, so checking the verdict is
-       not checking the claim. Learner row 663 — derive its current count from the tracker table in
-       `.claude/agent-memory/learner/MEMORY.md`, never from a figure quoted here; the instances below
-       are ILLUSTRATIONS, not a census: two doc-updater
-       reports cited footer text their commit never changed; a learner report claimed an archive
-       entry updated while its count field stayed behind; a subagent called 13 failing tests
-       "pre-existing, confirmed unrelated" without running the confirmation; and on `20a14793`
-       code-reviewer reported updating its own memory tracker when the file's last touch was
-       `ab737599` and the tree carried no delta. Naming the prior failure in the dispatch
-       prompt did NOT prevent recurrence (once for doc-updater, once for the learner) — the remedy
-       is the artifact check, not a reminder. Where the claimed action is a VERIFICATION of a code
-       fact this overlaps the bullet above: re-derive the fact there, inspect the artifact here.
-2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
-3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
-4. **If the fix changes the plan** — Re-validate the changed parts before implementing.
+1. **Verify the factual premise with a COMMAND, not by reasoning.** Pick the command for the
+   STATE the claim is about — committed, staged, tracked-uncommitted, or untracked. The wrong
+   state returns a clean result that reads as a refutation.
 
-Only then fix. This is a closed loop: `finding → validate → fix → re-validate if plan changed`.
+   | Claim shape | Command | Trap it avoids |
+   |---|---|---|
+   | "production is in state X" | read-only probe per `reference-prod-readonly-db-access`; SELECT only, narrowed to the disputed rows, never `SELECT *` over answers or personal data. If answering needs a WRITE, a schema change, or a wide personal-data read — STOP and ask the user | designing a new prod-WRITE path around a premise nobody checked |
+   | "phrase X was never here" | `git log -S '<phrase>' --all --diff-merges=first-parent --no-patch` FIRST, then `git show <sha>^:<path>` | a phrase retracted while AUTHORING is in NO tree; `git show <sha>:<path>` and `git show <sha>^:<path>` both return 0 and that 0 is expected, not a refutation. Bare `git log` walks HEAD's ancestry only |
+   | "this file is new" | committed: `git show --diff-filter=A --format=%H <sha> -- <path>`. Uncommitted: `git status --porcelain --untracked-files=all` FIRST, then `git diff HEAD --stat -- <path>` | `git log --diff-filter=A --format=%H -- <path>` finds the addition ANYWHERE in history; a path deleted and re-added returns several. Take `--format=%H`: the bare form prints a whole commit block, and `%h` under `log.abbrevCommit=true` does not pin the full hash. A file created but never `git add`-ed is in neither HEAD nor the index, so no `git diff` form sees it |
+   | "+N tests" | read the PATCH — committed `git show <sha> -- <path>`, tracked-uncommitted `git diff HEAD -- <path>`, untracked read the file; count added `it(`/`test(` plus `it.each(`/`test.each(` rows | `--stat` counts LINES. `it.each` contributes one test per data row and does not match a grep for `it(` |
+   | "function A calls B" / "the siblings all do X" | grep the call sites, or read `pg_proc.prosrc` | a doc claiming a call that never existed |
+   | "a critic told me X" | verify X yourself before repeating it in a commit message, plan, or rule | a critic's claim is evidence it BELIEVED something, never that the code does it |
+   | "this path is covered by Y" | open Y and confirm it covers the path CLAIMED | a right verdict resting on invented evidence; the verdict is what makes the evidence read as checked |
+   | "this changed the failure mode" | read the OLD body | acting on a stated mechanism that is wrong produces the wrong fix even when the conclusion is right |
+   | "I ran / verified / updated / wrote X" | inspect the ARTIFACT — `git status --porcelain --untracked-files=all`, `git diff HEAD -- <path>`, and for a committed write `git show --stat <sha> -- <path>` | bare `git status` honours `status.showUntrackedFiles=no`; bare `git diff` shows only UNSTAGED, so an agent that staged its write reads as having written nothing. NOT bare `git diff --stat`, which compares worktree against index and reports nothing for anything staged or committed; `git log -1 -- <path>` returns the NEWEST commit, so any later touch makes a TRUE claim compare unequal |
+
+   On a MERGE commit add `--diff-merges=first-parent` to any `show`: the default combined diff
+   omits a path matching a parent, so a merge that DID bring the file in stats EMPTY.
+
+   Scope: claims you are about to ACT ON or RELAY. Naming a prior failure in the dispatch prompt
+   does NOT prevent recurrence — only the artifact check does.
+
+2. **Check implications** — what callers/tests/docs break if the fix is applied? Read them.
+3. **Decide** — real issue, false positive, or valid concern needing a different fix.
+4. **If the fix changes the plan** — re-validate the changed parts first.
 
 ## Apply-vs-Defer Discipline (MANDATORY before push)
 
