@@ -6,6 +6,13 @@
 
 ## Positive-pattern log
 
+### mutation-pinned test commit — ISSUE raised (2026-09-16, feat/prose-path-guard)
+
+ISSUE — `MUTATION:` comment describes the classify path as the failure mode but the actual failing assertion is `normalise('./docs/plan.md')` at test line 157, not `cls(...)` at line 158.
+Execution: mutated scratch copy → 26 pass, 1 fail; failing test: "strips a ./ prefix before any index lookup so a ./- prefixed citation resolves correctly"; first failing assert: `assert.equal(normalise('./docs/plan.md'), 'docs/plan.md')`.
+The comment says "classify falls through to 'unresolved'" — that is true ONLY IF the first assertion passed, which it does not.
+Pattern: §10/§7 — describes the downstream consequence (classify) without naming the immediate one (normalise assertion).
+
 ### CR-local round-2 fixup REVISE → APPROVED (2026-09-16, feat/prose-path-guard)
 
 Round 2 raised ISSUE on "nothing else" claim — REVISED. Round 3 re-review: APPROVED.
