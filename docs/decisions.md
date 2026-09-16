@@ -1,5 +1,7 @@
 # Decisions & Ideas Ledger
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 > Running log of all decisions, ideas, and open questions.
 > Sources: `app-design-document.md`, `step-zero-research.md`, conversation notes.
 
@@ -1994,7 +1996,112 @@ one after the harness PR merged. That is the §10 cl.7 defect this programme kee
 and shipping the script instead of the figure is the fix.
 
 
-*Last updated: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
+## Decision 69: `question-images` stays public-read; org-private is a pre-multi-org gate (2026-06-09)
+
+**Date**: 2026-06-09 (recorded 2026-09-15 — see *Provenance* below)
+
+**Context**: Issue #366 (CodeRabbit, PR #355) flagged that migration `20260324000055` org-scoped the
+`question-images` bucket's INSERT/UPDATE/DELETE policies but left `20260324000053`'s SELECT policy
+(`question_images_public_read`) unscoped — any authenticated user can read any org's images. A
+Supabase advisor finding (`public_bucket_allows_listing`, folded in from #589) added that the bucket
+is `public = true`, so the public object endpoint serves files by path with no auth at all. The
+repo does NOT establish that flag for production: `20260410000009` sets it under
+`ON CONFLICT (id) DO NOTHING`, a no-op on the pre-existing dashboard-created prod bucket. It was
+confirmed live by unauthenticated probe on 2026-09-15 — see `docs/security.md` §13 for the probe
+and its discriminator.
+
+Key technical fact: **org-scoping the SELECT policy alone does NOT make images org-private while the
+bucket is public.** Supabase's `/storage/v1/object/public/...` endpoint bypasses RLS for
+GET-by-path; the SELECT policy governs only `.list()` enumeration and the authenticated object API.
+Tightening the SELECT policy would pass the advisor lint while leaving public GET wide open.
+
+Question images are also low-sensitivity: the correct answer is stripped server-side by
+`get_quiz_questions()`, and the image itself is an aviation diagram shown to every student. The
+deployment is single-org, so cross-org visibility is not exploitable today.
+
+**Decision**: Accept public-read. The bucket remains `public = true` with the unscoped authenticated
+SELECT policy. Cross-org image visibility is an **accepted risk for the single-org deployment**.
+
+- Rejected **org-scoping the SELECT policy in isolation**: theatre on a public bucket, and it would
+  falsely signal "fixed". This lapse condition is **not mechanically enforced by any gate** — nothing can see the org count at review time — so it holds until a human retires it; tracked in #1282.
+- The real fix — private bucket plus signed URLs — is deferred and tracked as a **P1 gate that MUST
+  land before a second organization is onboarded**: **#814**, which holds the current implementation
+  approach. **#847** is a hard prerequisite: `apps/web/scripts/import-questions.ts` writes images to
+  `${subjectCode}/${filename}`, outside any org-id folder, so every bulk-imported image would fall
+  outside an org predicate. **#847 as currently scoped does NOT close this loop** — its acceptance criteria randomize the FILENAME (`${subjectCode}/${randomUUID()}.${ext}`) and keep the `subjectCode` folder, so the path still never becomes `{org_id}`; its scope must widen before #814 can land.
+
+**Rationale**: Matches the data's actual sensitivity, avoids a misleading partial fix, and ties the
+real refactor to its actual trigger (multi-org go-live) rather than to a recurring stale ticket.
+
+**Implementation**: Docs and rule-mirrors only, no schema change.
+
+The carve-out is RESTATED — and so must be kept in sync with this entry — in these files, named
+as an ILLUSTRATION as of 2026-09-15 and not as a closed set: `docs/database.md`'s
+storage note, `docs/security.md` §13, `.claude/rules/security.md` rule 2, `.coderabbit.yaml`'s
+migrations-RLS instructions, and `.claude/agents/security-auditor.md` suppression 12. That last one
+needs inline text specifically because the pre-push gate reads only its OWN definition plus the
+diff: `docs/security.md` is `Read`-able but never fed to it, so a pointer there would not have
+reached it. Derive the current set rather than trusting this sentence:
+`grep -rl question-images docs/ .claude/rules/ .claude/agents/ .coderabbit.yaml .spec-workflow/`
+lists every file in those paths that mentions the bucket — read each to sort restatements from
+pointers. It does not reach app code or migrations, which name the bucket without mirroring the
+carve-out (`git grep -l question-images -- :/`).
+The scoped grep returns more files than are named here: `docs/decisions.md` is this entry itself, and
+`.spec-workflow/specs/corpus-codification/tasks.md` matches only on the branch NAME, not the
+bucket.
+
+Other files POINT at this decision without restating the mechanics, and need no sync when the
+wording here changes — again an illustration as of 2026-09-15, not a closed set: `docs/plan.md` and
+`.spec-workflow/steering/tech.md`. No count is stated for
+either — `grep -n 'Decision 69' docs/plan.md .spec-workflow/steering/tech.md` is the derivation, and
+it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
+time because the same commit that asserted it added another citation (§10 cl.7).
+Both were REDUCED to pointers on 2026-09-15: they previously restated the write/read split and the
+single-org acceptance, which made them mirrors in fact while being described as pointers. Reducing
+them was preferred over promoting them, because every additional copy of the mechanics is another
+place to go stale.
+The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
+a pointer is not.
+
+Issue state: #366 closed as decided; #814 carries the refactor.
+
+**Provenance — why this is dated 2026-06-09 but numbered 69.** The entry was written on 2026-06-10
+and left in a `git stash` that was never committed, so #366 was closed as *decided* with the
+decision recorded nowhere in the repo. The 2026-08-19 backlog audit hit the gap from the other side:
+it recorded that #814's citation of "Decision 41" was wrong and that the promised `docs/security.md`
+§13 note "does not exist", and re-pointed the stance at Decision 14 — an unrelated 2026-03-11
+import-format entry that mentions the bucket only in passing. The stash was recovered on 2026-09-15;
+decision numbers 41 and 44, which the stashed draft used, were both taken in the interim.
+
+
+## Decision 70: RULE 0 — NO PROSE outranks every other rule in the corpus (2026-09-15)
+
+State what is true; delete the rest. No justification, no precedent, no archaeology — that is what
+`git log` is for. Every sentence is a claim that can be false and must be verified, so fewer
+sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph.
+
+Evidence is not prose. A skip reason, an `EVIDENCE:` line, a finding's stated basis or a required
+status/summary stays wherever a rule asks for it — the verification half of Rule 0 requires them.
+
+Rule 0 sits above the PRIME DIRECTIVE in `CLAUDE.md`, and as a one-line banner everywhere else:
+
+```bash
+git grep -l 'RULE 0 — NO PROSE\.' -- :/
+```
+
+`.coderabbit.yaml` carries the reviewer-facing form as a `path_instructions` entry over the prose
+file globs: CodeRabbit FLAGS added prose instead of asking for more, and is told not to request
+a clarifying sentence, caveat or example — prefer deletion, and prefer a runnable command over any
+paragraph. NOT `tone_instructions`: the schema caps that field at 250 characters and rejects the
+whole config when it is exceeded. One narrowing is unrecoverable: `path_instructions` matches
+FILES, so CodeRabbit chat replies and commit-message review are no longer covered.
+Pinned by `check-file-size-guard.update.test.mjs`.
+
+**Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
+advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
+`corpus-codification` spec already lists its deletion set.
+
+*Last updated: 2026-09-15 — Decision 70: RULE 0 — NO PROSE outranks every other rule; it sits above the PRIME DIRECTIVE in `CLAUDE.md` and as a banner in every rule, agent, command, skill, steering and binding doc (derive the set with `git grep -l`, no count stated — §10 cl.2). `.coderabbit.yaml` flags added prose instead of requesting more. NOT mechanically enforced: no hook measures Rule 0 compliance or prose volume. The introducing commit's own message shipped an unverified file count, caught pre-push by two reviewers and deleted rather than corrected. Prior: 2026-09-15 — Decision 69: the `question-images` bucket stays public-read; org-private images are a P1 gate before multi-org go-live (#814; #847 is named a prerequisite but as scoped does not satisfy it). Recovered from an uncommitted 2026-06-10 `git stash` — #366 was closed as decided while the decision itself was never committed, and the 2026-08-19 audit re-pointed #814 at an unrelated entry to paper over the gap. Prior: 2026-09-14 — Decision 68: `code-style.md` §1's "never restate a number here" becomes mechanical (`check-prose-claims.mjs`, pre-commit + CI, ratcheted against `.claude/prose-claims.json`). The spec's "zero ambiguity" premise for this item was REFUTED by measurement — three narrowings are load-bearing, and the baselined false positives are kept rather than tuned away (no count stated — the baseline is mutable data; read `.claude/prose-claims.json`). No block rate is quoted; the measurement script is committed because the figure moves with the window. Prior: 2026-09-14 — Decision 67: mutation claims become DATA a command re-runs
 (`run-mutations.mjs`, mutations in `<guard>.mutations.json`, applied to a throwaway worktree);
 commit messages state the command, not the figure. Executing the existing claims for the first time
 refuted claims in every file that carried them, plus one test that pinned nothing and one

@@ -1,5 +1,7 @@
 # Product Overview — LMS Plus v2
 
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 ## Product Purpose
 
 LMS Plus v2 is a training platform for EASA PPL(A) (Private Pilot Licence — Aeroplane) candidates, built for Aviation Training Organisations (ATOs). It replaces fragmented tooling (spreadsheets, standalone quiz apps, paper attendance) with a single web application covering question bank training, lesson delivery, and LMS administration.

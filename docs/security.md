@@ -1,3 +1,5 @@
+> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
+
 ---
 date: 2026-03-11
 status: active
@@ -902,6 +904,35 @@ const { data } = await adminClient.from('users').select('*')
 ```
 
 **Why:** `adminClient` bypasses RLS entirely. Without explicit org-scoping, an admin at org A who knows a user UUID from org B can read, update, or deactivate that user. Three occurrences of this gap across different sessions (2026-03-13, 2026-03-14, 2026-03-25) prompted this rule.
+
+### Accepted exception: `question-images` storage bucket is public-read (Decision 69)
+
+The `question-images` bucket is intentionally **not** tenant-scoped on read. Two independent facts
+combine here, and they are established DIFFERENTLY — do not cite one for the other:
+
+- **The SELECT policy `question_images_public_read` is unscoped**
+  (`supabase/migrations/20260324000053`; `20260324000055` org-scoped only the INSERT/UPDATE/DELETE
+  policies and left this one standing). Any authenticated user can read any org's images. This one
+  the repo does establish.
+- **The bucket carries `public = true`, so the object endpoint serves files by path with no auth at
+  all.** `supabase/migrations/20260410000009` sets that flag — but under
+  `ON CONFLICT (id) DO NOTHING`, which makes it a NO-OP wherever the bucket already exists. That
+  includes PRODUCTION: the migration's own header records that the bucket "was only created
+  manually in the dashboard", so the migration guarantees the flag for FRESH environments (local,
+  CI) and asserts nothing about prod. Prod's flag was confirmed `true` by unauthenticated probe on
+  2026-09-15: `GET /storage/v1/object/public/question-images/<absent-key>` returns `NoSuchKey`,
+  whereas a private bucket returns `NoSuchBucket` (discriminator verified against a local control
+  bucket). Re-derive it that way rather than citing the migration.
+
+This is an **accepted risk for the current single-org deployment** (`docs/decisions.md` Decision 69):
+question images are non-sensitive (correct answers are stripped by `get_quiz_questions()`; the image
+is a diagram), and org-scoping the SELECT policy alone is theatre while the bucket is public — the
+public GET endpoint bypasses RLS. A security audit should treat the unscoped read as
+documented-and-intentional, **not** a gap.
+
+The genuine fix — private bucket plus signed URLs — is a **P1 gate that must land before a second
+organization is onboarded**, tracked in **#814** (which carries the current implementation approach;
+**#847** is a hard prerequisite, because the import script writes images outside any org-id folder). **#847 as currently scoped does NOT close this loop** — its acceptance criteria randomize the FILENAME (`${subjectCode}/${randomUUID()}.${ext}`) and keep the `subjectCode` folder, so the path still never becomes `{org_id}`; its scope must widen before #814 can land. The accepted-risk lapse condition — the single-org limit above, not #847's scope gap — is **not mechanically enforced by any gate** — nothing can see the org count at review time — so it holds until a human retires it; tracked in #1282.
 
 ---
 
