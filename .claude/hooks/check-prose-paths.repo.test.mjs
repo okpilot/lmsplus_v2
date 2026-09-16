@@ -467,8 +467,9 @@ test('does not flag a placeholder ending in > when TRAIL strips the bracket befo
     // trailing `>`, producing `.claude/agents/<name`. PLACEHOLDER alone does not match it
     // (no closing `>` remains), so without `t.includes('<')` it reaches 'unresolved'.
     // NON-VACUITY: without the `.claude` top-level entry the token does not pass looksLikePath
-    // and never reaches classify — no finding for the wrong reason. The fixture file written
-    // under that directory above is what guarantees the entry is present.
+    // and never reaches classify — no finding for the wrong reason. withRepo always writes a
+    // baseline under that directory, so the entry is present either way; the write above is
+    // belt-and-suspenders.
     r.write('docs/a.md', 'intro\nlaunch the agent at .claude/agents/<name> passing the task\n')
     r.git('add', '-A')
     // MUTATION: remove `|| t.includes('<') || t.includes('>')` from classify's placeholder
