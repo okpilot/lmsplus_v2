@@ -38,8 +38,15 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - **Inline guard waivers**: the retracted-phrase hatch above is a commit-message TRAILER;
      the ratcheted guards ship INLINE markers instead, and until 2026-09-16 nothing audited
      them.
-     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' -- ':!.claude/commands/'`
-     The one exclusion drops this bullet's own copy of the command. Do NOT also exclude
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep -v "git grep -n -e"`
+     The filter drops every line that QUOTES this command — this bullet, and each note
+     elsewhere that cites it. That set is OPEN (§10 cl.2) and grows on every citation — it grew
+     twice during the single review that flagged it, once from the reviewing critic's own
+     write-up. Any count here is stale before it is read, so state none; re-derive with
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`.
+     A quotation of the command is never a waiver, so dropping the class is correct — whereas
+     excluding `.claude/commands/` would drop every command FILE, wider than the stated reason,
+     so a waiver written in any other one would never appear. Do NOT exclude
      `.claude/hooks/`: the guards' sources and suites carry LIVE waivers, so excluding that
      directory hides exactly what this audit exists to see — and hides it silently, however
      many land there.

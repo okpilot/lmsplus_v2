@@ -215,8 +215,10 @@ export function buildIndex(tracked) {
   return { trackedSet, dirSet, basenames, suffixes, toplevel }
 }
 
-/** Token, normalised for every lookup: no `./` head, no trailing slashes. */
-const normalise = (tok) => tok.replace(/^\.\//, '').replace(/\/+$/, '')
+/** Token, normalised for every lookup: no `./` head, no trailing slashes.
+ *  Exported because `measure-prose-paths.mjs` keys its ignored set with it: a second copy there
+ *  would diverge on the first regex edit and silently move tokens between the classes it counts. */
+export const normalise = (tok) => tok.replace(/^\.\//, '').replace(/\/+$/, '')
 
 /**
  * Does the token name something that exists? Index first, filesystem second.

@@ -35,14 +35,13 @@ import {
   collectCandidates,
   corpusFiles,
   ignoredTokens,
+  normalise,
   trackedPaths,
 } from './check-prose-paths.mjs'
 
 /** The class the guard reports. Kept as a literal here so a rename in the guard shows up as a
  *  zero row rather than silently renaming this tool's conclusion too. */
 const FINDING_CLASS = 'unresolved'
-
-const normalise = (tok) => tok.replace(/^\.\//, '').replace(/\/+$/, '')
 
 /**
  * The wide corpus: every file the sibling grades as prose, minus `.json`, which has no comment

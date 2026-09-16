@@ -2,9 +2,16 @@
 //
 // Pure decision logic for the prose-paths guard: token recognition, the six structural
 // narrowings, the exclusion classes, waivers, baseline keys and argument parsing. Nothing
-// here spawns a process, reads the filesystem or touches git — those paths live in
+// here spawns a process or touches git — those paths live in
 // check-prose-paths.repo.test.mjs, so neither file approaches the test-file cap in
 // .claude/limits.json.
+//
+// ONE filesystem read remains, and it is deliberate. The sentinel below misses both index
+// sets, so `resolves` falls through to its `existsSync` tail (`grep -n 'return existsSync(t)'
+// .claude/hooks/check-prose-paths.mjs` — a predicate, because the line number drifts). The
+// sentinel must stay absent from the run's cwd, exactly as check-prose-paths.repo.test.mjs
+// states for its own direct-evaluate cases.
+// The sentinel is docs/gone.md // prose-path-ok: it MUST NOT resolve — it IS the miss case that drives `resolves` to its filesystem tail, so a repo where it resolved would silently void the assertion
 //
 // Every case is MUTATION-PINNED: the opening comment names the break that turns it red, and
 // every break was EXECUTED before being written down (`code-style.md` §7 — a `MUTATION:` line

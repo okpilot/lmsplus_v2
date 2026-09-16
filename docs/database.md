@@ -559,7 +559,7 @@ Created in migration 051 to centralize the soft-delete filter and provide RLS en
 - `apps/web/lib/gdpr/collect-user-data-queries.ts` — GDPR data export
 
 The list is an OPEN set; derive it rather than trusting it:
-`grep -rn "active_flagged_questions" apps/web --include=*.ts | grep -v '\.test\.'`
+`grep -rn "active_flagged_questions" apps/web --include='*.ts' --include='*.tsx' | grep -v '\.test\.'`
 
 Write operations (`flagQuestion`, `unflagQuestion`) continue to use the `flagged_questions` base table directly.
 
