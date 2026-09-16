@@ -1061,10 +1061,9 @@ The `code-reviewer` agent flags these after every commit:
 
 This prevents documentation from drifting and confusing future readers.
 
-**Half of this is now mechanical.** `.claude/hooks/check-prose-paths.mjs` blocks, at pre-commit
-and in CI, a file path written in PROSE that does not resolve on disk. It is a RATCHET against
-`.claude/prose-paths.json`; its suppression marker is `prose-path-ok: <reason>`. Its mechanics and
-its bounds are in the guard's own header — read them there, not a summary here.
+`.claude/hooks/check-prose-paths.mjs` runs at pre-commit and in CI. It blocks a file path written
+in PROSE that does not resolve on disk. Its suppression marker is `prose-path-ok: <reason>`.
+Read the guard's header for its mechanics and bounds.
 
 ---
 

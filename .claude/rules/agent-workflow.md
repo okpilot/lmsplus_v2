@@ -909,27 +909,14 @@ transcript, so a finding that is not restated in that message does not exist. "T
 reported above", "memory updated", and any reference to an earlier turn are forbidden AS THE SOLE
 CONTENT: there is no above.
 
-The failure looks STRUCTURAL rather than careless. It APPEARS to fire when an agent's last tool
-call is its own memory write — the terminal message becomes a note ABOUT the write and the report
-body is never delivered. The observable half is well attested; the scheduling explanation for it is
-an inference and no file in this repo establishes it, so do not act on the mechanism, only on the
-symptom. A first draft went on to conclude that it therefore lands hardest on the `memory: project`
-agents — an inference drawn from the very mechanism the previous sentence disclaims, which is the
-defect this section exists to stop. Which agents are worst affected is UNMEASURED.
-
-Put the requirement in every dispatch — a fresh agent cannot know what a previous one dropped. **The
-reminder ALONE is not sufficient, and this is measured, not assumed:** it was present in both
-dispatches that lost a report on 2026-09-16 and neither delivered. What worked both times was
-forbidding the write outright, in CONSTRAINTS:
+The report is lost when an agent's last tool call is its own memory write. The reminder alone does
+not prevent it; put this in every dispatch's CONSTRAINTS:
 
 > Do NOT make a memory write your FINAL action — write memory FIRST, then compose the report as your
 > last act.
 
-Add that line whenever a lost report is expensive to recover — always when `SendMessage` is disabled
-in the session, since the only remaining recourse is a full re-run at full token cost.
-
-It makes report composition the LAST step. Do not rewrite it into a claim about scheduling — that
-mechanism is unproven.
+Required whenever a lost report is expensive to recover — always when `SendMessage` is disabled in
+the session.
 
 ### State the MECHANISM behind a constraint, not just the prohibition
 

@@ -2112,7 +2112,5 @@ check that did not run.
 Derive the funnel with `node .claude/hooks/measure-prose-paths.mjs`. No figure is stated here
 (§10 cl.7).
 
-Bounds and exclusion classes are enumerated in the guard's own header. It reduces the class; it
-does not close it.
 
 *Last updated: 2026-09-16*

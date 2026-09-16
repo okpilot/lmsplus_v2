@@ -114,7 +114,7 @@ const SPEC_PREFIX = '.spec-workflow/specs/'
  * it would be grading data as prose. Dropped at the corpus level rather than yielding zero
  * lines, so the exclusion is visible in the file list instead of hidden in the scanner.
  */
-const DATA_EXT = new Set(['.json'])
+export const DATA_EXT = new Set(['.json'])
 
 // ---------------------------------------------------------------- token recognition
 
@@ -307,7 +307,7 @@ const FINDING_CLASS = 'unresolved'
 
 // ---------------------------------------------------------------- prose extraction
 
-const extOf = (path) => {
+export const extOf = (path) => {
   const dot = path.lastIndexOf('.')
   const slash = path.lastIndexOf('/')
   return dot > slash ? path.slice(dot) : ''

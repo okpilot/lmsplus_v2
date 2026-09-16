@@ -35,35 +35,14 @@ Weekly self-review: analyse project health, audit agent system, and update memor
      claim someone chose not to finish correcting. Read the reasons. If waivers are running above
      roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
      a hatch used reflexively is how this guard dies quietly
-   - **Inline guard waivers**: the retracted-phrase hatch above is a commit-message TRAILER;
-     the ratcheted guards ship INLINE markers instead, and until 2026-09-16 nothing audited
-     them.
+   - **Inline guard waivers** — live waivers, never a count (the quoting set is OPEN, §10 cl.2):
      `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep -v "git grep -n -e"`
-     The filter drops every line that QUOTES this command — this bullet, and each note
-     elsewhere that cites it. That set is OPEN (§10 cl.2) and grows on every citation — it grew
-     twice during the single review that flagged it, once from the reviewing critic's own
-     write-up. Any count here is stale before it is read, so state none; re-derive with
-     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`.
-     A quotation of the command is never a waiver, so dropping the class is correct — whereas
-     excluding `.claude/commands/` would drop every command FILE, wider than the stated reason,
-     so a waiver written in any other one would never appear. Do NOT exclude
-     `.claude/hooks/`: the guards' sources and suites carry LIVE waivers, so excluding that
-     directory hides exactly what this audit exists to see — and hides it silently, however
-     many land there.
-     A residue survives and is NOT tuned away. The classes below are ILLUSTRATIONS, not a
-     closed list (`code-style.md` §10 cl.2): a rule that DESCRIBES the marker matches
-     (`code-style.md` §9), as do each guard's own `WAIVER_RE` and its `console.error` help
-     text, the fixture strings the suites write into sandbox repos, and any
-     `.claude/agent-memory/**` note quoting a marker or this very command — that last class
-     grows every time an agent cites it. So READ the list, never trust its length — which is
-     why this greps `-n` and not `-c`: a waiver carries a written reason, a description
-     carries a `<placeholder>`.
-     A waiver states why the prose MUST carry that number or that unresolvable path. "False
-     positive" is already refused by the guards (a reason under 20 non-whitespace characters,
-     or one on their empty-reason list, is a FINDING). Unlike a baseline row, which
-     grandfathers what already existed, a waiver is a live choice made on a line someone was
-     editing. Growth means the detector is mis-tuned and must be RE-NARROWED — never that the
-     baseline should absorb it.
+     Quotations of the command, re-derive with:
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`
+     Do NOT exclude `.claude/commands/` or `.claude/hooks/`: both carry live waivers.
+     Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures, agent-memory notes) is an
+     OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
+     READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
    - **Implementation-critic**: check pre-commit findings log — are staged-change reviews catching issues before commit?
 8. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.

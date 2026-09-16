@@ -34,6 +34,8 @@ import {
   classify,
   collectCandidates,
   corpusFiles,
+  DATA_EXT,
+  extOf,
   ignoredTokens,
   normalise,
   trackedPaths,
@@ -48,7 +50,7 @@ const FINDING_CLASS = 'unresolved'
  * syntax and therefore no prose lines at all.
  */
 function wideCorpus(tracked) {
-  return tracked.filter((p) => inCorpus(p) && !p.endsWith('.json'))
+  return tracked.filter((p) => inCorpus(p) && !DATA_EXT.has(extOf(p)))
 }
 
 export function main(args) {

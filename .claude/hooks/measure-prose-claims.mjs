@@ -41,13 +41,7 @@ const NULL_SHA = /^0+$/
 const git = (args) => execFileSync('git', args, { maxBuffer: MAX_BUFFER })
 const gitText = (args) => git(args).toString('utf8')
 
-/**
- * The corpus membership test is IMPORTED from the guard, not restated here. This comment used
- * to say the definition was "re-derived from its module rather than retyped" while the four
- * lines under it retyped it — a false claim about the code directly beneath it, in the
- * measurement tool for the programme whose whole subject is false claims. `inCorpus` is
- * exported now, so the sentence is true by construction rather than by assertion.
- */
+/** The corpus membership test is IMPORTED from the guard, so it cannot drift from it. */
 
 function splitNul(buf) {
   return buf
