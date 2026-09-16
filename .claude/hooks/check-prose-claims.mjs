@@ -115,7 +115,7 @@ const CAP_WORDS = [
 const EXTRA_KIND_WORDS = ['component', 'util', 'helper', 'migration', 'hook', 'page']
 
 /** Reasons that assert nothing. A waiver must say WHY the prose must carry the number. */
-const EMPTY_REASONS = new Set([
+export const EMPTY_REASONS = new Set([
   'false positive',
   'falsepositive',
   'noise',
@@ -447,7 +447,7 @@ function splitNul(buf) {
     .filter((s) => s.length > 0)
 }
 
-function inCorpus(path) {
+export function inCorpus(path) {
   if (path.startsWith(MEMORY_PREFIX)) return false
   if (EXCLUDED_PATHS.has(path)) return false
   return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
@@ -577,7 +577,7 @@ function updateBaseline(claims, previous) {
   for (const k of added) console.error(`  + ${k}  ${next[k]}`)
 
   const body = {
-    _: `Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, which never writes this file. Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line is a new prose restatement being accepted.`,
+    _: `Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by ${GUARD}, whose ENFORCEMENT path never writes this file — only the human-invoked --update-baseline does, via updateBaseline(). Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with \`node ${GUARD} --update-baseline\` and REVIEW THE DIFF — a \`+\` line is a new prose restatement being accepted.`,
     claims: next,
   }
   writeFileSync(BASELINE_PATH, `${JSON.stringify(body, null, 2)}\n`)

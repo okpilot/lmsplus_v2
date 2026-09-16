@@ -393,6 +393,18 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
 1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
    - **Verify the FACTUAL premise directly before scoping any work around it — especially a new code path.** Some claims are cheap to check and expensive to assume; check them rather than reasoning about them (learner count=3, 2026-08-15):
      - *"production is in state X"* → probe production read-only. A reviewer asserted prod still served a stale answer key; a new production-WRITE code path was designed around it; a read-only probe then showed prod already matched the file. The whole justification was fiction, and nobody had looked. **Bounded, and read-only in fact and not merely in intent:** use the approved procedure (a probe script reading the token and POSTing to the Management API — see the `reference-prod-readonly-db-access` note), SELECT only, narrowed to the specific rows the claim is about, and never `SELECT *` on a table holding student answers or personal data. Report aggregates or the single disputed field — do not paste student rows into the transcript. If answering the claim would need a WRITE, a schema change, or a wide read over personal data, STOP and ask the user instead: the point of this step is to cheaply falsify a premise, and a probe that itself needs justifying is no longer cheap.
+     - *"phrase X is fabricated / was never in this file"* → establish WHICH STATE the claim is
+       about before picking a command, and note that for one whole class **no tree answers it**.
+       A phrase retracted while AUTHORING — written, caught, fixed before `git add` — is absent
+       from the commit, from `HEAD~1`, and from every other tree. `git show <sha>:<path>` and
+       `git show <sha>^:<path>` both return 0, and that 0 is the EXPECTED result, not a refutation.
+       Reporting FABRICATED on the strength of it inverts the evidence. Only a phrase that was
+       COMMITTED and later retracted is answerable by `git show <sha>^:<path>`; confirm you are in
+       that case with `git log -S '<phrase>' --format='%h %s' -- :/` FIRST; `-S` finds the
+       INTRODUCTION. **Bounded by REACHABILITY:** `git log` walks HEAD's ancestry and suppresses
+       merge diffs, so add `--all --diff-merges=first-parent --no-patch` before reading an empty
+       result as anything stronger than *not reachable from HEAD*. Within that bound an empty
+       result means the grep-based refutation is unavailable, whatever the claim's merits.
      - *"this file is new"* (and *"+N tests"*, which needs a DIFFERENT command — see below) →
        `git show --stat <sha> -- <path>` for a claim about a
        COMMITTED change (same merge caveat as the own-action bullet below — on a MERGE commit add
@@ -897,19 +909,14 @@ transcript, so a finding that is not restated in that message does not exist. "T
 reported above", "memory updated", and any reference to an earlier turn are forbidden AS THE SOLE
 CONTENT: there is no above.
 
-The failure looks STRUCTURAL rather than careless. It APPEARS to fire when an agent's last tool
-call is its own memory write — the terminal message becomes a note ABOUT the write and the report
-body is never delivered. The observable half is well attested; the scheduling explanation for it is
-an inference and no file in this repo establishes it, so do not act on the mechanism, only on the
-symptom. A first draft went on to conclude that it therefore lands hardest on the `memory: project`
-agents — an inference drawn from the very mechanism the previous sentence disclaims, which is the
-defect this section exists to stop. Which agents are worst affected is UNMEASURED.
+The report is lost when an agent's last tool call is its own memory write. The reminder alone does
+not prevent it; put this in every dispatch's CONSTRAINTS:
 
-Put the requirement in every dispatch — it costs one line and it is the only mitigation that works,
-since a fresh agent cannot know what a previous one dropped. Promoted at count=6 in a single day
-(2026-09-14, `feat/mutation-harness`), across five invocations of four distinct agents —
-code-reviewer, semantic-reviewer (twice), implementation-critic, test-writer. Each cost a re-ask round, and one
-arrived carrying only a tracker note while alluding to two findings it had not stated.
+> Do NOT make a memory write your FINAL action — write memory FIRST, then compose the report as your
+> last act.
+
+Required whenever a lost report is expensive to recover — always when `SendMessage` is disabled in
+the session.
 
 ### State the MECHANISM behind a constraint, not just the prohibition
 
@@ -992,4 +999,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-coderabbit-local.md`, `agent-critic.md`, `agent-memory.md`*
 
-*Last updated: 2026-09-07*
+*Last updated: 2026-09-16*

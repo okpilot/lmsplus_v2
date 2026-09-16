@@ -330,8 +330,9 @@ test('takes both paths of a staged rename', () => {
 })
 
 test('aborts on a desynchronised name-status stream', () => {
-  // MUTATION: `continue` instead of throwing on an unrecognised status → a desync is
-  // absorbed and the guard grades a scope nobody chose, silently.
+  // MUTATION: `i += 1` + `continue` instead of throwing on an unrecognised status → a desync
+  // is absorbed and the guard grades a scope nobody chose, silently. The `i += 1` is load-
+  // bearing: the loop carries no update expression, so a bare `continue` hangs instead.
   assert.throws(
     () => stagedPaths(Buffer.from(['M', 'docs/a.md', 'docs/b.md'].join('\0'))),
     /unrecognised/,

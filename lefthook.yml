@@ -64,6 +64,17 @@ pre-commit:
     # which is what happened to file-size-guard's own `.mjs` extension.
     prose-claims:
       run: node .claude/hooks/check-prose-claims.mjs
+    # Forbid a file path written in PROSE that does not resolve on disk (code-style.md §9,
+    # "grep all docs for stale references before committing"; §10, a comment or doc asserting
+    # something the code does not have). Ratcheted against `.claude/prose-paths.json`, not a
+    # gate: a path that was already broken on master is baselined rather than blocking, only a
+    # NEW one fails, and a baseline row whose line changed or vanished must be re-recorded.
+    # NO glob, for the same reason prose-claims has none — the guard enumerates its own file
+    # list from `git diff --cached` rather than taking {staged_files}, and prose lives in `.md`
+    # as much as in code, so a glob narrow enough to look tidy is how a guard ends up inert for
+    # exactly the files it covers.
+    prose-paths:
+      run: node .claude/hooks/check-prose-paths.mjs
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test

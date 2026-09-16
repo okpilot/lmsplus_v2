@@ -38,7 +38,7 @@ the finding arrives pre-argued, so it reads as already-checked.
 | "constraint / index / policy Z enforces W" | Read the constraint body. Which constraint carries a rule is frequently NOT the one its name suggests. |
 | "this is a type error" / "this is a syntax error" | Run a **scoped** type-check that actually INCLUDES the file (see `agent-workflow.md § Plan Validation`). A green `tsc` from a config that excludes the path proves nothing. |
 | "cite X instead" | Verify X exists AND is current. CR has proposed citing `packages/db/migrations/`, which is FROZEN and carries false history. |
-| A count, total, or line number | Recompute it. Line numbers drift; prefer citing a grep-able predicate. |
+| A count, total, line number, or an EXTENT quantifier (`most`, `every`, `neither`) | Recompute the count; establish the extent against a case that could falsify it (`code-style.md` §10 cl.7). Line numbers drift; prefer citing a grep-able predicate. |
 
 ### Which may be applied on the strength of a green test
 

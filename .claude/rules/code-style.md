@@ -1061,6 +1061,10 @@ The `code-reviewer` agent flags these after every commit:
 
 This prevents documentation from drifting and confusing future readers.
 
+`.claude/hooks/check-prose-paths.mjs` runs at pre-commit and in CI. It blocks a file path written
+in PROSE that does not resolve on disk. Its suppression marker is `prose-path-ok: <reason>`.
+Read the guard's header for its mechanics and bounds.
+
 ---
 
 ## 10. Comment Accuracy — any claim, not just SQL
@@ -1123,7 +1127,8 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    copy here, which goes stale the first time one is added (clause 2). The positions themselves are
    fixed by the code's structure; read `extractRefs` for them.
 
-7. **Recompute any count as the LAST authoring step, against the final diff.** Distinct from
+7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
+   the final diff.** Distinct from
    cl.2: that one says do not enumerate an open set at all. This one governs a count you have
    decided to state — a dated snapshot, a compliance ratio in a commit message. Measuring it
    before your own commit's remaining edits land makes it stale ON ARRIVAL, and it reads as
@@ -1132,6 +1137,14 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    every one taken before that same commit split two files and added a third. Where the number
    is derivable, prefer shipping the derivation as a runnable command over stating it
    (`check-file-size-guard.mjs --stats` exists for exactly this reason).
+
+   **"Count" includes EXTENT QUANTIFIERS.** A word asserting how much of a set something covers
+   asserts an extent rather than a number, and the set of such words is OPEN, so cl.2 governs it:
+   do not work from a list (`most`, `every`, `neither` are ILLUSTRATIONS). They carry a count's
+   burden: replace the word with the command that establishes the extent, or test it against a
+   fixture that could falsify it — a UNIVERSAL needs the case you expect to FAIL, not the case you
+   expect to pass. Where the extent is real but narrower than the word claimed, restate it as the
+   conditional a fixture actually supports. Promoted at count=3 (2026-09-16).
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency or invariant behaviour, trace the
 object to its LATEST definition for the MATCHING SIGNATURE (overloads have different bodies). The
@@ -1147,4 +1160,4 @@ This is the WRITE-side companion to the review-side "Pre-Flag Verification" rule
 
 ---
 
-*Last updated: 2026-09-09*
+*Last updated: 2026-09-16*

@@ -30,6 +30,7 @@ import {
   claimKey,
   contextRe,
   findClaims,
+  inCorpus,
   parseWaiver,
   proseLines,
 } from './check-prose-claims.mjs'
@@ -40,16 +41,7 @@ const NULL_SHA = /^0+$/
 const git = (args) => execFileSync('git', args, { maxBuffer: MAX_BUFFER })
 const gitText = (args) => git(args).toString('utf8')
 
-/** Same corpus definition as the guard, re-derived from its module rather than retyped. */
-const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
-const MEMORY_PREFIX = '.claude/agent-memory/'
-const EXCLUDED_PATHS = new Set(['.claude/run-log.md'])
-
-function inCorpus(path) {
-  if (path.startsWith(MEMORY_PREFIX)) return false
-  if (EXCLUDED_PATHS.has(path)) return false
-  return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
-}
+/** The corpus membership test is IMPORTED from the guard, so it cannot drift from it. */
 
 function splitNul(buf) {
   return buf

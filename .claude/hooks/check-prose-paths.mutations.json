@@ -1,0 +1,461 @@
+{
+  "_": "The claims-vs-encoded gap under `--coverage` is NEGATIVE here, by design: several cases carry one `MUTATION:` comment naming a CLASS of branches (\"neutralise any one of classify's GLOB, PLACEHOLDER or brace-expansion branches\"), and each branch is encoded separately. More encoded mutations than comments is over-delivery; the `notEncoded` list below covers the other direction, a bare token that is not a claim.",
+  "target": ".claude/hooks/check-prose-paths.mjs",
+  "suites": [
+    ".claude/hooks/check-prose-paths.test.mjs",
+    ".claude/hooks/check-prose-paths.repo.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "leading-slash-not-rejected",
+      "find": "  if (tok.startsWith('/')) return false",
+      "replace": "  if (false) return false",
+      "expectRed": ["rejects a leading slash as a token that names nothing in the repo"],
+      "note": "narrowing 1. The fixture carries a known extension: an absolute token without one is rejected by the top-level test instead and cannot reach this branch."
+    },
+    {
+      "id": "lookbehind-admits-npm-specifier",
+      "find": "(?<![\\\\w.@/-])(",
+      "replace": "(?<![\\\\w./-])(",
+      "expectRed": ["rejects an npm specifier at the regex rather than by a later rule"],
+      "note": "narrowing 2. The specifier is then admitted at its second segment, a token nobody wrote."
+    },
+    {
+      "id": "two-segment-minimum-dropped",
+      "find": "  if (segs.length < 2) return false",
+      "replace": "  if (segs.length < 1) return false",
+      "expectRed": ["requires two non-empty segments, so a bare name is not a location"],
+      "note": "narrowing 3."
+    },
+    {
+      "id": "path-shape-not-required",
+      "find": "  return toplevel.has(segs[0])",
+      "replace": "  return true",
+      "expectRed": [
+        "requires a path shape: an extension, a trailing slash, a glob or a real top-level entry"
+      ],
+      "note": "narrowing 4."
+    },
+    {
+      "id": "extension-alternation-shortest-first-and-no-lookahead",
+      "find": "  `(?<![\\\\w.@/-])((?:\\\\.{0,2}\\\\/?${SEGS}(?:${SEG}+|\\\\*\\\\*|))|(?:[A-Za-z0-9_*<][A-Za-z0-9_.*<>{}#-]*\\\\.(?:${EXT.join('|')})))(?![\\\\w-])`,",
+      "replace": "  `(?<![\\\\w.@/-])((?:\\\\.{0,2}\\\\/?${SEGS}(?:${SEG}+|\\\\*\\\\*|))|(?:[A-Za-z0-9_*<][A-Za-z0-9_.*<>{}#-]*\\\\.(?:${[...EXT].sort((a, b) => a.length - b.length).join('|')})))`,",
+      "expectRed": [
+        "keeps a long extension whole instead of truncating it to a shorter one",
+        "refuses an extension glued to further word characters"
+      ],
+      "note": "narrowing 6, BOTH halves at once. Measured: sorted shortest-first alone leaves every fixture unchanged, because the trailing lookahead refuses the leftover character and the engine backtracks to the long form. Only the pair truncates .tsx to .ts."
+    },
+    {
+      "id": "trailing-lookahead-dropped",
+      "find": ")))(?![\\\\w-])",
+      "replace": ")))",
+      "expectRed": ["refuses an extension glued to further word characters"],
+      "note": "narrowing 6, the lookahead half alone. It does NOT redden the longest-first case: the alternation is still longest-first, so `a.tsx` still matches whole."
+    },
+    {
+      "id": "directory-suffixes-not-indexed",
+      "find": "  for (const d of dirSet) {",
+      "replace": "  for (const d of []) {",
+      "expectRed": ["resolves a reference relative to a directory under discussion"],
+      "note": "narrowing 5. Only the directory half: the file-suffix loop still resolves `queries/report.ts`."
+    },
+    {
+      "id": "resolves-ignores-tracked-directories",
+      "find": "  if (index.trackedSet.has(t) || index.dirSet.has(t)) return true",
+      "replace": "  if (index.trackedSet.has(t)) return true",
+      "expectRed": ["counts a tracked file and a tracked directory as resolving"]
+    },
+    {
+      "id": "resolves-skips-the-filesystem",
+      "find": "  return existsSync(t)",
+      "replace": "  return false",
+      "expectRed": ["accepts a path that is present on disk but untracked"]
+    },
+    {
+      "id": "glob-class-removed",
+      "find": "  if (GLOB.test(t)) return 'glob'",
+      "replace": "  if (false) return 'glob'",
+      "expectRed": ["names the pattern-shaped classes rather than reporting them"]
+    },
+    {
+      "id": "placeholder-class-removed",
+      "find": "  if (PLACEHOLDER.test(t) || t.includes('<') || t.includes('>')) return 'placeholder'",
+      "replace": "  if (false) return 'placeholder'",
+      "expectRed": [
+        "names the pattern-shaped classes rather than reporting them",
+        "does not flag a placeholder ending in > when TRAIL strips the bracket before classify"
+      ]
+    },
+    {
+      "id": "unpaired-angle-placeholder-class-removed",
+      "find": "  if (PLACEHOLDER.test(t) || t.includes('<') || t.includes('>')) return 'placeholder'",
+      "replace": "  if (PLACEHOLDER.test(t)) return 'placeholder'",
+      "NOTE": "Removes ONLY the unpaired-angle half. PLACEHOLDER still matches `path/to/x.ts` and `<name>/x.ts`, so the group's other assertions stay green and the trailing `.claude/agents/<name` case is what reddens.",
+      "expectRed": [
+        "names the pattern-shaped classes rather than reporting them",
+        "does not flag a placeholder ending in > when TRAIL strips the bracket before classify"
+      ]
+    },
+    {
+      "id": "brace-expansion-class-removed",
+      "find": "  if (tok.includes('{') || tok.includes('}')) return 'brace-expansion'",
+      "replace": "  if (false) return 'brace-expansion'",
+      "expectRed": ["names the pattern-shaped classes rather than reporting them"]
+    },
+    {
+      "id": "parent-relative-class-removed",
+      "find": "  if (tok.startsWith('../') || tok.startsWith('.../')) return 'context-relative'",
+      "replace": "  if (false) return 'context-relative'",
+      "expectRed": ["names the provenance classes rather than reporting them"]
+    },
+    {
+      "id": "url-class-removed",
+      "find": "  if ((line.match(URL_RE) ?? []).some((u) => u.includes(tok))) return 'URL'",
+      "replace": "  if (false) return 'URL'",
+      "expectRed": ["names the provenance classes rather than reporting them"]
+    },
+    {
+      "id": "npm-class-removed",
+      "find": "  if (NPM.test(t)) return 'npm-package-specifier'",
+      "replace": "  if (false) return 'npm-package-specifier'",
+      "expectRed": ["names the provenance classes rather than reporting them"]
+    },
+    {
+      "id": "frozen-historical-class-removed",
+      "find": "  if (t.startsWith('packages/db/migrations')) return 'frozen-historical'",
+      "replace": "  if (false) return 'frozen-historical'",
+      "expectRed": ["names the provenance classes rather than reporting them"]
+    },
+    {
+      "id": "node-modules-class-removed",
+      "find": "  if (t.startsWith('node_modules/') || t.includes('/node_modules/')) return 'node_modules'",
+      "replace": "  if (false) return 'node_modules'",
+      "expectRed": ["names the provenance classes rather than reporting them"]
+    },
+    {
+      "id": "gitignored-class-removed",
+      "find": "  if (isIgnored(t)) return 'gitignored-artifact'",
+      "replace": "  if (false) return 'gitignored-artifact'",
+      "expectRed": [
+        "names a gitignored artifact rather than reporting it",
+        "ignores a gitignored artifact",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
+    },
+    {
+      "id": "english-alternation-ignores-trailing-slash",
+      "find": "  if (!tok.endsWith('/') && t.split('/').every((seg) => /^[A-Za-z]+$/.test(seg))) {",
+      "replace": "  if (t.split('/').every((seg) => /^[A-Za-z]+$/.test(seg))) {",
+      "expectRed": [
+        "names the English-shaped classes but keeps a directory reference reportable",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
+    },
+    {
+      "id": "slash-joined-list-class-removed",
+      "find": "  if (t.includes('/') && t.split('/').every((seg) => EXT_TAIL.test(seg))) return 'slash-joined-list'",
+      "replace": "  if (false) return 'slash-joined-list'",
+      "expectRed": ["names a slash-joined filename list and a migration timestamp reference"]
+    },
+    {
+      "id": "migration-prefix-class-removed",
+      "find": "  if (/^supabase\\/migrations\\/\\d{8,14}$/.test(t)) return 'migration-prefix-ref'",
+      "replace": "  if (false) return 'migration-prefix-ref'",
+      "expectRed": ["names a slash-joined filename list and a migration timestamp reference"]
+    },
+    {
+      "id": "context-relative-suffix-lookup-removed",
+      "find": "  if (index.suffixes.has(t)) return 'context-relative'",
+      "replace": "  if (false) return 'context-relative'",
+      "expectRed": [
+        "resolves a reference relative to a directory under discussion",
+        "strips a ./ prefix before any index lookup so a ./- prefixed citation resolves correctly"
+      ]
+    },
+    {
+      "id": "yaml-not-graded-whole-file",
+      "find": "  if (ext === '.yaml' || ext === '.yml') {",
+      "replace": "  if (false) {",
+      "expectRed": ["grades a yaml file whole, not only its comment lines"]
+    },
+    {
+      "id": "spec-tree-not-excluded",
+      "find": "  if (path.startsWith(SPEC_PREFIX)) return false",
+      "replace": "  if (false) return false",
+      "expectRed": [
+        "excludes the spec tree and keeps steering",
+        "ignores a citation in a spec but grades one in steering"
+      ]
+    },
+    {
+      "id": "data-files-not-excluded",
+      "find": "  if (DATA_EXT.has(extOf(path))) return false",
+      "replace": "  if (false) return false",
+      "expectRed": ["excludes a data file, which has no prose to grade"]
+    },
+    {
+      "id": "sibling-corpus-not-consulted",
+      "find": "  if (!inCorpus(path)) return false",
+      "replace": "  if (false) return false",
+      "expectRed": ["ignores a citation in agent memory"]
+    },
+    {
+      "id": "waiver-never-recognised",
+      "find": "  const m = WAIVER_RE.exec(text)",
+      "replace": "  const m = null",
+      "expectRed": [
+        "accepts an inline waiver carrying a written reason",
+        "rejects a waiver whose reason asserts nothing",
+        "an inline waiver with a written reason clears the finding",
+        "--update-baseline refuses to write when any file could not be graded",
+        "scope footer is present when only a waiver problem is found"
+      ]
+    },
+    {
+      "id": "waiver-reason-floor-removed",
+      "find": "  if (reason.replace(/\\s/g, '').length < 20 || EMPTY_REASONS.has(bare)) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "rejects a waiver whose reason asserts nothing",
+        "an inline waiver with a written reason clears the finding",
+        "--update-baseline refuses to write when any file could not be graded",
+        "scope footer is present when only a waiver problem is found"
+      ]
+    },
+    {
+      "id": "path-key-not-trimmed",
+      "find": ".update(text.trim(), 'utf8')",
+      "replace": ".update(text, 'utf8')",
+      "expectRed": ["keys a finding on its line content, not on its line number or spacing"]
+    },
+    {
+      "id": "path-key-ignores-occurrence",
+      "find": "  return occurrence === 0 ? ",
+      "replace": "  return true ? ",
+      "expectRed": [
+        "keys a repeated identical line separately from its first occurrence",
+        "reports two physically distinct identical lines as separate findings"
+      ]
+    },
+    {
+      "id": "stale-rows-never-reported",
+      "find": "  return Object.keys(baseline ?? {}).filter((key) => !findings.has(key))",
+      "replace": "  return []",
+      "expectRed": [
+        "reports a baseline row that describes no live finding as stale",
+        "reports a stale baseline row even when its file is not staged",
+        "scope footer is absent when the only failure is a stale baseline row"
+      ]
+    },
+    {
+      "id": "staged-rename-single-path",
+      "find": "    const count = status[0] === 'R' || status[0] === 'C' ? 2 : 1",
+      "replace": "    const count = 1",
+      "expectRed": ["takes both paths of a staged rename"]
+    },
+    {
+      "id": "staged-desync-absorbed",
+      "find": "      throw new Error(`unrecognised --name-status record ${JSON.stringify(status)}`)",
+      "replace": "      void status",
+      "expectRed": ["aborts on a desynchronised name-status stream"]
+    },
+    {
+      "id": "positional-argument-accepted",
+      "find": "  if (positional.length > 0) {",
+      "replace": "  if (false) {",
+      "expectRed": ["refuses a positional argument, because the guard self-enumerates"]
+    },
+    {
+      "id": "unknown-flag-accepted",
+      "find": "  if (unknown.length > 0) {",
+      "replace": "  if (false) {",
+      "expectRed": ["refuses an unknown flag"]
+    },
+    {
+      "id": "mode-collision-accepted",
+      "find": "  if (new Set(flags).size > 1) {",
+      "replace": "  if (false) {",
+      "expectRed": ["refuses two modes in one invocation"]
+    },
+    {
+      "id": "new-findings-never-block",
+      "find": "    ([key, f]) => baseline[key] === undefined && inScope(f.path),",
+      "replace": "    ([key, f]) => false && inScope(f.path),",
+      "expectRed": [
+        "blocks a commit that stages a citation of a file that is not there",
+        "scopes a finding to the staged files, but --all grades the whole worktree",
+        "grades the INDEX, not the working tree",
+        "ignores a citation in a spec but grades one in steering",
+        "treats an absent baseline as empty and blocks, rather than passing",
+        "never rewrites the baseline from an enforcement run",
+        "scope footer is present when a fresh finding is blocked",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
+    },
+    {
+      "id": "baseline-never-consulted",
+      "find": "    ([key, f]) => baseline[key] === undefined && inScope(f.path),",
+      "replace": "    ([key, f]) => true && inScope(f.path),",
+      "expectRed": ["does not block a citation already carried by the baseline"]
+    },
+    {
+      "id": "scope-ignored",
+      "find": "  const inScope = (path) => scope === null || scope.has(path)",
+      "replace": "  const inScope = () => true",
+      "expectRed": ["scopes a finding to the staged files, but --all grades the whole worktree"]
+    },
+    {
+      "id": "stale-term-dropped-from-early-return",
+      "find": "  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
+      "replace": "  if (fresh.length === 0 && scopedProblems.length === 0) return 0",
+      "expectRed": [
+        "reports a stale baseline row even when its file is not staged",
+        "scope footer is absent when the only failure is a stale baseline row"
+      ]
+    },
+    {
+      "id": "staged-mode-reads-the-worktree",
+      "find": "  const read = (path) => (staged ? readIndexBlob(path) : readFileSync(path, 'utf8'))",
+      "replace": "  const read = (path) => readFileSync(path, 'utf8')",
+      "expectRed": ["grades the INDEX, not the working tree"]
+    },
+    {
+      "id": "check-ignore-output-discarded",
+      "find": "    const hits = splitNul(git(['check-ignore', '-z', '--stdin'], { input }))",
+      "replace": "    const hits = input ? [] : []",
+      "expectRed": [
+        "ignores a gitignored artifact",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ]
+    },
+    {
+      "id": "unreadable-baseline-swallowed",
+      "find": "    if (err.code === 'ENOENT') return {}",
+      "replace": "    return {}",
+      "expectRed": ["exits 2, not 1, when the baseline cannot be read at all"]
+    },
+    {
+      "id": "absent-baseline-rethrown",
+      "find": "    if (err.code === 'ENOENT') return {}",
+      "replace": "    if (false) return {}",
+      "expectRed": ["treats an absent baseline as empty and blocks, rather than passing"]
+    },
+    {
+      "id": "malformed-claims-accepted",
+      "find": "  if (claims === null || typeof claims !== 'object' || Array.isArray(claims)) {",
+      "replace": "  if (false) {",
+      "expectRed": ["exits 2 when the baseline is malformed"]
+    },
+    {
+      "id": "enforcement-run-writes-the-baseline",
+      "find": "  const baseline = readBaseline()",
+      "replace": "  const baseline = readBaseline()\n  updateBaseline(findings, baseline)",
+      "expectRed": [
+        "never rewrites the baseline from an enforcement run",
+        "scopes a finding to the staged files, but --all grades the whole worktree",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ],
+      "note": "superset: with the enforcement run writing the baseline, the staged run in the scoping case grandfathers the finding its own `--all` half then expects to be reported."
+    },
+    {
+      "id": "update-baseline-adds-rows-silently",
+      "find": "  for (const k of added) console.error(`  + ${k}  ${next[k]}`)",
+      "replace": "",
+      "expectRed": ["--update-baseline prints every added row before writing"]
+    },
+    {
+      "id": "update-baseline-writes-from-partial-read",
+      "find": "    if (problems.length > 0) {",
+      "replace": "    if (false) {",
+      "expectRed": ["--update-baseline refuses to write when any file could not be graded"]
+    },
+    {
+      "id": "waived-line-still-a-finding",
+      "find": "    if (waiver) continue",
+      "replace": "    if (false) continue",
+      "expectRed": ["an inline waiver with a written reason clears the finding"]
+    },
+    {
+      "id": "unusable-waiver-not-reported",
+      "find": "    if (waiver?.problem) {",
+      "replace": "    if (false) {",
+      "expectRed": [
+        "--update-baseline refuses to write when any file could not be graded",
+        "an inline waiver with a written reason clears the finding",
+        "scope footer is present when only a waiver problem is found"
+      ]
+    },
+    {
+      "id": "line-grouping-keyed-on-token",
+      "find": "    const lineKey = `${c.path}\\u0000${c.n}`",
+      "replace": "    const lineKey = `${c.path}\\u0000${c.n}\\u0000${c.tok}`",
+      "expectRed": ["groups every dead path on one line into a single finding row"]
+    },
+    {
+      "id": "unreadable-file-not-reported",
+      "find": "      problems.push({ path, n: null, problem: `unreadable (${err.code ?? err.message})` })",
+      "replace": "      void err",
+      "expectRed": ["treats an unreadable corpus file as a problem, never a skipped file"]
+    },
+    {
+      "id": "seen-occurrence-never-increments",
+      "find": "seen.set(dupKey, occurrence + 1)",
+      "replace": "seen.set(dupKey, occurrence)",
+      "expectRed": ["reports two physically distinct identical lines as separate findings"],
+      "note": "Pins the occurrence counter INDEPENDENTLY of pathKey. Otherwise the counter is only ever exercised jointly with pathKey, so either could break while the pair still looked correct."
+    },
+    {
+      "id": "footer-always-prints",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (true) {",
+      "expectRed": ["scope footer is absent when the only failure is a stale baseline row"],
+      "note": "Pins that the footer is suppressed for stale-row-only failures. Inverting to true makes the footer appear even when the only failure is a baseline-maintenance task, which the comment says it must not."
+    },
+    {
+      "id": "footer-never-prints",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "scope footer is present when a fresh finding is blocked",
+        "scope footer is present when only a waiver problem is found"
+      ],
+      "note": "Pins that the footer IS printed when corpus-scan findings exist. Replacing the condition with false suppresses the footer on every failure."
+    },
+    {
+      "id": "gitignore-dir-pattern-single-spelling",
+      "find": "list.flatMap((t) => [t, `${t}/`])",
+      "replace": "list.flatMap((t) => [t])",
+      "expectRed": [
+        "a directory-only gitignore pattern excuses the path even when the directory is absent"
+      ],
+      "note": "A directory-only .gitignore pattern matches a slash-less path only while the directory EXISTS. Asking check-ignore about the normalised spelling alone made the verdict depend on untracked build output — green locally after a build, RED in a clean CI checkout. Caught by CI on PR #1295, not by three CR-local rounds."
+    },
+    {
+      "id": "normalise-keeps-dot-slash-prefix",
+      "find": "export const normalise = (tok) => tok.replace(/^\\.\\//, '').replace(/\\/+$/, '')",
+      "replace": "export const normalise = (tok) => tok.replace(/\\/+$/, '')",
+      "expectRed": [
+        "strips a ./ prefix before any index lookup so a ./- prefixed citation resolves correctly"
+      ],
+      "note": "Breaks the ./ strip inside normalise itself, which is the form that was executed. The test fails on its FIRST assertion (normalise returns './docs/plan.md' unstripped), so the cls() assertion on the same test is not reached under this mutation."
+    },
+    {
+      "id": "footer-ignores-scoped-problems",
+      "find": "  if (fresh.length > 0 || scopedProblems.length > 0) {",
+      "replace": "  if (fresh.length > 0) {",
+      "expectRed": ["scope footer is present when only a waiver problem is found"],
+      "note": "Pins the || RHS independently. Dropping scopedProblems.length > 0 suppresses the footer when the only failure is a bad waiver \u2014 a corpus scan did happen, but the context is hidden."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "check-prose-paths.test.mjs header: the sentence describing the convention contains the token `MUTATION:`",
+      "why": "prose about the convention, not a claim about a break. countMutationClaims matches the bare token, so it inflates the denominator; there is nothing here to break."
+    },
+    {
+      "claim": "check-prose-paths.repo.test.mjs header: the same convention sentence",
+      "why": "same reason \u2014 a description of what a MUTATION comment is, not one."
+    }
+  ]
+}

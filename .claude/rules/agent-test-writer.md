@@ -39,6 +39,12 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Ignore test failures as "flaky" without investigation.
 - Let the agent create `__tests__/` directories — tests are co-located with source files.
 - Let the agent test pre-hydration state in jsdom (it's a known limitation — `useEffect` runs before assertions in `act()`).
+- Let a tracked JSON file be REWRITTEN to change a few fields — neither by the agent nor by
+  yourself. Never re-serialise (`json.dumps`, `JSON.stringify`, `jq`) and never reach for
+  `--sort-keys` or `--indent`. Edit the TEXT: an exact-string replacement per field. Measure with
+  `jq --indent 2 . <file> > /tmp/x && diff <file> /tmp/x | grep -c '^<'`, and check `git diff --stat`
+  before committing — if the changed-line count is not close to the number of fields you
+  meant to change, `git checkout HEAD -- <file>` and redo it surgically.
 
 ## What The Agent Produces
 - Co-located `.test.ts` / `.test.tsx` files next to source files
@@ -57,4 +63,4 @@ If the test-writer creates a test that fails because the production code has a b
 
 ---
 
-*Last updated: 2026-09-07*
+*Last updated: 2026-09-16*

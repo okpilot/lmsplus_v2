@@ -35,6 +35,14 @@ Weekly self-review: analyse project health, audit agent system, and update memor
      claim someone chose not to finish correcting. Read the reasons. If waivers are running above
      roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
      a hatch used reflexively is how this guard dies quietly
+   - **Inline guard waivers** — live waivers, never a count (the quoting set is OPEN, §10 cl.2):
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep -v "git grep -n -e"`
+     Quotations of the command, re-derive with:
+     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`
+     Do NOT exclude `.claude/commands/` or `.claude/hooks/`: both carry live waivers.
+     Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures, agent-memory notes) is an
+     OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
+     READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
    - **Implementation-critic**: check pre-commit findings log — are staged-change reviews catching issues before commit?
 8. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
