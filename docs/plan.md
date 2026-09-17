@@ -1074,7 +1074,7 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
          separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
          everywhere by design)
         6. CR-local — /crlocal on the same diff
-        round 2+: code-reviewer + semantic-reviewer + CR-local
+        round 2+: code-reviewer + semantic-reviewer (CR-local is round 1 only)
     → Pool every validated finding into ONE triage table and ONE fixup commit, which
       carries every agent-authored artifact too — test-writer's new tests
       (agent-test-writer.md) and any memory/tracker delta (agent-memory.md forbids
@@ -1085,7 +1085,7 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         then ONCE per branch, in this order:
         7. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes every round's
-           findings, including the CR-local triage tables
+           findings, including round 1's CR-local triage table
         conditionals, after the learner:
         8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
         9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed

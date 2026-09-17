@@ -108,6 +108,11 @@ run_case_no_output \
   "oversized stdin: 'coderabbit review' past 1MB boundary is truncated — no reminder fires" \
   "${big_padding}coderabbit review"
 
+# MUTATION: deleting "NOT this review" from the hook body turns this red.
+run_case "reminder states CR-local runs in round 1 only, not round 2+" 0 \
+  '{"tool_input":{"command":"coderabbit review --committed --base origin/master -c .coderabbit.yaml"}}' \
+  "NOT this review"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

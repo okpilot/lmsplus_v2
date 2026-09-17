@@ -111,9 +111,42 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 **BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
 Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
-**Queued, unpushed:** `chore/coderabbit-mirror-cl8` — one `.coderabbit.yaml` bullet mirroring
-`code-style.md` §10 cl.8, which PR #1300 landed without. Too small to justify its own CI run; push
-it with whatever needs CI next.
+**Build the enforcer for the HIGHEST-count rows first.** The learner's tracker carries rules-file
+claim rows that keep recurring and keep declining promotion, because the rule text they need
+already exists. Derive the current set:
+
+```bash
+awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
+  .claude/agent-memory/learner/MEMORY.md
+```
+
+Five rows cleared 10 as of 2026-09-17, the largest at 55: *a fix commit correcting §10 violations
+introduces fresh §10 violations.* The learner's verdict on the branch that produced Decision 73:
+*the gap is execution, not missing rule text.*
+
+No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
+the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
+
+Items 4, 5 and 7 are also mechanical — they enforce lower-count problems. Order by count.
+
+**Drop CR-local to ROUND 1 only** — Decision 74. Rounds 2+ are code-reviewer + semantic-reviewer.
+SWEPT 2026-09-17. Derive the set rather than quoting a figure — three reviewers categorised the
+edge files three ways and returned three counts:
+
+```bash
+for f in $(git diff origin/master...HEAD --name-only -- . ':(exclude).claude/agent-memory'); do
+  git diff origin/master...HEAD -- "$f" | grep -qE '^\+.*(CR-local|round 1 only|Decision 74)' && echo "$f"
+done
+```
+
+An unplanned grep reached 14 files. A delegated impact analysis against the pre-change ref found
+the rest, and the gate's own rounds found two more. The classes a grep cannot reach: the `.sh`
+executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator), a
+steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
+Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
+
+**Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
+removed stage leaves behind. Exits 0 if skipped.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 

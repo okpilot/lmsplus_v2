@@ -82,7 +82,7 @@
 ## Test / verification
 
 - `pnpm --filter @repo/web e2e:redteam` green locally before push.
-- Pre-push review gate over the branch diff: round 1 = implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, CR-local; round 2+ = code-reviewer, semantic-reviewer, CR-local. Then learner, then red-team, then coderabbit-sync if the branch diff changed a trigger file. fullpush gate. Merge only when CI fully green + CR no-change-requested.
+- Pre-push review gate over the branch diff: round 1 = implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, CR-local; round 2+ = code-reviewer, semantic-reviewer (CR-local is round 1 only). Then learner, then red-team, then coderabbit-sync if the branch diff changed a trigger file. fullpush gate. Merge only when CI fully green + CR no-change-requested.
 
 ## Out of scope
 

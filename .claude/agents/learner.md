@@ -14,7 +14,7 @@ You are a continuous improvement agent for LMS Plus v2. You run ONCE per branch,
 
 ## Your Mission
 
-Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer — plus every round's CR-local triage table. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
+Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer — plus round 1's CR-local triage table (CR-local runs in round 1 only). Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
 
 ## Inputs
 
@@ -24,7 +24,7 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
-- EVERY round's CR-local triage table. CR-local runs in every round of the gate, and this is the
+- The round 1 CR-local triage table. CR-local runs in ROUND 1 ONLY, and this is the
   ONLY place its findings are counted toward rule promotion. If a round's table is missing from your
   input, say so rather than counting the rest and calling the branch counted.
 - NOT red-team or coderabbit-sync — those run AFTER you (`agent-workflow.md § Red-Team Agent Trigger`), so their
@@ -83,7 +83,7 @@ LEARNER REPORT — [branch] — [N rounds] — [date]
 - Doc updater: [N updates needed / clean]
 - Test writer: [N gaps found / clean]
 - Implementation-critic: [N critical, N issues / clean]
-- CR-local: [N findings per round / NOT SUPPLIED]
+- CR-local (round 1): [N findings / NOT SUPPLIED]
   (NOT SUPPLIED is a finding in itself: say so rather than counting the rest and
    calling the branch counted — see § Inputs)
 

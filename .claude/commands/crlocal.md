@@ -1,4 +1,4 @@
-Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local is a member of EVERY round of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`), dispatched in the same batch as the other reviewers and reading the same range — not a separate step after them.
+Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local is a member of ROUND 1 ONLY of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`), dispatched in the same batch as the other reviewers and reading the same range — not a separate step after them.
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
@@ -60,7 +60,7 @@ Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local
 
    Do not strip either layer. The hook alone is unreliable on background bash (fires too early); the printf alone is unreliable if someone forgets to redirect it into the log (then it lands only in bash stdout, which background mode doesn't see).
 
-2. **Verify the CLI is installed:** if `which coderabbit` is empty, tell the user to install via the CodeRabbit docs and skip this step. Do NOT pretend the review ran.
+2. **Verify the CLI is installed:** if `command -v coderabbit` is empty, ABORT the round and tell the user to install via the CodeRabbit docs — step 1's gate already exits 1. Round 1 carries no exemption (`CLAUDE.md`), so the gate is INCOMPLETE until the review runs. Do NOT pretend the review ran, and do NOT record it as a skip-with-reason.
 
 3. **For each finding, VERIFY ITS FACTUAL PREMISE, then classify it.** Do not trust the label, the
    line number, or the assertion itself. A finding claiming a function behaves a certain way, that a
@@ -81,13 +81,13 @@ Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local
 
 4. **STOP. Plan before any Edit.** After the triage table, write a short inline plan: which findings will be applied, the file:line for each, what other files / tests / docs the change touches, what the verification step is. Get user approval (or rely on prior global approval if every applied finding is single-file < 10 LOC and pattern-matched). Triage output is NOT the plan — it tells you what to do, not how.
 
-5. **Pool this round's "Apply" findings with the other reviewers' before committing.** CR-local's verdicts are not a commit of their own: the round's fixup commit carries every reviewer's applied findings together (`agent-workflow.md § Pre-Push Review Gate` — one fixup commit per round, never per finding, never per reviewer). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan. The fixup commit triggers NOTHING itself — the next round reads it. **Keep this round's triage table**: the learner runs once per branch after the loop and takes every round's CR-local table as input, the only place a CR-local finding is counted toward rule promotion (`agent-learner.md § DO`).
+5. **Pool this round's "Apply" findings with the other reviewers' before committing.** CR-local's verdicts are not a commit of their own: the round's fixup commit carries every reviewer's applied findings together (`agent-workflow.md § Pre-Push Review Gate` — one fixup commit per round, never per finding, never per reviewer). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan. The fixup commit triggers NOTHING itself — the next round reads it. **Keep this round's triage table**: the learner runs once per branch after the loop and takes round 1's CR-local table as input, the only place a CR-local finding is counted toward rule promotion (`agent-learner.md § DO`).
 
 6. **For each "Skip" finding, briefly note the reason** in the round summary you give the user.
 
-7. **The next round re-runs the review** once the round's pooled fixup commit lands. Never re-run on an unchanged diff to chase a clean result.
+7. **The next round does NOT re-run this review** — CR-local is round 1 only; rounds 2+ are code-reviewer + semantic-reviewer. Cloud CR on the pushed PR is the next external read.
 
-8. **The gate owns the loop, not this command.** Stop on the FIRST round carrying no apply-worthy finding — 0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts. No minimum and no floor. An **Apply** verdict extends the loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate to the user; a NEW critical in a section an earlier round passed means the diff is too large, so split it rather than running another round. Every round runs with `-c .coderabbit.yaml`. Cloud CR on the pushed PR stays the authoritative gate — we never merge on `CHANGES_REQUESTED`.
+8. **The gate owns the loop, not this command.** Stop on the FIRST round carrying no apply-worthy finding — 0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts. No minimum and no floor. An **Apply** verdict extends the loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate to the user; a NEW critical in a section an earlier round passed means the diff is too large, so split it rather than running another round. Round 1 runs with `-c .coderabbit.yaml`. Cloud CR on the pushed PR stays the authoritative gate — we never merge on `CHANGES_REQUESTED`.
 
 ## Round summary template (give this to the user after each round)
 

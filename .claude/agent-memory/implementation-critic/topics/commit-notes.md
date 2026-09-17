@@ -6,6 +6,24 @@
 
 ## Positive-pattern log
 
+### Decision 74 sweep — APPROVED (2026-09-17, chore/record-mechanical-lever)
+
+19 changed files (17 content + 2 spec task updates). Sweep confirmed:
+1. No stale "CR-local every/each/next round 2+" claims survive — `grep -rn 'CR-local.*every round|every round.*CR-local'` returns only clean or correctly-updated hits.
+2. Decision 73 body annotated inline with `*(Round-2+ membership superseded …)*`, not rewritten. ✓
+3. `automerge.md` rate-limit rule (line 30, "⛔ CR-local rate limit = STOP and WAIT") preserved unchanged. ✓
+4. `cr-local-plan-reminder.sh` step 6: "RE-RUN … round 2+ is code-reviewer and semantic-reviewer, NOT this review" — coherent; says the gate re-runs without CR-local. ✓
+5. All spec files updated were live (had open `- [ ]` tasks). ✓
+6. No out-of-scope changes.
+
+### spec delta: record mechanical-lever conclusion — APPROVED (2026-09-17, chore/record-mechanical-lever)
+
+One-file change to `.spec-workflow/specs/corpus-codification/tasks.md`. All four stated checks passed:
+1. `awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 …' .claude/agent-memory/learner/MEMORY.md` → 5 rows, largest 55. Prose accurate.
+2. Commit `98e42e1b` ("mirror code-style.md §10 cl.8 into .coderabbit.yaml") confirmed in `chore/pre-push-review-gate` history. Old "Queued, unpushed" line correctly retired.
+3. `post-commit` stage removal confirmed in `chore/pre-push-review-gate` diff. `lefthook install` owed claim accurate.
+4. `git show 93492a26 -- CLAUDE.md` confirms old text "unit tests run only in CI" existed before round 3 fix. Paraphrase example accurate.
+
 ### fixup: test + mutations + coderabbit mirror — ISSUE raised (2026-09-16, feat/prose-path-guard)
 
 ISSUE — code-reviewer MEMORY.md states "classify 62L→65L" for `4714a817`. Actual measures:

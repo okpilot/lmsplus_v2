@@ -2185,7 +2185,9 @@ review produces a fixup that writes more of them. The exclusion is what makes th
 
 **Rounds.** Round 1 dispatches implementation-critic, code-reviewer, semantic-reviewer, doc-updater,
 test-writer and CR-local in ONE parallel batch. Round 2+ is code-reviewer + semantic-reviewer +
-CR-local — doc-updater and test-writer produce rather than gate. Each round pools every validated
+CR-local — doc-updater and test-writer produce rather than gate. *(Round-2+ membership superseded
+2026-09-17 by Decision 74: CR-local is round 1 only, so rounds 2+ are code-reviewer +
+semantic-reviewer. Everything else here is unchanged.)* Each round pools every validated
 finding into ONE triage table and ONE fixup commit; the fixup triggers nothing itself. STOP on the
 first round carrying no APPLY-worthy finding — no minimum. An APPLY finding extends the loop by one
 round; a skip-with-reason does not. CEILING 3 rounds: at it, stop and escalate, and a NEW critical
@@ -2212,3 +2214,21 @@ that order. `.claude/hooks/review-gate.js` blocks production edits made through 
 validated ISSUE/CRITICAL finding is open — `Bash` routes to `guard-bash.js`, which does not read
 the gate file. It clears when the round ENDS, which is usually the fixup landing but is also a
 round whose findings are ALL skipped-with-reason and produces no commit.
+
+## Decision 74: CR-local runs in ROUND 1 only, not every round (2026-09-17)
+
+**Decision.** CR-local (`/crlocal`) is a member of round 1 of the pre-push review gate and no later
+round. Rounds 2+ are code-reviewer + semantic-reviewer. Supersedes the round-membership clause of
+Decision 73; every other part of 73 stands.
+
+**Evidence.** On `chore/pre-push-review-gate`, CR-local's applied-per-raised yield across rounds
+1-3 was 58% -> 19% -> 11%, on a diff that only shrank, with locations duplicated inside single
+runs. It is the same engine cloud CodeRabbit runs on the push, so rounds 2+ re-read the same prose
+a fourth time before cloud CR reads it a fifth.
+
+**Consequence.** The learner's CR-local input is round 1's single triage table — drop it and every
+pattern it caught is uncounted (`agent-learner.md`). Cloud CR on the pushed PR remains the
+authoritative external gate.
+
+**Not decided here.** Cloud CR rounds remain uncapped — `agent-critic.md`'s bounded-out rule is
+written for the internal loop only. Applying it to cloud rounds needs its own decision.

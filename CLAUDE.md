@@ -161,8 +161,9 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
 6. **CR-local** — `/crlocal`, same diff, same round
 
-**Round 2+** — code-reviewer + semantic-reviewer + CR-local. doc-updater and test-writer PRODUCE
-rather than gate; re-run one only when the fixup added surface it has not seen.
+**Round 2+** — code-reviewer + semantic-reviewer. CR-local is ROUND 1 ONLY (Decision 74).
+doc-updater and test-writer PRODUCE rather than gate; re-run one only when the fixup added surface
+it has not seen.
 
 **Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
 each finding, then ONE pooled triage table and ONE fixup commit. Never edit a file while an agent
@@ -173,7 +174,7 @@ loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, 
 NEW critical in a section an earlier round passed means the diff is too large, so SPLIT.
 
 Then ONCE per branch, in order:
-7. **learner** (sonnet) — reads every round's findings INCLUDING the CR-local triage tables, REPORTS
+7. **learner** (sonnet) — reads every round's findings INCLUDING round 1's CR-local triage table, REPORTS
    proposed rule changes; you apply them. Writes only its own memory dir. This is the ONLY place a
    CR-local finding is counted toward rule promotion (`agent-learner.md`).
 
