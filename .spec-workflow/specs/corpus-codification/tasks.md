@@ -322,8 +322,15 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 
 ## Slice 3 — archaeology deletion (DONE, PR #1299 / `86f642780`)
 
-Corpus 42,010 → 26,562 words (−37%). Re-derive:
-`git show HEAD:CLAUDE.md | wc -w` plus the same over `git ls-tree --name-only HEAD .claude/rules/`.
+Corpus 42,010 → 26,562 words (−37%). Re-derive, pinned — `HEAD` drifts:
+```sh
+for rev in 86f642780^ 86f642780; do
+  { git show "$rev:CLAUDE.md"
+    git ls-tree -r --name-only "$rev" .claude/rules/ |
+      while IFS= read -r p; do git show "$rev:$p"; done
+  } | wc -w
+done
+```
 
 ### The classification every line in the corpus is sorted by
 
@@ -353,13 +360,7 @@ Two clauses that make the table survive contact:
 - [x] All 16 files swept in one PR. Measure per file with
       `for f in CLAUDE.md .claude/rules/*.md; do echo "$f $(wc -w < "$f")"; done`.
 
-### What the sweep cost, and the one rule it produced
-
-Seven real losses, all one shape: **not a deleted RULE — a deleted WORD THAT BOUNDED a rule.**
-A scope clause, a second scope clause, a disjunct (`new **or changed**` → `changed`), a qualifier
-(`when subagents can do it`), an exemption that then overrode its own trigger, an actor
-(`if **the agent** flags them` → `if flagged`), and a diagram marker whose label survived while its
-position moved.
+### Carry-forward safeguards (the seven losses are recorded in `docs/decisions.md` Decision 72)
 
 - [ ] **Before deleting a date-stamped sentence, check whether it is a SCOPE sentence.** Two of the
       seven were deleted because they carried a date and read as archaeology; both bounded a rule's

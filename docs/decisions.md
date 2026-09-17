@@ -2118,8 +2118,15 @@ Derive the funnel with `node .claude/hooks/measure-prose-paths.mjs`. No figure i
 ## Decision 72: the injected rules corpus is cut by 37%, deletion-first (2026-09-17)
 
 **What.** `CLAUDE.md` + `.claude/rules/**` went 42,010 → 26,562 words (PR #1299, `86f642780`).
-Re-derive: `git show HEAD:CLAUDE.md | wc -w` plus the same over
-`git ls-tree --name-only HEAD .claude/rules/`.
+Re-derive, pinned to the merge — `HEAD` drifts:
+```sh
+for rev in 86f642780^ 86f642780; do
+  { git show "$rev:CLAUDE.md"
+    git ls-tree -r --name-only "$rev" .claude/rules/ |
+      while IFS= read -r p; do git show "$rev:$p"; done
+  } | wc -w
+done
+```
 
 **Deleted:** precedent narratives, dated origin stories, cited SHAs and PR numbers, justification
 paragraphs, restatements of rules that live in another file, and the `RULE 0` blockquote duplicated
