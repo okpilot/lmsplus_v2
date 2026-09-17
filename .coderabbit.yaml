@@ -253,8 +253,8 @@ reviews:
     # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant
     # claim, a rules paragraph miscounting the commits it described). The glob ENUMERATES the
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
-    # and so would also sweep in .claude/run-log.md and .claude/agent-memory/** — write-once
-    # history and tracker rows, not claims anyone reasons from. The list mirrors the set in
+    # and so would also sweep in .claude/agent-memory/** — write-once tracker rows, not claims
+    # anyone reasons from. The list mirrors the set in
     # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, in two ways, both harmless:
     # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
@@ -266,8 +266,8 @@ reviews:
     # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
     # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
-    # trackers — same class as .claude/run-log.md and agent-memory, where rows get ticked and
-    # revised in flight, so reviewing them is churn.
+    # trackers — same class as agent-memory, where rows get ticked and revised in flight, so
+    # reviewing them is churn.
     # Rule 0 — every file this glob matches, INCLUDING spec tasks.md (which the
     # comment-accuracy entry below deliberately excludes).
     - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"

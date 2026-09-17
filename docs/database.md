@@ -31,12 +31,12 @@ that doesn't accidentally break those guarantees.
 Certain records must never change after creation. These represent facts that happened.
 Enforce at the database level (RLS policies), not just application convention.
 
-**Immutable tables (no UPDATE, no DELETE, no direct INSERT — RLS blocks all writes):**
+**Immutable tables (no UPDATE, no DELETE, no direct INSERT — no permitting write policy exists, so all three are denied by default):**
 - `student_responses` — every answer a student ever gave
 - `quiz_session_answers` — same, tied to a specific session
 - `audit_events` — compliance log
 
-Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the database owner and bypass RLS, allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
+Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as `postgres` — a role holding `BYPASSRLS`, so RLS is not evaluated for them. The `USING (false)` policies these tables carry match zero rows and block nothing on their own; the guarantee rests on the ABSENCE of any permitting write policy. Only `AS RESTRICTIVE` could deny on top of a permitting one, and this schema has none (`docs/security.md` §3).
 
 **Column-level immutability (`users` and `quiz_sessions`):** Some tables allow UPDATE on certain columns but freeze others after row creation. Enforced by `BEFORE UPDATE OF` triggers with a `current_role = 'service_role'` exemption.
 
