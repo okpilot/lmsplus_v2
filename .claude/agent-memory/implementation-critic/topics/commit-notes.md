@@ -6,6 +6,16 @@
 
 ## Positive-pattern log
 
+### Decision 74 sweep — APPROVED (2026-09-17, chore/record-mechanical-lever)
+
+19 changed files (17 content + 2 spec task updates). Sweep confirmed:
+1. No stale "CR-local every/each/next round 2+" claims survive — `grep -rn 'CR-local.*every round|every round.*CR-local'` returns only clean or correctly-updated hits.
+2. Decision 73 body annotated inline with `*(Round-2+ membership superseded …)*`, not rewritten. ✓
+3. `automerge.md` rate-limit rule (line 30, "⛔ CR-local rate limit = STOP and WAIT") preserved unchanged. ✓
+4. `cr-local-plan-reminder.sh` step 6: "RE-RUN … round 2+ is code-reviewer and semantic-reviewer, NOT this review" — coherent; says the gate re-runs without CR-local. ✓
+5. All spec files updated were live (had open `- [ ]` tasks). ✓
+6. No out-of-scope changes.
+
 ### spec delta: record mechanical-lever conclusion — APPROVED (2026-09-17, chore/record-mechanical-lever)
 
 One-file change to `.spec-workflow/specs/corpus-codification/tasks.md`. All four stated checks passed:

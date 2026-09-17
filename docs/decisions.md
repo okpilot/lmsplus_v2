@@ -2230,7 +2230,5 @@ a fourth time before cloud CR reads it a fifth.
 pattern it caught is uncounted (`agent-learner.md`). Cloud CR on the pushed PR remains the
 authoritative external gate.
 
-**Not decided here.** Cloud CR rounds remain uncapped. PR #1301 took six of them, four spent on one
-sentence, because `agent-critic.md`'s bounded-out rule (a wording refinement on prose the previous
-round just wrote is logged, not chased) is written for the internal loop only. Applying it to cloud
-rounds needs its own decision.
+**Not decided here.** Cloud CR rounds remain uncapped — `agent-critic.md`'s bounded-out rule is
+written for the internal loop only. Applying it to cloud rounds needs its own decision.

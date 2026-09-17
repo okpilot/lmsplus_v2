@@ -125,23 +125,17 @@ introduces fresh §10 violations.* The learner's verdict on the branch that prod
 *the gap is execution, not missing rule text.*
 
 No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
-PR #1301 round 3 found `CLAUDE.md` "unit tests run only in CI" after round 2 had corrected the same
-claim, in different words, in `automerge.md`. That is the paraphrase-blindness
-`agent-workflow.md § Rule-Mirror Sync` records as OPEN, now with a count behind it.
+the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
 
 Items 4, 5 and 7 are also mechanical — they enforce lower-count problems. Order by count.
 
-**Drop CR-local to ROUND 1 only** (user-approved 2026-09-17, after PR #1301). Measured on that
-branch, CR-local's applied-per-raised yield fell 58% -> 19% -> 11% across rounds 1-3 on a diff that
-only shrank, with locations duplicated inside single runs. It is the same engine cloud CodeRabbit
-runs on the push, so rounds 2+ re-read prose a fourth time. Rounds 2+ become code-reviewer +
-semantic-reviewer, both of which stayed clean on both branches.
-SWEPT 2026-09-17, 35 sites across 17 files, recorded as Decision 74. Unplanned grepping found 22
-in 14 files; a delegated impact analysis against the pre-change ref found 13 more, including the
-two classes Rule-Mirror Sync names as the ones greps miss — the `.sh` executable mirror
-(`cr-local-plan-reminder.sh` PRINTS the round-2+ reviewer list to the operator) and a steering
-paraphrase (`later rounds the three that gate`) matching no CR-local pattern at all. Enumerate
-against the ref, before editing; a worktree mid-sweep reports its own edits back as the answer.
+**Drop CR-local to ROUND 1 only** — Decision 74. Rounds 2+ are code-reviewer + semantic-reviewer.
+SWEPT 2026-09-17, 36 sites across 18 files. Unplanned grepping found 22 in 14 files; a delegated
+impact analysis against the pre-change ref found 13 more, and the gate's own round 1 found the
+36th. The three it added beyond a grep are the classes Rule-Mirror Sync names as grep-invisible:
+the `.sh` executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator),
+a steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
+Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
