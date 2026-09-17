@@ -1,5 +1,5 @@
 # Code Style Rules — LMS Plus v2
-The code-reviewer agent checks every commit diff against these rules. Violations are warnings (non-blocking) or errors (blocking on merge).
+The code-reviewer agent checks the branch diff against these rules in the pre-push review gate. Violations are warnings (non-blocking) or errors (blocking on merge).
 ---
 ## 1. File Size Limits
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI.
@@ -733,7 +733,7 @@ expect(row.actor_role).toBe('admin')
 
 ---
 ## 8. What the Code Reviewer Checks Automatically
-The `code-reviewer` agent flags these after every commit:
+The `code-reviewer` agent flags these on the branch diff in the pre-push review gate:
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
 - Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)

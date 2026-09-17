@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run post-commit agents** — only NAMED § Post-commit review exemptions reduce the set.
+5. **ALWAYS run the pre-push review gate** — once per branch, all six reviewers in round 1. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
@@ -35,13 +35,13 @@ State what is true. Delete the rest.
 6. Validate → plan vs codebase (below)
 7. Plan-critic → skip single-file <10 lines
 8. Approve
-9. Execute → parallel subagents
-10. Impl-critic
-11. Commit
-12. Audit → post-commit agents
-13. Fix → repeat 11-12
+9. Execute → parallel subagents; commit freely, a commit triggers nothing
+10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)
+11. Fix → ONE pooled fixup commit per round → re-run → stop on first clean round
+12. Learn → once per branch, after the loop
+13. Conditionals → red-team / coderabbit-sync if the branch diff triggers them
 14. Tasks → update TaskCreate status
-15. Learn
+15. /fullpush → push
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
@@ -57,7 +57,7 @@ validation — check `docs/security.md`).
 
 ### When NOT to use subagents:
 - Reading a single known file, or a simple glob/grep for a symbol
-- Single-file edits under 10 lines (post-commit agents still run)
+- Single-file edits under 10 lines (the pre-push gate still runs on the branch)
 - Git operations
 - Plan-critic/implementation-critic — pipeline steps, not ad-hoc subagents
 
@@ -131,10 +131,10 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 
 ### Workflow — hard stops
 - **NEVER** push without explicit user approval
-- **NEVER** skip post-commit review — all four core agents after every commit, except a NAMED § Post-commit review exemption; commit size ALONE never exempts
+- **NEVER** skip the pre-push gate, or drop a reviewer from round 1 — branch size never exempts
 - **NEVER** push with unresolved BLOCKING/CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit
-- **NEVER** skip implementation-critic, even single-file. ONE exemption: paths ALL under `.claude/agent-memory/**` (`agent-workflow.md § Pre-Commit Implementation Review`)
+- **NEVER** run a review round on an UNCHANGED artifact to chase a clean result — a round follows a FIX
 - **NEVER** skip plan-critic for multi-file plans — run after validation, before user approval
 
 ### Agent behavior — hard stops
@@ -149,57 +149,53 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 4. `/project:review` after feature complete
 5. `/project:insights` weekly
 
-## Post-commit review (MANDATORY)
-Run these 4 subagents in parallel via the Agent tool after every `git commit`:
-1. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
-2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit)
-3. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
-4. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
+## Pre-push review gate (MANDATORY)
+ONE loop per BRANCH over `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`.
+A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
 
-**Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, then fix.
-Never edit a file while an agent that can write it is in flight (`agent-workflow.md § Every agent
-dispatch is ASYNCHRONOUS`). Fix, commit, repeat until clean. Then run:
-5. **learner** (sonnet) — reads all findings, REPORTS proposed rule changes; you apply them. Writes
-   only its own memory dir. Hand it a `/crlocal` fixup's CR-local triage table too — counts drive
-   rule promotion (`agent-learner.md`).
+**Round 1** — six reviewers, ONE parallel dispatch:
+1. **implementation-critic** (sonnet) — branch diff vs the validated plan
+2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
+3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
+4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
+5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
+6. **CR-local** — `/crlocal`, same diff, same round
+
+**Round 2+** — code-reviewer + semantic-reviewer + CR-local. doc-updater and test-writer PRODUCE
+rather than gate; re-run one only when the fixup added surface it has not seen.
+
+**Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
+each finding, then ONE pooled triage table and ONE fixup commit. Never edit a file while an agent
+that can write it is in flight (`agent-workflow.md § Every agent dispatch is ASYNCHRONOUS`).
+
+**Stop on the FIRST round with no APPLY-worthy finding.** No minimum. An APPLY finding extends the
+loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate; a
+NEW critical in a section an earlier round passed means the diff is too large, so SPLIT.
+
+Then ONCE per branch, in order:
+7. **learner** (sonnet) — reads every round's findings INCLUDING the CR-local triage tables, REPORTS
+   proposed rule changes; you apply them. Writes only its own memory dir. This is the ONLY place a
+   CR-local finding is counted toward rule promotion (`agent-learner.md`).
 
 Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
 in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
-6. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
+8. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
-7. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
+9. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
-**Docs-only exemption:** touches ONLY `docs/**/*.md` (not `docs/security.md`), root `*.md` (not
-`CLAUDE.md`), or `.claude/agent-memory/**` → doc-updater only.
+**Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
+ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not
+chased — and a FALSE claim is never a refinement, whatever round it lands on. Every finding needs a terminal disposition per `wrapup.md`.
 
-**Review-follow-up exemption:** applies ONLY findings from its own parent's post-commit cycle →
-semantic-reviewer only. ALL must hold:
-- the PARENT ran the FULL cycle and claimed no exemption itself;
-- every hunk traces to a finding from that cycle;
-- touches only files the parent touched, adds no new file;
-- <= 20 changed lines outside tests, <= 60 inside them;
-- no security path, rules file, migration, or CI/hook/config.
-
-If any condition fails, run the full cycle. Neither exemption gets a learner pass.
-
-**A `/crlocal` fixup commit NEVER qualifies for review-follow-up** — hunks trace to CR-LOCAL
-findings, not the parent's cycle, the ONLY place a CR-local finding is counted (`agent-learner.md §
-DO`). Neither exemption is a "small commit" exemption.
-
-**Stop rule.** On a review-follow-up, act only on CRITICAL/ISSUE findings naming a runtime defect
-or a FALSE prose claim. Log and stop on everything else. A false claim is never bounded out — cap
-the chain at 3 consecutive commits applying only the previous commit's findings, then escalate;
-every finding needs a terminal disposition per `wrapup.md`.
-
-Pre-commit critics (plan-critic, implementation-critic) are additive — never push until every agent
-on the selected path reports clean.
+plan-critic is separate and unchanged: it runs ONCE per plan, before user approval, and is the one
+gate no diff-based review can replace.
 
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
-- **pre-commit:** mechanical guards only; unit tests run only in CI.
+- **pre-commit:** mechanical guards only; the unit suite runs at `/fullpush` step 4, the integration tier only in CI.
 - **commit-msg:** conventional commit format; a cited SHA must resolve (proves only EXISTENCE — `code-style.md` §10 cl.6); a claim corrected in one file must not still stand in another (§10 cl.3) — escape hatch: `Retracted-ok: <token> — <reason>` trailer.
 - **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or missing `run-security-auditor.sh` BLOCKS the push, no fallback approval.
 
@@ -212,6 +208,6 @@ CI runs `db reset`; others just `supabase start`; re-derive via
 `grep -rn 'db reset\|supabase start' .github/workflows/`.
 
 ## Push protocol
-Never push without explicit user approval. 2+ commits: full-diff semantic review first —
-`git fetch origin` (ABORT if it fails), then `git diff origin/master...HEAD`. See
-`agent-workflow.md § Pre-Push PR Sweep`.
+Never push without explicit user approval. The pre-push gate runs first, on every branch —
+`git fetch origin` (ABORT if it fails), then the loop over `git diff origin/master...HEAD`. See
+`agent-workflow.md § Pre-Push Review Gate`.

@@ -85,7 +85,7 @@ Plus two opportunistic fixes carried in the HANDOVER.
 - **C2** `test(925): soft-delete column guard + block test-helpers prod import` (parts a + b — cohesive "mechanical guards"; script + test + lefthook + ci + biome)
 - **C3** `fix(925): use TypeError for fixtures.ts type-guard throws (Sonar)`
 
-impl-critic before each commit; full post-commit fleet after each.
+Commit freely — a commit triggers no review. The pre-push review gate runs ONCE over the branch diff (`agent-workflow.md § Pre-Push Review Gate`), with implementation-critic a member of round 1.
 
 ## Follow-up issue to file (HANDOVER)
 - Schema-aware (full-column-existence) guard: generalize beyond the hardcoded 7-table allowlist to read the live schema and flag `.is('<col>')` on any table lacking `<col>`. P2/M. Source: this Phase 3.
@@ -99,7 +99,7 @@ impl-critic before each commit; full post-commit fleet after each.
 - **R1 (guard false-negative):** chain-splitting heuristic could miss an obfuscated chain. Mitigation: keep the chain terminator conservative; the 7-table set is the known-dangerous surface; Phase-4 schema-aware guard is the durable successor. Acceptable for a mechanical pre-commit guard.
 - **R2 (guard false-positive):** flagging a legit `exam_configs`-style adjacent chain. Mitigation: the dedicated test case for that exact shape + verified-green on the full tree before commit.
 - **R3 (biome exemption):** per-glob OFF override may not win. Mitigation: smoke test gate + script fallback.
-- **R4 (path set):** Phase-3 is NOT in the security-path trigger set (no migrations/db-src/quiz-actions/auth/proxy/security.md) → normal change, plan-critic floor N=2. But the guard is the load-bearing point of the tier → run critics on **Opus**.
+- **R4 (path set):** Phase-3 is NOT in the security-path trigger set (no migrations/db-src/quiz-actions/auth/proxy/security.md) → normal change, no raised floor. plan-critic runs ONCE on the plan regardless. Every subagent runs Sonnet (`agent-critic.md § Model tier`); Opus scrutiny of this guard is the orchestrator's own read.
 
 ## Security surface
 - The guard *strengthens* security (blocks service-role-key import + a schema class of bug). No auth/RLS/answer-exposure code changes. biome change is lint-only.

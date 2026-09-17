@@ -106,7 +106,7 @@ test('an agent-memory file quoting the old value does not exonerate the retracti
   // SURVIVOR half; this pins the re-added half.
   // MUTATION: include .claude/agent-memory/** when building addedText → a tracker row recording
   // "the claim used to say 1807" is read as the token being re-added, the retraction is
-  // exonerated, and the real survivor is never reported. Every post-commit cycle writes such a
+  // exonerated, and the real survivor is never reported. Every branch's learner run writes such a
   // row, so this would silently disable the guard on precisely the commits it exists for.
   withRepo((r) => {
     seedFlagship(r)

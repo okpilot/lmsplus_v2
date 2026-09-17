@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Bash. If the command invoked `coderabbit review`,
-# emit a reminder to plan + run the post-commit pipeline before/after
-# applying findings. The hook runs after the bash command's output has
+# PostToolUse hook for Bash. Fires when the command invoked `coderabbit review`.
+# The hook runs after the bash command's output has
 # been returned to the orchestrator, so the reminder appears as the last
 # thing the orchestrator reads from this tool result.
 #
@@ -38,7 +37,7 @@ fi
 cat <<'EOF'
 
 ════════════════════════════════════════════════════════════════════════════
-[cr-local-plan-reminder] Triage → Plan → Execute → Pipeline → Re-run
+[cr-local-plan-reminder] Triage → Plan → Execute → Pool the round → Re-run
 
 The review output above is INPUT, not a TODO list. Required orchestrator
 flow before reading the next user message:
@@ -53,19 +52,18 @@ flow before reading the next user message:
      < 10 LOC and pattern-matched. The plan is your contract with yourself
      to actually read the code, not a reflex-fix.
   4. EXECUTE the plan. Apply, type-check, run the affected tests, commit.
-  5. RUN POST-COMMIT REVIEW AGENTS in parallel: code-reviewer,
-     semantic-reviewer, doc-updater, test-writer (mandatory unless a
-     NAMED exemption in CLAUDE.md applies). They are ASYNC — wait on every
-     agent you LAUNCHED before acting. Then, once any fixes they
-     prompted are COMMITTED, the learner — it reads the
-     cycle's findings, so it runs BEFORE the conditionals, and is skipped
-     entirely on a reduced cycle. Hand it THIS round's CR-local triage
-     table too, or no CR-local finding is ever counted. Then red-team if security-sensitive
-     paths changed, then coderabbit-sync if rules files changed.
-  6. RE-RUN `coderabbit review` for the next round.
+  5. CR-LOCAL IS ONE MEMBER OF THE ROUND, not a pipeline of its own. The
+     round dispatches implementation-critic, code-reviewer,
+     semantic-reviewer, doc-updater and test-writer alongside this review,
+     all on the same branch diff. They are ASYNC — wait on every agent you
+     LAUNCHED. Every finding from every member pools into ONE triage table
+     and ONE fixup commit.
+  6. RE-RUN after the fixup commit lands — round 2+ is code-reviewer,
+     semantic-reviewer and this review only (doc-updater/test-writer just
+     where the fixup added surface they have not seen). STOP on the first
+     round carrying no APPLY-worthy finding. CEILING 3 — at it, escalate.
 
-Do NOT skip step 3 (plan) or step 5 (review agents). Both have been
-called out as recurring failure modes during PR #108 / 2026-05-07.
+Do NOT skip step 3 (plan) or step 5 (the rest of the round).
 ════════════════════════════════════════════════════════════════════════════
 EOF
 

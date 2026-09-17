@@ -52,7 +52,7 @@ Validation: ✓ Impact [N callers, conflicts] ✓ Contracts [N test files, M nee
 ### Plan-Critic Review (runs AFTER plan validation, BEFORE user approval)
 Run plan-critic (sonnet) via the Agent tool after validation, before presenting the plan to the user.
 **Inputs:** the validated plan text, plus the source files in "Files to change" / "Files affected".
-**One run, not rounds.** plan-critic runs **ONCE**. Fix APPLY-worthy findings and proceed; an unresolvable ISSUE or CRITICAL escalates to the user instead of another round. A heavy redraft is a new plan with its own single run. `agent-critic.md § Multi-Round Review Discipline` governs post-commit semantic-reviewer/code-reviewer only, not plan-critic.
+**One run, not rounds.** plan-critic runs **ONCE**. Fix APPLY-worthy findings and proceed; an unresolvable ISSUE or CRITICAL escalates to the user instead of another round. A heavy redraft is a new plan with its own single run. `agent-critic.md § Loop Round Discipline` governs the pre-push gate's reviewers, not plan-critic.
 **Skip condition:** single-file changes under 10 lines.
 **Timeout:** warn past 60s for plans up to 10 files, 120s beyond.
 ### DO
@@ -97,67 +97,61 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 
 ---
 
-## Post-Implementation Pipeline Order
+## Pre-Push Review Gate
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
-- **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before fixing, and before launching the learner — an early pass biases the promotion counts.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there.
-The pipeline below is a sequence because each stage CONSUMES the previous stage's output — don't assume the order without checking.
+- **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage and the learner's counts.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Six agents run concurrently in round 1 — this is the gate's sharpest edge.
+
+### The gate — ONE loop over the branch diff, not a cycle per commit
+Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
+**Scope** — every reviewer in the loop reads the same range:
+```bash
+git fetch origin || abort
+git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'
+```
+Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolution, or the diff — never on an empty result. `.claude/agent-memory/**` is EXCLUDED because each round's agents write their own memory deltas, those deltas land in the branch diff, and reviewing them is how the loop stops terminating.
 
 ```
-Execute (subagents implement) ▼ Implementation-critic review (always, except agent-memory-only)
-    ├─► ISSUE ─► Implementer revises (max 2 rounds, then orchestrator takes over)
-    ├─► CRITICAL ─► Orchestrator intervenes directly
-    └─► Clean / SUGGESTION only
+Execute ▼ commit freely — a commit triggers NOTHING
+    ▼  (pre-push, per BRANCH)
+ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
+         + test-writer + CR-local — ONE parallel batch, all on the branch diff
+ROUND 2+ code-reviewer + semantic-reviewer + CR-local
+         (doc-updater and test-writer PRODUCE, they do not gate — re-run one only
+          when the fixup added surface it has not seen)
     ▼
-git commit
-    ├─► docs-only? (docs/**/*.md except security.md, root *.md except CLAUDE.md,
-    │     .claude/agent-memory/**) ──────────────────► doc-updater ONLY (no learner pass)
-    ├─► review-follow-up? (parent ran FULL cycle w/ no exemption; every hunk traces to
-    │     its findings; same files, no new file; <=20 lines outside tests/<=60 inside;
-    │     no security/rules/migration/CI/hook/config) ─► semantic-reviewer ONLY (no learner pass)
-    └─► otherwise — FULL cycle: code-reviewer + semantic-reviewer + doc-updater + test-writer
-          (parallel, wait for all 4) → read ALL results → validate findings → fix (commit)
-          → fix commit RE-ENTERS at `git commit` (review-follow-up path if it qualifies,
-            else FULL cycle) → loop (bounded by stop rule) until no open finding → learner
+each round: WAIT for every agent LAUNCHED ─► validate every finding
+            (§ Finding Validation) ─► ONE pooled triage table ─► ONE fixup commit
+            ─► re-run.  The fixup commit triggers NOTHING on its own.
     ▼
-learner (sonnet, FULL cycle only — pattern detection, schedule sweep on promotion)
-    ▼  (reduced paths rejoin HERE — after the learner, not before it)
-    ├─► (if diff touches security files) ─► red-team (sonnet) — map diff to specs, flag gaps
-    ├─► (if rules changed) ─► coderabbit-sync (haiku) — sync .coderabbit.yaml
-    ├─► update spec (if spec) — tasks.md: [ ] → [x]
-    ▼  (pre-push, per branch — NOT per commit)
-/crlocal — M=2 normal / M=3 security-path. Each APPLY-finding round makes ONE fixup commit
-    that RE-ENTERS at `git commit`.
+STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
+    ├─► an APPLY finding EXTENDS the loop by one round; a skip-with-reason does not
+    └─► CEILING 3 rounds. At the ceiling STOP and escalate. A NEW critical in a
+          section an earlier round passed means the diff is too large: SPLIT it,
+          never run another round.
     ▼
-/fullpush → push
+then ONCE per branch, in this order:
+    learner ─► red-team (if the branch diff matches § Red-Team Agent Trigger)
+            ─► coderabbit-sync (if it matches `agent-coderabbit-sync.md`)
+    ▼
+update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
+**Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
+**The gate owns `.claude/review-gate.json`** (`.claude/hooks/review-gate.js`): write it when validated ISSUE/CRITICAL findings are open, delete it when the round ENDS — the fixup commit landing is the usual trigger, but a round whose findings are ALL skipped-with-reason produces no commit and still has to clear it. A stale gate file blocks production edits made through Edit or Write, and nothing else clears it: the hook only READS the file. `.claude/settings.json` routes `Bash` to `guard-bash.js`, which does not read the gate file — so a Bash redirect writes production files straight past a live gate.
 
-### Pre-Commit Implementation Review (runs AFTER execution, BEFORE git commit)
-Run implementation-critic (sonnet) via the Agent tool after implementation, before committing.
-**Inputs:** `git diff --staged`, the validated plan, requirements (spec or plan output).
-**Revision flow:** ISSUE → implementer revises (max 2 rounds); CRITICAL → orchestrator intervenes directly, no implementer revision.
-**ONE exemption, path-derived — otherwise it always runs.** A commit whose changed paths are ALL under `.claude/agent-memory/**` skips it — everything else gets it, single-file changes included (the alternative does not TERMINATE: a memory-delta commit would itself need the critic, which writes its own delta).
-Derive the exemption from `git diff --cached --name-status -M`, never commit-size judgement. NOT `--name-only`: with rename detection on it prints only a rename's DESTINATION, so moving a file INTO `.claude/agent-memory/` from outside reads as agent-memory-only. Require BOTH paths of an `R` entry to be under the directory.
-It removes a GATE, not the DUTY — read the delta before committing it.
+### Implementation-Critic (a member of round 1)
+Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
 **Timeout:** proceed with a warning past 90 seconds for diffs under 500 lines.
 ### Red-Team Agent Trigger (conditional)
-After the learner, check if the commit diff includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
+After the learner, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
 `agent-red-team.md` adds ONE path for its own trigger — `apps/web/e2e/redteam/` — and `/fullpush` step 7b honours it too; a spec-only change runs the agent while matching nothing above.
 If yes, run red-team (sonnet) — maps changes to specs, flags coverage gaps. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
 
-## Pre-Push PR Sweep (MANDATORY for multi-commit PRs)
-Before pushing a branch with 2+ commits, run a **PR-level semantic review** against the full diff:
-
-```bash
-git diff origin/master...HEAD
-```
-
-Catches cross-file issues per-commit review misses: test assertions vs. prod code from a different commit, doc matrices vs. schema changes from earlier commits, error-handling patterns introduced across separate commits.
-Run semantic-reviewer (sonnet) with the full PR diff, not just `HEAD~1..HEAD`.
+## The branch diff is the review artifact
+§ Pre-Push Review Gate is the one review pass, on every branch whatever its commit count. Cross-commit defects are only visible here: a test assertion against prod code from another commit, a doc matrix against an earlier schema change, an error-handling pattern split across commits.
 
 ## Always diff against `origin/master`, never the bare local `master`
-Local `master` only moves when something fast-forwards it — routinely stale, and a stale base silently DISTORTS the diff (PR sweep, CR-local, the security-path floor all inherit it).
 **Staleness is not safe in one direction.** Usually over-reports, but can also HIDE a security path: if this branch REVERTS a change that landed upstream after the stale ref, the file is identical at both ends and drops out of the diff — the floor reads "no security path" and `/fullpush` 7b skips the MANDATORY red-team run.
 **Pick the right range form — NOT interchangeable.** Three-dot `origin/master...HEAD` for any DIFF (merge-base compare). Two-dot `origin/master..HEAD` only for COMMIT ENUMERATION (`git log`, `git rev-list --count`). Both need a freshly fetched base — `git fetch origin` first, every time.
 **Fail closed on an unresolvable base or a failed fetch** — a failed fetch usually leaves `origin/master` RESOLVABLE at its old value, so a resolvable-ref check alone does not catch it. Abort on a non-zero EXIT CODE from fetch, base resolution, or the diff — NOT on an empty result (a diff returning zero paths is a legitimate no-op; only an errored command means the scope is unknown).
@@ -196,7 +190,7 @@ A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
 Apply inline when ANY hold:
 - < 30 LOC, same-pattern-as-existing-code.
 - Context is already loaded — re-loading later costs more than the fix.
-- The finding is from CR local, semantic-reviewer, plan-critic, or impl-critic (pre-push triage is cheaper than post-push).
+- The finding is from any reviewer in the pre-push gate, or from plan-critic (pre-push triage is cheaper than post-push).
 - The finding addresses a project-rule violation (`code-style.md`, `security.md`, `agent-*.md`) — not deferrable.
 ### When to DEFER (exception — requires all three)
 File a GitHub Issue and defer only when ALL hold:
@@ -251,7 +245,7 @@ No in-flight findings at push time.
 **Default: SPLIT.** Group work into the fewest PRs that each carry **one merge gate and one risk surface** — not the fewest PRs overall.
 ### Hard split triggers — each forces its own PR
 - **Migration work** — auto-deploys on merge, user-gated. Migrations deploying together may share one PR; NON-migration work must not ride along behind that prod-deploy approval.
-- **A security path** (`§ Red-Team Agent Trigger` set) — raises the post-commit and CR-local floors to M=3 and makes red-team mandatory; unrelated work should not pay those rounds.
+- **A security path** (`§ Red-Team Agent Trigger` set) — makes red-team mandatory and pulls the whole branch under the security-auditor's closest scrutiny; unrelated work should not ride behind that.
 - **A change superseding an issue's stated acceptance criteria** — needs its own argument in its own PR body.
 - **A shared component whose change fans out to several surfaces** — blast radius, not diff size, is what reviewers must hold in mind.
 ### Still COMBINE when all of these hold
@@ -261,7 +255,7 @@ A review round surfacing a NEW critical in a section an earlier round already re
 ### Splitting is SEQUENCING, not deferring
 Pieces are built in order, in the same run. Only a deferral if a piece is left unbuilt — say so in the PR body.
 ### Batch the fixups too (UNCHANGED by the split default)
-Collect ALL findings from ALL post-commit agents/reviewers into **ONE fixup commit**, not one per finding. test-writer's tests ride the same commit (`agent-test-writer.md`). Each fixup commit re-triggers the review cycle.
+Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's tests ride the same commit (`agent-test-writer.md`). The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
 ### Anti-patterns — there are TWO, in opposite directions
 1. One issue → one branch → full pipeline → merge → repeat — crawls on a multi-issue mechanical run.
 2. Everything the work touches → one branch — review does not converge, and a migration drags unrelated code through a prod-deploy gate.
@@ -291,10 +285,10 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; often EMPTY — enumerate at sweep time |
+| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
 | `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
-| `.claude/hooks/*.sh` | **executable mirrors** — some PRINT the agent list at commit time. Not `.md`, so doc-shaped greps miss them |
+| `.claude/hooks/*.sh` | **executable mirrors** — `cr-local-plan-reminder.sh` prints the round's reviewer list on every `coderabbit review` (PostToolUse). Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |
 **Grep is a FIRST PASS, not the sweep.** Grep every fixed path for old and new wording — a phrase-grep cannot find a PARAPHRASE, so read the affected section and its mirrors end-to-end when a change retires a CLAIM rather than a string. A restatement that merely POINTS at the rule needs no edit; one that RE-STATES the mechanics does.
@@ -311,19 +305,18 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 
 ## Orchestrator Role
 ### DO
-- Run implementation-critic on staged changes before every commit except an agent-memory-only one (§ Pre-Commit Implementation Review).
-- Launch the four core post-commit agents in parallel after each commit; WAIT for a completion notification from every agent LAUNCHED before acting. Named `CLAUDE.md § Post-commit review` exemptions reduce the set.
+- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all six reviewers in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing.
 - Report findings to the user in a summary table: agent / severity / count / status.
 - Report ALL severity levels, not just criticals.
-- Re-run agents on fix commits if production code changed.
+- Re-run the gate's reviewers after a round's fixup commit lands — that is the next ROUND, not a commit-triggered re-run.
 - After all agents report clean, update `tasks.md` in the active spec (`[ ]` → `[x]`) for every completed task.
 ### NEVER
-- Skip implementation-critic. Size is never the criterion; sole exemption per § Pre-Commit Implementation Review.
-- Allow more than 2 revision rounds between critic and implementer.
-- Skip post-commit agents for any reason, including commit size — only the NAMED `CLAUDE.md § Post-commit review` exemptions reduce the set.
-- Chase a reviewer to convergence on a review-follow-up commit — act only on a runtime defect or a false prose claim (never bounded out, chain capped at 3 commits), log the rest and stop.
+- Skip the gate, or drop a reviewer from round 1. Branch size is never the criterion; there is no exemption.
+- Run a round on an UNCHANGED artifact to chase a clean result — a round follows a FIX, never a wish.
+- Exceed the 3-round ceiling. At it, STOP and escalate; a new critical in an already-reviewed section means SPLIT.
+- Treat a commit as a review trigger. Commits are free; only a round reads them.
 - Start fixing before every LAUNCHED agent has reported — async, dispatching is not reporting.
 - Fire-and-forget agents without reading results.
 - Edit a file while an agent that can write it is in flight — only test-writer holds Write/Edit (scoped to test files); Bash still writes, so this is one collision, silent and gateless. Agent memory dirs are NOT a collision.
@@ -420,8 +413,8 @@ Missing: [what the agent needed but didn't have]
 Fix: [what to include next time]
 ```
 
-### Post-commit agent integration
-For post-commit agents, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
+### Gate reviewer agent integration
+For the gate's reviewers, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
 - Log delegation failures and improve future prompts.

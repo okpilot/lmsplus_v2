@@ -1,6 +1,6 @@
 # Agent Rules — doc-updater
 
-> Model: haiku | Trigger: post-commit | Non-blocking
+> Model: haiku | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES doc edits, it does not gate)
 
 ## Purpose
 Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool. It writes only its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`), which nothing else touches.
@@ -8,7 +8,7 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 ## Handling Results
 
 ### DO
-- Apply the agent's reported doc edits YOURSELF and commit alongside the cycle's fix commit — it has no Write/Edit tool and cannot commit.
+- Apply the agent's reported doc edits YOURSELF and commit them in the round's ONE pooled fixup commit — it has no Write/Edit tool and cannot commit.
 - Verify cross-references — if database.md changed, check decisions.md/plan.md stay consistent.
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
 - Apply reported `docs/plan.md` progress-tracking edits yourself — a write from the agent races yours and silently vanishes (no Write/Edit tool).

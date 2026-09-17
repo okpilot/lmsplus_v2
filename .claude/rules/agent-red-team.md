@@ -1,11 +1,11 @@
 # Agent Rules — red-team
-> Model: sonnet | Trigger: on diffs touching auth/RLS/RPCs | Non-blocking
+> Model: sonnet | Trigger: once per branch, after the learner, when the branch diff matches § Trigger Conditions | Non-blocking
 
 ## Purpose
 Maps code changes to red-team Playwright specs. Identifies attack vectors lacking test coverage. Does NOT run specs — it reviews and recommends.
 
 ## Trigger Conditions
-Run when the diff includes changes to either: the canonical security-path set (`agent-workflow.md § Red-Team Agent Trigger`) OR `apps/web/e2e/redteam/` (spec changes trigger this agent specifically). The full path list:
+Run when the branch diff includes changes to either: the canonical security-path set (`agent-workflow.md § Red-Team Agent Trigger`) OR `apps/web/e2e/redteam/` (spec changes trigger this agent specifically). The full path list:
 - `supabase/migrations/**` — any migration file
 - `packages/db/src/**` — database client, types, or schema changes
 - `apps/web/app/app/quiz/actions/**` — Server Actions
@@ -14,11 +14,11 @@ Run when the diff includes changes to either: the canonical security-path set (`
 - `docs/security.md` — security rules
 - `apps/web/e2e/redteam/` — red-team specs themselves (this agent's extra path — not part of the canonical set)
 
-Do NOT run on every commit — only when the above paths are in the diff.
+Runs ONCE per branch, after the review loop and the learner — and only when the above paths are in the branch diff.
 
 ## Handling Results
 ### DO
-- Run after post-commit agents when security-sensitive files changed.
+- Run after the learner, once the review loop has stopped, when security-sensitive files are in the branch diff.
 - Review the agent's spec mapping — verify it correctly identified affected specs.
 - The ORCHESTRATOR re-runs affected red-team specs if the agent flags them: `pnpm --filter @repo/web e2e:redteam` — the agent reviews, it does not run specs.
 - Create GitHub Issues for coverage gaps identified (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
@@ -28,7 +28,7 @@ Do NOT run on every commit — only when the above paths are in the diff.
 - **Before allocating new vector IDs in `attack-surface.md`, take the highest existing ID from BOTH the `origin/master` matrix (`git fetch origin master` then `git show origin/master:.claude/agent-memory/red-team/topics/attack-surface.md`) AND the current working-tree matrix, then start at max+1 — never trust a max-ID (or a "spec count") computed by Explore/plan-critic against the feature branch.** Cut the work branch off `origin/master` and take the max across BOTH refs BEFORE allocating — a stale branch silently understates both. **FAIL CLOSED:** if the fetch, either `git show`/working-tree read, or the max-ID parse fails, ABORT the allocation — never fall back to whichever read succeeded, since a partial read is exactly how a collision gets created. BOTH reads are required: `origin/master` catches sibling PRs merged after your branch was cut; the WORKING TREE catches IDs this branch's own earlier commits already allocated. Read `origin/master`, NOT the bare local `master` (`agent-workflow.md § Always diff against origin/master, never the bare local master`). When re-lettering a spec's self-labels, grep ALL cross-reference forms — `Vector X`, `(mirror of X)`, `vs X`, bare `(X)` — not just `Vector X`; a narrow grep leaves stale labels.
 
 ### NEVER
-- Run on every commit — only on security-sensitive diffs.
+- Run inside the review loop, or more than once per branch.
 - Let the agent create or modify spec files — it reviews, the orchestrator/test-writer handles changes.
 - Block pushes on red-team findings alone — advisory, not blocking.
 - Ignore coverage gap findings — create issues to track them even if not fixing immediately.

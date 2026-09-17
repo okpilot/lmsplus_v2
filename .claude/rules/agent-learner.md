@@ -1,12 +1,12 @@
 # Agent Rules — learner
-> Model: sonnet | Trigger: after a full post-commit cycle COMPLETES — all four core agents' completion notifications RECEIVED and their results read, AND any fixes they prompted are committed | Non-blocking
+> Model: sonnet | Trigger: ONCE per branch — after the pre-push gate ends, clean or at the ceiling, before red-team and coderabbit-sync | Non-blocking
 ## Purpose
-Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different commits).
+Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different rounds or branches).
 ## Handling Results
 ### DO
-- Run the learner after every full post-commit cycle (all four core agents' completion notifications RECEIVED and read, fixes committed). Agents run ASYNCHRONOUSLY — dispatching four and launching the learner is not "the cycle completed". A partial set biases which patterns become rules.
-- **CR-local findings ARE learner input.** Every `/crlocal` ROUND with approved APPLY findings produces ONE fixup commit (§ PR Batching) that re-enters at `git commit` and gets its own full cycle and learner pass. Hand that pass the round's CR-local triage table alongside the four core agents' results — CR-local is the only reviewer reading with a genuinely outside lens; dropping it means a pattern it catches every round never reaches count>=2.
-- Red-team and coderabbit-sync findings are NOT learner input — they run AFTER the learner, so they reach it on the branch's next full cycle. A clean cycle still gets its learner pass ("absence of findings is itself data"). A commit running a reduced cycle under any `CLAUDE.md § Post-commit review` exemption does NOT get its own learner pass.
+- Run the learner once per branch, after the gate's last round (`agent-workflow.md § Pre-Push Review Gate`) and after its fixes are committed — including when the loop stopped at the ceiling with residual findings. Its input is EVERY round's findings from EVERY reviewer, not just the last round's.
+- **CR-local findings ARE learner input, and the branch-end learner run is the ONLY place a CR-local finding is ever counted toward rule promotion.** Hand that run every round's CR-local triage table alongside the other reviewers' results. Drop a round's table and a pattern it catches every round never reaches count>=2.
+- Red-team and coderabbit-sync findings are NOT learner input — they run AFTER the learner, so they reach the learner run of a LATER branch. A branch whose rounds were all clean still gets its learner run ("absence of findings is itself data").
 - Trust its pattern detection — frequencies live in `.claude/agent-memory/learner/MEMORY.md`. That trust covers JUDGMENT, not a report that it WROTE something — verify a claimed memory or archive edit against the artifact per `agent-workflow.md § Finding Validation`.
 - Apply rule changes the learner proposes if the pattern has 2+ occurrences AND the change is specific and actionable.
 - Note when the learner reports a pattern did NOT recur — a positive signal the fix worked.
@@ -17,7 +17,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 - Let the learner contradict documented exceptions (e.g., removing the hydration guard useEffect suppression).
 - Let the learner duplicate Biome enforcement — if Biome catches it, no need for an agent rule.
 - Let the learner edit agent definition files (`.claude/agents/*.md`) directly — propose changes and let the orchestrator review.
-- Skip the learner because "nothing interesting happened." Run it every cycle. Absence of findings is itself data.
+- Skip the learner because "nothing interesting happened." Run it on every branch. Absence of findings is itself data.
 ## What The Learner Tracks
 - Issue frequency table: pattern name, first seen, count, last seen, status (watching/rule-proposed/rule-added)
 - Lessons per session: what went wrong, what got fixed, what changed
@@ -25,7 +25,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 - False positive tracking: findings that turned out to be wrong
 ## When To Apply Rule Changes
 The learner proposes, the orchestrator decides. Apply a change when:
-1. The pattern has 2+ occurrences across different commits (not just different files in the same commit).
+1. The pattern has 2+ occurrences across different ROUNDS or different BRANCHES (not just different files in one round). A branch produces at most three pooled fixup commits, so a commit-keyed threshold would throttle promotion.
 2. The proposed rule is specific enough to be mechanically checked.
 3. The rule doesn't conflict with existing documented exceptions.
 4. The change is in the right place (Biome for formatting, code-style.md for structure, security.md for security).

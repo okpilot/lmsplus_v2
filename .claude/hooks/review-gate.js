@@ -2,9 +2,12 @@
 // review-gate.js — Blocks production file edits when reviewer findings are pending validation.
 //
 // Flow:
-// 1. Post-commit agents find ISSUE/CRITICAL → orchestrator writes .claude/review-gate.json
+// 1. A pre-push gate round leaves validated ISSUE/CRITICAL findings open → the gate
+//    writes .claude/review-gate.json
 // 2. This hook fires on Edit/Write → checks if gate file exists → blocks production edits
-// 3. Orchestrator validates findings → deletes gate file → edits unlocked
+// 3. The round ends → the gate deletes the file → edits unlocked. Usually that is the fixup
+//    commit landing; a round whose findings are ALL skipped-with-reason produces no commit
+//    and must still clear it. This hook never deletes — it only reads.
 //
 // Gate file format (.claude/review-gate.json):
 // { "findings": [{ "agent": "semantic-reviewer", "severity": "ISSUE", "file": "foo.ts", "summary": "..." }] }

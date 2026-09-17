@@ -53,7 +53,7 @@ commit-msg  → enforces conventional commit format, resolvable cited SHAs, and 
 pre-push    → security-auditor agent + pnpm audit
 post-commit → reminder to run subagents (non-blocking)
 ```
-Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
+Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20. *(Superseded 2026-09-17 by Decision 73: the `post-commit` Lefthook stage is removed and those subagents run in the one pre-push loop over the branch diff, not after each commit. In-session rather than external is unchanged.)*
 
 > Updated 2026-07-11: pre-commit runs mechanical guards — the list is DATA in `.claude/pipeline.json`, deliberately not restated here (unit tests are NOT in pre-commit; they run in CI); pre-push security-auditor is now FAIL-CLOSED (LLM-audit failure or missing script blocks the push).
 
@@ -386,7 +386,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Decided:**
 - Remove post-commit hooks from Lefthook (mechanical blocking gates only)
-- Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
+- Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit *(Superseded 2026-09-17 by Decision 73: they run once per branch, in the pre-push gate, on the branch diff. The Agent-tool/in-session mechanism is unchanged.)*
 - Agent output flows back into the conversation — findings are immediately visible and actionable
 - Lefthook reduced to 3 layers: pre-commit, commit-msg, pre-push — what each runs is data in `.claude/pipeline.json`, not restated here (unit tests are NOT in pre-commit)
 - Never push without explicit user approval
@@ -498,7 +498,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Create red-team suite: Playwright attack specs executing exploit chains against local Supabase (same as production); 53 specs as of 2026-08-09 covering OWASP A01/A02/A03/A07/A09 and A10:2025 (exceptional-condition handling / error-path information disclosure)
 - Attack vectors cover: RLS bypass (cross-tenant, question membership), RPC boundary breaches, session forgery (PKCE, replay), race conditions (concurrent discard+complete), audit log tampering and completeness, quiz draft injection, SQL/XSS injection, security-header validation
 - Separate Playwright project (`e2e/redteam/`) to avoid clutter, testIgnore on normal e2e pipeline
-- Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps
+- Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps *(Superseded 2026-09-17 by Decision 73: it runs once per branch after the pre-push review loop, triggered on the BRANCH diff. The path set is unchanged.)*
 - Attack surface memory: tracks patterns found, confirmed gaps (marked .fixme), documented gaps (marked .skip), exploitation techniques
 - CI workflow `redteam.yml` runs on every PR to master (no path filter) and is a required status check — a path-filtered required check leaves PRs that don't touch those paths permanently pending
 - `/redteam` skill command for on-demand execution (useful for validating fixes)
@@ -1134,6 +1134,12 @@ stops being zero. Recorded rather than silently left divergent, which is what #1
 
 **Surviving from #1222:** the round bound on comment-accuracy **refinements**, in `.claude/rules/agent-critic.md` — a finding that the prose states something FALSE is never bounded, whatever round it lands on. That is about the FINDING, which stays actionable and still needs a terminal disposition; what `CLAUDE.md` caps at three commits is the follow-up CHAIN, after which the residue is escalated rather than committed. The two are not in tension. That part of the complaint is real and is addressed separately.
 
+> **Annotation 2026-09-17 (Decision 73):** the docs-only post-commit exemption this entry measures
+> is DELETED, along with the per-commit cycle it shrank; the rejected no-executable-change exemption
+> has no cycle left to skip. The measurement and the lesson stand as history. The two surviving
+> parts are unaffected: the doc-updater numeric-literal drop, and the round bound on
+> comment-accuracy refinements.
+
 ### Decision 59: every `tenant_isolation` policy is `FOR SELECT` — two independent grounds (2026-08-20)
 
 **Date**: 2026-08-20
@@ -1393,6 +1399,11 @@ touch of a security path still raises the floor, and that is intended.
 **Consequence.** The floor/ceiling interaction is now stated wherever both numbers appear, so the
 next PR that hits it does not re-derive the unreachability. Mirrors updated: `agent-critic.md`,
 `agent-workflow.md`, `.claude/agents/plan-critic.md`, `.claude/commands/crlocal.md`.
+
+> **Annotation 2026-09-17 (Decision 73):** extend-by-one survives and is now the gate's only round
+> mechanic. The minimum M does not: the pre-push loop stops on the FIRST round with no APPLY-worthy
+> finding, has no floor, and caps at 3 rounds. "Post-commit reviewer rounds" in the title names a
+> cadence that no longer exists — the rounds are the pre-push loop's.
 
 
 ## Decision 62: pipeline FACTS move to `.claude/pipeline.json`, validated by a test (2026-09-07)
@@ -2152,3 +2163,52 @@ sweep, a pointer audit. Only reading each diff against the original found them.
 **Consequence for the remaining slices:** before deleting a date-stamped sentence, check whether it
 is a SCOPE sentence; and re-read every condensed multi-clause sentence clause-by-clause against the
 original. Both are recorded in `.spec-workflow/specs/corpus-codification/tasks.md § Slice 3`.
+
+## Decision 73: review runs ONCE per branch, on the branch diff, before the push (2026-09-17)
+
+**What changed.** The per-commit review cycle is retired (#1298). LLM review is ONE loop per BRANCH,
+run pre-push. A commit triggers nothing. Canonical mechanics:
+`.claude/rules/agent-workflow.md § Pre-Push Review Gate`; `CLAUDE.md § Pre-push review gate` is the
+reading aid.
+
+**Scope.** Every reviewer in the loop reads the same range:
+
+```bash
+git fetch origin || abort
+git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'
+```
+
+Three-dot (merge-base). Abort on a non-zero EXIT CODE from fetch, base resolution or the diff —
+never on an empty result. `.claude/agent-memory/**` is EXCLUDED because each round's agents write
+their own memory deltas: those deltas land in the branch diff, the next round reviews them, and the
+review produces a fixup that writes more of them. The exclusion is what makes the loop terminate.
+
+**Rounds.** Round 1 dispatches implementation-critic, code-reviewer, semantic-reviewer, doc-updater,
+test-writer and CR-local in ONE parallel batch. Round 2+ is code-reviewer + semantic-reviewer +
+CR-local — doc-updater and test-writer produce rather than gate. Each round pools every validated
+finding into ONE triage table and ONE fixup commit; the fixup triggers nothing itself. STOP on the
+first round carrying no APPLY-worthy finding — no minimum. An APPLY finding extends the loop by one
+round; a skip-with-reason does not. CEILING 3 rounds: at it, stop and escalate, and a NEW critical
+in a section an earlier round passed means the diff is too large — split it.
+
+**plan-critic is unchanged.** It runs ONCE per plan, after validation and before user approval. It
+reviews the plan, not a diff, so no diff-based gate can replace it.
+
+**Three exemptions are DELETED**, each having existed only to shrink a per-commit cycle that no
+longer exists: the docs-only post-commit exemption, the review-follow-up post-commit exemption, and
+implementation-critic's agent-memory-only exemption. Implementation-critic now runs as a round-1
+member on the branch diff with no exemption and no revision sub-loop; the loop ceiling is the only
+round limit that applies to it.
+
+**Measured, 2026-09-17.** Across 24 PRs, 536 commits consumed 1,597 agent invocations at ~$215/PR
+and ~$10/commit. Adherence to the mandated per-commit cadence was ~50% — 0.56 implementation-critics
+and 0.50 cycles per commit. A full finding census of PR #1295 classified 77 findings: 4 were
+reachable only per-commit, ALL 4 plan-critic findings on the plan, and ZERO came from the four
+post-commit agents. The one compounding case in 36 PRs / 744 commits was caught by CR-local at
+pre-push, not by per-commit review.
+
+**Consequence.** learner, red-team and coderabbit-sync each run ONCE per branch, after the loop, in
+that order. `.claude/hooks/review-gate.js` blocks production edits made through Edit or Write while a
+validated ISSUE/CRITICAL finding is open — `Bash` routes to `guard-bash.js`, which does not read
+the gate file. It clears when the round ENDS, which is usually the fixup landing but is also a
+round whose findings are ALL skipped-with-reason and produces no commit.

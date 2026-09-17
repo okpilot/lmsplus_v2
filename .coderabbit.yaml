@@ -239,6 +239,10 @@ reviews:
           EXTENT and carries the same burden: ship the command that establishes it, or restate
           it as the conditional a fixture supports. A universal needs the case you expect to
           FAIL. code-style.md §10 clause 7.
+        - A hunk whose PURPOSE is correcting a claim — the likeliest place for a NEW wrong one.
+          Re-derive each figure in the REPLACEMENT text from the source, not from the text being
+          corrected, and check what the corrected value invalidates elsewhere in the block.
+          code-style.md §10 clause 8.
         - A corrected claim whose OLD wording still stands elsewhere. Re-reading the block is
           not sufficient — after correcting any claim, the retracted phrase must be grepped
           repo-wide and every surviving hit confirmed not to describe current behaviour.
@@ -283,6 +287,9 @@ reviews:
         - Evidence is NOT prose: a skip reason, an EVIDENCE: line, a finding's stated
           basis, or a required status/summary is mandated by our rules — never flag one
           as prose, and never ask for its removal.
+        - An edit whose PURPOSE is correcting a claim is the likeliest place for a NEW wrong
+          one. Re-derive each figure in the replacement from the source, not from the text being
+          corrected. code-style.md §10 clause 8.
 
     - path: "{CLAUDE.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/requirements.md,.spec-workflow/specs/**/design.md}"
       instructions: |
@@ -359,10 +366,6 @@ reviews:
           that is about not CHASING a stale number, this is about not WRITING one.
         - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
           restatement must either carry the current mechanics or be reduced to a pointer.
-        - A LITERAL COUNT of the post-commit exemptions, in digits OR in words. "the two
-          exemptions", "both are defined by", "claimed neither exemption" are all counts: they go
-          wrong the moment an exemption is added or removed, and this section has already gone
-          stale that way. Exemptions are named, never counted.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"

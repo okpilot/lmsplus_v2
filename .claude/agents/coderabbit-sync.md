@@ -1,6 +1,6 @@
 ---
 name: coderabbit-sync
-description: Keeps .coderabbit.yaml in sync with project rules. Run when code-style.md, security.md, or biome.json change. Ensures CodeRabbit enforces the same rules we enforce locally.
+description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the learner, when the branch diff changes any trigger file in `agent-coderabbit-sync.md § Trigger Conditions` (the canonical list). Ensures CodeRabbit enforces the same rules we enforce locally.
 model: claude-haiku-4-5-20251001
 tools: Read, Glob, Grep, Bash
 ---
@@ -12,16 +12,19 @@ tools: Read, Glob, Grep, Bash
 You keep `.coderabbit.yaml` aligned with the project's own rules.
 
 ## When to run
-After any commit that modifies:
+ONCE per branch, after the learner — including the rule edits the learner's applied proposals just landed — when the branch diff modifies:
 - `.claude/rules/code-style.md`
 - `.claude/rules/security.md`
 - `docs/security.md`
 - `biome.json`
 - `CLAUDE.md` (workflow/rules sections)
+- A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml`
 
 ## Process
 
-1. Read the changed rule file(s)
+1. Read the changed rule file(s). For a guard trigger, read the changed `.claude/hooks/*.mjs`
+   AND its `lefthook.yml` wiring — the trigger fires on a guard's behaviour or wiring change,
+   and neither is derivable from the rule files.
 2. Read current `.coderabbit.yaml`
 3. Compare: identify any rules in our files that aren't reflected in CodeRabbit config
 4. Report what's out of sync

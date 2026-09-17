@@ -69,7 +69,7 @@
 - **Impact:** test-only; no importers of production code change. The new specs join the `redteam` Playwright project (auto-discovered by `testMatch '**/*.spec.ts'`). No CI workflow file change needed.
 - **Contracts:** assertions match the RPC's real RAISE strings (quoted above). `get_session_reports` anon = RAISE (corrected). `audit_events` reads scoped by testStart (immutable). `void` non-stamp asserts unchanged timestamp.
 - **Patterns:** every new/edited spec follows the existing helper + hermeticity + non-vacuous conventions; new dedicated spec mirrors `rpc-comment-idor.spec.ts`/`rpc-report.spec.ts` skeleton.
-- **Security surface:** specs live under `apps/web/e2e/redteam/**` → red-team agent trigger path; run red-team agent post-commit + `pnpm --filter @repo/web e2e:redteam` before push.
+- **Security surface:** specs live under `apps/web/e2e/redteam/**` → red-team agent trigger path; run the red-team agent once per branch, after the pre-push review loop and the learner, + `pnpm --filter @repo/web e2e:redteam` before push.
 - **Hermeticity:** sessions/codes soft-deleted in afterEach/afterAll with `.select('id')` + log-on-nonzero; audit_events NOT cleaned (append-only) — testStart scoping; #781 restores any cookie/context state by closing the context.
 
 ## Risks
@@ -82,7 +82,7 @@
 ## Test / verification
 
 - `pnpm --filter @repo/web e2e:redteam` green locally before push.
-- Post-commit: code-reviewer, semantic-reviewer, doc-updater, test-writer, red-team. fullpush gate + `/crlocal`. Merge only when CI fully green + CR no-change-requested.
+- Pre-push review gate over the branch diff: round 1 = implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, CR-local; round 2+ = code-reviewer, semantic-reviewer, CR-local. Then learner, then red-team, then coderabbit-sync if the branch diff changed a trigger file. fullpush gate. Merge only when CI fully green + CR no-change-requested.
 
 ## Out of scope
 

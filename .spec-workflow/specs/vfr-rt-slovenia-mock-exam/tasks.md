@@ -252,14 +252,13 @@
   - _Requirements: R2, R3, R4, R5, NFR-Reliability, NFR-Usability_
 
 - [ ] **E.2 Red-team review + spec mapping**
-  - The orchestrator invokes the red-team agent manually when the post-commit diff touches migrations / RLS / SECURITY DEFINER RPCs (see `.claude/rules/agent-red-team.md § Trigger Conditions`). The agent maps changes to existing redteam specs; the orchestrator files GitHub Issues for any coverage gaps the agent identifies.
+  - The orchestrator invokes the red-team agent once per branch, after the pre-push review loop, when the BRANCH diff matches the canonical trigger (see `.claude/rules/agent-red-team.md § Trigger Conditions`). The agent maps changes to existing redteam specs; the orchestrator files GitHub Issues for any coverage gaps the agent identifies.
   - Specifically verify: a **same-org authenticated student's** direct PostgREST SELECT of `canonical_answer` / `accepted_synonyms` / `dialog_template` / `blanks_config` fails `42501` (mig 094 column grant — RLS alone does NOT block this; the org-scoped `tenant_isolation` policy passes for students, so a dedicated same-org red-team vector/spec is required, not just the existing unauth/cross-org ones); `get_vfr_rt_exam_results` refuses pre-completion and non-owner calls (no key material in error responses); no cross-student `quiz_session_answers.response_text` read; vfr_rt_exam mode honors the existing #611 exam-score-forgery defenses (the column-grant migration `20260605000001` shipped per the Prerequisites section — a student's direct UPDATE of `correct_count` / `score_percentage` / `passed` / `ended_at` must fail with `42501 permission denied for column …`).
   - The sibling pre-existing exposure (same-org student reading MC `options[].correct` via direct PostgREST — column grants can't reach inside the JSONB) is tracked as a separate platform security issue; this spec must not regress it further but does not fix it.
   - _Requirements: NFR-Security_
 
-- [ ] **E.3 Pre-push PR sweep**
-  - Run `git fetch origin` (abort on failure), then semantic-reviewer on `git diff origin/master...HEAD` per `agent-workflow.md § Pre-Push PR Sweep` once the branch is multi-commit.
-  - Run `/crlocal` (CodeRabbit local CLI) per the `/fullpush` skill.
+- [ ] **E.3 Pre-push review gate**
+  - Run `git fetch origin || abort`, then `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory' || abort`, per `agent-workflow.md § Pre-Push Review Gate`. Round 1 = implementation-critic + code-reviewer + semantic-reviewer + doc-updater + test-writer + CR-local; round 2+ = code-reviewer + semantic-reviewer + CR-local. Stop on the first round with no APPLY-worthy finding, ceiling 3.
   - _Requirements: workflow_
 
 - [ ] **E.4 Update spec `tasks.md` checkboxes `[x]` after each task completion**
