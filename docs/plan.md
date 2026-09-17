@@ -86,7 +86,7 @@
 
 **Docs updated:** docs/database.md (questions schema §2, quiz_session_answers + student_responses per-blank, exam_configs.parts_config, 6 new RPC detailed sections in §4), docs/decisions.md (Decisions 41–43), docs/security.md (privilege-layer §11 new subsection, immutable-write-once exception updated with new RPCs).
 
-**Phases B–E:** tbd. Phase A ship gate = impl-critic clean + post-commit agents clean + red-team coverage complete + manual eval approval.
+**Phases B–E:** tbd. Phase A ship gate = pre-push review gate clean (Decision 73) + red-team coverage complete + manual eval approval.
 
 ---
 
@@ -481,7 +481,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - Migration `002_add_question_number.sql` — added `question_number` column
 - `@repo/db` package exports map added
 - Test batch: 5 questions from 050-01-01 imported + idempotency verified
-- 4 Claude subagents run via Agent tool after each commit (not Lefthook):
+- 4 Claude subagents run via Agent tool, not Lefthook (as of this phase; since Decision 73 they run once per branch in the pre-push review gate):
   - `code-reviewer` (sonnet) — reviews diff for code style violations
   - `doc-updater` (haiku) — checks if docs need updates
   - `test-writer` (sonnet) — writes missing tests for new source files
@@ -664,7 +664,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
   - **Layer 1: pre-commit**: mechanical guards, enumerated in `.claude/pipeline.json` — catches broken code before git history. Unit tests are deliberately NOT here
   - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
   - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
-- **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
+- **Claude Code subagents** (run via Agent tool — findings flow back to conversation; as of Decision 73 they run once per branch in the pre-push review gate, not after each commit):
   - code-reviewer (sonnet) — reviews diff for code style violations
   - doc-updater (haiku) — checks if docs need updates
   - test-writer (sonnet) — writes missing tests, runs them
@@ -1054,37 +1054,42 @@ git commit
       [the authoritative command list per stage is `.claude/pipeline.json` `hooks`,
        which `.claude/pipeline.test.mjs` checks against lefthook.yml both ways —
        this diagram is a reading aid and goes stale every time a gate is added]
+    (a commit triggers NO review — Decision 73)
+
+pre-push review gate — ONE loop per BRANCH over
+`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a
-       notification from every agent actually launched — never a fixed number,
-       since an exemption launches fewer — and READ every returned result before
-       acting on any of them. Receiving a notification is not reading the result;
-       agent-workflow.md binds both ("Read every result before starting any fix").]
-        core, in parallel:
-        1. code-reviewer (sonnet) — diff against code-style.md
-        2. semantic-reviewer (sonnet) — logic, security, behavioural consistency
-        3. doc-updater (haiku) — reports doc edits; the orchestrator applies them
-        4. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
+       notification from every agent actually launched, and READ every returned
+       result before acting on any of them. Receiving a notification is not
+       reading the result; agent-workflow.md binds both ("Read every result
+       before starting any fix").]
+        round 1, ONE parallel batch:
+        1. implementation-critic (sonnet) — branch diff against the validated plan
+        2. code-reviewer (sonnet) — diff against code-style.md
+        3. semantic-reviewer (sonnet) — logic, security, behavioural consistency
+        4. doc-updater (haiku) — reports doc edits; the orchestrator applies them
+        5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
          separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
          everywhere by design)
-    → Fix any findings, AND commit every agent-authored artifact — test-writer's new
-      tests (agent-test-writer.md: the round's ONE fixup commit) and any memory/tracker delta
-      (agent-memory.md forbids leaving one uncommitted). A written test is not a
-      "finding", so an agent can report clean while its output sits uncommitted.
-    → repeat until no agent has an open finding and nothing agent-authored is uncommitted
-        then, on a clean FULL cycle only:
-        5. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
-           orchestrator to apply; writes only its own memory dir. Takes the four
-           core results as finally resolved, plus the CR-local triage table on a
-           /crlocal fixup commit
+        6. CR-local — /crlocal on the same diff
+        round 2+: code-reviewer + semantic-reviewer + CR-local
+    → Pool every validated finding into ONE triage table and ONE fixup commit, which
+      carries every agent-authored artifact too — test-writer's new tests
+      (agent-test-writer.md) and any memory/tracker delta (agent-memory.md forbids
+      leaving one uncommitted). A written test is not a "finding", so an agent can
+      report clean while its output sits uncommitted. The fixup triggers nothing.
+    → STOP on the first round with no APPLY-worthy finding. An APPLY finding extends
+      the loop by one round; ceiling 3 rounds, then escalate.
+        then ONCE per branch, in this order:
+        7. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
+           orchestrator to apply; writes only its own memory dir. Takes every round's
+           findings, including the CR-local triage tables
         conditionals, after the learner:
-        6. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
-        7. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
-    (plan-critic gates the plan before execution; implementation-critic gates
-     `git diff --staged` before every commit but an agent-memory-only one.
-     /crlocal runs pre-push on multi-commit branches (2+ commits) — see
-     `.claude/rules/agent-coderabbit-local.md` for the binding trigger.)
+        8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
+        9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+    (plan-critic is separate and unchanged: it runs ONCE per plan, before user approval.)
 
 git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH

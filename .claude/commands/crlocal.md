@@ -1,12 +1,12 @@
-Run CodeRabbit's local CLI against the current branch and triage findings. Use this BEFORE pushing or before /fullpush, on any branch with 2+ commits where post-push CodeRabbit will review the PR.
+Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local is a member of EVERY round of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`), dispatched in the same batch as the other reviewers and reading the same range — not a separate step after them.
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 ## Why this exists
 
-CodeRabbit local catches things our other agents miss — observability gaps, runtime guard omissions, cleanup ordering, unsafe casts. Running it before push is cheaper than doing the same triage on the PR after CI runs. We also want to catch findings before semantic-reviewer or impl-critic miss them, not after.
+CodeRabbit local catches things our other agents miss — observability gaps, runtime guard omissions, cleanup ordering, unsafe casts. Running it before push is cheaper than doing the same triage on the PR after CI runs. It is the only reviewer in the loop reading with a genuinely outside lens, which is why it runs in the same round as the others rather than after them.
 
-But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find another nit on every round. The triage protocol below tells you when each finding deserves a fix vs. when to stop the loop.
+But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find another nit on every round. The triage protocol below tells you when each finding deserves a fix; the round loop itself is owned by the gate.
 
 ## What to do
 
@@ -25,12 +25,12 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
    The `command -v` check comes FIRST so a missing binary reports "not installed → install" (the actionable fix), not a misleading "too old". Only once the CLI exists does the numeric `major.minor` compare gate an outdated one.
 
-   Fetch next — the review's `--base` and the M=3 path check below both read `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
+   Fetch next — the review's `--base` reads `origin/master`, and a failed fetch leaves it resolvable at its OLD value (see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`").
 
    ```bash
    git fetch origin || { echo 'fetch failed — ABORT, do not review against a stale base'; exit 1; }
    coderabbit review --committed --base origin/master -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts, establish any asserted extent. See agent-coderabbit-local.md\n\u00a7 Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and run the\npost-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts, establish any asserted extent. See agent-coderabbit-local.md\n\u00a7 Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and land the\nround's ONE pooled fixup commit.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
    echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
    ```
 
@@ -50,7 +50,7 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
    ```bash
    BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
    coderabbit review --committed --base-commit "$BASE" -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; rc=$?; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts, establish any asserted extent. See agent-coderabbit-local.md\n\u00a7 Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and run the\npost-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. VERIFY THE CLAIM, not just the\npath: every finding asserts something about the code and CR is sometimes\nwrong on the merits — trace functions to their LATEST definition, grep for\ncolumns it says exist, recompute counts, establish any asserted extent. See agent-coderabbit-local.md\n\u00a7 Verify Before Acting. Then triage apply/skip/defer, write a short plan\ninline (files, blast radius, risks, verification), then execute and land the\nround's ONE pooled fixup commit.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log; \
    echo "coderabbit exit code: $rc" >> /tmp/cr-local-roundN.log; exit "$rc"
    ```
 
@@ -87,32 +87,13 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 4. **STOP. Plan before any Edit.** After the triage table, write a short inline plan: which findings will be applied, the file:line for each, what other files / tests / docs the change touches, what the verification step is. Get user approval (or rely on prior global approval if every applied finding is single-file < 10 LOC and pattern-matched). Triage output is NOT the plan — it tells you what to do, not how.
 
-5. **Apply ALL approved "Apply" findings of the round in ONE fixup commit** (per `agent-workflow.md § PR Batching` — one commit per round, never per finding). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan. The batched fixup commit goes through implementation-critic on `git diff --staged` BEFORE committing — mandatory for every commit but an agent-memory-only one, which a CR fixup never is (`agent-critic.md`). It then gets its own post-commit cycle — FULL unless a NAMED exemption in `CLAUDE.md § Post-commit review` applies (a CR fix touching ONLY the docs-only paths — `docs/**/*.md` except `docs/security.md`, root `*.md` except `CLAUDE.md`, or `.claude/agent-memory/**` — can qualify; a fix touching `.claude/rules/` or `.claude/commands/` cannot. review-follow-up NEVER can, since its hunks trace to CR findings rather than the parent's cycle). On a full cycle, hand this round's triage table to the learner — and note the trap the docs-only exemption opens: a reduced cycle SKIPS the learner, and a CR-local fixup commit's own cycle is the ONLY place a CR-local finding is ever counted, so taking that exemption silently discards this round's findings from frequency tracking. If the round produced findings worth counting, prefer the full cycle alongside the four core agents' results, or the learner never counts a CR-local finding (`agent-learner.md § DO`).
+5. **Pool this round's "Apply" findings with the other reviewers' before committing.** CR-local's verdicts are not a commit of their own: the round's fixup commit carries every reviewer's applied findings together (`agent-workflow.md § Pre-Push Review Gate` — one fixup commit per round, never per finding, never per reviewer). If a fix changes more than 10 lines or touches a 4th file, stop and re-plan. The fixup commit triggers NOTHING itself — the next round reads it. **Keep this round's triage table**: the learner runs once per branch after the loop and takes every round's CR-local table as input, the only place a CR-local finding is counted toward rule promotion (`agent-learner.md § DO`).
 
 6. **For each "Skip" finding, briefly note the reason** in the round summary you give the user.
 
-7. **Re-run the review** after your fix commit lands.
+7. **The next round re-runs the review** once the round's pooled fixup commit lands. Never re-run on an unchanged diff to chase a clean result.
 
-8. **Minimum-rounds-met + last-round-clean (rule chosen 2026-06-23; the post-commit reviewers adopted the same mechanic 2026-09-06, #1255).** CodeRabbit is non-deterministic — the same diff yields different findings each run — so a *single* quiet round is weak evidence; run several rounds to sample it. But CR-local is a **pre-push preview** of the cloud CodeRabbit that reviews the actual PR on push (the authoritative gate — we never merge on `CHANGES_REQUESTED`), so a "stability proof" on the local preview is not required. Run a **minimum of M rounds**, then stop on the first round **at or after** M with **no apply-worthy findings** (0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts):
-   - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`). Resolve and guard the base BEFORE the path diff — an unresolvable base or a failed diff must ABORT, never be read as "no paths matched" (which would silently downgrade a security-path change to the weaker M=2):
-
-     ```bash
-     BASE=$(git rev-parse --verify origin/master^{commit}) || { echo 'origin/master unresolvable — ABORT'; exit 1; }
-     # --name-status -M, NOT --name-only: the latter hides a rename's SOURCE, so moving a file OUT of
-     # a security path silently downgrades the M=3 floor to M=2. cut -f2- keeps both sides.
-     # Capture FIRST, transform second: a pipeline's exit status is its LAST command's, so guarding
-     # the whole pipe would let a failed diff read as "no paths matched" and downgrade M=3 to M=2.
-     raw=$(git diff "$BASE...HEAD" --name-status -M) || { echo 'security-path diff failed — ABORT'; exit 1; }
-     paths=$(printf '%s\n' "$raw" | cut -f2- | tr '\t' '\n')
-     ```
-     (`git fetch origin` from the run block above only proves the fetch succeeded, not that `origin/master` resolves — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`".)
-
-   Every round must run with `-c .coderabbit.yaml`. An **Apply** verdict does NOT reset a counter — it **extends the loop by one round** (fix it, run one more round to confirm nothing new surfaced). You cannot stop *on* a round that still has an Apply verdict, nor *before* round M. Report the running round count to the user each round (e.g. "round 2/2 min, last round clean → stop").
-
-9. **Stop the loop** when EITHER:
-   - The minimum-rounds rule above is satisfied (≥ M rounds run AND the latest round has no apply-worthy findings), OR
-   - You've shipped **4 fixup commits** driven by CR local on this branch (= 4 fix rounds, one fixup commit per round per step 5) — a hard ceiling that caps total effort even if the rule isn't met; escalate to user judgment rather than looping further.
+8. **The gate owns the loop, not this command.** Stop on the FIRST round carrying no apply-worthy finding — 0 findings, or stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero Apply verdicts. No minimum and no floor. An **Apply** verdict extends the loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate to the user; a NEW critical in a section an earlier round passed means the diff is too large, so split it rather than running another round. Every round runs with `-c .coderabbit.yaml`. Cloud CR on the pushed PR stays the authoritative gate — we never merge on `CHANGES_REQUESTED`.
 
 ## Round summary template (give this to the user after each round)
 
@@ -123,15 +104,15 @@ CR local round N — <count> findings
 |-----------|----------|-------|---------|-----|
 | ...       | ...      | ...   | apply/skip | ... |
 
-Applied: <count>
+Applied: <count>  (pooled into the round's single fixup commit with the other reviewers')
 Skipped: <count>
-Rounds run: <X> / min M   (M=2 normal, M=3 security-path); this round apply-worthy: yes/no
-Stop condition met: yes/no — <reason: "≥M rounds and last round clean" or "4-fix ceiling → escalate">  (cloud CR on the PR is the authoritative gate)
+Round <N> of max 3; this round apply-worthy: yes/no
+Stop condition met: yes/no — <reason: "no apply-worthy finding → stop" or "3-round ceiling → escalate">  (cloud CR on the PR is the authoritative gate)
 ```
 
 ## Why this is not a hook
 
-A pre-push hook running `coderabbit review` would block pushes for 2-5 minutes per attempt and trigger on every push including amended fixups. The orchestrator runs CR local at the right moments (mid-development for early signal, pre-push as part of `/fullpush`) — not on every git push.
+A pre-push hook running `coderabbit review` would block pushes for 2-5 minutes per attempt and trigger on every push including amended fixups. The orchestrator runs CR local as one member of each pre-push review-gate round (and mid-development for early signal) — not on every git push.
 
 ## Common mistakes to avoid
 
@@ -140,4 +121,4 @@ A pre-push hook running `coderabbit review` would block pushes for 2-5 minutes p
 - **Applying every finding to make CodeRabbit silent.** That's how PRs grow scope and refactor-induced bugs creep in. Skip-with-reason is a valid verdict.
 - **Skipping a finding because "it's just a nit."** Round 2 of PR #108 caught a missing error path on `full_name` restore — labeled nitpick, was actually a real silent-failure path.
 - **Skipping the plan step after triage.** The triage table is not a plan. Even when verdicts look obvious, READ THE SOURCE for every Apply, and write a short plan to the user before any Edit. The reminder block printed by the bash command exists because this is the most common failure mode.
-- **Not re-running after a fix.** Each fix can surface new issues that the previous round didn't see. Re-run until a stop condition trips.
+- **Not re-running after a fix.** Each fix can surface new issues that the previous round didn't see. The round after a fixup commit is not optional; only a round with no apply-worthy finding ends the loop.

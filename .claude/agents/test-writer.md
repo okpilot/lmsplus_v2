@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Writes Vitest unit and integration tests for new TypeScript functions and React components. Invoke after writing new utility functions, Server Actions, or hooks. Use proactively when the user asks to test something or when new files lack tests.
+description: Writes Vitest unit and integration tests for the TypeScript functions and React components a branch diff adds or changes. Runs in round 1 of the pre-push review gate, and in a later round only when the fixup added surface it has not seen. Use proactively when the user asks to test something or when new files lack tests.
 model: claude-sonnet-4-6
 tools: Read, Glob, Grep, Bash, Write, Edit
 memory: project
@@ -81,7 +81,7 @@ If any test fails, fix it immediately. Never leave broken tests — the whole po
 
 A green test proves NOTHING on its own. Before reporting a new test as passing, BREAK the thing it
 protects and confirm exactly that test goes red, then discard the break. On PR #1225 a test passed
-all four post-commit agents and could not fail: forcing its function to return a constant left
+every reviewer in the gate and could not fail: forcing its function to return a constant left
 16/16 green. `code-style.md` §7 states the rule; executing it is yours, not a reviewer's to catch.
 
 **Write any text ANCHOR after a format pass, never before.** An anchor — a `find` string in a

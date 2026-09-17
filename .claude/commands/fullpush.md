@@ -7,15 +7,21 @@ Pre-push quality gate. Run this BEFORE pushing to catch drift, lazy triage, and 
 Before doing anything else, answer these questions honestly. Do NOT skip any. Print each answer.
 
 ### Verification quality
-1. **For every reviewer/agent finding this session:** Did you READ the actual source file and cross-reference tests, specs, and related files — or did you rely on labels/summaries?
+1. **For every reviewer/agent finding on this branch:** Did you READ the actual source file and cross-reference tests, specs, and related files — or did you rely on labels/summaries?
 2. **For every SKIP or DEFER verdict:** Can you cite the specific line numbers that support your verdict? If not, go back and verify now.
 3. **Did you apply the "< 10 lines = fix now" rule** before marking anything SKIP or DEFER?
 
 ### Completeness
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
-5. **Did all post-commit agents run on EVERY commit in the push range** — not just on HEAD? Enumerate with `git fetch origin` (ABORT if it fails) then `git rev-list origin/master..HEAD`, and account for each one. The fetch is not optional: `origin/master` is itself a local ref that only advances on fetch, so a stale one sits further back and admits commits this branch never authored — see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Checking only the latest commit lets an earlier unreviewed commit through whenever HEAD happens to be clean, which is precisely how this branch reached 24 commits with post-commit agents on 2 of them. For each commit: the full four, or a named exemption. The four are code-reviewer, semantic-reviewer, doc-updater and test-writer, in parallel — and they are ASYNC, so "ran" means its completion notification arrived and its result was read, not that it was dispatched. The **learner** is not one of them — it runs after the CORE agents the cycle launched have reported (red-team and coderabbit-sync are launched too, but AFTER it), takes their findings as its input, and is skipped entirely on a reduced cycle; check it separately rather than as a fifth member of the set. When applicable also: red-team if the diff touches security files, coderabbit-sync if rules changed. A commit covered by a NAMED exemption in `CLAUDE.md § Post-commit review` (docs-only → doc-updater; review-follow-up → semantic-reviewer) satisfies this — **name the exemption and the condition that qualified it**, rather than answering a bare "yes". A commit that merely felt small does not qualify.
-6. **If production code changed after initial review**, did the fix commit get its own review — the FULL four, or `semantic-reviewer` alone only when it qualifies as a review-follow-up under `CLAUDE.md § Post-commit review` (its parent ran the full cycle and claimed no exemption, every hunk traces to that cycle's findings, same files, no new file, within the line bounds, no security path / rules file / migration / CI / hook / config)? Name the path taken. Re-run the conditionals too when their trigger paths are in the fix: red-team, coderabbit-sync.
-7. **For every DEFER verdict this session:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
+5. **Did the pre-push review gate reach a CLEAN round?** (`agent-workflow.md § Pre-Push Review Gate`.) Run `git fetch origin` (ABORT if it fails) — `origin/master` only advances on fetch, and a stale one shifts the review scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Then account for the loop, not for commits:
+   - **Which rounds ran**, and on what range — every reviewer reads `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`.
+   - **Round 1 launched all six**: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, CR-local. Round 2+ launched code-reviewer, semantic-reviewer, CR-local (doc-updater/test-writer only where the fixup added surface they had not seen). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
+   - **What each round's pooled triage concluded** — one table per round, every finding at a terminal verdict.
+   - **The FINAL round carried no APPLY-worthy finding.** A round that still carries one is not a stopping round. If you stopped at the 3-round ceiling instead, say so and escalate — do not push past it.
+   - The **learner** is not a round member: it runs ONCE per branch after the loop ends, takes every round's findings (including the CR-local triage tables) as input. Check it separately. Same for the conditionals — red-team if the branch diff touches security paths, coderabbit-sync if rules changed.
+   A bare "yes" does not answer this. Name the rounds and paste their verdicts.
+6. **Did every round's fixup commit get re-read by the NEXT round, and did the loop end clean?** A fixup commit triggers nothing on its own — the only thing that reads it is the next round, on the re-diffed branch. So: for each round that produced a fixup commit, a further round ran over a diff that included it; and the last round ran on an artifact nobody has changed since. Any edit made after the final round means the loop is not finished — run another round. Re-run the conditionals when their trigger paths entered the diff via a fixup: red-team, coderabbit-sync.
+7. **For every DEFER verdict on this branch:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
 7a. **Defer budgets — TWO checks, and step 7 is neither of them.** Step 7 is the per-item test;
     these are the two once-before-push budgets from `agent-workflow.md § Apply-vs-Defer Discipline`,
     and a PR must clear both.
@@ -90,11 +96,11 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
     security-auditor checklist and a false `WITH CHECK` claim in `docs/security.md`. Landing docs
     late means paying for those findings twice.
 
-### Cross-file consistency (for 2+ commit branches)
-8. Run `git fetch origin` (ABORT if it fails — a stale `origin/master` distorts PR scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` and review the full PR diff — not just the latest commit.
-9. Check: do test assertions match production code changed in different commits?
-10. Check: do doc matrices/tables match schema changes from earlier commits?
-11. Check: are fallback values and error handling consistent across all commits?
+### Cross-file consistency (every branch, whatever its commit count)
+8. Run `git fetch origin` (ABORT if it fails — a stale `origin/master` distorts PR scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`"), then `git diff origin/master...HEAD` and read the full branch diff yourself — the same artifact the gate's reviewers read.
+9. Check: do test assertions match production code changed elsewhere in the diff?
+10. Check: do doc matrices/tables match the schema changes in the diff?
+11. Check: are fallback values and error handling consistent across the whole diff?
 
 ## Actions
 
@@ -138,21 +144,22 @@ After answering the checklist:
 6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migrations on a clean local DB before push. If a local Supabase instance is running, run `supabase db reset --no-seed` / `npx supabase db reset --no-seed` (there may be no global binary on PATH) — the same command CI's "Migration Test (clean reset)" job runs (`e2e.yml`) — and confirm every migration applies cleanly. A clean local reset is a **preflight, not a proof**: CI pins the CLI (the `supabase/setup-cli` `version:` in `e2e.yml` — `2.78.1` as of 2026-09-02) while local runs whatever `npx supabase --version` resolves to (`2.116.0` the same day), so the same command is NOT the same engine and the CI job stays authoritative. A SECOND and unrelated divergence: CI wraps that command in a storage-readiness gate plus one signature-scoped retry and local does not, so a local failure citing `storage/v1/bucket` + `context deadline exceeded` is that known CI flake, not your migration — re-run it (this one is the retry wrapper, NOT the CLI version — pinning your local CLI will not change it). If step 7/7b will run locally after this reset, re-seed first (`tsx scripts/seed-e2e.ts`, after the local grant-fix if needed) — the reset leaves the DB empty and an E2E run against it fails spuriously. If no local instance is up, do NOT silently skip — print a loud `⚠️ MIGRATIONS CHANGED — VALIDATE ON A CLEAN DB BEFORE MERGE` and tell the user (CI's migration test is otherwise the first place a bad migration surfaces).
 7. **E2E (conditional)**: if `$CHANGED` (from 5b) includes `apps/web/e2e/` (excluding `redteam/`), run the web Playwright suite (`pnpm --filter @repo/web e2e`). Skip when no e2e specs changed — the full suite is slow and CI runs it on push anyway.
 7b. **Red Team (MANDATORY when touched — do NOT skip)**: if `$CHANGED` (from 5b) includes `apps/web/e2e/redteam/**` (red-team spec changes) OR any security path (the canonical set from `agent-workflow.md § Red-Team Agent Trigger`: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), run `pnpm --filter @repo/web e2e:redteam` locally and confirm **all specs pass** before pushing. `Red Team Specs` is a **required** status check — a local failure means a blocked PR. The `e2e` script in step 7 does NOT include the `redteam` project, so this is a separate run. If the local Supabase stack is down, bring it up (`supabase start` / `npx supabase start`, re-seed via `scripts/seed-e2e.ts`, production build for the webServer) — do NOT skip with a warning and rely on review+lint+type. PR #769 shipped 2 runtime-failing red-team specs precisely because this step was skipped on the assumption that review caught runtime behavior. It does not.
-8. **Show the agent findings summary table** for this session:
+8. **Show the review-gate findings summary table** for this BRANCH — every reviewer the gate ran, across every round. CR-local is a member of each round, not a later step; if it never ran, the gate is incomplete.
 
 ```
-| Agent             | Severity | Count | Status   |
-|-------------------|----------|-------|----------|
-| code-reviewer     | ...      | ...   | fixed/clean |
-| semantic-reviewer | ...      | ...   | fixed/clean |
-| doc-updater       | ...      | ...   | clean    |
-| test-writer       | ...      | ...   | added N  |
-| learner           | ...      | ...   | done     |
+| Reviewer               | Rounds | Severity | Count | Status      |
+|------------------------|--------|----------|-------|-------------|
+| implementation-critic  | 1      | ...      | ...   | fixed/clean |
+| code-reviewer          | 1-N    | ...      | ...   | fixed/clean |
+| semantic-reviewer      | 1-N    | ...      | ...   | fixed/clean |
+| doc-updater            | 1      | ...      | ...   | clean       |
+| test-writer            | 1      | ...      | ...   | added N     |
+| CR-local               | 1-N    | ...      | ...   | fixed/clean |
+| learner (once/branch)  | —      | ...      | ...   | done        |
 ```
 
 9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
-10. **Run CodeRabbit local pre-push review** via the `/crlocal` command. Loop and apply findings per its triage protocol until a stop condition trips. Do not skip — CR local catches things our internal agents miss (observability gaps, runtime guard omissions, cleanup ordering). Skip only if `which coderabbit` returns nothing AND tell the user to install it.
-11. **Ask for explicit push approval.** Never push without it.
+10. **Ask for explicit push approval.** Never push without it.
 
 ## What this gate does NOT cover (left to CI on purpose)
 

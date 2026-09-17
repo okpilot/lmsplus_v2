@@ -1,6 +1,6 @@
 ---
 name: coderabbit-sync
-description: Keeps .coderabbit.yaml in sync with project rules. Run when code-style.md, security.md, or biome.json change. Ensures CodeRabbit enforces the same rules we enforce locally.
+description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the learner, when the branch diff changes code-style.md, security.md, biome.json or CLAUDE.md. Ensures CodeRabbit enforces the same rules we enforce locally.
 model: claude-haiku-4-5-20251001
 tools: Read, Glob, Grep, Bash
 ---
@@ -12,7 +12,7 @@ tools: Read, Glob, Grep, Bash
 You keep `.coderabbit.yaml` aligned with the project's own rules.
 
 ## When to run
-After any commit that modifies:
+ONCE per branch, after the learner — including the rule edits the learner's applied proposals just landed — when the branch diff modifies:
 - `.claude/rules/code-style.md`
 - `.claude/rules/security.md`
 - `docs/security.md`

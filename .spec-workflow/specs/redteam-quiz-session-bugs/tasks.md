@@ -31,10 +31,10 @@
   - Existing config-injection spec passes (extended FROZEN_COLUMNS coverage).
   - All other E2E tests pass (catches regression in completion flows).
 - [ ] T2.6 — Update `docs/database.md` if it lists trigger-frozen columns.
-- [ ] T2.7 — Run implementation-critic on staged diff. Address findings.
-- [ ] T2.8 — Commit with `Closes #611` in message.
-- [ ] T2.9 — Run post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer in parallel) + red-team agent. Address findings.
-- [ ] T2.10 — Run learner.
+- [ ] T2.7 — Commit with `Closes #611` in message. A commit triggers no review.
+- [ ] T2.8 — Pre-push review gate on the branch diff: round 1 = implementation-critic + code-reviewer + semantic-reviewer + doc-updater + test-writer + CR-local; round 2+ = code-reviewer + semantic-reviewer + CR-local. Pool each round's findings into ONE fixup commit; stop on the first round with no APPLY-worthy finding, ceiling 3.
+- [ ] T2.9 — Run learner once, after the loop.
+- [ ] T2.10 — Run red-team once (the branch diff touches `supabase/migrations/**` and `apps/web/e2e/redteam/`).
 - [ ] T2.11 — Run coderabbit-sync if any rules changed (unlikely for this PR).
 
 ## Cross-PR

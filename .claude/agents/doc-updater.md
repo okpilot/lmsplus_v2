@@ -1,6 +1,6 @@
 ---
 name: doc-updater
-description: Reports the documentation updates needed when APIs, schemas, or architecture change. Invoke after: database schema changes, new Server Actions, new routes added, or dependency updates. Reports the exact edits for docs/plan.md, docs/decisions.md and docs/database.md; the orchestrator applies them.
+description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in round 1 of the pre-push review gate on the branch diff, and in a later round only when the fixup added doc surface it has not seen. Reports the exact edits for docs/plan.md, docs/decisions.md and docs/database.md; the orchestrator applies them.
 model: claude-haiku-4-5-20251001
 tools: Read, Glob, Grep, Bash
 memory: project
@@ -47,7 +47,7 @@ nothing else writes to it, so there is no race to lose.
 
 8. **Do NOT miss CLAUDE.md NEVER DO drift** — When `.claude/rules/code-style.md` or `security.md` changes, audit the `## NEVER DO` block in `CLAUDE.md` for stale or contradictory entries.
 
-9. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the commit diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
+9. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the branch diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
 
 ## Reporting a COUNT
 Every number you report — spec or task tallies, occurrence counts, file or mention counts — must

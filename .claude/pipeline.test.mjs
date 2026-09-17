@@ -92,24 +92,30 @@ for (const name of onDisk) {
 }
 
 const CORE = Object.entries(spec.agents)
-  .filter(([, a]) => a.role === 'post-commit-core')
+  .filter(([, a]) => a.role === 'gate-round')
   .map(([n]) => n)
   .sort()
-const EXPECTED_CORE = ['code-reviewer', 'doc-updater', 'semantic-reviewer', 'test-writer']
+const EXPECTED_CORE = [
+  'code-reviewer',
+  'doc-updater',
+  'implementation-critic',
+  'semantic-reviewer',
+  'test-writer',
+]
 JSON.stringify(CORE) === JSON.stringify(EXPECTED_CORE)
-  ? pass(`post-commit-core is exactly: ${CORE.join(', ')} (${CORE.length})`)
-  : fail(`post-commit-core is [${CORE.join(', ')}], expected [${EXPECTED_CORE.join(', ')}]`)
+  ? pass(`gate-round is exactly: ${CORE.join(', ')} (${CORE.length})`)
+  : fail(`gate-round is [${CORE.join(', ')}], expected [${EXPECTED_CORE.join(', ')}]`)
 
 const EXPECTED_ROLES = {
-  'code-reviewer': 'post-commit-core',
-  'semantic-reviewer': 'post-commit-core',
-  'doc-updater': 'post-commit-core',
-  'test-writer': 'post-commit-core',
-  learner: 'post-commit-learner',
+  'code-reviewer': 'gate-round',
+  'semantic-reviewer': 'gate-round',
+  'doc-updater': 'gate-round',
+  'test-writer': 'gate-round',
+  'implementation-critic': 'gate-round',
+  learner: 'gate-learner',
   'red-team': 'conditional',
   'coderabbit-sync': 'conditional',
-  'plan-critic': 'pre-commit',
-  'implementation-critic': 'pre-commit',
+  'plan-critic': 'pre-execution',
   'security-auditor': 'pre-push',
 }
 const DECLARED_AGENTS = Object.keys(spec.agents).sort()
@@ -240,13 +246,7 @@ for (const t of spec.coderabbitSyncTriggers) {
     : fail(`coderabbit-sync trigger does not exist: ${t}`)
 }
 
-const REQUIRED_ORDER = [
-  'post-commit-core',
-  'fix-loop',
-  'post-commit-learner',
-  'conditional',
-  'spec-tasks',
-]
+const REQUIRED_ORDER = ['gate-round', 'fix-loop', 'gate-learner', 'conditional', 'spec-tasks']
 const missing = REQUIRED_ORDER.filter((p) => !spec.order.includes(p))
 const extra = spec.order.filter((p) => !REQUIRED_ORDER.includes(p))
 const dupes = spec.order.filter((p, i) => spec.order.indexOf(p) !== i)

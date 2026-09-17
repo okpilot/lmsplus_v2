@@ -1,18 +1,18 @@
 # Agent Rules — coderabbit-local (external CLI)
 
-> External LLM reviewer (`coderabbit review --committed --base origin/master -c .coderabbit.yaml`) | Trigger: pre-push, mid-development | Non-blocking
+> External LLM reviewer (`coderabbit review --committed --base origin/master -c .coderabbit.yaml`) | Trigger: every round of the pre-push review gate | Non-blocking
 
 ## Purpose
-CodeRabbit local CLI runs the same review engine as the PR bot, against the local branch diff before push. Catches: observability gaps on `.select('id')` chains, runtime guard omissions on RPC casts, cleanup ordering, helper hoisting, error-path consistency.
+CodeRabbit local CLI runs the same review engine as the PR bot, against the branch diff before push. Catches: observability gaps on `.select('id')` chains, runtime guard omissions on RPC casts, cleanup ordering, helper hoisting, error-path consistency.
 
 Runtime: `/crlocal`. This file is binding.
 
 ## Trigger Conditions
-- **Pre-push:** every multi-commit branch (2+ commits) before pushing. Required step in `/fullpush`.
-- **Mid-development:** a single commit added 200+ LOC of new code, or early signal wanted before continuing.
+- **In the gate:** CR-local is one member of EVERY round of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`), on the same branch diff as the other reviewers. It has no loop of its own: its findings enter the round's ONE pooled triage table and are fixed in the round's ONE pooled fixup commit.
+- **Mid-development (escape hatch, OUTSIDE the gate):** run `/crlocal` alone for early signal — a single commit added 200+ LOC, or you want a read before continuing. Nothing in the gate depends on it; the gate still runs every round in full.
 - **Skip if:** `which coderabbit` returns nothing — install via `https://docs.coderabbit.ai/cli/`. **Version-gate too:** `--committed`/default-plain flags need CLI **≥ 0.7.0** (0.6.x used `--type committed`/`--plain`); confirm `coderabbit --version` before running, or use the 0.6.x flag spelling.
 
-Do NOT run after every commit — too slow (2-5 min/round), no value on small fix commits.
+A round costs 2-5 min. Do NOT run it after every commit — a commit triggers nothing.
 
 ## Apply-vs-Defer
 
@@ -59,45 +59,29 @@ Severity labels (`trivial`, `minor`, `major`, `critical`, `nitpick`, `potential_
 | **Contradicts the codebase pattern** | Suggestion would diverge from how 5+ similar files do the same thing (codebase consistency wins) | **SKIP with reason** |
 | **Scope expansion** | "While you're here, also rewrite X" — outside the PR's purpose | **DEFER to GitHub Issue** |
 
-## Stop Conditions for the Loop
+## Where the Loop Stops
 
 CodeRabbit does not converge; cloud CodeRabbit on the pushed PR is the authoritative gate (never
-merge on `CHANGES_REQUESTED`). CR-local catches the cheap stuff pre-push. Loop ends when EITHER:
+merge on `CHANGES_REQUESTED`). CR-local catches the cheap stuff pre-push.
 
-1. **Minimum-rounds-met + last-round-clean.** Run a **minimum of M rounds**, then stop on the
-   first round **at or after** the minimum that has **no apply-worthy findings** (0 findings, or
-   stylistic-only `Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts).
-   - **M = 2** for a normal diff.
-   - **M = 3** when the diff touches a security path (the canonical
-     `agent-workflow.md § Red-Team Agent Trigger` set) — determined via
-     `git diff origin/master...HEAD --name-status -M`, taking
-     BOTH paths of an `R` entry. NOT `--name-only`, which prints only a rename's DESTINATION: moving
-     a file OUT of a security path then reads as no-security-path and silently drops the floor.
-     Fetch and verify the base first — an unresolvable base must ABORT, never be read as "no paths
-     matched".
-   - An APPLY finding does **NOT reset a consecutive-clean counter** — it **extends the loop by one
-     round** (fix the finding, then run one more round to confirm the fix surfaced nothing new).
-     Rounds count cumulatively toward M; cannot stop *on* a round that still carries an APPLY
-     verdict, cannot stop *before* round M.
-   - Every round runs with `-c .coderabbit.yaml`; cloud CR on the push stays authoritative
-     regardless of round count.
-2. **4 fixup commits driven by CR local** on the current branch (one-fixup-commit-per-round — see
-   DO below) — a hard ceiling that caps total effort even if the floor is unmet; escalate to user
-   judgment rather than looping further.
+The gate's round discipline is the only one that applies — stop on the first round with no
+APPLY-worthy finding, ceiling 3 rounds (`agent-critic.md § Loop Round Discipline`). CR-local's own
+findings are APPLY-worthy on the same terms as any other reviewer's: 0 findings, or stylistic-only
+`Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts, leaves the round
+clean from CR-local's side. Every round runs with `-c .coderabbit.yaml`; cloud CR on the push stays
+authoritative regardless of round count.
 
 ## Handling Results
 
 ### DO
 - Run via `/crlocal` — never call `coderabbit review` ad hoc.
 - Always pass `-c .coderabbit.yaml` (belt-and-suspenders; omit only if the file is absent).
-- Honor the minimum-rounds rule (§ Stop Conditions above).
 - Verify the factual premise of every finding against source before triaging (§ Verify Before Acting).
-- Collect ALL APPLY-verdict findings of a round into ONE fixup commit (`agent-workflow.md § PR Batching`) — never per-finding commits.
-- Report a per-round summary table (file:line / severity / class / verdict / why).
-- Hand the round summary to the learner on the fixup commit's own `git commit` cycle — CR-local IS learner input (`agent-learner.md § DO`).
-- Re-run the review after each fix.
+- Pool CR-local's APPLY-verdict findings with every other reviewer's into the round's ONE fixup commit (`agent-workflow.md § PR Batching`) — never a CR-local-only commit, never per-finding commits.
+- Report a per-round CR-local triage table (file:line / severity / class / verdict / why) into the round's pooled triage.
+- Keep every round's triage table until the branch's learner run — that run is the ONLY place a CR-local finding is counted toward rule promotion (`agent-learner.md`).
+- Run CR-local again in the next round, on the diff the fixup commit produced.
 - For DEFER, file a GitHub Issue with the CR comment context.
-- Stop the loop the moment a stop condition trips, not before round M.
 - Treat `nitpick`/`trivial` findings with the same source-reading rigour as `potential_issue`/`major`.
 - When SKIPPING, give a concrete reason.
 
@@ -105,9 +89,9 @@ merge on `CHANGES_REQUESTED`). CR-local catches the cheap stuff pre-push. Loop e
 - Trust CodeRabbit's severity label as a triage shortcut — read the code.
 - Apply every finding to make CodeRabbit silent — refactor-induced bugs creep in.
 - Skip a finding as "just a nit" — `nitpick`/`trivial` findings have been genuine rule violations.
-- Run more than 4 fix-driven loops without escalating to the user.
+- Run a CR-local round outside the gate's 3-round ceiling — escalate to the user instead.
 - Bypass the skip-with-reason requirement — every skip needs a one-line rationale.
-- Run CR local as a pre-push git hook (too slow, needs orchestrator judgment, invites `--no-verify`) — run via `/fullpush`.
+- Run CR local as a pre-push git hook (too slow, needs orchestrator judgment, invites `--no-verify`) — it runs inside the gate.
 - Defer something < 10 lines and clearly in scope — DEFER needs all three: ≥30 LOC, separate concern, design decision (`agent-workflow.md § Apply-vs-Defer Discipline`).
 
 ## Common Pitfalls Observed

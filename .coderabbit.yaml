@@ -366,10 +366,6 @@ reviews:
           that is about not CHASING a stale number, this is about not WRITING one.
         - A rule restatement that has drifted from its source rule. Mirrors do not auto-track; a
           restatement must either carry the current mechanics or be reduced to a pointer.
-        - A LITERAL COUNT of the post-commit exemptions, in digits OR in words. "the two
-          exemptions", "both are defined by", "claimed neither exemption" are all counts: they go
-          wrong the moment an exemption is added or removed, and this section has already gone
-          stale that way. Exemptions are named, never counted.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"

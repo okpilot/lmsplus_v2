@@ -154,18 +154,12 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
 
-- [ ] **Stop a fixup commit from forcing a second full cycle.** `CLAUDE.md § Post-commit review`
-      grants the review-follow-up path only to a commit that touches no config and only files its
-      parent touched. A commit applying its parent cycle's own findings routinely breaks both
-      conditions at once, and does so by OBEYING another rule: `agent-coderabbit-sync.md` requires
-      re-mirroring into `.coderabbit.yaml` in the same commit whenever a guard's detection pattern
-      changes, and that mirror is config the parent never touched. So the reduced path is
-      unreachable exactly when it was designed to apply, and each cycle's fixup spawns another full
-      cycle. Observed on PR #1295: the fixup commit for one cycle's findings triggered a second
-      four-agent cycle, whose findings were themselves prose. Fix: allow the reduced path when the
-      extra paths are MIRRORS the parent's own change required. Edit `CLAUDE.md § Post-commit
-      review` and `agent-workflow.md` together — both state the condition, so fixing one leaves the
-      other governing.
+- [x] **Stop a fixup commit from forcing a second full cycle.** CLOSED by Decision 73, more
+      completely than this task proposed. It asked to widen the review-follow-up path to tolerate
+      required mirror edits; Decision 73 deletes the per-commit cycle, so a fixup commit triggers
+      nothing at all and the exemption it depended on no longer exists. The next ROUND of the
+      pre-push gate re-reads the fixup; the loop stops on the first round with no APPLY-worthy
+      finding.
 
 - [ ] **Cap the injected rules corpus, shrink-only.** `CLAUDE.md` plus `.claude/rules/**` loads
       into every session and is inherited by every agent dispatch, so its size is a per-invocation
