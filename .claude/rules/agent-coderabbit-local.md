@@ -135,6 +135,10 @@ Patterns CR local caught that our internal agents missed — an open list; add a
    `tsconfig.scripts.json` but not every script passes `<Database>` — derive via
    `grep -rlE 'createClient<\s*Database' apps/web/scripts/`). A green suite proves nothing unless a
    test loads the file. Mirror risk: CR can also assert ABSENCE of a guard that exists — grep either way.
+   **And a referent OUTSIDE repo-grep visibility** — an issue or PR number, a ticket, a dashboard.
+   CR reads the repository, so it may call a live `#1026` "unsupported" or "stale". Watch the
+   FRAMING, not just the word "exist", and resolve it in the right namespace: `gh issue view <N>`,
+   `gh pr view <N>` — confirming the referent exists AND that its subject matches the citation.
 9. **A CR DISPOSITION suggestion is highest-risk to adopt verbatim — diff against 2-3 existing
    implementations first.** Disposition = the behavioural policy a fix encodes (return-on-error,
    fallback value, validation posture, retry-vs-fail); CR sees only the diff, not the convention,

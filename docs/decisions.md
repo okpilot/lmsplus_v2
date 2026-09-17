@@ -2114,3 +2114,41 @@ Derive the funnel with `node .claude/hooks/measure-prose-paths.mjs`. No figure i
 
 
 *Last updated: 2026-09-16*
+
+## Decision 72: the injected rules corpus is cut by 37%, deletion-first (2026-09-17)
+
+**What.** `CLAUDE.md` + `.claude/rules/**` went 42,010 → 26,562 words (PR #1299, `86f642780`).
+Re-derive, pinned to the merge — `HEAD` drifts:
+```sh
+for rev in 86f642780^ 86f642780; do
+  { git show "$rev:CLAUDE.md"
+    git ls-tree -r --name-only "$rev" .claude/rules/ |
+      while IFS= read -r p; do git show "$rev:$p"; done
+  } | wc -w
+done
+```
+
+**Deleted:** precedent narratives, dated origin stories, cited SHAs and PR numbers, justification
+paragraphs, restatements of rules that live in another file, and the `RULE 0` blockquote duplicated
+byte-identically across 14 files — `CLAUDE.md` keeps the canonical copy, and each agent's own
+definition under `.claude/agents/**` is untouched.
+
+**Kept:** every command with the caveat naming which flag is load-bearing, every table, every
+DO/NEVER entry, every heading, and mechanism clauses reduced to the one clause that changes what a
+reader does (`agent-workflow.md § State the MECHANISM behind a constraint`).
+
+**Order changed.** Deletion ran FIRST, ahead of the remaining guards. Measured against PR #1295,
+the guard-building PR: 14 commits vs 29, 7 review-driven fixups vs 21, 0 code defects vs ~8. A
+guard-building PR generates prose, and the prose generates findings; deletion removes the surface
+findings land on. Deletion is the only change shape whose review cost falls as the change grows.
+
+**The defect class this surfaced.** Seven real losses, none of them a deleted RULE — every one a
+deleted WORD THAT BOUNDED a rule: two scope clauses, a disjunct, a qualifier, an exemption that
+then overrode its own trigger, an actor, and a diagram marker whose label survived while its
+position moved. Two of the seven were deleted specifically because they carried a DATE and read as
+archaeology. Every mechanical check passed on all seven — 452 hook tests, a 205-clause keyword
+sweep, a pointer audit. Only reading each diff against the original found them.
+
+**Consequence for the remaining slices:** before deleting a date-stamped sentence, check whether it
+is a SCOPE sentence; and re-read every condensed multi-clause sentence clause-by-clause against the
+original. Both are recorded in `.spec-workflow/specs/corpus-codification/tasks.md § Slice 3`.

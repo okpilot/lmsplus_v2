@@ -777,6 +777,10 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    `CLAUDE.md`, `.coderabbit.yaml` (excludes agent-memory and all-`[x]` specs); it needs the hunk to
    contain the replacement and can't see a paraphrase — the grep above is still yours to run.
    Waiver: `Retracted-ok: <token> — <reason>` trailer.
+   **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
+   wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
+   the subject (the command, the filename, the field), not the sentence that carried it. Partial
+   remedy for the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
@@ -797,6 +801,9 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    `neither` — an open, illustrative set, governed by cl.2): replace the word with the command that
    establishes the extent, or test it against a falsifying fixture — a UNIVERSAL needs the case
    expected to FAIL.
+8. **A correction is the likeliest place to write a NEW inaccuracy.** Clauses 1-3 target text you
+   did not rewrite; the commoner failure is the sentence you just wrote to FIX one. Re-derive a
+   correction before committing it, on the same terms as the claim it replaces.
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
 the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set
