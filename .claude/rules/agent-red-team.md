@@ -20,7 +20,7 @@ Do NOT run on every commit — only when the above paths are in the diff.
 ### DO
 - Run after post-commit agents when security-sensitive files changed.
 - Review the agent's spec mapping — verify it correctly identified affected specs.
-- Re-run affected red-team specs if flagged: `pnpm --filter @repo/web e2e:redteam`
+- The ORCHESTRATOR re-runs affected red-team specs if the agent flags them: `pnpm --filter @repo/web e2e:redteam` — the agent reviews, it does not run specs.
 - Create GitHub Issues for coverage gaps identified (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
 - Trust the agent's vector-to-spec mapping — maintained in memory.
 - **Read the actual migration before writing any column filter, table assertion, or schema-derived value in a red-team spec — never author one from memory of the schema.** Verify the column exists by scanning EVERY `ALTER TABLE <table>` in `supabase/migrations/` chronologically to HEAD, not just `CREATE TABLE` plus one latest `ALTER`: a column can be ADDED, RENAMED and DROPPED across separate migrations, so one match only proves it existed at some point. Trace the supersession chain — EVERY form (`agent-workflow.md` § "name EVERY supersession form"), reaching beyond the function body to `ALTER FUNCTION <fn>(<arg types>)`, `DROP TRIGGER` + `CREATE TRIGGER`, and the constraint/index forms — to the latest definition, for the MATCHING SIGNATURE, for RPC/trigger assertions.
