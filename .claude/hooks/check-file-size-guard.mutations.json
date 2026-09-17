@@ -227,7 +227,7 @@
       "find": "  if (flags.length > 0 && files.length > 0) {\n    console.error('[file-size] a mode flag cannot be combined with file paths \u2014 BLOCKING')\n    return 1\n  }\n",
       "replace": "",
       "expectRed": ["a mode flag mixed with file paths blocks instead of skipping enforcement"],
-      "note": "The gate is what makes a mode flag beside a path BLOCK. Replaces an encoded claim that named `args.includes('--stats')` instead: that edit SURVIVED, because this gate returns 1 before the --stats dispatch is reached."
+      "note": "The gate is what makes a mode flag beside a path BLOCK. Replaces a MUTATION comment — never an encoded entry — that named `args.includes('--stats')` instead: that edit SURVIVED, because this gate returns 1 before the --stats dispatch is reached."
     },
     {
       "id": "unknown-flag-check-dropped",
@@ -246,7 +246,7 @@
         "only a violation among the files passed as arguments can block the commit",
         "updating the baseline rewrites a shrunk entry and leaves everything else alone"
       ],
-      "note": "The escape valve must be opt-in: a check that rewrites its own baseline silently launders the record it is judged against."
+      "note": "The escape valve must be opt-in: a check that rewrites its own baseline silently launders the record it is judged against. Only the fourth test shows the laundering directly; the three enforcement tests redden through cross-spawn state pollution — each loops several spawns over ONE temp repo, so the first spawn writes a baseline row and the next reads a count exactly matching it, which the ratchet passes."
     }
   ],
   "notEncoded": [

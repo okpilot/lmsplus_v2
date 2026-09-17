@@ -198,15 +198,17 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       check must delete the prose that check replaced, or the corpus carries both forever, which is
       what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
 
-- [ ] **Delete the `MUTATION:` comment, or generate it.** Each one is a SECOND copy of a claim
-      already encoded in a `*.mutations.json` entry, and only the data file is executed — so the
-      prose copy is free to go false, which is the exact defect class `code-style.md` §7 keeps
-      promoting rules about. PR #1295 found one in each of two sibling guards: one named a break
-      that HANGS rather than the encoded one, the other named a break that no longer existed.
-      Either drop the comments and let `node .claude/hooks/run-mutations.mjs --list` answer the
-      question, or generate them from the data file so drift is impossible. This removes a
-      recurring finding class instead of reviewing it harder, which is the programme's whole
-      thesis applied to its own machinery.
+- [ ] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
+      executed, so a prose copy is free to go false — the defect class `code-style.md` §7 keeps
+      promoting rules about. PR #1295 found one in each of two sibling guards; the file-size-guard
+      slice found a third naming a mechanism an earlier gate reaches first.
+      **Deleting the comments is NOT available as the remedy.** Most name claims encoded NOWHERE
+      (`check-file-size-guard` was 66 claims / 19 encoded at slice start), so the comment is the
+      only record; and `--list` prints ids plus `notEncoded` claim text — no `find`, `replace`,
+      `expectRed` or `note` — so it cannot answer "what breaks this test".
+      Per suite, drive the `--coverage` gap to zero: encode the real claims, add a `notEncoded`
+      row with a `why` for anything the single-`target` schema cannot express, and only then
+      delete a comment that genuinely duplicates an encoded entry.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest

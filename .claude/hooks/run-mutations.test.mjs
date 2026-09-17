@@ -256,6 +256,15 @@ test('rejects a notEncoded entry with no stated reason', () => {
   assert.match(validateDataFile(data).join('\n'), /notEncoded\[0\]/)
 })
 
+test('rejects a notEncoded entry with no stated claim', () => {
+  // MUTATION: drop `!isNonEmptyString(n.claim) ||` from the notEncoded entry check → an entry
+  // carrying only `why` passes validation; --coverage counts it as accounted-for while --list
+  // prints `(not encoded) undefined`, misreporting a gap as closed with no usable description.
+  const data = validData()
+  data.notEncoded = [{ why: 'because something' }]
+  assert.match(validateDataFile(data).join('\n'), /notEncoded\[0\]/)
+})
+
 test('rejects a top level that is not an object', () => {
   // MUTATION: delete the Array.isArray half of the top-level check → a JSON array passes, and
   // every field check below then reports a separate misleading problem about a missing key.
