@@ -249,5 +249,18 @@
       "note": "The escape valve must be opt-in: a check that rewrites its own baseline silently launders the record it is judged against."
     }
   ],
-  "notEncoded": []
+  "notEncoded": [
+    {
+      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml",
+      "why": "The mutation edits lefthook.yml, not this file's `target` (check-file-size-guard.mjs). A data file carries ONE top-level target, so a config-file mutation cannot be expressed. Third such claim in this suite family (lefthook.yml, .coderabbit.yaml, limits.json) — a per-mutation target override now meets the rule of three and is worth its own change."
+    },
+    {
+      "claim": "update.test.mjs '.coderabbit.yaml pins each cap to the same RULE KIND as limits.json': compare the two as SETS of numbers instead of per-kind pairs",
+      "why": "The mutation edits the TEST's own comparison, not the target guard. The harness mutates `target` only, so a claim about an assertion's own vacuity is outside what it can grade. The vacuity was proven by executing the swap when the test was written."
+    },
+    {
+      "claim": "update.test.mjs tone_instructions folded-scalar assertion: change the field to an inline value of any length",
+      "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Same single-target limitation as the lefthook row above."
+    }
+  ]
 }
