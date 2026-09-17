@@ -88,7 +88,6 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
-Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
 ## Verify by Executing
 

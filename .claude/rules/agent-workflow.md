@@ -152,7 +152,6 @@ If yes, run red-team (sonnet) — maps changes to specs, flags coverage gaps. If
 § Pre-Push Review Gate is the one review pass, on every branch whatever its commit count. Cross-commit defects are only visible here: a test assertion against prod code from another commit, a doc matrix against an earlier schema change, an error-handling pattern split across commits.
 
 ## Always diff against `origin/master`, never the bare local `master`
-A stale base DISTORTS the diff — the gate's scope, its red-team trigger and its security-path checks all inherit it.
 **Staleness is not safe in one direction.** Usually over-reports, but can also HIDE a security path: if this branch REVERTS a change that landed upstream after the stale ref, the file is identical at both ends and drops out of the diff — the floor reads "no security path" and `/fullpush` 7b skips the MANDATORY red-team run.
 **Pick the right range form — NOT interchangeable.** Three-dot `origin/master...HEAD` for any DIFF (merge-base compare). Two-dot `origin/master..HEAD` only for COMMIT ENUMERATION (`git log`, `git rev-list --count`). Both need a freshly fetched base — `git fetch origin` first, every time.
 **Fail closed on an unresolvable base or a failed fetch** — a failed fetch usually leaves `origin/master` RESOLVABLE at its old value, so a resolvable-ref check alone does not catch it. Abort on a non-zero EXIT CODE from fetch, base resolution, or the diff — NOT on an empty result (a diff returning zero paths is a legitimate no-op; only an errored command means the scope is unknown).
