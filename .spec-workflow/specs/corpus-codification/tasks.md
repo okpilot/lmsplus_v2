@@ -131,6 +131,17 @@ claim, in different words, in `automerge.md`. That is the paraphrase-blindness
 
 Items 4, 5 and 7 are also mechanical — they enforce lower-count problems. Order by count.
 
+**Drop CR-local to ROUND 1 only** (user-approved 2026-09-17, after PR #1301). Measured on that
+branch, CR-local's applied-per-raised yield fell 58% -> 19% -> 11% across rounds 1-3 on a diff that
+only shrank, with locations duplicated inside single runs. It is the same engine cloud CodeRabbit
+runs on the push, so rounds 2+ re-read prose a fourth time. Rounds 2+ become code-reviewer +
+semantic-reviewer, both of which stayed clean on both branches.
+Sweep the round-membership claim across every site — `grep -rn 'round 2+' --include='*.md' .`
+plus the CR-local "every round" claims in `agent-coderabbit-local.md`, `agents/learner.md` and
+`commands/crlocal.md`. ~13 sites as of 2026-09-17; five separate trigger-list classes on PR #1301
+were each fixed one site at a time, so enumerate before editing.
+Deferred to post-merge deliberately: those files are #1301's, and it is mid-review.
+
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
 
