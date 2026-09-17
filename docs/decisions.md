@@ -2208,5 +2208,7 @@ post-commit agents. The one compounding case in 36 PRs / 744 commits was caught 
 pre-push, not by per-commit review.
 
 **Consequence.** learner, red-team and coderabbit-sync each run ONCE per branch, after the loop, in
-that order. `.claude/hooks/review-gate.js` blocks production edits while a validated ISSUE/CRITICAL
-finding is open and clears when the round's fixup lands.
+that order. `.claude/hooks/review-gate.js` blocks production edits made through Edit or Write while a
+validated ISSUE/CRITICAL finding is open — `Bash` routes to `guard-bash.js`, which does not read
+the gate file. It clears when the round ENDS, which is usually the fixup landing but is also a
+round whose findings are ALL skipped-with-reason and produces no commit.
