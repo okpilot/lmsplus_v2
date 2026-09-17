@@ -152,8 +152,8 @@ After answering the checklist:
 | implementation-critic  | 1      | ...      | ...   | fixed/clean |
 | code-reviewer          | 1-N    | ...      | ...   | fixed/clean |
 | semantic-reviewer      | 1-N    | ...      | ...   | fixed/clean |
-| doc-updater            | 1      | ...      | ...   | clean       |
-| test-writer            | 1      | ...      | ...   | added N     |
+| doc-updater            | 1(+N)  | ...      | ...   | clean       |
+| test-writer            | 1(+N)  | ...      | ...   | added N     |
 | CR-local               | 1-N    | ...      | ...   | fixed/clean |
 | learner (once/branch)  | —      | ...      | ...   | done        |
 ```

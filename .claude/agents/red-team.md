@@ -1,6 +1,6 @@
 ---
 name: red-team
-description: Reviews a branch diff touching auth/RLS/RPCs, maps changes to red-team specs, flags coverage gaps. Runs ONCE per branch, after the learner.
+description: Reviews a branch diff touching the security paths in `agent-workflow.md § Red-Team Agent Trigger` OR `apps/web/e2e/redteam/`, maps changes to red-team specs, flags coverage gaps. Runs ONCE per branch, after the learner.
 model: claude-sonnet-4-6
 tools: Read, Glob, Grep, Bash
 memory: project
