@@ -138,7 +138,7 @@ then ONCE per branch, in this order:
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
-**The gate owns `.claude/review-gate.json`** (`.claude/hooks/review-gate.js`): write it when validated ISSUE/CRITICAL findings are open, delete it when the round's fixup commit lands. A stale gate file blocks every production edit and nothing else clears it.
+**The gate owns `.claude/review-gate.json`** (`.claude/hooks/review-gate.js`): write it when validated ISSUE/CRITICAL findings are open, delete it when the round ENDS — the fixup commit landing is the usual trigger, but a round whose findings are ALL skipped-with-reason produces no commit and still has to clear it. A stale gate file blocks every production edit and nothing else clears it: the hook only READS the file.
 
 ### Implementation-Critic (a member of round 1)
 Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
