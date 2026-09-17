@@ -60,7 +60,7 @@ Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local
 
    Do not strip either layer. The hook alone is unreliable on background bash (fires too early); the printf alone is unreliable if someone forgets to redirect it into the log (then it lands only in bash stdout, which background mode doesn't see).
 
-2. **Verify the CLI is installed:** if `which coderabbit` is empty, tell the user to install via the CodeRabbit docs and skip this step. Do NOT pretend the review ran.
+2. **Verify the CLI is installed:** if `command -v coderabbit` is empty, ABORT the round and tell the user to install via the CodeRabbit docs — step 1's gate already exits 1. Round 1 carries no exemption (`CLAUDE.md`), so the gate is INCOMPLETE until the review runs. Do NOT pretend the review ran, and do NOT record it as a skip-with-reason.
 
 3. **For each finding, VERIFY ITS FACTUAL PREMISE, then classify it.** Do not trust the label, the
    line number, or the assertion itself. A finding claiming a function behaves a certain way, that a

@@ -10,7 +10,7 @@ Runtime: `/crlocal`. This file is binding.
 ## Trigger Conditions
 - **In the gate:** CR-local is a member of ROUND 1 ONLY (Decision 74), on the same branch diff as the other reviewers. Rounds 2+ are code-reviewer + semantic-reviewer. It has no loop of its own: its findings enter the round's ONE pooled triage table and are fixed in the round's ONE pooled fixup commit.
 - **Mid-development (escape hatch, OUTSIDE the gate):** run `/crlocal` alone for early signal — a single commit added 200+ LOC, or you want a read before continuing. Nothing in the gate depends on it; the gate still runs its own rounds regardless.
-- **Skip if:** `which coderabbit` returns nothing — install via `https://docs.coderabbit.ai/cli/`. **Version-gate too:** `--committed`/default-plain flags need CLI **≥ 0.7.0** (0.6.x used `--type committed`/`--plain`); confirm `coderabbit --version` before running, or use the 0.6.x flag spelling.
+- **No CLI, no round.** `command -v coderabbit` empty ABORTS the round — install via `https://docs.coderabbit.ai/cli/` and re-run. `CLAUDE.md` drops no reviewer from round 1 and grants no exemption, so an absent CLI leaves the gate INCOMPLETE; it is never a skip-with-reason. **Version-gate too:** `--committed`/default-plain flags need CLI **≥ 0.7.0** (0.6.x used `--type committed`/`--plain`); confirm `coderabbit --version` before running, or use the 0.6.x flag spelling.
 
 Do NOT run it after every commit — a commit triggers nothing.
 
