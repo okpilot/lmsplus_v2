@@ -18,6 +18,7 @@ ONCE per branch, after the learner — including the rule edits the learner's ap
 - `docs/security.md`
 - `biome.json`
 - `CLAUDE.md` (workflow/rules sections)
+- A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml`
 
 ## Process
 
