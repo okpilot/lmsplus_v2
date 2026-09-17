@@ -1,137 +1,43 @@
 # Agent Memory — Native Subagent Memory Layout & Discipline
-
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
-
-> Applies to every agent under `.claude/agents/` that declares `memory: project`.
-> Governs the files under `.claude/agent-memory/<agent>/`.
-> Binding. The orchestrator and each agent follow this when reading/writing memory.
-
----
-
+> Applies to every agent under `.claude/agents/` that declares `memory: project`. Governs the files under `.claude/agent-memory/<agent>/`. Binding.
 ## How native subagent memory works (the mechanics we rely on)
-
-Setting `memory: project` in an agent's `.claude/agents/<name>.md` frontmatter binds a memory directory at `.claude/agent-memory/<name>/`. At each invocation Claude Code:
-
-1. **Auto-injects** the first **200 lines / 25 KB** (whichever is smaller) of that dir's `MEMORY.md` into the agent's prompt.
-2. Appends a **"curate if over budget"** instruction so the agent prunes its own `MEMORY.md` when it grows.
-3. Grants the agent **auto Read/Write/Edit** on its memory dir.
-
-**`tools:` does NOT gate the memory directory.** Since 2026-09-06 every agent declares an explicit
-`tools:` list and only test-writer carries Write/Edit (see `agent-workflow.md § Every agent dispatch
-is ASYNCHRONOUS`). The `memory: project` agents still write their own trackers: the official
-subagent docs state that enabling memory auto-enables Read/Write/Edit for memory-file operations
-regardless of the `tools:` allowlist. That is what the docs SAY; it has not yet been observed in this
-repo, because agent definitions snapshot at session start and the `tools:` keys landed mid-session.
-CONFIRM IT at the next restart. **CONFIRMED 2026-09-09, and the discriminator is the ROSTER, not a tracker.** The signal this
-section used to prescribe — "a tracker that stops updating" — never discriminated: every agent also
-holds `Bash`, so a memory write cannot be attributed to the auto-grant rather than a shell redirect,
-and a quiet tracker is indistinguishable from an agent with nothing to record. Compare instead the
-session's agent roster against the `tools:` frontmatter. Derive both sides rather than counting
-them — `.claude/agents/` gains members. Only the FRONTMATTER side is greppable:
-`grep -l '^memory: project' .claude/agents/*.md` and `grep -n '^tools:' .claude/agents/*.md`.
-The ROSTER side is a RUNTIME fact, read off the session's own available-agent list; no command
-reconstitutes it, which is why confirming this needed a restart and not a better grep.
-Every definition declaring `memory: project` shows `Write, Edit` in the roster even where its
-frontmatter omits them; every definition with no `memory:` key does not. No Bash ambiguity: the
-memory declaration is what adds the tools. Observed alongside it, `code-reviewer` — no Write/Edit in
-its frontmatter — wrote its own memory directory and nothing else during a post-commit cycle.
-Do not "restore" Write to a read-only agent on the theory that its tracker is
-broken — verify the tracker first.
-
-Two consequences that shape every rule below:
-
-- **Only `MEMORY.md` is auto-injected and auto-curated.** Sibling files in the dir (topic files) are read on demand and are **never** touched by native curation.
-- **Agent defs snapshot at session start.** Adding/removing `memory:` only takes effect after a Claude Code restart.
-
+`memory: project` in an agent's `.claude/agents/<name>.md` frontmatter binds a memory directory at `.claude/agent-memory/<name>/`. At each invocation Claude Code: **(1)** auto-injects the first **200 lines / 25 KB** (whichever is smaller) of that dir's `MEMORY.md` into the agent's prompt; **(2)** appends a "curate if over budget" instruction so the agent prunes its own `MEMORY.md`; **(3)** grants the agent **auto Read/Write/Edit** on its memory dir.
+**`tools:` does NOT gate the memory directory.** `memory: project` auto-enables Read/Write/Edit for memory-file operations regardless of the `tools:` allowlist: every `memory: project` definition shows `Write, Edit` in the roster even where its own frontmatter omits them; every definition with no `memory:` key does not. Derive, don't trust a list — frontmatter side: `grep -l '^memory: project' .claude/agents/*.md` and `grep -n '^tools:' .claude/agents/*.md`; roster side is a runtime fact off the session's own available-agent list. Do not "restore" Write to a read-only agent on the theory that its tracker is broken — verify the tracker first.
+- **Only `MEMORY.md` is auto-injected and auto-curated.** Topic files are read on demand and **never** touched by native curation.
+- **Agent defs snapshot at session start.** Adding/removing `memory:` takes effect only after a restart.
 ## File layout — one index + on-demand topic files
-
 ```
 .claude/agent-memory/<agent>/
   MEMORY.md          ← the auto-injected index. MUST stay < 200 lines AND < 25 KB.
   topics/<theme>.md  ← optional. Detailed, reusable content pulled in on demand.
 ```
-
-`MEMORY.md` contains, in this order:
-
-1. **Tracker table** (learner + code-reviewer maintain one; others add one only once a pattern recurs ≥2×).
-2. **Durable knowledge** — short bullets of stable, load-bearing facts/conventions for this agent.
-3. **Topic pointers** — one line each: `- [theme](topics/theme.md) — one-line hook`.
-
-**Budget is hard.** Injection truncates at 200 lines *or* 25 KB, so content past the cap is invisible. Keep the tracker terse; push anything long or narrative into a topic file and leave a pointer. The `/insights` weekly check flags any `MEMORY.md` over 200 lines.
-
-> **No journals.** Never append a dated "session log" section. History lives in **git** (`git log -p -- <file>`), not in the file. The journals this layout replaced were ~90% write-only narrative — that is exactly what must not come back.
-
+`MEMORY.md` order: **(1)** tracker table (learner + code-reviewer always; others once a pattern recurs ≥2×), **(2)** durable knowledge as short bullets, **(3)** topic pointers — `- [theme](topics/theme.md) — one-line hook`. **Budget is hard** — injection truncates at 200 lines *or* 25 KB, content past the cap is invisible; `/insights` flags any `MEMORY.md` over 200 lines.
+> **No journals.** Never append a dated "session log" section. History lives in **git** (`git log -p -- <file>`), not in the file.
 ## Tracker state machine — rows are NEVER deleted
-
-A tracker row records a recurring pattern and its frequency. Rows **transition state**; they are never removed. The count keeps incrementing on every distinct-mechanism recurrence, because that count drives rule-promotion (≥2) and the Sweep-On-Rule-Promotion trigger in `agent-learner.md`, and because a row that *stops* recurring is itself a positive signal.
-
-```
-WATCHING ──(count reaches 2)──▶ RULE CANDIDATE ──(rule written)──▶ PROMOTED → <rule location>
-   │                                                                    
-   ├──(fix proven, stops recurring)──────────────────────────────▶ RESOLVED
-   ├──(resolved but still worth watching for regressions)────────▶ RESOLVED-WATCH
-   └──(turned out not to be a real issue)───────────────────────▶ FALSE POSITIVE
-```
-
-Tracker columns vary by agent — agents read by header name, not position, so every deployed shape is valid. Do not keep an inventory of the shapes in use here; as of 2026-08-19 they included an `Issue Type | Count | Last Seen | Status` form that folds `First Seen` and the `→ rule loc` into the Status cell, and a `Pattern | First Seen | Count | Last Seen | Status` form, some carrying `(→ rule loc)` and some abbreviating the headers (`First` / `N` / `Last`). Which agent uses which is deliberately not recorded here — that mapping goes wrong the moment an agent gains memory or edits its own header. Read the header row of the tracker you are writing to. Count increments only for a **distinct** mechanism/occurrence — not a re-mention of the same one. When a recurrence proves a count was mis-attributed, fix the count and note the reconciliation in the row (this is the one legitimate way a count changes other than incrementing).
-
-> The tracker requirement for **code-reviewer** comes from its own agent definition (`.claude/agents/code-reviewer.md`) and the `## Recurring Issues Tracker` table it already maintains — **not** from `docs/security.md` (which has no such reference). The requirement for **learner** comes from `.claude/rules/agent-learner.md`.
-
+A tracker row records a recurring pattern and its frequency. Rows **transition state**, never removed. Count increments only for a **distinct** mechanism/occurrence. States: `WATCHING` → (count reaches 2) → `RULE CANDIDATE` → (rule written) → `PROMOTED → <rule location>`; also `WATCHING`/`RULE CANDIDATE` → `RESOLVED` (fix proven, stops recurring), `RESOLVED-WATCH` (resolved but still worth watching), or `FALSE POSITIVE` (not a real issue).
+Tracker columns vary by agent — read by header name, not position, before editing. A recurrence that proves a count was mis-attributed fixes the count and notes the reconciliation in the row.
+> Tracker requirement: **code-reviewer** — `.claude/agents/code-reviewer.md`, `## Recurring Issues Tracker`. **learner** — `.claude/rules/agent-learner.md`.
 ## Memory Discipline — update IN PLACE, never append
-
-When new knowledge arrives, **edit the existing row/bullet** so the file stays small and current. Do not stack a new dated paragraph each session.
-
-```markdown
-✅ CORRECT — update the existing tracker row in place
-| Server Action file over its cap | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |
-
-❌ WRONG — appending a dated journal entry every session
-## 2026-05-29 session
-Saw the hook-file-size thing again today on commit 741ae30. That's the 4th time.
-Earlier notes: 2026-05-12 (commit 34a9352), 2026-04-20 (commit 9f5a6cc)...
-## 2026-05-20 session
-Reviewed 3 commits, found the hook-size issue once more...
-```
-
-Both encode "this happened 4 times," but the ✅ form is one line and the ❌ form grows without bound. If a row needs supporting evidence (the commit hashes behind a count), that's what `git log` and the topic file are for — keep the row itself terse.
-
+Edit the existing row/bullet in place, e.g. `| Server Action file over its cap | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |` — do not stack a new dated paragraph each session (`## 2026-05-29 session` / `Saw the hook-file-size thing again today...`). Supporting evidence (commit hashes behind a count) belongs in `git log` and the topic file, not the row.
 ## Memory deltas are committed, never stashed
-
-Post-commit-cycle memory/tracker updates (agent MEMORY.md rows, topic-file appends, tracker-archive entries) MUST be committed — either with the cycle's fix commit or in a dedicated `chore(memory)` commit — BEFORE any branch switch. A commit touching ONLY `.claude/agent-memory/**` skips implementation-critic (`agent-workflow.md § Pre-Commit Implementation Review`); without that, committing a delta would need a critic whose own run writes another delta. READ the delta before committing it — the gate is gone, the duty is not. `git stash` is not a terminal state for pipeline output: a stashed memory delta is invisible to every subsequent agent invocation, so counts stop incrementing, promotions mis-fire on stale counts, and the next cycle re-derives (and double-counts) the same findings. The 2026-07-11 pipeline audit found **8 abandoned memory stashes** corrupting learner counts this way (retroactive triage tracked in issue #1115). If a branch switch is needed mid-cycle, commit the memory delta first — a small `chore(memory)` commit is always cheaper than a lost or double-counted tracker row.
-
+Post-commit-cycle memory/tracker updates MUST be committed — with the cycle's fix commit or a dedicated `chore(memory)` commit — BEFORE any branch switch. A commit touching ONLY `.claude/agent-memory/**` skips implementation-critic (`agent-workflow.md § Pre-Commit Implementation Review`); read the delta before committing it regardless. `git stash` is not a terminal state: a stashed delta is invisible to later agent invocations, so counts stop incrementing and promotions mis-fire on stale counts.
 ## Protected topic files (never auto-curated, never pruned)
-
-Some topic files are reference matrices that must survive verbatim:
-
-- **`red-team/topics/attack-surface.md`** — the vector→spec mapping matrix. red-team keeps a small `MEMORY.md` index that *points* to it; the matrix itself is a topic file, so native curation never touches it. Do not rename it to `MEMORY.md` and do not prune it.
-
-Any future protected matrix follows the same shape: keep it as a named topic file, reference it from `MEMORY.md`, never inline it into `MEMORY.md`.
-
+- **`red-team/topics/attack-surface.md`** — the vector→spec mapping matrix. red-team's `MEMORY.md` only points to it; native curation never touches it. Never rename it to `MEMORY.md`, never prune it.
+Any future protected matrix: named topic file, referenced from `MEMORY.md`, never inlined.
 ## Which agents have memory
-
 - **Standard (`memory: project`, MEMORY.md index):** learner, semantic-reviewer, test-writer, code-reviewer, doc-updater, plan-critic, implementation-critic.
 - **red-team (special):** `memory: project` + small MEMORY.md index → protected `attack-surface.md` topic file.
-- **security-auditor:** deferred — `findings.md` holds only a header and no entries — derive rather than trust a
-  literal here: `wc -c .claude/agent-memory/security-auditor/findings.md` and
-  `git log -1 --format=%cs -- .claude/agent-memory/security-auditor/findings.md`. No `memory:` until it accumulates real content. Its definition's "After Each Audit" block told it to write that file anyway until 2026-09-06; it never had the grant.
+- **security-auditor:** deferred — derive, don't trust: `wc -c .claude/agent-memory/security-auditor/findings.md` and `git log -1 --format=%cs -- .claude/agent-memory/security-auditor/findings.md`. No `memory:` until it accumulates real content.
 - **coderabbit-sync:** excluded — no memory dir, no `memory:`.
-
 ## DO
-
 - Keep `MEMORY.md` under 200 lines and 25 KB — spill detail into `topics/`.
 - Update rows and bullets in place; let git hold the history.
 - Transition tracker rows through states; keep counts incrementing.
 - Treat sibling topic files as durable reference — curate only `MEMORY.md`.
-
 ## NEVER
-
-- Append a dated session-log section to any `MEMORY.md`. (This is the regression that created the bloat.)
+- Append a dated session-log section to any `MEMORY.md`.
 - Delete a tracker row. State-transition it instead.
 - Inline a protected matrix (e.g. `attack-surface.md`) into `MEMORY.md`.
-- Recreate a `patterns.md` — the file is `MEMORY.md` now; write instructions point there.
+- Recreate a `patterns.md` — the file is `MEMORY.md` now.
 - Let auto-curation drop a tracker row to save space — move durable prose to a topic file first.
-- Leave a memory/tracker delta in `git stash` across a branch switch — commit it (fix commit or `chore(memory)`) first; a stashed delta silently corrupts learner counts (8 abandoned stashes found in the 2026-07-11 audit; #1115).
-
----
-
-*Last updated: 2026-09-07*
+- Leave a memory/tracker delta in `git stash` across a branch switch — commit it first.

@@ -15,267 +15,203 @@ State what is true. Delete the rest.
 
 ## ⚠️ PRIME DIRECTIVE — Orchestrator Protocol
 
-**You (the orchestrator) are the planner and reviewer. You do NOT write code directly unless the change is trivial (< 10 lines, single file).**
+**Orchestrator plans/reviews — does NOT write code directly unless < 10 lines, single file.**
 
 ### The rules, in order of priority:
 
-1. **NEVER start without a plan.** For any multi-file change, enter Plan Mode first. Think through the approach, identify affected files, consider edge cases, and get user alignment before touching code.
-
-2. **NEVER explore the codebase yourself when subagents can do it.** Use Explore agents (Sonnet) to search, read, and map the codebase. Keep your context window clean for decision-making, not stuffed with file contents.
-
-3. **ALWAYS delegate execution to subagents.** You plan and review. Sonnet subagents implement. Launch them in parallel when tasks are independent. Use worktree isolation for risky changes.
-
-4. **ALWAYS read every subagent result before proceeding.** No fire-and-forget. Subagents report back, you synthesize, you decide the next step. If a subagent found an issue, address it before moving on.
-
-5. **ALWAYS run post-commit agents after every commit.** The only reductions are the NAMED exemptions in "Post-commit review" below, and each one still runs agents — none of them skips review entirely. This is not optional.
+1. **NEVER start without a plan** — multi-file needs Plan Mode first.
+2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
+3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
+4. **ALWAYS read every subagent result first** — no fire-and-forget.
+5. **ALWAYS run post-commit agents** — only NAMED § Post-commit review exemptions reduce the set.
 
 ### Your workflow for any non-trivial task:
 ```
-1. Explore       → subagents map the relevant code
-2. Root cause    → verify the described fix is the RIGHT fix
-3. Interview     → surface ambiguities (skip for clear bug fixes)
-4. Spec          → create spec if 3+ files (via spec-workflow MCP)
-5. Plan          → you design the approach
-6. Validate      → verify plan against codebase (see Plan Validation below)
-7. Plan-critic   → independent agent reviews plan (skip for single-file <10 lines)
-8. Approve       → user approves the validated plan
-9. Execute       → subagents implement (parallel when possible)
-10. Impl-critic  → review staged changes before commit (all but agent-memory-only)
-11. Commit       → you create the commit
-12. Audit        → post-commit agents review (parallel)
-13. Fix          → address findings, repeat 11-12 until clean
-14. Tasks        → update task status if using TaskCreate
-15. Learn        → learner synthesizes patterns (after every launched agent reports — async)
+1. Explore → subagents map code
+2. Root cause → verify it's the RIGHT fix
+3. Interview → surface ambiguities (auto-skip: single-file bug w/ clear repro, zero ambiguities, or user says skip)
+4. Spec → 3+ files (spec-workflow MCP)
+5. Plan
+6. Validate → plan vs codebase (below)
+7. Plan-critic → skip single-file <10 lines
+8. Approve
+9. Execute → parallel subagents
+10. Impl-critic
+11. Commit
+12. Audit → post-commit agents
+13. Fix → repeat 11-12
+14. Tasks → update TaskCreate status
+15. Learn
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
 
-Before writing any code, validate the plan against the actual codebase. This is where most bugs are cheapest to fix — 100x cheaper than catching them in review.
+**Verify per file:** impact (callers/dependents via Explore agents), contract (do tests assert
+behavior you're changing?), pattern (matches how similar things are done?), doc/schema (stays
+accurate — database.md/decisions.md/plan.md), security surface (auth/RLS/answer data/input
+validation — check `docs/security.md`).
 
-**For every file you plan to change, verify:**
+**Plan must include:** files to change (line ranges), files affected, risks, test updates.
 
-1. **Impact analysis** — What other files read from or write to this file? Use Explore agents to trace callers, importers, and dependents. List them in the plan.
-
-2. **Contract check** — Do existing tests assert behavior you're about to change? Read the test files. If a test asserts `fallback ?? 0` and you're changing it to `?? total`, the test will break — plan the test update alongside the code change.
-
-3. **Pattern consistency** — Does your planned approach match how similar things are already done in the codebase? If 5 Server Actions all destructure `{ error }`, your new one must too.
-
-4. **Doc/schema alignment** — Will your change make any doc (database.md, decisions.md, plan.md) inaccurate? If changing a migration, check the soft-delete matrix. If adding an RPC, check the RPC signatures table.
-
-5. **Security surface** — Does the change touch auth, RLS, answer data, or input validation? If yes, verify against `docs/security.md` rules before implementing.
-
-**The plan must include:**
-- Files to change (with line ranges when possible)
-- Files affected by the change (callers, tests, docs)
-- Known risks or edge cases
-- Test updates needed alongside code changes
-
-**Gate:** Do not proceed to step 9 (Execute) until steps 6-8 are complete (validation done, plan-critic run, and user approval). A validated plan that takes 10 minutes prevents a 24-hour review cycle.
+**Gate:** no Execute (step 9) until steps 6-8 complete.
 
 ### When NOT to use subagents:
-- Reading a single known file (use Read directly)
-- Simple glob/grep for a specific symbol (use Glob/Grep directly)
-- Single-file edits under 10 lines (do it yourself — post-commit agents still run after the commit)
-- Git operations (do them yourself)
-- Plan-critic and implementation-critic — these are invoked as part of the pipeline, not as ad-hoc subagents
-
-### Why this matters:
-- Your context window is expensive — don't waste it on exploration
-- Parallel subagents are faster than sequential self-work
-- Delegation creates natural review checkpoints
-- **Validated plans prevent 24-hour review cycles** — catching a wrong fallback value at plan time costs 2 minutes; catching it via CodeRabbit costs hours of back-and-forth
+- Reading a single known file, or a simple glob/grep for a symbol
+- Single-file edits under 10 lines (post-commit agents still run)
+- Git operations
+- Plan-critic/implementation-critic — pipeline steps, not ad-hoc subagents
 
 ---
 
 ## Key docs (read for context)
-- `docs/plan.md` — build plan, current phase, what's next
-- `docs/decisions.md` — all confirmed decisions
-- `docs/database.md` — full schema + RPC patterns (binding)
-- `docs/security.md` — security rules (binding)
+- `docs/plan.md` — build plan | `docs/decisions.md` — confirmed decisions
+- `docs/database.md` — schema + RPC (binding) | `docs/security.md` — security rules (binding)
 - `.claude/rules/code-style.md` — file size limits, component rules (binding)
 - `.claude/rules/agent-workflow.md` — pipeline order, orchestrator DO/NEVER (binding)
-- `.claude/rules/agent-critic.md` — plan-critic and implementation-critic rules (binding)
-- `.claude/rules/agent-*.md` — per-agent handling rules with DO/NEVER (binding)
+- `.claude/rules/agent-critic.md` — plan/implementation-critic rules (binding)
+- `.claude/rules/agent-*.md` — per-agent DO/NEVER rules (binding)
 
 ## Stack
 - Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui v4 (Base UI, oklch colors)
-- Supabase (Postgres + Auth + Storage) — `packages/db/`
-- Biome for lint/format | Vitest for tests | Playwright for E2E
-- Email + password auth (not magic link)
+- Supabase (Postgres/Auth/Storage) — `packages/db/`
+- Biome (lint/format) | Vitest (tests) | Playwright (E2E)
+- Email/password auth (not magic link)
 
 ## Commands
 ```bash
-pnpm dev          # start dev server
-pnpm build        # build all packages
-pnpm test         # run all tests (Vitest)
-pnpm lint         # biome lint check
-pnpm check        # biome lint + format
-pnpm check-types  # tsc --noEmit all packages
+pnpm dev # start dev server
+pnpm build # build all packages
+pnpm test # run all tests (Vitest)
+pnpm lint # biome lint check
+pnpm check # biome lint + format
+pnpm check-types # tsc --noEmit all packages
 ```
 
-After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache) to confirm new type definitions do not introduce errors.
+Dep-bump commit: run `pnpm check-types --force` (bypasses turbo cache). Next.js bump: also run
+`pnpm --filter @repo/web dev` once, commit whatever it rewrites (`apps/web/AGENTS.md` or
+`apps/web/CLAUDE.md`) — a modified tracked file aborts `/fullpush` step 5b
+(`git status --porcelain --untracked-files=all`). Check `git status` broadly, not just one path.
 
-After any **Next.js** bump specifically, also run `pnpm --filter @repo/web dev` once and commit
-whatever it rewrites (`next` is not on PATH — it resolves only as the workspace-local dependency).
-The dev server regenerates a tracked agent-instruction block, hosted in `apps/web/AGENTS.md` as of
-2026-09-02; `apps/web/CLAUDE.md` is tracked too and takes the block instead if `AGENTS.md` is
-removed. Skipping this leaves a modified tracked file that aborts `/fullpush` step 5b at the least
-convenient moment: the gate reads `git status --porcelain --untracked-files=all`, so a
-space-prefixed `M` blocks exactly as `??` does. Check `git status` broadly, not just one path.
-
-Also audit `package.json` `pnpm.overrides` after any dep bump: drop each pin once its removal
-condition is satisfied, in the same commit. **Verify redundancy — never infer it from the resolved
-version.**
-- Enumerate dependents with `pnpm -r why <pkg>` — the `-r` is what covers every workspace package.
-  A root-only `pnpm why` can report nothing while exiting 0, which reads as "no dependents, safe to
-  remove"; do not rely on it.
-- Read the DECLARED range of EVERY dependent
-  (`node_modules/.pnpm/<dep>@<ver>*/node_modules/<dep>/package.json` — glob it, pnpm appends peer
-  suffixes). A SCOPED dependent is flattened in the store directory (`@scope+pkg@<ver>*`) and keeps
-  the slash only in the nested path (`.../node_modules/@scope/pkg/package.json`). Resolution picks
-  today's newest match; the declared range is what binds tomorrow.
-- Re-audit in a scratch worktree after `pnpm install --lockfile-only`. `pnpm audit` reads the
-  LOCKFILE, so removing the pin from `package.json` alone leaves the forced resolution in place and
-  the audit passes for the wrong reason.
-- Use plain `pnpm audit`, not `--audit-level=high` — a pin may guard a LOW advisory (the `esbuild`
-  pin guards GHSA-g7r4-m6w7-qqqr). Keep `--audit-level=high` as the separate repo-wide gate.
-- Record the pin's exit condition in the commit message — `package.json` cannot carry comments.
+Also audit `package.json` `pnpm.overrides` each dep bump: drop pins once removal conditions are
+met, same commit. Verify redundancy, never infer from the resolved version:
+- `pnpm -r why <pkg>` (`-r` covers every workspace package; bare `pnpm why` can false-negative).
+- Read the DECLARED range of EVERY dependent (`node_modules/.pnpm/<dep>@<ver>*/node_modules/<dep>/package.json`).
+- Re-audit in a scratch worktree after `pnpm install --lockfile-only` (audit reads the lockfile).
+- Plain `pnpm audit`, not `--audit-level=high` (a pin may guard a LOW advisory).
+- Record the exit condition in the commit message.
 
 ## Critical rules (full details in linked docs)
 - page.tsx: composition only, no logic (file-size limits are data: `.claude/limits.json`)
 - No `useEffect` for data fetching — Server Components only
 - No hard DELETE — always soft delete (`deleted_at`)
 - No `any` type — use `unknown` with narrowing
-- All mutations via Server Actions (no API routes for mutations)
+- All mutations via Server Actions, not API routes
 - Correct answers stripped server-side via `get_quiz_questions()` RPC — never SELECT * for students
 - Service role key: `packages/db/src/admin.ts` only, never NEXT_PUBLIC_
-- When applying any defensive pattern (cast guard, null check, error destructuring) to one location, grep the same file AND sibling files with the same code structure (e.g., admin and student query paths) for all other instances of the same pattern before committing
+- Applying a defensive pattern to one location: grep sibling files with the same structure first
 
 ## NEVER DO (top-level negative constraints)
 
 ### Security — hard stops
 - **NEVER** `SELECT *` from `questions` for students — use `get_quiz_questions()` RPC only
-- **NEVER** prefix service role key with `NEXT_PUBLIC_` — service key lives in `packages/db/src/admin.ts` only
+- **NEVER** prefix service role key with `NEXT_PUBLIC_` — lives in `packages/db/src/admin.ts` only
 - **NEVER** hard DELETE — always `UPDATE SET deleted_at = now()`
-- **NEVER** UPDATE or DELETE on `audit_events`, `student_responses`, or `quiz_session_answers` — these are immutable
+- **NEVER** UPDATE/DELETE `audit_events`, `student_responses`, `quiz_session_answers` — immutable
 - **NEVER** commit `.env*` files — pre-commit hook blocks them
-- **NEVER** trust client input — Zod `.parse()` on every Server Action and API route before using data
+- **NEVER** trust client input — Zod `.parse()` on every Server Action/API route first
 - **NEVER** create SECURITY DEFINER functions without `auth.uid()` check AND `SET search_path = public`
 
 ### Code — hard stops
-- **NEVER** use `any` type — use `unknown` with narrowing
-- **NEVER** use `useEffect` for data fetching — Server Components only (hydration guards are exempt)
-- **NEVER** create barrel `index.ts` files — import directly from source
+- **NEVER** use `any` — use `unknown` with narrowing
+- **NEVER** use `useEffect` for data fetching — Server Components only (hydration guards exempt)
+- **NEVER** create barrel `index.ts` files — import directly
 - **NEVER** create API route handlers for mutations — Server Actions only
-- **NEVER** put business logic in React components — components render, logic lives elsewhere
-- **NEVER** create `__tests__/` folders — co-locate tests with source files
+- **NEVER** put business logic in React components — components render, logic elsewhere
+- **NEVER** create `__tests__/` folders — co-locate tests with source
 
 ### Workflow — hard stops
-- **NEVER** push without explicit user approval — always ask first
-- **NEVER** skip post-commit agent review — run the four core agents (code-reviewer, semantic-reviewer, doc-updater, test-writer) after every commit, except under a NAMED exemption in § Post-commit review. Commit size ALONE is never an exemption
-- **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
-- **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
-- **NEVER** skip implementation-critic before a commit — run it on staged changes even for single-file changes. The ONE exemption is a commit whose paths are ALL under `.claude/agent-memory/**`, which would otherwise not terminate (`agent-workflow.md § Pre-Commit Implementation Review`); read the delta yourself instead
+- **NEVER** push without explicit user approval
+- **NEVER** skip post-commit review — all four core agents after every commit, except a NAMED § Post-commit review exemption; commit size ALONE never exempts
+- **NEVER** push with unresolved BLOCKING/CRITICAL findings from agents
+- **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit
+- **NEVER** skip implementation-critic, even single-file. ONE exemption: paths ALL under `.claude/agent-memory/**` (`agent-workflow.md § Pre-Commit Implementation Review`)
 - **NEVER** skip plan-critic for multi-file plans — run after validation, before user approval
 
 ### Agent behavior — hard stops
-- **NEVER** let agents make changes outside their scope (test-writer writes tests, not production code)
-- **NEVER** change rules based on a single occurrence — log and watch, change on 2+ repeats
-- **NEVER** duplicate work between agents (code-reviewer does style, semantic-reviewer does logic — zero overlap)
+- **NEVER** let agents change outside their scope (test-writer writes tests, not production code)
+- **NEVER** change rules on a single occurrence — log/watch, change on 2+ repeats
+- **NEVER** duplicate work between agents (code-reviewer = style, semantic-reviewer = logic, zero overlap)
 
 ## Workflow
 1. Start each session: read `docs/plan.md`
-2. For any multi-file change: draft a plan, then validate it (see **Plan Validation** above)
-3. Get user approval on the validated plan before executing
+2. Multi-file: draft + validate the plan (§ Plan Validation above)
+3. Get user approval before executing
 4. `/project:review` after feature complete
 5. `/project:insights` weekly
 
 ## Post-commit review (MANDATORY)
-After every `git commit`, run these 4 subagents in parallel using the Agent tool:
-1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
-2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
-3. **doc-updater** (haiku) — report the doc edits needed; YOU apply them (it has no Write/Edit tool)
-4. **test-writer** (sonnet) — check for missing tests, write them, run them (the only agent holding Write/Edit on REPOSITORY files — `memory: project` separately grants each agent Read/Write/Edit on its OWN memory dir; every agent keeps Bash, so this closes the ACCIDENTAL write path, not every one)
+Run these 4 subagents in parallel via the Agent tool after every `git commit`:
+1. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
+2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit)
+3. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
+4. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
 
-**They run ASYNCHRONOUSLY.** `Agent` returns immediately and notifies you later, so "I launched
-four" is not "four reported". WAIT for a completion notification from every agent you actually
-LAUNCHED, read ALL results, then fix. Never a fixed number: an exemption launches fewer, and the
-count then hangs on notifications that never arrive.
-Never edit a file while an agent that can write it is in flight — the lost update is silent and no
-gate catches it. Write access is enforced by `tools:` in each `.claude/agents/*.md` frontmatter, not
-by remembering to say so in the dispatch prompt (`agent-workflow.md § Every agent dispatch is
-ASYNCHRONOUS`).
+**Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, then fix.
+Never edit a file while an agent that can write it is in flight (`agent-workflow.md § Every agent
+dispatch is ASYNCHRONOUS`). Fix, commit, repeat until clean. Then run:
+5. **learner** (sonnet) — reads all findings, REPORTS proposed rule changes; you apply them. Writes
+   only its own memory dir. Hand it a `/crlocal` fixup's CR-local triage table too — counts drive
+   rule promotion (`agent-learner.md`).
 
-Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
+Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
+in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
+6. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
 
-Then run:
-5. **learner** (sonnet) — reads all agents' findings, identifies patterns, and REPORTS proposed
-   rule changes; you apply them. It writes only its own memory dir (`memory: project` grants that
-   regardless of `tools:`), which nothing else touches.
-   On a `/crlocal` fixup commit's cycle, hand it that round's CR-local triage table too — its counts
-   drive rule promotion, and dropping our highest-signal reviewer biases them (`agent-learner.md`)
+Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
+`CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
+7. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
-If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run
-(`agent-workflow.md § Red-Team Agent Trigger` is canonical and names ONE further path this list does not
-repeat, `apps/web/e2e/redteam/`):
-6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
+**Docs-only exemption:** touches ONLY `docs/**/*.md` (not `docs/security.md`), root `*.md` (not
+`CLAUDE.md`), or `.claude/agent-memory/**` → doc-updater only.
 
-If rules changed (`.claude/rules/code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`, `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` mechanical guard — see `.claude/rules/agent-coderabbit-sync.md`), also run:
-7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
-
-**Docs-only exemption:** a commit touching ONLY `docs/**/*.md` (except `docs/security.md`), root
-`*.md` (except `CLAUDE.md`), or `.claude/agent-memory/**` runs doc-updater
-only. Any diff touching code, rules, hooks, CI or config gets the full cycle.
-
-**Review-follow-up exemption:** a commit applying ONLY findings from its own parent's post-commit
-cycle runs semantic-reviewer only. ALL must hold:
-- the PARENT ran the FULL cycle and claimed no exemption itself (so a reduced path cannot chain);
+**Review-follow-up exemption:** applies ONLY findings from its own parent's post-commit cycle →
+semantic-reviewer only. ALL must hold:
+- the PARENT ran the FULL cycle and claimed no exemption itself;
 - every hunk traces to a finding from that cycle;
-- it touches only files the parent touched, and adds no new file;
+- touches only files the parent touched, adds no new file;
 - <= 20 changed lines outside tests, <= 60 inside them;
 - no security path, rules file, migration, or CI/hook/config.
 
-If any condition fails, run the full cycle. Neither the docs-only nor the review-follow-up path
-gets a learner pass.
+If any condition fails, run the full cycle. Neither exemption gets a learner pass.
 
-**A `/crlocal` fixup commit NEVER qualifies for the review-follow-up path.** Its hunks trace to
-CR-LOCAL findings, not to its own parent's post-commit cycle — the second condition fails on its
-face. This matters more than it looks: the reduced path skips the learner, and a CR-local fixup
-commit's cycle is the ONLY place a CR-local finding is ever counted (`learner.md § Inputs` states the ONLY; `agent-learner.md § DO` the mechanism).
-Mislabel one and the relay is silently dead — no error, and the counts simply come up short.
-
-Docs-only and review-follow-up are the only exemptions, and neither is a "small commit" exemption —
-new scope gets the full cycle even at one line.
+**A `/crlocal` fixup commit NEVER qualifies for review-follow-up** — hunks trace to CR-LOCAL
+findings, not the parent's cycle, the ONLY place a CR-local finding is counted (`agent-learner.md §
+DO`). Neither exemption is a "small commit" exemption.
 
 **Stop rule.** On a review-follow-up, act only on CRITICAL/ISSUE findings naming a runtime defect
-or a FALSE claim in prose (a guard that is not there, a count that does not add up). Log and stop
-on everything else, including wording refinements to prose the follow-up itself just rewrote. A
-false claim is never bounded out — but cap the chain at 3 consecutive commits whose only content is
-applying the previous commit's findings, then escalate to the user with the residue. Park the
-remainder; every finding still needs a terminal disposition per `wrapup.md`.
+or a FALSE prose claim. Log and stop on everything else. A false claim is never bounded out — cap
+the chain at 3 consecutive commits applying only the previous commit's findings, then escalate;
+every finding needs a terminal disposition per `wrapup.md`.
 
-Pre-commit critics (plan-critic, implementation-critic) are additive — they do not replace
-post-commit agents. Never push until every agent required by the selected path reports clean.
+Pre-commit critics (plan-critic, implementation-critic) are additive — never push until every agent
+on the selected path reports clean.
 
 ## QA pipeline
-Lefthook enforces mechanical gates (blocking):
-- **pre-commit:** mechanical guards only. Each also runs in the CI lint job with its unit suites. Unit tests are deliberately excluded here; the full suite runs in CI. **The command list is DATA in `.claude/pipeline.json` — do not enumerate it here.** This bullet named its commands until 2026-09-14 and the two sibling diagrams that copied it (`docs/plan.md`, `docs/decisions.md`) had both already gone stale by omitting the file-size guard, which is what a hand-maintained mirror does
-- **commit-msg:** what these gates enforce, rather than which commands run (same rule as above — `.claude/pipeline.json` is the list): conventional commit format; a cited SHA must resolve, with coverage that is PARTIAL and proves only that the commit EXISTS — see `code-style.md` §10 cl.6 and `docs/decisions.md` Decision 64; and a claim this commit corrected in one corpus file must not still stand in another (`code-style.md` §10 cl.3, Decision 66). That last one is why a gate lives on this stage at all: its only escape hatch is a `Retracted-ok: <token> — <reason>` trailer, and no EARLIER stage can read a commit message (CI reads it too, later, via `--base`).
-- **pre-push:** security-auditor agent + dependency audit — FAIL-CLOSED: if the LLM audit cannot run (CLI failure/timeout) or `run-security-auditor.sh` is missing, the push is BLOCKED (no fallback approval)
+Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
+not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
+- **pre-commit:** mechanical guards only; unit tests run only in CI.
+- **commit-msg:** conventional commit format; a cited SHA must resolve (proves only EXISTENCE — `code-style.md` §10 cl.6); a claim corrected in one file must not still stand in another (§10 cl.3) — escape hatch: `Retracted-ok: <token> — <reason>` trailer.
+- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or missing `run-security-auditor.sh` BLOCKS the push, no fallback approval.
 
-`.claude/pipeline.json` `hooks` is the machine-checked enumeration of every lefthook stage's commands — including the non-blocking `post-commit` reminder, which is not a gate and so is not listed above. `.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree in either direction; do not restate the command list here.
-
-Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
+Everything else (review, docs, tests) runs through subagents for visibility.
 
 ## Local migrations
-`supabase db push --local` skips migrations already in the ledger, so editing a pushed migration
-in place is a silent no-op and the local DB diverges from the repo. Run `supabase db reset` +
-re-seed before local integration/E2E. CI runs on a fresh container every time, so it always has the
-full migration chain — but only the `migration-test` job runs an explicit `supabase db reset`. As of
-2026-08-25 the integration, E2E, Lighthouse and red-team jobs just `supabase start`; re-derive with
+`supabase db push --local` skips migrations already in the ledger — editing one in place is a
+silent no-op. Run `supabase db reset` + re-seed before local integration/E2E. Only `migration-test`
+CI runs `db reset`; others just `supabase start`; re-derive via
 `grep -rn 'db reset\|supabase start' .github/workflows/`.
 
 ## Push protocol
-Never push without explicit user approval. For branches with 2+ commits, run a full-diff semantic
-review first: `git fetch origin` (ABORT if it fails), then `git diff origin/master...HEAD`.
-See `agent-workflow.md § Pre-Push PR Sweep`.
+Never push without explicit user approval. 2+ commits: full-diff semantic review first —
+`git fetch origin` (ABORT if it fails), then `git diff origin/master...HEAD`. See
+`agent-workflow.md § Pre-Push PR Sweep`.

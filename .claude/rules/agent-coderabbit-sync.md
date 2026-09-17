@@ -1,38 +1,30 @@
 # Agent Rules — coderabbit-sync
-
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
-
 > Model: haiku | Trigger: when rules change | Non-blocking
 
 ## Purpose
-Ensures `.coderabbit.yaml` stays aligned with local rules so that CodeRabbit enforces the same standards we enforce locally. Only runs when source-of-truth files change.
+Ensures `.coderabbit.yaml` stays aligned with local rules so CodeRabbit enforces the same standards. Only runs when source-of-truth files change.
 
 ## Trigger Conditions
-Run this agent only when one or more of these files change:
+Run only when one or more of these files change:
 - `.claude/rules/code-style.md`
 - `.claude/rules/security.md`
 - `docs/security.md`
 - `biome.json`
 - `CLAUDE.md`
-- A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml` (a guard that pattern-matches source for a rule CodeRabbit also enforces) — edits to an existing guard's detection pattern also require re-mirroring. The guard's detection pattern must be mirrored into `.coderabbit.yaml` `path_instructions` **in the same commit that adds or changes the guard** — not deferred to a follow-up. Promoted at count=2: `check-soft-delete-guard.mjs` (#925 Phase 3, `.coderabbit.yaml` entry slipped to Phase 4) and `check-test-title-leakage.mjs` (#946, the `maps <snake_case_token>` pattern missing from the guard's commit). Both prior instances are already reconciled — no sweep outstanding.
+- A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml` (pattern-matches source for a rule CodeRabbit also enforces) — edits to an existing guard's detection pattern also require re-mirroring. Mirror into `.coderabbit.yaml` `path_instructions` **in the same commit that adds or changes the guard** — not deferred.
 
 Do NOT run on every commit — only when the above files are in the diff.
 
 ## Handling Results
-
 ### DO
-- Run after the learner, since the learner may propose rule changes that, once the orchestrator applies them, trigger a sync.
+- Run after the learner — its rule proposals, once applied, can trigger a sync.
 - Review the agent's report before applying any changes to `.coderabbit.yaml`.
-- Verify that the proposed `.coderabbit.yaml` changes match the actual rule changes.
+- Verify proposed `.coderabbit.yaml` changes match the actual rule changes.
 - Commit `.coderabbit.yaml` updates alongside rule changes when possible.
 
 ### NEVER
-- Run on every commit — it's wasteful when rules haven't changed.
+- Run on every commit.
 - Let the agent edit `.coderabbit.yaml` without review — it reports diffs, the orchestrator applies.
 - Let the agent add rules to `.coderabbit.yaml` that don't exist in local rules (no CodeRabbit-only rules).
 - Let the agent remove rules from `.coderabbit.yaml` that still exist in local rules.
 - Ignore drift — if the agent reports a mismatch, fix it in the same session.
-
----
-
-*Last updated: 2026-03-12*

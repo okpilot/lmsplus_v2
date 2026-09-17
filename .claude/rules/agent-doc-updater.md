@@ -1,91 +1,38 @@
 # Agent Rules — doc-updater
 
-> **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
-
 > Model: haiku | Trigger: post-commit | Non-blocking
 
 ## Purpose
-Keeps project documentation in sync with code changes. Watches for schema changes, new RPCs, new routes, dependency updates, and architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool. It writes only its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`), which nothing else touches.
+Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool. It writes only its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`), which nothing else touches.
 
 ## Handling Results
 
 ### DO
-- Apply the agent's reported doc edits YOURSELF and commit them alongside the cycle's fix commit
-  (same batch, grouped or separate as appropriate). The agent has no Write/Edit tool and cannot
-  commit; it reports `path:line` + exact replacement text.
-- Verify cross-references — if database.md was updated, check that decisions.md and plan.md are consistent.
+- Apply the agent's reported doc edits YOURSELF and commit alongside the cycle's fix commit — it has no Write/Edit tool and cannot commit.
+- Verify cross-references — if database.md changed, check decisions.md/plan.md stay consistent.
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
-- Apply the agent's reported progress-tracking edits to `docs/plan.md` (sprint status, phase
-  completion) yourself. As of 2026-09-06 doc-updater has NO Write/Edit tool (`tools:` in its
-  frontmatter): it runs asynchronously and in parallel with your own edits to those same docs, so a
-  write from it would race you and the loser's paragraph would vanish silently. It reports
-  `path:line` + exact replacement text; you apply it.
-- Review the agent's REPORTED doc edits for accuracy before applying them — it sometimes hallucinates details about code it didn't read, and you are the one committing the text.
-- When a stale claim is found anywhere in a long-form doc block (a bullet, a paragraph, a table
-  row), read the WHOLE block before reporting — adjacent claims in the same block are frequently
-  stale too, and the diff scope will not surface them. Promoted at learner count=2 (2026-08-20,
-  `docs/security.md` consent bullet): both cycles reported exactly one stale claim, and both times
-  reading the surrounding bullet found more — a redirect target, then a document-type list stale
-  since migration `20260327000058` in March, then a misattributed actor. This is the read-side companion to
-  `code-style.md` §10 clauses 3 and 5. Reading the block is not checking it: a block-read surfaces
-  claims that contradict each other or the diff, never one that is internally coherent and false.
-  Any claim in the block that a source file could falsify is re-derived from that file, not re-read.
+- Apply reported `docs/plan.md` progress-tracking edits yourself — a write from the agent races yours and silently vanishes (no Write/Edit tool).
+- Review reported doc edits for accuracy before applying — it can hallucinate details about code it didn't read.
+- When a stale claim is found in a doc block, read the WHOLE block before reporting — adjacent claims are frequently stale too. Re-derive any claim a source file could falsify, don't re-read it.
 - Report DRIFT findings with specific steering doc reference and contradicting code.
 - Elevate to CRITICAL when drift contradicts security rules.
-- **Any COUNT must arrive with the command that produced it and that command's pasted output** —
-  spec/task tallies, occurrence counts, file or mention counts. Not a remembered figure, not an
-  estimate. Promoted at learner count 15 (2026-09-10), three of them on PR #1273 alone: a
-  `.coderabbit.yaml` mention count of two where there was one; "all 19 specs have 0 incomplete
-  tasks" when seven were active; a spec called ACTIVE with one open task when it had none. The
-  middle one is why this is a rule and not a nicety — its conclusion was that the spec being
-  corrected was a historical record that must not be touched, and acting on it would have REVERTED
-  a correct fix. **Naming the prior failure in the dispatch prompt is NOT sufficient: it was named
-  on the second and third dispatches and a fresh wrong count came back both times.** Only requiring
-  the pasted artifact worked. If a count cannot be derived in-session, write "not derived" — a short
-  report with three verified facts beats a thorough one carrying an invented number.
-- **A CODE-BODY citation needs a pasted `grep` result, not just a line number.** When the report
-  quotes an `if` expression, a function signature, a return value or any other fragment of code as
-  evidence, paste the output of `grep -rn '<distinctive token from that expression>' .` A citation
-  that cannot be grounded in a grep result is fabricated, whatever else in the report is correct.
-  Promoted at count=2 on two different mechanisms: a date echoed back out of its own dispatch
-  prompt (2026-09-09), and an invented function body — `if (!waivers.size) return 0`, which exists
-  nowhere in the repo — offered as the evidence for an otherwise CORRECT conclusion
-  (2026-09-14, `ff562c9f`). The second landed on the very commit whose guard targets false claims,
-  in a report that also miscounted a five-element constant as four. A right verdict resting on
-  invented evidence is not a right report: the next reader checks the evidence.
-- When a report claims a file "cites", "mentions" or "references" specific content, paste the EXACT
-  substring rather than paraphrasing it. This makes the NEVER-list rule below — never cite a
-  migration, SHA, column or path without reading it — checkable by the orchestrator without
-  re-reading the file, instead of resting on trust. Several of learner row 663's instances are
-  doc-updater reports that mis-cited a file, in two shapes — ILLUSTRATIONS, not a census: citing
-  footer text the commit never changed, and reading the right footers but giving their line numbers
-  wrong. In at least one the dispatch prompt had already named the prior instance, which is why the
-  remedy is the artifact check and not the reminder. Re-derive the current set and total from the
-  tracker rather than quoting a figure here — every learner pass moves it.
+- **Any COUNT must arrive with the command that produced it and its pasted output** — not a remembered figure or estimate. If a count can't be derived in-session, write "not derived".
+- **A CODE-BODY citation needs a pasted `grep` result, not just a line number** — `grep -rn '<distinctive token>' .` A citation not grounded in a grep result is fabricated.
+- When a report claims a file "cites"/"mentions"/"references" content, paste the EXACT substring, not a paraphrase.
 
 ### NEVER
-- Cite a flag, function, method or field as IMPLEMENTED without a pasted `grep` proving it
-  exists. A name that appears in the dispatch prompt, a commit message, a spec entry or a plan is
-  a PROMPT EXAMPLE, never evidence it is in the code. Promoted at count=4 (2026-09-14): a report
-  claimed commit `57aa0d44` implemented a `--update-expected` flag and that the spec item should
-  be ticked DONE — `grep -rn 'update-expected' .claude/hooks/*.mjs` returns nothing (the string
-  now appears in `*.mutations.json` NOTES, which is why the command is scoped to the code surface:
-  this rule's own pasted artifact stopped reproducing within one branch of being written), and that commit
-  changed one JSON data file. Applying it would have marked an UNBUILT feature complete in the
-  programme's own tracker. The DO-side pasted-grep rule already existed; it is repeated here
-  because the NEVER list is what gets read first.
-- Let the agent make architecture decisions — it documents decisions, it doesn't make them.
+- Cite a flag, function, method or field as IMPLEMENTED without a pasted `grep` proving it exists — a name in the dispatch prompt, a commit message, a spec entry or a plan is a PROMPT EXAMPLE, never evidence.
+- Let the agent make architecture decisions — it documents decisions, doesn't make them.
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").
-- Let the agent report partially — if a change affects multiple docs, it must report edits for ALL of them in the same cycle.
-- Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first (it may overwrite recent entries).
-- Let the agent pad docs with unnecessary detail — keep docs concise and scannable.
+- Let the agent report partially — a multi-doc change needs edits for ALL of them in the same cycle.
+- Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first.
+- Let the agent pad docs with unnecessary detail — keep concise and scannable.
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
 - Skip drift check when steering docs exist.
-- Cite a migration number, RPC guard, error string, file path, commit SHA (cited as the causal source of a change), **column name**, or other implementation detail without reading the migration/source file directly. Column names count even inside an illustrative example in a rule or skill file — grep `packages/db/src/types.ts` (`public.Tables.<name>.Row`), and scan EVERY `ALTER TABLE <table>` chronologically to HEAD before writing one — one match proves the column existed once, never its state at HEAD, since a column can be added, renamed and dropped across separate migrations. (Column-name instance, 2026-08-10 / #1174: `score` was cited as a `quiz_sessions` column across four security surfaces; the real column is `score_percentage`. A wrong column in a security example is worse than a vague one — it invites a reviewer to look for a field that does not exist and conclude the example is stale.) Plans, commit messages, and session context are unreliable for sequential numeric references (e.g. which `mig NNN` a function lives in), file paths, and exact implementation specifics — read the file header and body before writing the citation. When a commit SHA is cited as the CAUSE of a change, reading the current file is not sufficient — run `git show <sha> -- <path>` and confirm that commit actually contains the cited change, since a commit can touch a file without touching the text in question.
-
-- Flag DRIFT (or any ISSUE) on an item the approved plan explicitly designates as a historical record, or that is already named in the session's planned-work exclusion list. Re-state it as known-open context at most — never as a new finding requiring triage. Each re-litigated finding costs a validation cycle to re-skip.
+- Cite a migration number, RPC guard, error string, file path, commit SHA (as a change's cause), or **column name** without reading the source directly. Column names count even in an illustrative example — grep `packages/db/src/types.ts` and scan EVERY `ALTER TABLE` chronologically to HEAD first (one match only proves the column existed once, never its state at HEAD). Plans, commit messages and session context are unreliable for `mig NNN` references, paths, and implementation specifics — read the file before citing. Run `git show <sha> -- <path>` to confirm a cited SHA actually contains the change.
+- Flag DRIFT (or any ISSUE) on an item the approved plan designates historical, or already in the session's exclusion list. Restate as known-open context at most, never a new finding — each re-litigation costs a validation cycle.
 
 ## Key Documents The Agent Watches
 | Document | What triggers an update |
@@ -102,8 +49,6 @@ When the agent detects a renamed file (e.g., `middleware.ts` → `proxy.ts`), it
 
 When a doc commit adds a **structural** cross-reference to an existing section — a new section whose body links/refers to an existing section, a row added to a summary table or RPC index that points at an existing function/section, or a TOC/anchor entry pointing at an existing target — the doc-updater audits the **entire referenced section** AND any related summary tables, matrices, or RPC indexes — not just lines marked `+` in the diff. Casual prose mentions ("see X for context") added inside otherwise-unrelated edits do NOT trigger this audit.
 
-**Why:** PR #605 (`docs/database.md` `complete_overdue_exam_session` section) had four stale claims surviving since mig 063 widened the function's mode guard from `mock_exam` to `mock_exam OR internal_exam`. Three different reviewers each caught a different stale claim — semantic-reviewer per-commit caught L1310, PR-level semantic sweep caught L635 (RPC summary table), CodeRabbit caught L1290 and L1302 (prose drift). Per-commit doc-updater audited only the `+` lines and missed all four. Four stale claims concentrated in one section, surfaced across three reviewers and two review passes — promoted to a hard rule (the per-`+`-line scope is systematically insufficient regardless of cross-commit frequency, so the standard learner count=N threshold does not apply here).
-
 **How to apply:** When the diff adds a structural cross-reference INTO an existing section:
 1. Read the entire target section, not just the cross-reference site.
 2. Scan summary tables, matrices, and indexes that mention the target subject (e.g., the `## RPC Summary` row for the function, or schema matrices that list the table).
@@ -111,13 +56,9 @@ When a doc commit adds a **structural** cross-reference to an existing section �
 
 ### Repeated numeric-literal counts — DROPPED 2026-08-19 (#1222)
 
-This sub-rule obliged doc-updater to chase a stale count literal across `tech.md` ×3 + `decisions.md`
-(red-team spec count) and `docs/plan.md` (integration-test count). **It is dropped.** A stale count
-in a steering doc misleads nobody who can run `ls`, while chasing it cost real review rounds and
-fixup commits — the "counts — is nonsense" complaint that sourced #1222.
-
-Deliberate consequence: those literals WILL drift and stay drifted. That is accepted. Do NOT flag a
-stale INVENTORY count as DRIFT, and do NOT re-derive one "while you are in there".
+Do NOT flag a stale INVENTORY count as DRIFT, and do NOT re-derive one "while you are in there" —
+those literals WILL drift and stay drifted, deliberately. A stale count in a steering doc misleads
+nobody who can run `ls`.
 
 **The exemption is staleness only, and only for inventory counts.** A count that is INTERNALLY
 inconsistent is still a finding: an "N + M" whose terms no longer sum to the headline they explain,
@@ -126,7 +67,7 @@ is unaffected by this drop — `.coderabbit.yaml` draws the same line. See `docs
 
 ### `lefthook.yml` / `ci.yml` change ⇒ audit `CLAUDE.md` §QA-pipeline
 
-When a commit touches `lefthook.yml` or `.github/workflows/ci.yml` (adds/removes/renames a hook command or CI gate, or changes which gates run at which stage), audit the **`CLAUDE.md` §QA-pipeline** bullet list for accuracy — the pre-commit / commit-msg / pre-push gate lists and their one-line descriptions (which also reference what runs in CI) must match what `lefthook.yml` and the CI workflow actually run. Flag any mismatch as DRIFT (ISSUE). Promoted at count=2: (1) #833/#840 — §QA-pipeline claimed unit tests run in pre-commit when they don't; (2) #925 Phase 3 — a new `soft-delete-guard` pre-commit command was added without updating the §QA-pipeline list. The §QA-pipeline block is small and high-churn-adjacent; a per-`+`-line diff scope misses it because the lefthook change and the doc are in different files.
+When a commit touches `lefthook.yml` or `.github/workflows/ci.yml` (adds/removes/renames a hook command or CI gate, or changes which gates run at which stage), audit the **`CLAUDE.md` §QA-pipeline** bullet list for accuracy — the pre-commit / commit-msg / pre-push gate lists and their one-line descriptions (which also reference what runs in CI) must match what `lefthook.yml` and the CI workflow actually run. Flag any mismatch as DRIFT (ISSUE). The §QA-pipeline block is small and high-churn-adjacent; a per-`+`-line diff scope misses it because the lefthook change and the doc are in different files.
 
 ## Steering Document Drift Detection
 
@@ -148,7 +89,3 @@ Do not edit steering docs. Steering document changes require developer approval 
 
 ### Skip condition
 If `.spec-workflow/steering/` does not exist or is empty, skip the drift check without error.
-
----
-
-*Last updated: 2026-09-07*

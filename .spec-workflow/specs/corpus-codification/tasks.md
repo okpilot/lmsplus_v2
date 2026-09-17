@@ -106,11 +106,11 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 6. **Slice 3 archaeology deletion** — the large size win, no new machinery, pure deletion.
 7. **R0-ENUMERATION** — last. Noisiest detector; ships once the exclusion discipline is proven.
 
-**Why not delete first, since that is the biggest number.** Deletion is a ONE-TIME win on text
-that is not decaying. Items 1-4 stop the bleeding, and the bleeding is the recurring cost — a
-measured five-to-one ratio of stale-claim findings to real runtime defects across slice 1. Once
-the guards exist, slice 3 is safe at any pace and gets easier, because less prose remains making
-checkable claims at all.
+**Item 6 is now item 1** (user directive, 2026-09-16). Deletion runs first.
+
+Before item 4: take the two pipeline-cost items in slice 2 (the fixup-cycle exemption, and the
+`MUTATION:` comment duplication). Both are small, neither needs new machinery, and the first
+cuts the review cost of every item after it.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 
@@ -144,6 +144,43 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       biggest risk to this programme. MUST be human-invoked and write the diff for review; a
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+
+- [ ] **Stop a fixup commit from forcing a second full cycle.** `CLAUDE.md § Post-commit review`
+      grants the review-follow-up path only to a commit that touches no config and only files its
+      parent touched. A commit applying its parent cycle's own findings routinely breaks both
+      conditions at once, and does so by OBEYING another rule: `agent-coderabbit-sync.md` requires
+      re-mirroring into `.coderabbit.yaml` in the same commit whenever a guard's detection pattern
+      changes, and that mirror is config the parent never touched. So the reduced path is
+      unreachable exactly when it was designed to apply, and each cycle's fixup spawns another full
+      cycle. Observed on PR #1295: the fixup commit for one cycle's findings triggered a second
+      four-agent cycle, whose findings were themselves prose. Fix: allow the reduced path when the
+      extra paths are MIRRORS the parent's own change required. Edit `CLAUDE.md § Post-commit
+      review` and `agent-workflow.md` together — both state the condition, so fixing one leaves the
+      other governing.
+
+- [ ] **Cap the injected rules corpus, shrink-only.** `CLAUDE.md` plus `.claude/rules/**` loads
+      into every session and is inherited by every agent dispatch, so its size is a per-invocation
+      cost and its staleness steers work that never needed the rule. It is the one corpus with no
+      cap, while `.claude/limits.json` already ratchets every FILE in the repo. Same mechanism, new
+      shape: an AGGREGATE rule over a file SET rather than a per-file cap. Derive the baseline at
+      the commit that ships this (`wc -l CLAUDE.md .claude/rules/*.md`) and store it in the data
+      file — the only copy that is executed; do not write the figure into prose here, which is the
+      defect `check-prose-claims.mjs` exists to block. Shrink-only: the total may fall and the
+      baseline moves down under `--update-baseline`; growth BLOCKS. A cap is what turns "add a
+      paragraph" from free into a trade-off, and a trade-off is the only thing that has ever
+      stopped accretion. Pairs with the delete-on-ship condition — a commit adding a mechanical
+      check must delete the prose that check replaced, or the corpus carries both forever, which is
+      what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
+
+- [ ] **Delete the `MUTATION:` comment, or generate it.** Each one is a SECOND copy of a claim
+      already encoded in a `*.mutations.json` entry, and only the data file is executed — so the
+      prose copy is free to go false, which is the exact defect class `code-style.md` §7 keeps
+      promoting rules about. PR #1295 found one in each of two sibling guards: one named a break
+      that HANGS rather than the encoded one, the other named a break that no longer existed.
+      Either drop the comments and let `node .claude/hooks/run-mutations.mjs --list` answer the
+      question, or generate them from the data file so drift is impossible. This removes a
+      recurring finding class instead of reviewing it harder, which is the programme's whole
+      thesis applied to its own machinery.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
@@ -287,6 +324,35 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 
 Largest size win in the programme; ~500-700 lines, one PR, no new machinery.
 
+### The classification every line in the corpus is sorted by
+
+Agreed with the user 2026-09-16. Sort each line into ONE row, then put it where the row says. A
+line that fits no row is garbage and is deleted.
+
+| Type | What it is | Where it lives |
+|---|---|---|
+| **Check** | A rule that is mechanically testable | `.claude/hooks/` + its data file. The rules corpus carries a POINTER, never a restatement |
+| **Rule** | "Always do X / never do Y", not yet checkable | The rules corpus: short, commanding |
+| **Reason** | Why the rule exists | A decision record, linked from the rule only when a reader would otherwise re-derive it wrong |
+| **Reference** | How the system works — data models, domain knowledge | `docs/`, loaded when the task needs it |
+| **Code comment** | Why THIS line is odd | In the code, and only there. Never promoted to a rule |
+| **Judgment** | Convergence timing, PR-split calls, deferral honesty | One explicitly NON-BINDING doc, loaded on demand. Named here because `## Never` says these cannot be codified, and text with no home leaks back into the rules corpus — which is where it sits today |
+| **History** | "We changed this because last week…" | Nowhere. `git log` already has it. Delete |
+
+Two clauses that make the table survive contact:
+
+1. **A rule that CAN be a Check must not stay prose.** Without this the table is a filing system;
+   with it, it is a ratchet.
+2. **Mechanism yes, justification no.** "No explanations" is refuted by this repo:
+   `agent-workflow.md § State the MECHANISM behind a constraint` exists because a critic reasoned
+   AROUND a bare prohibition and produced a CRITICAL argued from the weakest source. Keep the
+   clause that changes what a reader would DO ("local grants drift ADDITIVELY"); delete the
+   promotion story around it. One clause, not a paragraph.
+
+- [ ] **Probe first: apply the table to `agent-workflow.md` alone and measure what falls out.**
+      It is the largest offender. Derive before and after with `wc -l`, and do not sweep the rest
+      until one file has proved the table cuts what it claims to cut.
+
 - [ ] `code-style.md` §8 — restates §1-§7 (~21 lines)
 - [ ] `agent-workflow.md § Orchestrator Role` — restates the sections above it (~46)
 - [ ] `agent-workflow.md` pipeline-order prose — facts already in `pipeline.json` (~167)
@@ -314,3 +380,20 @@ Largest size win in the programme; ~500-700 lines, one PR, no new machinery.
 ## Never
 - [ ] ~~Enforce judgment~~ — convergence timing, PR-split calls, deferral honesty, whether a
       test is any good. These stay prose, and get shorter as the noise around them goes.
+
+## Carried in from PR #1295 (CR review `5225443322`, verified 2026-09-16)
+
+- [ ] `docs/database.md:554` — "**All** read-path callsites now query this view" is a universal
+      quantifier its OWN derivation two lines below falsifies (§10 cl.7). The grep at L562
+      excludes `.test.` but not `.spec.`, so it returns 5 files against 4 bullets —
+      `apps/web/e2e/redteam/flag-idor.spec.ts` is unlisted. Fix the quantifier or widen the
+      exclusion; ~2 lines. CR flagged this range for a DIFFERENT and false reason (it asked for a
+      derivation that L561 already carries).
+- [ ] `.claude/commands/insights.md:43-44` — four non-waiver residue categories named inline
+      before "is an OPEN set". cl.2 permits members "as explicit ILLUSTRATIONS"; the word is
+      absent. Cosmetic — fold into Slice 3 when this file is read end-to-end, not on its own.
+- [x] SKIP precedent for Slice 3: CR asked to delete `.claude/agents/test-writer.md:102-104` and
+      `109-110` as RULE 0 rationale. They are MECHANISM, which
+      `agent-workflow.md § "State the MECHANISM behind a constraint"` mandates. Slice 3's
+      classification must not read a mechanism clause as archaeology — the tell is whether the
+      sentence says WHY THE HABIT FIRES (keep) or WHAT HAPPENED ONCE (delete).
