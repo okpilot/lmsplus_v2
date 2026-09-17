@@ -78,7 +78,7 @@ Structured specs persist plans beyond chat history and provide session resume co
 ### When to create a spec
 Features spanning **3+ files** OR introducing a **new architectural pattern**. Create via spec-workflow MCP tools (`mcp__spec-workflow__*`).
 ### When NOT to create a spec
-Bug fixes, single-file refactors, changes touching fewer than 3 files.
+Bug fixes, single-file refactors, changes touching fewer than 3 files — unless the change introduces a new architectural pattern, which requires a spec at any file count.
 ### Spec lifecycle
 1. **Created** during planning — requirements, approach, file list.
 2. **Updated** during implementation — deviations, decisions, task progress.
@@ -120,8 +120,9 @@ git commit
           (parallel, wait for all 4) → read ALL results → validate findings → fix (commit)
           → fix commit RE-ENTERS at `git commit` (review-follow-up path if it qualifies,
             else FULL cycle) → loop (bounded by stop rule) until no open finding → learner
-    ▼  (reduced paths rejoin here, after learner)
+    ▼
 learner (sonnet, FULL cycle only — pattern detection, schedule sweep on promotion)
+    ▼  (reduced paths rejoin HERE — after the learner, not before it)
     ├─► (if diff touches security files) ─► red-team (sonnet) — map diff to specs, flag gaps
     ├─► (if rules changed) ─► coderabbit-sync (haiku) — sync .coderabbit.yaml
     ├─► update spec (if spec) — tasks.md: [ ] → [x]

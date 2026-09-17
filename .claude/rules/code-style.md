@@ -274,7 +274,7 @@ if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 ```
 **Applies in test files too** — an unguarded cast on an RPC/`.select()` result throws an opaque `TypeError` instead of a clean assertion failure. Guard first: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof`.
 ### Fan-Out/Dispatch: Guard Array-Valued Fields with `Array.isArray`
-In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — never a bare truthy or length-only check. `if (x)` / `if (x && x.length > 0)` sends an empty array (`[]` is truthy but length 0) or a missing field down the wrong default path.
+In any fan-out/dispatch function that switches on a discriminated question-type tag and maps an optional array-valued field into a submission row, gate the field with `Array.isArray(x)` — never a bare truthy or length-only check. The two bare forms fail differently: `if (x && x.length > 0)` routes an EMPTY array to the default path (`[]` is truthy but length 0), and `if (x)` routes a MISSING field there while letting `[]` through — so neither alone keeps the empty array in the array branch.
 ```ts
 // ❌ WRONG — empty array is truthy; a length-only check drops the empty case down a wrong branch
 if (a.blankAnswers && a.blankAnswers.length > 0) row.blanks = a.blankAnswers.map(...)
