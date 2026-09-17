@@ -413,7 +413,7 @@ Missing: [what the agent needed but didn't have]
 Fix: [what to include next time]
 ```
 
-### Post-commit agent integration
+### Gate reviewer agent integration
 For the gate's reviewers, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
