@@ -103,10 +103,10 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 5. **Slice 2's original three** — hook tests wired into CI, companion tests for new
    `_hooks`/`_utils`/`lib` files, baseline cannot grow. All one shape; build the shared harness
    HERE, not earlier. Rule of three.
-6. **Slice 3 archaeology deletion** — the large size win, no new machinery, pure deletion.
+6. ~~**Slice 3 archaeology deletion**~~ — **DONE** (PR #1299, `86f642780`). Ran FIRST per the directive below; 42,010 → 26,562 words.
 7. **R0-ENUMERATION** — last. Noisiest detector; ships once the exclusion discipline is proven.
 
-**Item 6 is now item 1** (user directive, 2026-09-16). Deletion runs first.
+**Item 6 ran first** (user directive, 2026-09-16) and is DONE. Measured against PR #1295, the guard-building PR that prompted #1298: 14 commits vs 29, 7 review-driven fixups vs 21, 0 code defects vs ~8. Deletion is the only change shape whose review cost falls as the change grows.
 
 Before item 4: take the two pipeline-cost items in slice 2 (the fixup-cycle exemption, and the
 `MUTATION:` comment duplication). Both are small, neither needs new machinery, and the first
@@ -320,9 +320,10 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
   exact line-count match plus blocking on a stale row. Residual and ACCEPTED: a different file
   at the same path with a coincidentally identical line count inherits the old allowance.
 
-## Slice 3 — archaeology deletion (pure deletion, no checks to write)
+## Slice 3 — archaeology deletion (DONE, PR #1299 / `86f642780`)
 
-Largest size win in the programme; ~500-700 lines, one PR, no new machinery.
+Corpus 42,010 → 26,562 words (−37%). Re-derive:
+`git show HEAD:CLAUDE.md | wc -w` plus the same over `git ls-tree --name-only HEAD .claude/rules/`.
 
 ### The classification every line in the corpus is sorted by
 
@@ -349,14 +350,28 @@ Two clauses that make the table survive contact:
    clause that changes what a reader would DO ("local grants drift ADDITIVELY"); delete the
    promotion story around it. One clause, not a paragraph.
 
-- [ ] **Probe first: apply the table to `agent-workflow.md` alone and measure what falls out.**
-      It is the largest offender. Derive before and after with `wc -l`, and do not sweep the rest
-      until one file has proved the table cuts what it claims to cut.
+- [x] All 16 files swept in one PR. Measure per file with
+      `for f in CLAUDE.md .claude/rules/*.md; do echo "$f $(wc -w < "$f")"; done`.
 
-- [ ] `code-style.md` §8 — restates §1-§7 (~21 lines)
-- [ ] `agent-workflow.md § Orchestrator Role` — restates the sections above it (~46)
-- [ ] `agent-workflow.md` pipeline-order prose — facts already in `pipeline.json` (~167)
-- [ ] `.claude/agent-*.md` precedent narratives → `docs/decisions.md` + git history (~450)
+### What the sweep cost, and the one rule it produced
+
+Seven real losses, all one shape: **not a deleted RULE — a deleted WORD THAT BOUNDED a rule.**
+A scope clause, a second scope clause, a disjunct (`new **or changed**` → `changed`), a qualifier
+(`when subagents can do it`), an exemption that then overrode its own trigger, an actor
+(`if **the agent** flags them` → `if flagged`), and a diagram marker whose label survived while its
+position moved.
+
+- [ ] **Before deleting a date-stamped sentence, check whether it is a SCOPE sentence.** Two of the
+      seven were deleted because they carried a date and read as archaeology; both bounded a rule's
+      applicability. Grep candidates before cutting:
+      `grep -inE 'applies to|onward|pre-existing|existing|grandfathered|exempt|unless|only when' <file>`
+- [ ] **Re-read every CONDENSED multi-clause sentence against the original, clause by clause.** Four
+      of the seven survived a full agent cycle, 452 green tests, a 205-clause keyword check and a
+      pointer audit — all of which pass on a sentence that lost a qualifier. Only reading the diff
+      against the original found them. No grep substitutes for this.
+- [ ] **A comment-accuracy FIX is the highest-risk site for a new false claim** (`agent-critic.md`).
+      Three consecutive review rounds each narrowed a quantifier in one sentence this PR rewrote,
+      and each narrowing was correct. Budget for it; do not treat a fix as terminal.
 
 ## Slice 4+ — remaining codifiable rules
 
