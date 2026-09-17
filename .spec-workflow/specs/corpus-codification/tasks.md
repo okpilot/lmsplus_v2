@@ -130,11 +130,19 @@ the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN
 Items 4, 5 and 7 are also mechanical — they enforce lower-count problems. Order by count.
 
 **Drop CR-local to ROUND 1 only** — Decision 74. Rounds 2+ are code-reviewer + semantic-reviewer.
-SWEPT 2026-09-17, 36 sites across 18 files. Unplanned grepping found 22 in 14 files; a delegated
-impact analysis against the pre-change ref found 13 more, and the gate's own round 1 found the
-36th. The three it added beyond a grep are the classes Rule-Mirror Sync names as grep-invisible:
-the `.sh` executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator),
-a steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
+SWEPT 2026-09-17. Derive the set rather than quoting a figure — three reviewers categorised the
+edge files three ways and returned three counts:
+
+```bash
+for f in $(git diff origin/master...HEAD --name-only -- . ':(exclude).claude/agent-memory'); do
+  git diff origin/master...HEAD -- "$f" | grep -qE '^\+.*(CR-local|round 1 only|Decision 74)' && echo "$f"
+done
+```
+
+An unplanned grep reached 14 files. A delegated impact analysis against the pre-change ref found
+the rest, and the gate's own rounds found two more. The classes a grep cannot reach: the `.sh`
+executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator), a
+steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
 Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the

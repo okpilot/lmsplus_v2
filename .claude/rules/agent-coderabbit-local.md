@@ -78,7 +78,7 @@ authoritative regardless of round count.
 - Always pass `-c .coderabbit.yaml` (belt-and-suspenders; omit only if the file is absent).
 - Verify the factual premise of every finding against source before triaging (§ Verify Before Acting).
 - Pool CR-local's APPLY-verdict findings with every other reviewer's into the round's ONE fixup commit (`agent-workflow.md § PR Batching`) — never a CR-local-only commit, never per-finding commits.
-- Report a per-round CR-local triage table (file:line / severity / class / verdict / why) into the round's pooled triage.
+- Report round 1's CR-local triage table (file:line / severity / class / verdict / why) into that round's pooled triage.
 - Keep round 1's triage table until the branch's learner run — that run is the ONLY place a CR-local finding is counted toward rule promotion (`agent-learner.md`).
 - For DEFER, file a GitHub Issue with the CR comment context.
 - Treat `nitpick`/`trivial` findings with the same source-reading rigour as `potential_issue`/`major`.
