@@ -582,10 +582,10 @@ reviews:
           format(...), POSIX bracket-class regex literals, (c) 42702, (d) 23502 and (e) 42804.
           (code-style.md §5 "Validate at Execution, Not Apply".)
 
-    # Hook test suites (node:test, .mjs). NOTE the extension: every MUTATION comment in this
-    # repo lives in `.claude/hooks/*.test.mjs`, and NO other glob in this file matches `.mjs`,
-    # so mirroring the rule under the `.test.{ts,tsx}` block below would never fire on a single
-    # real instance. An inert mirror is worse than none — it reads as covered.
+    # Hook test suites (node:test, .mjs) — the only `.mjs` glob in this file, so mirroring the
+    # rule under the `.test.{ts,tsx}` block below would never fire. It does NOT reach every
+    # MUTATION comment; derive the remainder with
+    # `grep -rlo 'MUTATION:' .claude/hooks/ | grep -v 'test[.]mjs$'`.
     - path: "**/*.test.mjs"
       instructions: |
         MUTATION comment accuracy (code-style.md §7). A `// MUTATION: <break>` line asserts that
