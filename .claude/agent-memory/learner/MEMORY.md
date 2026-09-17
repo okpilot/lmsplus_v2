@@ -38,9 +38,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum. Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 55 | 2026-09-16 | RULE CANDIDATE (55). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 56 | 2026-09-17 | RULE CANDIDATE (56). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 13 | 2026-09-16 | RULE CANDIDATE (13) — text exists (§10 cl.2). Detail: topic file |
-| Rule-promotion sweep recorded closed/complete, later found incomplete | 4 | 2026-09-14 | RULE CANDIDATE (4). Topic file. |
+| Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 6 | 2026-09-14 | RULE CANDIDATE (6). Detail: cross-agent-lessons.md |
 | Verification/gate check accepts category-membership/substring, not exact identity | 4 | 2026-09-14 | RULE CANDIDATE (4). Topic file. |
 | Schema/spec validator has no closed key set — extra keys pass silently | 2 | 2026-09-07 | RULE CANDIDATE (2) → code-style.md §5. Draft in topic file |
@@ -65,7 +65,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Corrected claim partially retracted — old wording persists elsewhere | 15 | 2026-09-17 | RULE CANDIDATE (15). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
 | Subagent asserts a verification/write it did not perform | 17 | 2026-09-15 | PROMOTED → § Finding Validation. Topic file. |
-| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 29 | 2026-09-15 | RULE CANDIDATE (29). Detail: topic file |
+| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 31 | 2026-09-17 | RULE CANDIDATE (31). Detail: topic file |
 | Coherent-but-false claim survives active same-paragraph edits across 3 same-day commits | 1 | 2026-09-02 | PROMOTED → §10 cl.3+cl.5 (`18757ddf`). Detail: topic file |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING. Log and watch |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
@@ -89,7 +89,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 4 | 2026-09-14 | RULE CANDIDATE (4). Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
 | Commit message claims file 'already carries/has X' when X landed same commit | 4 | 2026-09-16 | RULE CANDIDATE (4) → §10, verify via `git show HEAD~1:<path>` |
-| Commit-message count computed pre-edit; own edits make it stale on arrival | 6 | 2026-09-16 | PROMOTED → §10 cl.7. Recurred three times post. Detail: topic file |
+| Commit-message count computed pre-edit; own edits make it stale on arrival | 7 | 2026-09-17 | PROMOTED → §10 cl.7. Recurred four times post. Detail: topic file |
 | Hook script's git-diff filter argument doesn't cover git's R(ename) status | 1 | 2026-09-10 | WATCHING — cousin of PROMOTED row 88. Detail: topic file |
 | Orchestrator's own SKIP-with-reason rests on a wrong stated premise, reversed by an external reviewer round | 1 | 2026-09-10 | WATCHING. Detail: topic file |
 | Regex→hand-parser rewrite of a blocking gate: fix commit's own corpus-diff claim is insufficient | 2 | 2026-09-13 | RULE CANDIDATE (2). Detail: topic file |
@@ -125,6 +125,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. Pure duplication. Fixed. |
 | CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 called them "literals". Pass 1 was correct. CR's fix was also wrong. |
 | `--diff-merges=<format>` implies `-p`; output misread as commit suppression | 1 | 2026-09-16 | WATCHING — f431ea74: prescribed without `--no-patch`; hits buried under patches, misread as suppression by impl-critic then orchestrator. Distinct from row 123. |
+| Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — `chore/record-mechanical-lever` round 1; spec with no tasks.md is not all-`[x]` (done); active vs draft boundary unspecified in mirror table. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -141,7 +142,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - `dep1277` (2026-09-16): CR-local ran 3 clean rounds, missed all 3 GH-Actions pin-comment instances — `.github/` is outside every corpus-scoped hook. Coverage gap, not a CR-local defect.
 - POSITIVE (`feat/prose-path-guard`): Terminal-message CONSTRAINTS fix held ~10 dispatches, no recurrence. One-round refinement cap correctly bounded a code-reviewer WARNING. Second chain position-3: commit message misattributed prior commit; fixed by amend.
 - POSITIVE (`chore/pre-push-review-gate`, 2026-09-17): New per-branch gate correctly caught a pre-existing false claim on origin/master (CLAUDE.md "unit tests run only in CI") that per-commit cycles had missed. CR-local grew 12→21→35 on a shrinking diff; 63/67 findings bounded out as refinements/duplicates. Ceiling-3 stop held.
-- POSITIVE (`chore/record-mechanical-lever`, 2026-09-17): CR-local re-raised a RULE 0 prose cut in round 2 that round 1 had already applied to the same block. Bounded-out rule handled it correctly — no extra work, no loop extension. Stateless-CR re-raise on an already-touched block is not a new pattern; it is the non-event the rule exists to absorb.
+- POSITIVE (`chore/record-mechanical-lever`, 2026-09-17): Adjacent-line orphan in the rule-DEFINING file found in rounds 1+2 (`:11` then `:81` in `agent-coderabbit-local.md`); both applied. Code-reviewer grepped repo (not diff) and caught stale site in draft spec — 36th sweep hit. Count re-litigated by 3 reviewers to 3 values; resolved by shipping derivation command (§10 cl.2). Bounded-out rule absorbed CR-local re-raise of an already-applied round-1 cut; no loop extension.
 - File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
