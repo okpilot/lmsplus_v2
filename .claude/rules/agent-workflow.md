@@ -291,6 +291,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.claude/hooks/*.sh` | **executable mirrors** — `cr-local-plan-reminder.sh` prints the round's reviewer list on every `coderabbit review` (PostToolUse). Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |
+
 **Grep is a FIRST PASS, not the sweep.** Grep every fixed path for old and new wording — a phrase-grep cannot find a PARAPHRASE, so read the affected section and its mirrors end-to-end when a change retires a CLAIM rather than a string. A restatement that merely POINTS at the rule needs no edit; one that RE-STATES the mechanics does.
 **The file that DEFINES the rule is a mirror of itself.** Editing one clause of a `.claude/rules/*.md` or `.claude/agents/*.md` file leaves its OTHER clauses restating the old claim — read that file end-to-end before committing. A phrase-grep finds the canonical string; only the full read catches a same-file paraphrase.
 **Write the mirror from the canonical TEXT, then diff it clause by clause** — never from memory. Re-read every mirror when the canonical changes.
