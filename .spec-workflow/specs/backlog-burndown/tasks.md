@@ -179,7 +179,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       honoured); `agent-workflow.md`'s footer described only the a0e01943 changes, omitting both
       `--limit 200` and the step-scoping; and the rule presented the ARTIFACT figure 8 as the
       filed count while its own command yields 9, with the divergence list omitting 9 entirely.
-- [ ] Pre-push review gate rounds on `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — CR-local is a member of each round; stop on the first round with no APPLY-worthy finding, ceiling 3
+- [ ] Pre-push review gate rounds on `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — CR-local is a member of round 1 only; stop on the first round with no APPLY-worthy finding, ceiling 3
 - [ ] learner on the branch, once, after the loop
 - [ ] coderabbit-sync (rules changed → mandatory trigger), once, after the learner
 - [ ] `/fullpush` gates

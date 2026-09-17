@@ -1,6 +1,6 @@
 # Agent Rules — coderabbit-local (external CLI)
 
-> External LLM reviewer (`coderabbit review --committed --base origin/master -c .coderabbit.yaml`) | Trigger: every round of the pre-push review gate | Non-blocking
+> External LLM reviewer (`coderabbit review --committed --base origin/master -c .coderabbit.yaml`) | Trigger: ROUND 1 of the pre-push review gate, once per branch | Non-blocking
 
 ## Purpose
 CodeRabbit local CLI runs the same review engine as the PR bot, against the branch diff before push. Catches: observability gaps on `.select('id')` chains, runtime guard omissions on RPC casts, cleanup ordering, helper hoisting, error-path consistency.
@@ -8,7 +8,7 @@ CodeRabbit local CLI runs the same review engine as the PR bot, against the bran
 Runtime: `/crlocal`. This file is binding.
 
 ## Trigger Conditions
-- **In the gate:** CR-local is one member of EVERY round of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`), on the same branch diff as the other reviewers. It has no loop of its own: its findings enter the round's ONE pooled triage table and are fixed in the round's ONE pooled fixup commit.
+- **In the gate:** CR-local is a member of ROUND 1 ONLY (Decision 74), on the same branch diff as the other reviewers. Rounds 2+ are code-reviewer + semantic-reviewer. It has no loop of its own: its findings enter the round's ONE pooled triage table and are fixed in the round's ONE pooled fixup commit.
 - **Mid-development (escape hatch, OUTSIDE the gate):** run `/crlocal` alone for early signal — a single commit added 200+ LOC, or you want a read before continuing. Nothing in the gate depends on it; the gate still runs every round in full.
 - **Skip if:** `which coderabbit` returns nothing — install via `https://docs.coderabbit.ai/cli/`. **Version-gate too:** `--committed`/default-plain flags need CLI **≥ 0.7.0** (0.6.x used `--type committed`/`--plain`); confirm `coderabbit --version` before running, or use the 0.6.x flag spelling.
 
@@ -68,7 +68,7 @@ The gate's round discipline is the only one that applies — stop on the first r
 APPLY-worthy finding, ceiling 3 rounds (`agent-critic.md § Loop Round Discipline`). CR-local's own
 findings are APPLY-worthy on the same terms as any other reviewer's: 0 findings, or stylistic-only
 `Aesthetic preference` / `Contradicts codebase pattern` with zero APPLY verdicts, leaves the round
-clean from CR-local's side. Every round runs with `-c .coderabbit.yaml`; cloud CR on the push stays
+clean from CR-local's side. Round 1 runs with `-c .coderabbit.yaml`; cloud CR on the push stays
 authoritative regardless of round count.
 
 ## Handling Results
@@ -79,8 +79,7 @@ authoritative regardless of round count.
 - Verify the factual premise of every finding against source before triaging (§ Verify Before Acting).
 - Pool CR-local's APPLY-verdict findings with every other reviewer's into the round's ONE fixup commit (`agent-workflow.md § PR Batching`) — never a CR-local-only commit, never per-finding commits.
 - Report a per-round CR-local triage table (file:line / severity / class / verdict / why) into the round's pooled triage.
-- Keep every round's triage table until the branch's learner run — that run is the ONLY place a CR-local finding is counted toward rule promotion (`agent-learner.md`).
-- Run CR-local again in the next round, on the diff the fixup commit produced.
+- Keep round 1's triage table until the branch's learner run — that run is the ONLY place a CR-local finding is counted toward rule promotion (`agent-learner.md`).
 - For DEFER, file a GitHub Issue with the CR comment context.
 - Treat `nitpick`/`trivial` findings with the same source-reading rigour as `potential_issue`/`major`.
 - When SKIPPING, give a concrete reason.
@@ -89,7 +88,7 @@ authoritative regardless of round count.
 - Trust CodeRabbit's severity label as a triage shortcut — read the code.
 - Apply every finding to make CodeRabbit silent — refactor-induced bugs creep in.
 - Skip a finding as "just a nit" — `nitpick`/`trivial` findings have been genuine rule violations.
-- Run a CR-local round outside the gate's 3-round ceiling — escalate to the user instead.
+- Run CR-local in any round but round 1 — escalate to the user instead.
 - Bypass the skip-with-reason requirement — every skip needs a one-line rationale.
 - Run CR local as a pre-push git hook (too slow, needs orchestrator judgment, invites `--no-verify`) — it runs inside the gate.
 - Defer something < 10 lines and clearly in scope — DEFER needs all three: ≥30 LOC, separate concern, design decision (`agent-workflow.md § Apply-vs-Defer Discipline`).

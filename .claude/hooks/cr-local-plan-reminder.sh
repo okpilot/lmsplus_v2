@@ -58,9 +58,10 @@ flow before reading the next user message:
      all on the same branch diff. They are ASYNC — wait on every agent you
      LAUNCHED. Every finding from every member pools into ONE triage table
      and ONE fixup commit.
-  6. RE-RUN after the fixup commit lands — round 2+ is code-reviewer,
-     semantic-reviewer and this review only (doc-updater/test-writer just
-     where the fixup added surface they have not seen). STOP on the first
+  6. RE-RUN after the fixup commit lands — round 2+ is code-reviewer and
+     semantic-reviewer, NOT this review (CR-local is round 1 only;
+     doc-updater/test-writer just where the fixup added surface they have
+     not seen). STOP on the first
      round carrying no APPLY-worthy finding. CEILING 3 — at it, escalate.
 
 Do NOT skip step 3 (plan) or step 5 (the rest of the round).

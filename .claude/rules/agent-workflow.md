@@ -117,7 +117,7 @@ Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
          + test-writer + CR-local — ONE parallel batch, all on the branch diff
-ROUND 2+ code-reviewer + semantic-reviewer + CR-local
+ROUND 2+ code-reviewer + semantic-reviewer — CR-local is ROUND 1 ONLY
          (doc-updater and test-writer PRODUCE, they do not gate — re-run one only
           when the fixup added surface it has not seen)
     ▼
