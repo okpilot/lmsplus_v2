@@ -111,9 +111,32 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 **BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
 Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
-**Queued, unpushed:** `chore/coderabbit-mirror-cl8` — one `.coderabbit.yaml` bullet mirroring
-`code-style.md` §10 cl.8, which PR #1300 landed without. Too small to justify its own CI run; push
-it with whatever needs CI next.
+**The remaining lever is MECHANICAL, not prose.** The learner's tracker carries rules-file claim
+rows that keep recurring and keep declining promotion, because the rule text they need already
+exists. Derive the current set:
+
+```bash
+awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
+  .claude/agent-memory/learner/MEMORY.md
+```
+
+Five rows cleared 10 as of 2026-09-17, the largest at 55: *a fix commit correcting §10 violations
+introduces fresh §10 violations.* That row is the self-inflicted prose loop measured as one
+pattern, and no rule retires it — §10 cl.8 already warns that a correction is the likeliest place
+to write a new inaccuracy.
+
+The learner's verdict on the branch that produced Decision 73: *the gap is execution, not missing
+rule text.* A pattern recurring dozens of times without promoting is waiting for an ENFORCER.
+`check-retracted-phrase.mjs` matches strings, so it cannot see a paraphrase — PR #1301 round 3
+found `CLAUDE.md` "unit tests run only in CI" after round 2 had corrected the same claim, in
+different words, in `automerge.md`. That is the paraphrase-blindness `agent-workflow.md §
+Rule-Mirror Sync` records as OPEN, now with counts behind it.
+
+This outranks the remaining guard items: each of those adds a rule, and these rows say added rules
+are not what is failing.
+
+**Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
+removed stage leaves behind. Exits 0 if skipped.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 
