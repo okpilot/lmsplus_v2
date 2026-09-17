@@ -585,7 +585,9 @@ reviews:
     # Hook test suites (node:test, .mjs) — the only `.mjs` glob in this file, so mirroring the
     # rule under the `.test.{ts,tsx}` block below would never fire. It does NOT reach every
     # MUTATION comment; derive the remainder with
-    # `grep -rlo 'MUTATION:' .claude/hooks/ | grep -v 'test[.]mjs$'`.
+    # `grep -rlo 'MUTATION:' .claude/hooks/ | grep -vE '\.test\.mjs$|\.mutations\.json$'`.
+    # Anchor the dot: `test[.]mjs$` also swallows `latest.mjs`. Excluding the data files too,
+    # since they carry the token as JSON values rather than as comments.
     - path: "**/*.test.mjs"
       instructions: |
         MUTATION comment accuracy (code-style.md §7). A `// MUTATION: <break>` line asserts that

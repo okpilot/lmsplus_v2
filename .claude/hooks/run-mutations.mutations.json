@@ -106,8 +106,11 @@
       "id": "narrow-mutation-grep",
       "find": "/MUTATION:/g",
       "replace": "/\\/\\/ MUTATION:/g",
-      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
-      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED."
+      "expectRed": [
+        "counts a MUTATION: claim that does not begin its line",
+        "subtracts declared-not-encodable entries from the coverage gap"
+      ],
+      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. The coverage-gap test entered this set when it was added: it asserts a printed gap, so any miscount of claims reddens it."
     },
     {
       "id": "linecount-not-matchcount",
@@ -115,7 +118,8 @@
       "replace": "  return String(text).split('\\n').length",
       "expectRed": [
         "counts a MUTATION: claim that does not begin its line",
-        "counts zero on text that makes no claim"
+        "counts zero on text that makes no claim",
+        "subtracts declared-not-encodable entries from the coverage gap"
       ]
     },
     {
@@ -213,8 +217,12 @@
       "id": "option-no-consume",
       "find": "      opts[a.slice(2)] = value\n      i++",
       "replace": "      opts[a.slice(2)] = value",
-      "expectRed": ["reads the value of an option flag", "reads the value of the --scratch option"],
-      "note": "expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it."
+      "expectRed": [
+        "reads the value of an option flag",
+        "reads the value of the --scratch option",
+        "subtracts declared-not-encodable entries from the coverage gap"
+      ],
+      "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
     },
     {
       "id": "option-no-value-ok",

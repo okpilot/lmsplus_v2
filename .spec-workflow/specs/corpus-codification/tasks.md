@@ -199,16 +199,16 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
 
 - [ ] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
-      executed, so a prose copy is free to go false — the defect class `code-style.md` §7 keeps
-      promoting rules about. PR #1295 found one in each of two sibling guards; the file-size-guard
-      slice found a third naming a mechanism an earlier gate reaches first.
-      **Deleting the comments is NOT available as the remedy.** Most name claims encoded NOWHERE
-      (`check-file-size-guard` was 66 claims / 19 encoded at slice start), so the comment is the
-      only record; and `--list` prints ids plus `notEncoded` claim text — no `find`, `replace`,
-      `expectRed` or `note` — so it cannot answer "what breaks this test".
-      Per suite, drive the `--coverage` gap to zero: encode the real claims, add a `notEncoded`
-      row with a `why` for anything the single-`target` schema cannot express, and only then
-      delete a comment that genuinely duplicates an encoded entry.
+      executed, so a prose copy is free to go false — the defect class `code-style.md` §7 governs.
+      **Deleting the comments is NOT the remedy:** a claim encoded nowhere has the comment as its
+      only record, and `--list` prints ids plus `notEncoded` claim text, never
+      `find`/`replace`/`expectRed`/`note` — so it cannot answer "what breaks this test".
+      Per mutation DATA FILE (`--coverage` reports and aggregates per data file, not per suite),
+      drive the gap to zero: encode the real claims; for anything the single-`target` schema
+      cannot express, add a `notEncoded` row carrying BOTH a non-empty `claim` and a non-empty
+      `why` (`validateDataFile` requires both); only then delete a comment that genuinely
+      duplicates an encoded entry.
+      Derive the gap, never state it: `node .claude/hooks/run-mutations.mjs --coverage`.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
