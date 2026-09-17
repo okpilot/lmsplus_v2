@@ -31,7 +31,7 @@
 ## Pipeline
 - [x] impl-critic (APPROVED) → 3 commits → post-commit agents + red-team + coderabbit-sync → learner → PR-level semantic sweep (CLEAN)
 - [x] /fullpush gates: lint, types, 4472 tests, build, clean migration reset, red-team EO 5/5
-- [ ] Pre-push review gate loop on the branch diff (CR-local is a member of each round) → /fullpush → push → open PR (DO NOT MERGE)
+- [ ] Pre-push review gate loop on the branch diff (CR-local is a member of each round) → learner → red-team if triggered → coderabbit-sync if triggered → /fullpush → push → open PR (DO NOT MERGE)
 
 ## Deferred (GitHub issues)
 - #1003 (P2/M) — MC-aware pre-start count display on mixed-type subjects (dormant; selection already MC)

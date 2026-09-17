@@ -109,7 +109,7 @@ BLOCKING issues found. Fix before merging to main.
 If no issues found:
 ```
 CODE REVIEW — [branch] round [N] — [timestamp]
-All checks passed. Good commit.
+All checks passed.
 ```
 
 ## DO NOT (explicit suppressions)

@@ -185,9 +185,9 @@ Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
 9. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
-**Triage discipline.** Act on CRITICAL/ISSUE findings naming a runtime defect or a FALSE prose
-claim. A finding about prose THIS loop's own fixup just wrote is logged, not fixed — unless it is a
-false claim, which is never bounded out. Every finding needs a terminal disposition per `wrapup.md`.
+**Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
+ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not
+chased — and a FALSE claim is never a refinement, whatever round it lands on. Every finding needs a terminal disposition per `wrapup.md`.
 
 plan-critic is separate and unchanged: it runs ONCE per plan, before user approval, and is the one
 gate no diff-based review can replace.

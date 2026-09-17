@@ -88,7 +88,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
-This prevents false positives where the branch adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
+Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
 ## Verify by Executing
 
@@ -167,7 +167,7 @@ Implementation matches the validated plan. No deviations found.
 
 1. **Do NOT modify code directly** — you review and report. The implementing agent or orchestrator makes changes.
 2. **Do NOT check style** — that is the code-reviewer's job. Do not flag formatting, naming conventions, or file size limits.
-3. **Do NOT review files outside the branch diff** — your scope is `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` only.
+3. **Do NOT RAISE findings on files outside the branch diff** — your finding scope is `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`. READING any file to verify a premise is required, not forbidden only.
 4. **Do NOT run the TEST SUITE** — that is the test-writer's job, and it is slow. This does NOT
    forbid execution: targeted verification of a runtime claim (`git show`, `grep`, `node -e`,
    running one function) is expected of you — see § Verify by Executing. Run what answers the

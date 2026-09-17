@@ -100,7 +100,7 @@ lmsplusv2/
   measured bounds live in those decisions; do not restate them here, and do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
-- **Code review**: CodeRabbit (automated on PRs) + in-session Claude Code subagents run ONCE per branch in the pre-push review gate over `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — a commit triggers no review. Round 1 is implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer and CR-local in one parallel batch; round 2+ is code-reviewer, semantic-reviewer and CR-local. Mechanics: `.claude/rules/agent-workflow.md § Pre-Push Review Gate` (Decision 73).
+- **Code review**: CodeRabbit (automated on PRs) + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`; within it, round 1 runs all six reviewers and later rounds the three that gate (`agent-workflow.md § Pre-Push Review Gate`).
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
   - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard grades
     the INDEX for the paths it is passed, and the guard's ratchet is exact-match): the stage's command list is DATA in
@@ -182,7 +182,7 @@ lmsplusv2/
 
 4. **Pre-created users only, no self-registration** (Decision 16): ATOs manage their own students. Auth callback checks for `users` row; missing row -> sign out + "not registered" error.
 
-5. **Review agents as in-session subagents, not Lefthook hooks** (Decision 20; cadence set by Decision 73): External hooks wrote to memory files nobody read. Subagents flow output into the conversation for immediate action. They run once per branch in the pre-push review gate, not per commit.
+5. **Review agents as in-session subagents, not Lefthook hooks** (Decision 20; cadence set by Decision 73): findings flow into the conversation and are fixed in the round's pooled fixup commit.
 
 6. **Analytics RPCs in plpgsql, not sql** (Decision 24): Explicit `auth.uid()` guard at function start is auditable. Parameter validation (days clamped to [1,365], limit to [1,100]). `IS DISTINCT FROM` instead of `!=` for NULL safety.
 

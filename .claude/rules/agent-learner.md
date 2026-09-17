@@ -1,10 +1,10 @@
 # Agent Rules — learner
-> Model: sonnet | Trigger: ONCE per branch — after the pre-push gate's final clean round, before red-team and coderabbit-sync | Non-blocking
+> Model: sonnet | Trigger: ONCE per branch — after the pre-push gate ends, clean or at the ceiling, before red-team and coderabbit-sync | Non-blocking
 ## Purpose
 Identifies recurring patterns across agent findings. Proposes rule changes, Biome config updates, or memory updates only when a pattern repeats (2+ occurrences across different rounds or branches).
 ## Handling Results
 ### DO
-- Run the learner once per branch, after the gate's final round (`agent-workflow.md § Pre-Push Review Gate`) and after that round's fixes are committed. Its input is EVERY round's findings from EVERY reviewer, not just the last round's.
+- Run the learner once per branch, after the gate's last round (`agent-workflow.md § Pre-Push Review Gate`) and after its fixes are committed — including when the loop stopped at the ceiling with residual findings. Its input is EVERY round's findings from EVERY reviewer, not just the last round's.
 - **CR-local findings ARE learner input, and the branch-end learner run is the ONLY place a CR-local finding is ever counted toward rule promotion.** Hand that run every round's CR-local triage table alongside the other reviewers' results. Drop a round's table and a pattern it catches every round never reaches count>=2.
 - Red-team and coderabbit-sync findings are NOT learner input — they run AFTER the learner, so they reach the learner run of a LATER branch. A branch whose rounds were all clean still gets its learner run ("absence of findings is itself data").
 - Trust its pattern detection — frequencies live in `.claude/agent-memory/learner/MEMORY.md`. That trust covers JUDGMENT, not a report that it WROTE something — verify a claimed memory or archive edit against the artifact per `agent-workflow.md § Finding Validation`.

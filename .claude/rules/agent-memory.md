@@ -20,7 +20,7 @@ Tracker columns vary by agent — read by header name, not position, before edit
 ## Memory Discipline — update IN PLACE, never append
 Edit the existing row/bullet in place, e.g. `| Server Action file over its cap | 2026-03-01 | 4 | 2026-05-29 | PROMOTED → .claude/limits.json |` — do not stack a new dated paragraph each session (`## 2026-05-29 session` / `Saw the hook-file-size thing again today...`). Supporting evidence (commit hashes behind a count) belongs in `git log` and the topic file, not the row.
 ## Memory deltas are committed, never stashed
-A round's memory/tracker updates MUST be committed — with that round's ONE pooled fixup commit or a dedicated `chore(memory)` commit — BEFORE any branch switch. No reviewer reads a memory delta — the gate's diff scope EXCLUDES `.claude/agent-memory/**` (`agent-workflow.md § Pre-Push Review Gate`) — so read it yourself before committing it. Never `git stash` it: a stashed delta is invisible to later agent invocations.
+A round's memory/tracker updates MUST be committed — with that round's ONE pooled fixup commit or a dedicated `chore(memory)` commit — BEFORE any branch switch. No reviewer reads a memory delta: the gate's diff scope EXCLUDES `.claude/agent-memory/**`, so read it yourself before committing it. Never `git stash` it.
 ## Protected topic files (never auto-curated, never pruned)
 - **`red-team/topics/attack-surface.md`** — the vector→spec mapping matrix. red-team's `MEMORY.md` only points to it; native curation never touches it. Never rename it to `MEMORY.md`, never prune it.
 Any future protected matrix: named topic file, referenced from `MEMORY.md`, never inlined.

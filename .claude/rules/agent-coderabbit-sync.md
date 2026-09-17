@@ -1,5 +1,5 @@
 # Agent Rules — coderabbit-sync
-> Model: haiku | Trigger: once per branch, after the learner, when the branch diff changes a rules file | Non-blocking
+> Model: haiku | Trigger: once per branch, after the learner, when the branch diff matches § Trigger Conditions | Non-blocking
 
 ## Purpose
 Ensures `.coderabbit.yaml` stays aligned with local rules so CodeRabbit enforces the same standards. Only runs when source-of-truth files change.
