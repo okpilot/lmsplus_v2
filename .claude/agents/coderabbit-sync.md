@@ -22,7 +22,9 @@ ONCE per branch, after the learner — including the rule edits the learner's ap
 
 ## Process
 
-1. Read the changed rule file(s)
+1. Read the changed rule file(s). For a guard trigger, read the changed `.claude/hooks/*.mjs`
+   AND its `lefthook.yml` wiring — the trigger fires on a guard's behaviour or wiring change,
+   and neither is derivable from the rule files.
 2. Read current `.coderabbit.yaml`
 3. Compare: identify any rules in our files that aren't reflected in CodeRabbit config
 4. Report what's out of sync

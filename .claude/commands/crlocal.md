@@ -2,12 +2,6 @@ Run CodeRabbit's local CLI against the branch diff and triage findings. CR-local
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
-## Why this exists
-
-CodeRabbit local catches things our other agents miss — observability gaps, runtime guard omissions, cleanup ordering, unsafe casts. Running it before push is cheaper than doing the same triage on the PR after CI runs. It is the only reviewer in the loop reading with a genuinely outside lens, which is why it runs in the same round as the others rather than after them.
-
-But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find another nit on every round. The triage protocol below tells you when each finding deserves a fix; the round loop itself is owned by the gate.
-
 ## What to do
 
 1. **Run the review:**
@@ -109,10 +103,6 @@ Skipped: <count>
 Round <N> of max 3; this round apply-worthy: yes/no
 Stop condition met: yes/no — <reason: "no apply-worthy finding → stop" or "3-round ceiling → escalate">  (cloud CR on the PR is the authoritative gate)
 ```
-
-## Why this is not a hook
-
-A pre-push hook running `coderabbit review` would block pushes for 2-5 minutes per attempt and trigger on every push including amended fixups. The orchestrator runs CR local as one member of each pre-push review-gate round (and mid-development for early signal) — not on every git push.
 
 ## Common mistakes to avoid
 
