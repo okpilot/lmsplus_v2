@@ -12,7 +12,7 @@ Runtime: `/crlocal`. This file is binding.
 - **Mid-development (escape hatch, OUTSIDE the gate):** run `/crlocal` alone for early signal — a single commit added 200+ LOC, or you want a read before continuing. Nothing in the gate depends on it; the gate still runs every round in full.
 - **Skip if:** `which coderabbit` returns nothing — install via `https://docs.coderabbit.ai/cli/`. **Version-gate too:** `--committed`/default-plain flags need CLI **≥ 0.7.0** (0.6.x used `--type committed`/`--plain`); confirm `coderabbit --version` before running, or use the 0.6.x flag spelling.
 
-A round costs 2-5 min. Do NOT run it after every commit — a commit triggers nothing.
+Do NOT run it after every commit — a commit triggers nothing.
 
 ## Apply-vs-Defer
 

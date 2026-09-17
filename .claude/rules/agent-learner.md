@@ -5,7 +5,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 ## Handling Results
 ### DO
 - Run the learner once per branch, after the gate's final round (`agent-workflow.md § Pre-Push Review Gate`) and after that round's fixes are committed. Its input is EVERY round's findings from EVERY reviewer, not just the last round's.
-- **CR-local findings ARE learner input, and the branch-end learner run is the ONLY place a CR-local finding is ever counted toward rule promotion.** Hand that run every round's CR-local triage table alongside the other reviewers' results. CR-local is the only reviewer reading with a genuinely outside lens; drop a round's table and a pattern it catches every round never reaches count>=2.
+- **CR-local findings ARE learner input, and the branch-end learner run is the ONLY place a CR-local finding is ever counted toward rule promotion.** Hand that run every round's CR-local triage table alongside the other reviewers' results. Drop a round's table and a pattern it catches every round never reaches count>=2.
 - Red-team and coderabbit-sync findings are NOT learner input — they run AFTER the learner, so they reach the learner run of a LATER branch. A branch whose rounds were all clean still gets its learner run ("absence of findings is itself data").
 - Trust its pattern detection — frequencies live in `.claude/agent-memory/learner/MEMORY.md`. That trust covers JUDGMENT, not a report that it WROTE something — verify a claimed memory or archive edit against the artifact per `agent-workflow.md § Finding Validation`.
 - Apply rule changes the learner proposes if the pattern has 2+ occurrences AND the change is specific and actionable.

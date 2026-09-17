@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Bash. If the command invoked `coderabbit review`,
-# emit a reminder to plan + pool this review with the rest of the
-# pre-push gate's round. The hook runs after the bash command's output has
+# PostToolUse hook for Bash. Fires when the command invoked `coderabbit review`.
+# The hook runs after the bash command's output has
 # been returned to the orchestrator, so the reminder appears as the last
 # thing the orchestrator reads from this tool result.
 #
@@ -59,8 +58,10 @@ flow before reading the next user message:
      all on the same branch diff. They are ASYNC — wait on every agent you
      LAUNCHED. Every finding from every member pools into ONE triage table
      and ONE fixup commit.
-  6. RE-RUN after the fixup commit lands. STOP on the first round carrying
-     no APPLY-worthy finding. CEILING 3 rounds — at it, STOP and escalate.
+  6. RE-RUN after the fixup commit lands — round 2+ is code-reviewer,
+     semantic-reviewer and this review only (doc-updater/test-writer just
+     where the fixup added surface they have not seen). STOP on the first
+     round carrying no APPLY-worthy finding. CEILING 3 — at it, escalate.
 
 Do NOT skip step 3 (plan) or step 5 (the rest of the round).
 ════════════════════════════════════════════════════════════════════════════

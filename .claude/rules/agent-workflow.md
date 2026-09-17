@@ -137,7 +137,7 @@ then ONCE per branch, in this order:
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
-**A round after a FIX earns its cost; a re-run on UNCHANGED text does not.** Measured over identical repeated runs of one reviewer on one artifact, real defects reproduce in nearly every run while most spurious findings appear in only one — so chasing a clean round harvests noise. A round after a fix reviews a CHANGED artifact, and fixes carry defects of their own. Never re-run to chase clean; always re-run after a fix.
+**Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
 **The gate owns `.claude/review-gate.json`** (`.claude/hooks/review-gate.js`): write it when validated ISSUE/CRITICAL findings are open, delete it when the round's fixup commit lands. A stale gate file blocks every production edit and nothing else clears it.
 
 ### Implementation-Critic (a member of round 1)
@@ -149,7 +149,7 @@ After the learner, check whether the BRANCH DIFF includes any of these paths: `s
 If yes, run red-team (sonnet) — maps changes to specs, flags coverage gaps. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
 
 ## The branch diff is the review artifact
-Superseded the per-commit cycle: § Pre-Push Review Gate is the one review pass, and it runs on every branch regardless of commit count. What the full diff catches that no per-commit view could — test assertions against prod code from a different commit, doc matrices against a schema change several commits back, an error-handling pattern introduced across separate commits — is the whole reason the gate reads `origin/master...HEAD`.
+§ Pre-Push Review Gate is the one review pass, on every branch whatever its commit count. Cross-commit defects are only visible here: a test assertion against prod code from another commit, a doc matrix against an earlier schema change, an error-handling pattern split across commits.
 
 ## Always diff against `origin/master`, never the bare local `master`
 Local `master` only moves when something fast-forwards it — routinely stale, and a stale base silently DISTORTS the diff (the gate's scope, its red-team trigger and its security-path checks all inherit it).
@@ -286,10 +286,10 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; often EMPTY — enumerate at sweep time |
+| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `ls .claude/skills/` |
 | `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
-| `.claude/hooks/*.sh` | **executable mirrors** — some PRINT the agent list at commit time. Not `.md`, so doc-shaped greps miss them |
+| `.claude/hooks/*.sh` | **executable mirrors** — `cr-local-plan-reminder.sh` prints the round's reviewer list on every `coderabbit review` (PostToolUse). Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |
 **Grep is a FIRST PASS, not the sweep.** Grep every fixed path for old and new wording — a phrase-grep cannot find a PARAPHRASE, so read the affected section and its mirrors end-to-end when a change retires a CLAIM rather than a string. A restatement that merely POINTS at the rule needs no edit; one that RE-STATES the mechanics does.

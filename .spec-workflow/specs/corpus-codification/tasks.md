@@ -108,14 +108,8 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 
 **Item 6 ran first** (user directive, 2026-09-16) and is DONE. Measured against PR #1295, the guard-building PR that prompted #1298: 14 commits vs 29, 7 review-driven fixups vs 21, 0 code defects vs ~8. Deletion is the only change shape whose review cost falls as the change grows.
 
-**BEFORE any remaining item: issue #1298** (user directive, 2026-09-17). Its outcome decides how
-much review every later guard pays for, and possibly whether some are worth building — so it runs
-first rather than after the guards it would re-scope. Its own acceptance criteria say to re-measure
-AFTER the corpus cut, which has now landed (item 6), so the blocking dependency is cleared.
-
-Then item 4, and with it the two pipeline-cost items in slice 2 (the fixup-cycle exemption, and the
-`MUTATION:` comment duplication). Both are small, neither needs new machinery, and the first cuts
-the review cost of every item after it.
+**BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
+Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
 **Queued, unpushed:** `chore/coderabbit-mirror-cl8` — one `.coderabbit.yaml` bullet mirroring
 `code-style.md` §10 cl.8, which PR #1300 landed without. Too small to justify its own CI run; push
@@ -154,12 +148,8 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
 
-- [x] **Stop a fixup commit from forcing a second full cycle.** CLOSED by Decision 73, more
-      completely than this task proposed. It asked to widen the review-follow-up path to tolerate
-      required mirror edits; Decision 73 deletes the per-commit cycle, so a fixup commit triggers
-      nothing at all and the exemption it depended on no longer exists. The next ROUND of the
-      pre-push gate re-reads the fixup; the loop stops on the first round with no APPLY-worthy
-      finding.
+- [x] **Stop a fixup commit from forcing a second full cycle.** CLOSED by Decision 73: a fixup
+      commit triggers nothing; the next gate ROUND re-reads it.
 
 - [ ] **Cap the injected rules corpus, shrink-only.** `CLAUDE.md` plus `.claude/rules/**` loads
       into every session and is inherited by every agent dispatch, so its size is a per-invocation

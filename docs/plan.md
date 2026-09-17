@@ -820,7 +820,7 @@ Files to create (✅ = already created):
 - `.claudeignore`
 - `.claude/settings.json` (all hooks)
 - ✅ `.claude/settings.json` — mcpServers (Supabase, Context7, shadcn) + hook stubs
-- ✅ `.claude/agents/code-reviewer.md` — sonnet, post-commit, quality + structure
+- ✅ `.claude/agents/code-reviewer.md` — sonnet, pre-push review gate, quality + structure
 - ✅ `.claude/agents/security-auditor.md` — sonnet, pre-push, vulns + secrets
 - `.claude/agents/test-writer.md`
 - `.claude/agents/doc-updater.md`
@@ -1056,8 +1056,8 @@ git commit
        this diagram is a reading aid and goes stale every time a gate is added]
     (a commit triggers NO review — Decision 73)
 
-pre-push review gate — ONE loop per BRANCH over
-`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`
+pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
+`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory' || abort`
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a
@@ -1154,7 +1154,7 @@ Test summary: 247 unit tests (32 files) + 37 integration tests + 10 E2E tests. A
 - 9 Playwright attack vector specs: RPC question membership, cross-tenant isolation, unauthenticated server actions, audit event forgery, quiz draft injection, session replay, session race conditions, PKCE state forgery, rate limiting
 - Seed helpers for adversarial users + cross-org test fixtures
 - Separate Playwright project (redteam) with dedicated CI workflow (redteam.yml)
-- Red-team agent (sonnet) integrated into post-commit pipeline — auto-triggers on security-sensitive file changes
+- Red-team agent (sonnet) runs after the pre-push review gate (Decision 73) — auto-triggers on security-sensitive file changes
 - Attack surface memory system for tracking exploitation patterns
 - `/redteam` skill command for on-demand test execution
 
