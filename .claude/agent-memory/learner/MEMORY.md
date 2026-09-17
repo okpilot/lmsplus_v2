@@ -62,7 +62,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence |
 | Doc-updater reports 1 stale claim; whole-block read finds more | 4 | 2026-09-16 | PROMOTED → `agent-doc-updater.md` § DO. Recurred f431ea74: missed 3 Decision-69 refs. Detail: topic file |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
-| Corrected claim partially retracted — old wording persists elsewhere | 13 | 2026-09-16 | RULE CANDIDATE (13). Detail: cross-agent-lessons.md |
+| Corrected claim partially retracted — old wording persists elsewhere | 15 | 2026-09-17 | RULE CANDIDATE (15). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
 | Subagent asserts a verification/write it did not perform | 17 | 2026-09-15 | PROMOTED → § Finding Validation. Topic file. |
 | Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 29 | 2026-09-15 | RULE CANDIDATE (29). Detail: topic file |
@@ -139,7 +139,9 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - CR-local uniquely catches CI-environment defects internal agents can't see. Topic file.
 - "0 net-new rows" never holds — every slice produces new row-42/69 instances. Topic file.
 - `dep1277` (2026-09-16): CR-local ran 3 clean rounds, missed all 3 GH-Actions pin-comment instances — `.github/` is outside every corpus-scoped hook. Coverage gap, not a CR-local defect.
-- POSITIVE (`feat/prose-path-guard`): First 3-commit chain (ending `a4ecd165`) converged zero findings. Terminal-message CONSTRAINTS fix held ~10 dispatches, no recurrence. `a4ecd165`: one-round refinement cap correctly applied — code-reviewer WARNING bounded as refinement, not chased. ORCHESTRATOR duty. Second chain (commits 11-13): position-3 cycle (`4c335a60`) had 1 ISSUE — commit message misattributed which commit created first agent-memory marker hit; fixed by message-only amend. Chain at cap; branch escalates.
+- POSITIVE (`feat/prose-path-guard`): Terminal-message CONSTRAINTS fix held ~10 dispatches, no recurrence. One-round refinement cap correctly bounded a code-reviewer WARNING. Second chain position-3: commit message misattributed prior commit; fixed by amend.
+- POSITIVE (`chore/pre-push-review-gate`, 2026-09-17): New per-branch gate correctly caught a pre-existing false claim on origin/master (CLAUDE.md "unit tests run only in CI") that per-commit cycles had missed. CR-local grew 12→21→35 on a shrinking diff; 63/67 findings bounded out as refinements/duplicates. Ceiling-3 stop held.
+- File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers
