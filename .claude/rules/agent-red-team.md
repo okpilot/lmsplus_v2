@@ -1,5 +1,5 @@
 # Agent Rules — red-team
-> Model: sonnet | Trigger: once per branch, after the learner, when the branch diff touches auth/RLS/RPCs | Non-blocking
+> Model: sonnet | Trigger: once per branch, after the learner, when the branch diff matches § Trigger Conditions | Non-blocking
 
 ## Purpose
 Maps code changes to red-team Playwright specs. Identifies attack vectors lacking test coverage. Does NOT run specs — it reviews and recommends.

@@ -195,7 +195,7 @@ gate no diff-based review can replace.
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
-- **pre-commit:** mechanical guards only; unit tests run only in CI.
+- **pre-commit:** mechanical guards only; the unit suite runs at `/fullpush` step 4, the integration tier only in CI.
 - **commit-msg:** conventional commit format; a cited SHA must resolve (proves only EXISTENCE — `code-style.md` §10 cl.6); a claim corrected in one file must not still stand in another (§10 cl.3) — escape hatch: `Retracted-ok: <token> — <reason>` trailer.
 - **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or missing `run-security-auditor.sh` BLOCKS the push, no fallback approval.
 

@@ -286,7 +286,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `ls .claude/skills/` |
+| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
 | `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
 | `.claude/hooks/*.sh` | **executable mirrors** — `cr-local-plan-reminder.sh` prints the round's reviewer list on every `coderabbit review` (PostToolUse). Not `.md`, so doc-shaped greps miss them |
