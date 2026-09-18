@@ -533,6 +533,12 @@
       ]
     },
     {
+      "id": "coverage-dangling-exits-zero",
+      "find": "  return dangling === 0 ? 0 : 1",
+      "replace": "  return 0",
+      "expectRed": ["SEED"]
+    },
+    {
       "id": "crlf-left-on-the-line",
       "find": "\n    .split('\\n')\n    .map((l) => l.replace(/\\r$/, ''))",
       "replace": ".split('\\n')",

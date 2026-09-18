@@ -249,6 +249,13 @@ export function parseSuite(text) {
     return k === -1 ? header : tests[k]
   }
 
+  const markerLines = scanMarkers(lines, ownerFor)
+  scanClaims(lines, markerLines, ownerFor)
+  return { header, tests }
+}
+
+/** Attach every `GROUP:` marker to its owner. Returns the line numbers the markers occupy. */
+function scanMarkers(lines, ownerFor) {
   const markerLines = new Set()
   for (let i = 0; i < lines.length; i++) {
     const m = GROUP_MARKER_RE.exec(lines[i])
@@ -257,7 +264,11 @@ export function parseSuite(text) {
     for (let k = i; k <= last; k++) markerLines.add(k)
     ownerFor(last, i).groups.push(...ids)
   }
+  return markerLines
+}
 
+/** Count every `MUTATION:` claim onto its owner. A marker line is never also a claim line. */
+function scanClaims(lines, markerLines, ownerFor) {
   for (let i = 0; i < lines.length; i++) {
     if (markerLines.has(i)) continue
     if (!/^\s*\/\//.test(lines[i])) continue
@@ -265,8 +276,6 @@ export function parseSuite(text) {
     if (n === 0) continue
     ownerFor(i, i).claims += n
   }
-
-  return { header, tests }
 }
 
 /**

@@ -328,6 +328,44 @@ function buildCoverageFixtureDir() {
   return dir
 }
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --coverage mode: a dangling GROUP id is the failure, not a note
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+function buildDanglingFixtureDir() {
+  const dir = buildCoverageFixtureDir()
+  writeFileSync(
+    join(dir, '.claude', 'hooks', 'cov-suite.test.mjs'),
+    '// GROUP: no-such-mutation\n' + "test('the fixture behaviour', () => {})\n",
+  )
+  return dir
+}
+
+const danglingFixtureDir = buildDanglingFixtureDir()
+const danglingRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
+  cwd: danglingFixtureDir,
+  encoding: 'utf8',
+  env: envWithoutTestContext,
+})
+
+process.once('exit', () => {
+  try {
+    rmSync(danglingFixtureDir, { recursive: true, force: true })
+  } catch {
+    /* best effort */
+  }
+})
+
+// MUTATION: return 0 unconditionally from modeCoverage instead of `dangling === 0 ? 0 : 1`
+// → a dangling id is still PRINTED, so every output assertion in this file stays green while the
+// gate stops failing. Reporting a problem and exiting 0 is indistinguishable from no problem to
+// every caller that reads the exit code, which is what CI and lefthook read.
+// GROUP: coverage-dangling-exits-zero
+test('a dangling GROUP id makes coverage mode exit non-zero, not merely print', () => {
+  assert.ok(danglingRun.stdout.includes('DANGLING'), `stdout:\n${danglingRun.stdout}`)
+  assert.equal(danglingRun.status, 1)
+})
+
 const coverageFixtureDir = buildCoverageFixtureDir()
 const coverageRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
   cwd: coverageFixtureDir,

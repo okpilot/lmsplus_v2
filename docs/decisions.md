@@ -2240,8 +2240,8 @@ written for the internal loop only. Applying it to cloud rounds needs its own de
 ## Decision 75: `GROUP:` is the checked link between a claim and its mutations (2026-09-18)
 
 **Decision.** A `// MUTATION:` comment links to the mutations that grade it with `// GROUP: <id>,
-<id>`, above the test or inside its body above the assertion. An id naming no mutation exits
-`--coverage` non-zero and aborts the grading run before anything is graded. `--coverage` reports
+<id>`, above the test or inside its body above the assertion. An id naming no mutation makes
+`--coverage` report it and exit non-zero; the grading run throws on it before anything is graded. `--coverage` reports
 claim sites, how many a marker links, claims reaching no test, encoded mutations, how many a marker
 names, and declared-not-encodable — no gap.
 
