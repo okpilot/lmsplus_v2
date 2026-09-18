@@ -15,7 +15,8 @@
       "replace": "",
       "expectRed": [
         "a timed-out run names the budget it exceeded, not a spawn failure",
-        "a timed-out run with no stated budget still reports a timeout"
+        "a timed-out run with no stated budget still reports a timeout",
+        "a real child that outruns its timeout is reported as no verdict"
       ],
       "note": "spawnSync sets BOTH `error` and `signal` on a timeout, so the generic branch reports 'could not spawn' for a child that spawned fine and then ran long. Encoded as a deletion rather than a reordering: removing the block is what makes the generic branch fire first, and it is the only anchor the find/replace schema can address."
     },
@@ -31,7 +32,7 @@
     },
     {
       "id": "drop-null-status-backstop",
-      "find": "  if (r.status == null) throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)\n",
+      "find": "  if (r.status == null)\n    throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)\n",
       "replace": "",
       "expectRed": ["a run with neither a status nor a signal is not treated as gradable"],
       "note": "A result carrying no status, no signal and no error would pass as gradable and the caller would compare an exit code against null."
