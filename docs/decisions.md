@@ -2240,24 +2240,19 @@ written for the internal loop only. Applying it to cloud rounds needs its own de
 ## Decision 75: `GROUP:` is the checked link between a claim and its mutations (2026-09-18)
 
 **Decision.** A `// MUTATION:` comment links to the mutations that grade it with `// GROUP: <id>,
-<id>`, above the test or inside its body above the assertion. `run-mutations.mjs` parses the
-markers: an id naming no mutation exits `--coverage` non-zero and aborts `--run` before anything is
-graded. `--coverage` stops printing a gap.
+<id>`, above the test or inside its body above the assertion. An id naming no mutation exits
+`--coverage` non-zero and aborts the grading run before anything is graded. `--coverage` reports
+claim sites, how many a marker links, claims reaching no test, encoded mutations, how many a marker
+names, and declared-not-encodable — no gap.
 
-**Why the gap went.** It computed `claims − encoded − notEncoded` — comment TOKENS minus data ROWS.
-The units do not match in either direction: one comment names several ids, and one id is named by
-several comments (`new-findings-never-block` by 10). The figure was arithmetic on
-non-commensurable quantities, so no value of it meant anything. The four counts it subtracted are
-now printed separately, plus how many claim sites a marker links.
+**Why no gap.** The retired figure was `claims − encoded − notEncoded`: comment TOKENS minus data
+ROWS. One comment names several ids and one id is named by several comments, so no value of it
+meant anything.
 
-**Consequence.** `notEncoded` was doing two jobs — declaring "this token is not a claim" and
-offsetting the counter. The second job is gone: six rows across `check-prose-claims` and
-`check-prose-paths` existed only to zero the subtraction and are deleted, the two naming specific
-tests now linked by markers instead.
+**Consequence.** `notEncoded` keeps only its declaring job. Rows that existed to offset the
+subtraction are deleted; the two naming specific tests are linked by markers instead.
 
-**Not a reversal of Decision 67.** 67 forbids padding the gap to zero to launder the number.
-Decision 68 already carved out "prose about a claim, not a claim". This retires a broken
-measurement; it does not lower a real one.
+**Not a reversal of Decision 67.** 67 forbids padding the gap to zero to launder the number. This
+retires a broken measurement rather than lowering a real one.
 
-**As of this decision** 48 markers across 4 of 15 suites, every id resolving — re-derive with
-`node .claude/hooks/run-mutations.mjs --coverage`, which is the enforcer.
+Re-derive with `node .claude/hooks/run-mutations.mjs --coverage`, which is the enforcer.

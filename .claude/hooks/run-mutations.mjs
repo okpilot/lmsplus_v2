@@ -175,11 +175,40 @@ export function countMutationClaims(text) {
 }
 
 /** A test point opens on a line beginning `test(` or `it(`. */
-const TEST_LINE_RE = /^\s*(?:test|it)\s*\(/
+const TEST_LINE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(/
 /** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */
 const GROUP_MARKER_RE = /^\s*\/\/ GROUP: (.*)$/
 /** Any comment line. A marker's id list continues onto one of these while it ends with a comma. */
 const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
+/** A marker continues onto a comment line only while that line is itself an id list. */
+const ID_LIST_RE = /^[\w-]+(?:\s*,\s*[\w-]+)*,?$/
+
+/** Index into `testLines` of the nearest test line strictly above `i`, or -1 for none. */
+function ownerAbove(testLines, i) {
+  let k = -1
+  for (let t = 0; t < testLines.length; t++) {
+    if (testLines[t] < i) k = t
+    else break
+  }
+  return k
+}
+
+/** One marker plus the continuation lines it owns: `{ ids, last }`, `last` its final line. */
+function readMarker(lines, i, m) {
+  let raw = m[1].trim()
+  let last = i
+  while (raw.endsWith(',') && last + 1 < lines.length) {
+    const cont = COMMENT_LINE_RE.exec(lines[last + 1])
+    if (!cont || !ID_LIST_RE.test(cont[1].trim())) break
+    last++
+    raw = `${raw} ${cont[1].trim()}`.trim()
+  }
+  const ids = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+  return { ids, last }
+}
 
 /**
  * Read one suite's claim sites and `GROUP:` markers.
@@ -195,23 +224,17 @@ const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
  * a break, and counting those would inflate the very number this measures.
  */
 export function parseSuite(text) {
-  const lines = String(text).split('\n')
+  // A CRLF `\r` survives the split and no `$`-anchored pattern here can match past it, so a
+  // Windows-ending suite would parse as having no markers at all — silently, and fail-open.
+  const lines = String(text)
+    .split('\n')
+    .map((l) => l.replace(/\r$/, ''))
   const testLines = []
   lines.forEach((l, i) => {
     if (TEST_LINE_RE.test(l)) testLines.push(i)
   })
   const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0 }))
   const header = { claims: 0, groups: [] }
-
-  /** Index into `tests` of the nearest test line strictly above `i`, or -1 for none. */
-  const ownerAbove = (i) => {
-    let k = -1
-    for (let t = 0; t < testLines.length; t++) {
-      if (testLines[t] < i) k = t
-      else break
-    }
-    return k
-  }
 
   /**
    * The test a comment belongs to. `from` is its last line, `anchor` its first.
@@ -222,7 +245,7 @@ export function parseSuite(text) {
     let j = from + 1
     while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++
     if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]
-    const k = ownerAbove(anchor)
+    const k = ownerAbove(testLines, anchor)
     return k === -1 ? header : tests[k]
   }
 
@@ -230,21 +253,8 @@ export function parseSuite(text) {
   for (let i = 0; i < lines.length; i++) {
     const m = GROUP_MARKER_RE.exec(lines[i])
     if (!m) continue
-    markerLines.add(i)
-    let raw = m[1].trim()
-    let last = i
-    while (raw.endsWith(',') && last + 1 < lines.length) {
-      const cont = COMMENT_LINE_RE.exec(lines[last + 1])
-      if (!cont) break
-      last++
-      markerLines.add(last)
-      raw += ` ${cont[1].trim()}`
-      raw = raw.trim()
-    }
-    const ids = raw
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
+    const { ids, last } = readMarker(lines, i, m)
+    for (let k = i; k <= last; k++) markerLines.add(k)
     ownerFor(last, i).groups.push(...ids)
   }
 
@@ -614,13 +624,14 @@ function modeList(root, guard) {
  * and the ids its markers name. `problems` carries every dangling marker id.
  */
 function surveySuites(root, data, ids) {
-  const survey = { sites: 0, linked: 0, named: new Set(), problems: [] }
+  const survey = { sites: 0, linked: 0, fileLevel: 0, named: new Set(), problems: [] }
   for (const suite of data.suites) {
     const p = isAbsolute(suite) ? suite : join(root, suite)
     const parsed = parseSuite(readFileSync(p, 'utf8'))
-    // A claim site is a claim attached to a TEST. `header.claims` is counted separately and not
-    // reported: a `MUTATION:` token above the first test pins nothing, and in the suites present
-    // it is prose about the harness rather than a claim about a break.
+    // A claim site is a claim attached to a TEST. A claim reaching no test is reported on its own
+    // line rather than dropped: it may be convention prose, or a real claim separated from its
+    // test by code, and discarding it would hide the second case inside the first.
+    survey.fileLevel += parsed.header.claims
     for (const owner of parsed.tests) {
       survey.sites += owner.claims
       if (owner.groups.length > 0) survey.linked += owner.claims
@@ -646,6 +657,7 @@ function modeCoverage(root, guard) {
     console.log(`  claim sites (comment claims) : ${survey.sites}`)
     console.log(`  ...linked by a GROUP marker  : ${survey.linked}`)
     console.log(`  ...not linked                : ${survey.sites - survey.linked}`)
+    console.log(`  claims reaching no test      : ${survey.fileLevel}`)
     console.log(`  encoded mutations            : ${data.mutations.length}`)
     console.log(`  ...named by a marker         : ${named}`)
     console.log(`  declared not-encodable       : ${(data.notEncoded ?? []).length}`)

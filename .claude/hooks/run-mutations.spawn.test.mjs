@@ -345,6 +345,7 @@ process.once('exit', () => {
 // MUTATION: in parseSuite, attribute every claim to `header` instead of the nearest preceding
 // test → the suite's two claims stop being claim sites and the report shows 0, so a suite full of
 // claims reads as carrying none.
+// GROUP: ownerfor-always-header
 test('reports the claim sites a suite carries and the entries excused from encoding', () => {
   assert.ok(
     coverageRun.stdout.includes('claim sites (comment claims) : 2'),

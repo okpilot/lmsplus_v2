@@ -486,6 +486,39 @@
       "find": "      if (!ids.has(id)) problems.push(",
       "replace": "      if (false) problems.push(",
       "expectRed": ["an id naming no mutation in the data file is reported as a problem"]
+    },
+    {
+      "id": "testline-no-modifier",
+      "find": "const TEST_LINE_RE = /^\\s*(?:test|it)(?:\\.\\w+)?\\s*\\(/",
+      "replace": "const TEST_LINE_RE = /^\\s*(?:test|it)\\s*\\(/",
+      "expectRed": ["SEED"]
+    },
+    {
+      "id": "ownerfor-scan-skips-code",
+      "find": "    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++",
+      "replace": "    while (j < lines.length && !TEST_LINE_RE.test(lines[j])) j++",
+      "expectRed": [
+        "a marker written inside a body names the test it sits in, not the next one",
+        "a claim separated from every test by code belongs to the file, not to a test"
+      ]
+    },
+    {
+      "id": "marker-continues-on-any-comment",
+      "find": "    if (!cont || !ID_LIST_RE.test(cont[1].trim())) break",
+      "replace": "    if (!cont) break",
+      "expectRed": ["SEED"]
+    },
+    {
+      "id": "ownerfor-always-header",
+      "find": "    return k === -1 ? header : tests[k]",
+      "replace": "    return header",
+      "expectRed": ["SEED"]
+    },
+    {
+      "id": "crlf-left-on-the-line",
+      "find": ".split('\\n').map((l) => l.replace(/\\r$/, ''))",
+      "replace": ".split('\\n')",
+      "expectRed": ["SEED"]
     }
   ],
   "notEncoded": [
