@@ -10,9 +10,8 @@ Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-si
   `baseline`. A SHRINK must be RECORDED via `check-file-size-guard.mjs --update-baseline`. A GROWTH
   needs an argument in the PR body — the guard prints it as a `+` line. Green means *you did not
   make it worse*, never *the repo is clean*.
-  `--update-baseline` rewrites the file through `JSON.stringify`, which unescapes `\uXXXX` and
-  reflows single-line arrays. Take the rows it computes, apply them as TEXT, check
-  `git diff --numstat`.
+  `--update-baseline` rewrites the whole file through `JSON.stringify`. Take the rows it computes,
+  apply them as TEXT, check `git diff --numstat`.
 - The suppression marker is unavailable for a broken invocation — that route exits 2, not 1, so a
   waiver can never stand in for a check that did not run.
 - Some baselined lines are FALSE POSITIVES (a budget or estimate colliding with a cap value) and are

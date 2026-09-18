@@ -7,9 +7,9 @@ export default defineConfig({
     // src/__integration__/vfr-rt-helpers.ts) is initialised per-file. All those
     // workers share ONE Postgres, and literal code/slug/email prefixes ARE
     // reused across files, so isolation rests on `fixtureSuffix()` carrying real
-    // entropy — not on the prefixes. Before adding `singleThread`/`vmThreads`,
-    // which would share that module state across files, confirm every helper
-    // file still keys its seed rows uniquely without per-file module isolation.
+    // entropy — not on the prefixes. `isolate: false` is the one setting that
+    // would share that module state across files in a worker; before adding it,
+    // confirm every helper still keys its seed rows uniquely.
     environment: 'node',
     globals: true,
     include: ['src/__integration__/**/*.integration.test.ts'],
