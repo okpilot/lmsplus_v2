@@ -70,8 +70,7 @@ economics: large size win, no correctness win, low cost.
 | Correctness win | none | large — drift becomes impossible |
 | Cost | low | ~a day per rule family |
 
-**Ordering follows from this:** enforcement-of-maintenance compounds, deletion does not.
-Archaeology is not decaying; an unenforced "ship tests with new code" rule is.
+**Ordering: DELETE, then PIN** (Decision 72).
 
 ## Lessons that must not be relearned
 

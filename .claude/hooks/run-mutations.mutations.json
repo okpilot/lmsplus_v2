@@ -1,6 +1,10 @@
 {
   "target": ".claude/hooks/run-mutations.mjs",
-  "suites": [".claude/hooks/run-mutations.test.mjs", ".claude/hooks/run-mutations.spawn.test.mjs"],
+  "suites": [
+    ".claude/hooks/run-mutations.test.mjs",
+    ".claude/hooks/run-mutations.spawn.test.mjs",
+    ".claude/hooks/run-mutations.parse.test.mjs"
+  ],
   "mutations": [
     {
       "id": "no-plan-check",
@@ -104,13 +108,10 @@
     },
     {
       "id": "narrow-mutation-grep",
-      "find": "/MUTATION:/g",
-      "replace": "/\\/\\/ MUTATION:/g",
-      "expectRed": [
-        "counts a MUTATION: claim that does not begin its line",
-        "subtracts declared-not-encodable entries from the coverage gap"
-      ],
-      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. The coverage-gap test entered this set when it was added: it asserts a printed gap, so any miscount of claims reddens it."
+      "find": "String(text).match(/MUTATION:/g)",
+      "replace": "String(text).match(/\\/\\/ MUTATION:/g)",
+      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
+      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. countMutationClaims no longer feeds any printed figure, so only its own unit tests redden here."
     },
     {
       "id": "linecount-not-matchcount",
@@ -118,8 +119,7 @@
       "replace": "  return String(text).split('\\n').length",
       "expectRed": [
         "counts a MUTATION: claim that does not begin its line",
-        "counts zero on text that makes no claim",
-        "subtracts declared-not-encodable entries from the coverage gap"
+        "counts zero on text that makes no claim"
       ]
     },
     {
@@ -209,7 +209,8 @@
         "reads the value of the --scratch option",
         "grades every mutation after a stale-anchor fault, not just those before it",
         "exits 2 when a batch carries both a fault and a survivor, not 1",
-        "refuses to report success when there was nothing at all to grade"
+        "refuses to report success when there was nothing at all to grade",
+        "a dangling GROUP id committed but not on disk still stops the grading run"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -220,7 +221,8 @@
       "expectRed": [
         "reads the value of an option flag",
         "reads the value of the --scratch option",
-        "subtracts declared-not-encodable entries from the coverage gap"
+        "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ],
       "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
     },
@@ -453,6 +455,109 @@
       "replace": "      timeout: 1,\n",
       "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
+    },
+    {
+      "id": "ownerfor-never-looks-down",
+      "find": "    let j = from + 1\n    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++\n    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]\n    const k = ownerAbove(testLines, anchor)",
+      "replace": "    const k = ownerAbove(testLines, anchor)",
+      "expectRed": [
+        "a marker directly above a test names that test",
+        "an id list wrapped onto a continuation line keeps every id",
+        "a claim written directly above the first test belongs to that test",
+        "a claim in a multi-line comment block belongs to the test below it",
+        "an id naming no mutation in the data file is reported as a problem",
+        "a claim above a modifier form such as it.skip belongs to that test, not the file",
+        "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
+        "a continuation line that is not an id list ends the marker instead of joining it",
+        "a suite written with CRLF line endings still yields its markers",
+        "reports the claim sites a suite carries and the entries excused from encoding"
+      ]
+    },
+    {
+      "id": "ownerfor-stops-at-comments",
+      "find": "(lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))",
+      "replace": "(lines[j].trim() === '')",
+      "expectRed": [
+        "a claim in a multi-line comment block belongs to the test below it",
+        "a continuation line that is not an id list ends the marker instead of joining it",
+        "reports the claim sites a suite carries and the entries excused from encoding"
+      ]
+    },
+    {
+      "id": "claims-scan-every-line",
+      "find": "    if (!/^\\s*\\/\\//.test(lines[i])) continue\n",
+      "replace": "",
+      "expectRed": [
+        "a claim token in a test title is fixture text, not a claim",
+        "a claim token inside a string literal is fixture text, not a claim"
+      ]
+    },
+    {
+      "id": "groupproblems-never-reports",
+      "find": "      if (!ids.has(id)) problems.push(",
+      "replace": "      if (false) problems.push(",
+      "expectRed": [
+        "an id naming no mutation in the data file is reported as a problem",
+        "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
+        "the same GROUP id named by two different tests produces two dangling-id problems",
+        "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
+        "a dangling GROUP id committed but not on disk still stops the grading run"
+      ]
+    },
+    {
+      "id": "testline-no-modifier",
+      "find": "const TEST_LINE_RE = /^\\s*(?:test|it)(?:\\.\\w+)?\\s*\\(/",
+      "replace": "const TEST_LINE_RE = /^\\s*(?:test|it)\\s*\\(/",
+      "expectRed": [
+        "a claim above a modifier form such as it.skip belongs to that test, not the file"
+      ]
+    },
+    {
+      "id": "ownerfor-scan-skips-code",
+      "find": "    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++",
+      "replace": "    while (j < lines.length && !TEST_LINE_RE.test(lines[j])) j++",
+      "expectRed": [
+        "a marker written inside a body names the test it sits in, not the next one",
+        "a claim separated from every test by code belongs to the file, not to a test"
+      ]
+    },
+    {
+      "id": "marker-continues-on-any-comment",
+      "find": "    if (!cont || !ID_LIST_RE.test(cont[1].trim())) break",
+      "replace": "    if (!cont) break",
+      "expectRed": [
+        "a continuation line that is not an id list ends the marker instead of joining it"
+      ]
+    },
+    {
+      "id": "ownerfor-always-header",
+      "find": "    if (k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])) return header\n    return tests[k]",
+      "replace": "    return header",
+      "expectRed": ["a marker written inside a body names the test it sits in, not the next one"]
+    },
+    {
+      "id": "ownerfor-reaches-past-the-body",
+      "find": "k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])",
+      "replace": "k === -1",
+      "expectRed": ["a claim below a closed test body belongs to the file, not to that test"]
+    },
+    {
+      "id": "run-validates-the-working-tree",
+      "find": "surveySuites(root, data, ids, committedSuite).problems",
+      "replace": "surveySuites(root, data, ids).problems",
+      "expectRed": ["a dangling GROUP id committed but not on disk still stops the grading run"]
+    },
+    {
+      "id": "coverage-dangling-exits-zero",
+      "find": "  return dangling === 0 ? 0 : 1",
+      "replace": "  return 0",
+      "expectRed": ["a dangling GROUP id makes coverage mode exit non-zero, not merely print"]
+    },
+    {
+      "id": "crlf-left-on-the-line",
+      "find": "\n    .split('\\n')\n    .map((l) => l.replace(/\\r$/, ''))",
+      "replace": ".split('\\n')",
+      "expectRed": ["a suite written with CRLF line endings still yields its markers"]
     }
   ],
   "notEncoded": [

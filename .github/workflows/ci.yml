@@ -191,10 +191,15 @@ jobs:
       # checkout also has HEAD and `git worktree add --detach <dir> HEAD` works from it. The full
       # history above is there for the test-title guard's base diff, not for this step.)
       - name: Mutation harness — unit test
-        run: node --test .claude/hooks/run-mutations.test.mjs .claude/hooks/run-mutations.spawn.test.mjs
+        run: >-
+          node --test .claude/hooks/run-mutations.test.mjs
+          .claude/hooks/run-mutations.spawn.test.mjs
+          .claude/hooks/run-mutations.parse.test.mjs
 
+      # Budget, not a guess: this job measured 7m56s in run 35345067470, and the mutation count
+      # only grows. (`--list` is not the count — it prints notEncoded entries too.)
       - name: Mutation harness — run every encoded mutation
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: node .claude/hooks/run-mutations.mjs
 
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single

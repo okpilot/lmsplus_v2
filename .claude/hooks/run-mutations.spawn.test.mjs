@@ -17,7 +17,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -288,12 +288,10 @@ test('refuses to report success when there was nothing at all to grade', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// --coverage mode: notEncoded subtraction
+// --coverage mode: claim sites and declared-not-encodable entries
 //
-// Fixture: a data file with 2 MUTATION: claims in its suite, 1 encoded mutation, and 1 notEncoded
-// entry. Expected: claims=2, encoded=1, notEncoded=1, gap=0. Without the subtraction the gap
-// would be 1 — the test pins the arithmetic, first exercised when this data file gained notEncoded
-// entries (previously every data file had notEncoded=[] so the subtraction was always a no-op).
+// Fixture: a data file whose suite carries one test with 2 claim comments above it, 1 encoded
+// mutation, and 1 notEncoded entry. Expected: claim sites=2, encoded=1, notEncoded=1.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 function buildCoverageFixtureDir() {
@@ -309,13 +307,13 @@ function buildCoverageFixtureDir() {
   g(['init', '-q', '.'])
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-  // Suite with exactly 2 MUTATION: claims (one mid-line, one standalone — countMutationClaims
-  // handles both; the two-claim fixture guards against a line-count coincidence with one claim).
+  // Suite with one test and exactly 2 claim comments above it. Two, not one, so the reported
+  // site count cannot coincide with the number of tests or of encoded mutations.
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov-suite.test.mjs'),
-    '// MUTATION: first claim → red\nconst x = 1 // and MUTATION: second claim → red\n',
+    '// MUTATION: first claim → red\n// MUTATION: second claim → red\n' +
+      "test('the fixture behaviour', () => {})\n",
   )
-  // 1 encoded mutation + 1 notEncoded entry → gap = 2 - 1 - 1 = 0
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov.mutations.json'),
     JSON.stringify({
@@ -329,6 +327,44 @@ function buildCoverageFixtureDir() {
   )
   return dir
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --coverage mode: a dangling GROUP id is the failure, not a note
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+function buildDanglingFixtureDir() {
+  const dir = buildCoverageFixtureDir()
+  writeFileSync(
+    join(dir, '.claude', 'hooks', 'cov-suite.test.mjs'),
+    '// GROUP: no-such-mutation\n' + "test('the fixture behaviour', () => {})\n",
+  )
+  return dir
+}
+
+const danglingFixtureDir = buildDanglingFixtureDir()
+const danglingRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
+  cwd: danglingFixtureDir,
+  encoding: 'utf8',
+  env: envWithoutTestContext,
+})
+
+process.once('exit', () => {
+  try {
+    rmSync(danglingFixtureDir, { recursive: true, force: true })
+  } catch {
+    /* best effort */
+  }
+})
+
+// MUTATION: return 0 unconditionally from modeCoverage instead of `dangling === 0 ? 0 : 1`
+// → a dangling id is still PRINTED, so every output assertion in this file stays green while the
+// gate stops failing. Reporting a problem and exiting 0 is indistinguishable from no problem to
+// every caller that reads the exit code, which is what CI and lefthook read.
+// GROUP: coverage-dangling-exits-zero
+test('a dangling GROUP id makes coverage mode exit non-zero, not merely print', () => {
+  assert.ok(danglingRun.stdout.includes('DANGLING'), `stdout:\n${danglingRun.stdout}`)
+  assert.equal(danglingRun.status, 1)
+})
 
 const coverageFixtureDir = buildCoverageFixtureDir()
 const coverageRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
@@ -344,16 +380,70 @@ process.once('exit', () => {
   }
 })
 
-// MUTATION: replace `- notEncoded` with nothing in the gap line of modeCoverage → the declared
-// not-encodable entry no longer reduces the reported gap; a legitimately excused claim reads as
-// an uncovered hole. Asserting gap=0 pins that the subtraction happens.
-test('subtracts declared-not-encodable entries from the coverage gap', () => {
+// MUTATION: in parseSuite, attribute every claim to `header` instead of the nearest preceding
+// test → the suite's two claims stop being claim sites and the report shows 0, so a suite full of
+// claims reads as carrying none.
+// GROUP: ownerfor-always-header
+test('reports the claim sites a suite carries and the entries excused from encoding', () => {
   assert.ok(
-    coverageRun.stdout.includes('declared not-encodable        : 1'),
+    coverageRun.stdout.includes('claim sites (comment claims) : 2'),
     `stdout:\n${coverageRun.stdout}`,
   )
   assert.ok(
-    coverageRun.stdout.includes('gap (unaccounted claims)      : 0'),
+    coverageRun.stdout.includes('declared not-encodable       : 1'),
     `stdout:\n${coverageRun.stdout}`,
+  )
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --run validates the tree it grades
+//
+// Fixture: the COMMITTED suite carries a dangling GROUP id; the working tree has it removed.
+// `--run` builds its worktree from HEAD, so it must read HEAD when validating too.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+function buildCommittedDanglingRepo() {
+  const dir = buildFaultFixtureRepo()
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'test',
+    GIT_AUTHOR_EMAIL: 'test@test',
+    GIT_COMMITTER_NAME: 'test',
+    GIT_COMMITTER_EMAIL: 'test@test',
+  }
+  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const suite = join(dir, 'suite.test.mjs')
+  const clean = readFileSync(suite, 'utf8')
+  writeFileSync(suite, `// GROUP: no-such-mutation\n${clean}`)
+  g(['add', 'suite.test.mjs'])
+  g(['commit', '-m', 'dangling marker'])
+  writeFileSync(suite, clean)
+  return dir
+}
+
+const committedDanglingDir = buildCommittedDanglingRepo()
+const committedDanglingRun = spawnSync('node', [HARNESS], {
+  cwd: committedDanglingDir,
+  encoding: 'utf8',
+  env: envWithoutTestContext,
+})
+process.once('exit', () => {
+  try {
+    rmSync(committedDanglingDir, { recursive: true, force: true })
+  } catch {
+    /* best effort */
+  }
+})
+
+// MUTATION: drop the `committedSuite` argument from modeRun's surveySuites call, so validation
+// falls back to the working-tree reader -> the working tree's marker-free suite passes the
+// dangling check while the worktree built from HEAD still runs the suite that carries it.
+// GROUP: run-validates-the-working-tree
+test('a dangling GROUP id committed but not on disk still stops the grading run', () => {
+  assert.notEqual(committedDanglingRun.status, 0)
+  assert.match(
+    `${committedDanglingRun.stdout}${committedDanglingRun.stderr}`,
+    /no-such-mutation/,
+    `stdout:\n${committedDanglingRun.stdout}\nstderr:\n${committedDanglingRun.stderr}`,
   )
 })

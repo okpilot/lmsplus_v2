@@ -11,6 +11,7 @@ Writes Vitest unit and integration tests for the functions and React components 
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.
 - Review test names — describe behavior, not implementation ("schedules shorter interval when wrong" not "calls updateFsrsState").
 - **Mutation-check is the AGENT's terminal duty**, protocol in `.claude/agents/test-writer.md` § "Mutation-check every test that pins a mechanism". YOUR duty is the receiving end: a mutation check is a self-reported ACTION — verify the ARTIFACT per `agent-workflow.md § Finding Validation` rather than the claim — `git status --porcelain --untracked-files=all` empty, HEAD unchanged, `git stash list --format='%H'` byte-identical, scratch location gone.
+- **Name a test for the behaviour that SHOULD hold, never for a bug it currently pins.** A title asserting the broken behaviour inverts the moment the bug is fixed, taking its `expectRed` entry with it. Where the fix has not landed, `.skip` the test.
 - **Before writing a `MUTATION:` line, confirm every mechanism it names is REACHABLE by the fixture's inputs** — `code-style.md` §7. A comment naming a second mechanism an earlier guard already rejects reads as coverage and is not.
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs), the entry-page test must assert the page reads + surfaces existing server state, not just the localStorage path.
 ### NEVER
