@@ -38,7 +38,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 4 | 2026-09-18 | RULE CANDIDATE (4) → §10 cl.2 addendum. Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 63 | 2026-09-18 | RULE CANDIDATE (63). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 64 | 2026-09-18 | RULE CANDIDATE (64). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -79,7 +79,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | (8 count=1 WATCHING rows from 2026-09-02, pre-18757ddf, relocated) | — | 2026-09-02 | see tracker-archive.md "Live-table snapshot relocated 2026-09-02 (batch 4)" |
 | Implementation-critic outright omitted pre-commit, no stated exemption — run post-hoc, found sound | 1 | 2026-09-06 | WATCHING — distinct from row 632. Log and watch |
 | Agent's own auto-injected rules-file copy is stale mid-session | 2 | 2026-09-06 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol. Detail: topic file |
-| Verification evidence answers a different proposition — real check, wrong question | 6 | 2026-09-18 | RULE CANDIDATE (6). Topic file. |
+| Verification evidence answers a different proposition — real check, wrong question | 7 | 2026-09-18 | RULE CANDIDATE (7). Topic file. |
 | Sweep regex matches canonical form, silently skips alternative form | 2 | 2026-09-18 | RULE CANDIDATE (2). TEST_LINE_RE missed test.each/it.skip/.only — chore/validate-mutation-group-refs. Detail: topic file |
 | Consistency check verifies A against B with no independent anchor — co-removing both passes clean | 4 | 2026-09-08 | RULE CANDIDATE → §7, draft in topic file |
 | Agent's Bash-run destructive git cmd destroys ANOTHER agent's concurrent uncommitted work | 1 | 2026-09-08 | WATCHING — Bash hole. Topic file. |
@@ -115,7 +115,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Pin's tag comment correct at authorship, drifts false when upstream tag is repointed later | 1 | 2026-09-16 | WATCHING — needs re-run/scheduled check. Topic file. |
 | `vi.mock` targets an exact specifier; a migrated import path leaves it silently inert | 1 | 2026-09-16 | WATCHING — `ac213f98` Sentry move, proved by mutation. Detail: cross-agent-lessons.md |
 | `pnpm.overrides` pin forces a package below a DIFFERENT dependent's declared range, unnoticed | 1 | 2026-09-16 | WATCHING — `ac213f98` undici/jsdom, SKIPPED (harmless). Detail: cross-agent-lessons.md |
-| `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 2 | 2026-09-16 | RULE CANDIDATE (2) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. Archive row 549 (2026-08-15) + same-branch instances (test-writer + orchestrator, feat/prose-path-guard). |
+| `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 3 | 2026-09-18 | RULE CANDIDATE (3) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. Third mechanism: `--update-baseline` writes whole JSON through `JSON.stringify`, same side-effect. |
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | impl-critic measures function length declaration-to-next-declaration, sweeping following JSDoc into count | 1 | 2026-09-16 | WATCHING — `827c363b`. Log and watch. |
 | Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 13 | 2026-09-18 | RULE CANDIDATE (13). 8 under-specified sets + ownerfor case found by harness (chore/validate-mutation-group-refs). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md "expectRed cascade". |
@@ -137,6 +137,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — fix/harden-fixture-spawn-helpers. `assertUsable` read `r.error` before `r.status`. Log and watch. |
 | Wall-clock `expect(Date.now() - start).toBeLessThan(N)` used as non-vacuity guard for a test mechanism — flake-prone on loaded CI | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: semantic-reviewer + test-writer flagged; fixed with `vi.useFakeTimers`. Log and watch. |
 | Orchestrator derives red-team trigger from semantic intent ("only tests") instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: 11 files under `apps/web/app/app/quiz/actions/**` matched the trigger set; rule in agent-workflow.md is adequate; lapse, not a rule gap. Log and watch. |
+| Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 1 | 2026-09-18 | WATCHING — fix/db-integration-fixture-isolation. §1 mandates `wc -l` every file planned to grow; +1 import hit 9 baselined files. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -148,9 +149,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - WHY-clause falsity: explanatory sentences are less-verified than facts (row 60). Check WHY clauses first on doc-only commits.
 - SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
 - File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
-- POSITIVE (`chore/encode-file-size-guard-test-claims`, 2026-09-18): 3-round loop, CLEAN at the ceiling (not escalated into it). check-file-size-guard gap 22->0. Rows 89 and 121 both non-recurred. §10 cl.7 caught a note citing a line number this branch's own edits had shifted — replaced with a grep-able predicate.
-- POSITIVE (`chore/validate-mutation-group-refs`, 2026-09-18): Harness caught 8 under-specified expectRed sets + 2 stale find anchors autonomously (rows 121→12, 100→4). Row 83 (regex misses variants) reaches count=2 → RULE CANDIDATE. Row 75 (test pins bug as intended) reaches count=3.
-- POSITIVE (`chore/link-guard-claims`, 2026-09-18): Clean 2-round loop. Rows 97 (MUTATION: overclaim), 121 (expectRed cascade), 100 (orphaned anchor) all did NOT recur. 273/273 grading run passed. Pre-build TSV verification caught 8 paraphrase-mapped titles that a prefix-match would have silently misfiled — validated mapping before touching files is the right pattern. Plan-critic found plan count AND its own correction both wrong; --coverage was the truth source (row 40→4).
+- POSITIVE (`fix/db-integration-fixture-isolation`, 2026-09-18): Clean 2-round loop. Row 118→3 (`--update-baseline` JSON.stringify rewrite, caught pre-commit). Row 41→64 (false count in §1 amendment). Row 82→7 (template vs. resolved comparison). New WATCHING: Plan Validation wc-l skip.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers
