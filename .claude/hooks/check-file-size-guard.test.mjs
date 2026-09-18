@@ -262,24 +262,31 @@ test('flags a new over-limit file that is not in the baseline', () => {
 })
 
 test('a grandfathered file at its recorded size does not fail', () => {
-  // MUTATION: use >= instead of > in the growth comparison → every baselined file
-  // fails immediately and the ratchet is a gate again, blocking all work.
+  // MUTATION: `n !== allowed` → `n >= allowed` → a file sitting exactly at its recorded
+  // size fails, and the ratchet is a gate again, blocking all work. Supersets the shrink
+  // test below, which the same edit also reddens.
   const limits = fixture({ baseline: { 'a/use-x.ts': 81 } })
   const { regressions } = evaluate(['a/use-x.ts'], () => lines(81), limits)
   assert.deepEqual(regressions, [])
 })
 
 test('a grandfathered file that GREW by one line fails', () => {
-  // MUTATION: compare against rule.max instead of the baseline value → a 239-line file
-  // can grow to 299 unnoticed. This is the whole point of a ratchet.
+  // MUTATION: `const allowed = baseline[file]` → `const allowed = rule.max` → a 239-line
+  // file can grow to 299 unnoticed. This is the whole point of a ratchet. Mutating the
+  // COMPARISON to `n > rule.max` instead leaves this test green — 82 > 80 still fires and
+  // the message still reads "grew past its grandfathered size of 81".
   const limits = fixture({ baseline: { 'a/use-x.ts': 81 } })
   const { regressions } = evaluate(['a/use-x.ts'], () => lines(82), limits)
   assert.equal(regressions.length, 1)
   assert.match(regressions[0].why, /grew past its grandfathered size of 81/)
 })
 
-test('an emptied baseline makes every grandfathered violation fire', () => {
-  // MUTATION: ignore the baseline entirely → 37 violations block every commit.
+test('an over-limit file with no baseline row is reported as a new violation', () => {
+  // MUTATION: drop the `regressions.push` from the `allowed === undefined` branch, keeping
+  // its `continue` → the file is skipped instead of reported. Nothing here is grandfathered:
+  // `fixture()` already ships `baseline: {}`, so the override is a no-op and `baseline[file]`
+  // is undefined. That early return fires BEFORE `liveViolators.add` and the `n !== allowed`
+  // comparison, so no mutation of the baseline comparison can reach this test.
   const limits = fixture({ baseline: {} })
   const { regressions } = evaluate(['a/use-x.ts'], () => lines(81), limits)
   assert.equal(regressions.length, 1)
@@ -422,8 +429,8 @@ test('a baseline row for a file that became EXCLUDED is reported stale, not kept
   // that was baselined and later moved under an exclusion glob (e.g. into scripts/) is
   // wrongly counted as still violating, and staleBaselineEntries never surfaces its now-
   // orphaned baseline row for pruning. Distinct from the "now compliant" case above: that
-  // one exits via `n <= rule.max`, this one exits via `classify` returning null before a
-  // line count is ever taken.
+  // one exits via `n <= rule.max`, this one exits via evaluate's own `isExcluded` check,
+  // which returns before `classify` is ever called and before a line count is taken.
   const limits = fixture({ baseline: { 'scripts/a/use-x.ts': 999 } })
   assert.equal(isExcluded('scripts/a/use-x.ts', limits), true)
   const { liveViolators } = evaluate(['scripts/a/use-x.ts'], () => lines(999), limits)
