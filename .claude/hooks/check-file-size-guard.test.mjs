@@ -50,6 +50,7 @@ const lines = (n) => `${'x\n'.repeat(n)}`
 
 // ---------------------------------------------------------------- countLines
 
+// GROUP: countlines-returns-raw-part-count
 test('counts a newline-terminated file the way wc -l does', () => {
   // MUTATION: return parts.length unconditionally → 101 here, and the real
   // batch-submit.ts (which sits exactly at its cap) starts failing.
@@ -57,6 +58,7 @@ test('counts a newline-terminated file the way wc -l does', () => {
   assert.equal(countLines(lines(100)), 100)
 })
 
+// GROUP: countlines-always-subtracts-one
 test('counts the final partial line when a file lacks a trailing newline', () => {
   // MUTATION: drop the endsWith('\n') branch → 2, silently losing the last line of
   // any file the formatter has not touched.
@@ -201,6 +203,7 @@ test('page.tsx takes the 80 limit ahead of the 150 component limit', () => {
   assert.equal(r.max, 80)
 })
 
+// GROUP: globtore-drops-case-insensitive-flag
 test('an uppercase extension is still matched, not silently unclassified', () => {
   // MUTATION: drop the 'i' flag from globToRe → an over-limit `Weird.TSX` matches NO rule
   // and passes clean. Found by implementation-critic as a 17th surviving mutation.
@@ -209,6 +212,7 @@ test('an uppercase extension is still matched, not silently unclassified', () =>
   assert.equal(r.max, 150)
 })
 
+// GROUP: classify-defaults-instead-of-returning-null
 test('a file type with no matching rule is left unclassified, not defaulted to a limit', () => {
   // MUTATION: fall through to a default rule instead of returning null when no glob
   // matches → an untracked file type (docs, configs with no glob at all) silently
@@ -225,6 +229,7 @@ test('glob translation distinguishes one segment from any depth', () => {
   assert.equal(globToRe('scripts/**').test('apps/scripts/a.ts'), false)
 })
 
+// GROUP: globtore-stops-escaping-metacharacters
 test('treats regex metacharacters inside a glob as literal characters', () => {
   // MUTATION: stop escaping SPECIAL characters (emit `c` instead of `\\${c}`) → a glob
   // like '**/*.test.*' would compile with its literal dots acting as regex wildcards
@@ -239,6 +244,7 @@ test('treats regex metacharacters inside a glob as literal characters', () => {
 
 // -------------------------------------------------------------- ratchet logic
 
+// GROUP: unreadable-path-skipped-instead-of-reported
 test('an enumerated file that cannot be read blocks instead of being skipped', () => {
   // MUTATION: restore `continue` in evaluate's catch → red. SUPERSEDES the old
   // "skip a mid-run deletion" behaviour, which was measured to hide NINE baselined
@@ -261,6 +267,7 @@ test('flags a new over-limit file that is not in the baseline', () => {
   assert.equal(regressions[0].why, 'new violation')
 })
 
+// GROUP: ratchet-fails-at-exact-recorded-size
 test('a grandfathered file at its recorded size does not fail', () => {
   // MUTATION: `n !== allowed` → `n >= allowed` → a file sitting exactly at its recorded
   // size fails, and the ratchet is a gate again, blocking all work. Supersets the shrink
@@ -270,6 +277,7 @@ test('a grandfathered file at its recorded size does not fail', () => {
   assert.deepEqual(regressions, [])
 })
 
+// GROUP: baseline-lookup-reads-rule-max
 test('a grandfathered file that GREW by one line fails', () => {
   // MUTATION: `const allowed = baseline[file]` → `const allowed = rule.max` → a 239-line
   // file can grow to 299 unnoticed. This is the whole point of a ratchet. Mutating the
@@ -281,6 +289,7 @@ test('a grandfathered file that GREW by one line fails', () => {
   assert.match(regressions[0].why, /grew past its grandfathered size of 81/)
 })
 
+// GROUP: new-violation-never-reported
 test('an over-limit file with no baseline row is reported as a new violation', () => {
   // MUTATION: drop the `regressions.push` from the `allowed === undefined` branch, keeping
   // its `continue` → the file is skipped instead of reported. Nothing here is grandfathered:
@@ -292,6 +301,7 @@ test('an over-limit file with no baseline row is reported as a new violation', (
   assert.equal(regressions.length, 1)
 })
 
+// GROUP: stale-baseline-rows-never-reported
 test('a baseline row whose file was deleted is reported stale', () => {
   // MUTATION: skip stale reporting → a baselined path is deleted, an unrelated new file
   // later occupies the SAME path at a smaller-but-still-over size, and it inherits the
@@ -313,6 +323,7 @@ test('a still-violating baseline row is NOT reported stale', () => {
   assert.deepEqual(staleBaselineEntries(liveViolators, limits), [])
 })
 
+// GROUP: evaluate-requires-baseline-key
 test('evaluate treats a config with no baseline key at all as an empty baseline', () => {
   // MUTATION: read limits.baseline directly instead of `?? {}` → a limits object that
   // omits the key entirely (rather than setting it to {}) throws inside the loop
@@ -328,6 +339,7 @@ test('evaluate treats a config with no baseline key at all as an empty baseline'
   assert.equal(regressions[0].why, 'new violation')
 })
 
+// GROUP: stale-entries-require-baseline-key
 test('staleBaselineEntries reports nothing when the config has no baseline key at all', () => {
   // MUTATION: `Object.keys(limits.baseline)` without `?? {}` → throws on a limits
   // object that never had a baseline key, instead of correctly reporting no stale rows.
@@ -336,6 +348,7 @@ test('staleBaselineEntries reports nothing when the config has no baseline key a
   assert.deepEqual(staleBaselineEntries(new Set(), limits), [])
 })
 
+// GROUP: exclusion-check-moved-below-the-read
 test('an excluded path is skipped without being read at all', () => {
   // MUTATION: move `isExcluded` back below the read → red. A dangling symlink under an excluded
   // glob produced an `unreadable` regression that blocked every run, and no baseline row could
@@ -354,6 +367,7 @@ test('an excluded path is skipped without being read at all', () => {
 
 // ------------------------------------- holes found by post-commit semantic review
 
+// GROUP: ratchet-checks-growth-only
 test('a grandfathered file that SHRANK but is still over the limit fails', () => {
   // MUTATION: change `n !== allowed` back to `n > allowed` → this goes red, and with it
   // the same-path content-swap hole reopens: the baseline is keyed on PATH alone, so
@@ -376,6 +390,7 @@ test('a grandfathered file that shrank below its limit is stale, not a failure',
   assert.deepEqual(staleBaselineEntries(liveViolators, limits), ['a/use-x.ts'])
 })
 
+// GROUP: unreadable-path-skipped-instead-of-reported
 test('a tracked path that cannot be read is reported, not silently skipped', () => {
   // MUTATION: restore the bare `catch { continue }` → a symlink committed to git whose
   // target is absent passes every git-side check (git stores the target TEXT as the blob)
@@ -403,6 +418,7 @@ test('a path that vanished between enumeration and read still blocks', () => {
   assert.equal(regressions[0].kind, 'unreadable')
 })
 
+// GROUP: unreadable-message-drops-message-fallback
 test('falls back to the raw error message when a read failure carries no error code', () => {
   // MUTATION: drop the `?? err.message` fallback (leave bare `err.code`) → any read
   // failure that is not a real fs error — nothing here guarantees the thrower is
@@ -424,6 +440,7 @@ test('falls back to the raw error message when a read failure carries no error c
   }
 })
 
+// GROUP: liveviolators-hoisted-above-exclusion
 test('a baseline row for a file that became EXCLUDED is reported stale, not kept alive', () => {
   // MUTATION: hoist `liveViolators.add(file)` above the classify/exclusion check → a file
   // that was baselined and later moved under an exclusion glob (e.g. into scripts/) is

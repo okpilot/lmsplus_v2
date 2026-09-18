@@ -32,6 +32,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
+// GROUP: hunksfor-paths-through-argv
 test('blocks when a corrected value still stands in another corpus file', () => {
   // MUTATION: break any link in the chain — the diff read, the hunk gate, the survivor grep,
   // the rarity window — and the instance this guard exists for stops firing. This is the
@@ -242,6 +243,7 @@ test('a token re-added elsewhere in the same commit was reworded, not retracted'
   })
 })
 
+// GROUP: readded-substring-numeric
 test('a LONGER number containing the token does not exonerate the retraction', () => {
   // MUTATION: swap reAdded() back for a bare `addedText.includes(c.token)` → `'11807'` contains
   // `'1807'`, the retraction is exonerated, and the surviving copy is never reported (fail-OPEN).

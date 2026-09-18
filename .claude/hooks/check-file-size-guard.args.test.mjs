@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
+// GROUP: drop-two-mode-flag-guard
 test('passing two mode flags together blocks instead of silently running one', () => {
   // MUTATION: remove the `new Set(flags).size > 1` guard → red. Both flags are KNOWN, so
   // neither the unknown-flag gate nor the flag-vs-path gate catches the pair; the first `if`
@@ -41,6 +42,7 @@ test('passing two mode flags together blocks instead of silently running one', (
   assert.equal(spawnSync('node', [guard, '--stats'], { encoding: 'utf8' }).status, 0)
 })
 
+// GROUP: drop-path-normalisation, drop-unknown-path-check
 test('a violation blocks however its path is spelled, and an unknown path is rejected', () => {
   // MUTATION: drop the normalisation and the unknown-argument check → red. `files.includes()` is
   // an exact string compare, so `./x.ts` and an absolute path matched nothing and the guard
@@ -105,6 +107,7 @@ test('a violation blocks however its path is spelled, and an unknown path is rej
   }
 })
 
+// GROUP: drop-staged-deletion-exemption
 test('a staged deletion is not rejected as an unknown path', () => {
   // MUTATION: drop the `deleted` set from the unknown-path filter → red. lefthook passes staged
   // DELETIONS through {staged_files} while `git ls-files` omits them, so the unknown-path check
@@ -153,6 +156,7 @@ test('a staged deletion is not rejected as an unknown path', () => {
   }
 })
 
+// GROUP: drop-no-renames
 test('a staged rename does not reject the SOURCE path as unknown', () => {
   // MUTATION: drop `--no-renames` from the staged-deletion git call → red. With rename
   // detection ON (git's default) a staged rename is classified `R`, so `--diff-filter=D`
@@ -210,6 +214,7 @@ test('a staged rename does not reject the SOURCE path as unknown', () => {
   }
 })
 
+// GROUP: drop-no-renames
 test('a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check', () => {
   // MUTATION: drop `--no-renames` (same mechanism as the sibling test above) → red. Without
   // it the SOURCE path is rejected as unknown BEFORE the violation is ever reported, so the
@@ -278,6 +283,7 @@ test('a rename into a violation still blocks — the exemption clears the unknow
   }
 })
 
+// GROUP: staged-deletion-git-failure-fails-open
 test('a git failure listing staged deletions blocks instead of failing open', () => {
   // Resolve the real binary rather than hardcoding /usr/bin/git — a wrapper that delegates to a
   // fixed path works only where git happens to be installed there (not Homebrew, not Nix).
@@ -340,6 +346,7 @@ test('a git failure listing staged deletions blocks instead of failing open', ()
   }
 })
 
+// GROUP: drop-decode-collision-check
 test('two tracked paths whose bytes differ but decode alike BLOCK rather than one being dropped', () => {
   // MUTATION: drop the `exact.has(all[i])` duplicate check in main() → red. 0x80 and 0x81 are
   // each a lone continuation byte, so both are invalid UTF-8 and BOTH decode to one U+FFFD:
@@ -375,6 +382,7 @@ test('two tracked paths whose bytes differ but decode alike BLOCK rather than on
   }
 })
 
+// GROUP: index-read-via-git-show
 test('a staged path with non-UTF-8 bytes is graded from the index, not called unreadable', () => {
   // MUTATION: read the index with `git show :${f}` instead of readIndexBlob(target) → red.
   // argv is strings, so the lossily-decoded name re-encodes to bytes git does not have and the

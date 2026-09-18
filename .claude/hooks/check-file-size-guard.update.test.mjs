@@ -62,6 +62,7 @@ function makeUpdateRepo(limits, files) {
 const runUpdateBaseline = (repo) =>
   spawnSync('node', [GUARD_PATH, '--update-baseline'], { cwd: repo, encoding: 'utf8' })
 
+// GROUP: update-baseline-drops-unreadable-row
 test("update-baseline keeps an unreadable path's existing row instead of dropping it", () => {
   // The anti-laundering guarantee. MUTATION: drop the `if (previous[file] !== undefined)` keep
   // in updateBaseline's catch (bare `continue`) → the row vanishes from the rewritten baseline
@@ -78,6 +79,7 @@ test("update-baseline keeps an unreadable path's existing row instead of droppin
   }
 })
 
+// GROUP: update-baseline-no-change-early-exit-dropped
 test('update-baseline leaves limits.json byte-identical when it already matches the tree', () => {
   // MUTATION: drop the `added/removed/changed all empty -> return 0` early exit → the function
   // falls through to writeFileSync unconditionally, reformatting the file on every run (2-space
@@ -96,6 +98,7 @@ test('update-baseline leaves limits.json byte-identical when it already matches 
   }
 })
 
+// GROUP: update-baseline-added-removed-sides-swapped
 test('update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key', () => {
   // MUTATION: swap which side of `previous`/`next` the added/removed filters read → a shrunk-
   // to-compliant file stops being dropped, or a new violation gets silently absorbed as if it
@@ -119,6 +122,7 @@ test('update-baseline reports an added violation and a removed now-compliant ent
   }
 })
 
+// GROUP: update-baseline-invents-row-for-unreadable
 test('update-baseline drops an unreadable file that was never baselined, instead of inventing a row', () => {
   // MUTATION: change `if (previous[file] !== undefined) next[file] = previous[file]` to an
   // unconditional assignment (e.g. `next[file] = previous[file] ?? 0`) → an unreadable file
@@ -137,6 +141,7 @@ test('update-baseline drops an unreadable file that was never baselined, instead
   }
 })
 
+// GROUP: stats-mode-dispatch-deleted
 test('reports per-rule compliance totals when asked for stats', () => {
   // MUTATION: delete the `--stats` early return in main() → this goes red. The flag replaced a
   // derivation command embedded in .claude/limits.json that carried an unbound placeholder and
@@ -150,6 +155,7 @@ test('reports per-rule compliance totals when asked for stats', () => {
   assert.doesNotMatch(out, /violation/)
 })
 
+// GROUP: stats-unreadable-file-not-skipped
 test('stats mode skips an unreadable tracked file instead of blocking the whole report', () => {
   // MUTATION: drop the `catch { continue }` inside stats() → a single dangling symlink
   // anywhere in the tree turns this purely informational report into a hard block, unlike
@@ -181,6 +187,7 @@ test('stats mode skips an unreadable tracked file instead of blocking the whole 
   }
 })
 
+// GROUP: flag-vs-path-gate-dropped
 test('a mode flag mixed with file paths blocks instead of skipping enforcement', () => {
   // MUTATION: delete the `flags.length > 0 && files.length > 0` gate in main() → red. That gate,
   // not the `flags`-vs-`args` spelling of the --stats dispatch, is what this pins: restoring
@@ -191,6 +198,7 @@ test('a mode flag mixed with file paths blocks instead of skipping enforcement',
   assert.match(mixed.stderr, /cannot be combined with file paths/)
 })
 
+// GROUP: unknown-flag-check-dropped
 test('an unrecognised flag blocks rather than being treated as a file path', () => {
   // MUTATION: drop the KNOWN_FLAGS check → an unknown flag falls through to the file list and
   // is silently ignored, so a typo'd `--upate-baseline` would run a plain enforcement pass and
@@ -201,6 +209,7 @@ test('an unrecognised flag blocks rather than being treated as a file path', () 
   assert.match(bogus.stderr, /unknown flag/)
 })
 
+// GROUP: update-baseline-writes-on-normal-run
 test('updating the baseline rewrites a shrunk entry and leaves everything else alone', () => {
   // The escape valve for the exact-match ratchet: without it, every legitimate shrink fails CI
   // until a human edits JSON by hand, and a check that annoying gets switched off. It must be
