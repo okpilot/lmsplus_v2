@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
@@ -20,7 +21,7 @@ describe('Trigger: trg_sanitize_question_options strips the answer key from opti
   let bankId: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   beforeAll(async () => {
     orgId = await createTestOrg({

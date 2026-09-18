@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
@@ -19,7 +20,7 @@ describe('Constraint: questions_mc_correct_option_id_check (biconditional MC ans
   let bankId: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   beforeAll(async () => {
     orgId = await createTestOrg({

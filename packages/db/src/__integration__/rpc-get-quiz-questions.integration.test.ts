@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -34,7 +35,7 @@ function requireInsertedId(row: unknown, label: string): string {
 //   3. Caller's call with victim UUID returns empty array.
 describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
   const admin = getAdminClient()
-  const suffix = `xorg-${Date.now()}`
+  const suffix = `xorg-${fixtureSuffix()}`
 
   // Caller org — the student who makes the RPC call
   let callerOrgId: string
@@ -278,7 +279,7 @@ describe('RPC: get_quiz_questions — non-MC delivery + answer-key stripping (Ve
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let shortAnswerId: string
   let dialogFillId: string

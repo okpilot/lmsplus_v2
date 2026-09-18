@@ -16,7 +16,9 @@
 // so a grep for either wording found one site and reported clean. The one that surprises:
 // the baseline match is EXACT in BOTH directions, so a recorded violation that SHRINKS
 // fails too, until `--update-baseline` records it.
-// The baseline is visible in limits.json and may only shrink. Entries that no longer
+// The baseline is visible in limits.json. A shrink must be recorded; a GROWTH is permitted only
+// with an argument in the PR body -- --update-baseline prints it as a `+` line for that reason.
+// Entries that no longer
 // describe a live violation are REPORTED, because a purely path-keyed baseline would
 // otherwise let a different file later occupy that path and inherit its allowance.
 //
@@ -288,8 +290,8 @@ export function evaluate(files, readFile, limits) {
       // "grew only" check reports nothing at all — the path never leaves liveViolators,
       // so not even the stale-entry warning fires. Requiring the recorded number to stay
       // EXACT turns that silent absorption into a visible edit: whoever shrinks the file
-      // must write the new number down, which is also what "the baseline may only shrink"
-      // means operationally.
+      // must write the new number down, which is what "a shrink must be RECORDED" means
+      // operationally.
       const why =
         n > allowed
           ? `grew past its grandfathered size of ${allowed}`

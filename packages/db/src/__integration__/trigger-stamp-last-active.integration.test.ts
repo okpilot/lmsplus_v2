@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -26,7 +27,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  */
 describe('trigger: stamp_last_active_on_session_complete', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orgId: string
   let adminUserId: string

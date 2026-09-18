@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import {
@@ -51,7 +52,7 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   // short_answer: one passing-seed, one failing-seed (≥2 distinct seeds per type).
   let saCorrectId: string

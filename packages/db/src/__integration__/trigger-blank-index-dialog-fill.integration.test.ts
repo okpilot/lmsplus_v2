@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
@@ -30,7 +31,7 @@ const BLANK_REQUIRED_MSG = /blank_index is required for dialog_fill/i
 
 describe('Trigger: enforce blank_index <=> dialog_fill on answer inserts', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orgId: string
   let studentId: string

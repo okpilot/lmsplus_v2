@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -61,7 +62,7 @@ describe('RPC: internal-exam student reads — DISTINCT answered_count + active-
   const userIds: string[] = []
   // internal_exam_codes has no ON DELETE CASCADE from users/orgs — hard-delete these first.
   const codeIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
   const studentEmail = `student-iexam-reads-${suffix}@test.local`
 
   const seedCode = async (): Promise<{ id: string; code: string }> => {

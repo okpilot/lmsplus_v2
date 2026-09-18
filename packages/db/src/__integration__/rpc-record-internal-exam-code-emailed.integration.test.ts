@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import {
   createTestOrg,
   createTestUser,
@@ -42,7 +43,7 @@ import {
  */
 describe('RPC: record_internal_exam_code_emailed', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orgId: string
   let adminUserId: string

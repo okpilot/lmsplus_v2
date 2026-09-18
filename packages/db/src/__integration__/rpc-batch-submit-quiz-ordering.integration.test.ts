@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import {
@@ -54,7 +55,7 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orderingId: string
 

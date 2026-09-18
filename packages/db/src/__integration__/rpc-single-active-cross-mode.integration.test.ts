@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -39,7 +40,7 @@ describe('Cross-mode single-active-session guard (internal_exam + vfr_rt_exam)',
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   let rtSubjectId: string
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
   // internal_exam_codes rows hard-deleted in afterAll before cleanupTestData
   // (FK into users/orgs/quiz_sessions; no ON DELETE CASCADE).
   const createdInternalExamCodeIds: string[] = []

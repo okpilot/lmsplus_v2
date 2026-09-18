@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
@@ -49,7 +50,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
   let bankId: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   beforeAll(async () => {
     orgId = await createTestOrg({
