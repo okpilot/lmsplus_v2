@@ -107,7 +107,8 @@ jobs:
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
-      # Shared spawn-verdict helpers for every suite below that runs a guard as a child.
+      # Shared spawn-verdict helpers. Most importers are steps ABOVE this one — the suite is
+      # placed here, not first, because nothing in the job depends on its ORDER.
       - name: Spawn verdict helpers — unit test
         run: node --test .claude/hooks/spawn.testkit.test.mjs
 

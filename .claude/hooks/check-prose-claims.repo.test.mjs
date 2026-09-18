@@ -59,7 +59,7 @@ function withRepo(fn) {
 }
 
 /**
- * Run the guard in `dir`. `spawnSync`, not `execFileSync`: the latter surfaces stderr only
+ * Run the guard in `dir`. `runNode`, not `execFileSync`: the latter surfaces stderr only
  * on the THROWING path, so a case asserting on the diagnostics of a SUCCESSFUL run (every
  * `--update-baseline` case) would compare against an empty string and pass vacuously in one
  * direction. Found by that exact vacuity.

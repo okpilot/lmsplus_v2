@@ -57,8 +57,14 @@ export function assertUsable(label, r, timeoutMs) {
  * @returns {{status: number, stdout: string, stderr: string}}
  */
 export function runNode(label, args, opts = {}) {
-  const r = spawnSync(process.execPath, args, { encoding: 'utf8', ...opts })
-  assertUsable(label, r, opts.timeout)
+  // A default, because none of the guard-suite CI steps carries `timeout-minutes`: without one a
+  // child that never exits hangs the job rather than reporting NO VERDICT, and assertUsable's
+  // ETIMEDOUT branch is unreachable unless a caller opts in. 60s is ~20x the slowest measured
+  // SUITE total (check-prose-paths.repo, 2.95s, which is many spawns) — generous on purpose, since
+  // a default that fires on a loaded runner would manufacture the false red this file exists to end.
+  const timeout = opts.timeout ?? 60_000
+  const r = spawnSync(process.execPath, args, { encoding: 'utf8', ...opts, timeout })
+  assertUsable(label, r, timeout)
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
 

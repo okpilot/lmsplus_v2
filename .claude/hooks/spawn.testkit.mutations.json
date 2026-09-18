@@ -59,6 +59,34 @@
       "replace": "  if (r.error) throw new Error(`${label}: could not spawn — ${r.error.message}`)\n  if (r.status != null) return\n",
       "expectRed": ["a run that answered is graded even though the input pipe broke"],
       "note": "spawnSync sets EPIPE on the input write when the child stops reading stdin early and exits cleanly — a guard short-circuiting on an oversized payload does exactly that. Reading `error` before `status` reports that real verdict as a failed spawn, which is the defect this file exists to end, one level up. Found by a call site, not by review."
+    },
+    {
+      "id": "verdictof-drop-null-error-branch",
+      "find": "  if (err == null) throw new Error(`${label}: no error to read — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["a missing error object is reported as no verdict"],
+      "note": "The twin of drop-null-result-branch on the catch side: without it a missing error dies on `err.signal` with a bare TypeError, naming neither the caller nor the fact that nothing was graded."
+    },
+    {
+      "id": "drop-generic-error-branch",
+      "find": "  if (r.error) throw new Error(`${label}: could not spawn — ${r.error.message}`)\n",
+      "replace": "",
+      "expectRed": ["a child that never started names the underlying cause"],
+      "note": "ENOENT and EACCES then fall to the backstop and report 'no status and no signal', losing the cause the caller needs. status-outranks-error reorders this line but never removes it, so the line was reachable by no mutation."
+    },
+    {
+      "id": "verdictof-drop-output-defaults",
+      "find": "  return { status: err.status, stdout: String(err.stdout ?? ''), stderr: String(err.stderr ?? '') }\n",
+      "replace": "  return { status: err.status, stdout: err.stdout, stderr: err.stderr }\n",
+      "expectRed": ["a thrown child with no captured output yields empty strings, never undefined"],
+      "note": "Callers run `assert.match(stderr, /x/)`; an undefined stderr throws a TypeError naming neither the guard nor the expectation."
+    }
+  ],
+
+  "notEncoded": [
+    {
+      "claim": "runNode's `opts.timeout ?? 60_000` default — removing it restores an unbounded wait.",
+      "why": "Grading it needs a test whose child never exits. With the default gone that test HANGS rather than going red, so the harness reports its own suite timeout as a fault instead of catching the mutation. A claim that can only be observed by hanging the grader is not encodable here."
     }
   ]
 }
