@@ -456,8 +456,8 @@
     },
     {
       "id": "ownerfor-never-looks-down",
-      "find": "    let j = from + 1\n    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++\n    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]\n    const k = ownerAbove(anchor)",
-      "replace": "    const k = ownerAbove(anchor)",
+      "find": "    let j = from + 1\n    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++\n    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]\n    const k = ownerAbove(testLines, anchor)",
+      "replace": "    const k = ownerAbove(testLines, anchor)",
       "expectRed": [
         "a marker directly above a test names that test",
         "an id list wrapped onto a continuation line keeps every id",
@@ -470,7 +470,10 @@
       "id": "ownerfor-stops-at-comments",
       "find": "(lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))",
       "replace": "(lines[j].trim() === '')",
-      "expectRed": ["a claim in a multi-line comment block belongs to the test below it"]
+      "expectRed": [
+        "a claim in a multi-line comment block belongs to the test below it",
+        "a continuation line that is not an id list ends the marker instead of joining it"
+      ]
     },
     {
       "id": "claims-scan-every-line",
@@ -485,13 +488,19 @@
       "id": "groupproblems-never-reports",
       "find": "      if (!ids.has(id)) problems.push(",
       "replace": "      if (false) problems.push(",
-      "expectRed": ["an id naming no mutation in the data file is reported as a problem"]
+      "expectRed": [
+        "an id naming no mutation in the data file is reported as a problem",
+        "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
+        "the same GROUP id named by two different tests produces two dangling-id problems"
+      ]
     },
     {
       "id": "testline-no-modifier",
       "find": "const TEST_LINE_RE = /^\\s*(?:test|it)(?:\\.\\w+)?\\s*\\(/",
       "replace": "const TEST_LINE_RE = /^\\s*(?:test|it)\\s*\\(/",
-      "expectRed": ["SEED"]
+      "expectRed": [
+        "a claim above a modifier form such as it.skip belongs to that test, not the file"
+      ]
     },
     {
       "id": "ownerfor-scan-skips-code",
@@ -506,19 +515,24 @@
       "id": "marker-continues-on-any-comment",
       "find": "    if (!cont || !ID_LIST_RE.test(cont[1].trim())) break",
       "replace": "    if (!cont) break",
-      "expectRed": ["SEED"]
+      "expectRed": [
+        "a continuation line that is not an id list ends the marker instead of joining it"
+      ]
     },
     {
       "id": "ownerfor-always-header",
       "find": "    return k === -1 ? header : tests[k]",
       "replace": "    return header",
-      "expectRed": ["SEED"]
+      "expectRed": [
+        "a marker written inside a body names the test it sits in, not the next one",
+        "reports the claim sites a suite carries and the entries excused from encoding"
+      ]
     },
     {
       "id": "crlf-left-on-the-line",
-      "find": ".split('\\n').map((l) => l.replace(/\\r$/, ''))",
+      "find": "\n    .split('\\n')\n    .map((l) => l.replace(/\\r$/, ''))",
       "replace": ".split('\\n')",
-      "expectRed": ["SEED"]
+      "expectRed": ["a suite written with CRLF line endings still yields its markers"]
     }
   ],
   "notEncoded": [
