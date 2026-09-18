@@ -409,7 +409,7 @@
         "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
         "updating the baseline rewrites a shrunk entry and leaves everything else alone"
       ],
-      "note": "The split on '\\n' yields a trailing empty element for a newline-terminated file; without the adjustment every such file counts one line too many, and a file sitting exactly at its cap starts failing. expectRed names 12 tests because nearly every fixture in the suite is newline-terminated: an off-by-one on the line count moves whole classes of file across their cap at once. This pins the line-counting contract itself, not the single test its comment names."
+      "note": "The split on '\\n' yields a trailing empty element for a newline-terminated file; without the adjustment every such file counts one line too many, and a file sitting exactly at its cap starts failing. expectRed names 12 tests because nearly every fixture in the suite is newline-terminated: an off-by-one on the line count moves whole classes of file across their cap at once. This pins the line-counting contract itself, not the single test its comment names. `renaming a grandfathered file out of its rule class is blocked, not silently allowed` is in this set for the same reason as elsewhere: it baselines a 150-line file at 150 and asserts status 0 FIRST, so the ratchet fires before the rename happens. Its membership says nothing about rename detection."
     },
     {
       "id": "countlines-always-subtracts-one",
@@ -495,7 +495,7 @@
         "a grandfathered file that SHRANK but is still over the limit fails",
         "updating the baseline rewrites a shrunk entry and leaves everything else alone"
       ],
-      "note": "The ratchet degrades to a plain cap check: a 239-line file could grow to 299 unnoticed. Mutating the COMPARISON to `n > rule.max` instead leaves the test GREEN — 82 > 80 still fires and the message still reads the grandfathered size — which is why the anchor is the lookup, not the comparison. Nine tests redden: with `allowed` never undefined, the new-violation branch becomes unreachable as well, so this pins the grandfathering mechanism as a whole."
+      "note": "The ratchet degrades to a plain cap check: a 239-line file could grow to 299 unnoticed. Mutating the COMPARISON to `n > rule.max` instead leaves the test GREEN — 82 > 80 still fires and the message still reads the grandfathered size — which is why the anchor is the lookup, not the comparison. Nine tests redden: with `allowed` never undefined, the new-violation branch becomes unreachable as well, so this pins the grandfathering mechanism as a whole. `renaming a grandfathered file out of its rule class is blocked, not silently allowed` is in this set for the same reason as elsewhere: it baselines a 150-line file at 150 and asserts status 0 FIRST, so the ratchet fires before the rename happens. Its membership says nothing about rename detection."
     },
     {
       "id": "new-violation-never-reported",
