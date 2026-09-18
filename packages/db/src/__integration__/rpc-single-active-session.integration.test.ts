@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import {
@@ -42,7 +43,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
   let topicId: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   // Insert an active session of an arbitrary mode for the test student directly
   // (service-role bypasses RLS, but NOT the partial unique index). Returns the id.

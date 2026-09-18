@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -11,7 +12,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  */
 describe('RLS: immutable tables', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orgId: string
   let studentClient: SupabaseClient

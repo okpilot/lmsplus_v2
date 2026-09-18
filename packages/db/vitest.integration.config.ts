@@ -3,13 +3,13 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     // No pool override: each test file runs in its own worker (default `forks`
-    // pool), so module-level state in shared helpers (e.g. the `suffix =
-    // Date.now()` in src/__integration__/vfr-rt-helpers.ts) is initialised
-    // per-file. Today's files are collision-free via distinct per-describe
-    // org-slug/email prefixes (see that helper's header), NOT via the suffix
-    // alone. Before adding `singleThread`/`vmThreads` — which would share that
-    // module state across files — confirm every helper file still keys its seed
-    // rows uniquely without relying on per-file module isolation.
+    // pool), so module-level state in shared helpers (e.g. the `suffix` in
+    // src/__integration__/vfr-rt-helpers.ts) is initialised per-file. All those
+    // workers share ONE Postgres, and literal code/slug/email prefixes ARE
+    // reused across files, so isolation rests on `fixtureSuffix()` carrying real
+    // entropy — not on the prefixes. `isolate: false` is the one setting that
+    // would share that module state across files in a worker; before adding it,
+    // confirm every helper still keys its seed rows uniquely.
     environment: 'node',
     globals: true,
     include: ['src/__integration__/**/*.integration.test.ts'],

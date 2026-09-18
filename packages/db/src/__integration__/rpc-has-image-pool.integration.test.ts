@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -17,7 +18,7 @@ describe('RPC: has-image filtered question pool (#864)', () => {
   let imageIds: string[] // question_image_url IS NOT NULL
   let noImageIds: string[] // question_image_url IS NULL
   const userIds: string[] = []
-  const suffix = `${Date.now()}-img`
+  const suffix = `${fixtureSuffix()}-img`
 
   beforeAll(async () => {
     orgId = await createTestOrg({

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import {
@@ -56,7 +57,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let saId: string
   let dfId: string

@@ -1,12 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 describe('RLS: tenant isolation', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   // Org A
   let orgAId: string

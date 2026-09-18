@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -17,7 +18,7 @@ describe('RPC: calc-mode filtered question pool (#837)', () => {
   let calcIds: string[] // has_calculations = true
   let nonCalcIds: string[] // has_calculations = false
   const userIds: string[] = []
-  const suffix = `${Date.now()}-calc`
+  const suffix = `${fixtureSuffix()}-calc`
 
   beforeAll(async () => {
     orgId = await createTestOrg({

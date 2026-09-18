@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -40,7 +41,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
   let otherRefs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
   const otherUserIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   beforeAll(async () => {
     orgId = await createTestOrg({

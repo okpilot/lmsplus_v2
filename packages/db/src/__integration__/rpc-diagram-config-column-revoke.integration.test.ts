@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -38,7 +39,7 @@ describe('Column grant: diagram_config REVOKE-by-omission from authenticated', (
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let diagramId: string
 

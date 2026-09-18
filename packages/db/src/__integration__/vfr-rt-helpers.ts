@@ -7,14 +7,16 @@
  * (no .test.ts suffix) — Vitest does not collect it.
  *
  * `admin` and `suffix` are module-level: each importing test file loads this
- * module in its own Vitest worker, so each file gets its own `Date.now()`
- * suffix. That is safe because every describe block already uses a distinct
- * org-slug / email prefix, so cross-file slug/email collisions cannot occur.
+ * module in its own Vitest worker, so each file draws its own `fixtureSuffix()`.
+ * The distinct per-describe org-slug / email prefixes do NOT by themselves make
+ * that safe — prefixes are reused across files, so the suffix is what has to
+ * carry the uniqueness.
  */
+import { fixtureSuffix } from './fixture-suffix'
 import { getAdminClient } from './setup'
 
 export const admin = getAdminClient()
-export const suffix = Date.now()
+export const suffix = fixtureSuffix()
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

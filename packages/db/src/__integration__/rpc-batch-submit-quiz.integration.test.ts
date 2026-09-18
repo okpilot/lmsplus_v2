@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -26,7 +27,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
   let questionIdWrong: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   const EXPLANATION_IMAGE_URL = 'https://example.com/expl.png'
 
@@ -280,7 +281,7 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
   let studentClient: SupabaseClient
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const suffix = Date.now() + 1 // avoid colliding with the first describe's suffix
+  const suffix = fixtureSuffix()
 
   let shortAnswerId: string
   let dialogFillId: string

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -19,7 +20,7 @@ describe('RPC: question-type filtered question pool (#1008)', () => {
   let mcIds: string[] // question_type = 'multiple_choice'
   let saIds: string[] // question_type = 'short_answer'
   const userIds: string[] = []
-  const suffix = `${Date.now()}-qtype`
+  const suffix = `${fixtureSuffix()}-qtype`
 
   beforeAll(async () => {
     orgId = await createTestOrg({

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
@@ -48,7 +49,7 @@ const DIAGRAM_CONFIG = {
 
 describe('Trigger: enforce blank_index <=> dialog_fill OR ordering OR diagram_label on answer inserts', () => {
   const admin = getAdminClient()
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
 
   let orgId = ''
   let studentId: string

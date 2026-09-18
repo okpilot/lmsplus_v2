@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -65,7 +66,7 @@ describe('RPC: get_daily_activity / get_subject_scores — active-user gate + so
   let refs: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   let discardedSessionId = ''
   const userIds: string[] = []
-  const suffix = Date.now()
+  const suffix = fixtureSuffix()
   const studentEmail = `student-analytics-${suffix}@test.local`
   const attackerEmail = `attacker-analytics-${suffix}@test.local`
 

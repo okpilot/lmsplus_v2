@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { fixtureSuffix } from './fixture-suffix'
 
 /** Seed reference data: subject + topic + subtopic. Returns IDs. */
 export async function seedReferenceData(opts: {
@@ -96,7 +97,7 @@ export async function seedQuestions(opts: {
       .from('question_banks')
       .insert({
         organization_id: orgId,
-        name: `Test Bank ${Date.now()}`,
+        name: `Test Bank ${fixtureSuffix()}`,
         created_by: createdBy,
       })
       .select('id')

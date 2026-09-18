@@ -20,11 +20,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 // ─── RT seed helpers (self-contained per file) ────────────────────────────────
 
