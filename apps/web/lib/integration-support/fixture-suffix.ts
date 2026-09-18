@@ -15,9 +15,10 @@ import { randomUUID } from 'node:crypto'
  * the other.
  *
  * The timestamp half is for chronological readability when debugging leftover
- * rows; the random half carries the entropy. Not a guarantee: 8 hex chars is
- * 2^32 values, so at the ~50 draws a full run makes, the collision probability
- * is about 3e-7 per run.
+ * rows; the random half carries the entropy: 8 hex chars, 2^32 values. Improbable
+ * is not impossible. One draw per test file, a count that moves as files are
+ * added, so derive it rather than restating it here:
+ *   grep -rl 'fixtureSuffix()' apps/web --include='*.integration.test.ts' | wc -l
  */
 export function fixtureSuffix(): string {
   return `${Date.now()}-${randomUUID().slice(0, 8)}`
