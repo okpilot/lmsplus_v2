@@ -209,7 +209,8 @@
         "reads the value of the --scratch option",
         "grades every mutation after a stale-anchor fault, not just those before it",
         "exits 2 when a batch carries both a fault and a survivor, not 1",
-        "refuses to report success when there was nothing at all to grade"
+        "refuses to report success when there was nothing at all to grade",
+        "a dangling GROUP id committed but not on disk still stops the grading run"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -468,7 +469,8 @@
         "a claim above a modifier form such as it.skip belongs to that test, not the file",
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
         "a continuation line that is not an id list ends the marker instead of joining it",
-        "a suite written with CRLF line endings still yields its markers"
+        "a suite written with CRLF line endings still yields its markers",
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
     {
@@ -477,7 +479,8 @@
       "replace": "(lines[j].trim() === '')",
       "expectRed": [
         "a claim in a multi-line comment block belongs to the test below it",
-        "a continuation line that is not an id list ends the marker instead of joining it"
+        "a continuation line that is not an id list ends the marker instead of joining it",
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
     {
@@ -497,7 +500,8 @@
         "an id naming no mutation in the data file is reported as a problem",
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
         "the same GROUP id named by two different tests produces two dangling-id problems",
-        "a dangling GROUP id makes coverage mode exit non-zero, not merely print"
+        "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
+        "a dangling GROUP id committed but not on disk still stops the grading run"
       ]
     },
     {
@@ -529,10 +533,7 @@
       "id": "ownerfor-always-header",
       "find": "    if (k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])) return header\n    return tests[k]",
       "replace": "    return header",
-      "expectRed": [
-        "a marker written inside a body names the test it sits in, not the next one",
-        "reports the claim sites a suite carries and the entries excused from encoding"
-      ]
+      "expectRed": ["a marker written inside a body names the test it sits in, not the next one"]
     },
     {
       "id": "ownerfor-reaches-past-the-body",
