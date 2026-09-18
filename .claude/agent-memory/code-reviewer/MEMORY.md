@@ -49,6 +49,7 @@
 | §10 cl.3 threshold drift — canonical updated, mirror used old language in same-diff | 2026-09-17 (chore/pre-push-review-gate) | 1 | 2026-09-17 | RESOLVED (round-2 fixup 4df13859). automerge.md line 31 now reads "different rounds or branches" — matches agent-learner.md and agent-workflow.md. |
 | §10 cl.8 false "most … above" extent claim in round-1 fixup comment (fix/harden-fixture-spawn-helpers) | 2026-09-18 (c74eb914) | 1 | 2026-09-18 | RESOLVED (8d769b4e R3). Direction claim removed; new wording "imported by guard suites elsewhere in this job" — verified TRUE (14 importers, all in this job). No new findings at ceiling round. |
 | spawn.testkit.mjs — §10 runNode timeout comment: "none of guard-suite CI steps carries timeout-minutes" | 2026-09-18 (c74eb914) | 1 | 2026-09-18 | CLEAN. TRUE for spawn.testkit importers' steps specifically. directive.test.mjs has timeout-minutes:5 but does not import spawn.testkit — not a "guard-suite CI step" in the relevant scope. |
+| Integration-fixture isolation (fix/integration-fixture-isolation): all checks pass | 2026-09-18 | 1 | 2026-09-18 | CLEAN. New fixture-suffix.ts (22L utility) + co-located test (35L). harness.ts re-export is single-symbol, not a barrel. 3 test titles are behaviour-first. File-size guard: 0 new violations. |
 
 > Count increments only on a **distinct** mechanism. Rows transition state, never deleted.
 

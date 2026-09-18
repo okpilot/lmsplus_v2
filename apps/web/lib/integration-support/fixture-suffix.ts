@@ -5,7 +5,7 @@
 // tested without a database. harness.ts re-exports this so call sites are unchanged.
 import { randomUUID } from 'node:crypto'
 /**
- * Collision-free namespace for one test file's fixtures.
+ * Collision-resistant namespace for one test file's fixtures.
  *
  * `pool: 'forks'` runs test FILES in parallel processes against ONE shared
  * Postgres, so a namespace derived from a millisecond clock collides whenever
@@ -15,7 +15,9 @@ import { randomUUID } from 'node:crypto'
  * the other.
  *
  * The timestamp half is for chronological readability when debugging leftover
- * rows; the random half is what makes it unique.
+ * rows; the random half carries the entropy. Not a guarantee: 8 hex chars is
+ * 2^32 values, so at the ~50 draws a full run makes, the collision probability
+ * is about 3e-7 per run.
  */
 export function fixtureSuffix(): string {
   return `${Date.now()}-${randomUUID().slice(0, 8)}`
