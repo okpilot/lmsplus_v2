@@ -1881,7 +1881,8 @@ sitting in the programme's own commit messages.
 **Decision.** `.claude/hooks/run-mutations.mjs` stores mutations as DATA (`<guard>.mutations.json`)
 and applies them at runtime to a throwaway `git worktree`, so the number is reproduced by executing
 a command instead of by trusting a sentence. Re-derive with `node .claude/hooks/run-mutations.mjs`;
-`--coverage` reports the encoded-vs-claimed gap. **Commit messages stop stating the figure and
+`--coverage` reports the claim sites, how many a `GROUP:` marker links, and the encoded count
+*(Decision 75: it printed a subtraction of those figures until 2026-09-18)*. **Commit messages stop stating the figure and
 name the command instead** (§10 cl.7 already preferred the derivation over the number).
 
 This resolves the apparent conflict with the discard requirement: what is committed is the mutation
@@ -1944,9 +1945,12 @@ demonstrated against itself. §7 has been corrected in place to say so.
 
 **Bounds, stated because understating them would be this tool's own defect.** It grades only what is
 ENCODED — a `MUTATION:` comment nobody translated is invisible to the run and visible only under
-`--coverage`. It grades the COMMITTED tree, so uncommitted edits are not what is measured. The
-`--coverage` gap is NOT padded to zero: several raw `MUTATION:` occurrences are prose and fixture
-text, and forcing the denominator down would launder the one number the mode exists to produce.
+`--coverage`. `--run` grades the COMMITTED tree, so uncommitted edits are not what it measures;
+`--coverage` reads the WORKING tree *(corrected 2026-09-18 — the sentence said COMMITTED of both)*.
+The `--coverage` gap is NOT padded to zero: several raw `MUTATION:` occurrences are prose and
+fixture text, and forcing the denominator down would launder the one number the mode exists to
+produce *(Decision 75 retires the subtraction itself: it took comment TOKENS from data ROWS, which
+are not the same unit. The non-laundering principle stands and is what Decision 75 applies.)*.
 
 
 ## Decision 68: "never restate a number here" becomes a check, not an instruction (2026-09-14)
@@ -2232,3 +2236,28 @@ authoritative external gate.
 
 **Not decided here.** Cloud CR rounds remain uncapped — `agent-critic.md`'s bounded-out rule is
 written for the internal loop only. Applying it to cloud rounds needs its own decision.
+
+## Decision 75: `GROUP:` is the checked link between a claim and its mutations (2026-09-18)
+
+**Decision.** A `// MUTATION:` comment links to the mutations that grade it with `// GROUP: <id>,
+<id>`, above the test or inside its body above the assertion. `run-mutations.mjs` parses the
+markers: an id naming no mutation exits `--coverage` non-zero and aborts `--run` before anything is
+graded. `--coverage` stops printing a gap.
+
+**Why the gap went.** It computed `claims − encoded − notEncoded` — comment TOKENS minus data ROWS.
+The units do not match in either direction: one comment names several ids, and one id is named by
+several comments (`new-findings-never-block` by 10). The figure was arithmetic on
+non-commensurable quantities, so no value of it meant anything. The four counts it subtracted are
+now printed separately, plus how many claim sites a marker links.
+
+**Consequence.** `notEncoded` was doing two jobs — declaring "this token is not a claim" and
+offsetting the counter. The second job is gone: six rows across `check-prose-claims` and
+`check-prose-paths` existed only to zero the subtraction and are deleted, the two naming specific
+tests now linked by markers instead.
+
+**Not a reversal of Decision 67.** 67 forbids padding the gap to zero to launder the number.
+Decision 68 already carved out "prose about a claim, not a claim". This retires a broken
+measurement; it does not lower a real one.
+
+**As of this decision** 48 markers across 4 of 15 suites, every id resolving — re-derive with
+`node .claude/hooks/run-mutations.mjs --coverage`, which is the enforcer.
