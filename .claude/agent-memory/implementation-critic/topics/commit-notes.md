@@ -6,6 +6,20 @@
 
 ## Positive-pattern log
 
+### DB fixture suffix (packages/db tier) — APPROVED (2026-09-18, fix/db-integration-fixture-suffix)
+
+50 files changed. All 5 plan items verified:
+1. `fixture-suffix.ts`: `${Date.now()}-${randomUUID().slice(0, 8)}` ✓
+2. `fixture-suffix.test.ts`: `vi.hoisted` mock, 500-draw uniqueness, email-limit at 27-char prefix ✓
+3. 47 declaration sites across 44 files — verified by grep (EVIDENCE: grep count = 47) ✓
+4. `seed.ts:99`: `Test Bank ${fixtureSuffix()}` ✓
+5. Both false comments corrected; vitest.integration.config.ts does NOT cite SC ✓
+- 5 discriminated shape variants preserved (-v, -img, -calc, -qtype, xorg-); `+1` variant → plain ✓
+- 46 direct imports; vfr-rt-questions/vfr-rt-start unchanged (inherit via vfr-rt-helpers) ✓
+- Baseline: 8 pre-existing grew + 1 newly over = 9 total changes (commit message says "nine" = total, not "nine pre-existing") ✓
+- §1 amendment accurate; no stale "may only shrink" in any mirror ✓
+- No remaining Date.now() in fixture namespacing ✓
+
 ### Integration fixture isolation — APPROVED (2026-09-18, fix/integration-fixture-isolation)
 
 29 files changed. Plan deviation: helper extracted to `fixture-suffix.ts` + re-exported from `harness.ts` (harness.ts imports @repo/db/test-helpers which requires service-role env at import time, blocking unit tests). Deviation sound — `harness.ts` is not `index.ts`, already re-exports from `@repo/db/test-helpers`, comment says "NOT a barrel over feature code". All 26 integration test files changed (verified `grep -rln 'fixtureSuffix()' | wc -l` = 26). Two `Date.now()` hits remaining are expiry timestamps (`new Date(Date.now() + 7 * 24 * ...)`, `+ 14 * 24 * ...`), not namespaces. `quiz-report-questions` nmSuffix correctly changed to `` `${suffix}-nm` ``. `pool: 'forks'` claim verified in `vitest.integration.config.ts:26`. Unit test co-located per §7.

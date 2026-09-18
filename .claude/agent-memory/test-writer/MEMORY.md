@@ -29,7 +29,7 @@
 | Arithmetic on a previously-always-zero field is invisible until non-zero fixtures exist — once real data makes the field non-zero, pin it with a spawn-level test asserting the output count. | 2026-09-17 | 1 | 2026-09-18 | WATCHING |
 | Spawned-process tests for hooks calling `node --test` must strip NODE_TEST_CONTEXT — otherwise inner subprocess detects recursion and produces no TAP plan, faulting for the wrong reason. Pattern: spread without key into spawnSync env. | 2026-09-14 | 1 | 2026-09-14 | WATCHING |
 | `hunksfor-paths-through-argv` is a CASCADE mutation for check-retracted-phrase suites — adding any new test requires (a) verifying if it reddens under this mutation in scratch worktree, (b) adding title to expectRed BEFORE running the full harness. | 2026-09-18 | 1 | 2026-09-18 | WATCHING |
-| Uniqueness test with `Date.now()`-based collision protection guarded by a `toBeLessThan(N ms)` timing bound — flake risk on loaded CI runners. Fix: freeze clock with `vi.useFakeTimers()` + `vi.setSystemTime()` so uniqueness depends solely on the random half; timing bound unnecessary. | 2026-09-18 | 1 | 2026-09-18 | WATCHING |
+| Uniqueness test with `Date.now()`-based collision protection guarded by a `toBeLessThan(N ms)` timing bound — flake risk on loaded CI runners. Fix: freeze clock with `vi.useFakeTimers()` + `vi.setSystemTime()` so uniqueness depends solely on the random half; timing bound unnecessary. | 2026-09-18 | 2 | 2026-09-18 | WATCHING |
 
 ## Durable knowledge
 
