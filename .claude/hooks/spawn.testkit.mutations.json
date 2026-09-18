@@ -1,0 +1,56 @@
+{
+  "target": ".claude/hooks/spawn.testkit.mjs",
+  "suites": [".claude/hooks/spawn.testkit.test.mjs"],
+  "mutations": [
+    {
+      "id": "drop-null-result-branch",
+      "find": "  if (r == null) throw new Error(`${label}: no spawn result to read — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["a missing result is reported as no verdict, naming what ran"],
+      "note": "Without it a missing result dies on `r.error` with a bare TypeError, naming neither the caller nor the fact that nothing was graded."
+    },
+    {
+      "id": "etimedout-after-generic-error",
+      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      const budget = timeoutMs == null ? 'its timeout' : `${timeoutMs}ms`\n      throw new Error(`${label}: exceeded ${budget} and was killed — NO VERDICT`)\n    }\n",
+      "replace": "",
+      "expectRed": [
+        "a timed-out run names the budget it exceeded, not a spawn failure",
+        "a timed-out run with no stated budget still reports a timeout"
+      ],
+      "note": "spawnSync sets BOTH `error` and `signal` on a timeout, so the generic branch reports 'could not spawn' for a child that spawned fine and then ran long. Encoded as a deletion rather than a reordering: removing the block is what makes the generic branch fire first, and it is the only anchor the find/replace schema can address."
+    },
+    {
+      "id": "drop-signal-branch",
+      "find": "  if (r.signal) throw new Error(`${label}: killed by ${r.signal} — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": [
+        "a killed run is reported as no verdict, naming the signal",
+        "a real child killed by a signal is reported as no verdict"
+      ],
+      "note": "This IS #1303: the caller then sees status null and asserts on it. Both tests still throw via the status backstop below, so each is pinned by the MESSAGE, not by the presence of a throw."
+    },
+    {
+      "id": "drop-null-status-backstop",
+      "find": "  if (r.status == null) throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["a run with neither a status nor a signal is not treated as gradable"],
+      "note": "A result carrying no status, no signal and no error would pass as gradable and the caller would compare an exit code against null."
+    },
+    {
+      "id": "verdictof-drop-signal-branch",
+      "find": "  if (err.signal) throw new Error(`${label}: killed by ${err.signal} — NO VERDICT`)\n",
+      "replace": "",
+      "expectRed": ["a thrown child killed by a signal is not converted into a verdict"],
+      "note": "The false-GREEN half of the class: `assert.notEqual(err.status, 0)` passes on null, so a killed child reads as a successful non-zero-exit assertion."
+    },
+    {
+      "id": "verdictof-drop-null-status-branch",
+      "find": "  if (err.status == null) {\n    // ENOENT, EACCES, a spawn that never became a process. `err.message` carries the cause.\n    throw new Error(`${label}: did not run to an exit code — ${err.message} — NO VERDICT`)\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "a thrown child that never reached an exit code is not converted into a verdict"
+      ],
+      "note": "A spawn that never became a process would return `{status: undefined}` and read as an ordinary non-zero exit."
+    }
+  ]
+}
