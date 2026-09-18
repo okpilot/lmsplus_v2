@@ -6,6 +6,16 @@
 
 ## Positive-pattern log
 
+### GROUP marker linking (PR B) — APPROVED (2026-09-18, chore/link-guard-claims)
+
+12 files changed. GROUP markers added to both guard families. Key verified facts:
+- `check-file-size-guard`: 57 linked, 9 unlinked, 11 notEncoded (2 extra cover MUTATION A/B form not counted as claim sites by harness). Coverage exits 0.
+- `check-retracted-phrase`: 45 linked, 20 unlinked, 2 notEncoded (pre-existing, unchanged). No new notEncoded added — correct per plan (follow-up PR encodes them).
+- `trailer.test.mjs` extracted (110 lines), registered in `suites` array and `ci.yml`. `cli.test.mjs` now 406 lines (under 500-cap). All 3 trailer tests pass.
+- `a ticket reference elsewhere` test NOT rewritten — correct per plan (§10 cl.8 risk).
+- Duplicate `unreadable-path-skipped-instead-of-reported` GROUP ID on two tests: intentional — both describe the same `restore continue` edit; mutation `note` field documents this.
+- All GROUP IDs resolve (coverage exits 0, no dangling IDs).
+
 ### check-file-size-guard test claims encoding — APPROVED (2026-09-18, chore/encode-file-size-guard-test-claims)
 
 16 new mutation entries + 6 new notEncoded rows. Plan called for 17 encodable collapsing to 16 + 6 notEncoded. All 16 `find` strings verified unique (count=1) in the target via `python3 str.count`. Multi-line anchors correct; SPECIAL.test find required two backslashes (JSON `\\\\`) matching `0x5c 0x5c` in the source (confirmed via `xxd`). All four prose corrections verified against guard source: (1) `fixture()` ships `baseline: {}` at L45 — override is a no-op; (2) `n !== allowed` at L284, not `>`; (3) `const allowed = baseline[file]` at L278 is the correct lookup anchor; (4) `isExcluded` at L245 fires before `classify` at L272. `new-violation-never-reported` note claim confirmed: `allowed === undefined` branch at L279-281 fires before `liveViolators.add` at L283. Guard reads no `_ratios` or `.note` fields. No deviations from plan.
