@@ -19,6 +19,7 @@ import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mj
 // fixture can only exist on Linux — which is also the only platform CI runs it on. The sibling
 // test below is deliberately NOT skipped: it uses a latin1 STRING path, which Node re-encodes to
 // valid UTF-8, so it exercises argv re-encoding rather than a raw invalid byte and runs anywhere.
+
 // GROUP: splitnul-decodes-utf8
 test('a near-identical sibling path is not mistaken for the edited file', {
   skip: process.platform !== 'linux',
