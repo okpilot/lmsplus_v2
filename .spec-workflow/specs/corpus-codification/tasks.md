@@ -198,17 +198,19 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       check must delete the prose that check replaced, or the corpus carries both forever, which is
       what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
 
-- [ ] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
+- [x] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
       executed, so a prose copy is free to go false — the defect class `code-style.md` §7 governs.
       **Deleting the comments is NOT the remedy:** a claim encoded nowhere has the comment as its
-      only record, and `--list` prints ids plus `notEncoded` claim text, never
-      `find`/`replace`/`expectRed`/`note` — so it cannot answer "what breaks this test".
-      Per mutation DATA FILE (`--coverage` reports and aggregates per data file, not per suite),
-      drive the gap to zero: encode the real claims; for anything the single-`target` schema
-      cannot express, add a `notEncoded` row carrying BOTH a non-empty `claim` and a non-empty
-      `why` (`validateDataFile` requires both); only then delete a comment that genuinely
-      duplicates an encoded entry.
-      Derive the gap, never state it: `node .claude/hooks/run-mutations.mjs --coverage`.
+      only record, and `--list` prints mutation IDS ONLY — no `find`/`replace`/`expectRed`/`note`,
+      no `notEncoded` text — so it cannot answer "what breaks this test".
+      **Decision 75 (2026-09-18) replaced "drive the gap to zero" with a link that is checked.**
+      There is no gap: it subtracted data ROWS from comment TOKENS, which are not the same unit.
+      A comment names the mutations that grade it with `// GROUP: <id>, <id>`; a dangling id
+      exits `--coverage` non-zero and aborts `--run`. `notEncoded` keeps its one real job —
+      declaring a token that is not a claim, with BOTH a non-empty `claim` and `why`
+      (`validateDataFile` requires both) — and loses its counter-offset job.
+      Derive, never state: `node .claude/hooks/run-mutations.mjs --coverage`.
+      REMAINING: `check-file-size-guard` and `check-retracted-phrase` carry no markers yet.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest

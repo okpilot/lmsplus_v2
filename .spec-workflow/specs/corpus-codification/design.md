@@ -73,6 +73,12 @@ economics: large size win, no correctness win, low cost.
 **Ordering follows from this:** enforcement-of-maintenance compounds, deletion does not.
 Archaeology is not decaying; an unenforced "ship tests with new code" rule is.
 
+**OVERTURNED by Slice 3, on measurement** (Decision 72, `tasks.md` carries the figures): deletion
+went first and the corpus fell 37% in 14 commits against the 29 the preceding guard slice cost.
+Deletion's review cost FALLS as the change grows — a reviewer reads what is left — while a guard's
+rises. The table above still reports the two options honestly; only the ordering it concluded is
+wrong.
+
 ## Lessons that must not be relearned
 
 1. **Measure the baseline BEFORE designing the check.** Slice 1's naive check reported 74
