@@ -463,7 +463,11 @@
         "an id list wrapped onto a continuation line keeps every id",
         "a claim written directly above the first test belongs to that test",
         "a claim in a multi-line comment block belongs to the test below it",
-        "an id naming no mutation in the data file is reported as a problem"
+        "an id naming no mutation in the data file is reported as a problem",
+        "a claim above a modifier form such as it.skip belongs to that test, not the file",
+        "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
+        "a continuation line that is not an id list ends the marker instead of joining it",
+        "a suite written with CRLF line endings still yields its markers"
       ]
     },
     {
