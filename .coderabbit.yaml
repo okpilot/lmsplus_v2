@@ -612,6 +612,11 @@ reviews:
           survives that check: a replacement that matches and leaves the file UNCHANGED, which
           is a no-op indistinguishable from an unpinned test. Confirm the source actually
           changed before believing any verdict drawn from it.
+        - A NEW `// MUTATION:` comment carrying no `// GROUP: <id>, <id>` marker. The marker goes
+          above the test or inside its body above the assertion, and names the mutation ids that
+          grade the claim. Pre-existing unlinked comments are not the diff's to fix.
+        - A `// GROUP:` id that names no mutation in the sibling `<guard>.mutations.json`. A
+          dangling id reads as coverage and grades nothing.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"
