@@ -108,11 +108,11 @@
     },
     {
       "id": "narrow-mutation-grep",
-      "find": "/MUTATION:/g",
-      "replace": "/\\/\\/ MUTATION:/g",
+      "find": "String(text).match(/MUTATION:/g)",
+      "replace": "String(text).match(/\\/\\/ MUTATION:/g)",
       "expectRed": [
         "counts a MUTATION: claim that does not begin its line",
-        "subtracts declared-not-encodable entries from the coverage gap"
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ],
       "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. The coverage-gap test entered this set when it was added: it asserts a printed gap, so any miscount of claims reddens it."
     },
@@ -123,7 +123,7 @@
       "expectRed": [
         "counts a MUTATION: claim that does not begin its line",
         "counts zero on text that makes no claim",
-        "subtracts declared-not-encodable entries from the coverage gap"
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
     {
@@ -224,7 +224,7 @@
       "expectRed": [
         "reads the value of an option flag",
         "reads the value of the --scratch option",
-        "subtracts declared-not-encodable entries from the coverage gap"
+        "reports the claim sites a suite carries and the entries excused from encoding"
       ],
       "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
     },
@@ -462,25 +462,33 @@
       "id": "ownerfor-never-looks-down",
       "find": "    let j = from + 1\n    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++\n    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]\n    const k = ownerAbove(anchor)",
       "replace": "    const k = ownerAbove(anchor)",
-      "expectRed": ["PLACEHOLDER"]
+      "expectRed": [
+        "a marker directly above a test names that test",
+        "an id list wrapped onto a continuation line keeps every id",
+        "a claim written directly above the first test belongs to that test",
+        "an id naming no mutation in the data file is reported as a problem"
+      ]
     },
     {
       "id": "ownerfor-stops-at-comments",
       "find": "(lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))",
       "replace": "(lines[j].trim() === '')",
-      "expectRed": ["PLACEHOLDER"]
+      "expectRed": ["a claim in a multi-line comment block belongs to the test below it"]
     },
     {
       "id": "claims-scan-every-line",
       "find": "    if (!/^\\s*\\/\\//.test(lines[i])) continue\n",
       "replace": "",
-      "expectRed": ["PLACEHOLDER"]
+      "expectRed": [
+        "a claim token in a test title is fixture text, not a claim",
+        "a claim token inside a string literal is fixture text, not a claim"
+      ]
     },
     {
       "id": "groupproblems-never-reports",
       "find": "      if (!ids.has(id)) problems.push(",
       "replace": "      if (false) problems.push(",
-      "expectRed": ["PLACEHOLDER"]
+      "expectRed": ["an id naming no mutation in the data file is reported as a problem"]
     }
   ],
   "notEncoded": [
