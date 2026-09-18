@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { verdictOf } from './spawn.testkit.mjs'
 
 export const GUARD = join(dirname(fileURLToPath(import.meta.url)), 'check-retracted-phrase.mjs')
 
@@ -51,7 +52,10 @@ export function run({ dir }, message, args, cwd) {
     })
     return { status: 0, stderr: '' }
   } catch (err) {
-    return { status: err.status, stderr: err.stderr ?? '' }
+    // A signal kill or a failed spawn produced NO VERDICT — `err.status` is null there, and
+    // returning it reddens every status assertion as if the guard had answered. verdictOf throws.
+    const { status, stderr } = verdictOf('check-retracted-phrase.mjs', err)
+    return { status, stderr }
   }
 }
 

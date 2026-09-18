@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { checkMirrors, clauseBlock, digest } from './check-mirror-sync.mjs'
+import { runNode } from './spawn.testkit.mjs'
 
 const ANCHOR = 'ANCHOR_TEXT begins the clause'
 const para = (second) => `intro\n\n${ANCHOR} here\n${second}\nthird line\n\ntail\n`
@@ -84,8 +85,10 @@ test('runs end-to-end when its own script path contains a space', () => {
     writeFileSync(join(repo, 'a.md'), para('second line'))
     writeFileSync(join(repo, 'b.md'), para('second line'))
     commit()
-    const out = execFileSync(process.execPath, [hook, ANCHOR], { cwd: repo, encoding: 'utf8' })
-    assert.match(out, /in sync across 2 file\(s\)/)
+    // runNode over execFileSync: a signal kill throws NO VERDICT here instead of leaving an empty
+    // `out` for assert.match to report as "string did not match", which names the wrong defect.
+    const out = runNode('check-mirror-sync.mjs', [hook, ANCHOR], { cwd: repo })
+    assert.match(out.stdout, /in sync across 2 file\(s\)/)
   })
 })
 

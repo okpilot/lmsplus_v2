@@ -10,8 +10,8 @@
       "note": "Without it a missing result dies on `r.error` with a bare TypeError, naming neither the caller nor the fact that nothing was graded."
     },
     {
-      "id": "etimedout-after-generic-error",
-      "find": "    if (r.error.code === 'ETIMEDOUT') {\n      const budget = timeoutMs == null ? 'its timeout' : `${timeoutMs}ms`\n      throw new Error(`${label}: exceeded ${budget} and was killed — NO VERDICT`)\n    }\n",
+      "id": "etimedout-branch-deleted",
+      "find": "  if (r.error?.code === 'ETIMEDOUT') {\n    const budget = timeoutMs == null ? 'its timeout' : `${timeoutMs}ms`\n    throw new Error(`${label}: exceeded ${budget} and was killed — NO VERDICT`)\n  }\n",
       "replace": "",
       "expectRed": [
         "a timed-out run names the budget it exceeded, not a spawn failure",
@@ -32,7 +32,7 @@
     },
     {
       "id": "drop-null-status-backstop",
-      "find": "  if (r.status == null)\n    throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)\n",
+      "find": "  throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)\n",
       "replace": "",
       "expectRed": ["a run with neither a status nor a signal is not treated as gradable"],
       "note": "A result carrying no status, no signal and no error would pass as gradable and the caller would compare an exit code against null."
@@ -52,6 +52,13 @@
         "a thrown child that never reached an exit code is not converted into a verdict"
       ],
       "note": "A spawn that never became a process would return `{status: undefined}` and read as an ordinary non-zero exit."
+    },
+    {
+      "id": "status-outranks-error",
+      "find": "  if (r.status != null) return\n  if (r.error) throw new Error(`${label}: could not spawn — ${r.error.message}`)\n",
+      "replace": "  if (r.error) throw new Error(`${label}: could not spawn — ${r.error.message}`)\n  if (r.status != null) return\n",
+      "expectRed": ["a run that answered is graded even though the input pipe broke"],
+      "note": "spawnSync sets EPIPE on the input write when the child stops reading stdin early and exits cleanly — a guard short-circuiting on an oversized payload does exactly that. Reading `error` before `status` reports that real verdict as a failed spawn, which is the defect this file exists to end, one level up. Found by a call site, not by review."
     }
   ]
 }

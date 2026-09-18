@@ -22,9 +22,10 @@ test('a missing result is reported as no verdict, naming what ran', () => {
   assert.throws(() => assertUsable('the guard', undefined), /NO VERDICT/)
 })
 
-// MUTATION: move the ETIMEDOUT check below the generic `error` throw -> a timeout reports "could
-// not spawn", naming a cause that did not happen, and the timeout message is unreachable.
-// GROUP: etimedout-after-generic-error
+// MUTATION: delete the ETIMEDOUT branch -> a synthetic timeout falls through to the generic
+// `error` throw and reports "could not spawn", naming a cause that did not happen; a real one
+// reaches the signal branch and is reported as a bare kill, losing the budget it exceeded.
+// GROUP: etimedout-branch-deleted
 test('a timed-out run names the budget it exceeded, not a spawn failure', () => {
   const r = { error: Object.assign(new Error('spawnSync ETIMEDOUT'), { code: 'ETIMEDOUT' }) }
   assert.match(
@@ -72,6 +73,25 @@ test('a run with neither a status nor a signal is not treated as gradable', () =
     assertThrown(() => assertUsable('the guard', { status: null, signal: null })),
     /no status and no signal — NO VERDICT/,
   )
+})
+
+// MUTATION: move the `r.status != null` early return below the generic `error` throw -> a child
+// that stopped reading stdin and exited cleanly is reported as a failed spawn, turning a real
+// verdict into NO VERDICT. A guard short-circuiting on an oversized payload does exactly this.
+// GROUP: status-outranks-error
+test('a run that answered is graded even though the input pipe broke', () => {
+  // Not synthetic: spawnSync really does set EPIPE here, on a run that exited 0 with its
+  // diagnostic on stderr. A helper that reads `error` before `status` calls that no verdict.
+  const r = runNode(
+    'the guard',
+    [
+      '-e',
+      'process.stdin.once("data", () => { process.stderr.write("too big"); process.exit(0) })',
+    ],
+    { input: 'x'.repeat(4_000_000) },
+  )
+  assert.equal(r.status, 0)
+  assert.equal(r.stderr, 'too big')
 })
 
 test('a real child that exits non-zero yields its code and its output', () => {

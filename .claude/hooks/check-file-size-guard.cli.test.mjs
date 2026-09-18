@@ -11,11 +11,12 @@
 // The mutation each case pins is named in its title, because a test whose mechanism
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { runNode, verdictOf } from './spawn.testkit.mjs'
 
 const lines = (n) => `${'x\n'.repeat(n)}`
 
@@ -32,9 +33,9 @@ test('blocks rather than passes when the limits file cannot be read', () => {
     execFileSync('git', ['init', '-q', '.'], { cwd: empty })
     let code = 0
     try {
-      execFileSync('node', [guard], { cwd: empty, stdio: 'pipe' })
+      execFileSync(process.execPath, [guard], { cwd: empty, stdio: 'pipe' })
     } catch (err) {
-      code = err.status
+      code = verdictOf('file-size guard', err).status
     }
     assert.equal(code, 1, 'a guard that cannot read its config must BLOCK')
   } finally {
@@ -67,7 +68,8 @@ test('only a violation among the files passed as arguments can block the commit'
     writeFileSync(join(repo, 'b.ts'), lines(1)) // compliant
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const run = (args) => spawnSync('node', [guard, ...args], { cwd: repo, encoding: 'utf8' })
+    const run = (args) =>
+      runNode('file-size guard', [guard, ...args], { cwd: repo, encoding: 'utf8' })
 
     assert.equal(run([]).status, 1, 'whole-tree mode sees a.ts and fails')
     assert.equal(run(['b.ts']).status, 0, 'a.ts was not passed, so it cannot block')
@@ -101,7 +103,7 @@ test('a non-ASCII tracked filename does not block every run', () => {
     writeFileSync(join(repo, 'e\u0301clair.ts'), lines(1)) // compliant, and non-ASCII
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     assert.equal(
       run.status,
       0,
@@ -145,7 +147,7 @@ test('removing a non-ASCII file does not read as an unknown path', () => {
     execFileSync('git', ['commit', '-qm', 'seed'], { cwd: repo })
     execFileSync('git', ['rm', '-q', accented], { cwd: repo })
 
-    const run = spawnSync('node', [guard, accented], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard, accented], { cwd: repo, encoding: 'utf8' })
     assert.equal(
       run.status,
       0,
@@ -182,7 +184,7 @@ test('a tracked path whose bytes are not valid UTF-8 is still graded', () => {
     writeFileSync(Buffer.concat([Buffer.from(`${repo}/`), badName]), lines(1))
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     const out = run.stdout + run.stderr
     assert.equal(run.status, 0, `a compliant invalid-UTF-8 path must not block: ${out}`)
     assert.ok(!/unreadable/i.test(out), `it must be READ, not called unreadable: ${out}`)
@@ -215,7 +217,7 @@ test('staged mode grades the INDEX, not the working tree', () => {
     execFileSync('git', ['add', '-A'], { cwd: repo })
     writeFileSync(join(repo, 'big.ts'), lines(2)) // ...but the WORKTREE now looks compliant
 
-    const run = spawnSync('node', [guard, 'big.ts'], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard, 'big.ts'], { cwd: repo, encoding: 'utf8' })
     const out = run.stdout + run.stderr
     assert.equal(run.status, 1, `the staged 9-line version is what gets committed: ${out}`)
     assert.match(out, /9 lines/, 'it must report the INDEX line count, not the worktree one')
@@ -249,7 +251,7 @@ test('staged mode does not launder a worktree-only regression through the index'
     execFileSync('git', ['add', '-A'], { cwd: repo })
     writeFileSync(join(repo, 'small.ts'), lines(9)) // unstaged worktree edit, over the cap
 
-    const run = spawnSync('node', [guard, 'small.ts'], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard, 'small.ts'], { cwd: repo, encoding: 'utf8' })
     assert.equal(run.status, 0, 'the staged 2-line version is what gets committed')
   } finally {
     rmSync(repo, { recursive: true, force: true })
@@ -275,7 +277,7 @@ test('reports stale baseline entries in the singular and plural, and blocks on t
 
   const one = makeRepo({ 'gone.ts': 90 })
   try {
-    const result = spawnSync('node', [guard], { cwd: one, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard], { cwd: one, encoding: 'utf8' })
     assert.equal(result.status, 1) // stale entries BLOCK: a rename out of a rule class is otherwise silent
     assert.match(result.stderr, /1 stale baseline entry in/)
     assert.doesNotMatch(result.stderr, /1 stale baseline entries/)
@@ -285,7 +287,7 @@ test('reports stale baseline entries in the singular and plural, and blocks on t
 
   const two = makeRepo({ 'gone.ts': 90, 'also-gone.ts': 90 })
   try {
-    const result = spawnSync('node', [guard], { cwd: two, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard], { cwd: two, encoding: 'utf8' })
     assert.equal(result.status, 1) // stale entries BLOCK: a rename out of a rule class is otherwise silent
     assert.match(result.stderr, /2 stale baseline entries in/)
   } finally {
@@ -329,7 +331,7 @@ test("keeps working when the tracked-file listing is bigger than node's default 
     })
     assert.ok(listing.length > 1024 * 1024, 'fixture must exceed the 1MB default to be a real test')
 
-    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
   } finally {
     rmSync(repo, { recursive: true, force: true })
@@ -373,7 +375,7 @@ test('renaming a grandfathered file out of its rule class is blocked, not silent
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
     const run = () =>
-      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+      runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs'], {
         cwd: repo,
         encoding: 'utf8',
       })
@@ -398,9 +400,9 @@ test('the current tracked tree has no regression against the committed baseline'
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
   let code = 0
   try {
-    execFileSync('node', [guard], { stdio: 'pipe' })
+    execFileSync(process.execPath, [guard], { stdio: 'pipe' })
   } catch (err) {
-    code = err.status
+    code = verdictOf('file-size guard', err).status
   }
   assert.equal(code, 0)
 })

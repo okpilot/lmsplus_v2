@@ -16,7 +16,7 @@
 // Not "exactly one": several mechanisms here are pinned by a PAIR, and the stricter wording
 // was false of this file. Do not restore it without re-running the mutations.
 import assert from 'node:assert/strict'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   copyFileSync,
   mkdirSync,
@@ -29,6 +29,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { runNode } from './spawn.testkit.mjs'
 
 const LIMITS = JSON.parse(readFileSync('.claude/limits.json', 'utf8'))
 
@@ -60,7 +61,7 @@ function makeUpdateRepo(limits, files) {
   return repo
 }
 const runUpdateBaseline = (repo) =>
-  spawnSync('node', [GUARD_PATH, '--update-baseline'], { cwd: repo, encoding: 'utf8' })
+  runNode('file-size guard', [GUARD_PATH, '--update-baseline'], { cwd: repo, encoding: 'utf8' })
 
 // GROUP: update-baseline-drops-unreadable-row
 test("update-baseline keeps an unreadable path's existing row instead of dropping it", () => {
@@ -179,7 +180,7 @@ test('stats mode skips an unreadable tracked file instead of blocking the whole 
     symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'b.ts'))
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const result = spawnSync('node', [guard, '--stats'], { cwd: repo, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard, '--stats'], { cwd: repo, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
     assert.match(result.stdout, /util \(cap 100\): 1\/1 comply/)
   } finally {
@@ -193,7 +194,7 @@ test('a mode flag mixed with file paths blocks instead of skipping enforcement',
   // not the `flags`-vs-`args` spelling of the --stats dispatch, is what this pins: restoring
   // `args.includes('--stats')` SURVIVES, because the gate returns 1 before the dispatch runs.
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const mixed = spawnSync('node', [guard, '--stats', 'CLAUDE.md'], { encoding: 'utf8' })
+  const mixed = runNode('file-size guard', [guard, '--stats', 'CLAUDE.md'], { encoding: 'utf8' })
   assert.equal(mixed.status, 1)
   assert.match(mixed.stderr, /cannot be combined with file paths/)
 })
@@ -204,7 +205,7 @@ test('an unrecognised flag blocks rather than being treated as a file path', () 
   // is silently ignored, so a typo'd `--upate-baseline` would run a plain enforcement pass and
   // look like it worked.
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const bogus = spawnSync('node', [guard, '--bogus'], { encoding: 'utf8' })
+  const bogus = runNode('file-size guard', [guard, '--bogus'], { encoding: 'utf8' })
   assert.equal(bogus.status, 1)
   assert.match(bogus.stderr, /unknown flag/)
 })
@@ -236,14 +237,14 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
     writeFileSync(join(repo, 'src/big.ts'), 'x\n'.repeat(150)) // shrunk from 200
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const before = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+    const before = runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs'], {
       cwd: repo,
       encoding: 'utf8',
     })
     assert.equal(before.status, 1, 'a shrunk grandfathered file must block until recorded')
 
-    const upd = spawnSync(
-      'node',
+    const upd = runNode(
+      'file-size guard',
       ['.claude/hooks/check-file-size-guard.mjs', '--update-baseline'],
       { cwd: repo, encoding: 'utf8' },
     )
@@ -254,7 +255,7 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
     assert.equal(after.baseline['src/big.ts'], 150)
     assert.deepEqual(after.rules, limits.rules, 'nothing but the baseline may be rewritten')
     assert.equal(
-      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+      runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs'], {
         cwd: repo,
         encoding: 'utf8',
       }).status,

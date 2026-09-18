@@ -16,11 +16,12 @@
 // mutation each case pins is named in its title, because a test whose mechanism nothing
 // exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { runNode } from './spawn.testkit.mjs'
 
 // GROUP: drop-two-mode-flag-guard
 test('passing two mode flags together blocks instead of silently running one', () => {
@@ -34,12 +35,12 @@ test('passing two mode flags together blocks instead of silently running one', (
     ['--update-baseline', '--stats'],
     ['--stats', '--update-baseline'],
   ]) {
-    const r = spawnSync('node', [guard, ...pair], { encoding: 'utf8' })
+    const r = runNode('file-size guard', [guard, ...pair], { encoding: 'utf8' })
     assert.equal(r.status, 1, `${pair.join(' ')} must block`)
     assert.match(r.stderr, /separate modes — run one/)
   }
   // each alone still works
-  assert.equal(spawnSync('node', [guard, '--stats'], { encoding: 'utf8' }).status, 0)
+  assert.equal(runNode('file-size guard', [guard, '--stats'], { encoding: 'utf8' }).status, 0)
 })
 
 // GROUP: drop-path-normalisation, drop-unknown-path-check
@@ -77,7 +78,7 @@ test('a violation blocks however its path is spelled, and an unknown path is rej
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
     const run = (arg) =>
-      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', arg], {
+      runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs', arg], {
         cwd: repo,
         encoding: 'utf8',
       })
@@ -138,17 +139,25 @@ test('a staged deletion is not rejected as an unknown path', () => {
     execFileSync('git', ['commit', '-qm', 'seed', '--no-verify'], { cwd: repo })
     execFileSync('git', ['rm', '-q', 'src/gone.ts'], { cwd: repo })
 
-    const del = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', 'src/gone.ts'], {
-      cwd: repo,
-      encoding: 'utf8',
-    })
+    const del = runNode(
+      'file-size guard',
+      ['.claude/hooks/check-file-size-guard.mjs', 'src/gone.ts'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    )
     assert.equal(del.status, 0, 'a staged deletion must not block the commit')
 
     // a genuinely unknown path must still fail closed
-    const bogus = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', 'src/never.ts'], {
-      cwd: repo,
-      encoding: 'utf8',
-    })
+    const bogus = runNode(
+      'file-size guard',
+      ['.claude/hooks/check-file-size-guard.mjs', 'src/never.ts'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    )
     assert.equal(bogus.status, 1)
     assert.match(bogus.stderr, /match no tracked path/)
   } finally {
@@ -195,18 +204,22 @@ test('a staged rename does not reject the SOURCE path as unknown', () => {
     })
     assert.match(staged, /^R/m, 'fixture must produce a RENAME, not an add+delete pair')
 
-    const both = spawnSync(
-      'node',
+    const both = runNode(
+      'file-size guard',
       ['.claude/hooks/check-file-size-guard.mjs', 'src/old.ts', 'src/new.ts'],
       { cwd: repo, encoding: 'utf8' },
     )
     assert.equal(both.status, 0, both.stderr)
 
     // and a genuinely unknown path must still fail closed
-    const bogus = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', 'src/never.ts'], {
-      cwd: repo,
-      encoding: 'utf8',
-    })
+    const bogus = runNode(
+      'file-size guard',
+      ['.claude/hooks/check-file-size-guard.mjs', 'src/never.ts'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    )
     assert.equal(bogus.status, 1)
     assert.match(bogus.stderr, /match no tracked path/)
   } finally {
@@ -258,7 +271,7 @@ test('a rename into a violation still blocks — the exemption clears the unknow
     assert.match(staged, /^R/m, 'fixture must produce a RENAME, not an add+delete pair')
 
     const run = (args) =>
-      spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs', ...args], {
+      runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs', ...args], {
         cwd: repo,
         encoding: 'utf8',
       })
@@ -333,7 +346,7 @@ test('a git failure listing staged deletions blocks instead of failing open', ()
     )
     execFileSync('chmod', ['+x', join(fakeBin, 'git')])
 
-    const r = spawnSync('node', ['.claude/hooks/check-file-size-guard.mjs'], {
+    const r = runNode('file-size guard', ['.claude/hooks/check-file-size-guard.mjs'], {
       cwd: repo,
       encoding: 'utf8',
       env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
@@ -373,7 +386,7 @@ test('two tracked paths whose bytes differ but decode alike BLOCK rather than on
     }
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const run = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     const out = run.stdout + run.stderr
     assert.equal(run.status, 1, `a decode collision must BLOCK, not pass clean: ${out}`)
     assert.match(out, /decode identically/, `it must say why it blocked: ${out}`)
@@ -411,7 +424,7 @@ test('a staged path with non-UTF-8 bytes is graded from the index, not called un
     // which is a different string again and matches nothing.)
     const arg = name.toString('utf8')
 
-    const run = spawnSync('node', [guard, arg], { cwd: repo, encoding: 'utf8' })
+    const run = runNode('file-size guard', [guard, arg], { cwd: repo, encoding: 'utf8' })
     const out = run.stdout + run.stderr
     assert.equal(run.status, 0, `a compliant staged non-UTF-8 path must not block: ${out}`)
     assert.ok(!/unreadable/i.test(out), `it must be READ from the index: ${out}`)

@@ -29,20 +29,23 @@ import { spawnSync } from 'node:child_process'
  */
 export function assertUsable(label, r, timeoutMs) {
   if (r == null) throw new Error(`${label}: no spawn result to read — NO VERDICT`)
-  if (r.error) {
-    // ETIMEDOUT FIRST: spawnSync sets BOTH `error` and `signal` on a timeout, so a generic `error`
-    // branch reports "could not spawn" for a child that spawned perfectly well and then ran long.
-    if (r.error.code === 'ETIMEDOUT') {
-      const budget = timeoutMs == null ? 'its timeout' : `${timeoutMs}ms`
-      throw new Error(`${label}: exceeded ${budget} and was killed — NO VERDICT`)
-    }
-    throw new Error(`${label}: could not spawn — ${r.error.message}`)
+  // ETIMEDOUT FIRST: spawnSync sets BOTH `error` and `signal` on a timeout, so a generic `error`
+  // branch reports "could not spawn" for a child that spawned perfectly well and then ran long.
+  if (r.error?.code === 'ETIMEDOUT') {
+    const budget = timeoutMs == null ? 'its timeout' : `${timeoutMs}ms`
+    throw new Error(`${label}: exceeded ${budget} and was killed — NO VERDICT`)
   }
   // A kill nobody here asked for: an OOM killer, an operator, a process-group teardown. The timeout
   // path throws above, so a signal reaching this line had none.
   if (r.signal) throw new Error(`${label}: killed by ${r.signal} — NO VERDICT`)
-  if (r.status == null)
-    throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)
+  // AN EXIT CODE OUTRANKS A LEFTOVER `error`, and this order is load-bearing. When the child stops
+  // reading stdin early — which is what a guard short-circuiting on an oversized payload does — the
+  // parent's `input:` write breaks and spawnSync sets EPIPE on a run that exited cleanly with its
+  // diagnostic on stderr. Throwing there turns a real verdict into NO VERDICT: the very defect this
+  // file exists to end, one level up.
+  if (r.status != null) return
+  if (r.error) throw new Error(`${label}: could not spawn — ${r.error.message}`)
+  throw new Error(`${label}: exited with no status and no signal — NO VERDICT`)
 }
 
 /**
