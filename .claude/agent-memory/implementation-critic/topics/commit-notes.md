@@ -6,6 +6,17 @@
 
 ## Positive-pattern log
 
+### Signal-kill hardening — APPROVED (2026-09-18, fix/harden-fixture-spawn-helpers)
+
+16 files changed. New shared module `spawn.testkit.mjs` + test suite + mutations JSON + CI step.
+- All 7 mutation `find` strings verified unique (count=1) in target via `python3 str.count`.
+- All `expectRed` titles verified to exist in `spawn.testkit.test.mjs`.
+- Exit-code assertions preserved at call sites; helper does NOT interpret exit codes.
+- `check-commit-claims.test.mjs` stays at exactly 604 lines; `limits.json` not touched.
+- All converted call sites preserve assertion semantics (false-greens fixed, false-reds fixed).
+- CI step for `spawn.testkit.test.mjs` added; all importing suites already have CI steps.
+- Two sites deliberately NOT converted (`check-file-size-guard.update.test.mjs:152`, `pipeline.test.mjs`) — read return VALUES, never `err.status`. ✓
+
 ### GROUP marker linking (PR B) — APPROVED (2026-09-18, chore/link-guard-claims)
 
 12 files changed. GROUP markers added to both guard families. Key verified facts:

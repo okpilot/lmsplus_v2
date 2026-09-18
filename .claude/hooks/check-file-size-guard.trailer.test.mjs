@@ -6,11 +6,12 @@
 // Every case below is MUTATION-PINNED: break the named mechanism in
 // check-file-size-guard.mjs and the GROUP named above the case goes red.
 import assert from 'node:assert/strict'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { runNode } from './spawn.testkit.mjs'
 
 const lines = (n) => `${'x\n'.repeat(n)}`
 
@@ -39,7 +40,7 @@ test('prints split-file guidance for a normal violation, not the unreadable-path
     writeFileSync(join(repo, 'a.ts'), lines(3)) // violates max: 1, not baselined
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     assert.equal(result.status, 1)
     assert.match(result.stderr, /3 lines — util limit is 1 \(new violation\)/)
     assert.match(result.stderr, /Split the file/)
@@ -68,7 +69,7 @@ test('prints unreadable-path guidance for a dangling symlink, not the split-file
     symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'x.ts'))
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
+    const result = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
     assert.equal(result.status, 1)
     assert.match(result.stderr, /tracked but unreadable \(ENOENT\) — no limit can be applied/)
     assert.doesNotMatch(result.stderr, /lines — unreadable limit is/)
@@ -99,7 +100,8 @@ test('an unreadable path blocks the commit only when it is among the staged argu
     writeFileSync(join(repo, 'b.ts'), 'compliant\n')
     execFileSync('git', ['add', '-A'], { cwd: repo })
 
-    const run = (args) => spawnSync('node', [guard, ...args], { cwd: repo, encoding: 'utf8' })
+    const run = (args) =>
+      runNode('file-size guard', [guard, ...args], { cwd: repo, encoding: 'utf8' })
 
     assert.equal(run([]).status, 1, 'whole-tree mode sees the dangling symlink and fails')
     assert.equal(run(['b.ts']).status, 0, 'x.ts was not staged, so it cannot block')

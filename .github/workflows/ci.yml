@@ -107,6 +107,10 @@ jobs:
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
+      # Shared spawn-verdict helpers, imported by guard suites elsewhere in this job.
+      - name: Spawn verdict helpers — unit test
+        run: node --test .claude/hooks/spawn.testkit.test.mjs
+
       # A test nothing runs certifies its mechanism unconditionally — the same
       # defect as code-style.md §7 one level up. These three were maintained but
       # unwired; all pass as of 2026-09-02. Enumerate with

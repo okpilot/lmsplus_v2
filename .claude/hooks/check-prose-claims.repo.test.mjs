@@ -13,12 +13,13 @@
 // check-prose-claims` re-derives it — do not hand-maintain a second copy here.
 
 import assert from 'node:assert/strict'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { runNode } from './spawn.testkit.mjs'
 
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), 'check-prose-claims.mjs')
 
@@ -58,20 +59,20 @@ function withRepo(fn) {
 }
 
 /**
- * Run the guard in `dir`. `spawnSync`, not `execFileSync`: the latter surfaces stderr only
+ * Run the guard in `dir`. `runNode`, not `execFileSync`: the latter surfaces stderr only
  * on the THROWING path, so a case asserting on the diagnostics of a SUCCESSFUL run (every
  * `--update-baseline` case) would compare against an empty string and pass vacuously in one
  * direction. Found by that exact vacuity.
  */
 function run({ dir }, args = []) {
-  const r = spawnSync('node', [GUARD, ...args], { cwd: dir, encoding: 'utf8' })
-  if (r.error) throw r.error
-  return { status: r.status, stderr: r.stderr ?? '', stdout: r.stdout ?? '' }
+  const { status, stderr, stdout } = runNode('check-prose-claims', [GUARD, ...args], { cwd: dir })
+  return { status, stderr, stdout }
 }
 
 /** Baseline the whole corpus, then return the file's exact bytes. */
 function baseline({ dir }) {
-  execFileSync('node', [GUARD, '--update-baseline'], { cwd: dir, stdio: 'ignore' })
+  const r = run({ dir }, ['--update-baseline'])
+  if (r.status !== 0) throw new Error(`baseline: exited ${r.status} — ${r.stderr}`)
   return readFileSync(join(dir, '.claude/prose-claims.json'), 'utf8')
 }
 

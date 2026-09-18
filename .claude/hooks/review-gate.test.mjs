@@ -4,12 +4,12 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-file behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { runNode } from './spawn.testkit.mjs'
 
 const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'review-gate.js')
 
@@ -41,9 +41,16 @@ function cleanup(dir) {
   rmSync(dir, { recursive: true, force: true })
 }
 
-/** Spawn the hook with the given stdin, running in cwd so the hook finds the gate file. */
+const TIMEOUT_MS = 5_000
+
+/**
+ * Spawn the hook with the given stdin, running in cwd so the hook finds the gate file.
+ *
+ * runNode throws NO VERDICT on a signal, a timeout or a failed spawn — `status: null` otherwise
+ * reaches `assert.equal(r.status, 2)` and reports a kill as a wrong exit code.
+ */
 function runHook(stdin, cwd) {
-  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8', cwd, timeout: 5_000 })
+  return runNode('review-gate.js', [HOOK], { input: stdin, cwd, timeout: TIMEOUT_MS })
 }
 
 // --- No gate file ---

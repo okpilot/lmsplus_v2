@@ -4,15 +4,21 @@
 // ({"tool_input":{"command":"..."}}) on STDIN — the channel the harness actually
 // uses — so these tests pin the input contract, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { runNode } from './spawn.testkit.mjs'
 
 const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'guard-bash.js')
 
+const TIMEOUT_MS = 5_000
+
+// runNode throws NO VERDICT on a signal, a timeout or a failed spawn — `status: null` otherwise
+// reaches `assert.equal(r.status, 2)` and reports a kill as a wrong exit code. It also grades a run
+// whose `input:` pipe broke, which the >1MB case below provokes: the hook stops reading, the
+// parent's write gets EPIPE, and the run still exited 0 with its warning on stderr.
 function runHook(stdin) {
-  return spawnSync('node', [HOOK], { input: stdin, encoding: 'utf8', timeout: 5_000 })
+  return runNode('guard-bash.js', [HOOK], { input: stdin, timeout: TIMEOUT_MS })
 }
 
 test('blocks a dangerous command delivered via stdin JSON with exit 2 and a BLOCKED stderr', () => {
