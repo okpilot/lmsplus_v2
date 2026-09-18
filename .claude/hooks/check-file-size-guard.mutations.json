@@ -324,7 +324,7 @@
         "staged mode grades the INDEX, not the working tree",
         "staged mode does not launder a worktree-only regression through the index"
       ],
-      "note": "git commits the index. Reachable ONLY from the subprocess suite: `fromIndex` is a closure inside main(), and check-file-size-guard.test.mjs calls evaluate()/classify() directly without ever spawning the guard. Emptying fromIndex sends BOTH index-authority tests to the worktree, so the laundering test reddens with it."
+      "note": "git commits the index. Reachable ONLY from the subprocess suite: `fromIndex` is a closure inside main(), and check-file-size-guard.test.mjs calls evaluate()/classify() directly without ever spawning the guard. The mutation deletes the only line that populates fromIndex, so it stays empty and sends BOTH index-authority tests to the worktree, so the laundering test reddens with it."
     },
     {
       "id": "cli-stale-plural-hardcoded",
