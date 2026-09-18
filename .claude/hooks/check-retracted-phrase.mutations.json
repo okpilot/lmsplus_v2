@@ -270,6 +270,87 @@
         "reAdded: a dot inside a filename token is treated as a literal character, not a wildcard"
       ],
       "note": "Rebuilds the hand-written boundary regex WITHOUT escaping — the exact break the test comment names. Encoded after cloud CR-local found the notEncoded entry ASSERTING this was pinned when no entry encoded it."
+    },
+    {
+      "id": "base-message-blanked",
+      "find": "message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),",
+      "replace": "message: '',",
+      "expectRed": [
+        "--base mode honours a waiver written in the commit that needed it",
+        "a merge commit in the range does not swallow the waivers below it"
+      ],
+      "note": "One mechanism, two fixtures: both tests put a `Retracted-ok:` trailer in a commit inside the range, and both reach it through this line. There is no narrower edit here that reddens one and not the other, so the two-member set is the exact observed set, not an under-specification."
+    },
+    {
+      "id": "base-waivers-shared-across-range",
+      "find": "units = shas.map((sha) => ({\n      range: [`${sha}^`, sha],\n      message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),\n      ref: sha,\n    }))",
+      "replace": "units = shas.map((sha) => ({\n      range: [`${sha}^`, sha],\n      message: shas.map((s) => git(['log', '-1', '--format=%B', s]).toString('utf8')).join('\\n'),\n      ref: sha,\n    }))",
+      "expectRed": ["--base mode does not let one commit's waiver clear another commit's finding"],
+      "note": "Keeps the per-commit unit structure and widens only the message, so the break is exactly `parseWaivers` keying on token alone across the whole range."
+    },
+    {
+      "id": "base-grepscope-always-cached",
+      "find": "const grepScope = (ref) => (ref === '--cached' ? ['--cached'] : [ref])",
+      "replace": "const grepScope = (ref) => ['--cached']",
+      "expectRed": ["an intermediate commit is graded against its OWN tree, not HEAD"]
+    },
+    {
+      "id": "base-lstree-literal-glob",
+      "find": "listTracked(ref, ':(top).spec-workflow/specs/')",
+      "replace": "listTracked(ref, ':(top).spec-workflow/specs/*/tasks.md')",
+      "expectRed": ["a completed spec stays excluded in --base mode, exactly as at commit-msg"],
+      "note": "`git ls-tree` matches `*` literally, so the listing comes back empty and no spec is ever excluded. A DIVERGENCE between --base and commit-msg rather than a fail-open."
+    },
+    {
+      "id": "base-rev-list-keeps-merges",
+      "find": "'rev-list', '--reverse', '--no-merges',",
+      "replace": "'rev-list', '--reverse',",
+      "expectRed": ["a merge commit in the range does not swallow the waivers below it"]
+    },
+    {
+      "id": "base-lstree-drop-full-tree",
+      "find": "          '--full-tree', // same reason as --full-name on grep/ls-files: repo-root-relative output\n",
+      "replace": "",
+      "expectRed": ["--base mode excludes a completed spec from a subdirectory too"]
+    },
+    {
+      "id": "completedspecdirs-drop-full-name",
+      "find": "          '--full-name', // repo-root-relative output; see the comment above `withTasks`\n",
+      "replace": "",
+      "expectRed": ["a LIVE spec still counts as a survivor when run from a subdirectory"],
+      "note": "The `--full-name` inside completedSpecDirs, NOT the one in listTracked (mjs `['ls-files', '-z', '--full-name',`) or in survivors(). Three sites carry this flag; each is encoded separately."
+    },
+    {
+      "id": "survivors-self-compare-by-basename",
+      "find": "filter((p) => p !== self && inCorpus(p))",
+      "replace": "filter((p) => p.split('/').pop() !== self.split('/').pop() && inCorpus(p))",
+      "expectRed": ["a near-identical sibling path is not mistaken for the edited file"],
+      "note": "The source comment names a SECOND reachable mechanism this entry does not pin: the latin1 decode of git's -z output in splitNul. It is genuinely reachable — the fixture builds both paths as Buffers carrying raw 0xFE/0xFF, so a utf8 decode collapses them to the same U+FFFD string and the sibling is dropped as self. One entry per claim token is this file's convention, so that mechanism is recorded here rather than given an entry of its own."
+    },
+    {
+      "id": "hunksfor-paths-through-argv",
+      "find": "'--no-relative',\n    entry.src,\n    entry.dst,",
+      "replace": "'--no-relative',\n    '--',\n    entry.path,",
+      "expectRed": ["grades a path whose name survives an argv round-trip"]
+    },
+    {
+      "id": "survivors-drop-full-name",
+      "find": "'--full-name',\n      '-e',\n      pattern,",
+      "replace": "'-e',\n      pattern,",
+      "expectRed": ["finds a survivor when invoked from a subdirectory, not just the repo root"]
+    },
+    {
+      "id": "lsfiles-drop-full-name",
+      "find": "['ls-files', '-z', '--full-name',",
+      "replace": "['ls-files', '-z',",
+      "expectRed": ["a completed spec is still excluded when the guard runs from a subdirectory"]
+    },
+    {
+      "id": "changedentries-drop-no-relative",
+      "find": "    '--no-relative',\n  ])",
+      "replace": "  ])",
+      "expectRed": ["a global diff.relative does not hide changes from the guard"],
+      "note": "The `--no-relative` on the raw diff in changedEntries, NOT the one on the blob-to-blob diff in hunksFor \u2014 the guard's own comment records that the second is not redundant with the first."
     }
   ],
   "notEncoded": [
