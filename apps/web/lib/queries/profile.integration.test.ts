@@ -10,6 +10,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -20,7 +21,7 @@ import {
 import { getProfileData } from '@/lib/queries/profile'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let orgName: string

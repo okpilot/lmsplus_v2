@@ -15,6 +15,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedReferenceData,
@@ -23,7 +24,7 @@ import {
 import { getExamEnabledSubjects } from '@/lib/queries/exam-subjects'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentId: string

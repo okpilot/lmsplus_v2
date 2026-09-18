@@ -14,13 +14,14 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   seedQuestions,
   signInAs,
 } from '@/lib/integration-support/harness'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 const email = `int-rt-${suffix}@test.local`
 const password = 'test-pass-123'
 

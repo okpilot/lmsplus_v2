@@ -26,13 +26,14 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   signInAs,
 } from '@/lib/integration-support/harness'
 import { toggleStudentStatus } from './toggle-student-status'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 const password = 'test-pass-123'
 
 // Optional on purpose: beforeAll can fail partway, and afterAll still runs —

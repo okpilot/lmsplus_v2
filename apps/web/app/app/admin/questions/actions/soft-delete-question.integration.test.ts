@@ -11,6 +11,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedQuestions,
@@ -20,7 +21,7 @@ import {
 import { softDeleteQuestion } from './soft-delete-question'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 const password = 'test-pass-123'
 
 // Fixture ids are optional on purpose: beforeAll can fail partway (after one

@@ -11,6 +11,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -21,7 +22,7 @@ import {
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentAId: string
@@ -229,7 +230,7 @@ describe('getQuizReportQuestions (app-layer integration)', () => {
 // ---------------------------------------------------------------------------
 
 describe('getQuizReportQuestions — non-MC report (app-layer integration)', () => {
-  const nmSuffix = Date.now() + 2
+  const nmSuffix = `${suffix}-nm`
   const nmEmail = `int-qrq-nm-${nmSuffix}@test.local`
   const nmOtherEmail = `int-qrq-nm-other-${nmSuffix}@test.local`
   const nmAdminEmail = `int-qrq-nm-admin-${nmSuffix}@test.local`

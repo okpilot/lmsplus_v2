@@ -12,6 +12,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedReferenceData,
@@ -20,7 +21,7 @@ import {
 import { listInternalExamCodes } from './queries'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let adminId: string

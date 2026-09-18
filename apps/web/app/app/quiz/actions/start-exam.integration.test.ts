@@ -11,6 +11,7 @@ import {
   clearActiveSessions,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedQuestions,
@@ -20,7 +21,7 @@ import {
 import { startExamSession } from './start-exam'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentAId: string
