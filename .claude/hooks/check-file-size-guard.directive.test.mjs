@@ -15,6 +15,7 @@ import { declaresUseServer } from './check-file-size-guard.mjs'
 
 // ---------------------------------------------------------- declaresUseServer
 
+// GROUP: drop-line-comment-branch
 test('a header comment DENYING the use server directive is not a declaration', () => {
   // MUTATION: delete the line-comment branch from the prologue scan → the SECOND assertion
   // goes red; the scan stops at `//` instead of reading through it, so the real directive on
@@ -37,6 +38,7 @@ test('recognises the directive in single or double quotes at line start', () => 
   assert.equal(declaresUseServer('"use server"\nimport x\n'), true)
 })
 
+// GROUP: block-comment-branch-deleted
 test('a block comment whose line begins with the directive is not a declaration', () => {
   // MUTATION: restore `/^\s*['"]use server['"]/m` → this matches and a 200-line utility takes
   // the 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did
@@ -52,6 +54,7 @@ test('a block comment whose line begins with the directive is not a declaration'
   assert.equal(declaresUseServer("export const a = 1\n'use server'\n"), false)
 })
 
+// GROUP: prologue-drop-cr-whitespace, prologue-drop-bom-whitespace
 test('a BOM or CR in the prologue is skipped like any other whitespace', () => {
   // MUTATION: drop `c === '\r'` (or `'﻿'`) from the whitespace set → a CRLF-authored
   // file, or one saved with a UTF-8 BOM, falls to the else branch on that character and
@@ -59,6 +62,7 @@ test('a BOM or CR in the prologue is skipped like any other whitespace', () => {
   assert.equal(declaresUseServer("﻿\r\n'use server'\nimport x\n"), true)
 })
 
+// GROUP: block-comment-unterminated-returns-true
 test('an unterminated block comment leaves no reachable prologue', () => {
   // MUTATION: `if (end === -1) return true` → red. Named that way deliberately: DELETING the
   // guard instead leaves this case green, because `i` then resets to `end + 2 === 1`, which for
@@ -71,6 +75,7 @@ test('an unterminated block comment leaves no reachable prologue', () => {
   assert.equal(declaresUseServer(' /* never closed, opened at index 1\n'), false)
 })
 
+// GROUP: prologue-stops-at-first-literal
 test('a use server directive that is the SECOND prologue entry still counts', () => {
   // MUTATION: return false instead of continuing the loop after a non-matching literal → red.
   // The prologue is a SEQUENCE of bare string literals, so `'use strict'` may precede the
@@ -90,6 +95,7 @@ test('a use server directive that is the SECOND prologue entry still counts', ()
   assert.equal(declaresUseServer("'unterminated\n'use server'\n"), false)
 })
 
+// GROUP: string-literal-drop-escape-branch
 test('an escaped quote inside a prologue literal does not end it early', () => {
   // MUTATION: drop the `c === '\\'` escape branch in readStringLiteral → red. Without it, the
   // backslash before the embedded apostrophe is treated as an ordinary character, so the literal
@@ -99,6 +105,7 @@ test('an escaped quote inside a prologue literal does not end it early', () => {
   assert.equal(declaresUseServer("'it\\'s'\n'use server'\n"), true)
 })
 
+// GROUP: prologue-entry-drop-comment-check
 test('a comment directly abutting a prologue literal (no separating newline) still continues it', () => {
   // MUTATION: delete the comment check in endOfPrologueEntry (`content[k] === '/' && ...`) → red.
   // Every other prologue test separates entries with a newline, which already ends the statement
@@ -107,6 +114,7 @@ test('a comment directly abutting a prologue literal (no separating newline) sti
   assert.equal(declaresUseServer("'use strict'// trailing\n'use server'\n"), true)
 })
 
+// GROUP: directive-checked-before-statement-end
 test('a directive-shaped literal that is an EXPRESSION is not a declaration', () => {
   // MUTATION: return true on `lit.value === 'use server'` BEFORE calling endOfPrologueEntry → red.
   // That was the shipped shape for one commit: every other literal was checked for whether its
@@ -121,6 +129,7 @@ test('a directive-shaped literal that is an EXPRESSION is not a declaration', ()
   assert.equal(declaresUseServer("'use server'"), true)
 })
 
+// GROUP: line-comment-at-eof-returns-true
 test('a line comment that runs off the end of the file with no trailing newline is not a declaration', () => {
   // MUTATION: change the line-comment branch's `if (nl === -1) return false` to `return true` →
   // red. Every other `//` fixture in this file ends with `\n`, so `content.indexOf('\n', i)`
@@ -130,6 +139,7 @@ test('a line comment that runs off the end of the file with no trailing newline 
   assert.equal(declaresUseServer('// no trailing newline'), false)
 })
 
+// GROUP: string-literal-eof-closes-literal
 test('a literal that runs off the end of the file with no closing quote is unterminated', () => {
   // MUTATION: change readStringLiteral's final fallback `return null` (reached when the scan
   // loop exits because `j` hit `content.length`, as opposed to the explicit `c === '\n'` case

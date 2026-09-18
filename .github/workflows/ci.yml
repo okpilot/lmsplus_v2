@@ -65,6 +65,11 @@ jobs:
       - name: File-size guard — CLI and live-tree tests
         run: node --test .claude/hooks/check-file-size-guard.cli.test.mjs
 
+      # Split from the CLI suite when linking every claim to its mutation pushed it into the
+      # same-commit extraction trigger again. Same requirement: its own step, or it runs nowhere.
+      - name: File-size guard — stderr-trailer tests
+        run: node --test .claude/hooks/check-file-size-guard.trailer.test.mjs
+
       # Split from the CLI suite when the staged-rename case pushed it into the same-commit
       # extraction trigger in code-style.md §1. Same reason as the split above, same
       # requirement: its own step, or the file runs nowhere.

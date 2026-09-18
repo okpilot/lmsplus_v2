@@ -4,6 +4,7 @@
     ".claude/hooks/check-file-size-guard.test.mjs",
     ".claude/hooks/check-file-size-guard.args.test.mjs",
     ".claude/hooks/check-file-size-guard.cli.test.mjs",
+    ".claude/hooks/check-file-size-guard.trailer.test.mjs",
     ".claude/hooks/check-file-size-guard.update.test.mjs",
     ".claude/hooks/check-file-size-guard.directive.test.mjs"
   ],
@@ -601,6 +602,14 @@
     {
       "claim": "update.test.mjs tone_instructions folded-scalar assertion: change the field to an inline value of any length",
       "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Same single-target limitation as the lefthook row above."
+    },
+    {
+      "claim": "update.test.mjs tone_instructions MUTATION A (blank-line guard): restore the pre-fix 928-char value, whose internal blank line fires the blank-line assertion before the length check",
+      "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Written as `MUTATION A` rather than `MUTATION:`, so the claim counter does not see it — declared here so the comment does not imply coverage the harness cannot give."
+    },
+    {
+      "claim": "update.test.mjs tone_instructions MUTATION B (length guard): replace with a >250-char value carrying no internal blank line, which bypasses the blank-line guard and fires the length assertion",
+      "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Same token-form and single-target limitations as MUTATION A above."
     },
     {
       "claim": "test.mjs 'test files are relaxed to 500, not exempt from every limit': restore the blanket basename EXCLUSION",

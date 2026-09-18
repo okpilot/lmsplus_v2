@@ -12,7 +12,7 @@
 // nothing exercises is a lie you will later trust.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -21,6 +21,7 @@ const lines = (n) => `${'x\n'.repeat(n)}`
 
 // ----------------------------------------------------------------- fail closed
 
+// GROUP: cli-limits-read-failure-exits-zero
 test('blocks rather than passes when the limits file cannot be read', () => {
   // MUTATION: change the catch to exit(0) → the guard reports clean forever the moment
   // anything breaks, and nobody looks again. This is the failure mode that made
@@ -43,6 +44,7 @@ test('blocks rather than passes when the limits file cannot be read', () => {
 
 // --------------------------------------------------------------- CLI (main())
 
+// GROUP: cli-scoped-filter-dropped
 test('only a violation among the files passed as arguments can block the commit', () => {
   // MUTATION: replace the scoped/all ternary with `const scoped = all` → staged mode
   // stops meaning anything, and a violation in a file the commit never touched blocks
@@ -75,6 +77,7 @@ test('only a violation among the files passed as arguments can block the commit'
   }
 })
 
+// GROUP: cli-ls-files-drop-z
 test('a non-ASCII tracked filename does not block every run', () => {
   // MUTATION: drop `-z` from trackedFiles' `git ls-files` → red. core.quotePath defaults to
   // true, so git renders the path as the literal `"\303\251.ts"`; readFile gets ENOENT on that
@@ -113,6 +116,7 @@ test('a non-ASCII tracked filename does not block every run', () => {
   }
 })
 
+// GROUP: cli-staged-deletion-drop-z
 test('removing a non-ASCII file does not read as an unknown path', () => {
   // MUTATION: drop `-z` from the staged-deletion `git diff` → red. The mirror image of the
   // trackedFiles case: git hands back the QUOTED deletion path while lefthook passes the raw
@@ -152,6 +156,7 @@ test('removing a non-ASCII file does not read as an unknown path', () => {
   }
 })
 
+// GROUP: cli-tracked-files-decoded-as-utf8
 test('a tracked path whose bytes are not valid UTF-8 is still graded', () => {
   // MUTATION: restore `encoding: 'utf8'` on trackedFiles' git call and split the string on
   // '\0' → red. A git path is arbitrary bytes on Linux; an invalid sequence decodes to U+FFFD,
@@ -186,6 +191,7 @@ test('a tracked path whose bytes are not valid UTF-8 is still graded', () => {
   }
 })
 
+// GROUP: cli-staged-mode-reads-worktree
 test('staged mode grades the INDEX, not the working tree', () => {
   // MUTATION: read the scoped paths from the worktree again (drop the fromIndex branch) → red.
   // git commits the index. Staging an over-limit file and then trimming the worktree copy
@@ -218,6 +224,7 @@ test('staged mode grades the INDEX, not the working tree', () => {
   }
 })
 
+// GROUP: cli-index-read-prefers-longer-side
 test('staged mode does not launder a worktree-only regression through the index', () => {
   // MUTATION: read whichever of the index/worktree content is LONGER (e.g. block if either
   // is over the cap) instead of the index alone → red. That alternate shape still blocks the
@@ -249,6 +256,7 @@ test('staged mode does not launder a worktree-only regression through the index'
   }
 })
 
+// GROUP: cli-stale-plural-hardcoded
 test('reports stale baseline entries in the singular and plural, and blocks on them', () => {
   // MUTATION: hardcode the 'ies' suffix regardless of stale.length → a report with one
   // stale entry reads "1 stale baseline entries", invisible to the exit code so nothing
@@ -285,6 +293,7 @@ test('reports stale baseline entries in the singular and plural, and blocks on t
   }
 })
 
+// GROUP: cli-ls-files-maxbuffer-dropped
 test("keeps working when the tracked-file listing is bigger than node's default buffer cap", () => {
   // MUTATION: drop `maxBuffer: 64 * 1024 * 1024` from the git ls-files call. This repo's
   // OWN `git ls-files` output is tiny (~100KB), so the check against the live tree can
@@ -327,100 +336,9 @@ test("keeps working when the tracked-file listing is bigger than node's default 
   }
 })
 
-// ------------------------------------------------- the two-branch stderr trailer
-
-test('prints split-file guidance for a normal violation, not the unreadable-path one', () => {
-  // MUTATION: swap `.some((r) => r.n !== null)` for `.some((r) => r.n === null)` on the
-  // first trailer block → this scenario has no null-n regression, so the split-file
-  // guidance silently stops printing for the one class of regression a developer can
-  // actually act on by editing the source file.
-  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const repo = mkdtempSync(join(tmpdir(), 'file-size-trailer-normal-'))
-  try {
-    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
-    mkdirSync(join(repo, '.claude'), { recursive: true })
-    writeFileSync(
-      join(repo, '.claude', 'limits.json'),
-      JSON.stringify({
-        rules: [{ kind: 'util', glob: '**/*.ts', max: 1 }],
-        excludeBasenamePatterns: [],
-        excludeGlobs: [],
-        baseline: {},
-      }),
-    )
-    writeFileSync(join(repo, 'a.ts'), lines(3)) // violates max: 1, not baselined
-    execFileSync('git', ['add', '-A'], { cwd: repo })
-
-    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
-    assert.equal(result.status, 1)
-    assert.match(result.stderr, /3 lines — util limit is 1 \(new violation\)/)
-    assert.match(result.stderr, /Split the file/)
-    assert.doesNotMatch(result.stderr, /unreadable tracked path/)
-  } finally {
-    rmSync(repo, { recursive: true, force: true })
-  }
-})
-
-test('prints unreadable-path guidance for a dangling symlink, not the split-file one', () => {
-  // MUTATION: swap the second trailer block's predicate to `.some((r) => r.n !== null)`
-  // → this scenario has no non-null-n regression, so the dangling-symlink guidance
-  // silently stops printing for the one class of regression that CANNOT be fixed by
-  // splitting the file — leaving a developer with only "Split the file" advice for a
-  // problem splitting cannot solve.
-  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const repo = mkdtempSync(join(tmpdir(), 'file-size-trailer-unreadable-'))
-  try {
-    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
-    mkdirSync(join(repo, '.claude'), { recursive: true })
-    writeFileSync(
-      join(repo, '.claude', 'limits.json'),
-      JSON.stringify({ rules: [], excludeBasenamePatterns: [], excludeGlobs: [], baseline: {} }),
-    )
-    symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'x.ts'))
-    execFileSync('git', ['add', '-A'], { cwd: repo })
-
-    const result = spawnSync('node', [guard], { cwd: repo, encoding: 'utf8' })
-    assert.equal(result.status, 1)
-    assert.match(result.stderr, /tracked but unreadable \(ENOENT\) — no limit can be applied/)
-    assert.doesNotMatch(result.stderr, /lines — unreadable limit is/)
-    assert.match(result.stderr, /unreadable tracked path cannot be graded at all/)
-    assert.doesNotMatch(result.stderr, /Split the file/)
-  } finally {
-    rmSync(repo, { recursive: true, force: true })
-  }
-})
-
-test('an unreadable path blocks the commit only when it is among the staged arguments', () => {
-  // The unreadable branch shares the SAME scoped/all filter as a normal violation — this
-  // pins that no shortcut in the catch-block bypasses staged-mode scoping for it.
-  // MUTATION: evaluate the unreadable branch against `all` instead of `scoped` → a
-  // dangling symlink anywhere in the tree blocks every commit, even one that never
-  // touched it.
-  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const repo = mkdtempSync(join(tmpdir(), 'file-size-staged-unreadable-'))
-  try {
-    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
-    mkdirSync(join(repo, '.claude'), { recursive: true })
-    writeFileSync(
-      join(repo, '.claude', 'limits.json'),
-      JSON.stringify({ rules: [], excludeBasenamePatterns: [], excludeGlobs: [], baseline: {} }),
-    )
-    symlinkSync(join(repo, 'no-such-target.ts'), join(repo, 'x.ts'))
-    writeFileSync(join(repo, 'b.ts'), 'compliant\n')
-    execFileSync('git', ['add', '-A'], { cwd: repo })
-
-    const run = (args) => spawnSync('node', [guard, ...args], { cwd: repo, encoding: 'utf8' })
-
-    assert.equal(run([]).status, 1, 'whole-tree mode sees the dangling symlink and fails')
-    assert.equal(run(['b.ts']).status, 0, 'x.ts was not staged, so it cannot block')
-    assert.equal(run(['x.ts']).status, 1, 'x.ts WAS staged, so it blocks')
-  } finally {
-    rmSync(repo, { recursive: true, force: true })
-  }
-})
-
 // ---------------------------------------- the rename-out-of-rule-class escape
 
+// GROUP: cli-stale-only-run-advisory
 test('renaming a grandfathered file out of its rule class is blocked, not silently allowed', () => {
   // MUTATION: make a stale baseline entry advisory again (`return 0` when only stale rows
   // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a Server Action
