@@ -149,7 +149,7 @@ test('reports per-rule compliance totals when asked for stats', () => {
   // THREW when run as written — it looked checkable and was not, which is worse than the literal
   // ratio it replaced. A flag cannot rot that way: the same code that enforces computes it.
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
-  const out = execFileSync('node', [guard, '--stats'], { encoding: 'utf8' })
+  const out = execFileSync(process.execPath, [guard, '--stats'], { encoding: 'utf8' })
   assert.match(out, /Server Action file \(cap 100\): \d+\/\d+ comply/)
   assert.match(out, /test file \(cap 500\): \d+\/\d+ comply/)
   // and it must not double as an enforcement run
