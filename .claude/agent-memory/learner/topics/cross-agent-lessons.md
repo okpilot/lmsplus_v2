@@ -2266,3 +2266,11 @@ audited for GH Actions pin-comment accuracy. Logged as a durable-knowledge bulle
 - "Config field content silently disables the entire config when schema-enforced maxLength exceeded — no error, no diagnostic" (count=1, WATCHING — `b0ea0d58` maxLength overflow silently disabled the whole CR config for 8 commits).
 - "`vi.mock` targets an exact specifier; a production import migrating to a new path (e.g. deprecated root→subpath) leaves the mock silently inert while old assertions stay green" (count=1, WATCHING — `ac213f98`/`2596a8ef`: `withSentryConfig` moved `@sentry/nextjs`→`@sentry/nextjs/config`; test-writer proved the drift by mutation in a scratch worktree and pinned the specifier).
 - "`pnpm.overrides` pin forces a package below a DIFFERENT dependent's own declared range; full suite passes so it goes unnoticed" (count=1, WATCHING — `ac213f98`: `undici` override `>=7.28.0 <8` forces `jsdom@30.0.1`'s `undici` down to 7.29.0 against jsdom's declared `^8.9.0`; pre-existing, SKIPPED not applied, latent-but-harmless).
+
+## expectRed cascade (tracker row: adding tests invalidates exact-set expectRed)
+
+feat/prose-path-guard, then chore/encode-file-size-guard-claims — the coverage-gap test widened THREE `run-mutations` entries, one of them (`option-no-consume`) for the SECOND time. The interim "did NOT recur" was FALSE: it rested on a `--guard check-file-size-guard` run, which never reads `run-mutations.mutations.json`. A scoped run cannot clear a repo-wide claim.
+
+## doc-updater own-context citation — memory-file variant
+
+chore/encode-file-size-guard-cli-claims: the agent cited "line 125 of this agent's memory" as evidence for a claim about the current artifact. The memory predated a task rewrite; `git grep -nF` found no match repo-wide. The offending memory row was corrected in place so it could not re-fire.

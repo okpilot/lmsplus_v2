@@ -389,6 +389,204 @@
       "replace": "    const idx = readIndexBlob(target)\n    let wt = ''\n    try {\n      wt = readFileSync(target, 'utf8')\n    } catch {}\n    return wt.length > idx.length ? wt : idx",
       "expectRed": ["staged mode does not launder a worktree-only regression through the index"],
       "note": "Reading whichever side is LONGER still blocks the sibling index-authority test (the index content is the larger one there), so this is a genuinely separate case: the index must be authoritative in BOTH directions. An unstaged worktree edit must never fail a commit that never touches it."
+    },
+    {
+      "id": "countlines-returns-raw-part-count",
+      "claim": "countLines: return parts.length unconditionally",
+      "find": "  return content.endsWith('\\n') ? parts.length - 1 : parts.length",
+      "replace": "  return parts.length",
+      "expectRed": [
+        "only a violation among the files passed as arguments can block the commit",
+        "staged mode grades the INDEX, not the working tree",
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "counts a newline-terminated file the way wc -l does",
+        "a file exactly at its limit is not a violation",
+        "a grandfathered file at its recorded size does not fail",
+        "a grandfathered file that SHRANK but is still over the limit fails",
+        "update-baseline leaves limits.json byte-identical when it already matches the tree",
+        "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "The split on '\\n' yields a trailing empty element for a newline-terminated file; without the adjustment every such file counts one line too many, and a file sitting exactly at its cap starts failing. expectRed names 12 tests because nearly every fixture in the suite is newline-terminated: an off-by-one on the line count moves whole classes of file across their cap at once. This pins the line-counting contract itself, not the single test its comment names. `renaming a grandfathered file out of its rule class is blocked, not silently allowed` is in this set for the same reason as elsewhere: it baselines a 150-line file at 150 and asserts status 0 FIRST, so the ratchet fires before the rename happens. Its membership says nothing about rename detection."
+    },
+    {
+      "id": "countlines-always-subtracts-one",
+      "claim": "countLines: drop the endsWith('\\n') branch, always subtract one",
+      "find": "  return content.endsWith('\\n') ? parts.length - 1 : parts.length",
+      "replace": "  return parts.length - 1",
+      "expectRed": ["counts the final partial line when a file lacks a trailing newline"],
+      "note": "Mirror of the sibling entry: same line, opposite replacement. A file with no trailing newline silently loses its last line."
+    },
+    {
+      "id": "globtore-drops-case-insensitive-flag",
+      "claim": "globToRe: drop the 'i' flag",
+      "find": "  return new RegExp(`^${out}$`, 'i')",
+      "replace": "  return new RegExp(`^${out}$`)",
+      "expectRed": ["an uppercase extension is still matched, not silently unclassified"],
+      "note": "An over-limit `Weird.TSX` then matches NO rule and passes clean — unclassified, not merely relaxed."
+    },
+    {
+      "id": "classify-defaults-instead-of-returning-null",
+      "claim": "classify: fall through to a default rule instead of returning null when no glob matches",
+      "find": "    return { kind: rule.kind, max: rule.max }\n  }\n  return null\n}",
+      "replace": "    return { kind: rule.kind, max: rule.max }\n  }\n  return { kind: 'util', max: 200 }\n}",
+      "expectRed": [
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "a file type with no matching rule is left unclassified, not defaulted to a limit",
+        "update-baseline leaves limits.json byte-identical when it already matches the tree",
+        "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
+        "stats mode skips an unreadable tracked file instead of blocking the whole report"
+      ],
+      "note": "Anchored on the preceding return plus the closing brace: bare `return null` appears four times in the guard. Defaulting rather than returning null pulls previously-unclassified files into grading, so the stats and update-baseline paths redden alongside the classify test — six in total. Read the set with care: `renaming a grandfathered file out of its rule class is blocked, not silently allowed` reddens at its FIRST assertion, because the 623-line guard copy matches no rule today and a default rule makes it a new violation. Its rename-blocking mechanism is never reached, so its membership here says nothing about rename detection."
+    },
+    {
+      "id": "globtore-stops-escaping-metacharacters",
+      "claim": "globToRe: emit `c` instead of the escaped form",
+      "find": "    out += SPECIAL.test(c) ? `\\\\${c}` : c",
+      "replace": "    out += c",
+      "expectRed": ["treats regex metacharacters inside a glob as literal characters"],
+      "note": "A glob's literal dots would act as regex wildcards, silently widening every rule's match beyond its intended glob."
+    },
+    {
+      "id": "unreadable-path-skipped-instead-of-reported",
+      "claim": "evaluate: restore `continue` in the catch, dropping the unreadable regression",
+      "find": "      regressions.push({\n        file,\n        n: null,\n        max: null,\n        kind: 'unreadable',\n        why: `tracked but unreadable (${err.code ?? err.message}) — no limit can be applied`,\n      })\n      continue",
+      "replace": "      continue",
+      "expectRed": [
+        "prints unreadable-path guidance for a dangling symlink, not the split-file one",
+        "an unreadable path blocks the commit only when it is among the staged arguments",
+        "an enumerated file that cannot be read blocks instead of being skipped",
+        "a tracked path that cannot be read is reported, not silently skipped",
+        "a path that vanished between enumeration and read still blocks",
+        "falls back to the raw error message when a read failure carries no error code"
+      ],
+      "note": "ONE entry for two comments naming the identical edit — the ones above `an enumerated file that cannot be read blocks instead of being skipped` and `a tracked path that cannot be read is reported, not silently skipped`; derive them with `grep -n 'MUTATION: restore' .claude/hooks/check-file-size-guard.test.mjs`, never a line number, which drifts on every edit above it. Every path here came from `git ls-files`, so git already asserts it exists; failing closed on a genuine race is the correct direction to be wrong. Six tests redden: every assertion about unreadable paths depends on this push existing — the guidance text, the staged-scope rule, the vanished-file case and the error-message fallback all read the regression it produces."
+    },
+    {
+      "id": "ratchet-fails-at-exact-recorded-size",
+      "claim": "evaluate: `n !== allowed` becomes `n >= allowed`",
+      "find": "    if (n !== allowed) {",
+      "replace": "    if (n >= allowed) {",
+      "expectRed": [
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "a grandfathered file at its recorded size does not fail",
+        "a grandfathered file that SHRANK but is still over the limit fails",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "Every baselined file at its recorded size fails immediately and the ratchet is a gate again. Supersets the shrink case, which the same edit also reddens — the sibling grow-only entry is the narrower one. Five tests: the real tracked tree sits at its baseline, so the whole-repo and rename fixtures redden too."
+    },
+    {
+      "id": "baseline-lookup-reads-rule-max",
+      "claim": "evaluate: `const allowed = baseline[file]` becomes `const allowed = rule.max`",
+      "find": "    const allowed = baseline[file]",
+      "replace": "    const allowed = rule.max",
+      "expectRed": [
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "flags a new over-limit file that is not in the baseline",
+        "a grandfathered file at its recorded size does not fail",
+        "a grandfathered file that GREW by one line fails",
+        "evaluate treats a config with no baseline key at all as an empty baseline",
+        "a grandfathered file that SHRANK but is still over the limit fails",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "The ratchet degrades to a plain cap check: a 239-line file could grow to 299 unnoticed. Mutating the COMPARISON to `n > rule.max` instead leaves the test GREEN — 82 > 80 still fires and the message still reads the grandfathered size — which is why the anchor is the lookup, not the comparison. Nine tests redden: with `allowed` never undefined, the new-violation branch becomes unreachable as well, so this pins the grandfathering mechanism as a whole. `renaming a grandfathered file out of its rule class is blocked, not silently allowed` is in this set for the same reason as elsewhere: it baselines a 150-line file at 150 and asserts status 0 FIRST, so the ratchet fires before the rename happens. Its membership says nothing about rename detection."
+    },
+    {
+      "id": "new-violation-never-reported",
+      "claim": "evaluate: drop the regressions.push from the `allowed === undefined` branch, keeping its continue",
+      "find": "      regressions.push({ file, n, max: rule.max, kind: rule.kind, why: 'new violation' })\n      continue",
+      "replace": "      continue",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "only a violation among the files passed as arguments can block the commit",
+        "staged mode grades the INDEX, not the working tree",
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "flags a new over-limit file that is not in the baseline",
+        "an over-limit file with no baseline row is reported as a new violation",
+        "evaluate treats a config with no baseline key at all as an empty baseline"
+      ],
+      "note": "This early return fires BEFORE `liveViolators.add` and the `n !== allowed` comparison, so no mutation of the baseline comparison can reach these tests. Replaces a comment that claimed the opposite — `fixture()` already ships `baseline: {}`, so an emptied-baseline override is a no-op and nothing in that test was ever grandfathered. Eight tests: an un-baselined over-limit file is the ordinary case, so most end-to-end fixtures depend on this branch reporting."
+    },
+    {
+      "id": "stale-baseline-rows-never-reported",
+      "claim": "staleBaselineEntries: skip stale reporting entirely",
+      "find": "  return Object.keys(limits.baseline ?? {}).filter((p) => !liveViolators.has(p))",
+      "replace": "  return []",
+      "expectRed": [
+        "reports stale baseline entries in the singular and plural, and blocks on them",
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "a baseline row whose file was deleted is reported stale",
+        "a baseline row for a file that is now compliant is reported stale",
+        "a grandfathered file that shrank below its limit is stale, not a failure",
+        "a baseline row for a file that became EXCLUDED is reported stale, not kept alive"
+      ],
+      "note": "A baselined path is deleted, an unrelated new file later occupies the SAME path at a smaller-but-still-over size, and it inherits the old allowance silently. Path reuse, not renaming, is the hole. Six tests: every stale-entry assertion in the suite reads this function's return."
+    },
+    {
+      "id": "evaluate-requires-baseline-key",
+      "claim": "evaluate: read limits.baseline directly instead of `?? {}`",
+      "find": "  const baseline = limits.baseline ?? {}",
+      "replace": "  const baseline = limits.baseline",
+      "expectRed": ["evaluate treats a config with no baseline key at all as an empty baseline"],
+      "note": "`limits.baseline ?? {}` appears three times; this anchor is the evaluate-local one. A limits object omitting the key throws inside the loop instead of grading the file as an ungrandfathered new violation."
+    },
+    {
+      "id": "stale-entries-require-baseline-key",
+      "claim": "staleBaselineEntries: Object.keys(limits.baseline) without `?? {}`",
+      "find": "  return Object.keys(limits.baseline ?? {}).filter((p) => !liveViolators.has(p))",
+      "replace": "  return Object.keys(limits.baseline).filter((p) => !liveViolators.has(p))",
+      "expectRed": [
+        "staleBaselineEntries reports nothing when the config has no baseline key at all"
+      ],
+      "note": "Same line as the skip-stale-reporting entry, different replacement: this one pins the defaulting, that one pins the reporting."
+    },
+    {
+      "id": "exclusion-check-moved-below-the-read",
+      "claim": "evaluate: move `isExcluded` below the read",
+      "find": "    if (isExcluded(file, limits)) continue\n    let content",
+      "replace": "    let content",
+      "expectRed": ["an excluded path is skipped without being read at all"],
+      "note": "A dangling symlink under an excluded glob produced an `unreadable` regression that blocked every run, and no baseline row could clear it because that branch returns before the baseline is consulted. Exclusion needs no file content, so it must come first. The test pins `reads === 0`, not the outcome."
+    },
+    {
+      "id": "ratchet-checks-growth-only",
+      "claim": "evaluate: `n !== allowed` becomes `n > allowed`",
+      "find": "    if (n !== allowed) {",
+      "replace": "    if (n > allowed) {",
+      "expectRed": [
+        "a grandfathered file that SHRANK but is still over the limit fails",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "The same-path content-swap hole reopens: the baseline is keyed on PATH alone, so replacing a baselined file's contents in place with unrelated content still over the limit but under the old allowance reports NOTHING — not even a stale-entry warning, since the path never leaves liveViolators."
+    },
+    {
+      "id": "unreadable-message-drops-message-fallback",
+      "claim": "evaluate: drop the `?? err.message` fallback, leaving bare err.code",
+      "find": "${err.code ?? err.message}",
+      "replace": "${err.code}",
+      "expectRed": [
+        "falls back to the raw error message when a read failure carries no error code"
+      ],
+      "note": "Nothing guarantees the thrower is readFileSync itself — only that readFile threw. A plain Error carries no `.code`, so the report reads \"(undefined)\" instead of the actual reason."
+    },
+    {
+      "id": "liveviolators-hoisted-above-exclusion",
+      "claim": "evaluate: hoist `liveViolators.add(file)` above the exclusion check",
+      "find": "    if (isExcluded(file, limits)) continue\n    let content",
+      "replace": "    liveViolators.add(file)\n    if (isExcluded(file, limits)) continue\n    let content",
+      "expectRed": [
+        "a baseline row for a file that is now compliant is reported stale",
+        "a grandfathered file that shrank below its limit is stale, not a failure",
+        "a baseline row for a file that became EXCLUDED is reported stale, not kept alive"
+      ],
+      "note": "A file baselined and later moved under an exclusion glob is wrongly counted as still violating, so staleBaselineEntries never surfaces its orphaned baseline row for pruning. The path exits via evaluate's own isExcluded check, which returns before classify is ever called. Three tests: hoisting the add above the check keeps every early-exit class alive in liveViolators, so the now-compliant and shrank-below-limit rows stop being reported stale too."
     }
   ],
   "notEncoded": [
@@ -403,6 +601,30 @@
     {
       "claim": "update.test.mjs tone_instructions folded-scalar assertion: change the field to an inline value of any length",
       "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Same single-target limitation as the lefthook row above."
+    },
+    {
+      "claim": "test.mjs 'test files are relaxed to 500, not exempt from every limit': restore the blanket basename EXCLUSION",
+      "why": "The mutation edits `excludeBasenamePatterns` in .claude/limits.json, not this file's `target`. The assertion runs against the local `fixture()` object, so no edit to the guard source can reach it."
+    },
+    {
+      "claim": "test.mjs 'excludes the generated Supabase types file': remove the types.ts glob",
+      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped: the live config is pinned by a separate unclaimed test in the same suite."
+    },
+    {
+      "claim": "test.mjs 'excludes the scripts directory': remove 'scripts/**'",
+      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped, as above."
+    },
+    {
+      "claim": "test.mjs 'every rule note pointing at `_ratios` finds it': delete or rename the top-level `_ratios` key",
+      "why": "The mutation edits .claude/limits.json, and the key it names is documentation the guard never evaluates — no code in `target` reads `note` or `_ratios`, so there is nothing to mutate."
+    },
+    {
+      "claim": "test.mjs 'a .ts declaring use server takes the 100 limit, not the 200 util limit': move the util rule above the Server Action rule",
+      "why": "The mutation reorders `rules` in .claude/limits.json, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
+    },
+    {
+      "claim": "test.mjs 'classifies a SQL migration, so the sql path is not invisible to the guard': widen the migration glob or reorder it after a broader rule",
+      "why": "The mutation edits a glob in .claude/limits.json, not this file's `target`. The comment itself declares the test FIXTURE-LEVEL ONLY and says the live glob is pinned separately in the --update-baseline suite."
     }
   ]
 }

@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### check-file-size-guard test claims encoding — APPROVED (2026-09-18, chore/encode-file-size-guard-test-claims)
+
+16 new mutation entries + 6 new notEncoded rows. Plan called for 17 encodable collapsing to 16 + 6 notEncoded. All 16 `find` strings verified unique (count=1) in the target via `python3 str.count`. Multi-line anchors correct; SPECIAL.test find required two backslashes (JSON `\\\\`) matching `0x5c 0x5c` in the source (confirmed via `xxd`). All four prose corrections verified against guard source: (1) `fixture()` ships `baseline: {}` at L45 — override is a no-op; (2) `n !== allowed` at L284, not `>`; (3) `const allowed = baseline[file]` at L278 is the correct lookup anchor; (4) `isExcluded` at L245 fires before `classify` at L272. `new-violation-never-reported` note claim confirmed: `allowed === undefined` branch at L279-281 fires before `liveViolators.add` at L283. Guard reads no `_ratios` or `.note` fields. No deviations from plan.
+
 ### CLI mutation encoding — APPROVED (2026-09-18, chore/encode-file-size-guard-cli-claims)
 
 13 MUTATION claims from `check-file-size-guard.cli.test.mjs`, all 13 encoded as DATA entries (no notEncoded for CLI claims). Harness: 41/41 caught, exit 0. All anchor `find` strings verified to appear exactly once in the target (multi-line anchors confirm count=1). All `expectRed` test names verified to exist across the 5 registered suites. 6 wide entries carry accurate `note` fields — claims about breadth confirmed by matching test comments and guard source. No deviations from plan.
