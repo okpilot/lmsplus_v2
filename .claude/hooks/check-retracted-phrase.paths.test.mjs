@@ -22,12 +22,18 @@ import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mj
 test('a near-identical sibling path is not mistaken for the edited file', {
   skip: process.platform !== 'linux',
 }, () => {
-  // MUTATION: compare paths loosely in survivors() — a normalised form, a `String.includes`, or
-  // a basename match instead of exact equality → the sibling is dropped as "self", the only
-  // survivor disappears, and the guard exits 0 on a live retraction (fail-OPEN). That is the
-  // shape of the `./`-prefix hole already recorded against check-file-size-guard.mjs.
+  // MUTATION: decode git's `-z` output as utf8 instead of latin1 in `splitNul` → both invalid
+  // bytes collapse to the same U+FFFD string, the sibling is dropped as "self", the only survivor
+  // disappears, and the guard exits 0 on a live retraction (fail-OPEN). Encoded as
+  // `splitnul-decodes-utf8`; measured to redden exactly this test across all four suites.
   //
-  // It ALSO pins the latin1 decode of git's `-z` output, which this suite's preamble listed as
+  // A LOOSE path comparison in survivors() does NOT pin this test, though an earlier version of
+  // this comment led with it as the mechanism: a basename match SURVIVED the harness, because
+  // these two fixture paths differ in their BASENAME, not their directory. Reaching that break
+  // needs a fixture whose sibling differs by DIRECTORY; it is the shape of the `./`-prefix hole
+  // recorded against check-file-size-guard.mjs, and nothing here grades it.
+  //
+  // On the decode, which this suite's preamble listed as
   // unpinnable until CodeRabbit pointed out why the old fixture could not reach it: it built the
   // names as latin1 STRINGS, and Node re-encodes a string path to UTF-8 on the way to the syscall
   // (0xFE became C3 BE), so the files never carried an invalid byte at all. A BUFFER path reaches
