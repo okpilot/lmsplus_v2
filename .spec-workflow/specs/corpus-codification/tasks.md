@@ -198,15 +198,17 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       check must delete the prose that check replaced, or the corpus carries both forever, which is
       what happened when `check-prose-paths.mjs` shipped and the prose about it grew.
 
-- [ ] **Delete the `MUTATION:` comment, or generate it.** Each one is a SECOND copy of a claim
-      already encoded in a `*.mutations.json` entry, and only the data file is executed — so the
-      prose copy is free to go false, which is the exact defect class `code-style.md` §7 keeps
-      promoting rules about. PR #1295 found one in each of two sibling guards: one named a break
-      that HANGS rather than the encoded one, the other named a break that no longer existed.
-      Either drop the comments and let `node .claude/hooks/run-mutations.mjs --list` answer the
-      question, or generate them from the data file so drift is impossible. This removes a
-      recurring finding class instead of reviewing it harder, which is the programme's whole
-      thesis applied to its own machinery.
+- [ ] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
+      executed, so a prose copy is free to go false — the defect class `code-style.md` §7 governs.
+      **Deleting the comments is NOT the remedy:** a claim encoded nowhere has the comment as its
+      only record, and `--list` prints ids plus `notEncoded` claim text, never
+      `find`/`replace`/`expectRed`/`note` — so it cannot answer "what breaks this test".
+      Per mutation DATA FILE (`--coverage` reports and aggregates per data file, not per suite),
+      drive the gap to zero: encode the real claims; for anything the single-`target` schema
+      cannot express, add a `notEncoded` row carrying BOTH a non-empty `claim` and a non-empty
+      `why` (`validateDataFile` requires both); only then delete a comment that genuinely
+      duplicates an encoded entry.
+      Derive the gap, never state it: `node .claude/hooks/run-mutations.mjs --coverage`.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest

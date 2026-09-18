@@ -166,7 +166,101 @@
         "a comment directly abutting a prologue literal (no separating newline) still continues it"
       ],
       "note": "Encoded only after the test was FIXED on this branch. It previously asserted `false` alone — the function's default return — so no mutation could redden it; the harness found that and the fix added the positive companion assertion (prologue reads THROUGH a line comment to a real directive). Reddens two tests; the superset is recorded here rather than in the comment, per code-style.md §7."
+    },
+    {
+      "id": "update-baseline-drops-unreadable-row",
+      "find": "      if (previous[file] !== undefined) next[file] = previous[file]\n      continue\n",
+      "replace": "      continue\n",
+      "expectRed": [
+        "update-baseline keeps an unreadable path's existing row instead of dropping it"
+      ],
+      "note": "The anti-laundering guarantee: without the keep, making a file unreadable removes its violation from the record."
+    },
+    {
+      "id": "update-baseline-no-change-early-exit-dropped",
+      "find": "  if (added.length === 0 && removed.length === 0 && changed.length === 0) {\n    console.error('[file-size] baseline already matches the tree \u2014 nothing written.')\n    return 0\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "update-baseline leaves limits.json byte-identical when it already matches the tree"
+      ],
+      "note": "Without the early exit the file is rewritten on every run, reformatting it even when nothing logically changed."
+    },
+    {
+      "id": "update-baseline-added-removed-sides-swapped",
+      "find": "  const added = Object.keys(next).filter((f) => previous[f] === undefined)\n  const removed = Object.keys(previous).filter((f) => next[f] === undefined)\n",
+      "replace": "  const added = Object.keys(previous).filter((f) => next[f] === undefined)\n  const removed = Object.keys(next).filter((f) => previous[f] === undefined)\n",
+      "expectRed": [
+        "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key"
+      ],
+      "note": "Swapping the sides makes a shrunk-to-compliant file read as added and a new violation as removed."
+    },
+    {
+      "id": "update-baseline-invents-row-for-unreadable",
+      "find": "      if (previous[file] !== undefined) next[file] = previous[file]\n",
+      "replace": "      next[file] = previous[file] ?? 0\n",
+      "expectRed": [
+        "update-baseline drops an unreadable file that was never baselined, instead of inventing a row"
+      ],
+      "note": "Mirror of the anti-laundering guarantee: the command must not INVENT a row any more than it may DROP one."
+    },
+    {
+      "id": "stats-mode-dispatch-deleted",
+      "find": "  if (flags.includes('--stats')) {\n    stats(limits, all, read)\n    return 0\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "reports per-rule compliance totals when asked for stats",
+        "stats mode skips an unreadable tracked file instead of blocking the whole report"
+      ],
+      "note": "--stats falls through to an enforcement run; the flag replaced a derivation command in limits.json that threw when run as written."
+    },
+    {
+      "id": "stats-unreadable-file-not-skipped",
+      "find": "    } catch {\n      continue\n    }\n    const rule = classify(file, content, limits)\n    if (!rule) continue\n    const row = byKind.get(rule.kind)",
+      "replace": "    } catch (e) {\n      throw e\n    }\n    const rule = classify(file, content, limits)\n    if (!rule) continue\n    const row = byKind.get(rule.kind)",
+      "expectRed": [
+        "stats mode skips an unreadable tracked file instead of blocking the whole report"
+      ],
+      "note": "One dangling symlink turns a purely informational report into a hard block."
+    },
+    {
+      "id": "flag-vs-path-gate-dropped",
+      "find": "  if (flags.length > 0 && files.length > 0) {\n    console.error('[file-size] a mode flag cannot be combined with file paths \u2014 BLOCKING')\n    return 1\n  }\n",
+      "replace": "",
+      "expectRed": ["a mode flag mixed with file paths blocks instead of skipping enforcement"],
+      "note": "The gate is what makes a mode flag beside a path BLOCK. Replaces a MUTATION comment — never an encoded entry — that named `args.includes('--stats')` instead: that edit SURVIVED, because this gate returns 1 before the --stats dispatch is reached."
+    },
+    {
+      "id": "unknown-flag-check-dropped",
+      "find": "  const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f))\n  if (unknown.length > 0) {\n    console.error(`[file-size] unknown flag(s): ${unknown.join(' ')} \u2014 BLOCKING`)\n    return 1\n  }\n",
+      "replace": "",
+      "expectRed": ["an unrecognised flag blocks rather than being treated as a file path"],
+      "note": "A typo'd --upate-baseline falls through to the file list and runs a plain enforcement pass looking like it worked."
+    },
+    {
+      "id": "update-baseline-writes-on-normal-run",
+      "find": "  if (flags.includes('--update-baseline')) {\n    return updateBaseline(limits, all, read)\n  }\n",
+      "replace": "  updateBaseline(limits, all, read)\n  if (flags.includes('--update-baseline')) {\n    return 0\n  }\n",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "only a violation among the files passed as arguments can block the commit",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "The escape valve must be opt-in: a check that rewrites its own baseline silently launders the record it is judged against. Only the fourth test shows the laundering directly; the three enforcement tests redden through cross-spawn state pollution — each loops several spawns over ONE temp repo, so the first spawn writes a baseline row and the next reads a count exactly matching it, which the ratchet passes."
     }
   ],
-  "notEncoded": []
+  "notEncoded": [
+    {
+      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml",
+      "why": "The mutation edits lefthook.yml, not this file's `target` (check-file-size-guard.mjs). A data file carries ONE top-level target, so a config-file mutation cannot be expressed. Third such claim in this suite family (lefthook.yml, .coderabbit.yaml, limits.json) — a per-mutation target override now meets the rule of three and is worth its own change."
+    },
+    {
+      "claim": "update.test.mjs '.coderabbit.yaml pins each cap to the same RULE KIND as limits.json': compare the two as SETS of numbers instead of per-kind pairs",
+      "why": "The mutation edits the TEST's own comparison, not the target guard. The harness mutates `target` only, so a claim about an assertion's own vacuity is outside what it can grade. The vacuity was proven by executing the swap when the test was written."
+    },
+    {
+      "claim": "update.test.mjs tone_instructions folded-scalar assertion: change the field to an inline value of any length",
+      "why": "The mutation edits .coderabbit.yaml, not this file's `target`. Same single-target limitation as the lefthook row above."
+    }
+  ]
 }

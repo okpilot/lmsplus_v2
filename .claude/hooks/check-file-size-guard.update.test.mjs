@@ -182,12 +182,9 @@ test('stats mode skips an unreadable tracked file instead of blocking the whole 
 })
 
 test('a mode flag mixed with file paths blocks instead of skipping enforcement', () => {
-  // MUTATION: restore `args.includes('--stats')` → red. That was a positional-arg collision,
-  // not a mode switch: a file literally named `--stats` anywhere in argv turned a run carrying
-  // a real violation into exit 0. Unreachable through today's two callers (lefthook's glob
-  // drops an extensionless name; CI passes none) — but by luck of the callers, not by
-  // construction, and it is the same green-while-broken shape as the four criticals this slice
-  // closed.
+  // MUTATION: delete the `flags.length > 0 && files.length > 0` gate in main() → red. That gate,
+  // not the `flags`-vs-`args` spelling of the --stats dispatch, is what this pins: restoring
+  // `args.includes('--stats')` SURVIVES, because the gate returns 1 before the dispatch runs.
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
   const mixed = spawnSync('node', [guard, '--stats', 'CLAUDE.md'], { encoding: 'utf8' })
   assert.equal(mixed.status, 1)
