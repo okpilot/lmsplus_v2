@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mjs'
 
+// GROUP: base-message-blanked
 test('--base mode honours a waiver written in the commit that needed it', () => {
   // MUTATION: stop passing each commit's own message into checkCommit in --base mode (leave it
   // '') → a commit legitimately waived at commit-msg re-fires in CI with no waiver reachable, and
@@ -37,6 +38,7 @@ test('--base mode honours a waiver written in the commit that needed it', () => 
   })
 })
 
+// GROUP: base-waivers-shared-across-range
 test("--base mode does not let one commit's waiver clear another commit's finding", () => {
   // MUTATION: concatenate every range commit's message into ONE waiver map (the obvious way to
   // implement --base waivers) → the waiver below, written for a DIFFERENT file's retraction,
@@ -70,6 +72,7 @@ test("--base mode does not let one commit's waiver clear another commit's findin
   })
 })
 
+// GROUP: base-grepscope-always-cached
 test('an intermediate commit is graded against its OWN tree, not HEAD', () => {
   // MUTATION: make grepScope always return ['--cached'] → every commit in the range is graded
   // against HEAD instead of its own tree. Invisible in a single-commit range, because there the
@@ -99,6 +102,7 @@ test('an intermediate commit is graded against its OWN tree, not HEAD', () => {
   })
 })
 
+// GROUP: base-lstree-literal-glob
 test('a completed spec stays excluded in --base mode, exactly as at commit-msg', () => {
   // MUTATION: pass a `*/tasks.md` glob to listTracked's ls-tree branch → `git ls-tree` matches the
   // `*` LITERALLY and returns nothing, so completedSpecDirs() yields [] and no spec is ever
@@ -124,6 +128,7 @@ test('a completed spec stays excluded in --base mode, exactly as at commit-msg',
   })
 })
 
+// GROUP: base-rev-list-keeps-merges
 test('a merge commit in the range does not swallow the waivers below it', () => {
   // MUTATION: drop `--no-merges` from the rev-list enumeration → the merge enters the range as a
   // unit whose diff is EVERY commit it brings in and whose message is an auto-generated
@@ -165,6 +170,7 @@ test('a merge commit in the range does not swallow the waivers below it', () => 
   })
 })
 
+// GROUP: base-lstree-drop-full-tree
 test('--base mode excludes a completed spec from a subdirectory too', () => {
   // MUTATION: drop `--full-tree` from listTracked's ls-tree branch → from a subdirectory the
   // listing comes back empty, `completedSpecDirs` returns [], no spec is excluded, and the
@@ -189,6 +195,7 @@ test('--base mode excludes a completed spec from a subdirectory too', () => {
   })
 })
 
+// GROUP: completedspecdirs-drop-full-name
 test('a LIVE spec still counts as a survivor when run from a subdirectory', () => {
   // MUTATION: drop `--full-name` from the grep inside completedSpecDirs → the `- [ ]` search
   // returns `../.spec-workflow/...`, so no directory matches and EVERY spec looks completed.

@@ -19,6 +19,7 @@ import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mj
 // fixture can only exist on Linux — which is also the only platform CI runs it on. The sibling
 // test below is deliberately NOT skipped: it uses a latin1 STRING path, which Node re-encodes to
 // valid UTF-8, so it exercises argv re-encoding rather than a raw invalid byte and runs anywhere.
+// GROUP: splitnul-decodes-utf8
 test('a near-identical sibling path is not mistaken for the edited file', {
   skip: process.platform !== 'linux',
 }, () => {
@@ -54,6 +55,7 @@ test('a near-identical sibling path is not mistaken for the edited file', {
   })
 })
 
+// GROUP: hunksfor-paths-through-argv
 test('grades a path whose name survives an argv round-trip', () => {
   // MUTATION: pass paths to git through argv rather than diffing blob SHAs → the guard decodes
   // git's output as latin1, an argv round-trip then re-encodes it (U+00FF becomes C3 83 C2 BF),
@@ -78,6 +80,7 @@ test('grades a path whose name survives an argv round-trip', () => {
   })
 })
 
+// GROUP: survivors-drop-full-name
 test('finds a survivor when invoked from a subdirectory, not just the repo root', () => {
   // MUTATION: drop `--full-name` from the SURVIVOR GREP → git spells its output relative to the
   // CWD, so from `docs/` it returns `../.claude/limits.json`. `inCorpus` rejects the `../`
@@ -106,6 +109,7 @@ test('finds a survivor when invoked from a subdirectory, not just the repo root'
   })
 })
 
+// GROUP: lsfiles-drop-full-name
 test('a completed spec is still excluded when the guard runs from a subdirectory', () => {
   // MUTATION: drop `--full-name` from listTracked's ls-files branch → from a subdirectory git
   // returns `../.spec-workflow/specs/done/tasks.md`, the `slice(0, 3)` directory extraction
@@ -128,6 +132,7 @@ test('a completed spec is still excluded when the guard runs from a subdirectory
   })
 })
 
+// GROUP: changedentries-drop-no-relative
 test('a global diff.relative does not hide changes from the guard', () => {
   // MUTATION: drop `--no-relative` from changedEntries → with `diff.relative=true` set (a real
   // and reasonably common global setting) `git diff --raw` run from a subdirectory OMITS every
@@ -151,6 +156,7 @@ test('a global diff.relative does not hide changes from the guard', () => {
   })
 })
 
+// GROUP: survivors-self-compare-by-basename
 test('a sibling in a different directory with the same filename is not dropped as self', () => {
   // MUTATION: change `p !== self` in survivors() to a basename comparison
   // (e.g. `path.split('/').pop() !== self.split('/').pop()`) → the sibling shares the basename,
