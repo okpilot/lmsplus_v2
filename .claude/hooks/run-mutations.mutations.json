@@ -110,11 +110,8 @@
       "id": "narrow-mutation-grep",
       "find": "String(text).match(/MUTATION:/g)",
       "replace": "String(text).match(/\\/\\/ MUTATION:/g)",
-      "expectRed": [
-        "counts a MUTATION: claim that does not begin its line",
-        "reports the claim sites a suite carries and the entries excused from encoding"
-      ],
-      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. The coverage-gap test entered this set when it was added: it asserts a printed gap, so any miscount of claims reddens it."
+      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
+      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. countMutationClaims no longer feeds any printed figure, so only its own unit tests redden here."
     },
     {
       "id": "linecount-not-matchcount",
@@ -122,8 +119,7 @@
       "replace": "  return String(text).split('\\n').length",
       "expectRed": [
         "counts a MUTATION: claim that does not begin its line",
-        "counts zero on text that makes no claim",
-        "reports the claim sites a suite carries and the entries excused from encoding"
+        "counts zero on text that makes no claim"
       ]
     },
     {
@@ -466,6 +462,7 @@
         "a marker directly above a test names that test",
         "an id list wrapped onto a continuation line keeps every id",
         "a claim written directly above the first test belongs to that test",
+        "a claim in a multi-line comment block belongs to the test below it",
         "an id naming no mutation in the data file is reported as a problem"
       ]
     },
