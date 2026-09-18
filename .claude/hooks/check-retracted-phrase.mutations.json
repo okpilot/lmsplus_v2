@@ -351,9 +351,10 @@
         "a token re-added only in application code does not exonerate a corpus retraction",
         "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
         "a completed spec is not a surviving occurrence, a live one is",
-        "a submodule pointer does not abort the run"
+        "a submodule pointer does not abort the run",
+        "a sibling in a different directory with the same filename is not dropped as self"
       ],
-      "note": "BROAD BY NATURE, and the exact observed set. Diffing by argv path instead of blob SHA changes how EVERY entry is graded, so most of the suites redden; the argv-specific consequence the comment names is the odd-byte fixture alone. A narrower form was measured and rejected: appending `-- entry.path` to the blob-to-blob diff makes git reject the pathspec and the guard exits 2 (could-not-run), grading nothing. Cascade exposure: any test added to these suites that this break also reddens will MISMATCH this entry until the set is re-derived."
+      "note": "BROAD BY NATURE, and the exact observed set. Diffing by argv path instead of blob SHA makes git compare WORKTREE to INDEX; after the fixtures' `git add -A` those are identical, so hunksFor returns no hunks for any staged change and the guard misses every retraction. That is why most of the suites redden. The argv-specific consequence the comment names — a name carrying raw bytes re-encoded on its way through argv — is the odd-byte fixture alone. A narrower form was measured and rejected: appending `-- entry.path` to the blob-to-blob diff makes git reject the pathspec and the guard exits 2 (could-not-run), grading nothing. Cascade exposure: any test added to these suites that this break also reddens will MISMATCH this entry until the set is re-derived. The harness catches a stale set before merge — re-derive with `node .claude/hooks/run-mutations.mjs --guard check-retracted-phrase` and take the observed set."
     },
     {
       "id": "survivors-drop-full-name",
@@ -378,6 +379,15 @@
       "replace": "  ])",
       "expectRed": ["a global diff.relative does not hide changes from the guard"],
       "note": "The `--no-relative` on the raw diff in changedEntries, NOT the one on the blob-to-blob diff in hunksFor \u2014 the guard's own comment records that the second is not redundant with the first."
+    },
+    {
+      "id": "survivors-self-compare-by-basename",
+      "find": "filter((p) => p !== self && inCorpus(p))",
+      "replace": "filter((p) => p.split('/').pop() !== self.split('/').pop() && inCorpus(p))",
+      "expectRed": [
+        "a sibling in a different directory with the same filename is not dropped as self"
+      ],
+      "note": "Reachable only since the sibling-in-a-different-directory fixture was added. The odd-byte fixture cannot pin this break: its two paths differ in BASENAME (0xFE vs 0xFF), so a basename comparison still tells them apart and the mutation survives. That survival is what exposed the gap \u2014 the break was named by a comment and graded by nothing."
     }
   ],
   "notEncoded": [

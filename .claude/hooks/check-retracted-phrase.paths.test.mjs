@@ -152,3 +152,26 @@ test('a global diff.relative does not hide changes from the guard', () => {
     assert.match(stderr, /retracted the value `1807`/)
   })
 })
+
+test('a sibling in a different directory with the same filename is not dropped as self', () => {
+  // MUTATION: change `p !== self` in survivors() to a basename comparison
+  // (e.g. `path.split('/').pop() !== self.split('/').pop()`) → the sibling shares the basename,
+  // is dropped as "self", no survivors remain, and the guard exits 0 on a live retraction
+  // (fail-OPEN). The existing odd-byte fixture does NOT pin this because its two paths differ
+  // in their BASENAME (0xFE vs 0xFF); reaching this break needs paths that share a basename
+  // but sit in different directories.
+  withRepo((r) => {
+    // Two files under docs/ with the SAME filename in different subdirectories.
+    // Both are in the corpus (docs/ prefix match). Both hold the old value.
+    r.write('docs/folder-a/metrics.md', '{ "note": "count is 1807 here" }\n')
+    r.write('docs/folder-b/metrics.md', '{ "note": "count is 1807 here" }\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init two sibling files')
+    // Correct only the first one; the second remains as a survivor.
+    r.write('docs/folder-a/metrics.md', '{ "note": "count is 1806 here" }\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct the count\n')
+    assert.equal(status, 1, 'the sibling in docs/folder-b/ must be found as a survivor')
+    assert.match(stderr, /retracted the value `1807`/)
+  })
+})
