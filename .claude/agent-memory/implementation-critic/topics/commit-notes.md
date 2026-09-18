@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### CLI mutation encoding — APPROVED (2026-09-18, chore/encode-file-size-guard-cli-claims)
+
+13 MUTATION claims from `check-file-size-guard.cli.test.mjs`, all 13 encoded as DATA entries (no notEncoded for CLI claims). Harness: 41/41 caught, exit 0. All anchor `find` strings verified to appear exactly once in the target (multi-line anchors confirm count=1). All `expectRed` test names verified to exist across the 5 registered suites. 6 wide entries carry accurate `note` fields — claims about breadth confirmed by matching test comments and guard source. No deviations from plan.
+
 ### Decision 74 sweep — APPROVED (2026-09-17, chore/record-mechanical-lever)
 
 19 changed files (17 content + 2 spec task updates). Sweep confirmed:
