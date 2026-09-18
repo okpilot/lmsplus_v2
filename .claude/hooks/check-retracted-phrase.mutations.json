@@ -130,6 +130,7 @@
         "a LIVE spec still counts as a survivor when run from a subdirectory",
         "a near-identical sibling path is not mistaken for the edited file",
         "grades a path whose name survives an argv round-trip",
+        "a sibling in a different directory with the same filename is not dropped as self",
         "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
         "a completed spec is not a surviving occurrence, a live one is"
       ],
