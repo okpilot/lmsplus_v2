@@ -220,6 +220,7 @@
       "expectRed": [
         "reads the value of an option flag",
         "reads the value of the --scratch option",
+        "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ],
       "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
@@ -495,7 +496,8 @@
       "expectRed": [
         "an id naming no mutation in the data file is reported as a problem",
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
-        "the same GROUP id named by two different tests produces two dangling-id problems"
+        "the same GROUP id named by two different tests produces two dangling-id problems",
+        "a dangling GROUP id makes coverage mode exit non-zero, not merely print"
       ]
     },
     {
@@ -536,7 +538,7 @@
       "id": "coverage-dangling-exits-zero",
       "find": "  return dangling === 0 ? 0 : 1",
       "replace": "  return 0",
-      "expectRed": ["SEED"]
+      "expectRed": ["a dangling GROUP id makes coverage mode exit non-zero, not merely print"]
     },
     {
       "id": "crlf-left-on-the-line",
