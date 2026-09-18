@@ -440,7 +440,7 @@
         "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
         "stats mode skips an unreadable tracked file instead of blocking the whole report"
       ],
-      "note": "Anchored on the preceding return plus the closing brace: bare `return null` appears four times in the guard. Defaulting rather than returning null pulls previously-unclassified files into grading, so the stats and update-baseline paths redden alongside the classify test — six in total."
+      "note": "Anchored on the preceding return plus the closing brace: bare `return null` appears four times in the guard. Defaulting rather than returning null pulls previously-unclassified files into grading, so the stats and update-baseline paths redden alongside the classify test — six in total. Read the set with care: `renaming a grandfathered file out of its rule class is blocked, not silently allowed` reddens at its FIRST assertion, because the 623-line guard copy matches no rule today and a default rule makes it a new violation. Its rename-blocking mechanism is never reached, so its membership here says nothing about rename detection."
     },
     {
       "id": "globtore-stops-escaping-metacharacters",
@@ -463,7 +463,7 @@
         "a path that vanished between enumeration and read still blocks",
         "falls back to the raw error message when a read failure carries no error code"
       ],
-      "note": "ONE entry for two comments naming the identical edit (test.mjs L243 and L373). Every path here came from `git ls-files`, so git already asserts it exists; failing closed on a genuine race is the correct direction to be wrong. Six tests redden: every assertion about unreadable paths depends on this push existing — the guidance text, the staged-scope rule, the vanished-file case and the error-message fallback all read the regression it produces."
+      "note": "ONE entry for two comments naming the identical edit — the ones above `an enumerated file that cannot be read blocks instead of being skipped` and `a tracked path that cannot be read is reported, not silently skipped`; derive them with `grep -n 'MUTATION: restore' .claude/hooks/check-file-size-guard.test.mjs`, never a line number, which drifts on every edit above it. Every path here came from `git ls-files`, so git already asserts it exists; failing closed on a genuine race is the correct direction to be wrong. Six tests redden: every assertion about unreadable paths depends on this push existing — the guidance text, the staged-scope rule, the vanished-file case and the error-message fallback all read the regression it produces."
     },
     {
       "id": "ratchet-fails-at-exact-recorded-size",
