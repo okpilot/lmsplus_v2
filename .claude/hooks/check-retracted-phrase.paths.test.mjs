@@ -22,13 +22,17 @@ import { run, seedFlagship, withRepo } from './check-retracted-phrase.testkit.mj
 test('a near-identical sibling path is not mistaken for the edited file', {
   skip: process.platform !== 'linux',
 }, () => {
-  // MUTATION: compare paths loosely in survivors() — a normalised form, a `String.includes`, or
-  // a basename match instead of exact equality → the sibling is dropped as "self", the only
-  // survivor disappears, and the guard exits 0 on a live retraction (fail-OPEN). That is the
-  // shape of the `./`-prefix hole already recorded against check-file-size-guard.mjs.
+  // MUTATION: decode git's `-z` output as utf8 instead of latin1 in `splitNul` → both invalid
+  // bytes collapse to the same U+FFFD string, the sibling is dropped as "self", the only survivor
+  // disappears, and the guard exits 0 on a live retraction (fail-OPEN). Encoded as
+  // `splitnul-decodes-utf8`; measured to redden exactly this test across all four suites.
   //
-  // It ALSO pins the latin1 decode of git's `-z` output, which this suite's preamble listed as
-  // unpinnable until CodeRabbit pointed out why the old fixture could not reach it: it built the
+  // A LOOSE path comparison in survivors() does NOT pin this test: these two fixture paths differ
+  // in their BASENAME, not their directory, so a basename match survives here. That break needs a
+  // sibling differing by DIRECTORY, graded by the same-basename test at the foot of this file and
+  // encoded as `survivors-self-compare-by-basename`.
+  //
+  // The decode was listed as unpinnable in this suite's preamble because the old fixture built the
   // names as latin1 STRINGS, and Node re-encodes a string path to UTF-8 on the way to the syscall
   // (0xFE became C3 BE), so the files never carried an invalid byte at all. A BUFFER path reaches
   // the syscall byte-for-byte. Decoded as utf8 both names collapse to the same U+FFFD string, the
@@ -143,6 +147,29 @@ test('a global diff.relative does not hide changes from the guard', () => {
     r.git('add', '-A')
     const { status, stderr } = run(r, 'fix: correct the count\n', undefined, join(r.dir, 'docs'))
     assert.equal(status, 1, 'diff.relative must not hide the corrected file')
+    assert.match(stderr, /retracted the value `1807`/)
+  })
+})
+
+test('a sibling in a different directory with the same filename is not dropped as self', () => {
+  // MUTATION: change `p !== self` in survivors() to a basename comparison
+  // (e.g. `path.split('/').pop() !== self.split('/').pop()`) → the sibling shares the basename,
+  // is dropped as "self", no survivors remain, and the guard exits 0 on a live retraction
+  // (fail-OPEN). The existing odd-byte fixture does NOT pin this because its two paths differ
+  // in their BASENAME (0xFE vs 0xFF); reaching this break needs paths that share a basename
+  // but sit in different directories.
+  withRepo((r) => {
+    // Two files under docs/ with the SAME filename in different subdirectories.
+    // Both are in the corpus (docs/ prefix match). Both hold the old value.
+    r.write('docs/folder-a/metrics.md', '{ "note": "count is 1807 here" }\n')
+    r.write('docs/folder-b/metrics.md', '{ "note": "count is 1807 here" }\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init two sibling files')
+    // Correct only the first one; the second remains as a survivor.
+    r.write('docs/folder-a/metrics.md', '{ "note": "count is 1806 here" }\n')
+    r.git('add', '-A')
+    const { status, stderr } = run(r, 'fix: correct the count\n')
+    assert.equal(status, 1, 'the sibling in docs/folder-b/ must be found as a survivor')
     assert.match(stderr, /retracted the value `1807`/)
   })
 })

@@ -2274,3 +2274,23 @@ feat/prose-path-guard, then chore/encode-file-size-guard-claims — the coverage
 ## doc-updater own-context citation — memory-file variant
 
 chore/encode-file-size-guard-cli-claims: the agent cited "line 125 of this agent's memory" as evidence for a claim about the current artifact. The memory predated a task rewrite; `git grep -nF` found no match repo-wide. The offending memory row was corrected in place so it could not re-fire.
+
+## Durable-knowledge bullets relocated 2026-09-18 (batch 5, from MEMORY.md lines 142-147)
+
+- POSITIVE (`feat/mutation-harness`): harness caught 6 false MUTATION claims in its own tests. Cheapest sweep = run on own source.
+- CR-local uniquely catches CI-environment defects internal agents can't see.
+- "0 net-new rows" never holds — every slice produces new row-42/69 instances.
+- `dep1277` (2026-09-16): CR-local ran 3 clean rounds, missed all 3 GH-Actions pin-comment instances — `.github/` is outside every corpus-scoped hook. Coverage gap, not a CR-local defect.
+- POSITIVE (`feat/prose-path-guard`): Terminal-message CONSTRAINTS fix held ~10 dispatches, no recurrence. One-round refinement cap correctly bounded a code-reviewer WARNING. Second chain position-3: commit message misattributed prior commit; fixed by amend.
+- POSITIVE (`chore/pre-push-review-gate`, 2026-09-17): New per-branch gate correctly caught a pre-existing false claim on origin/master (CLAUDE.md "unit tests run only in CI") that per-commit cycles had missed. CR-local grew 12→21→35 on a shrinking diff; 63/67 findings bounded out as refinements/duplicates. Ceiling-3 stop held.
+
+## chore/encode-retracted-phrase-claims (2026-09-18) — session detail
+
+Branch encoded claimed-but-unencoded MUTATION: claims in check-retracted-phrase.mutations.json (30→43; --coverage gap 32→20). Clean 2-round loop (round 2 no APPLY finding).
+
+- Row 97 recurrence (10th): a documented MUTATION: comment had PRIMARY and SECONDARY mechanisms INVERTED, not merely wider-than-claimed. The comment led with a loose-path-comparison mechanism as the pin; the harness proved that mutation SURVIVED (fixture's two paths differ in BASENAME not DIRECTORY). The actual pin was the latin1→utf8 decode. Three internal reads missed it; only `run-mutations.mjs` measurement caught it. Distinct nuance from prior "wider than implied" recurrences: here the STATED primary mechanism was simply wrong, not under-scoped.
+- Row 121 recurrence (3rd): semantic-reviewer PREDICTED (SUGGESTION, round 1) that the new test-writer test would widen a pre-existing entry's (`candidates-replacement-wrong-class`) expectRed set — a cascade onto a file this branch never touched. Harness later confirmed it as a MISMATCH, fixed in `15c61b71`. First instance where the prediction preceded the harness confirmation rather than being caught only after the fact — the review layer is starting to catch this class pre-measurement.
+- NEW: `--coverage` gap ROSE 20→21 when test-writer added one test carrying its own MUTATION: comment — a new test is itself a new claim token, raising `--coverage`'s claim-count denominator even though its own mechanism was then correctly encoded back down. Distinct from row 121 (expectRed SET cascade onto pre-existing entries): this is the coverage METRIC moving because the total claim count changed, not because an existing entry's observed set changed.
+- NEW: orchestrator stated a count to the user ("11 titles already in existing expectRed sets") sourced from an Explore agent's report without recomputing; true figure was 9. Caught by plan-critic, not self-caught. A §10 cl.7 instance, but the SOURCE here is a sibling AGENT's report treated as fact rather than the orchestrator's own earlier claim going stale (that's row 92) — closer to row 89's "own context as factual" but for a NUMBER via a different agent, not doc-updater's own memory/prompt.
+- NEW: `grep -cF` under this shell's `ugrep` wrapper misparses a multi-line pattern string, splitting on the embedded newline as an OR — undercounts/miscounts. `python3 -c "...str.count(...)"` was needed instead. Environment-specific tooling trap, not a repo defect.
+- NEW: a compound shell command (`run-mutations.mjs && ... | grep -c ...`) reported a passing harness run as "failed" because the compound's exit status is its LAST command's, and the trailing `grep -c` exits 1 on zero matches (i.e. zero remaining gaps, the desired outcome). Read the harness's own exit code / printed summary, not a piped compound's exit status.
