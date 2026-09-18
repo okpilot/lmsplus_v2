@@ -37,7 +37,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Status/error-posture change leaves a sibling spec | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation |
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
-| Plan prose states unverified content-item count that | 3 | 2026-09-08 | RULE CANDIDATE (3) → §10 cl.2 addendum. Surface extends beyond plan.md |
+| Plan prose states unverified content-item count that | 4 | 2026-09-18 | RULE CANDIDATE (4) → §10 cl.2 addendum. Surface extends beyond plan.md |
 | Fix commit correcting §10 violations introduces fresh §10 | 61 | 2026-09-18 | RULE CANDIDATE (61). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
@@ -86,7 +86,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Branch scope cited via unstable tracker-row IDs — several resolved wrong | 1 | 2026-09-08 | WATCHING — cite Issue-Type text instead. Detail: topic file |
 | Rename-blind `--name-only` pathspec derives a security-path floor or exemption | 2 | 2026-09-08 | PROMOTED — fixed to `--name-status -M`. Topic file. |
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo | 1 | 2026-09-08 | WATCHING — Bash residual hole. Detail: topic file |
-| doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 5 | 2026-09-18 | RULE CANDIDATE (5). Same root: agent treats own context (memory OR dispatch prompt) as factual over grepping the artifact. Did NOT recur on test-claims (2026-09-18) — grounded its spec-task claim in a pasted excerpt of the current file. Detail: cross-agent-lessons.md |
+| doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 6 | 2026-09-18 | RULE CANDIDATE (6). Same root: agent treats own context (memory OR dispatch prompt) as factual over grepping the artifact. chore/link-guard-claims: recommendation grounded in "own memory of prior reader confusion" not a text defect. Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
 | Commit message claims file 'already carries/has X' when X landed same commit | 4 | 2026-09-16 | RULE CANDIDATE (4) → §10, verify via `git show HEAD~1:<path>` |
 | Commit-message count computed pre-edit; own edits make it stale on arrival | 7 | 2026-09-17 | PROMOTED → §10 cl.7. Recurred four times post. Detail: topic file |
@@ -150,6 +150,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
 - POSITIVE (`chore/encode-file-size-guard-test-claims`, 2026-09-18): 3-round loop, CLEAN at the ceiling (not escalated into it). check-file-size-guard gap 22->0. Rows 89 and 121 both non-recurred. §10 cl.7 caught a note citing a line number this branch's own edits had shifted — replaced with a grep-able predicate.
 - POSITIVE (`chore/validate-mutation-group-refs`, 2026-09-18): Harness caught 8 under-specified expectRed sets + 2 stale find anchors autonomously (rows 121→12, 100→4). Row 83 (regex misses variants) reaches count=2 → RULE CANDIDATE. Row 75 (test pins bug as intended) reaches count=3.
+- POSITIVE (`chore/link-guard-claims`, 2026-09-18): Clean 2-round loop. Rows 97 (MUTATION: overclaim), 121 (expectRed cascade), 100 (orphaned anchor) all did NOT recur. 273/273 grading run passed. Pre-build TSV verification caught 8 paraphrase-mapped titles that a prefix-match would have silently misfiled — validated mapping before touching files is the right pattern. Plan-critic found plan count AND its own correction both wrong; --coverage was the truth source (row 40→4).
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers
