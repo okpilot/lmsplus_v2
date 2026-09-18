@@ -6,22 +6,25 @@
 // than assuming; this header said "every test" until an audit found two it was not true
 // of, which is the §10 cl.2 defect (a universal claim over a set that keeps growing).
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { classifyRef, extractRefs } from './check-commit-claims.mjs'
+import { assertUsable, verdictOf } from './spawn.testkit.mjs'
 
 const HOOK_PATH = fileURLToPath(new URL('./check-commit-claims.mjs', import.meta.url))
 // Resolve the real repo root from the hook's own location (never process.cwd() — the
 // test may be invoked from a different working directory) so the two end-to-end main()
 // tests below can run the hook against real git history instead of a synthetic repo.
-const REPO_ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-  cwd: dirname(HOOK_PATH),
-  encoding: 'utf8',
-}).trim()
+// assertUsable, not a bare execFileSync: at IMPORT time a signal kill otherwise reads as no repo.
+const rootOpts = { cwd: dirname(HOOK_PATH), encoding: 'utf8' }
+const rootRun = spawnSync('git', ['rev-parse', '--show-toplevel'], rootOpts)
+assertUsable('git rev-parse --show-toplevel', rootRun)
+assert.equal(rootRun.status, 0, `git rev-parse --show-toplevel failed: ${rootRun.stderr}`)
+const REPO_ROOT = rootRun.stdout.trim()
 
 // A 40-char hex string built from a repeating digit+letter cycle — always a valid
 // candidate shape (mixed digit and a-f letter), regardless of test-local length needs.
@@ -471,8 +474,8 @@ test('main: a git "error" outcome (no repo) exits non-zero and does not report s
       })
     } catch (err) {
       threw = true
-      assert.notEqual(err.status, 0)
-      stdout = err.stdout ?? ''
+      // verdictOf, not `assert.notEqual(err.status, 0)` — that passes on a SIGNAL kill.
+      stdout = verdictOf('hook with no repo', err).stdout
     }
     assert.ok(threw, 'expected a non-zero exit when git cannot run')
     assert.ok(!stdout.includes('✓'), 'must not report success when the check could not run')
@@ -503,8 +506,7 @@ test('main: a git-check failure aborts before the unresolved-SHA report ever run
       })
       assert.fail('expected a non-zero exit when git cannot run')
     } catch (err) {
-      assert.notEqual(err.status, 0)
-      stderr = err.stderr ?? ''
+      stderr = verdictOf('hook abort path', err).stderr
     }
     assert.match(stderr, /could not verify '1234567a' — git check failed\. Aborting/)
     assert.ok(
@@ -558,8 +560,7 @@ test('main: a message citing an absent (but syntactically valid) SHA exits non-z
       execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: REPO_ROOT, encoding: 'utf8' })
     } catch (err) {
       threw = true
-      assert.notEqual(err.status, 0)
-      stderr = err.stderr ?? ''
+      stderr = verdictOf('hook on an absent SHA', err).stderr
     }
     assert.ok(threw, 'expected a non-zero exit for an unresolved SHA citation')
     assert.match(stderr, new RegExp(`${absentSha}\\s+\\(absent\\)`))
@@ -592,8 +593,7 @@ test('main: a message citing an ambiguous SHA prefix exits non-zero with the rem
       execFileSync(process.execPath, [HOOK_PATH, msgFile], { cwd: dir, encoding: 'utf8' })
     } catch (err) {
       threw = true
-      assert.notEqual(err.status, 0)
-      stderr = err.stderr ?? ''
+      stderr = verdictOf('hook on an ambiguous SHA', err).stderr
     }
     assert.ok(threw, 'expected a non-zero exit for an ambiguous SHA citation')
     assert.match(stderr, /578019b\s+\(ambiguous\)/)

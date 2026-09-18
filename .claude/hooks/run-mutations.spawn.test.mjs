@@ -23,10 +23,21 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { assertSpawnUsable } from './run-mutations.mjs'
+import { assertUsable, runNode } from './spawn.testkit.mjs'
 
 // Absolute path to the harness itself — needed so a subprocess invoked with a DIFFERENT cwd can
 // still find the script. `import.meta.url` is always this file's own URL regardless of cwd.
 const HARNESS = fileURLToPath(new URL('./run-mutations.mjs', import.meta.url))
+
+// Fixture-repo git runner. Every fixture below built one of these and DISCARDED the result: a
+// failed `git init` then yields a silently wrong fixture, and the test that reads it reports a
+// finding about the harness. Checked here so the failure names the git call that caused it.
+const gitRunner = (dir, env) => (args) => {
+  const r = spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  assertUsable(`git ${args.join(' ')} in ${dir}`, r)
+  assert.equal(r.status, 0, `git ${args.join(' ')} failed: ${r.stderr}`)
+  return r
+}
 
 const timedOut = () => ({
   error: Object.assign(new Error('spawnSync node ETIMEDOUT'), { code: 'ETIMEDOUT' }),
@@ -159,7 +170,7 @@ function buildFaultFixtureRepo() {
     GIT_COMMITTER_NAME: 'test',
     GIT_COMMITTER_EMAIL: 'test@test',
   }
-  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const g = gitRunner(dir, env)
 
   writeFileSync(join(dir, 'target.mjs'), 'export const x = 1\n')
   // Raw TAP output, not `import test from 'node:test'`: when the harness is itself invoked
@@ -211,9 +222,8 @@ const faultFixtureDir = buildFaultFixtureRepo()
 // "called recursively, skipping", produces no plan line, and is counted as a FAULT — defeating
 // the fixture's purpose of having exactly one fault and one gradeable mutation.
 const { NODE_TEST_CONTEXT: _ntc, ...envWithoutTestContext } = process.env
-const faultRun = spawnSync('node', [HARNESS], {
+const faultRun = runNode('harness on the fault fixture', [HARNESS], {
   cwd: faultFixtureDir,
-  encoding: 'utf8',
   env: envWithoutTestContext,
 })
 // Cleanup on exit — not a test concern if this leaks in a crash, but keep it tidy on success.
@@ -257,7 +267,7 @@ function buildEmptyHooksRepo() {
     GIT_COMMITTER_NAME: 'test',
     GIT_COMMITTER_EMAIL: 'test@test',
   }
-  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const g = gitRunner(dir, env)
   g(['init', '-q', '.'])
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
@@ -265,9 +275,8 @@ function buildEmptyHooksRepo() {
 }
 
 const emptyHooksDir = buildEmptyHooksRepo()
-const emptyRun = spawnSync('node', [HARNESS], {
+const emptyRun = runNode('harness with no data files', [HARNESS], {
   cwd: emptyHooksDir,
-  encoding: 'utf8',
   env: envWithoutTestContext,
 })
 process.once('exit', () => {
@@ -303,7 +312,7 @@ function buildCoverageFixtureDir() {
     GIT_COMMITTER_NAME: 'test',
     GIT_COMMITTER_EMAIL: 'test@test',
   }
-  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const g = gitRunner(dir, env)
   g(['init', '-q', '.'])
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
@@ -342,11 +351,14 @@ function buildDanglingFixtureDir() {
 }
 
 const danglingFixtureDir = buildDanglingFixtureDir()
-const danglingRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
-  cwd: danglingFixtureDir,
-  encoding: 'utf8',
-  env: envWithoutTestContext,
-})
+const danglingRun = runNode(
+  'harness on the dangling-id fixture',
+  [HARNESS, '--coverage', '--guard', 'cov'],
+  {
+    cwd: danglingFixtureDir,
+    env: envWithoutTestContext,
+  },
+)
 
 process.once('exit', () => {
   try {
@@ -367,9 +379,8 @@ test('a dangling GROUP id makes coverage mode exit non-zero, not merely print', 
 })
 
 const coverageFixtureDir = buildCoverageFixtureDir()
-const coverageRun = spawnSync('node', [HARNESS, '--coverage', '--guard', 'cov'], {
+const coverageRun = runNode('harness coverage run', [HARNESS, '--coverage', '--guard', 'cov'], {
   cwd: coverageFixtureDir,
-  encoding: 'utf8',
   env: envWithoutTestContext,
 })
 process.once('exit', () => {
@@ -411,7 +422,7 @@ function buildCommittedDanglingRepo() {
     GIT_COMMITTER_NAME: 'test',
     GIT_COMMITTER_EMAIL: 'test@test',
   }
-  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const g = gitRunner(dir, env)
   const suite = join(dir, 'suite.test.mjs')
   const clean = readFileSync(suite, 'utf8')
   writeFileSync(suite, `// GROUP: no-such-mutation\n${clean}`)
@@ -422,9 +433,10 @@ function buildCommittedDanglingRepo() {
 }
 
 const committedDanglingDir = buildCommittedDanglingRepo()
-const committedDanglingRun = spawnSync('node', [HARNESS], {
+// runNode, not a bare spawnSync: a kill leaves `status: null`, and the assertion below is
+// `notEqual(status, 0)` — which PASSES on null, grading a killed child as a refusal to run.
+const committedDanglingRun = runNode('harness on the committed-dangling fixture', [HARNESS], {
   cwd: committedDanglingDir,
-  encoding: 'utf8',
   env: envWithoutTestContext,
 })
 process.once('exit', () => {
