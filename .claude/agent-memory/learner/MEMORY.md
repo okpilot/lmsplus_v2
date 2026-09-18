@@ -25,10 +25,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Test-file split drops a test-branch guard or condition during the move | 2 | 2026-06-23 | RULE CANDIDATE. |
 | Conventional-commit subject/scope hook failures (uppercase subject start, compound scope/type) | 2 | 2026-06-24 | RULE CANDIDATE |
 | docs/database.md "Last updated" footer changelog entry stale when database.md content changes | 2 | 2026-06-26 | RULE CANDIDATE |
-| Rename/move leaves stale string references in source/test file inline comments | 2 | 2026-07-02 | RULE CANDIDATE. |
+| Rename/move leaves stale string references in source/test file inline comments | 3 | 2026-09-18 | RULE CANDIDATE (3). |
 | Missing route entry in docs/plan.md route-structure tree after new route added | 2 | 2026-07-08 | RULE CANDIDATE |
 | DROP+CREATE redefinition bypasses CREATE-OR-REPLACE-only | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol |
-| Regression test can't detect fix's own reversion (passes | 4 | 2026-08-19 | RULE CANDIDATE (4) |
+| Regression test can't detect fix's own reversion (passes | 5 | 2026-09-18 | RULE CANDIDATE (5) |
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → 2 agent DOs |
 | Behavior-first test-title rename overclaims a stronger | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 |
 | Claim-correction commit updates a count but leaves its | 11 | 2026-09-15 | RULE CANDIDATE (11). Detail: topic file |
@@ -38,7 +38,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 4 | 2026-09-18 | RULE CANDIDATE (4) → §10 cl.2 addendum. Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 61 | 2026-09-18 | RULE CANDIDATE (61). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 62 | 2026-09-18 | RULE CANDIDATE (62). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -97,7 +97,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | MUTATION: comment overclaims which mechanisms the test pins | 10 | 2026-09-18 | PROMOTED → code-style.md §7. Post-promotion recurrence x4. Unlinked MUTATION: comment (validate-mutation-group-refs). Rule text present; gap is hand-authoring discipline. Detail: cross-agent-lessons.md |
 | Tracker row written against staged/draft code state — corrected before commit lands | 1 | 2026-09-14 | WATCHING. Detail: topic file |
 | Fix to gate stage-1 changes input shape, breaking stage-2's assumption | 1 | 2026-09-14 | WATCHING. Detail: cross-agent-lessons.md |
-| Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence: 2 stale find anchors (chore/validate-mutation-group-refs). |
+| Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence: 2 stale find anchors (chore/validate-mutation-group-refs); biome-reformat anchor gap (fix/harden-fixture-spawn-helpers). |
 | Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. RESOLVED-WATCH 2026-09-16 (10 clean dispatches). Topic file. |
 | Orchestrator excludes a known-drift-prone rule-mirror from a sweep on an unverified claim | 1 | 2026-09-15 | WATCHING — false "has Read access" claim. Topic file. |
 | Single-line grep false-negative on text present but line-wrapped in a YAML block scalar | 1 | 2026-09-15 | WATCHING — distinct from paraphrase-blindness. Topic file. |
@@ -118,7 +118,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 2 | 2026-09-16 | RULE CANDIDATE (2) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. Archive row 549 (2026-08-15) + same-branch instances (test-writer + orchestrator, feat/prose-path-guard). |
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | impl-critic measures function length declaration-to-next-declaration, sweeping following JSDoc into count | 1 | 2026-09-16 | WATCHING — `827c363b`. Log and watch. |
-| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 12 | 2026-09-18 | RULE CANDIDATE (12). 8 under-specified sets + ownerfor case found by harness (chore/validate-mutation-group-refs). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md "expectRed cascade". |
+| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 13 | 2026-09-18 | RULE CANDIDATE (13). 8 under-specified sets + ownerfor case found by harness (chore/validate-mutation-group-refs). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md "expectRed cascade". |
 | `expectRed` member reddens via an earlier unrelated assertion — named mechanism never reached | 3 | 2026-09-18 | WATCHING. chore/encode-file-size-guard-test-claims, 3 instances in one data file. Inverse of code-style.md §7: the test DOES go red, just not for the mechanism its membership implies — its FIRST assertion fails first. Distinct from row 97: the overclaim is in the expectRed SET, not in a comment. Remedy applied: a note stating what the membership does NOT cover. |
 | run-mutations.mjs grades committed HEAD, not the worktree | 1 | 2026-09-18 | WATCHING. An uncommitted test rename read as "never went red" while the observed set listed the OLD title; trusting it would have reverted a CORRECT entry. Commit before running the harness — a red result on an uncommitted tree is not evidence. |
 | doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). Row-109 remedy (demand artifact) did not prevent this. feat/prose-path-guard `a4ecd165`. |
@@ -134,6 +134,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `grep -cF` under this shell's ugrep wrapper misparses a multi-line pattern (newline read as OR) | 1 | 2026-09-18 | WATCHING — env tooling trap, use python3 str.count. Detail: topic file |
 | Compound shell command's exit code is its LAST stage's — a trailing `grep -c` on zero matches masks a passing run as failed | 1 | 2026-09-18 | WATCHING — env tooling trap. Detail: topic file |
 | Marker continuation line ending in comma swallows next unrelated parser token as ids | 1 | 2026-09-18 | WATCHING — chore/validate-mutation-group-refs. Log and watch. |
+| New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — fix/harden-fixture-spawn-helpers. `assertUsable` read `r.error` before `r.status`. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -144,9 +145,6 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - Compaction history: 2026-09-01/02/13/15/16 batches → archive/topic file.
 - WHY-clause falsity: explanatory sentences are less-verified than facts (row 60). Check WHY clauses first on doc-only commits.
 - SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
-- POSITIVE (`chore/record-mechanical-lever`, 2026-09-17): Adjacent-line orphan in the rule-DEFINING file found in rounds 1+2 (`:11` then `:81` in `agent-coderabbit-local.md`); both applied. Code-reviewer grepped repo (not diff) and caught stale site in draft spec — 36th sweep hit. Count re-litigated by 3 reviewers to 3 values; resolved by shipping derivation command (§10 cl.2). Bounded-out rule absorbed CR-local re-raise of an already-applied round-1 cut; no loop extension.
-- POSITIVE (`chore/encode-file-size-guard-claims`, 2026-09-17): Clean 2-round loop. 9 new encoded mutations + 3 notEncoded added without exact-set `expectRed` cascade (row 121 did not recur). Semantic-reviewer correctly caught §10 cl.8 in round 1 (fix commit introduced new false claim — "encoded entry" vs. comment). MUTATION-overclaim row 97 promoted; rule text already present in §7.
-- POSITIVE (`chore/encode-file-size-guard-cli-claims`, 2026-09-18): Clean 2-round loop. doc-updater skipped on FALSE PREMISES (cited own stale memory file, row 89 count→5). row 121 did NOT recur — test-writer wrote no tests; full 232/232 harness confirmed, first full-run-backed non-recurrence. 6/13 encoded entries needed wider expectRed than their MUTATION: comment implied — post-promotion recurrence of row 97 (rule text already present). CR-local: 0 findings.
 - File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
 - POSITIVE (`chore/encode-file-size-guard-test-claims`, 2026-09-18): 3-round loop, CLEAN at the ceiling (not escalated into it). check-file-size-guard gap 22->0. Rows 89 and 121 both non-recurred. §10 cl.7 caught a note citing a line number this branch's own edits had shifted — replaced with a grep-able predicate.
 - POSITIVE (`chore/validate-mutation-group-refs`, 2026-09-18): Harness caught 8 under-specified expectRed sets + 2 stale find anchors autonomously (rows 121→12, 100→4). Row 83 (regex misses variants) reaches count=2 → RULE CANDIDATE. Row 75 (test pins bug as intended) reaches count=3.
