@@ -20,6 +20,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -29,7 +30,7 @@ import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
 import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 const studentEmail = `int-aic-student-${suffix}@test.local`
 const password = 'test-pass-123'

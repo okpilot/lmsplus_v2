@@ -15,6 +15,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -25,7 +26,7 @@ import {
 import { getProgressData } from '@/lib/queries/progress'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentAId: string

@@ -17,6 +17,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -29,7 +30,7 @@ import {
 } from '@/lib/queries/admin-quiz-report'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 const adminEmail = `int-aqr-admin-${suffix}@test.local`
 const studentEmail = `int-aqr-student-${suffix}@test.local`

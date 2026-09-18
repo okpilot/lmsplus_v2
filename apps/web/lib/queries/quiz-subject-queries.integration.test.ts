@@ -13,6 +13,7 @@ import {
   cleanupTestData,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedQuestions,
@@ -27,7 +28,7 @@ import {
 } from '@/lib/queries/quiz-subject-queries'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgAId: string
 let studentAId: string

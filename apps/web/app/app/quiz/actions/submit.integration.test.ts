@@ -13,6 +13,7 @@ import {
   clearActiveSessions,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
   type ReferenceIds,
@@ -23,7 +24,7 @@ import {
 import { submitQuizAnswer } from './submit'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentAId: string

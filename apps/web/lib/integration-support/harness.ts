@@ -22,6 +22,8 @@ export {
   seedReferenceData,
 } from '@repo/db/test-helpers'
 
+export { fixtureSuffix } from './fixture-suffix'
+
 /**
  * Authenticate the in-memory cookie jar as the given user. After this resolves,
  * any `createServerSupabaseClient()` call in the code under test runs as that

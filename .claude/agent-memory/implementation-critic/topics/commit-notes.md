@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### Integration fixture isolation — APPROVED (2026-09-18, fix/integration-fixture-isolation)
+
+29 files changed. Plan deviation: helper extracted to `fixture-suffix.ts` + re-exported from `harness.ts` (harness.ts imports @repo/db/test-helpers which requires service-role env at import time, blocking unit tests). Deviation sound — `harness.ts` is not `index.ts`, already re-exports from `@repo/db/test-helpers`, comment says "NOT a barrel over feature code". All 26 integration test files changed (verified `grep -rln 'fixtureSuffix()' | wc -l` = 26). Two `Date.now()` hits remaining are expiry timestamps (`new Date(Date.now() + 7 * 24 * ...)`, `+ 14 * 24 * ...`), not namespaces. `quiz-report-questions` nmSuffix correctly changed to `` `${suffix}-nm` ``. `pool: 'forks'` claim verified in `vitest.integration.config.ts:26`. Unit test co-located per §7.
+
 ### Signal-kill hardening — APPROVED (2026-09-18, fix/harden-fixture-spawn-helpers)
 
 16 files changed. New shared module `spawn.testkit.mjs` + test suite + mutations JSON + CI step.

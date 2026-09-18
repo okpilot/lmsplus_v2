@@ -38,7 +38,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 4 | 2026-09-18 | RULE CANDIDATE (4) → §10 cl.2 addendum. Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 62 | 2026-09-18 | RULE CANDIDATE (62). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 63 | 2026-09-18 | RULE CANDIDATE (63). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -130,11 +130,13 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — `chore/record-mechanical-lever` round 1; spec with no tasks.md is not all-`[x]` (done); active vs draft boundary unspecified in mirror table. Log and watch. |
 | Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING — `chore/encode-file-size-guard-claims`: notEncoded fixture carried `claim`, so deleting `!isNonEmptyString(n.claim)` half stayed green (other conjuncts covered it). Test-writer caught it. Log and watch. |
 | `--coverage` gap denominator rises when a new test carries its own MUTATION: comment | 1 | 2026-09-18 | WATCHING — `chore/encode-retracted-phrase-claims`. Detail: topic file |
-| Orchestrator states a user-facing count sourced from a sibling agent's report without recomputing | 1 | 2026-09-18 | WATCHING — caught by plan-critic (11 vs true 9). Detail: topic file |
+| Orchestrator propagates a numeric claim from an agent's review report into a committed artifact without re-deriving | 2 | 2026-09-18 | RULE CANDIDATE (2). fix/integration-fixture-isolation: n=52 from semantic-reviewer round-1 report embedded as "~50 draws" in code comment (true=26). Prior: "11 titles" from Explore agent (true=9). Detail: topic file |
 | `grep -cF` under this shell's ugrep wrapper misparses a multi-line pattern (newline read as OR) | 1 | 2026-09-18 | WATCHING — env tooling trap, use python3 str.count. Detail: topic file |
 | Compound shell command's exit code is its LAST stage's — a trailing `grep -c` on zero matches masks a passing run as failed | 1 | 2026-09-18 | WATCHING — env tooling trap. Detail: topic file |
 | Marker continuation line ending in comma swallows next unrelated parser token as ids | 1 | 2026-09-18 | WATCHING — chore/validate-mutation-group-refs. Log and watch. |
 | New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — fix/harden-fixture-spawn-helpers. `assertUsable` read `r.error` before `r.status`. Log and watch. |
+| Wall-clock `expect(Date.now() - start).toBeLessThan(N)` used as non-vacuity guard for a test mechanism — flake-prone on loaded CI | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: semantic-reviewer + test-writer flagged; fixed with `vi.useFakeTimers`. Log and watch. |
+| Orchestrator derives red-team trigger from semantic intent ("only tests") instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: 11 files under `apps/web/app/app/quiz/actions/**` matched the trigger set; rule in agent-workflow.md is adequate; lapse, not a rule gap. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 

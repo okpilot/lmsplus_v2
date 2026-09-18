@@ -18,6 +18,7 @@ import {
   clearActiveSessions,
   createTestOrg,
   createTestUser,
+  fixtureSuffix,
   getAdminClient,
   type ReferenceIds,
   seedQuestions,
@@ -28,7 +29,7 @@ import { getActivePracticeSession } from './get-active-practice-session'
 import { startQuizSession } from './start'
 
 const admin = getAdminClient()
-const suffix = Date.now()
+const suffix = fixtureSuffix()
 
 let orgId: string
 let studentAId: string
