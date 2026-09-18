@@ -1,6 +1,10 @@
 {
   "target": ".claude/hooks/run-mutations.mjs",
-  "suites": [".claude/hooks/run-mutations.test.mjs", ".claude/hooks/run-mutations.spawn.test.mjs"],
+  "suites": [
+    ".claude/hooks/run-mutations.test.mjs",
+    ".claude/hooks/run-mutations.spawn.test.mjs",
+    ".claude/hooks/run-mutations.parse.test.mjs"
+  ],
   "mutations": [
     {
       "id": "no-plan-check",
@@ -453,6 +457,30 @@
       "replace": "      timeout: 1,\n",
       "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
+    },
+    {
+      "id": "ownerfor-never-looks-down",
+      "find": "    let j = from + 1\n    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++\n    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]\n    const k = ownerAbove(anchor)",
+      "replace": "    const k = ownerAbove(anchor)",
+      "expectRed": ["PLACEHOLDER"]
+    },
+    {
+      "id": "ownerfor-stops-at-comments",
+      "find": "(lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))",
+      "replace": "(lines[j].trim() === '')",
+      "expectRed": ["PLACEHOLDER"]
+    },
+    {
+      "id": "claims-scan-every-line",
+      "find": "    if (!/^\\s*\\/\\//.test(lines[i])) continue\n",
+      "replace": "",
+      "expectRed": ["PLACEHOLDER"]
+    },
+    {
+      "id": "groupproblems-never-reports",
+      "find": "      if (!ids.has(id)) problems.push(",
+      "replace": "      if (false) problems.push(",
+      "expectRed": ["PLACEHOLDER"]
     }
   ],
   "notEncoded": [

@@ -335,22 +335,5 @@
       "note": "Restores the collapse cloud review found: once the first copy is baselined, a second identical restatement inherits its key and is admitted silently."
     }
   ],
-  "notEncoded": [
-    {
-      "claim": "check-prose-claims.test.mjs header: the sentence describing the convention contains the token `MUTATION:`",
-      "why": "prose about the convention, not a claim about a break. countMutationClaims matches the bare token, so it inflates the denominator; there is nothing here to break."
-    },
-    {
-      "claim": "check-prose-claims.repo.test.mjs header: the same convention sentence",
-      "why": "same reason — a description of what a MUTATION comment is, not one."
-    },
-    {
-      "claim": "repo.test.mjs 'blocks when a baseline row no longer describes a live claim' — its MUTATION comment names the stale-row branch",
-      "why": "already graded, under the id `stale-baseline-rows-never-reported`, whose expectRed carries both this case and its unit-suite sibling. A second entry for the same break would be the same mutation twice."
-    },
-    {
-      "claim": "repo.test.mjs 'an inline waiver with a written reason clears the finding' — its MUTATION comment names the waiver reason floor",
-      "why": "already graded, under `waiver-reason-floor-removed` (and, for the hatch's existence, `waiver-never-recognised`); both list this case in expectRed. A dedicated entry would duplicate an encoded break."
-    }
-  ]
+  "notEncoded": []
 }

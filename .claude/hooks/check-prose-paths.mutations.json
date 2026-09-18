@@ -1,5 +1,5 @@
 {
-  "_": "The claims-vs-encoded gap under `--coverage` is NEGATIVE here, by design: several cases carry one `MUTATION:` comment naming a CLASS of branches (\"neutralise any one of classify's GLOB, PLACEHOLDER or brace-expansion branches\"), and each branch is encoded separately. More encoded mutations than comments is over-delivery; the `notEncoded` list below covers the other direction, a bare token that is not a claim.",
+  "_": "More encoded mutations than claim sites is over-delivery, not a hole: several cases carry one `MUTATION:` comment naming a CLASS of branches and each branch is encoded separately. `--coverage` reports claim sites and encoded entries as separate counts rather than subtracting one from the other, and a `GROUP:` marker is what links a site to the ids that grade it.",
   "target": ".claude/hooks/check-prose-paths.mjs",
   "suites": [
     ".claude/hooks/check-prose-paths.test.mjs",
@@ -448,14 +448,5 @@
       "note": "Pins the || RHS independently. Dropping scopedProblems.length > 0 suppresses the footer when the only failure is a bad waiver \u2014 a corpus scan did happen, but the context is hidden."
     }
   ],
-  "notEncoded": [
-    {
-      "claim": "check-prose-paths.test.mjs header: the sentence describing the convention contains the token `MUTATION:`",
-      "why": "prose about the convention, not a claim about a break. countMutationClaims matches the bare token, so it inflates the denominator; there is nothing here to break."
-    },
-    {
-      "claim": "check-prose-paths.repo.test.mjs header: the same convention sentence",
-      "why": "same reason \u2014 a description of what a MUTATION comment is, not one."
-    }
-  ]
+  "notEncoded": []
 }

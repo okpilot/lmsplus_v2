@@ -288,12 +288,10 @@ test('refuses to report success when there was nothing at all to grade', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// --coverage mode: notEncoded subtraction
+// --coverage mode: claim sites and declared-not-encodable entries
 //
-// Fixture: a data file with 2 MUTATION: claims in its suite, 1 encoded mutation, and 1 notEncoded
-// entry. Expected: claims=2, encoded=1, notEncoded=1, gap=0. Without the subtraction the gap
-// would be 1 — the test pins the arithmetic, first exercised when this data file gained notEncoded
-// entries (previously every data file had notEncoded=[] so the subtraction was always a no-op).
+// Fixture: a data file whose suite carries one test and 2 MUTATION: claims under it, 1 encoded
+// mutation, and 1 notEncoded entry. Expected: claim sites=2, encoded=1, notEncoded=1.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 function buildCoverageFixtureDir() {
@@ -309,13 +307,13 @@ function buildCoverageFixtureDir() {
   g(['init', '-q', '.'])
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-  // Suite with exactly 2 MUTATION: claims (one mid-line, one standalone — countMutationClaims
-  // handles both; the two-claim fixture guards against a line-count coincidence with one claim).
+  // Suite with one test and exactly 2 MUTATION: claims under it. Two claims, not one, so the
+  // reported site count cannot coincide with the number of tests or of encoded mutations.
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov-suite.test.mjs'),
-    '// MUTATION: first claim → red\nconst x = 1 // and MUTATION: second claim → red\n',
+    "test('the fixture behaviour', () => {})\n" +
+      '// MUTATION: first claim → red\n// MUTATION: second claim → red\n',
   )
-  // 1 encoded mutation + 1 notEncoded entry → gap = 2 - 1 - 1 = 0
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov.mutations.json'),
     JSON.stringify({
@@ -344,16 +342,16 @@ process.once('exit', () => {
   }
 })
 
-// MUTATION: replace `- notEncoded` with nothing in the gap line of modeCoverage → the declared
-// not-encodable entry no longer reduces the reported gap; a legitimately excused claim reads as
-// an uncovered hole. Asserting gap=0 pins that the subtraction happens.
-test('subtracts declared-not-encodable entries from the coverage gap', () => {
+// MUTATION: in parseSuite, attribute every claim to `header` instead of the nearest preceding
+// test → the suite's two claims stop being claim sites and the report shows 0, so a suite full of
+// claims reads as carrying none.
+test('reports the claim sites a suite carries and the entries excused from encoding', () => {
   assert.ok(
-    coverageRun.stdout.includes('declared not-encodable        : 1'),
+    coverageRun.stdout.includes('claim sites (comment claims) : 2'),
     `stdout:\n${coverageRun.stdout}`,
   )
   assert.ok(
-    coverageRun.stdout.includes('gap (unaccounted claims)      : 0'),
+    coverageRun.stdout.includes('declared not-encodable       : 1'),
     `stdout:\n${coverageRun.stdout}`,
   )
 })

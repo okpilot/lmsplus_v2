@@ -13,7 +13,7 @@
 // Usage:  node .claude/hooks/run-mutations.mjs                  run every mutation
 //         node .claude/hooks/run-mutations.mjs --guard <base>   run one data file
 //         node .claude/hooks/run-mutations.mjs --list           print ids, run nothing
-//         node .claude/hooks/run-mutations.mjs --coverage       claims vs encoded vs gap
+//         node .claude/hooks/run-mutations.mjs --coverage       claim sites vs encoded mutations
 //         [--scratch <dir>]                                     where worktrees are made
 //
 // Exit:   0 = every encoded mutation was CAUGHT
@@ -172,6 +172,110 @@ export function compareResult(expectRed, failedNames) {
  */
 export function countMutationClaims(text) {
   return (String(text).match(/MUTATION:/g) ?? []).length
+}
+
+/** A test point opens on a line beginning `test(` or `it(`. */
+const TEST_LINE_RE = /^\s*(?:test|it)\s*\(/
+/** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */
+const GROUP_MARKER_RE = /^\s*\/\/ GROUP: (.*)$/
+/** Any comment line. A marker's id list continues onto one of these while it ends with a comma. */
+const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
+
+/**
+ * Read one suite's claim sites and `GROUP:` markers.
+ *
+ * Returns `{ header: { claims, groups }, tests: [{ line, groups, claims }] }`, `line` 1-based.
+ *
+ * ATTACHMENT. A marker sitting directly above a `test(` names that test; a marker inside a body
+ * names the test it is written in, not the next one. So the lookahead skips blanks and comments
+ * and asks what the marker actually precedes — an assertion means the enclosing test.
+ *
+ * CLAIMS. Only `MUTATION:` on a COMMENT line is a claim. The token also appears in test titles and
+ * in string fixtures, where it is the harness's own subject matter rather than an assertion about
+ * a break, and counting those would inflate the very number this measures.
+ */
+export function parseSuite(text) {
+  const lines = String(text).split('\n')
+  const testLines = []
+  lines.forEach((l, i) => {
+    if (TEST_LINE_RE.test(l)) testLines.push(i)
+  })
+  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0 }))
+  const header = { claims: 0, groups: [] }
+
+  /** Index into `tests` of the nearest test line strictly above `i`, or -1 for none. */
+  const ownerAbove = (i) => {
+    let k = -1
+    for (let t = 0; t < testLines.length; t++) {
+      if (testLines[t] < i) k = t
+      else break
+    }
+    return k
+  }
+
+  /**
+   * The test a comment belongs to. `from` is its last line, `anchor` its first.
+   * Scanning down past blanks and comments: a test line there OWNS the comment. Otherwise the
+   * nearest test line above owns it, and a comment above every test belongs to the header.
+   */
+  const ownerFor = (from, anchor) => {
+    let j = from + 1
+    while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++
+    if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]
+    const k = ownerAbove(anchor)
+    return k === -1 ? header : tests[k]
+  }
+
+  const markerLines = new Set()
+  for (let i = 0; i < lines.length; i++) {
+    const m = GROUP_MARKER_RE.exec(lines[i])
+    if (!m) continue
+    markerLines.add(i)
+    let raw = m[1].trim()
+    let last = i
+    while (raw.endsWith(',') && last + 1 < lines.length) {
+      const cont = COMMENT_LINE_RE.exec(lines[last + 1])
+      if (!cont) break
+      last++
+      markerLines.add(last)
+      raw += ` ${cont[1].trim()}`
+      raw = raw.trim()
+    }
+    const ids = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+    ownerFor(last, i).groups.push(...ids)
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    if (markerLines.has(i)) continue
+    if (!/^\s*\/\//.test(lines[i])) continue
+    const n = (lines[i].match(/MUTATION:/g) ?? []).length
+    if (n === 0) continue
+    ownerFor(i, i).claims += n
+  }
+
+  return { header, tests }
+}
+
+/**
+ * Which `GROUP:` ids name no mutation in the data file? Returns one problem string per dangling
+ * id; empty means every marker resolves.
+ *
+ * A marker is a REFERENCE. An id that resolves to nothing reads as coverage and is not — the same
+ * defect an unencoded `MUTATION:` comment carries, one indirection further out.
+ */
+export function groupProblems(parsed, ids, label) {
+  const problems = []
+  const check = (groups, where) => {
+    for (const id of groups) {
+      if (!ids.has(id)) problems.push(`${label}${where}: GROUP id "${id}" names no mutation`)
+    }
+  }
+  check(parsed.header.groups, ' (before the first test)')
+  for (const t of parsed.tests) check(t.groups, `:${t.line}`)
+  return problems
 }
 
 const isNonEmptyString = (v) => typeof v === 'string' && v.length > 0
@@ -505,25 +609,52 @@ function modeList(root, guard) {
   return 0
 }
 
+/**
+ * Read every declared suite of one data file and total its claim sites, its linked claim sites,
+ * and the ids its markers name. `problems` carries every dangling marker id.
+ */
+function surveySuites(root, data, ids) {
+  const survey = { sites: 0, linked: 0, named: new Set(), problems: [] }
+  for (const suite of data.suites) {
+    const p = isAbsolute(suite) ? suite : join(root, suite)
+    const parsed = parseSuite(readFileSync(p, 'utf8'))
+    // A claim site is a claim attached to a TEST. `header.claims` is counted separately and not
+    // reported: a `MUTATION:` token above the first test pins nothing, and in the suites present
+    // it is prose about the harness rather than a claim about a break.
+    for (const owner of parsed.tests) {
+      survey.sites += owner.claims
+      if (owner.groups.length > 0) survey.linked += owner.claims
+    }
+    for (const owner of [parsed.header, ...parsed.tests]) {
+      for (const id of owner.groups) survey.named.add(id)
+    }
+    survey.problems.push(...groupProblems(parsed, ids, suite))
+  }
+  return survey
+}
+
 function modeCoverage(root, guard) {
   const files = selectFiles(root, guard)
   if (files.length === 0) console.log('no *.mutations.json data files found')
+  let dangling = 0
   for (const file of files) {
     const data = loadDataFile(file)
-    let claims = 0
-    for (const suite of data.suites) {
-      const p = isAbsolute(suite) ? suite : join(root, suite)
-      claims += countMutationClaims(readFileSync(p, 'utf8'))
-    }
-    const encoded = data.mutations.length
-    const notEncoded = (data.notEncoded ?? []).length
+    const ids = new Set(data.mutations.map((m) => m.id))
+    const survey = surveySuites(root, data, ids)
+    const named = [...survey.named].filter((id) => ids.has(id)).length
     console.log(`${file.basename}${DATA_SUFFIX}`)
-    console.log(`  MUTATION: claims across suites : ${claims}`)
-    console.log(`  encoded mutations             : ${encoded}`)
-    console.log(`  declared not-encodable        : ${notEncoded}`)
-    console.log(`  gap (unaccounted claims)      : ${claims - encoded - notEncoded}`)
+    console.log(`  claim sites (comment claims) : ${survey.sites}`)
+    console.log(`  ...linked by a GROUP marker  : ${survey.linked}`)
+    console.log(`  ...not linked                : ${survey.sites - survey.linked}`)
+    console.log(`  encoded mutations            : ${data.mutations.length}`)
+    console.log(`  ...named by a marker         : ${named}`)
+    console.log(`  declared not-encodable       : ${(data.notEncoded ?? []).length}`)
+    for (const p of survey.problems) {
+      console.log(`  DANGLING ${p}`)
+      dangling++
+    }
   }
-  return 0
+  return dangling === 0 ? 0 : 1
 }
 
 /**
@@ -579,6 +710,11 @@ function modeRun(root, guard, scratch) {
   let total = 0
   for (const file of files) {
     const data = loadDataFile(file)
+    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
+    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
+    const ids = new Set(data.mutations.map((m) => m.id))
+    const problems = surveySuites(root, data, ids).problems
+    if (problems.length > 0) throw new Error(problems.join('\n  '))
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
     for (const mut of data.mutations) {
       total++
