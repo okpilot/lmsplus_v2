@@ -527,12 +527,24 @@
     },
     {
       "id": "ownerfor-always-header",
-      "find": "    return k === -1 ? header : tests[k]",
+      "find": "    if (k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])) return header\n    return tests[k]",
       "replace": "    return header",
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
+    },
+    {
+      "id": "ownerfor-reaches-past-the-body",
+      "find": "k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])",
+      "replace": "k === -1",
+      "expectRed": ["a claim below a closed test body belongs to the file, not to that test"]
+    },
+    {
+      "id": "run-validates-the-working-tree",
+      "find": "surveySuites(root, data, ids, committedSuite).problems",
+      "replace": "surveySuites(root, data, ids).problems",
+      "expectRed": ["a dangling GROUP id committed but not on disk still stops the grading run"]
     },
     {
       "id": "coverage-dangling-exits-zero",

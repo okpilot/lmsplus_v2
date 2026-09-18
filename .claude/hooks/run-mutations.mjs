@@ -193,6 +193,9 @@ function ownerAbove(testLines, i) {
   return k
 }
 
+/** Leading-whitespace width. A body line is indented past the `test(` line that opened it. */
+const indentOf = (l) => l.length - l.trimStart().length
+
 /** One marker plus the continuation lines it owns: `{ ids, last }`, `last` its final line. */
 function readMarker(lines, i, m) {
   let raw = m[1].trim()
@@ -239,14 +242,16 @@ export function parseSuite(text) {
   /**
    * The test a comment belongs to. `from` is its last line, `anchor` its first.
    * Scanning down past blanks and comments: a test line there OWNS the comment. Otherwise the
-   * nearest test line above owns it, and a comment above every test belongs to the header.
+   * test above owns it only while the comment is still INSIDE that body — indented past the
+   * `test(` line. A comment back at that indent has left the body and belongs to the file.
    */
   const ownerFor = (from, anchor) => {
     let j = from + 1
     while (j < lines.length && (lines[j].trim() === '' || COMMENT_LINE_RE.test(lines[j]))) j++
     if (j < lines.length && TEST_LINE_RE.test(lines[j])) return tests[testLines.indexOf(j)]
     const k = ownerAbove(testLines, anchor)
-    return k === -1 ? header : tests[k]
+    if (k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])) return header
+    return tests[k]
   }
 
   const markerLines = scanMarkers(lines, ownerFor)
@@ -632,11 +637,25 @@ function modeList(root, guard) {
  * Read every declared suite of one data file and total its claim sites, its linked claim sites,
  * and the ids its markers name. `problems` carries every dangling marker id.
  */
-function surveySuites(root, data, ids) {
+/** Suite text as it sits on disk — the tree `--coverage` reports on. */
+function workingTreeSuite(root, suite) {
+  return readFileSync(isAbsolute(suite) ? suite : join(root, suite), 'utf8')
+}
+
+/**
+ * Suite text at HEAD — the tree the grading run executes. Validating the working tree instead
+ * would split the two halves of one gate: an unstaged marker fix would hide a dangling id in the
+ * committed suite, and an unstaged dangling one would block a run that is valid as committed.
+ */
+function committedSuite(root, suite) {
+  return isAbsolute(suite) ? readFileSync(suite, 'utf8') : git(['show', `HEAD:${suite}`], root)
+}
+
+/** 4 params: the reader is the tree being surveyed, not data — `--coverage` and `--run` differ. */
+function surveySuites(root, data, ids, readSuite = workingTreeSuite) {
   const survey = { sites: 0, linked: 0, fileLevel: 0, named: new Set(), problems: [] }
   for (const suite of data.suites) {
-    const p = isAbsolute(suite) ? suite : join(root, suite)
-    const parsed = parseSuite(readFileSync(p, 'utf8'))
+    const parsed = parseSuite(readSuite(root, suite))
     // A claim site is a claim attached to a TEST. A claim reaching no test is reported on its own
     // line rather than dropped: it may be convention prose, or a real claim separated from its
     // test by code, and discarding it would hide the second case inside the first.
@@ -734,7 +753,7 @@ function modeRun(root, guard, scratch) {
     // A dangling id is a stale reference, and a stale reference is the same class of defect as a
     // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
     const ids = new Set(data.mutations.map((m) => m.id))
-    const problems = surveySuites(root, data, ids).problems
+    const problems = surveySuites(root, data, ids, committedSuite).problems
     if (problems.length > 0) throw new Error(problems.join('\n  '))
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
     for (const mut of data.mutations) {

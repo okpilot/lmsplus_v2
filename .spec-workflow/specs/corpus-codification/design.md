@@ -70,8 +70,7 @@ economics: large size win, no correctness win, low cost.
 | Correctness win | none | large — drift becomes impossible |
 | Cost | low | ~a day per rule family |
 
-**Ordering: DELETE, then PIN.** Deletion's review cost falls as the change grows; a guard's
-rises (Decision 72).
+**Ordering: DELETE, then PIN** (Decision 72).
 
 ## Lessons that must not be relearned
 

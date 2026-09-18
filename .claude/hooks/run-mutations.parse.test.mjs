@@ -83,6 +83,18 @@ test('a claim separated from every test by code belongs to the file, not to a te
   assert.equal(parsed.tests[0].claims, 0)
 })
 
+// MUTATION: in ownerFor, drop the indent comparison so the nearest test above owns a comment
+// that has left its body -> a file-level claim sitting between one test and the next helper is
+// counted on that test, and a GROUP marker there makes it read as linked.
+// GROUP: ownerfor-reaches-past-the-body
+test('a claim below a closed test body belongs to the file, not to that test', () => {
+  const parsed = parseSuite(
+    "test('behaves', () => {\n  assert.ok(true)\n})\n// MUTATION: break the thing\nconst helper = () => 1\n",
+  )
+  assert.equal(parsed.header.claims, 1)
+  assert.equal(parsed.tests[0].claims, 0)
+})
+
 test('an id naming no mutation in the data file is reported as a problem', () => {
   // MUTATION: make `groupProblems` return an empty array unconditionally -> a GROUP id naming no
   // mutation is never reported and a stale reference runs silently.

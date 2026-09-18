@@ -17,7 +17,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -290,7 +290,7 @@ test('refuses to report success when there was nothing at all to grade', () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // --coverage mode: claim sites and declared-not-encodable entries
 //
-// Fixture: a data file whose suite carries one test and 2 MUTATION: claims under it, 1 encoded
+// Fixture: a data file whose suite carries one test with 2 claim comments above it, 1 encoded
 // mutation, and 1 notEncoded entry. Expected: claim sites=2, encoded=1, notEncoded=1.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -307,12 +307,12 @@ function buildCoverageFixtureDir() {
   g(['init', '-q', '.'])
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-  // Suite with one test and exactly 2 MUTATION: claims under it. Two claims, not one, so the
-  // reported site count cannot coincide with the number of tests or of encoded mutations.
+  // Suite with one test and exactly 2 claim comments above it. Two, not one, so the reported
+  // site count cannot coincide with the number of tests or of encoded mutations.
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov-suite.test.mjs'),
-    "test('the fixture behaviour', () => {})\n" +
-      '// MUTATION: first claim → red\n// MUTATION: second claim → red\n',
+    '// MUTATION: first claim → red\n// MUTATION: second claim → red\n' +
+      "test('the fixture behaviour', () => {})\n",
   )
   writeFileSync(
     join(dir, '.claude', 'hooks', 'cov.mutations.json'),
@@ -392,5 +392,58 @@ test('reports the claim sites a suite carries and the entries excused from encod
   assert.ok(
     coverageRun.stdout.includes('declared not-encodable       : 1'),
     `stdout:\n${coverageRun.stdout}`,
+  )
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --run validates the tree it grades
+//
+// Fixture: the COMMITTED suite carries a dangling GROUP id; the working tree has it removed.
+// `--run` builds its worktree from HEAD, so it must read HEAD when validating too.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+function buildCommittedDanglingRepo() {
+  const dir = buildFaultFixtureRepo()
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'test',
+    GIT_AUTHOR_EMAIL: 'test@test',
+    GIT_COMMITTER_NAME: 'test',
+    GIT_COMMITTER_EMAIL: 'test@test',
+  }
+  const g = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env })
+  const suite = join(dir, 'suite.test.mjs')
+  const clean = readFileSync(suite, 'utf8')
+  writeFileSync(suite, `// GROUP: no-such-mutation\n${clean}`)
+  g(['add', 'suite.test.mjs'])
+  g(['commit', '-m', 'dangling marker'])
+  writeFileSync(suite, clean)
+  return dir
+}
+
+const committedDanglingDir = buildCommittedDanglingRepo()
+const committedDanglingRun = spawnSync('node', [HARNESS], {
+  cwd: committedDanglingDir,
+  encoding: 'utf8',
+  env: envWithoutTestContext,
+})
+process.once('exit', () => {
+  try {
+    rmSync(committedDanglingDir, { recursive: true, force: true })
+  } catch {
+    /* best effort */
+  }
+})
+
+// MUTATION: drop the `committedSuite` argument from modeRun's surveySuites call, so validation
+// falls back to the working-tree reader -> the working tree's marker-free suite passes the
+// dangling check while the worktree built from HEAD still runs the suite that carries it.
+// GROUP: run-validates-the-working-tree
+test('a dangling GROUP id committed but not on disk still stops the grading run', () => {
+  assert.notEqual(committedDanglingRun.status, 0)
+  assert.match(
+    `${committedDanglingRun.stdout}${committedDanglingRun.stderr}`,
+    /no-such-mutation/,
+    `stdout:\n${committedDanglingRun.stdout}\nstderr:\n${committedDanglingRun.stderr}`,
   )
 })

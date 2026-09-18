@@ -201,14 +201,12 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
 - [x] **Encode the `MUTATION:` comment, or declare it unencodable.** Only the data file is
       executed, so a prose copy is free to go false — the defect class `code-style.md` §7 governs.
       **Deleting the comments is NOT the remedy:** a claim encoded nowhere has the comment as its
-      only record, and `--list` prints mutation IDS ONLY — no `find`/`replace`/`expectRed`/`note`,
-      no `notEncoded` text — so it cannot answer "what breaks this test".
+      only record, and `--list` prints mutation IDS ONLY.
       A comment names the mutations that grade it with `// GROUP: <id>, <id>`; an id naming no
       mutation exits `--coverage` non-zero and aborts the grading run. `notEncoded` declares a
       token that is NOT a claim, carrying both a non-empty `claim` and `why` (`validateDataFile`
       requires both). Derive, never state:
       `node .claude/hooks/run-mutations.mjs --coverage` (Decision 75).
-      REMAINING: `check-file-size-guard` and `check-retracted-phrase` carry no markers yet.
 
 - [ ] **R0 — STALE-CLAIM GUARD. The highest-priority item in the programme.**
       User directive 2026-09-09: correcting prose that has gone stale is the single largest
