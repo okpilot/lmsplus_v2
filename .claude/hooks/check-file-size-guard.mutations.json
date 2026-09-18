@@ -247,6 +247,148 @@
         "updating the baseline rewrites a shrunk entry and leaves everything else alone"
       ],
       "note": "The escape valve must be opt-in: a check that rewrites its own baseline silently launders the record it is judged against. Only the fourth test shows the laundering directly; the three enforcement tests redden through cross-spawn state pollution — each loops several spawns over ONE temp repo, so the first spawn writes a baseline row and the next reads a count exactly matching it, which the ratchet passes."
+    },
+    {
+      "id": "cli-limits-read-failure-exits-zero",
+      "find": "    console.error(`[file-size] check could not run — BLOCKING: ${err.message}`)\n    exit(1)",
+      "replace": "    console.error(`[file-size] check could not run — BLOCKING: ${err.message}`)\n    exit(0)",
+      "expectRed": ["blocks rather than passes when the limits file cannot be read"],
+      "note": "The fail-closed catch. Exiting 0 here makes the guard report clean forever the moment anything breaks."
+    },
+    {
+      "id": "cli-scoped-filter-dropped",
+      "find": "  const regressions =\n    normalised.length > 0\n      ? whole.regressions.filter((r) => normalised.includes(r.file))\n      : whole.regressions",
+      "replace": "  const regressions = whole.regressions",
+      "expectRed": [
+        "only a violation among the files passed as arguments can block the commit",
+        "an unreadable path blocks the commit only when it is among the staged arguments"
+      ],
+      "note": "The comment names a `const scoped` ternary; no such identifier exists. The live construct is this `const regressions = normalised.length > 0 ? ... : ...`. Same filter serves the unreadable branch, which is why both tests redden."
+    },
+    {
+      "id": "cli-ls-files-drop-z",
+      "find": "['ls-files', '-z']",
+      "replace": "['ls-files']",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected",
+        "a staged rename does not reject the SOURCE path as unknown",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "two tracked paths whose bytes differ but decode alike BLOCK rather than one being dropped",
+        "a staged path with non-UTF-8 bytes is graded from the index, not called unreadable",
+        "only a violation among the files passed as arguments can block the commit",
+        "a non-ASCII tracked filename does not block every run",
+        "a tracked path whose bytes are not valid UTF-8 is still graded",
+        "staged mode grades the INDEX, not the working tree",
+        "staged mode does not launder a worktree-only regression through the index",
+        "keeps working when the tracked-file listing is bigger than node's default buffer cap",
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "an unreadable path blocks the commit only when it is among the staged arguments",
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "update-baseline keeps an unreadable path's existing row instead of dropping it",
+        "update-baseline leaves limits.json byte-identical when it already matches the tree",
+        "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
+        "reports per-rule compliance totals when asked for stats",
+        "stats mode skips an unreadable tracked file instead of blocking the whole report",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "core.quotePath renders the path as a literal escape sequence; readFile then gets ENOENT and the unreadable branch returns before the baseline is consulted, so no baseline row can clear it. expectRed names 21 tests because dropping -z also destroys the NUL splitting, so the whole listing collapses into one bogus path — this entry pins 'the guard still parses its file list at all', and the non-ASCII case is one member. The comment above the test claims a narrower pin than the break delivers."
+    },
+    {
+      "id": "cli-staged-deletion-drop-z",
+      "find": "'--name-only', '-z'",
+      "replace": "'--name-only'",
+      "expectRed": [
+        "a staged deletion is not rejected as an unknown path",
+        "a staged rename does not reject the SOURCE path as unknown",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "removing a non-ASCII file does not read as an unknown path"
+      ],
+      "note": "Mirror image of the ls-files case: git quotes the deletion path while lefthook passes the raw one, so the deleted-set membership test misses and the commit is rejected as naming an untracked path. Every test that stages a DELETION or a RENAME reddens — a rename presents its source side as a deletion — which is why the set is four, not one."
+    },
+    {
+      "id": "cli-tracked-files-decoded-as-utf8",
+      "find": "  const raw = execFileSync('git', ['ls-files', '-z'], { maxBuffer: 64 * 1024 * 1024 })\n  const out = []\n  let start = 0\n  for (let i = 0; i <= raw.length; i += 1) {\n    if (i === raw.length || raw[i] === 0) {\n      if (i > start) out.push(raw.subarray(start, i))\n      start = i + 1\n    }\n  }\n  return out",
+      "replace": "  const raw = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })\n  return raw.split('\\u0000').filter(Boolean)",
+      "expectRed": [
+        "a staged path with non-UTF-8 bytes is graded from the index, not called unreadable",
+        "a tracked path whose bytes are not valid UTF-8 is still graded"
+      ],
+      "note": "`-z` fixed the QUOTING; only raw bytes fix the DECODE. An invalid sequence becomes U+FFFD and readFile on that string gets ENOENT. The staged-mode sibling reddens too: it also routes a non-UTF-8 path through this listing."
+    },
+    {
+      "id": "cli-staged-mode-reads-worktree",
+      "find": "  for (const f of normalised) fromIndex.add(f)",
+      "replace": "",
+      "expectRed": [
+        "staged mode grades the INDEX, not the working tree",
+        "staged mode does not launder a worktree-only regression through the index"
+      ],
+      "note": "git commits the index. Reachable ONLY from the subprocess suite: `fromIndex` is a closure inside main(), and check-file-size-guard.test.mjs calls evaluate()/classify() directly without ever spawning the guard. Emptying fromIndex sends BOTH index-authority tests to the worktree, so the laundering test reddens with it."
+    },
+    {
+      "id": "cli-stale-plural-hardcoded",
+      "find": "    const plural = stale.length === 1 ? 'y' : 'ies'",
+      "replace": "    const plural = 'ies'",
+      "expectRed": [
+        "reports stale baseline entries in the singular and plural, and blocks on them"
+      ],
+      "note": "A one-entry report reads \"1 stale baseline entries\" — invisible to the exit code, so nothing else would catch the regression."
+    },
+    {
+      "id": "cli-ls-files-maxbuffer-dropped",
+      "find": "  const raw = execFileSync('git', ['ls-files', '-z'], { maxBuffer: 64 * 1024 * 1024 })",
+      "replace": "  const raw = execFileSync('git', ['ls-files', '-z'])",
+      "expectRed": [
+        "keeps working when the tracked-file listing is bigger than node's default buffer cap"
+      ],
+      "note": "`maxBuffer: 64 * 1024 * 1024` appears three times in the guard, so the anchor is the whole line. Without the override git ls-files throws ENOBUFS and the check fails closed though nothing is over any limit."
+    },
+    {
+      "id": "cli-split-guidance-predicate-inverted",
+      "find": "  if (regressions.some((r) => r.n !== null)) {",
+      "replace": "  if (regressions.some((r) => r.n === null)) {",
+      "expectRed": [
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "prints unreadable-path guidance for a dangling symlink, not the split-file one"
+      ],
+      "note": "Silently stops printing the guidance for the one regression class a developer can act on by editing the source. Both trailer tests redden: after the swap both predicates read `=== null`, so the unreadable scenario prints BOTH blocks and its not-the-other assertion fails too."
+    },
+    {
+      "id": "cli-unreadable-guidance-predicate-inverted",
+      "find": "  if (regressions.some((r) => r.n === null)) {",
+      "replace": "  if (regressions.some((r) => r.n !== null)) {",
+      "expectRed": [
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "prints unreadable-path guidance for a dangling symlink, not the split-file one"
+      ],
+      "note": "`r.n === null` also appears in the per-row formatter, so the anchor is the whole `if` line. Leaves a developer with only \"Split the file\" for a problem splitting cannot solve. Mirror of the sibling entry: after the swap both predicates read `!== null`, so both trailer tests redden."
+    },
+    {
+      "id": "cli-unreadable-escapes-staged-scope",
+      "find": "      ? whole.regressions.filter((r) => normalised.includes(r.file))",
+      "replace": "      ? whole.regressions.filter((r) => normalised.includes(r.file) || r.n === null)",
+      "expectRed": [
+        "an unreadable path blocks the commit only when it is among the staged arguments"
+      ],
+      "note": "There is no separate unreadable-branch filter — it shares the scoped/all ternary. This encodes the shortcut the test exists to forbid, rather than a second filter a reader might go hunting for."
+    },
+    {
+      "id": "cli-stale-only-run-advisory",
+      "find": "  if (regressions.length === 0) return stale.length > 0 ? 1 : 0",
+      "replace": "  if (regressions.length === 0) return 0",
+      "expectRed": [
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "reports stale baseline entries in the singular and plural, and blocks on them"
+      ],
+      "note": "The rename escape: classification is derived from the PATH and the baseline is keyed on the PATH, so moving a file onto a looser rule left the old entry going stale as the only trace — which read as \"resolved\"."
+    },
+    {
+      "id": "cli-index-read-prefers-longer-side",
+      "find": "    return readIndexBlob(target)",
+      "replace": "    const idx = readIndexBlob(target)\n    let wt = ''\n    try {\n      wt = readFileSync(target, 'utf8')\n    } catch {}\n    return wt.length > idx.length ? wt : idx",
+      "expectRed": ["staged mode does not launder a worktree-only regression through the index"],
+      "note": "Reading whichever side is LONGER still blocks the sibling index-authority test (the index content is the larger one there), so this is a genuinely separate case: the index must be authoritative in BOTH directions. An unstaged worktree edit must never fail a commit that never touches it."
     }
   ],
   "notEncoded": [
