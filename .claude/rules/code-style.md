@@ -719,10 +719,10 @@ A gate, mode or flag exists to catch a CLASS of input. The suite needs a fixture
 input, not one the input is logically derivable from. A green suite and a live defect coexist
 whenever every fixture is drawn from the subset the gate already passes — the run reports success
 and has checked nothing.
-Measured twice on one branch, on `--update-expected`: `--guard <basename>` collapses a multi-file
-operation to ONE file, so a cross-file key collision was unreachable from the corpus (311 caught /
-311 run, defect live); and a dirty-tree test that edits a TRACKED file passes with or without
-`--untracked-files=all`, leaving the flag that guards UNTRACKED files unpinned.
+Two shapes that produce it: an option that NARROWS the run (a `--guard`-style single-file filter
+makes a cross-file defect unreachable from the corpus), and a fixture that satisfies the assertion
+by a path the flag under test does not sit on (a dirty-tree check edited a TRACKED file, so the
+flag guarding UNTRACKED ones was never consulted).
 Before trusting a gate's tests: name the defect class, name the input that triggers it, point at
 the fixture that builds it. No such fixture, no coverage — whatever the pass count says.
 ### A `MUTATION:` Comment Is a Prose Claim, Subject to §10

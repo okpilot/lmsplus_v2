@@ -896,12 +896,15 @@ function firstDirtyFile(root, files) {
  */
 function rewriteFile(file, data, ids, result) {
   let text = readFileSync(file.path, 'utf8')
+  // Buffered, not printed as we go: a later id can still throw on the raw splice or fail the
+  // read-back, and `nothing written` must not follow lines that already announced a change.
+  const changes = []
   for (const id of ids) {
     const was = data.mutations.find((m) => m.id === id).expectRed
     text = replaceExpectRed(text, id, result(id).observed)
-    console.log(`  ~ ${file.basename}${DATA_SUFFIX}  ${id}`)
-    console.log(`      was: ${was.join(' | ')}`)
-    console.log(`      now: ${result(id).observed.join(' | ')}`)
+    changes.push(
+      `  ~ ${file.basename}${DATA_SUFFIX}  ${id}\n      was: ${was.join(' | ')}\n      now: ${result(id).observed.join(' | ')}`,
+    )
   }
   let reparsed
   try {
@@ -916,6 +919,7 @@ function rewriteFile(file, data, ids, result) {
     )
   }
   writeFileSync(file.path, text)
+  for (const line of changes) console.log(line)
 }
 
 /** Why a SURVIVED entry is never given a generated expectation. */
@@ -977,7 +981,10 @@ function reportOutcome(written, survivors) {
     )
     console.error('  a widened `expectRed` usually needs its `note` widened too; this writes the')
     console.error('  ARRAY only, because a generated justification is worth nothing.')
-    return 0
+    // NOT `return 0`: the two conditions are independent, and a batch can carry both. A survivor
+    // is a defect in the MUTATION, which `modeRun` exits 1 for — burying it behind a successful
+    // rewrite reports exactly the hole this flag exists to surface as success.
+    return survivors > 0 ? 1 : 0
   }
   if (survivors > 0) return 1
   console.error('\nevery gradeable mutation was already CAUGHT — nothing to update.')

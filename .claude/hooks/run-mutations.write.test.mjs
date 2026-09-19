@@ -147,6 +147,25 @@ test('--update-expected writes nothing for a SURVIVED entry and says why', () =>
   assert.match(r.stderr, /fix\s+the MUTATION, not the expectation/s)
 })
 
+test('a survivor still fails the run when another entry was rewritten', () => {
+  // The two outcomes are INDEPENDENT and a batch can carry both. Exiting 0 because something was
+  // written would bury the survivor — the defect this flag exists to surface.
+  // GROUP: update-expected-rewrite-buries-survivor
+  const { dir, dataPath } = buildFixtureRepo([...MISMATCH_MUT, ...SURVIVOR_MUT])
+  const r = runNode('update-expected on a mixed batch', [HARNESS, '--update-expected'], {
+    cwd: dir,
+    env: noTestContext(),
+  })
+  assert.equal(r.status, 1, r.stderr)
+  // Non-vacuous: the rewrite must have LANDED, or the test would pass on a run that wrote nothing
+  // and exited 1 for the survivor alone.
+  assert.deepEqual(JSON.parse(readFileSync(dataPath, 'utf8')).mutations[0].expectRed, [
+    'alpha goes red',
+  ])
+  assert.match(r.stderr, /1 entry rewritten/)
+  assert.match(r.stderr, /SURVIVED/)
+})
+
 test('a normal run never writes to the data file', () => {
   // The constraint the whole mode is gated on: the write must be reachable ONLY through the flag.
   const { dir, dataPath } = buildFixtureRepo(MISMATCH_MUT)
