@@ -3,7 +3,8 @@
   "suites": [
     ".claude/hooks/run-mutations.test.mjs",
     ".claude/hooks/run-mutations.spawn.test.mjs",
-    ".claude/hooks/run-mutations.parse.test.mjs"
+    ".claude/hooks/run-mutations.parse.test.mjs",
+    ".claude/hooks/run-mutations.write.test.mjs"
   ],
   "mutations": [
     {

@@ -5,8 +5,10 @@
 // .claude/limits.json.
 
 import assert from 'node:assert/strict'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import test from 'node:test'
-import { groupProblems, parseSuite } from './run-mutations.mjs'
+import { groupProblems, parseSuite, replaceExpectRed } from './run-mutations.mjs'
 
 test('a marker directly above a test names that test', () => {
   const parsed = parseSuite("// GROUP: alpha\ntest('behaves', () => {})\n")
@@ -235,4 +237,111 @@ test('a GROUP marker line is never also counted as a claim, even when it contain
     ),
   )
   assert.equal(parsed.tests[0].claims, 0)
+})
+
+// --- expectRed writer -------------------------------------------------------
+// `renderExpectRed` and `replaceExpectRed`: the text surgery behind --update-expected. It edits
+// the data file as TEXT because re-serialising reformats every line and buries the ones the
+// author meant to change.
+
+/** One entry, `expectRed` written on one line, a `note` after it. */
+const ONE_LINE = `{
+  "target": "t.mjs",
+  "suites": ["s.test.mjs"],
+  "mutations": [
+    {
+      "id": "alpha",
+      "find": "a",
+      "replace": "b",
+      "expectRed": ["one"],
+      "note": "kept"
+    }
+  ]
+}
+`
+
+test('rewriting an expectRed leaves every other byte of the file alone', () => {
+  const out = replaceExpectRed(ONE_LINE, 'alpha', ['one', 'two'])
+  assert.equal(out, ONE_LINE.replace('["one"]', '["one", "two"]'))
+})
+
+test('the comma after expectRed survives a rewrite', () => {
+  const out = replaceExpectRed(ONE_LINE, 'alpha', ['x'])
+  assert.match(out, /"expectRed": \["x"\],\n {6}"note"/)
+})
+
+test('an expectRed too long for one line is written one name per line', () => {
+  const names = ['a'.repeat(40), 'b'.repeat(40), 'c'.repeat(40)]
+  const out = replaceExpectRed(ONE_LINE, 'alpha', names)
+  assert.match(out, /"expectRed": \[\n {8}"a{40}",\n {8}"b{40}",\n {8}"c{40}"\n {6}\],/)
+})
+
+test('a multi-line expectRed collapses back to one line when the names fit', () => {
+  const multi = replaceExpectRed(ONE_LINE, 'alpha', ['a'.repeat(40), 'b'.repeat(40)])
+  const back = replaceExpectRed(multi, 'alpha', ['one'])
+  assert.equal(back, ONE_LINE)
+})
+
+test('a quote inside a test name is escaped the way the data files already write it', () => {
+  const out = replaceExpectRed(ONE_LINE, 'alpha', ['reads a point without the "-" separator'])
+  assert.equal(JSON.parse(out).mutations[0].expectRed[0], 'reads a point without the "-" separator')
+  assert.match(out, /\\"-\\"/)
+})
+
+test('an em dash is written as itself, not as an escape sequence', () => {
+  const out = replaceExpectRed(ONE_LINE, 'alpha', ['a — b'])
+  assert.match(out, /"a — b"/)
+})
+
+test('an id that appears nowhere is refused by name, and nothing is returned', () => {
+  assert.throws(() => replaceExpectRed(ONE_LINE, 'missing', ['x']), /no entry missing/)
+})
+
+test('an id quoted inside a note is not mistaken for a second entry', () => {
+  const quoted = ONE_LINE.replace('"kept"', '"see \\"id\\": \\"alpha\\" above"')
+  const out = replaceExpectRed(quoted, 'alpha', ['x'])
+  assert.deepEqual(JSON.parse(out).mutations[0].expectRed, ['x'])
+  assert.match(out, /see \\"id\\": \\"alpha\\" above/)
+})
+
+test('an expectRed that is not a flat array of strings is refused rather than spliced', () => {
+  const nested = ONE_LINE.replace('["one"]', '[["one"]]')
+  assert.throws(() => replaceExpectRed(nested, 'alpha', ['x']), /not a flat array/)
+})
+
+test('an expectRed the text never closes is refused rather than spliced', () => {
+  // Truncated AT the array: anything after it would hit the illegal-character refusal first,
+  // so only a genuine run to EOF exercises this branch.
+  const open = ONE_LINE.slice(0, ONE_LINE.indexOf('["one"]') + 6)
+  assert.throws(() => replaceExpectRed(open, 'alpha', ['x']), /never closed/)
+})
+
+test('rewriting a second entry leaves the first rewrite intact', () => {
+  const two = ONE_LINE.replace(
+    '    }\n  ]',
+    '    },\n    {\n      "id": "beta",\n      "find": "c",\n      "replace": "d",\n      "expectRed": ["two"]\n    }\n  ]',
+  )
+  const out = replaceExpectRed(replaceExpectRed(two, 'alpha', ['A']), 'beta', ['B'])
+  const parsed = JSON.parse(out)
+  assert.deepEqual(
+    parsed.mutations.map((m) => m.expectRed),
+    [['A'], ['B']],
+  )
+})
+
+test('every expectRed in the repo re-renders to the bytes already on disk', () => {
+  // Pins the width rule against a biome.json change: lefthook reformats staged JSON, so a writer
+  // whose width disagrees is corrected AFTER the human reviewed the diff.
+  const dir = import.meta.dirname
+  const files = readdirSync(dir).filter((f) => f.endsWith('.mutations.json'))
+  assert.ok(files.length > 0, 'no data files found — the check would pass vacuously')
+  let arrays = 0
+  for (const f of files) {
+    const text = readFileSync(join(dir, f), 'utf8')
+    for (const mut of JSON.parse(text).mutations) {
+      arrays++
+      assert.equal(replaceExpectRed(text, mut.id, mut.expectRed), text, `${f} ${mut.id}`)
+    }
+  }
+  assert.ok(arrays > 100, `expected the real corpus, saw ${arrays} arrays`)
 })
