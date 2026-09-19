@@ -95,9 +95,9 @@ async function lookupSeedIds(
     .limit(1)
   if (sessionsErr) throw new Error(`beforeAll: quiz_sessions lookup failed: ${sessionsErr.message}`)
 
-  // Same filters as fetchActiveQuestionIds: server-action-unauth-table-reads.spec.ts
-  // re-reads this id with `.is('deleted_at', null)` as its non-vacuity control, so a
-  // soft-deleted or inactive pick fails that control.
+  // Same status/deleted_at filters as fetchActiveQuestionIds, but org-wide — this id only
+  // has to EXIST for the comment/flag rows to attach to. A soft-deleted or inactive pick
+  // fails the `.is('deleted_at', null)` control in server-action-unauth-table-reads.spec.ts.
   const { data: questions, error: questionsErr } = await adminClient
     .from('questions')
     .select('id')
