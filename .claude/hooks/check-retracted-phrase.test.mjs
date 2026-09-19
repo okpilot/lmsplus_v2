@@ -105,6 +105,7 @@ test('tokenises a filename with a known extension', () => {
   assert.deepEqual(files('process.argv holds the flags'), [])
 })
 
+// GROUP: fileext-order-and-lookahead
 test('does not split a .tsx filename into a .ts one', () => {
   // MUTATION: reorder FILE_EXT so "ts" precedes "tsx" AND remove FILE_RE's trailing
   // `(?![\w-])` lookahead — neither break alone reddens this test. With the lookahead intact,

@@ -162,18 +162,6 @@ export function compareResult(expectRed, failedNames) {
   return { status: 'MISMATCH', missing, unexpected }
 }
 
-/**
- * How many `MUTATION:` claims does this text make?
- *
- * The pattern is `MUTATION:` and NOT `// MUTATION:`. `code-style.md` §7 records the measurement:
- * "some claims sit mid-line after other prose and the narrower pattern silently misses them",
- * and that the two greps answer different questions. Narrowing this would under-count the
- * denominator of the coverage ratio — the one number this mode exists to produce.
- */
-export function countMutationClaims(text) {
-  return (String(text).match(/MUTATION:/g) ?? []).length
-}
-
 /** A test point opens on a line beginning `test(` or `it(`. */
 const TEST_LINE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(/
 /** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */

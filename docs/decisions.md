@@ -1992,8 +1992,8 @@ until it has no false positives is one that has stopped detecting.
 says the gap is NOT padded to zero, because "forcing the denominator down would launder the one
 number the mode exists to produce". This guard reports 0 anyway, and the difference is real but is
 not laundering. Its `notEncoded` entries divide into two kinds: the sentence in each suite's header that DESCRIBES
-the convention and happens to contain the token — prose about a claim, not a claim, and
-`countMutationClaims` matches the bare token either way — and breaks that ARE graded under another
+the convention and happens to contain the token — prose about a claim, not a claim, and the
+claim counter matches the bare token on any non-marker comment line either way — and breaks that ARE graded under another
 id, where a second entry would encode the same mutation twice. Re-derive the split with
 `--coverage` rather than trusting a number here; the data moves. So nothing ungraded is
 being hidden; the entries record why each counted token is not an outstanding claim.

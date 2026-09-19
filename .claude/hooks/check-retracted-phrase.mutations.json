@@ -389,13 +389,153 @@
         "a sibling in a different directory with the same filename is not dropped as self"
       ],
       "note": "Reachable only since the sibling-in-a-different-directory fixture was added. The odd-byte fixture cannot pin this break: its two paths differ in BASENAME (0xFE vs 0xFF), so a basename comparison still tells them apart and the mutation survives. That survival is what exposed the gap \u2014 the break was named by a comment and graded by nothing."
+    },
+    {
+      "id": "fileext-order-and-lookahead",
+      "find": "const FILE_EXT = ['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts', 'js', 'md', 'sh']\n\nconst FILE_RE = new RegExp(\n  // No leading word char, dot, @ or hyphen — that kills `v1.2` and the interior segments of a\n  // hostname like `www.example.md`, whose `example.md` is preceded by a dot. `/` is deliberately\n  // NOT excluded, so `docs/plan.md` reduces to the basename `plan.md`, which is both what a\n  // repo-wide grep wants and what the tracked-file comparison can resolve.\n  `(?<![\\\\w.@-])([A-Za-z0-9_][A-Za-z0-9_.-]*\\\\.(?:${FILE_EXT.join('|')}))(?![\\\\w-])`,",
+      "replace": "const FILE_EXT = ['ts', 'tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'js', 'md', 'sh']\n\nconst FILE_RE = new RegExp(\n  // No leading word char, dot, @ or hyphen — that kills `v1.2` and the interior segments of a\n  // hostname like `www.example.md`, whose `example.md` is preceded by a dot. `/` is deliberately\n  // NOT excluded, so `docs/plan.md` reduces to the basename `plan.md`, which is both what a\n  // repo-wide grep wants and what the tracked-file comparison can resolve.\n  `(?<![\\\\w.@-])([A-Za-z0-9_][A-Za-z0-9_.-]*\\\\.(?:${FILE_EXT.join('|')}))`,",
+      "expectRed": ["does not split a .tsx filename into a .ts one"],
+      "note": "The CONJUNCTION is the encodable break: ts-first ordering AND the trailing lookahead removed. Each half alone was measured on a detached HEAD worktree and left all four suites green (67/67 either way) — with the lookahead intact it rejects the short match and backtracks into `tsx`; with longest-first ordering the alternation picks `tsx` before the lookahead is consulted. Replacing the FILE_EXT line and the FILE_RE template in one `find` is what makes the pair expressible as a single mutation; this entry replaced a `notEncoded` row claiming it was not."
+    },
+    {
+      "id": "rarity-floor-zero",
+      "find": "others.length >= 1 && others.length <= 2",
+      "replace": "others.length >= 0 && others.length <= 2",
+      "expectRed": [
+        "a completed spec stays excluded in --base mode, exactly as at commit-msg",
+        "--base mode excludes a completed spec from a subdirectory too",
+        "a completed spec is still excluded when the guard runs from a subdirectory",
+        "passes once the correction is finished everywhere",
+        "does not count an agent-memory file as a surviving occurrence",
+        "a completed spec is not a surviving occurrence, a live one is",
+        "a longer number elsewhere is not counted as a surviving occurrence",
+        "a longer filename elsewhere is not counted as a surviving occurrence",
+        "a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep",
+        "a ticket reference elsewhere does not exonerate or survive a retraction"
+      ],
+      "note": "superset: a floor of 0 makes a COMPLETED retraction block its own commit, so every fixture asserting exit 0 reddens."
+    },
+    {
+      "id": "rarity-ceiling-removed",
+      "find": "others.length >= 1 && others.length <= 2",
+      "replace": "others.length >= 1",
+      "expectRed": ["a token surviving in three or more files is common vocabulary, not a claim"]
+    },
+    {
+      "id": "incorpus-drop-memory-prefix",
+      "find": "  if (path.startsWith(MEMORY_PREFIX)) return false\n",
+      "replace": "",
+      "expectRed": ["an agent-memory file quoting the old value does not exonerate the retraction"]
+    },
+    {
+      "id": "incorpus-drop-exact-root",
+      "find": "CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))",
+      "replace": "CORPUS.some((root) => root.endsWith('/') && path.startsWith(root))",
+      "expectRed": ["CLAUDE.md counts as a surviving corpus file (exact-match root entry)"]
+    },
+    {
+      "id": "addedtext-include-memory",
+      "find": "    if (inCorpus(entry.path)) {",
+      "replace": "    if (true) {",
+      "expectRed": [
+        "an agent-memory file quoting the old value does not exonerate the retraction",
+        "a token re-added only in application code does not exonerate a corpus retraction"
+      ],
+      "note": "superset: accumulating every entry also pulls the app-code fixture’s added line into addedText, exonerating that retraction too."
+    },
+    {
+      "id": "addedtext-any-non-memory-entry",
+      "find": "    if (inCorpus(entry.path)) {",
+      "replace": "    if (!entry.path.startsWith(MEMORY_PREFIX)) {",
+      "expectRed": [
+        "a token re-added only in application code does not exonerate a corpus retraction"
+      ]
+    },
+    {
+      "id": "waiver-any-trailer-clears",
+      "find": "if (waivers.has(c.token)) continue",
+      "replace": "if (waivers.size > 0) continue",
+      "expectRed": ["a waiver naming a different token does not clear the finding"]
+    },
+    {
+      "id": "grepscope-drop-cached",
+      "find": "(ref === '--cached' ? ['--cached'] : [ref])",
+      "replace": "(ref === '--cached' ? [] : [ref])",
+      "expectRed": ["grades the INDEX, not the working tree"]
+    },
+    {
+      "id": "raw-rename-consumes-one-path",
+      "find": "const pathCount = status === 'R' || status === 'C' ? 2 : 1",
+      "replace": "const pathCount = 1",
+      "expectRed": ["a rename in the same commit does not desync the path stream"]
+    },
+    {
+      "id": "corpus-widened-to-app-code",
+      "find": "const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']",
+      "replace": "const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/', 'apps/']",
+      "expectRed": [
+        "application code is out of scope on both sides",
+        "a token re-added only in application code does not exonerate a corpus retraction"
+      ],
+      "note": "superset: widening CORPUS puts the app-code fixture’s added line into addedText as well, so the re-added check exonerates it."
+    },
+    {
+      "id": "drop-readded-exoneration",
+      "find": "        if (reAdded(c.token, c.kind, addedText)) continue\n",
+      "replace": "",
+      "expectRed": ["a token re-added elsewhere in the same commit was reworded, not retracted"]
+    },
+    {
+      "id": "fold-could-not-run-into-finding",
+      "find": "    exit(2)\n",
+      "replace": "    exit(1)\n",
+      "expectRed": ["reports a usage error as could-not-run, never as a finding"]
+    },
+    {
+      "id": "drop-completed-spec-exclusion",
+      "find": "  for (const dir of completedSpecDirs(ref)) specs.push(`:(top,exclude)${dir}/`)\n",
+      "replace": "",
+      "expectRed": [
+        "a completed spec stays excluded in --base mode, exactly as at commit-msg",
+        "--base mode excludes a completed spec from a subdirectory too",
+        "a completed spec is still excluded when the guard runs from a subdirectory",
+        "a completed spec is not a surviving occurrence, a live one is"
+      ],
+      "note": "superset: the three --base and subdirectory fixtures assert the same exclusion from their own invocation modes."
+    },
+    {
+      "id": "survivors-bare-substring-pattern",
+      "find": "  const pattern =\n    kind === 'value'\n      ? `(?:#|PR\\\\s*#?|issues?\\\\s+#?|pull/|issues?/|GH-|mig(?:ration)?\\\\s+)\\\\s*${body}(*SKIP)(*FAIL)|(?<![0-9A-Za-z_$#.-])${body}(?![0-9A-Za-z_.])`\n      : `(?<![\\\\w.@-])${body}(?![\\\\w-])`",
+      "replace": "  const pattern = body",
+      "expectRed": [
+        "a longer number elsewhere is not counted as a surviving occurrence",
+        "a longer filename elsewhere is not counted as a surviving occurrence",
+        "a ticket reference elsewhere does not exonerate or survive a retraction"
+      ],
+      "note": "superset: one bare -F substring match breaks the numeric, filename and ticket-reference boundary fixtures together."
+    },
+    {
+      "id": "survivors-drop-skip-fail-alternation",
+      "find": "`(?:#|PR\\\\s*#?|issues?\\\\s+#?|pull/|issues?/|GH-|mig(?:ration)?\\\\s+)\\\\s*${body}(*SKIP)(*FAIL)|",
+      "replace": "`",
+      "expectRed": ["a ticket reference elsewhere does not exonerate or survive a retraction"]
+    },
+    {
+      "id": "survivors-drop-escapere",
+      "find": "const body = escapeRe(token)",
+      "replace": "const body = token",
+      "expectRed": [
+        "a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep"
+      ]
+    },
+    {
+      "id": "drop-gitlink-skip",
+      "find": "  if (entry.srcMode === GITLINK_MODE || entry.dstMode === GITLINK_MODE) return []\n",
+      "replace": "",
+      "expectRed": ["a submodule pointer does not abort the run"]
     }
   ],
   "notEncoded": [
-    {
-      "claim": "reorder FILE_EXT so \"ts\" precedes \"tsx\" → \"quiz-config-form.tsx\" matches as \"quiz-config-form.ts\", a file that may not exist, inverting the existence tier's verdict. (check-retracted-phrase.test.mjs, test \"does not split a .tsx filename into a .ts one\")",
-      "why": "SURVIVED — the comment overclaims. Applying exactly that reorder (FILE_EXT = [ts, tsx, jsx, ...]) leaves all four suites green: 31/31 and 34/34 pass. FILE_RE's trailing lookahead (?![\\w-]) independently rejects the \".ts\" partial match and forces the regex to backtrack into \"tsx\". Removing the lookahead ALONE is also green, because longest-first ordering then does the work. The test is pinned only by the CONJUNCTION: removing both (ts-first order AND the lookahead) is the one edit that reddens it, and reddens exactly it. (The source comment that carried the same overclaim was CORRECTED on this branch; the quote is not repeated here so it cannot outlive the fix.)"
-    },
     {
       "claim": "remove escapeRe from reAdded → the dot in 'plan.md' becomes a regex wildcard; 'planXmd' satisfies both boundaries and the retraction is falsely exonerated. (check-retracted-phrase.test.mjs, test \"reAdded: a dot inside a filename token is treated as a literal character, not a wildcard\")",
       "why": "NARROWED twice. The original rationale said no find/replace exists — wrong; the harness replaces arbitrary source text. The second wording then claimed the boundary-keeping RegExp break 'IS encodable and is pinned by that test', which was ALSO wrong: it was encodable and NOT encoded, so the dot-literal test was graded by nothing while this field asserted otherwise. Found by CR-local round 4 and now closed — the break is encoded as `readded-unescaped-boundary-regexp`, verified CAUGHT with that test as its exact red set. What remains genuinely not encodable is the claim AS THE COMMENT WORDS IT: 'remove escapeRe from reAdded' names a mechanism reAdded does not contain, because it builds no regex at all and delegates to tokensOf. A field whose job is to be honest about coverage carried a false coverage claim through two rewrites; that is the defect this guard exists to catch."

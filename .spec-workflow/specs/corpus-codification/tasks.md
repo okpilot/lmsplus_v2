@@ -412,6 +412,10 @@ Two clauses that make the table survive contact:
 - [ ] "New Supabase Query Sites Require an Integration Test (HARD, #925)" — its own slice;
       needs `.from()`/`.rpc()` detection and has ~40 known-uncovered sites (#926).
 - [ ] Retrofit slice 1's guard onto the shared harness — ONLY after slice 2 proves it.
+- [ ] Parallelise the mutation harness — `modeRun` is a sequential `for`, one `git worktree
+      add`/`remove` per mutation, so the run is serialisable. Derive both sides before deciding:
+      `time node .claude/hooks/run-mutations.mjs`
+      `grep -n 'timeout-minutes' .github/workflows/ci.yml`
 
 ## Slice N — the 22 remaining contradictions
 
