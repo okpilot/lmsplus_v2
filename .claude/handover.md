@@ -33,7 +33,7 @@ Two directions:
 
 The only thing that reliably caught either was **executing a command against source**. Prose review
 did not: five fail-opens in an eight-line bash snippet survived four internal agents and were found
-by CR-local and by running it.
+by running it.
 
 ## 3. Measured evidence (2026-08-25)
 
@@ -68,7 +68,7 @@ Re-derive rather than trust these; commands are in the session transcript.
 5. Never fired on product code
 
 **Keep:** `security.md` (12/13 product-load-bearing — best density in the corpus), `code-style.md`
-§5/§6/§7/§10, `agent-coderabbit-local.md` Common Pitfalls (9/9).
+§5/§6/§7/§10, `agent-coderabbit.md` Common Pitfalls (9/9).
 
 **Cut first:** rule-file footers, `docs/plan.md`'s header line, tracker per-instance narration
 (keep `pattern │ count │ status │ promoted-to`), `agent-workflow.md`'s unfired process rules,

@@ -140,12 +140,13 @@ done
 
 An unplanned grep reached 14 files. A delegated impact analysis against the pre-change ref found
 the rest, and the gate's own rounds found two more. The classes a grep cannot reach: the `.sh`
-executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator), a
+executable mirror (`cr-local-plan-reminder.sh` PRINTED the reviewer list to the operator), a
 steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
 Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
 
 **RETIRE CR-local entirely** — user decision 2026-09-19, superseding Decision 74's round-1
-scoping. Round 1 goes from six members to five. Cloud CodeRabbit stays until the subscription
+scoping. Round 1 keeps six members: `code-review (skill)` — the built-in `/code-review` skill,
+dispatched forked, round 1 only — takes the vacated slot. Cloud CodeRabbit stays until the subscription
 lapses, so `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope. Driver:
 a blind `/code-review` run over #1315's range, in an isolated worktree with no PR access, matched
 all four of cloud CR's Major findings and raised five it did not.
@@ -166,8 +167,8 @@ grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
    `grep -rniE '\bsix\b' CLAUDE.md .claude/rules .claude/commands`.
 2. **A guard's own worked example.** `check-prose-paths.mjs` names the rules file being deleted in
    a source comment; the deletion makes that comment false (§10).
-3. **The executable mirror.** `cr-local-plan-reminder.sh` PRINTS the round's reviewer list to the
-   operator and is wired in `.claude/settings.json`. Not `.md`, so a doc-shaped sweep misses it.
+3. **The executable mirror.** `cr-local-plan-reminder.sh` PRINTED the round's reviewer list to the
+   operator and was wired in `.claude/settings.json`. Not `.md`, so a doc-shaped sweep missed it.
 
 Checked clean: no `limits.json` or `prose-claims.json` baseline row covers a deletion target.
 Open before editing: whether `ci.yml`'s hits are the local CLI or the cloud app.

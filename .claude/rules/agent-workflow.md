@@ -101,7 +101,7 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage and the learner's counts.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Six agents run concurrently in round 1 — this is the gate's sharpest edge.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs six concurrently — this is the gate's sharpest edge. `code-review (skill)` dispatches FORKED into its own worktree, so its writes never reach this tree; the other five are the collision set.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
@@ -116,8 +116,10 @@ Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolutio
 Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
-         + test-writer + CR-local — ONE parallel batch, all on the branch diff
-ROUND 2+ code-reviewer + semantic-reviewer — CR-local is ROUND 1 ONLY
+         + test-writer + code-review (skill) — ONE parallel batch, all on the
+         branch diff.  code-review (skill) is the built-in /code-review skill,
+         dispatched forked, round 1 only.
+ROUND 2+ code-reviewer + semantic-reviewer — code-review (skill) is ROUND 1 ONLY
          (doc-updater and test-writer PRODUCE, they do not gate — re-run one only
           when the fixup added surface it has not seen)
     ▼
@@ -288,7 +290,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
 | `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
-| `.claude/hooks/*.sh` | **executable mirrors** — `cr-local-plan-reminder.sh` prints the round's reviewer list on every `coderabbit review` (PostToolUse). Not `.md`, so doc-shaped greps miss them |
+| `.claude/hooks/*.sh` | **executable mirrors** — `run-security-auditor.sh` pins the auditor's `--model` sonnet literal, a restatement of the `agent-critic.md` model-tier rule that `.claude/pipeline.json` `modelLiteralSites` asserts. Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |
 | any OTHER binding doc that re-states the mechanics — notably `docs/database.md` | a CLASS, not a path. Enumerate by asking "what else asserts this claim?" |
 
@@ -420,7 +422,7 @@ Fix: [what to include next time]
 ```
 
 ### Gate reviewer agent integration
-For the gate's reviewers, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
+For the gate's reviewer AGENTS, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
 - Log delegation failures and improve future prompts.

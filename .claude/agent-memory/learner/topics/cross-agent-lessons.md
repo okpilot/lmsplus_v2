@@ -703,9 +703,9 @@ previous round had just rewritten, and true as written).
   a script or fixture, so the proof is unrepeatable and unverifiable by a future reader without
   re-deriving it from prose. Contrast with `.claude/hooks/*.sh` guards, which get a co-located
   `*.test.sh` per `.claude/agent-memory/test-writer/MEMORY.md`'s documented pattern (confirmed this
-  cycle: `.claude/hooks/cr-local-plan-reminder.test.sh` exists, is maintained, and is wired into
-  neither `ci.yml` nor `lefthook.yml` — but it is at least a committed, re-runnable artifact,
-  invoked manually when the hook changes). Workflow-YAML `run:` blocks have no such artifact at all,
+  cycle: the `cr-local-plan-reminder.sh` guard carried a maintained co-located `*.test.sh` wired
+  into neither `ci.yml` nor `lefthook.yml` — but it was at least a committed, re-runnable artifact,
+  invoked manually when the hook changed). Workflow-YAML `run:` blocks have no such artifact at all,
   on-demand or otherwise — the harness lives only in the PR description of whichever commit last
   touched the block. Pre-existing gap, not introduced by this branch. Watching for a 2nd occurrence
   (another workflow-YAML shell change proved only via a commit-message narrative, not a committed

@@ -142,7 +142,6 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
 │   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
-│   ├── cr-local-plan-reminder.sh ← PostToolUse Bash: reminder to run crlocal
 │   └── on-stop.sh           ← Stop: biome format + vitest
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
@@ -1378,8 +1377,8 @@ renames to M; they are the same number, and the rename is part of the fix.) On P
 nothing about the code: across two rounds and four agents there were ZERO code defects, and every
 finding was inaccurate prose.
 
-**Decision.** Adopt the mechanic CR-local settled on (`agent-coderabbit-local.md § Stop
-Conditions`). CR-local is precedent rather than a counter-example: it shipped the same resetting
+**Decision.** Adopt the mechanic CR-local settled on. CR-local is precedent rather than a
+counter-example: it shipped the same resetting
 counter on 2026-06-18 (`ddf5f647`) and replaced it with extend-by-one on 2026-06-23 (`27d6df94`),
 against the same stuck-loop class — though for a DIFFERENT stated reason: CR-local argued that a
 local stability proof is unnecessary because cloud CR is the authoritative gate, where this
@@ -1398,7 +1397,7 @@ touch of a security path still raises the floor, and that is intended.
 
 **Consequence.** The floor/ceiling interaction is now stated wherever both numbers appear, so the
 next PR that hits it does not re-derive the unreachability. Mirrors updated: `agent-critic.md`,
-`agent-workflow.md`, `.claude/agents/plan-critic.md`, `.claude/commands/crlocal.md`.
+`agent-workflow.md`, `.claude/agents/plan-critic.md`.
 
 > **Annotation 2026-09-17 (Decision 73):** extend-by-one survives and is now the gate's only round
 > mechanic. The minimum M does not: the pre-push loop stops on the FIRST round with no APPLY-worthy
@@ -1472,8 +1471,8 @@ resolved by me.
 **Still open, deliberately.** The policy contradictions this entry left for a human call are SETTLED
 in Decision 63, which also settles two it never recorded: `security-auditor`'s MEDIUM disposition,
 and the implementation-critic/agent-memory regress. Still open: several
-`.claude/commands/*.md` restate the security paths declared in `.claude/pipeline.json`, and
-`crlocal.md` the round floors, with no link to the spec — derive the current set with
+`.claude/commands/*.md` restate the security paths declared in `.claude/pipeline.json`,
+with no link to the spec — derive the current set with
 `grep -rln 'proxy\.ts' .claude/commands/`; `proxy.ts` marks a FULL restatement, so that grep
 under-reports any file restating only PART of the set — `autonomerge.md` names
 `supabase/migrations/**` for the prod-deploy gate and is correctly not one. They agree today; nothing keeps them agreeing.
@@ -2221,6 +2220,8 @@ round whose findings are ALL skipped-with-reason and produces no commit.
 
 ## Decision 74: CR-local runs in ROUND 1 only, not every round (2026-09-17)
 
+*(Superseded 2026-09-19 by Decision 77 — CR-local is retired entirely. The evidence below stands; the round-1 membership it establishes no longer does.)*
+
 **Decision.** CR-local (`/crlocal`) is a member of round 1 of the pre-push review gate and no later
 round. Rounds 2+ are code-reviewer + semantic-reviewer. Supersedes the round-membership clause of
 Decision 73; every other part of 73 stands.
@@ -2298,3 +2299,45 @@ the bar is the same one applied here, and the same script measures it. Any narro
 inherits the squash problem above — narrowing lowers the noise, it does not make the pair visible.
 
 Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --head 41aabab9`.
+
+## Decision 77: CR-local is retired; the built-in `/code-review` skill takes its round-1 slot (2026-09-19)
+
+**Decision.** The CodeRabbit local CLI leaves the pre-push review gate and the rules corpus. Round 1
+stays SIX: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and
+`code-review (skill)` — the built-in `/code-review` skill, dispatched forked. Supersedes Decision
+74's round-1 membership; 74's yield evidence stands. Cloud CodeRabbit is untouched and remains the
+authoritative external gate.
+
+**Evidence.** A blind run of the skill over #1315's range (`4125cd1f...a23638c8`), in an isolated
+worktree with no PR or `gh` access, reproduced every Major finding cloud CR raised on that PR and
+added findings cloud CR did not — an unordered `.limit(1)`, a stale migration citation, and a
+discard test whose `buildChain` Proxy made it pass with the mechanism removed. That single run
+settles both halves: a local reviewer running the SAME engine as the authoritative one was paying
+for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one missed.
+Re-derive both sides:
+
+```bash
+gh api graphql -f query='query{repository(owner:"okpilot",name:"lmsplus_v2"){pullRequest(number:1315){reviewThreads(first:100){totalCount nodes{path isResolved}}}}}'
+# and re-run the skill against the same range
+```
+
+**Scope of the new member.** Round 1 only. Decision 74's 58%/19%/11% decay was measured on CR-local,
+and no equivalent run exists for this skill — round 1 is the conservative default, not a measured
+result. Widening it needs its own measurement.
+
+**Not a pipeline agent.** `.claude/pipeline.test.mjs` asserts bidirectional closure between
+`pipeline.json` `agents` and the files in `.claude/agents/`, plus a hardcoded core roster. A skill
+has no agent-definition file, so declaring it would break both assertions. CR-local was absent from
+`pipeline.json` for the same reason. `pipeline.json` and `pipeline.test.mjs` are unchanged, and that
+test passing untouched is the proof.
+
+**Forked dispatch reports as prose.** `ReportFindings` may be unavailable in a forked worktree; the
+findings then arrive in the agent's terminal message. Recorded so a future run does not read a
+missing tool as a failed gate. Observed behaviour, not a contract.
+
+**Consequence.** `agent-coderabbit-local.md` is RENAMED to `agent-coderabbit.md`, not deleted — its
+§ Verify Before Acting claim-shape table and its Common Pitfalls describe how CodeRabbit errs, and
+both still bind for the cloud reviewer. Cloud CR findings land after the gate has ended, so they
+reach a LATER branch's learner run, on the same terms as red-team and coderabbit-sync. The new
+member runs pre-push, so its findings are ordinary input to the learner of the branch that produced
+them.

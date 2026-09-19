@@ -1073,8 +1073,8 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
          separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
          everywhere by design)
-        6. CR-local — /crlocal on the same diff
-        round 2+: code-reviewer + semantic-reviewer (CR-local is round 1 only)
+        6. code-review (skill) — the built-in `/code-review` skill, dispatched forked, round 1 only
+        round 2+: code-reviewer + semantic-reviewer
     → Pool every validated finding into ONE triage table and ONE fixup commit, which
       carries every agent-authored artifact too — test-writer's new tests
       (agent-test-writer.md) and any memory/tracker delta (agent-memory.md forbids
@@ -1085,7 +1085,7 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         then ONCE per branch, in this order:
         7. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes every round's
-           findings, including round 1's CR-local triage table
+           findings
         conditionals, after the learner:
         8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
         9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
@@ -1575,7 +1575,7 @@ legs question and the turns question using disjoint zone sets.
 > is a CONTENT-QUALITY rule, not a defence against guessing the graded draw: `get_quiz_questions`
 > (latest def `20260702000300`) and `get_vfr_rt_exam_questions` (latest def `20260623000600`) both
 > project MC options `ORDER BY random()` — both traced through `DROP FUNCTION`+`CREATE` as well as
-> `CREATE OR REPLACE`, since `agent-coderabbit-local.md` records a prior incident where a
+> `CREATE OR REPLACE`, since `agent-coderabbit.md` records a prior incident where a
 > superseded `get_quiz_questions` body was read as current — so a stored id's
 > on-screen position is re-rolled on every fetch and the skew is not exploitable there. The skew
 > IS visible wherever options render in AUTHORED order — Study Mode, the post-session report, and
