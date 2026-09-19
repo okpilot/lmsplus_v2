@@ -34,6 +34,27 @@ function buildChain(returnValue: unknown): unknown {
   })
 }
 
+/** buildChain variant recording each chained call, to pin the mutation VERB. */
+function buildRecordingChain(
+  returnValue: unknown,
+  calls: Array<{ method: string; args: unknown[] }>,
+): unknown {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (...args: unknown[]) => {
+        calls.push({ method: String(prop), args })
+        return buildRecordingChain(returnValue, calls)
+      }
+    },
+  })
+}
+
 const adminMock = { from: mockFrom } as unknown as Parameters<typeof cleanupFixtures>[0]
 
 beforeEach(() => {
@@ -93,15 +114,21 @@ describe('cleanupFixtures — soft-delete paths', () => {
     expect(tracker.flags.size).toBe(0)
   })
 
-  it('soft-deletes question_comments when the set is populated', async () => {
+  it('hard-deletes question_comments when the set is populated', async () => {
     const tracker = createFixtureTracker()
     tracker.comments.add('comment-1')
 
-    mockFrom.mockReturnValueOnce(buildChain({ data: [{ id: 'comment-1' }], error: null }))
+    const calls: Array<{ method: string; args: unknown[] }> = []
+    mockFrom.mockReturnValueOnce(
+      buildRecordingChain({ data: [{ id: 'comment-1' }], error: null }, calls),
+    )
 
     await cleanupFixtures(adminMock, tracker)
 
     expect(mockFrom).toHaveBeenCalledWith('question_comments')
+    // docs/database.md §3: question_comments is hard-delete-by-design. A table-only
+    // assertion passes on the soft-delete this replaced, so pin the verb.
+    expect(calls.map((c) => c.method)).toEqual(['delete', 'in', 'select'])
     expect(tracker.comments.size).toBe(0)
   })
 })

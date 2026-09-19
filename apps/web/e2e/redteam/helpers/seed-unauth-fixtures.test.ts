@@ -12,6 +12,7 @@ const mockFrom = vi.hoisted(() => vi.fn())
 const mockSeedRedTeamUsers = vi.hoisted(() => vi.fn())
 const mockPickSubjectWithQuestions = vi.hoisted(() => vi.fn())
 const mockSeedVictimCompletedSession = vi.hoisted(() => vi.fn())
+const mockCleanupFixtures = vi.hoisted(() => vi.fn())
 
 vi.mock('../../helpers/supabase', () => ({
   getAdminClient: () => ({ from: mockFrom }),
@@ -36,6 +37,13 @@ vi.mock('./seed-quiz', () => ({
 
 vi.mock('./seed-victim-session', () => ({
   seedVictimCompletedSession: mockSeedVictimCompletedSession,
+}))
+
+// Partial mock: createFixtureTracker stays real so the tracker under assertion
+// is the same object the helper populates.
+vi.mock('./cleanup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./cleanup')>()),
+  cleanupFixtures: mockCleanupFixtures,
 }))
 
 import type { getAdminClient } from '../../helpers/supabase'
@@ -137,7 +145,7 @@ describe('seedUnauthFixtures', () => {
   })
 
   describe('fallback / no-op silence', () => {
-    it('uses the sentinel UUID for knownSessionId when quiz_sessions returns no rows', async () => {
+    it('falls back to the seeded victim session when no pre-existing session exists', async () => {
       setupCommonMocks()
 
       mockFrom
@@ -148,7 +156,8 @@ describe('seedUnauthFixtures', () => {
 
       const result = await seedUnauthFixtures(adminMock)
 
-      expect(result.knownSessionId).toBe('00000000-0000-4000-a000-000000000001')
+      // No invented id: on a clean DB this is the session seedVictimCompletedSession made.
+      expect(result.knownSessionId).toBe(VICTIM_SESSION_ID)
     })
 
     it('refuses to seed when no active question exists rather than inventing an id', async () => {
@@ -159,6 +168,44 @@ describe('seedUnauthFixtures', () => {
         .mockReturnValueOnce(buildChain({ data: [], error: null })) // empty questions
 
       await expect(seedUnauthFixtures(adminMock)).rejects.toThrow(/no active question found/)
+    })
+  })
+
+  describe('failure atomicity', () => {
+    it('cleans the rows it already tracked when a later seeding step throws', async () => {
+      setupCommonMocks()
+      mockSeedVictimCompletedSession.mockRejectedValue(new Error('victim session boom'))
+
+      mockFrom
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'q-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: { id: 'c-1' }, error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ question_id: 'q-1' }], error: null }))
+
+      await expect(seedUnauthFixtures(adminMock)).rejects.toThrow(/victim session boom/)
+
+      // The caller never receives the tracker on a throw, so afterAll cannot
+      // clean these — the helper has to do it before rethrowing.
+      expect(mockCleanupFixtures).toHaveBeenCalledTimes(1)
+      const tracked = mockCleanupFixtures.mock.calls[0]?.[1] as { comments: Set<string> }
+      expect(tracked.comments.has('c-1')).toBe(true)
+    })
+
+    it('rethrows the seeding failure even when the cleanup itself fails', async () => {
+      setupCommonMocks()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockSeedVictimCompletedSession.mockRejectedValue(new Error('victim session boom'))
+      mockCleanupFixtures.mockRejectedValue(new Error('cleanup boom'))
+
+      mockFrom
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'q-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: { id: 'c-1' }, error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ question_id: 'q-1' }], error: null }))
+
+      // The seeding failure is the diagnostic; a cleanup failure must not mask it.
+      await expect(seedUnauthFixtures(adminMock)).rejects.toThrow(/victim session boom/)
+      expect(errorSpy).toHaveBeenCalled()
     })
   })
 

@@ -45,7 +45,14 @@ export async function seedVictimCompletedSession(
     // tracker, so afterAll cannot clean it. The single-active-session guard
     // (docs/security.md §11d) would then raise `another_session_active` on every
     // later run. Soft-delete clears the guard's `deleted_at IS NULL` term.
-    await discardSeedSession(adminClient, seedSessionId)
+    try {
+      await discardSeedSession(adminClient, seedSessionId)
+    } catch (discardErr) {
+      // Both failures matter: the submit failure explains the seed, the discard
+      // failure explains why `another_session_active` will fire on the next run.
+      // `message` stays the submit failure's so callers can still match on it.
+      throw new AggregateError([e, discardErr], e instanceof Error ? e.message : String(e))
+    }
     throw e
   }
   return seedSessionId
@@ -77,7 +84,7 @@ async function startVictimSession(
   return seedSessionId
 }
 
-/** Best-effort soft-delete of a half-seeded session; never masks the original failure. */
+/** Soft-delete a half-seeded session. Throws on failure; the caller composes both errors. */
 async function discardSeedSession(adminClient: AdminClient, sessionId: string): Promise<void> {
   const { data, error } = await adminClient
     .from('quiz_sessions')
@@ -86,11 +93,7 @@ async function discardSeedSession(adminClient: AdminClient, sessionId: string): 
     .is('deleted_at', null)
     .select('id')
   if (error) {
-    console.error(
-      `[unauth seed] failed to discard half-seeded session ${sessionId}:`,
-      error.message,
-    )
-    return
+    throw new Error(`unauth seed: failed to discard session ${sessionId}: ${error.message}`)
   }
   if ((data?.length ?? 0) > 0) {
     console.log(`[unauth seed] discarded ${data?.length} half-seeded session(s)`)

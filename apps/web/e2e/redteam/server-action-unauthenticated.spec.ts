@@ -73,7 +73,16 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_response_time_ms: 1000,
     })
 
-    expect(error).not.toBeNull()
+    // Assert the rejection is an AUTH rejection, not merely some error: a bare
+    // `error != null` also passes on a misspelled RPC name (PGRST202) or a
+    // missing session, so it would not notice the auth guard disappearing.
+    // Two spellings are accepted because the rejecting layer differs by
+    // environment: the GRANT (`authenticated` only) raises 42501 "permission
+    // denied", while a role holding EXECUTE reaches the body's
+    // `RAISE EXCEPTION 'not authenticated'` (P0001). Local grants drift
+    // additively via fix-local-grants.sql, so the local layer is NOT evidence
+    // of production's — measured P0001 locally 2026-09-19.
+    expect(error?.message ?? '').toMatch(/not authenticated|permission denied/i)
     expect(data).toBeNull()
   })
 
