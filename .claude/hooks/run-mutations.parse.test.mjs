@@ -223,3 +223,16 @@ test('counts every claim on a line, not one per claiming line', () => {
   )
   assert.equal(parsed.tests[0].claims, 2)
 })
+
+// GROUP: claims-skip-marker-lines
+test('a GROUP marker line is never also counted as a claim, even when it contains MUTATION:', () => {
+  // MUTATION: remove the `if (markerLines.has(i)) continue` guard from scanClaims -> the marker
+  // line below passes the /^\s*\/\// comment check AND matches MUTATION:, so claims becomes 1
+  // instead of 0, inflating the denominator.
+  const parsed = parseSuite(
+    ['// GROUP: narrow-mutation-grep MUTATION: not a claim', "test('behaves', () => {})", ''].join(
+      '\n',
+    ),
+  )
+  assert.equal(parsed.tests[0].claims, 0)
+})

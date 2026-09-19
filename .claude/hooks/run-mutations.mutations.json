@@ -484,6 +484,12 @@
       ]
     },
     {
+      "id": "claims-skip-marker-lines",
+      "find": "    if (markerLines.has(i)) continue\n",
+      "replace": "",
+      "expectRed": ["__DERIVE__"]
+    },
+    {
       "id": "claims-scan-every-line",
       "find": "    if (!/^\\s*\\/\\//.test(lines[i])) continue\n",
       "replace": "",
