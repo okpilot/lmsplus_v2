@@ -275,6 +275,39 @@ Ordering and contents in the artifact above. Not started.
 - [ ] W10 admin polish — PR 35 (#1223+#854+#888) · PR 36 (#720+#894) · PR 37 (#1033+#1040) · PR 38 (#542)
 - [ ] W11 large / decision-gated — PR 39 (#1165) · PR 40 (#1026) · PR 41 (#1106) · PR 42 (#558) · PR 43 (#403)
 
+## Red-team seeding follow-up — NEXT, not started
+
+Sequenced out of PR #1315 (squash `5f61d215`, 2026-09-19), not deferred. Cloud CodeRabbit raised 9
+findings; 6 applied there, these 3 held back as a separate risk surface. CR accepted the split
+in-thread and keeps its three threads open against this work. 0 issues filed. Branch off `master`
+— all three files landed with #1315.
+
+- [ ] `seedUnauthFixtures` is not failure-atomic. Both callers assign `tracker` only after it
+      resolves, so a throw in `seedVictimOwnedRows`/`seedVictimCompletedSession` leaks the comment
+      and flag rows with nothing to clean them. Wrap the tracked flow; call
+      `cleanupFixtures(adminClient, tracker)` before rethrowing. Pairs with making
+      `discardSeedSession` propagate its own failure alongside the original submit failure in
+      `apps/web/e2e/redteam/helpers/seed-victim-session.ts`, asserting both stay observable.
+      Thread: https://github.com/okpilot/lmsplus_v2/pull/1315#discussion_r4052226857
+- [ ] `lookupSeedIds` fabricates `knownSessionId`. `apps/web/scripts/seed-e2e.ts` seeds no
+      `quiz_sessions` rows, so after a clean reset + seed the sentinel UUID is what the unauth RPC
+      test probes — a missing-session error then satisfies an assertion meant to prove the auth
+      guard (code-style.md §7, "a SECOND guard reaches the same result first"). Do NOT throw on an
+      empty lookup: that breaks clean-DB seeding for the same reason. Fall back to the session
+      `seedVictimCompletedSession` creates, and tighten
+      `apps/web/e2e/redteam/server-action-unauthenticated.spec.ts` to require the auth error.
+      Thread: https://github.com/okpilot/lmsplus_v2/pull/1315#discussion_r4052226860
+- [ ] `cleanupFixtures` soft-deletes `question_comments`. `docs/database.md` line 834 mandates hard
+      DELETE ("explicit exception — low audit value"), and
+      `grep -rn 'REFERENCES question_comments' supabase/migrations/` returns nothing, so no FK child
+      requires the soft form. `apps/web/e2e/redteam/helpers/cleanup.ts` documents the branch as
+      `soft-delete ... FK-parent`, contradicting §3. Switch to `.delete()`, update the helper tests.
+      This is the blast-radius member — the helper is shared by every red-team spec routing through
+      `cleanupFixtures` — and is why the split was drawn here rather than around it.
+      Thread: https://github.com/okpilot/lmsplus_v2/pull/1315#discussion_r4052226879
+
+Gate: `pnpm --filter @repo/web e2e:redteam` (376 passed / 1 skipped at `ed6c4ba4`).
+
 ## Open decisions blocking scheduled work
 
 - [ ] #1216 Part 3 exam blueprint — gates PR 19
