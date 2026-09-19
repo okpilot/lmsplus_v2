@@ -2352,10 +2352,11 @@ test passing untouched is the proof.
 **Dispatch traps, both found by the member's first gate run.** The isolated worktree is cut at
 `origin/master`, NOT at the branch tip, so `git diff origin/master...HEAD` resolves to ZERO paths
 inside it while the branch carries commits — and the gate aborts only on a non-zero exit code,
-never on an empty result, so the member returns clean having read nothing. Pass the branch tip
-explicitly and abort on an empty range. Separately, `ReportFindings` may be unavailable in a forked
-worktree; the findings then arrive as prose in the agent's terminal message. Observed behaviour,
-not a contract.
+never on an empty result, so the member returns clean having read nothing. Pass the branch tip and
+the pathspec explicitly; on an empty range diagnose rather than abort, and never record a clean
+round either way — `agent-code-review.md § Dispatch` carries the current protocol. Separately,
+`ReportFindings` may be unavailable in the worktree; the findings then arrive as prose in the
+agent's terminal message. Observed behaviour, not a contract.
 
 **Consequence.** `agent-coderabbit-local.md` is RENAMED to `agent-coderabbit.md`, not deleted — its
 § Verify Before Acting claim-shape table and its Common Pitfalls describe how CodeRabbit errs, and
