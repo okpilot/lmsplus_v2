@@ -143,7 +143,7 @@ describe('seedUnauthFixtures', () => {
       expect(tracker.sessions.has(VICTIM_SESSION_ID)).toBe(true)
     })
 
-    it('does not call cleanupFixtures when seeding succeeds', async () => {
+    it('retains the seeded fixtures when seeding succeeds', async () => {
       // MUTATION: change `catch` to `finally` in seedTrackedRows — cleanupFixtures
       // would fire on success, destroying the fixtures the specs depend on.
       setupCommonMocks()
@@ -188,7 +188,7 @@ describe('seedUnauthFixtures', () => {
   })
 
   describe('failure atomicity', () => {
-    it('calls cleanupFixtures with only the partial tracker when the first seeding step throws mid-way', async () => {
+    it('removes only the rows already seeded when the first seeding step fails', async () => {
       // MUTATION: move `seedVictimOwnedRows` outside the try block in seedTrackedRows —
       // a throw from step 1 would bypass the catch and leak the partially-tracked rows.
       // Distinguishing fixture: flag upsert fails AFTER comment was added to the tracker,
@@ -216,7 +216,7 @@ describe('seedUnauthFixtures', () => {
       expect(tracked.flags.size).toBe(0)
     })
 
-    it('cleans the rows it already tracked when a later seeding step throws', async () => {
+    it('removes the earlier rows when the session seeding step fails', async () => {
       setupCommonMocks()
       mockSeedVictimCompletedSession.mockRejectedValue(new Error('victim session boom'))
 

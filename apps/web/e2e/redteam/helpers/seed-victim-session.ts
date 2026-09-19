@@ -49,10 +49,11 @@ export async function seedVictimCompletedSession(
 /**
  * Soft-delete the half-seeded session, then return the error the caller throws.
  *
- * The session is open (`ended_at IS NULL`) and the spec-level caller never
- * receives the tracker, so afterAll cannot clean it. The single-active-session
- * guard (docs/security.md §11d) would then raise `another_session_active` on
- * every later run. Soft-delete clears the guard's `deleted_at IS NULL` term.
+ * The session is open (`ended_at IS NULL`), so it stays eligible for the
+ * single-active-session guard (docs/security.md §11d) and would raise
+ * `another_session_active` on every later run. Soft-delete clears the guard's
+ * `deleted_at IS NULL` term here, at the point of failure, rather than relying
+ * on a caller's cleanup path having run.
  */
 async function composeSeedFailure(
   adminClient: AdminClient,
