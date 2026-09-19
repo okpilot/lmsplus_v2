@@ -487,7 +487,9 @@
       "id": "claims-skip-marker-lines",
       "find": "    if (markerLines.has(i)) continue\n",
       "replace": "",
-      "expectRed": ["__DERIVE__"]
+      "expectRed": [
+        "a GROUP marker line is never also counted as a claim, even when it contains MUTATION:"
+      ]
     },
     {
       "id": "claims-scan-every-line",

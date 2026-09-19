@@ -1119,6 +1119,17 @@ Data + memory only. All four factual claims in the new `notEncoded` entry verifi
 
 code-reviewer memory delta: `gradeOne` is 22L, `modeRun` is 34L — verified against the working tree. `63eb9e37` commit message confirms extraction. TRUE.
 
+### corpus B3 encode retracted-phrase (2026-09-19, feat/corpus-b3-encode-retracted-phrase)
+
+5-deliverable plan, all 5 implemented cleanly. 1 SUGGESTION (mutation ID rename, well-motivated).
+
+- D1: `--coverage --guard check-retracted-phrase` → not linked: 0. ✓
+- D2: GROUP: waiver-break-trailer-re, waiver-key-not-exact-token added at waiver-trailer test. ✓
+- D3: notEncoded[0] (FILE_EXT ⊕ lookahead conjunction) replaced with `fileext-order-and-lookahead` encoded mutation spanning FILE_EXT line + FILE_RE template. ✓
+- D4: `countMutationClaims` fully removed from run-mutations.mjs + test.mjs; re-homed to parse.test.mjs as non-verbatim transplant targeting `scanClaims`. `linecount-not-matchcount` renamed to `claims-add-n-not-one` (plan named the ID but rename well-motivated by mechanism change). ✓
+- D5: Parallelisation task added to tasks.md as `[ ]`. ✓
+- No __DERIVE__ sentinels survived. No new suite file. No ci.yml change. No suites array change. ✓
+
 ### redteam seed atomicity (2026-09-19, fix/redteam-seed-atomicity)
 
 4-item plan, all 4 implemented cleanly. 0 findings.
