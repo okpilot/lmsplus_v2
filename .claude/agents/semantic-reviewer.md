@@ -150,7 +150,8 @@ This prevents false positives where the fix landed in a later migration than the
 
 ```
 SEMANTIC REVIEW — [branch] round [N] — [timestamp]
-Files changed: N
+Files changed: N   ← derive it, never count from reading:
+                     git diff --name-only origin/master...HEAD -- . ':(exclude).claude/agent-memory' | wc -l
 
 CRITICAL: [count]  — must fix before merge
 ISSUE: [count]     — should fix, real bug or gap
