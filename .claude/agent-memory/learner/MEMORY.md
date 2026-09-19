@@ -143,7 +143,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Orchestrator reads only first page of flat PR comments endpoint, reports partial count, pushes on it | 1 | 2026-09-19 | WATCHING. Count reconciled 2→1: the branch run scored the PR #1315 event twice — once directly, once via `feedback-read-every-review-thread`, whose `originSessionId` is that same session. One event. Promote on the next DISTINCT branch. Target when promoted: agent-workflow.md. |
 | Orchestrator/plan-critic reasons to a specific DB error code without executing — local-grant drift invalidates the reasoning | 1 | 2026-09-19 | WATCHING — 42501 reasoned; P0001 actual (RAISE); fix-local-grants.sql re-gran... |
 | semantic-reviewer reports wrong file count in review header (checked 3 on 9-file diff, 5 on 10-file diff) | 2 | 2026-09-19 | RULE CANDIDATE (2, rounds 1+3 same branch). Agent must derive via `git diff --name-only ... \| wc -l`, not from reading. |
-| doc-updater writes DATED JOURNAL ENTRY into own MEMORY.md — explicit agent-memory.md violation | 1 | 2026-09-19 | WATCHING — `feat/corpus-b3-encode-retracted-phrase` round 1. Log and watch. |
+| doc-updater writes DATED JOURNAL ENTRY into own MEMORY.md | 1 | 2026-09-19 | FALSE POSITIVE — claim originated in the orchestrator's dispatch prompt, not derived. The file's durable-knowledge list is dated bullets throughout; doc-updater added ONE bullet in place plus two in-place updates. `agent-memory.md` bans an appended dated session-log SECTION, not a dated bullet in an existing list. |
 | RULE 0 prose in spec tasks.md entry caught by CR-local | 1 | 2026-09-19 | WATCHING — parallelisation entry trimmed to its derivations. Log and watch. |
 
 ## Durable knowledge (cross-agent)
