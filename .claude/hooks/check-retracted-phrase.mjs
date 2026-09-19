@@ -78,8 +78,8 @@ const MEMORY_PREFIX = '.claude/agent-memory/'
  * with the lookahead intact and still tokenising `quiz-config-form.tsx`. Removing the lookahead
  * ALONE also still yields `.tsx` — JS alternation is leftmost-alternative-first, so longest-first
  * ordering then does the work. Only removing BOTH shortens the match to `.ts`, which is why the
- * suite's entry records the conjunction rather than either guard. Either suffices; the pair is
- * kept because each is cheap.
+ * mutation `fileext-order-and-lookahead` encodes the conjunction rather than either guard.
+ * Either suffices; the pair is kept because each is cheap.
  *
  * Two corrections deep: this first credited the ordering alone (false), and the fix then claimed
  * the ordering alone yields `.ts` — also false, measured against the MUTATED `ts`-first order

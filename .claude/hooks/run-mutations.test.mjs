@@ -15,7 +15,6 @@ import test from 'node:test'
 import {
   assertSingleOccurrence,
   compareResult,
-  countMutationClaims,
   main,
   parseArgs,
   parseTap,
@@ -163,32 +162,6 @@ test('reports each differing name once however often it was repeated', () => {
   assert.equal(res.status, 'MISMATCH')
   assert.deepEqual(res.missing, ['a'])
   assert.deepEqual(res.unexpected, ['b'])
-})
-
-// ---------------------------------------------------------------- countMutationClaims
-
-test('counts a MUTATION: claim that does not begin its line', () => {
-  // MUTATION: narrow the pattern to /\/\/ MUTATION:/ → the mid-line claim below stops counting,
-  // the coverage denominator shrinks, and an unencoded claim is reported as accounted for.
-  // (code-style.md §7 records this exact measurement: the two greps answer different questions.)
-  // The second claim must NOT carry its own `//` — an earlier fixture put the mid-line claim
-  // after `// `, so the narrow pattern still matched it and the mutation reported SURVIVED.
-  // The trailing claim-free line is load-bearing: with a two-line fixture the line count
-  // COINCIDES with the claim count, so returning `split('\n').length` also passes — the
-  // COALESCE-coincidence vacuity of code-style.md §7. Found by running this harness on itself.
-  const text = [
-    '// MUTATION: delete the guard → x',
-    ' *  and MUTATION: flip y → z',
-    '  assert.ok(true)',
-  ].join('\n')
-  assert.equal(countMutationClaims(text), 2)
-  assert.equal((text.match(/\/\/ MUTATION:/g) ?? []).length, 1, 'the narrow grep must undercount')
-})
-
-test('counts zero on text that makes no claim', () => {
-  // MUTATION: make countMutationClaims return the line count instead of the match count → every
-  // suite reports a huge gap and the coverage figure becomes noise.
-  assert.equal(countMutationClaims('a\nb\nc\n'), 0)
 })
 
 // ---------------------------------------------------------------- validateDataFile

@@ -51,6 +51,7 @@ test('blocks when a corrected value still stands in another corpus file', () => 
   })
 })
 
+// GROUP: rarity-floor-zero
 test('passes once the correction is finished everywhere', () => {
   // MUTATION: make the rarity floor 0 instead of 1 → a fully completed correction blocks its
   // own commit, and the guard becomes impossible to satisfy.
@@ -77,6 +78,7 @@ test('passes once the correction is finished everywhere', () => {
   })
 })
 
+// GROUP: incorpus-drop-memory-prefix
 test('does not count an agent-memory file as a surviving occurrence', () => {
   // MUTATION: drop the MEMORY_PREFIX check from `inCorpus` → a tracker row quoting the old claim
   // counts as a survivor, so every corrected claim blocks forever and the guard is disabled
@@ -102,6 +104,7 @@ test('does not count an agent-memory file as a surviving occurrence', () => {
   })
 })
 
+// GROUP: addedtext-include-memory
 test('an agent-memory file quoting the old value does not exonerate the retraction', () => {
   // The memory exclusion has TWO halves and they fail differently. The test above pins the
   // SURVIVOR half; this pins the re-added half.
@@ -126,6 +129,7 @@ test('an agent-memory file quoting the old value does not exonerate the retracti
   })
 })
 
+// GROUP: waiver-break-trailer-re, waiver-key-not-exact-token
 test('a valid waiver trailer permits the commit', () => {
   // MUTATION: stop consulting the waiver map in main() → the only escape hatch is inert, and a
   // legitimate exception can be cleared only by deleting the guard.
@@ -142,6 +146,7 @@ test('a valid waiver trailer permits the commit', () => {
   })
 })
 
+// GROUP: waiver-any-trailer-clears
 test('a waiver naming a different token does not clear the finding', () => {
   // MUTATION: waive by presence of ANY trailer rather than by exact token → one waiver clears
   // every finding in the commit, which is the wildcard the hatch must never become.
@@ -158,6 +163,7 @@ test('a waiver naming a different token does not clear the finding', () => {
   })
 })
 
+// GROUP: grepscope-drop-cached
 test('grades the INDEX, not the working tree', () => {
   // MUTATION: drop --cached from the survivor grep → git commits the index but the guard reads
   // the worktree. Here the survivor is deleted on disk yet still staged, so a worktree read
@@ -177,6 +183,7 @@ test('grades the INDEX, not the working tree', () => {
   })
 })
 
+// GROUP: raw-rename-consumes-one-path
 test('a rename in the same commit does not desync the path stream', () => {
   // An R record carries TWO paths where every other status carries one.
   // MUTATION: consume one path on R instead of two → the NUL stream shifts by one, every
@@ -200,6 +207,7 @@ test('a rename in the same commit does not desync the path stream', () => {
   })
 })
 
+// GROUP: rarity-ceiling-removed
 test('a token surviving in three or more files is common vocabulary, not a claim', () => {
   // MUTATION: raise or remove the rarity ceiling → the naive detector's 18%-of-commits noise
   // floor returns, which is what made the first design unshippable.
@@ -214,6 +222,7 @@ test('a token surviving in three or more files is common vocabulary, not a claim
   })
 })
 
+// GROUP: corpus-widened-to-app-code
 test('application code is out of scope on both sides', () => {
   // MUTATION: widen CORPUS to the whole repo → every app-code hit from the calibration returns.
   // This programme governs rule and doc prose; source comments are a different detector's job.
@@ -228,6 +237,7 @@ test('application code is out of scope on both sides', () => {
   })
 })
 
+// GROUP: drop-readded-exoneration
 test('a token re-added elsewhere in the same commit was reworded, not retracted', () => {
   // MUTATION: delete the addedText re-appearance check → moving a claim between corpus files
   // blocks, so any reflow or relocation of prose fails the gate.
@@ -265,6 +275,7 @@ test('a LONGER number containing the token does not exonerate the retraction', (
   })
 })
 
+// GROUP: addedtext-any-non-memory-entry
 test('a token re-added only in application code does not exonerate a corpus retraction', () => {
   // MUTATION: accumulate addedText from every non-memory entry instead of corpus entries only →
   // a value moved OUT of the documented corpus into source exonerates a corpus retraction that
@@ -284,6 +295,7 @@ test('a token re-added only in application code does not exonerate a corpus retr
   })
 })
 
+// GROUP: fold-could-not-run-into-finding
 test('reports a usage error as could-not-run, never as a finding', () => {
   // MUTATION: fold exit 2 into exit 1 → an environmental failure is indistinguishable from a
   // real finding, and the cheapest way to clear it is a permanent waiver that masks the
@@ -312,6 +324,7 @@ test('runs on a repository with no commits yet', () => {
   })
 })
 
+// GROUP: incorpus-drop-exact-root
 test('CLAUDE.md counts as a surviving corpus file (exact-match root entry)', () => {
   // MUTATION: drop `path === root` from inCorpus → CLAUDE.md and .coderabbit.yaml are never
   // matched (both are non-directory CORPUS entries that require exact equality, not a prefix).
@@ -331,6 +344,7 @@ test('CLAUDE.md counts as a surviving corpus file (exact-match root entry)', () 
   })
 })
 
+// GROUP: drop-completed-spec-exclusion
 test('a completed spec is not a surviving occurrence, a live one is', () => {
   // MUTATION: invert or delete the completed-spec derivation → either a historical record
   // blocks corrections forever, or a live spec silently stops being watched. The split is
@@ -354,6 +368,7 @@ test('a completed spec is not a surviving occurrence, a live one is', () => {
   })
 })
 
+// GROUP: survivors-bare-substring-pattern
 test('a longer number elsewhere is not counted as a surviving occurrence', () => {
   // MUTATION: swap the survivor grep's `-P` + boundary pattern back for a bare `-F` + token →
   // `grep -F` is a SUBSTRING match, so the unrelated `11807` below counts as a survivor of
@@ -373,6 +388,7 @@ test('a longer number elsewhere is not counted as a surviving occurrence', () =>
   })
 })
 
+// GROUP: survivors-bare-substring-pattern
 test('a longer filename elsewhere is not counted as a surviving occurrence', () => {
   // MUTATION: as above, for the filename class — `my-plan.md` contains `plan.md`, so a bare `-F`
   // reports it and blocks a finished rename. The two token classes carry DIFFERENT boundary
@@ -392,6 +408,7 @@ test('a longer filename elsewhere is not counted as a surviving occurrence', () 
   })
 })
 
+// GROUP: survivors-drop-escapere
 test('a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep', () => {
   // MUTATION: drop escapeRe from survivors() — token used as the raw PCRE body.
   // The dot in 'plan.md' becomes a wildcard; 'plan_md' (boundary-passing, no literal dot)
@@ -412,6 +429,7 @@ test('a dot in a filename token is treated as a literal character, not a wildcar
   })
 })
 
+// GROUP: drop-gitlink-skip
 test('a submodule pointer does not abort the run', () => {
   // MUTATION: drop the GITLINK_MODE skip in hunksFor → a submodule is a gitlink whose "blob" SHA
   // is a COMMIT, `git cat-file blob` fails on it, and the guard aborts at exit 2 — blocking every
@@ -433,6 +451,7 @@ test('a submodule pointer does not abort the run', () => {
   })
 })
 
+// GROUP: survivors-bare-substring-pattern, survivors-drop-skip-fail-alternation
 test('a ticket reference elsewhere does not exonerate or survive a retraction', () => {
   // MUTATION: give reAdded its own boundary regex instead of delegating to tokensOf, or drop the
   // (*SKIP)(*FAIL) alternation from the survivor pattern → `PR 1807` counts as a re-add or as a

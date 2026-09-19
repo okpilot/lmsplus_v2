@@ -186,3 +186,40 @@ test('a suite written with CRLF line endings still yields its markers', () => {
   const parsed = parseSuite("// GROUP: alpha\r\ntest('behaves', () => {})\r\n")
   assert.deepEqual(parsed.tests[0].groups, ['alpha'])
 })
+
+// GROUP: narrow-mutation-grep
+test('counts a claim written mid-line after other prose', () => {
+  // MUTATION: narrow the per-line pattern to /\/\/ MUTATION:/ -> a claim that does not open its
+  // comment stops counting, the coverage denominator shrinks, and an unencoded claim reads as
+  // accounted for. code-style.md §7 records the measurement: the two greps answer different
+  // questions. The claim below sits after other prose on a line that still opens with `//`,
+  // which is what `scanClaims` requires and what the narrow pattern then misses.
+  const parsed = parseSuite(
+    [
+      "test('behaves', () => {",
+      '  // guard note; MUTATION: delete the guard -> x',
+      '  assert.ok(1)',
+      '})',
+      '',
+    ].join('\n'),
+  )
+  assert.equal(parsed.tests[0].claims, 1)
+})
+
+// GROUP: claims-add-n-not-one
+test('counts every claim on a line, not one per claiming line', () => {
+  // MUTATION: make the accumulator `+= 1` instead of `+= n` -> a line carrying two claims counts
+  // as one, so a comment naming two breaks reads as half-covered. The fixture's line count (5)
+  // differs from its claim count (2) deliberately: with a coinciding fixture a line-counting
+  // regression also passes, which is the COALESCE-coincidence vacuity of code-style.md §7.
+  const parsed = parseSuite(
+    [
+      "test('behaves', () => {",
+      '  // MUTATION: delete the guard -> x AND MUTATION: flip y -> z',
+      '  assert.ok(1)',
+      '})',
+      '',
+    ].join('\n'),
+  )
+  assert.equal(parsed.tests[0].claims, 2)
+})

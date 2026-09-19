@@ -108,19 +108,16 @@
     },
     {
       "id": "narrow-mutation-grep",
-      "find": "String(text).match(/MUTATION:/g)",
-      "replace": "String(text).match(/\\/\\/ MUTATION:/g)",
-      "expectRed": ["counts a MUTATION: claim that does not begin its line"],
-      "note": "The fixture was also a false claim until 2026-09-14 — its mid-line claim carried its own `//`, so the narrow pattern still matched and this reported SURVIVED. countMutationClaims no longer feeds any printed figure, so only its own unit tests redden here."
+      "find": "const n = (lines[i].match(/MUTATION:/g) ?? []).length",
+      "replace": "const n = (lines[i].match(/\\/\\/ MUTATION:/g) ?? []).length",
+      "expectRed": ["__DERIVE__"],
+      "note": "Re-anchored from the dead `countMutationClaims` onto `scanClaims`, the counter `--coverage` actually reads. The mechanism differs: `scanClaims` filters to lines opening with `//` FIRST, so the mid-line fixture must keep that opener or the claim is never counted at all and the mutation reports SURVIVED."
     },
     {
-      "id": "linecount-not-matchcount",
-      "find": "  return (String(text).match(/MUTATION:/g) ?? []).length",
-      "replace": "  return String(text).split('\\n').length",
-      "expectRed": [
-        "counts a MUTATION: claim that does not begin its line",
-        "counts zero on text that makes no claim"
-      ]
+      "id": "claims-add-n-not-one",
+      "find": "ownerFor(i, i).claims += n",
+      "replace": "ownerFor(i, i).claims += 1",
+      "expectRed": ["__DERIVE__"]
     },
     {
       "id": "no-target-check",

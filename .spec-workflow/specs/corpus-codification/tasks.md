@@ -412,6 +412,13 @@ Two clauses that make the table survive contact:
 - [ ] "New Supabase Query Sites Require an Integration Test (HARD, #925)" — its own slice;
       needs `.from()`/`.rpc()` detection and has ~40 known-uncovered sites (#926).
 - [ ] Retrofit slice 1's guard onto the shared harness — ONLY after slice 2 proves it.
+- [ ] Parallelise the mutation harness — `modeRun` in `.claude/hooks/run-mutations.mjs` is a plain
+      sequential `for`, one `git worktree add`/`remove` per mutation. CI's "Mutation harness — run
+      every encoded mutation" step in `.github/workflows/ci.yml` carries a `timeout-minutes` budget
+      the run keeps growing into; every slice that encodes a claim site adds to it. Re-derive both
+      sides before deciding — `time node .claude/hooks/run-mutations.mjs` for the wall clock, the
+      workflow file for the budget — and record neither here. `--guard <basename>` already bounds
+      the DEVELOPMENT loop to one data file; it does nothing for CI, which grades them all.
 
 ## Slice N — the 22 remaining contradictions
 
