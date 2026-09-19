@@ -80,7 +80,8 @@
         "a skipped child does not make its failing parent look like an aggregate",
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
-        "a name the suite reddened twice is written once"
+        "a name the suite reddened twice is written once",
+        "two data files sharing a mutation id each get their own observed set"
       ],
       "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
@@ -184,9 +185,10 @@
       "find": "  if (count !== 1) {",
       "replace": "  if (count > 1) {",
       "expectRed": [
-        "refuses an anchor that matches nothing, naming the count",
         "grades every mutation after a stale-anchor fault, not just those before it",
-        "exits 2 when a batch carries both a fault and a survivor, not 1"
+        "exits 2 when a batch carries both a fault and a survivor, not 1",
+        "refuses an anchor that matches nothing, naming the count",
+        "a batch that holds a fault exits 2 even when another entry mismatches"
       ],
       "note": "The single most important entry in this file. A stale anchor applies as a no-op, the suites stay green, and the mutation reports SURVIVED — code-style.md §7's named trap. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -207,7 +209,8 @@
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
         "a normal run never writes to the data file",
-        "a name the suite reddened twice is written once"
+        "a name the suite reddened twice is written once",
+        "two data files sharing a mutation id each get their own observed set"
       ],
       "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -452,7 +455,10 @@
       "id": "exit-order-bad-before-faults",
       "find": "  if (faults > 0) return 2\n  return bad === 0 ? 0 : 1\n",
       "replace": "  if (bad > 0) return 1\n  return faults > 0 ? 2 : 0\n",
-      "expectRed": ["exits 2 when a batch carries both a fault and a survivor, not 1"],
+      "expectRed": [
+        "exits 2 when a batch carries both a fault and a survivor, not 1",
+        "a batch that holds a fault exits 2 even when another entry mismatches"
+      ],
       "note": "A batch with one of each then reports 'your TESTS have a hole' for a run that proved nothing."
     },
     {
@@ -471,7 +477,8 @@
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
         "a normal run never writes to the data file",
-        "a name the suite reddened twice is written once"
+        "a name the suite reddened twice is written once",
+        "two data files sharing a mutation id each get their own observed set"
       ],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
     },
@@ -601,7 +608,11 @@
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
         "a name the suite reddened twice is written once",
-        "--update-expected refuses to grade when a declared suite is uncommitted"
+        "--update-expected refuses to grade when a declared suite is uncommitted",
+        "--update-expected refuses a staged but not yet committed change",
+        "a batch that holds a fault exits 2 even when another entry mismatches",
+        "two data files sharing a mutation id each get their own observed set",
+        "--update-expected refuses a declared suite that was never committed"
       ]
     },
     {
@@ -629,7 +640,11 @@
       "id": "update-expected-grades-dirty-tree",
       "find": "    if (dirty.length > 0) {",
       "replace": "    if (dirty.length > 1e9) {",
-      "expectRed": ["--update-expected refuses to grade when a declared suite is uncommitted"]
+      "expectRed": [
+        "--update-expected refuses to grade when a declared suite is uncommitted",
+        "--update-expected refuses a staged but not yet committed change",
+        "--update-expected refuses a declared suite that was never committed"
+      ]
     },
     {
       "id": "render-always-multi-line",
@@ -640,6 +655,7 @@
         "the comma after expectRed survives a rewrite",
         "a multi-line expectRed collapses back to one line when the names fit",
         "every expectRed in the repo re-renders to the bytes already on disk",
+        "fits one line when the total is exactly 100 columns without a trailing comma",
         "--update-expected rewrites a MISMATCH from the set actually observed"
       ]
     },
@@ -672,13 +688,13 @@
       "id": "update-expected-keys-by-id-alone",
       "find": "  const keyOf = (file, id) => `${file}\\u0000${id}`",
       "replace": "  const keyOf = (_file, id) => `${id}`",
-      "expectRed": ["__DERIVE__"]
+      "expectRed": ["two data files sharing a mutation id each get their own observed set"]
     },
     {
       "id": "dirty-gate-blind-to-untracked",
       "find": "['status', '--porcelain', '--untracked-files=all', '--', data.target, ...data.suites],",
       "replace": "['status', '--porcelain', '--', data.target, ...data.suites],",
-      "expectRed": ["__DERIVE__"]
+      "expectRed": ["--update-expected refuses a declared suite that was never committed"]
     }
   ],
   "notEncoded": [
