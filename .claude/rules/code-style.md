@@ -714,6 +714,17 @@ Verify every negative/isolation assertion is reachable given real DB semantics:
 3. **A DISTINCT-aggregate caps the observed value** → verify the leaked value is distinguishable from expected before asserting a bound.
 ### A Test Must Fail If Its Mechanism Is Removed
 Before trusting any assertion: if the protected code were deleted, would the test go red? If not, it documents an outcome rather than pins a mechanism. Recurring shape: a SECOND guard reaches the same result first, so the guard under test is never consulted (e.g. a length floor rejects a fixture before the rule under test fires; a REVOKE test asserting only `error != null` passes on a misspelled RPC name too). Cheapest proof: revert the production change locally, watch the test fail, restore. Otherwise pick a fixture whose expected value differs from every value an unrelated guard could produce.
+### Verification Must Construct the FAILING Configuration, Not Only the Passing One
+A gate, mode or flag exists to catch a CLASS of input. The suite needs a fixture that IS that
+input, not one the input is logically derivable from. A green suite and a live defect coexist
+whenever every fixture is drawn from the subset the gate already passes — the run reports success
+and has checked nothing.
+Measured twice on one branch, on `--update-expected`: `--guard <basename>` collapses a multi-file
+operation to ONE file, so a cross-file key collision was unreachable from the corpus (311 caught /
+311 run, defect live); and a dirty-tree test that edits a TRACKED file passes with or without
+`--untracked-files=all`, leaving the flag that guards UNTRACKED files unpinned.
+Before trusting a gate's tests: name the defect class, name the input that triggers it, point at
+the fixture that builds it. No such fixture, no coverage — whatever the pass count says.
 ### A `MUTATION:` Comment Is a Prose Claim, Subject to §10
 A `// MUTATION: <break>` line asserts `<break>` turns THIS test red — a behaviour claim, governed by §10 like any other comment. List only mechanisms the fixture can actually REACH: naming two mechanisms where one is unreachable (an earlier guard rejects the input first) silently overclaims. Verify by reverting ONLY the named mechanism — exactly those tests should go red; a superset is under-specific, green is false. Where a mechanism can't be reached, say so rather than implying coverage.
 **Naming a reachable mechanism isn't enough — the described FAILURE MODE must be true too.** A comment can name a real break yet mischaracterize how it fails (claims "pass silently", actually throws downstream). Reddening proves the mechanism, not the account of HOW — verify by reading the actual output, not predicting it.

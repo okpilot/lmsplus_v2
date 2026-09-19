@@ -15,6 +15,9 @@ Checks the branch diff (`git diff origin/master...HEAD -- . ':(exclude).claude/a
 - Read every finding, even warnings — they signal drift before it becomes blocking.
 - Fix all BLOCKING findings before any other work continues.
 - Group every round's fixes — BLOCKING and otherwise — into that round's ONE pooled fixup commit.
+- Measure a function-length finding on the BODY — its first `{` to the matching `}` — never
+  declaration-to-next-declaration, which sweeps the FOLLOWING JSDoc into the count. Reported "41
+  lines" on a 29-line body (38 with its JSDoc); the finding then costs a round to skip.
 - Note watch items in the summary. File-size headroom is NOT the reviewer's to count — it no longer counts lines. For per-rule compliance run `node .claude/hooks/check-file-size-guard.mjs --stats`; for one file's headroom, `wc -l` against that rule's cap in `.claude/limits.json` (agrees with the guard except on a file lacking a trailing newline, where the guard counts one MORE). `--stats` does NOT report headroom.
 
 ### NEVER
