@@ -148,6 +148,35 @@ Enumerate against the ref, before editing; a worktree mid-sweep reports its own 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
 
+## PARKED — nothing here is scheduled; each needs a user decision or a non-repo action
+
+Not a backlog. An item leaves this list by being decided, not by ageing.
+
+- **§10 cl.3 widening — awaiting the user.** cl.3 greps the retracted STRING; the proposal is to
+  widen it to the retracted CLAIM. The learner row that motivates it is RULE CANDIDATE and still
+  climbing, and no enforcer covers it — `check-retracted-phrase.mjs` cannot see a paraphrase
+  (`agent-workflow.md § Rule-Mirror Sync` records paraphrase-blindness as OPEN). Derive the count:
+  ```bash
+  awk -F'|' '/section\/mirror\/arithmetic/ {print $2, $3}' .claude/agent-memory/learner/MEMORY.md
+  ```
+- **Learner rows awaiting promotion.** Route any promotion to a RULES PR — never onto a migration
+  or security branch, which drags rule prose through a prod-deploy gate. The command below prints
+  the whole RULE CANDIDATE set, not a shortlist; pick from it by count. Cite a row by its TEXT — a
+  row's line number is unstable across curation
+  (`.claude/agent-memory/learner/topics/cross-agent-lessons.md:1455`).
+  ```bash
+  awk -F'|' '/RULE CANDIDATE/ {printf "%3d  %s\n", $3, $2}' .claude/agent-memory/learner/MEMORY.md | sort -rn
+  ```
+- **#1204 — prod NOTAM answer key diverges from the repo.** `import-vfr-rt-content.ts
+  --sync-content` owed. Source `.env.remote` first; `--force-remote` alone does not retarget the
+  importer at prod.
+- **`/app/internal-exam` spot-check owed.** PR #1257 changed `answered_count` retroactively and
+  applied to prod 2026-09-06; the surface has not been looked at since.
+
+**MEMORY.md compaction is CLOSED, and leaves no artifact here.** That file lives outside the
+repository, under the Claude config directory — it is not committable from this repo, so its state
+is not derivable from this tree and no commit records it.
+
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 
 Full plan drafted 2026-09-09. All three are one shape — build a shared harness
