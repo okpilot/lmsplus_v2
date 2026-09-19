@@ -721,9 +721,13 @@ reviews:
           [].some(pred) is false for ANY predicate, so an assertion expecting .every() to be true,
           or .some() to be false, following an assertion that the same array is empty can never
           fail. Flag it — delete it, or guard it with a length > 0 assertion first.
-        - A new feature flag, mode or branch whose tests exercise only the path it enables.
-          The suite needs a fixture built from the input the branch REJECTS or diverts, not only
-          one it accepts — see code-style.md §7 for the per-suite form of the rule above.
+        - VERIFICATION MUST CONSTRUCT THE FAILING CONFIGURATION, NOT ONLY THE PASSING ONE
+          (code-style.md §7). A gate, mode or flag exists to catch a CLASS of input; the suite
+          needs a fixture that IS that input, not one the input is logically derivable from. This
+          is a per-SUITE check, not the per-assertion one above: every assertion can pin its own
+          mechanism and the suite still construct nothing the gate would reject. For a diff adding
+          or changing a gate, name the defect class, name the input that triggers it, and point at
+          the fixture that builds it — no such fixture, no coverage, whatever the pass count says.
 
     # Integration tests — negative assertions must be REACHABLE against real DB semantics
     - path: "**/*.integration.test.ts"

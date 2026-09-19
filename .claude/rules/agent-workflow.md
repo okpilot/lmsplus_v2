@@ -403,7 +403,7 @@ A bare prohibition invites the agent to reason around it.
 ### Prefer executable verification over analysis
 Write prompts that say **"execute / grep / diff and report the output"**, not "analyse and assess" — within what the target agent's own definition permits. plan-critic is read-only (`.claude/agents/plan-critic.md` § DO NOT), so its asks stay at grep / `git show` / `git diff`; only an agent allowed to run code gets asked to run it.
 ### A dispatch prompt states no derived number — it ships the derivation
-A count, total or extent computed while writing the prompt is stale by the time the agent reads it, and the agent then reasons from your figure instead of from the tree. Same defect as `code-style.md` §10 cl.7, one artifact further out.
+A WORLD-STATE count, total or extent computed while writing the prompt is stale by the time the agent reads it, and the agent then reasons from your figure instead of from the tree. Same defect as `code-style.md` §10 cl.7, one artifact further out. Navigation aids are not claims — a path, a SHA, a `lines ~X-Y` range tells the agent where to look and is what the template's `CONTEXT:` section is for.
 > ❌ "the corpus has 302 `expectRed` arrays — confirm each still renders"
 > ✅ "run `node .claude/hooks/run-mutations.mjs --coverage` and report the count it prints"
 ### Litmus test
