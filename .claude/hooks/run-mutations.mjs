@@ -984,6 +984,16 @@ function reportOutcome(written, survivors) {
   return 0
 }
 
+/**
+ * Grade every mutation of every selected data file.
+ *
+ * Four parameters, each a distinct role (`code-style.md` §3, infrastructure exception):
+ * @param root       repository root; every git call and every path resolves against it
+ * @param guard      basename selecting ONE data file, or falsy for all of them
+ * @param scratch    where throwaway worktrees are made
+ * @param onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
+ *                   null for a plain run. Never called for a fault, which has no observed set.
+ */
 function modeRun(root, guard, scratch, onResult = null) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
