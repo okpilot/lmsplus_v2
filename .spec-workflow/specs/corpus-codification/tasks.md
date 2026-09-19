@@ -172,6 +172,9 @@ grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
 Checked clean: no `limits.json` or `prose-claims.json` baseline row covers a deletion target.
 Open before editing: whether `ci.yml`'s hits are the local CLI or the cloud app.
 
+**THEN: Slice 5 — make R1 binding at runtime.** Ranked above the remaining numbered items
+(user directive 2026-09-19); the CR-local retirement above ships first. Detail in § Slice 5.
+
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
 
@@ -412,6 +415,95 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
   grandfathered file at all would fail CI. Both observed instances are already closed by the
   exact line-count match plus blocking on a stale row. Residual and ACCEPTED: a different file
   at the same path with a coincidentally identical line count inherits the old allowance.
+
+## Slice 5 — make R1 binding at runtime (the generator, not the output)
+
+Ranked above the remaining BUILD ORDER items, user directive 2026-09-19. The CR-local retirement
+ships first.
+
+**R1 governs this programme's slices, not the running system.** Nothing binds an agent to it while
+new rules are being written, so the corpus refills at whatever rate review produces findings. Every
+other slice cleans output. This one changes the rate.
+
+Three derivations established the gap. Re-run them rather than quoting a figure:
+
+```bash
+# rule sections in the injected corpus
+grep -h "^#\{2,\} " .claude/rules/*.md CLAUDE.md | wc -l
+
+# ...of those, the ones naming a mechanical enforcer (lexical, so an OVER-count)
+awk '/^##+ /{cur=FILENAME": "FNR; next}
+     cur!="" && /\.claude\/hooks\/|biome\.json|[Ss]onar[Cc]loud|ci\.yml|lefthook/{if(!p[cur]++) print cur}' \
+  .claude/rules/*.md CLAUDE.md | wc -l
+
+# agent definitions whose proposal vocabulary reaches a guard at all
+grep -rn -E "propos|recommend" .claude/agents/*.md | grep -cE "hook|guard|enforcer"
+```
+
+No rule names an enforcer missing from disk. The gap is un-built mechanism, not rot.
+
+### W1 — measure the mechanizable fraction (FIRST)
+
+Classify every rule section ENFORCED / MECHANIZABLE / JUDGMENT. Ship a data file plus a derivation,
+never a prose table: a per-section list in Markdown is the artifact this programme deletes, and it
+goes stale on the next heading edit.
+
+**A MECHANIZABLE row MUST name its trigger predicate** — the string, AST shape or file-pair a guard
+would match. No statable predicate, no MECHANIZABLE. That is what keeps the classification
+falsifiable rather than an opinion.
+
+Sizes W3: the fraction decides whether the reshape is a menu reorder or a load-bearing gate.
+
+### W2 — wire the enforcers that exist and gate nothing
+
+Derive the state; do not trust this list:
+
+```bash
+grep -n "run-mutations\|check-mirror-sync\|check-commit-claims" lefthook.yml .github/workflows/ci.yml
+```
+
+- `.claude/hooks/check-commit-claims.mjs` — wired at commit-msg, CI runs only its test. Add the
+  guard step over the PR's commits. Small, independent, can land anytime.
+- `.claude/hooks/check-mirror-sync.mjs` — wired nowhere, and it takes a clause substring as an
+  argument, so it cannot gate blanket. Needs an anchor-deriving mode first: a feature, not wiring.
+- `.claude/hooks/run-mutations.mjs` — wired nowhere. One worktree per mutation, sequential, so it
+  cannot be pre-commit. Needs either the parallelisation already queued in Slice 4+ or a
+  diff-scoped mode grading only mutations whose guard changed.
+
+### W3 — give the promotion path a mechanical destination
+
+Four decision points, each routing to prose today:
+
+1. `.claude/rules/agent-workflow.md` § Pre-push gate — the terminal-state set is closed and carries
+   no mechanization disposition.
+2. `.claude/agents/learner.md` § Take Action — the menu is `ONE of` five, four of them prose files;
+   the fifth reaches only what Biome already implements.
+3. `.claude/rules/agent-learner.md` § When To Apply Rule Changes — mechanical checkability is a
+   quality test applied to prose, not a route to a check.
+4. `.claude/rules/agent-learner.md` § Sweep On Rule Promotion — its one mention of a mechanical
+   enforcer is conditional on one already existing, and names no alternative.
+
+Plus two tracker changes: an `Enforcer` column (`name`, or `NONE` with a reason), and
+post-promotion recurrence escalating a row to guard-candidate. The tracker already RECORDS
+recurrence after a prose promotion and acts on none of it.
+
+**Hard split, its own PR** — touches the most-mirrored files in the corpus. Full Rule-Mirror Sync.
+
+**W3 adds prose in order to reduce prose**, which is the defect one level up. It ships only with
+both: its own enforcer — a tracker row reaching PROMOTED with no `Enforcer` entry fails, graded by
+`.claude/hooks/run-mutations.mjs` like any other guard — and a success metric, the fraction of the
+next promotions landing as a guard, measured rather than asserted.
+
+### W4 — enforcers by count
+
+Unchanged. BUILD ORDER already orders these by the learner's counts. W3 makes this the pipeline's
+default output rather than a separate programme.
+
+### Order
+
+W2's commit-claims step is independent. Otherwise W1, then W3, then W4 continues: W1 before W3
+because the reshape's wording depends on the size of the problem, W3 before more W4 because fixing
+the generator precedes cleaning the output.
 
 ## Slice 3 — archaeology deletion (DONE, PR #1299 / `86f642780`)
 
