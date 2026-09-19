@@ -10,11 +10,10 @@
 import { expect, test } from '@playwright/test'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
-import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
+import { cleanupFixtures, type FixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { E2E_REDTEAM_UNAUTH_COMMENT_MARKER } from './helpers/seed-markers'
-import { pickSubjectWithQuestions } from './helpers/seed-quiz'
-import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
+import { seedUnauthFixtures } from './helpers/seed-unauth-fixtures'
+import { VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -32,62 +31,18 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   let knownQuestionId: string
   let victimUserId: string
 
-  // Fixture tracker for afterAll cleanup of seeded comment + flag rows.
-  const tracker = createFixtureTracker()
+  // Fixture tracker returned by seedUnauthFixtures; passed to afterAll cleanup.
+  let tracker: FixtureTracker
 
   test.beforeAll(async () => {
     adminClient = getAdminClient()
-
-    // Resolve real IDs to use as attack inputs — these represent data an
-    // attacker might enumerate from leaked IDs or guessing UUIDs.
-    const seed = await seedRedTeamUsers()
-    victimUserId = seed.victimUserId
-    const picked = await pickSubjectWithQuestions(adminClient, { orgId: seed.orgId })
-    knownSubjectId = picked.subjectId
-    knownTopicId = picked.topicId
-
-    const { data: sessions, error: sessionsErr } = await adminClient
-      .from('quiz_sessions')
-      .select('id')
-      .limit(1)
-    if (sessionsErr)
-      throw new Error(`beforeAll: quiz_sessions lookup failed: ${sessionsErr.message}`)
-    knownSessionId = sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001'
-
-    const { data: questions, error: questionsErr } = await adminClient
-      .from('questions')
-      .select('id')
-      .limit(1)
-    if (questionsErr) throw new Error(`beforeAll: questions lookup failed: ${questionsErr.message}`)
-    knownQuestionId = questions?.[0]?.id ?? '00000000-0000-4000-a000-000000000002'
-
-    // Seed victim-owned rows so the anon SELECT tests below prove RLS blocks
-    // EXISTING data (not mere table emptiness). These are self-contained — they
-    // do not rely on any other spec's seeding or execution order. Cleaned up in
-    // afterAll. (Soft-delete keeps them queryable by id/PK for teardown.)
-    const { data: comment, error: commentErr } = await adminClient
-      .from('question_comments')
-      .insert({
-        question_id: knownQuestionId,
-        user_id: victimUserId,
-        body: E2E_REDTEAM_UNAUTH_COMMENT_MARKER,
-      })
-      .select('id')
-      .single()
-    if (commentErr || !comment)
-      throw new Error(
-        `unauth seed: failed to seed question_comment: ${commentErr?.message ?? 'none'}`,
-      )
-    tracker.comments.add(comment.id)
-
-    const { error: flagErr } = await adminClient
-      .from('flagged_questions')
-      .upsert(
-        { student_id: victimUserId, question_id: knownQuestionId, deleted_at: null },
-        { onConflict: 'student_id,question_id' },
-      )
-    if (flagErr) throw new Error(`unauth seed: failed to seed flagged_question: ${flagErr.message}`)
-    tracker.flags.add(`${victimUserId}::${knownQuestionId}`)
+    const fixtures = await seedUnauthFixtures(adminClient)
+    victimUserId = fixtures.victimUserId
+    knownSubjectId = fixtures.knownSubjectId
+    knownTopicId = fixtures.knownTopicId
+    knownSessionId = fixtures.knownSessionId
+    knownQuestionId = fixtures.knownQuestionId
+    tracker = fixtures.tracker
   })
 
   // --- RPC vectors ---
@@ -421,115 +376,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(error).not.toBeNull()
     expect(error?.message ?? '').toMatch(/not authenticated/i)
     expect(data ?? null).toBeNull()
-  })
-
-  // --- Direct table SELECT vectors ---
-
-  test('unauthenticated client sees 0 rows from student_responses', async () => {
-    const { data, error } = await unauthClient.from('student_responses').select('*').limit(10)
-
-    expect(error).toBeNull() // RLS returns empty, not an error
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from quiz_sessions', async () => {
-    const { data, error } = await unauthClient.from('quiz_sessions').select('*').limit(10)
-
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from users', async () => {
-    const { data, error } = await unauthClient.from('users').select('id, email').limit(10)
-
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from questions (correct answers must not leak)', async () => {
-    const { data, error } = await unauthClient.from('questions').select('*').limit(10)
-
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from quiz_session_answers', async () => {
-    const { data, error } = await unauthClient.from('quiz_session_answers').select('*').limit(10)
-
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from audit_events', async () => {
-    const { data, error } = await unauthClient.from('audit_events').select('*').limit(10)
-
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from question_comments', async () => {
-    const { data, error } = await unauthClient.from('question_comments').select('*').limit(10)
-
-    expect(error).toBeNull() // RLS returns empty, not an error
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from flagged_questions even when victim data exists (#276 Vector P)', async () => {
-    // Non-vacuous (code-style.md §7): first confirm via the admin client that the
-    // seeded victim flag row is actually there — otherwise 0 rows for anon could
-    // mean the table is simply empty, not that RLS is blocking.
-    // RLS policy (mig 044/050): FOR SELECT USING (student_id = auth.uid()).
-    // An anon client has auth.uid() = NULL → student_id = NULL is always false → 0 rows.
-    const { data: adminRows, error: adminErr } = await adminClient
-      .from('flagged_questions')
-      .select('student_id')
-      .eq('student_id', victimUserId)
-      .is('deleted_at', null)
-    expect(adminErr).toBeNull()
-    // Confirm the seeded row exists (non-vacuity).
-    expect((adminRows ?? []).length).toBeGreaterThan(0)
-
-    // Anon client must see 0 rows despite the victim row existing.
-    const { data, error } = await unauthClient.from('flagged_questions').select('*').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
-  })
-
-  test('unauthenticated client sees 0 rows from easa_topics — fetchTopicsWithSubtopics underlying query blocked (#276 Vector S)', async () => {
-    // fetchTopicsWithSubtopics Server Action (apps/web/app/app/quiz/actions/lookup.ts)
-    // calls requireAuthUser() (redirect guard) then getTopicsWithSubtopics(), which
-    // queries easa_topics. RLS policy (mig 001): FOR SELECT USING (auth.uid() IS NOT NULL).
-    // An anon client has auth.uid() = NULL → policy false → 0 rows returned.
-    //
-    // Non-vacuous: first confirm via admin that the subject's topics exist.
-    const { data: adminTopics, error: adminTopicsErr } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', knownSubjectId)
-      .limit(1)
-    expect(adminTopicsErr).toBeNull()
-    // Confirm topics exist for the known subject (non-vacuity).
-    expect((adminTopics ?? []).length).toBeGreaterThan(0)
-
-    // Anon client must see 0 rows from easa_topics.
-    const { data, error } = await unauthClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', knownSubjectId)
-    expect(error).toBeNull()
-    expect((data ?? []).length).toBe(0)
-  })
-
-  test('unauthenticated client cannot insert into question_comments', async () => {
-    // user_id is a syntactically valid but non-existent user. RLS WITH CHECK
-    // (user_id = auth.uid()) fires first (auth.uid() is NULL for anon), so the
-    // rejection carries the RLS code 42501 — not a downstream FK violation.
-    const { error } = await unauthClient.from('question_comments').insert({
-      question_id: knownQuestionId,
-      user_id: '00000000-0000-4000-a000-0000000000ff',
-      body: 'redteam-unauth-insert',
-    })
-    expect(error?.code).toBe('42501')
   })
 
   // --- #603 Vector BJ: soft-deleted user gate ---

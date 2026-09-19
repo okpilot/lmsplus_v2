@@ -238,14 +238,12 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // the caller via tenant_isolation RLS, and self-scopes the correct-answer
     // numerator to auth.uid(). The cross-org caller's org has no questions, so the
     // result must be EMPTY — proving no egmont question (denominator) leaks across
-    // tenants. The every(correct===0) guard additionally documents that no egmont
-    // victim correct-count could appear. (The non-vacuous numerator self-scope
-    // proof lives in dashboard-stats-rpc-isolation.spec.ts BW3, where the egmont
-    // instructor's denominator IS populated.)
+    // tenants. (The non-vacuous numerator self-scope proof lives in
+    // dashboard-stats-rpc-isolation.spec.ts BW3, where the egmont instructor's
+    // denominator IS populated.)
     const { data, error } = await crossOrgClient.rpc('get_student_mastery_stats')
     expect(error).toBeNull()
     expect(data ?? []).toHaveLength(0)
-    expect((data ?? []).every((r: { correct: number }) => r.correct === 0)).toBe(true)
   })
 
   test('cross-org student sees no egmont question counts from get_question_counts', async () => {

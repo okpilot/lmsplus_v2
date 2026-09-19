@@ -124,7 +124,6 @@
     "apps/web/e2e/redteam/questions-direct-write.spec.ts": 574,
     "apps/web/e2e/redteam/rpc-admin-report-answer-keys-idor.spec.ts": 546,
     "apps/web/e2e/redteam/rpc-report-answer-keys.spec.ts": 727,
-    "apps/web/e2e/redteam/server-action-unauthenticated.spec.ts": 639,
     "apps/web/e2e/redteam/session-replay.spec.ts": 602,
     "apps/web/e2e/redteam/tenant-tables-direct-write.spec.ts": 758,
     "apps/web/lib/gdpr/collect-user-data.test.ts": 727,

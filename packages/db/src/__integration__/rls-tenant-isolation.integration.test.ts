@@ -11,6 +11,8 @@ describe('RLS: tenant isolation', () => {
 
   // Org A
   let orgAId: string
+  let studentAId: string
+  let sessionAId: string
   let studentAClient: SupabaseClient
   let instructorAClient: SupabaseClient
   let questionIdsA: string[]
@@ -42,7 +44,7 @@ describe('RLS: tenant isolation', () => {
     })
     userIdsA.push(adminAId)
 
-    const studentAId = await createTestUser({
+    studentAId = await createTestUser({
       admin,
       orgId: orgAId,
       email: `studentA-${suffix}@test.local`,
@@ -100,16 +102,44 @@ describe('RLS: tenant isolation', () => {
     })
     questionIdsA = seededA.questionIds
 
-    // Create a session for studentA (for cross-student tests)
-    await studentAClient.rpc('start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: null,
-      p_topic_id: null,
-      p_question_ids: questionIdsA.slice(0, 1),
-    })
+    // Create a session for studentA (for cross-student and cross-org tests).
+    // start_quiz_session returns the session id as a string.
+    const { data: newSessionId, error: sessionStartError } = await studentAClient.rpc(
+      'start_quiz_session',
+      {
+        p_mode: 'quick_quiz',
+        p_subject_id: null,
+        p_topic_id: null,
+        p_question_ids: questionIdsA.slice(0, 1),
+      },
+    )
+    if (sessionStartError)
+      throw new Error(`start_quiz_session failed: ${sessionStartError.message}`)
+    // start_quiz_session can return null with no error; without this guard the
+    // failure surfaces as an opaque student_responses insert error below.
+    if (typeof newSessionId !== 'string')
+      throw new Error(
+        `start_quiz_session returned a non-string id: ${JSON.stringify(newSessionId)}`,
+      )
+    sessionAId = newSessionId
 
-    // Create an FSRS card for studentA
-    await admin.from('fsrs_cards').insert({
+    // Seed a student_response for studentA so the cross-org isolation test (test 3)
+    // has a real row to protect. Cleanup is handled by cleanupTestData via organization_id.
+    const { error: responseError } = await admin.from('student_responses').insert({
+      student_id: studentAId,
+      question_id: questionIdsA[0],
+      organization_id: orgAId,
+      session_id: sessionAId,
+      is_correct: false,
+      response_time_ms: 1000,
+      // response_text satisfies the student_responses_answer_shape_check constraint
+      // (branch 2: selected_option_id IS NULL AND response_text IS NOT NULL)
+      response_text: 'test',
+    })
+    if (responseError) throw new Error(`student_responses seed failed: ${responseError.message}`)
+
+    // Create an FSRS card for studentA (cross-student isolation test, test 4).
+    const { error: fsrsError } = await admin.from('fsrs_cards').insert({
       student_id: studentAId,
       question_id: questionIdsA[0],
       due: new Date().toISOString(),
@@ -121,6 +151,7 @@ describe('RLS: tenant isolation', () => {
       lapses: 0,
       state: 'learning',
     })
+    if (fsrsError) throw new Error(`fsrs_cards seed failed: ${fsrsError.message}`)
 
     // --- Org B ---
     orgBId = await createTestOrg({
@@ -160,6 +191,15 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA questions', async () => {
+    // Positive control: admin confirms the questions exist and are readable via service role.
+    const { data: adminData, error: adminError } = await admin
+      .from('questions')
+      .select('id')
+      .in('id', questionIdsA)
+    expect(adminError).toBeNull()
+    expect(adminData?.length).toBeGreaterThan(0)
+
+    // Negative: orgB student is blocked by RLS.
     const { data, error } = await studentBClient
       .from('questions')
       .select('id')
@@ -169,6 +209,17 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA quiz sessions', async () => {
+    // Positive control via service role, matching the questions/student_responses tests
+    // above: a self-read regression in quiz_sessions RLS would otherwise redden the control
+    // rather than the negative below, making the failure signal ambiguous.
+    const { data: adminData, error: adminError } = await admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('id', sessionAId)
+    expect(adminError).toBeNull()
+    expect(adminData?.length).toBeGreaterThan(0)
+
+    // Negative: orgB student is blocked by RLS.
     const { data, error } = await studentBClient
       .from('quiz_sessions')
       .select('id')
@@ -178,6 +229,15 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA student responses', async () => {
+    // Positive control: admin confirms the seeded student_response exists.
+    const { data: adminData, error: adminError } = await admin
+      .from('student_responses')
+      .select('id')
+      .eq('organization_id', orgAId)
+    expect(adminError).toBeNull()
+    expect(adminData?.length).toBeGreaterThan(0)
+
+    // Negative: orgB student is blocked by RLS.
     const { data, error } = await studentBClient
       .from('student_responses')
       .select('id')
@@ -187,21 +247,28 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student cannot read another student FSRS cards (same org)', async () => {
+    // Positive control: studentA can read their own card seeded in beforeAll.
+    const { data: ownCards, error: ownError } = await studentAClient.from('fsrs_cards').select('id')
+    expect(ownError).toBeNull()
+    expect(ownCards?.length).toBeGreaterThan(0)
+
+    // Negative: studentA2 has no cards — RLS returns only the requester's own rows.
     const { data, error } = await studentA2Client.from('fsrs_cards').select('id')
-    // studentA2 should only see their own cards (none seeded)
     expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('student can read only their own audit events (GDPR Art. 15)', async () => {
     const { data, error } = await studentAClient.from('audit_events').select('id, actor_id')
-    // Migration 060: students can now read their own audit events
-    // All returned rows must belong to the authenticated student (RLS enforces actor_id = auth.uid())
+    // Migration 060: students can now read their own audit events via audit_read_own policy
+    // (actor_id = auth.uid()). start_quiz_session creates at least one event for the actor.
     expect(error).toBeNull()
-    expect(data).not.toBeNull()
+    // Positive control: the query must return at least one row so the set-size check is non-vacuous.
+    expect(data?.length).toBeGreaterThan(0)
     const actorIds = new Set((data ?? []).map((r) => r.actor_id))
-    // All rows share a single actor_id (the student's own)
-    expect(actorIds.size).toBeLessThanOrEqual(1)
+    // Rows carry exactly the requester's actor_id — RLS enforces actor_id = auth.uid().
+    // Pinning the identity, not just the set size: size === 1 passes for ANY single actor.
+    expect(Array.from(actorIds)).toEqual([studentAId])
   })
 
   it('instructor can read audit events in own org', async () => {
