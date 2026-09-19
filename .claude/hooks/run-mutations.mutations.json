@@ -656,7 +656,9 @@
       "id": "expectred-id-count-unchecked",
       "find": "  if (count > 1) {",
       "replace": "  if (count > 1e9) {",
-      "expectRed": ["__DERIVE__"]
+      "expectRed": [
+        "two entries sharing an id are refused rather than editing whichever comes first"
+      ]
     },
     {
       "id": "array-scan-accepts-any-char",
