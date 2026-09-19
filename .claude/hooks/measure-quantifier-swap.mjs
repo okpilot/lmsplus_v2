@@ -113,11 +113,11 @@ function parseArgs(args) {
       verbose = true
     } else if (args[i] === '--sha') {
       sha = args[i + 1]
-      if (!sha) throw new Error('--sha needs a value')
+      if (!sha || sha.startsWith('-')) throw new Error('--sha needs a value')
       i += 1
     } else if (args[i] === '--head') {
       head = args[i + 1]
-      if (!head) throw new Error('--head needs a value')
+      if (!head || head.startsWith('-')) throw new Error('--head needs a value')
       i += 1
     } else {
       throw new Error(`unknown argument ${JSON.stringify(args[i])}`)

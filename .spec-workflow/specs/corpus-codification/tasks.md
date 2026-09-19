@@ -117,11 +117,10 @@ already exists. Derive the current set:
 
 ```bash
 awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
-  .claude/agent-memory/learner/MEMORY.md
+  .claude/agent-memory/learner/MEMORY.md | sort -rn
 ```
 
-The command above prints the qualifying rows with their counts; pipe it through `sort -rn` and
-take the top row to select the largest. The learner's verdict on the branch that produced
+Largest count first. The learner's verdict on the branch that produced
 Decision 73: *the gap is execution, not missing rule text.*
 
 No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
@@ -148,9 +147,11 @@ Enumerate against the ref, before editing; a worktree mid-sweep reports its own 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
 
-## PARKED — nothing here is scheduled; each needs a user decision or a non-repo action
+## PARKED as of 2026-09-19 — nothing here is scheduled; each needs a user decision or a non-repo action
 
-Not a backlog. An item leaves this list by being decided, not by ageing.
+Not a backlog, and not a derivable set — a snapshot. Two of these items exist in no other
+artifact, which is why they are written out. An item leaves this list by being decided, not by
+ageing.
 
 - **§10 cl.3 widening — awaiting the user.** cl.3 greps the retracted STRING; the proposal is to
   widen it to the retracted CLAIM. The learner row that motivates it is RULE CANDIDATE and still
@@ -503,13 +504,13 @@ RULE CANDIDATE.
       guard is worth building at all.
       DONE: the detectable/judgment-only split is recorded in Decision 76.
 - [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
-      hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
+      hook. Lead (a) is unverified; lead (b) is a measured no-go: (a) a commit whose message declares a correction
       (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying
       derivation command anywhere in the hunk; (b) a `+` line reinstating a token the SAME commit
       retracts elsewhere — the intra-commit companion to `check-retracted-phrase.mjs`, which today
       only sees the replacement hunk.
       SETTLED for lead (b): trigger named, false-positive cost measured, verdict no-go
-      (Decision 76). Lead (a) remains unverified.
+      (Decision 76).
 - [ ] Whatever ships is encoded in `<guard>.mutations.json` and graded by `run-mutations.mjs`
       before it is wired into `lefthook.yml` — a guard the harness does not grade is the thing this
       programme exists to prevent.
