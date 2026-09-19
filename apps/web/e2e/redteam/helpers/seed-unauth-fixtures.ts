@@ -81,9 +81,10 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
 }
 
 /**
- * Seed every TRACKED row behind one failure boundary. The caller receives
- * `tracker` only once this resolves, so a throw part-way leaves seeded rows
- * with nothing able to clean them — clean them here before rethrowing.
+ * Seed every TRACKED row behind one failure boundary. The spec-level caller
+ * receives `tracker` only once `seedUnauthFixtures` resolves, so a throw
+ * part-way leaves seeded rows with nothing able to clean them — clean them
+ * here before rethrowing.
  */
 async function seedTrackedRows(
   adminClient: AdminClient,

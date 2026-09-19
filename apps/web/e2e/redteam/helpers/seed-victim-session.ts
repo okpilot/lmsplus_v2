@@ -41,21 +41,36 @@ export async function seedVictimCompletedSession(
     })
     if (submitErr) throw new Error(`unauth seed: batch_submit_quiz failed: ${submitErr.message}`)
   } catch (e) {
-    // The session is open (`ended_at IS NULL`) and the caller never receives the
-    // tracker, so afterAll cannot clean it. The single-active-session guard
-    // (docs/security.md §11d) would then raise `another_session_active` on every
-    // later run. Soft-delete clears the guard's `deleted_at IS NULL` term.
-    try {
-      await discardSeedSession(adminClient, seedSessionId)
-    } catch (discardErr) {
-      // Both failures matter: the submit failure explains the seed, the discard
-      // failure explains why `another_session_active` will fire on the next run.
-      // `message` stays the submit failure's so callers can still match on it.
-      throw new AggregateError([e, discardErr], e instanceof Error ? e.message : String(e))
-    }
-    throw e
+    throw await composeSeedFailure(adminClient, seedSessionId, e)
   }
   return seedSessionId
+}
+
+/**
+ * Soft-delete the half-seeded session, then return the error the caller throws.
+ *
+ * The session is open (`ended_at IS NULL`) and the spec-level caller never
+ * receives the tracker, so afterAll cannot clean it. The single-active-session
+ * guard (docs/security.md §11d) would then raise `another_session_active` on
+ * every later run. Soft-delete clears the guard's `deleted_at IS NULL` term.
+ */
+async function composeSeedFailure(
+  adminClient: AdminClient,
+  sessionId: string,
+  submitErr: unknown,
+): Promise<unknown> {
+  try {
+    await discardSeedSession(adminClient, sessionId)
+  } catch (discardErr) {
+    // Both failures matter: the submit failure explains the seed, the discard
+    // failure explains why `another_session_active` will fire on the next run.
+    // `message` stays the submit failure's so callers can still match on it.
+    return new AggregateError(
+      [submitErr, discardErr],
+      submitErr instanceof Error ? submitErr.message : String(submitErr),
+    )
+  }
+  return submitErr
 }
 
 /** Start the victim's quick_quiz session and return its id, guarding the RPC's untyped return. */

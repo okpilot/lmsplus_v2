@@ -142,6 +142,22 @@ describe('seedUnauthFixtures', () => {
       expect(tracker.flags.has('victim-user-id::q-1')).toBe(true)
       expect(tracker.sessions.has(VICTIM_SESSION_ID)).toBe(true)
     })
+
+    it('does not call cleanupFixtures when seeding succeeds', async () => {
+      // MUTATION: change `catch` to `finally` in seedTrackedRows — cleanupFixtures
+      // would fire on success, destroying the fixtures the specs depend on.
+      setupCommonMocks()
+
+      mockFrom
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'q-1' }], error: null }))
+        .mockReturnValueOnce(buildChain({ data: { id: 'c-1' }, error: null }))
+        .mockReturnValueOnce(buildChain({ data: [{ question_id: 'q-1' }], error: null }))
+
+      await seedUnauthFixtures(adminMock)
+
+      expect(mockCleanupFixtures).not.toHaveBeenCalled()
+    })
   })
 
   describe('fallback / no-op silence', () => {
@@ -172,6 +188,34 @@ describe('seedUnauthFixtures', () => {
   })
 
   describe('failure atomicity', () => {
+    it('calls cleanupFixtures with only the partial tracker when the first seeding step throws mid-way', async () => {
+      // MUTATION: move `seedVictimOwnedRows` outside the try block in seedTrackedRows —
+      // a throw from step 1 would bypass the catch and leak the partially-tracked rows.
+      // Distinguishing fixture: flag upsert fails AFTER comment was added to the tracker,
+      // so tracker has c-1 in comments but no flag entry (unlike the "second step throws"
+      // test below, where both comment AND flag are fully tracked).
+      setupCommonMocks()
+
+      mockFrom
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null })) // quiz_sessions
+        .mockReturnValueOnce(buildChain({ data: [{ id: 'q-1' }], error: null })) // questions
+        .mockReturnValueOnce(buildChain({ data: { id: 'c-1' }, error: null })) // comment insert ok → tracked
+        // flagged_questions upsert fails — seedVictimOwnedRows throws here
+        .mockReturnValueOnce(buildChain({ data: null, error: { message: 'flag upsert error' } }))
+
+      await expect(seedUnauthFixtures(adminMock)).rejects.toThrow(/failed to seed flagged_question/)
+
+      expect(mockCleanupFixtures).toHaveBeenCalledTimes(1)
+      const tracked = mockCleanupFixtures.mock.calls[0]?.[1] as {
+        comments: Set<string>
+        flags: Set<string>
+      }
+      // Comment was tracked before the throw — needs cleanup
+      expect(tracked.comments.has('c-1')).toBe(true)
+      // Flag was never tracked (the upsert that would have added it is what threw)
+      expect(tracked.flags.size).toBe(0)
+    })
+
     it('cleans the rows it already tracked when a later seeding step throws', async () => {
       setupCommonMocks()
       mockSeedVictimCompletedSession.mockRejectedValue(new Error('victim session boom'))
@@ -205,7 +249,10 @@ describe('seedUnauthFixtures', () => {
 
       // The seeding failure is the diagnostic; a cleanup failure must not mask it.
       await expect(seedUnauthFixtures(adminMock)).rejects.toThrow(/victim session boom/)
-      expect(errorSpy).toHaveBeenCalled()
+      // Not merely "logged something": the cleanup failure's own message must survive,
+      // or the swallowed error is unobservable and the catch is indistinguishable from
+      // an empty one.
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('cleanup boom'))
     })
   })
 
