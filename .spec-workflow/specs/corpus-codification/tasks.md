@@ -144,6 +144,34 @@ executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the o
 steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
 Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
 
+**RETIRE CR-local entirely** — user decision 2026-09-19, superseding Decision 74's round-1
+scoping. Round 1 goes from six members to five. Cloud CodeRabbit stays until the subscription
+lapses, so `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope. Driver:
+a blind `/code-review` run over #1315's range, in an isolated worktree with no PR access, matched
+all four of cloud CR's Major findings and raised five it did not.
+
+Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
+deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:
+
+```bash
+grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
+  --include="*.md" --include="*.yml" --include="*.json" --include="*.sh" --include="*.mjs" . \
+  | grep -v node_modules | grep -v '.claude/worktrees/' | grep -v '.claude/agent-memory/'
+```
+
+`docs/decisions.md` and every all-`[x]` spec are HISTORY — Decision 74 happened. Leave them.
+
+**Three classes the grep above cannot reach** — the Decision 74 sweep's lesson, applying again:
+1. **The reviewer COUNT.** Every "six reviewers" site is invisible to a `CR-local` grep. Derive:
+   `grep -rniE '\bsix\b' CLAUDE.md .claude/rules .claude/commands`.
+2. **A guard's own worked example.** `check-prose-paths.mjs` names the rules file being deleted in
+   a source comment; the deletion makes that comment false (§10).
+3. **The executable mirror.** `cr-local-plan-reminder.sh` PRINTS the round's reviewer list to the
+   operator and is wired in `.claude/settings.json`. Not `.md`, so a doc-shaped sweep misses it.
+
+Checked clean: no `limits.json` or `prose-claims.json` baseline row covers a deletion target.
+Open before editing: whether `ci.yml`'s hits are the local CLI or the cloud app.
+
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
 
