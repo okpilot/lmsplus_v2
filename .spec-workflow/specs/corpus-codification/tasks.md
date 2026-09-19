@@ -454,3 +454,30 @@ Two clauses that make the table survive contact:
       `agent-workflow.md § "State the MECHANISM behind a constraint"` mandates. Slice 3's
       classification must not read a mechanism clause as archaeology — the tell is whether the
       sentence says WHY THE HABIT FIRES (keep) or WHAT HAPPENED ONCE (delete).
+
+## Slice N — mechanical enforcer for §10 cl.8 (the correction-introduces-a-new-claim class)
+
+Learner tracker row "Fix commit correcting §10 violations introduces fresh §10", count **68**,
+still RULE CANDIDATE. `code-style.md` §10 cl.8 states it in prose and it keeps recurring — the
+count is the evidence prose is not the lever. Rule text is NOT the deliverable here.
+
+What has actually caught an instance: `check-retracted-phrase.mjs` (the cross-file subset), and
+`run-mutations.mjs` reporting a SURVIVED entry. Nothing caught the coherent-but-false replacement
+sentence. That residue is not decidable in general; the encodable subsets are.
+
+- [ ] Enumerate the class from history first, do not design from the rule text. Derive the
+      candidate commits: `git log --oneline --all --grep='^fix(' -- .claude/ docs/` crossed with
+      commits whose own follow-up retracted a claim they introduced. Classify each into
+      mechanically-detectable vs judgment-only, and record the split — the ratio decides whether a
+      guard is worth building at all.
+- [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
+      hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
+      (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying
+      derivation command anywhere in the hunk; (b) a `+` line reinstating a token the SAME commit
+      retracts elsewhere — the intra-commit companion to `check-retracted-phrase.mjs`, which today
+      only sees the replacement hunk.
+- [ ] Whatever ships is encoded in `<guard>.mutations.json` and graded by `run-mutations.mjs`
+      before it is wired into `lefthook.yml` — a guard the harness does not grade is the thing this
+      programme exists to prevent.
+- [ ] Close the tracker row to PROMOTED only once the enforcer is graded green, not when the hook
+      is written.
