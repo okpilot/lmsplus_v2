@@ -180,6 +180,14 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       biggest risk to this programme. MUST be human-invoked and write the diff for review; a
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+      **Manual form until the flag lands** — write `"expectRed": ["__DERIVE__"]`, run
+      `--guard <basename>` once, transcribe the harness's own `actually red` line verbatim.
+      `validateDataFile` (`:348`) only requires a non-empty array, so the sentinel reaches
+      `compareResult` and MISMATCH prints the observed set (`:717`).
+      **Pre-flight, or the sentinel launders a broken anchor:** a `find` matching nothing is a
+      no-op and reports SURVIVED exactly as an unpinned test does. Prove uniqueness against the
+      HEAD blob with the exported `assertSingleOccurrence` (`:381`) before a worktree spawns.
+      `grep -n '__DERIVE__' .claude/hooks/*.mutations.json` must be empty before commit.
 
 - [x] **Stop a fixup commit from forcing a second full cycle.** CLOSED by Decision 73: a fixup
       commit triggers nothing; the next gate ROUND re-reads it.
