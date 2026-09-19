@@ -288,6 +288,22 @@ test('reads the value of an option flag', () => {
   })
 })
 
+test('reads --update-expected as a mode', () => {
+  assert.deepEqual(parseArgs(['--update-expected']), {
+    mode: 'update-expected',
+    guard: null,
+    scratch: null,
+  })
+})
+
+test('takes --update-expected together with --guard, which is an option and not a mode', () => {
+  assert.deepEqual(parseArgs(['--update-expected', '--guard', 'run-mutations']), {
+    mode: 'update-expected',
+    guard: 'run-mutations',
+    scratch: null,
+  })
+})
+
 test('blocks two mode flags given together', () => {
   // MUTATION: delete the `new Set(modes).size > 1` check → the first branch tested in main wins
   // and the other request is dropped with no diagnostic at exit 0.

@@ -34,6 +34,7 @@
 | Spawned-process tests for hooks calling `node --test` must strip NODE_TEST_CONTEXT — otherwise inner subprocess detects recursion and produces no TAP plan, faulting for the wrong reason. Pattern: spread without key into spawnSync env. | 2026-09-14 | 1 | 2026-09-14 | WATCHING |
 | `hunksfor-paths-through-argv` is a CASCADE mutation for check-retracted-phrase suites — adding any new test requires (a) verifying if it reddens under this mutation in scratch worktree, (b) adding title to expectRed BEFORE running the full harness. | 2026-09-18 | 1 | 2026-09-18 | WATCHING |
 | Uniqueness test with `Date.now()`-based collision protection guarded by a `toBeLessThan(N ms)` timing bound — flake risk on loaded CI runners. Fix: freeze clock with `vi.useFakeTimers()` + `vi.setSystemTime()` so uniqueness depends solely on the random half; timing bound unnecessary. | 2026-09-18 | 2 | 2026-09-18 | WATCHING |
+| `scanStringArrayEnd`-style scanner test: fixture must hold the protected character in the EXISTING text being scanned, not only in the replacement — a test that replaces `["ok"]` with `["has ] inside"]` never exercises the guard because the scanner runs on the old text. | 2026-09-19 | 1 | 2026-09-19 | WATCHING |
 
 ## Durable knowledge
 

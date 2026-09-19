@@ -6,6 +6,23 @@
 
 ## Positive-pattern log
 
+### --update-expected mode for mutation harness — APPROVED (2026-09-19, feat/corpus-update-expected)
+
+7 files, +655/-18. All plan items verified:
+1. `gradeOne` gains `onResult` callback, called AFTER catch (fault has no observed set) ✓
+2. `MODE_FLAGS` gains `--update-expected`; `--guard` composes (OPTION_FLAGS, not MODE) ✓
+3. All 5 new functions present: `renderExpectRed`, `scanStringArrayEnd`, `replaceExpectRed`, `uncommittedInputs`, `modeUpdateExpected` ✓
+4. Uncommitted-inputs gate: `git status --porcelain -- target suites`, data file excluded ✓
+5. Exit codes: fault→2, uncommitted→2, ≥1 written→0, all-caught-nothing-written→0, ≥1-survived-nothing-written→1 ✓
+6. SURVIVED never written (explicit MISMATCH-only filter before write loop) ✓
+7. Read-back: `JSON.parse(text)` + `validateDataFile` before `writeFileSync` per file ✓
+8. `run-mutations.write.test.mjs`: 5 end-to-end tests ✓
+9. Registered in `suites` array of `run-mutations.mutations.json` ✓
+10. Registered in `.github/workflows/ci.yml` ✓
+- 9 mutations encoded + 1 notEncoded (`verified-write-unchecked`) — declared deviation, sound: the read-back branch is defence-in-depth against a future splice bug, no present input reaches it ✓
+- Deviation 2: separate write test file instead of generalising `buildFaultFixtureRepo` — correct, spawn test near its cap ✓
+- tasks.md `--update-expected` entry marked `[x]`, usage notes accurate ✓
+
 ### DB fixture suffix (packages/db tier) — APPROVED (2026-09-18, fix/db-integration-fixture-suffix)
 
 50 files changed. All 5 plan items verified:

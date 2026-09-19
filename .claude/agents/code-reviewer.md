@@ -43,6 +43,8 @@ You receive:
 ### WARNINGS (logged, non-blocking)
 
 5. **Long functions** — any function > 30 lines (EXCEPT React function-component / custom-hook render/return bodies of pure JSX composition, allowed up to 35 lines — see suppression #5 below and code-style.md §3)
+   Measure the BODY — first `{` to the matching `}` — never declaration-to-next-declaration,
+   which sweeps the FOLLOWING JSDoc into the count and reports a compliant function as over.
 6. **Too many parameters** — function with > 3 non-object parameters
 7. **Deep nesting** — code indented > 3 levels deep
 8. **`any` type** — TypeScript `any` without a comment explaining why

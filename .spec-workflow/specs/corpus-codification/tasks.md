@@ -172,7 +172,7 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       the slice exists to remove, in the slice's own commit messages. Either commit it as a
       dev script with the mutations as data (re-runnable, so the claim is checkable), or stop
       stating a number. Do not keep asserting an unverifiable count.
-- [ ] **`--update-expected` on the mutation harness.** Same shape, and same rationale, as
+- [x] **`--update-expected` on the mutation harness.** Same shape, and same rationale, as
       `--update-baseline` on the file-size guard: adding a test to a suite can invalidate the
       `expectRed` of every existing entry whose break also reddens it, and four entries needed
       hand-widening on the harness's own branch within one commit of each other. A check that is
@@ -180,6 +180,15 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       biggest risk to this programme. MUST be human-invoked and write the diff for review; a
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
+      **Using it on a NEW entry** — write `"expectRed": ["__DERIVE_a3f91c7e__"]` and run
+      `--update-expected [--guard <basename>]`. Then
+      `grep -n '__DERIVE_a3f91c7e__' .claude/hooks/*.mutations.json` must be empty before commit.
+      **What it refuses.** It will not run at all while the target or a declared suite is
+      uncommitted: the grading run reads HEAD, so the set written would be the old one. It
+      never writes for a SURVIVED entry, whose observed set is empty — that is a defect in the
+      MUTATION, not a stale expectation. A `find` matching nothing does not reach either path:
+      `assertSingleOccurrence` throws, the mutation is a FAULT, and one fault anywhere in the
+      batch is exit 2 with nothing written.
 
 - [x] **Stop a fixup commit from forcing a second full cycle.** CLOSED by Decision 73: a fixup
       commit triggers nothing; the next gate ROUND re-reads it.
@@ -443,3 +452,30 @@ Two clauses that make the table survive contact:
       `agent-workflow.md § "State the MECHANISM behind a constraint"` mandates. Slice 3's
       classification must not read a mechanism clause as archaeology — the tell is whether the
       sentence says WHY THE HABIT FIRES (keep) or WHAT HAPPENED ONCE (delete).
+
+## Slice N — mechanical enforcer for §10 cl.8 (the correction-introduces-a-new-claim class)
+
+Learner tracker row "Fix commit correcting §10 violations introduces fresh §10", count **68**,
+still RULE CANDIDATE. `code-style.md` §10 cl.8 states it in prose and it keeps recurring — the
+count is the evidence prose is not the lever. Rule text is NOT the deliverable here.
+
+What has actually caught an instance: `check-retracted-phrase.mjs` (the cross-file subset), and
+`run-mutations.mjs` reporting a SURVIVED entry. Nothing caught the coherent-but-false replacement
+sentence. That residue is not decidable in general; the encodable subsets are.
+
+- [ ] Enumerate the class from history first, do not design from the rule text. Derive the
+      candidate commits: `git log --oneline --all --grep='^fix(' -- .claude/ docs/` crossed with
+      commits whose own follow-up retracted a claim they introduced. Classify each into
+      mechanically-detectable vs judgment-only, and record the split — the ratio decides whether a
+      guard is worth building at all.
+- [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
+      hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
+      (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying
+      derivation command anywhere in the hunk; (b) a `+` line reinstating a token the SAME commit
+      retracts elsewhere — the intra-commit companion to `check-retracted-phrase.mjs`, which today
+      only sees the replacement hunk.
+- [ ] Whatever ships is encoded in `<guard>.mutations.json` and graded by `run-mutations.mjs`
+      before it is wired into `lefthook.yml` — a guard the harness does not grade is the thing this
+      programme exists to prevent.
+- [ ] Close the tracker row to PROMOTED only once the enforcer is graded green, not when the hook
+      is written.

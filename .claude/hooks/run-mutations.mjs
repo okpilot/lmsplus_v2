@@ -14,6 +14,8 @@
 //         node .claude/hooks/run-mutations.mjs --guard <base>   run one data file
 //         node .claude/hooks/run-mutations.mjs --list           print ids, run nothing
 //         node .claude/hooks/run-mutations.mjs --coverage       claim sites vs encoded mutations
+//         node .claude/hooks/run-mutations.mjs --update-expected rewrite every MISMATCHed
+//                                                               `expectRed` from what went red
 //         [--scratch <dir>]                                     where worktrees are made
 //
 // Exit:   0 = every encoded mutation was CAUGHT
@@ -56,7 +58,7 @@ const MAX_BUFFER = 64 * 1024 * 1024
 const SUITE_TIMEOUT_MS = 120_000
 
 /** Mode flags. Options (`--guard`, `--scratch`) take a value and are NOT modes. */
-const MODE_FLAGS = new Set(['--list', '--coverage'])
+const MODE_FLAGS = new Set(['--list', '--coverage', '--update-expected'])
 const OPTION_FLAGS = new Set(['--guard', '--scratch'])
 
 const DATA_SUFFIX = '.mutations.json'
@@ -699,7 +701,7 @@ function modeCoverage(root, guard) {
  * and both mean the same thing about the RUN, which is why they share a verdict — but a reader
  * told only about recipes will go audit a data file that is fine.
  */
-function gradeOne({ root, data, mut, base }) {
+function gradeOne({ root, data, mut, base, onResult }) {
   let res
   try {
     res = runMutation({ root, data, mut, base })
@@ -708,6 +710,10 @@ function gradeOne({ root, data, mut, base }) {
     console.log(`    ${err.message}`)
     return 'fault'
   }
+  // Deliberately AFTER the catch: a fault has no observed set, and reporting one would let
+  // `--update-expected` write an expectation for a mutation that never ran. `res.failed` is the
+  // raw TAP list, so it can repeat a name; the SET is what an `expectRed` means.
+  onResult?.({ id: mut.id, status: res.status, observed: [...new Set(res.failed)] })
   if (res.status === 'CAUGHT') {
     console.log(`  CAUGHT    ${mut.id}`)
     return 'caught'
@@ -722,7 +728,280 @@ function gradeOne({ root, data, mut, base }) {
   return 'bad'
 }
 
-function modeRun(root, guard, scratch) {
+/**
+ * biome's `formatter.lineWidth` (biome.json). `lefthook.yml` runs `biome check --write` on staged
+ * JSON, so a width this writer guesses wrong is silently corrected AT COMMIT — after the human
+ * reviewed a diff that is not what lands. Matching it is not cosmetic.
+ */
+const JSON_LINE_WIDTH = 100
+const EXPECT_KEY = '"expectRed": '
+
+/**
+ * One `expectRed` array as biome would format it, starting at `indent`.
+ *
+ * `hasComma` only feeds the width sum — the comma itself sits outside the replaced span.
+ */
+export function renderExpectRed(indent, names, hasComma) {
+  // ONE call site for the escaping on purpose. Written twice, an anchor on either copy is
+  // ambiguous and a mutation can only ever pin half of it.
+  const q = (n) => JSON.stringify(n)
+  const oneLine = `[${names.map(q).join(', ')}]`
+  if (indent.length + EXPECT_KEY.length + oneLine.length + (hasComma ? 1 : 0) <= JSON_LINE_WIDTH) {
+    return indent + EXPECT_KEY + oneLine
+  }
+  const inner = `${indent}  `
+  return `${indent}${EXPECT_KEY}[\n${names.map((n) => inner + q(n)).join(',\n')}\n${indent}]`
+}
+
+/**
+ * Index of the `]` closing a FLAT array of JSON strings opening at `open`.
+ *
+ * Throws on anything else — a nested array, an object, a number, an unterminated array. The
+ * writer refuses rather than splicing blind: a bad splice corrupts the encoded corpus itself.
+ */
+function scanStringArrayEnd(text, open, id) {
+  let i = open + 1
+  let inString = false
+  while (i < text.length) {
+    const c = text[i]
+    if (inString) {
+      if (c === '\\') i += 2
+      else if (c === '"') {
+        inString = false
+        i++
+      } else i++
+      continue
+    }
+    if (c === '"') {
+      inString = true
+      i++
+      continue
+    }
+    if (c === ']') return i
+    if (c === ' ' || c === '\t' || c === '\r' || c === '\n' || c === ',') {
+      i++
+      continue
+    }
+    throw new Error(
+      `\`expectRed\` for ${id} is not a flat array of JSON strings (found ${JSON.stringify(c)}) — refusing to edit it`,
+    )
+  }
+  throw new Error(`\`expectRed\` for ${id} is never closed — refusing to edit it`)
+}
+
+/**
+ * Replace ONE entry's `expectRed` array in the raw JSON TEXT.
+ *
+ * Never `JSON.parse`s to WRITE. Re-serialising a tracked data file reformats every line and buries
+ * the two the author meant to change; `check-file-size-guard.mjs --update-baseline` does exactly
+ * that and the rules name it as the part not to copy.
+ *
+ * `assertSingleOccurrence` is deliberately NOT reused: its hints describe the mutation TARGET
+ * ("the data file is stale against HEAD", "extend the anchor until it is unique"), which here
+ * would name the wrong file and the wrong remedy.
+ */
+/** Where entry `id` starts, and the text belonging to it alone. Throws unless it occurs once. */
+function entryBounds(text, id) {
+  const idAnchor = `"id": ${JSON.stringify(id)}`
+  const count = text.split(idAnchor).length - 1
+  if (count === 0) {
+    throw new Error(`no entry ${id} in the data file text — nothing written`)
+  }
+  if (count > 1) {
+    throw new Error(
+      `${id} occurs ${count} times in the data file text — refusing to edit an ambiguous entry; nothing written`,
+    )
+  }
+  const entryStart = text.indexOf(idAnchor)
+  const nextId = text.indexOf('"id": ', entryStart + idAnchor.length)
+  return { entryStart, slice: text.slice(entryStart, nextId === -1 ? text.length : nextId) }
+}
+
+export function replaceExpectRed(text, id, names) {
+  const { entryStart, slice } = entryBounds(text, id)
+  const hits = [...slice.matchAll(/^([ \t]*)"expectRed": /gm)]
+  if (hits.length !== 1) {
+    throw new Error(
+      `expected exactly one \`expectRed\` in entry ${id}, found ${hits.length} — nothing written`,
+    )
+  }
+  const [hit] = hits
+  const indent = hit[1]
+  const open = entryStart + hit.index + hit[0].length
+  if (text[open] !== '[') {
+    throw new Error(`\`expectRed\` for ${id} does not open with \`[\` — refusing to edit it`)
+  }
+  const close = scanStringArrayEnd(text, open, id)
+  const hasComma = text[close + 1] === ','
+  return (
+    text.slice(0, entryStart + hit.index) +
+    renderExpectRed(indent, names, hasComma) +
+    text.slice(close + 1)
+  )
+}
+
+/**
+ * Declared inputs that differ from HEAD.
+ *
+ * The grading run reads HEAD — `committedSuite` and `git worktree add --detach HEAD`. The case
+ * this mode exists for is "I just added a test", and uncommitted that test is invisible to the
+ * grader: the run would grade the OLD tree and write the OLD observed set, reporting success.
+ * Writing a stale expectation while looking like it worked is worse than doing nothing.
+ *
+ * Scoped to `target` + `suites` and never the data file, which is dirty by construction here.
+ */
+function uncommittedInputs(root, data) {
+  // `--untracked-files=all` is load-bearing, not decoration: `--porcelain` honours
+  // `status.showUntrackedFiles`, so under `no` a NEWLY ADDED suite reports nothing and this
+  // gate passes on exactly the case it exists to refuse — a test that is not in HEAD.
+  const out = git(
+    ['status', '--porcelain', '--untracked-files=all', '--', data.target, ...data.suites],
+    root,
+  )
+  return out
+    .split('\n')
+    .filter((l) => l.trim().length > 0)
+    .map((l) => l.slice(3))
+}
+
+/**
+ * Grade, then rewrite the `expectRed` of every MISMATCHing entry from the set actually observed.
+ *
+ * Human-invoked only: this is the sole route to the only write that targets a tracked data file.
+ * A check laborious to keep current gets disabled, which is why this exists — but a harness that
+ * refreshed its own expectations unattended would launder them, so the flag is opt-in, prints
+ * every change, and writes nothing else.
+ */
+/** The refusing file, or null when every declared input matches HEAD. */
+function firstDirtyFile(root, files) {
+  for (const file of files) {
+    const dirty = uncommittedInputs(root, loadDataFile(file))
+    if (dirty.length > 0) {
+      console.error(`✖ ${file.basename}${DATA_SUFFIX}: uncommitted input(s) — NOTHING WRITTEN`)
+      for (const p of dirty) console.error(`    ${p}`)
+      console.error(
+        '  The grading run reads HEAD, so the set written would be the OLD one. Commit, then re-run.',
+      )
+      return file
+    }
+  }
+  return null
+}
+
+/**
+ * Splice one file's MISMATCHed entries, then read the result back before it reaches disk.
+ *
+ * A parse to VERIFY is not a serialiser — nothing produced by `JSON.stringify` of the file ever
+ * reaches disk. It closes the one catastrophic failure: a splice that corrupts the encoded corpus.
+ */
+function rewriteFile(file, data, ids, result) {
+  let text = readFileSync(file.path, 'utf8')
+  // Buffered, not printed as we go: a later id can still throw on the raw splice or fail the
+  // read-back, and `nothing written` must not follow lines that already announced a change.
+  const changes = []
+  for (const id of ids) {
+    const was = data.mutations.find((m) => m.id === id).expectRed
+    text = replaceExpectRed(text, id, result(id).observed)
+    changes.push(
+      `  ~ ${file.basename}${DATA_SUFFIX}  ${id}\n      was: ${was.join(' | ')}\n      now: ${result(id).observed.join(' | ')}`,
+    )
+  }
+  let reparsed
+  try {
+    reparsed = JSON.parse(text)
+  } catch (err) {
+    throw new Error(`${file.path}: rewrite produced invalid JSON — ${err.message}; nothing written`)
+  }
+  const problems = validateDataFile(reparsed, file.path)
+  if (problems.length > 0) {
+    throw new Error(
+      `${file.path}: rewrite would not validate — ${problems.join('; ')}; nothing written`,
+    )
+  }
+  writeFileSync(file.path, text)
+  for (const line of changes) console.log(line)
+}
+
+/** Why a SURVIVED entry is never given a generated expectation. */
+function reportSurvivor(file, id) {
+  console.error(
+    `  ! ${file.basename}${DATA_SUFFIX}  ${id} — SURVIVED: nothing went red, so there is no`,
+  )
+  console.error(
+    '      observed set to write. The `find` anchor is a no-op or the test pins nothing — fix',
+  )
+  console.error('      the MUTATION, not the expectation. Nothing written for this id.')
+}
+
+function modeUpdateExpected(root, guard, scratch) {
+  const files = selectFiles(root, guard)
+  if (firstDirtyFile(root, files)) return 2
+  // Keyed by DATA FILE and id, never id alone. `validateDataFile` rejects a duplicate id within
+  // ONE file and says nothing across files, and nine ids are in fact shared between the
+  // check-prose-claims, check-prose-paths and check-file-size-guard corpora today. Keyed on the
+  // id alone, a later file's result overwrites an earlier one and this mode splices one guard's
+  // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
+  const keyOf = (file, id) => `${file}\u0000${id}`
+  const graded = new Map()
+  const runExit = modeRun(root, guard, scratch, (r) => graded.set(keyOf(r.file, r.id), r))
+  if (runExit === 2) {
+    console.error('\n✖ a mutation could not be graded — NO VERDICT, nothing written.')
+    return 2
+  }
+  let written = 0
+  let survivors = 0
+  for (const file of files) {
+    const tally = updateOneFile(file, (id) => graded.get(keyOf(file.path, id)))
+    written += tally.written
+    survivors += tally.survivors
+  }
+  return reportOutcome(written, survivors)
+}
+
+/** Rewrite one data file's MISMATCHes; report its SURVIVED entries and write nothing for them. */
+function updateOneFile(file, result) {
+  const data = loadDataFile(file)
+  const ids = data.mutations.map((m) => m.id).filter((id) => result(id)?.status === 'MISMATCH')
+  let survivors = 0
+  for (const id of data.mutations.map((m) => m.id)) {
+    if (result(id)?.status !== 'SURVIVED') continue
+    survivors++
+    reportSurvivor(file, id)
+  }
+  if (ids.length === 0) return { written: 0, survivors }
+  rewriteFile(file, data, ids, result)
+  return { written: ids.length, survivors }
+}
+
+/** 0 when something was written or there was nothing to do; 1 when a SURVIVED entry blocked it. */
+function reportOutcome(written, survivors) {
+  if (written > 0) {
+    console.error(
+      `\n${written} entr${written === 1 ? 'y' : 'ies'} rewritten. REVIEW THE DIFF before committing —`,
+    )
+    console.error('  a widened `expectRed` usually needs its `note` widened too; this writes the')
+    console.error('  ARRAY only, because a generated justification is worth nothing.')
+    // NOT `return 0`: the two conditions are independent, and a batch can carry both. A survivor
+    // is a defect in the MUTATION, which `modeRun` exits 1 for — burying it behind a successful
+    // rewrite reports exactly the hole this flag exists to surface as success.
+    return survivors > 0 ? 1 : 0
+  }
+  if (survivors > 0) return 1
+  console.error('\nevery gradeable mutation was already CAUGHT — nothing to update.')
+  return 0
+}
+
+/**
+ * Grade every mutation of every selected data file.
+ *
+ * Four parameters, each a distinct role (`code-style.md` §3, infrastructure exception):
+ * @param root       repository root; every git call and every path resolves against it
+ * @param guard      basename selecting ONE data file, or falsy for all of them
+ * @param scratch    where throwaway worktrees are made
+ * @param onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
+ *                   null for a plain run. Never called for a fault, which has no observed set.
+ */
+function modeRun(root, guard, scratch, onResult = null) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
     // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
@@ -744,9 +1023,12 @@ function modeRun(root, guard, scratch) {
     const problems = surveySuites(root, data, ids, committedSuite).problems
     if (problems.length > 0) throw new Error(problems.join('\n  '))
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
+    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
+    // mutation id — ids are unique within one file and do collide across files.
+    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
     for (const mut of data.mutations) {
       total++
-      const outcome = gradeOne({ root, data, mut, base })
+      const outcome = gradeOne({ root, data, mut, base, onResult: report })
       if (outcome === 'caught') caught++
       else if (outcome === 'bad') bad++
       else faults++
@@ -767,7 +1049,7 @@ export function main(args) {
   if (parsed.error) {
     console.error(`✖ mutation harness: ${parsed.error} — BLOCKING`)
     console.error(
-      '  usage: run-mutations.mjs [--list | --coverage] [--guard <basename>] [--scratch <dir>]',
+      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--guard <basename>] [--scratch <dir>]',
     )
     // Said here, not only in the file header, because the people who need it are authoring
     // `<guard>.mutations.json` and will never open this source file.
@@ -782,6 +1064,9 @@ export function main(args) {
   const root = repoRoot()
   if (parsed.mode === 'list') return modeList(root, parsed.guard)
   if (parsed.mode === 'coverage') return modeCoverage(root, parsed.guard)
+  if (parsed.mode === 'update-expected') {
+    return modeUpdateExpected(root, parsed.guard, parsed.scratch)
+  }
   return modeRun(root, parsed.guard, parsed.scratch)
 }
 
