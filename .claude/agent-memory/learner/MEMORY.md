@@ -38,7 +38,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 5 | 2026-09-19 | PROMOTED → agent-workflow.md § Delegation Protocol (dispatch surface); §10 cl.7 holds the prose surface |
-| Fix commit correcting §10 violations introduces fresh §10 | 68 | 2026-09-19 | RULE CANDIDATE (68) — §10 cl.8 states it and it still recurs; prose is not the lever, a mechanical enforcer is. Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 71 | 2026-09-19 | RULE CANDIDATE (71) — §10 cl.8 prose is the lever; mechanical enforcer refuted (Decision 76: 50% FP rate). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -126,7 +126,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING — f431ea74: insights.md audit excluded .claude/hooks/, claiming this... |
 | Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. |
 | CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 call... |
-| `--diff-merges=<format>` implies `-p`; output misread as commit suppression | 1 | 2026-09-16 | WATCHING — use `--no-patch`. Log and watch. |
+| `git show <merge>` combined diff silently omits paths matching a parent | 2 | 2026-09-19 | RULE CANDIDATE (2) — use `--diff-merges=first-parent`. rule text exists; enforcement gap. |
 | Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — active vs draft boundary unspecified. Log and watch. |
 | Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING — test-writer caught it. Log and watch. |
 | `--coverage` gap denominator rises when a new test carries its own MUTATION: comment | 1 | 2026-09-18 | WATCHING — `chore/encode-retracted-phrase-claims`. Detail: topic file |
@@ -138,7 +138,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Wall-clock timer as non-vacuity guard — flake-prone on CI | 1 | 2026-09-18 | WATCHING — fixed with `vi.useFakeTimers`. Log and watch. |
 | Orchestrator derives red-team trigger from semantic intent instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — lapse, not a rule gap. Log and watch. |
 | Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 2 | 2026-09-19 | RULE CANDIDATE (2). Rule exists in §1; being skipped. Needs plan-critic/impl-critic checklist entry. |
-| Canonical rule file stale behind its own mirror — `.coderabbit.yaml` held correct text, `code-style.md` §7 was behind | 1 | 2026-09-19 | WATCHING — fix/redteam-seed-atomicity. |
+| Canonical rule file stale behind its own mirror (rule text ≠ pipeline.json encoding) | 2 | 2026-09-19 | RULE CANDIDATE (2) — propose: validate trigger-condition text against pipeline.json. |
 | Spy/mock assertion vacuous about content — `.toHaveBeenCalled()` without argument check | 1 | 2026-09-19 | WATCHING — fix/redteam-seed-atomicity, CR-local. |
 | Orchestrator reads only first page of flat PR comments endpoint, reports partial count, pushes on it | 1 | 2026-09-19 | WATCHING. Count reconciled 2→1: the branch run scored the PR #1315 event twice — once directly, once via `feedback-read-every-review-thread`, whose `originSessionId` is that same session. One event. Promote on the next DISTINCT branch. Target when promoted: agent-workflow.md. |
 | Orchestrator/plan-critic reasons to a specific DB error code without executing — local-grant drift invalidates the reasoning | 1 | 2026-09-19 | WATCHING — 42501 reasoned; P0001 actual (RAISE); fix-local-grants.sql re-gran... |
@@ -146,6 +146,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | doc-updater writes DATED JOURNAL ENTRY into own MEMORY.md | 1 | 2026-09-19 | FALSE POSITIVE — claim originated in the orchestrator's dispatch prompt, not derived. The file's durable-knowledge list is dated bullets throughout; doc-updater added ONE bullet in place plus two in-place updates. `agent-memory.md` bans an appended dated session-log SECTION, not a dated bullet in an existing list. |
 | RULE 0 prose in spec tasks.md entry caught by CR-local | 1 | 2026-09-19 | WATCHING — parallelisation entry trimmed to its derivations. Log and watch. |
 | Orchestrator misses a plan-stated doc edit during execution | 1 | 2026-09-19 | WATCHING — doc-updater caught Usage block omission that was explicitly in the approved plan. Log and watch. |
+| Cited SHA resolves locally but is a loose object — invisible on fresh clone / after gc | 1 | 2026-09-19 | WATCHING — `33c8ff79` (docs/parked-and-next-work) passed `git rev-parse --verify` locally; not reachable from any ref. |
 
 ## Durable knowledge (cross-agent)
 
@@ -157,11 +158,12 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - WHY-clause falsity: explanatory sentences are less-verified than facts (row 60). Check WHY clauses first on doc-only commits.
 - SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
 - File-deletion-falsifies-mirror (2026-09-17): deleting a .sh hook leaves the mirror-sync table claiming it fires. Log and watch.
-- POSITIVE (fix/db-integration-fixture-isolation, 2026-09-18): 2-round clean loop. Rows 118/41/82 incremented. New WATCHING: Plan Validation wc-l skip.
-- test/non-vacuous-integration-negatives (2026-09-19): 3-round ceiling. Rows 140/22/41 incremented. 4-reviewer convergence on vacuous negative: reliability signal.
-- POSITIVE (fix/redteam-seed-atomicity, 2026-09-19): 2-round clean loop. test-writer caught 2 cleanup-logic gaps via mutation proof. Cloud CR on parent (#1315) raised 9 findings post-ceiling: validates split rule. New RULE CANDIDATE: orchestrator partial PR-page read (count=2, row 143). 4 new WATCHING rows (141-144).
-- feat/corpus-b3-encode-retracted-phrase (2026-09-19): stopped CLEAN on round 3, no residual findings (not a ceiling stop). round-1 correction → round-2 ISSUE (§10 cl.8 fired literally). code-reviewer cleared a false claim without testing its falsifying case (row 82 → 8). semantic-reviewer miscounted files on rounds 1+3 (new RULE CANDIDATE row 145). Row 121 → 14 (4th pre-existing expectRed widening on corpus-codification).
-- feat/corpus-update-expected (2026-09-19): stopped CLEAN on round 3. HEADLINE: both real bugs invisible to a fully-green suite because the test only constructed the passing configuration (--guard collapses multi-file; dirty-tree test used a tracked file). Row 82 → 10, PROMOTED → code-style.md §7 (proposed). Row 120 → 2, RULE CANDIDATE. Row 41 → 68 (2 fresh §10 violations in correction context). Row 40 → 5. New WATCHING: orchestrator misses plan-stated doc edit.
+- POSITIVE (fix/db-integration-fixture-isolation, 2026-09-18): round 2 clean. Rows 118/41/82++. New WATCHING: Plan Validation wc-l skip.
+- test/non-vacuous-integration-negatives (2026-09-19): ceiling. Rows 140/22/41++.
+- POSITIVE (fix/redteam-seed-atomicity, 2026-09-19): round 2 clean. Row 143 → 2 RULE CANDIDATE. Rows 141-144 new WATCHING.
+- feat/corpus-b3-encode-retracted-phrase (2026-09-19): round 3 clean. Row 82 → 8. Row 145 → 2 RULE CANDIDATE. Row 121 → 14.
+- feat/corpus-update-expected (2026-09-19): round 3 clean. Row 82 → 10 PROMOTED §7. Row 120 → 2. Row 41 → 68 (2 fresh §10 in correction context). Row 40 → 5. New WATCHING: orchestrator misses plan-stated doc edit.
+- docs/parked-and-next-work (2026-09-19): round 3 clean (ceiling hit, round 3 had 0 findings). Row 41 → 71 (3 fresh §10 in correction context; Decision 76 refutes mechanical enforcer: 50% FP rate). Row 129 → 2 RULE CANDIDATE. Row 141 → 2 RULE CANDIDATE. New WATCHING: loose-SHA citation (row 149).
 - Remaining bullets: topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers

@@ -33,6 +33,7 @@ The learner owns FP frequency tracking. These are confirmed false positives; val
 - **implementation-critic "duplicate JSX guard".** Mistook a `{canDismiss && (...)}` render-guard block for a duplicate of an event-handler-conditional button. They were distinct.
 - **CodeRabbit false-positive rate elevated on exam-mode PRs (count 2).** CR lacks project context — flags immutable-table warnings on ephemeral tables, DB-level constraints that make app guards redundant, intentionally-absent recovery logic. Consider `.coderabbit.yaml` suppression notes for these categories.
 - **`@ts-expect-error` on easa_* `.insert()` (still needed).** @supabase/ssr 0.9.0 fixed quiz_drafts inference but easa_* generated type chain still resolves to `never` on Insert. Suppressions are documented and validated as still-required — don't flag as dead.
+- **test-writer "divide-by-zero produces Infinity%" (docs/parked-and-next-work).** SKIPPED. The claim was wrong on two counts: (1) `0/0` in JS is `NaN`, not `Infinity`; (2) the code path is unreachable — `git rev-list` exits 128 on an empty repo before the division is reached. Do not re-flag `NaN`-producing division in a function whose sole input is from a command that never returns on the zero case.
 
 ## Recurring meta-lessons
 
