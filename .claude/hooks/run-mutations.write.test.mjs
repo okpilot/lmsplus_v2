@@ -41,7 +41,7 @@ const gitRunner = (dir, env) => (args) => {
  * FILE as green. The nested-runner hazard that shape avoids is handled here by stripping
  * NODE_TEST_CONTEXT from the harness's environment instead (`noTestContext`).
  */
-function buildFixtureRepo(mutations, redNames = ['alpha goes red']) {
+function buildFixtureRepo(mutations, redNames = ['alpha goes red'], opts = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'rm-write-fixture-'))
   const env = {
     ...process.env,
@@ -67,12 +67,24 @@ function buildFixtureRepo(mutations, redNames = ['alpha goes red']) {
   g(['config', 'user.name', 'test'])
   g(['add', 'target.mjs', 'suite.test.mjs'])
   g(['commit', '-m', 'init'])
+  const suites = ['suite.test.mjs']
+  if (opts.untrackedSuite) {
+    // Declared, on disk, never committed — and the repo is configured to HIDE untracked files,
+    // which is what makes this non-vacuous: without `--untracked-files=all` the gate sees a
+    // clean tree and grades a HEAD that does not contain this suite.
+    writeFileSync(
+      join(dir, 'extra.test.mjs'),
+      "import test from 'node:test'\ntest('extra', () => {})\n",
+    )
+    g(['config', 'status.showUntrackedFiles', 'no'])
+    suites.push('extra.test.mjs')
+  }
 
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
   const dataPath = join(dir, '.claude', 'hooks', 'fixture.mutations.json')
   writeFileSync(
     dataPath,
-    `${JSON.stringify({ target: 'target.mjs', suites: ['suite.test.mjs'], mutations }, null, 2)}\n`,
+    `${JSON.stringify({ target: 'target.mjs', suites, mutations }, null, 2)}\n`,
   )
   return { dir, dataPath, env }
 }
@@ -170,4 +182,125 @@ test('--update-expected refuses to grade when a declared suite is uncommitted', 
   assert.equal(readFileSync(dataPath, 'utf8'), before)
   assert.match(r.stderr, /uncommitted input/)
   assert.match(r.stderr, /suite\.test\.mjs/)
+})
+
+test('--update-expected refuses a staged but not yet committed change', () => {
+  // `git status --porcelain` reports staged changes just as it reports unstaged
+  // ones — both are uncommitted inputs the grader cannot see.
+  const { dir, dataPath, env } = buildFixtureRepo(MISMATCH_MUT)
+  const before = readFileSync(dataPath, 'utf8')
+  const g = gitRunner(dir, env)
+  writeFileSync(join(dir, 'suite.test.mjs'), '// staged, not committed\n')
+  g(['add', 'suite.test.mjs'])
+  const r = runNode('update-expected on a staged change', [HARNESS, '--update-expected'], {
+    cwd: dir,
+    env: noTestContext(),
+  })
+  assert.equal(r.status, 2, r.stderr)
+  assert.equal(readFileSync(dataPath, 'utf8'), before)
+  assert.match(r.stderr, /uncommitted input/)
+  assert.match(r.stderr, /suite\.test\.mjs/)
+})
+
+test('a batch that holds a fault exits 2 even when another entry mismatches', () => {
+  // MUTATION: swap the `runExit === 2` check so mismatch rewrites are attempted
+  // before the fault guard fires -> the data file is modified on a run that
+  // produced no trustworthy verdict, laundering a stale expectation.
+  //
+  // `modeRun` returns 2 when any mutation faults; `modeUpdateExpected` must
+  // check that exit before writing anything. A fault means `onResult` was never
+  // called for that mutation, so its observed set is never in the graded map.
+  const { dir, dataPath } = buildFixtureRepo([
+    {
+      id: 'faults-out',
+      find: 'NO_SUCH_STRING_IN_TARGET',
+      replace: 'x',
+      expectRed: ['alpha goes red'],
+    },
+    {
+      id: 'mismatches',
+      find: 'export const x = 1',
+      replace: 'export const x = 2',
+      expectRed: ['a name the suite never emits'],
+    },
+  ])
+  const before = readFileSync(dataPath, 'utf8')
+  const r = runNode('fault + mismatch batch', [HARNESS, '--update-expected'], {
+    cwd: dir,
+    env: noTestContext(),
+  })
+  assert.equal(r.status, 2, r.stderr)
+  assert.equal(readFileSync(dataPath, 'utf8'), before)
+  assert.match(r.stderr, /NO VERDICT/)
+})
+
+/**
+ * A SECOND data file in the same repo, with its own target and suite.
+ *
+ * `validateDataFile` rejects a duplicate id within ONE file and says nothing across files, so an
+ * id shared by two data files is legal — and nine are shared in this repo's own corpus today.
+ */
+function addDataFile(dir, basename, { redName, mutations }) {
+  const stem = basename.replace(/\W/g, '')
+  writeFileSync(join(dir, `${stem}.mjs`), 'export const y = 1\n')
+  writeFileSync(
+    join(dir, `${stem}.test.mjs`),
+    [
+      "import assert from 'node:assert/strict'",
+      "import test from 'node:test'",
+      `import { y } from './${stem}.mjs'`,
+      `test(${JSON.stringify(redName)}, () => assert.equal(y, 1))`,
+      '',
+    ].join('\n'),
+  )
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'test',
+    GIT_AUTHOR_EMAIL: 'test@test',
+    GIT_COMMITTER_NAME: 'test',
+    GIT_COMMITTER_EMAIL: 'test@test',
+  }
+  const g = gitRunner(dir, env)
+  g(['add', `${stem}.mjs`, `${stem}.test.mjs`])
+  g(['commit', '-m', basename])
+  const dataPath = join(dir, '.claude', 'hooks', `${basename}${'.mutations.json'}`)
+  writeFileSync(
+    dataPath,
+    `${JSON.stringify({ target: `${stem}.mjs`, suites: [`${stem}.test.mjs`], mutations }, null, 2)}\n`,
+  )
+  return dataPath
+}
+
+test('two data files sharing a mutation id each get their own observed set', () => {
+  // The SAME id in both files, and a break each file's own suite actually reddens.
+  const shared = [{ id: 'shared-id', find: '= 1', replace: '= 2', expectRed: ['neither suite'] }]
+  const { dir, dataPath } = buildFixtureRepo(shared, ['alpha goes red'])
+  const otherPath = addDataFile(dir, 'other', { redName: 'beta goes red', mutations: shared })
+  const r = runNode('two data files, one id', [HARNESS, '--update-expected'], {
+    cwd: dir,
+    env: noTestContext(),
+  })
+  assert.equal(r.status, 0, r.stderr)
+  // Keyed on the id alone, whichever file is graded last wins BOTH entries.
+  assert.deepEqual(JSON.parse(readFileSync(dataPath, 'utf8')).mutations[0].expectRed, [
+    'alpha goes red',
+  ])
+  assert.deepEqual(JSON.parse(readFileSync(otherPath, 'utf8')).mutations[0].expectRed, [
+    'beta goes red',
+  ])
+})
+
+test('--update-expected refuses a declared suite that was never committed', () => {
+  const { dir, dataPath } = buildFixtureRepo(MISMATCH_MUT, ['alpha goes red'], {
+    untrackedSuite: true,
+  })
+  const before = readFileSync(dataPath, 'utf8')
+  const r = runNode('untracked suite', [HARNESS, '--update-expected'], {
+    cwd: dir,
+    env: noTestContext(),
+  })
+  assert.equal(r.status, 2, r.stderr)
+  assert.equal(readFileSync(dataPath, 'utf8'), before)
+  assert.match(r.stderr, /uncommitted input/)
+  assert.match(r.stderr, /extra\.test\.mjs/)
 })

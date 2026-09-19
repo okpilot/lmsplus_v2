@@ -14,6 +14,8 @@
 //         node .claude/hooks/run-mutations.mjs --guard <base>   run one data file
 //         node .claude/hooks/run-mutations.mjs --list           print ids, run nothing
 //         node .claude/hooks/run-mutations.mjs --coverage       claim sites vs encoded mutations
+//         node .claude/hooks/run-mutations.mjs --update-expected rewrite every MISMATCHed
+//                                                               `expectRed` from what went red
 //         [--scratch <dir>]                                     where worktrees are made
 //
 // Exit:   0 = every encoded mutation was CAUGHT
@@ -798,7 +800,8 @@ function scanStringArrayEnd(text, open, id) {
  * ("the data file is stale against HEAD", "extend the anchor until it is unique"), which here
  * would name the wrong file and the wrong remedy.
  */
-export function replaceExpectRed(text, id, names) {
+/** Where entry `id` starts, and the text belonging to it alone. Throws unless it occurs once. */
+function entryBounds(text, id) {
   const idAnchor = `"id": ${JSON.stringify(id)}`
   const count = text.split(idAnchor).length - 1
   if (count === 0) {
@@ -811,8 +814,11 @@ export function replaceExpectRed(text, id, names) {
   }
   const entryStart = text.indexOf(idAnchor)
   const nextId = text.indexOf('"id": ', entryStart + idAnchor.length)
-  const scanEnd = nextId === -1 ? text.length : nextId
-  const slice = text.slice(entryStart, scanEnd)
+  return { entryStart, slice: text.slice(entryStart, nextId === -1 ? text.length : nextId) }
+}
+
+export function replaceExpectRed(text, id, names) {
+  const { entryStart, slice } = entryBounds(text, id)
   const hits = [...slice.matchAll(/^([ \t]*)"expectRed": /gm)]
   if (hits.length !== 1) {
     throw new Error(
@@ -845,7 +851,13 @@ export function replaceExpectRed(text, id, names) {
  * Scoped to `target` + `suites` and never the data file, which is dirty by construction here.
  */
 function uncommittedInputs(root, data) {
-  const out = git(['status', '--porcelain', '--', data.target, ...data.suites], root)
+  // `--untracked-files=all` is load-bearing, not decoration: `--porcelain` honours
+  // `status.showUntrackedFiles`, so under `no` a NEWLY ADDED suite reports nothing and this
+  // gate passes on exactly the case it exists to refuse — a test that is not in HEAD.
+  const out = git(
+    ['status', '--porcelain', '--untracked-files=all', '--', data.target, ...data.suites],
+    root,
+  )
   return out
     .split('\n')
     .filter((l) => l.trim().length > 0)
@@ -860,8 +872,8 @@ function uncommittedInputs(root, data) {
  * refreshed its own expectations unattended would launder them, so the flag is opt-in, prints
  * every change, and writes nothing else.
  */
-function modeUpdateExpected(root, guard, scratch) {
-  const files = selectFiles(root, guard)
+/** The refusing file, or null when every declared input matches HEAD. */
+function firstDirtyFile(root, files) {
   for (const file of files) {
     const dirty = uncommittedInputs(root, loadDataFile(file))
     if (dirty.length > 0) {
@@ -870,11 +882,64 @@ function modeUpdateExpected(root, guard, scratch) {
       console.error(
         '  The grading run reads HEAD, so the set written would be the OLD one. Commit, then re-run.',
       )
-      return 2
+      return file
     }
   }
-  const byId = new Map()
-  const runExit = modeRun(root, guard, scratch, (r) => byId.set(r.id, r))
+  return null
+}
+
+/**
+ * Splice one file's MISMATCHed entries, then read the result back before it reaches disk.
+ *
+ * A parse to VERIFY is not a serialiser — nothing produced by `JSON.stringify` of the file ever
+ * reaches disk. It closes the one catastrophic failure: a splice that corrupts the encoded corpus.
+ */
+function rewriteFile(file, data, ids, result) {
+  let text = readFileSync(file.path, 'utf8')
+  for (const id of ids) {
+    const was = data.mutations.find((m) => m.id === id).expectRed
+    text = replaceExpectRed(text, id, result(id).observed)
+    console.log(`  ~ ${file.basename}${DATA_SUFFIX}  ${id}`)
+    console.log(`      was: ${was.join(' | ')}`)
+    console.log(`      now: ${result(id).observed.join(' | ')}`)
+  }
+  let reparsed
+  try {
+    reparsed = JSON.parse(text)
+  } catch (err) {
+    throw new Error(`${file.path}: rewrite produced invalid JSON — ${err.message}; nothing written`)
+  }
+  const problems = validateDataFile(reparsed, file.path)
+  if (problems.length > 0) {
+    throw new Error(
+      `${file.path}: rewrite would not validate — ${problems.join('; ')}; nothing written`,
+    )
+  }
+  writeFileSync(file.path, text)
+}
+
+/** Why a SURVIVED entry is never given a generated expectation. */
+function reportSurvivor(file, id) {
+  console.error(
+    `  ! ${file.basename}${DATA_SUFFIX}  ${id} — SURVIVED: nothing went red, so there is no`,
+  )
+  console.error(
+    '      observed set to write. The `find` anchor is a no-op or the test pins nothing — fix',
+  )
+  console.error('      the MUTATION, not the expectation. Nothing written for this id.')
+}
+
+function modeUpdateExpected(root, guard, scratch) {
+  const files = selectFiles(root, guard)
+  if (firstDirtyFile(root, files)) return 2
+  // Keyed by DATA FILE and id, never id alone. `validateDataFile` rejects a duplicate id within
+  // ONE file and says nothing across files, and nine ids are in fact shared between the
+  // check-prose-claims, check-prose-paths and check-file-size-guard corpora today. Keyed on the
+  // id alone, a later file's result overwrites an earlier one and this mode splices one guard's
+  // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
+  const keyOf = (file, id) => `${file}\u0000${id}`
+  const graded = new Map()
+  const runExit = modeRun(root, guard, scratch, (r) => graded.set(keyOf(r.file, r.id), r))
   if (runExit === 2) {
     console.error('\n✖ a mutation could not be graded — NO VERDICT, nothing written.')
     return 2
@@ -882,48 +947,30 @@ function modeUpdateExpected(root, guard, scratch) {
   let written = 0
   let survivors = 0
   for (const file of files) {
-    const data = loadDataFile(file)
-    const ids = data.mutations.map((m) => m.id).filter((id) => byId.get(id)?.status === 'MISMATCH')
-    for (const id of data.mutations.map((m) => m.id)) {
-      if (byId.get(id)?.status !== 'SURVIVED') continue
-      survivors++
-      console.error(
-        `  ! ${file.basename}${DATA_SUFFIX}  ${id} — SURVIVED: nothing went red, so there is no`,
-      )
-      console.error(
-        '      observed set to write. The `find` anchor is a no-op or the test pins nothing — fix',
-      )
-      console.error('      the MUTATION, not the expectation. Nothing written for this id.')
-    }
-    if (ids.length === 0) continue
-    let text = readFileSync(file.path, 'utf8')
-    for (const id of ids) {
-      const was = data.mutations.find((m) => m.id === id).expectRed
-      text = replaceExpectRed(text, id, byId.get(id).observed)
-      console.log(`  ~ ${file.basename}${DATA_SUFFIX}  ${id}`)
-      console.log(`      was: ${was.join(' | ')}`)
-      console.log(`      now: ${byId.get(id).observed.join(' | ')}`)
-    }
-    // Read back before the write. A parse to VERIFY is not a serialiser — nothing produced by
-    // `JSON.stringify` of the file ever reaches disk. It closes the one catastrophic failure:
-    // a splice that corrupts the encoded corpus.
-    let reparsed
-    try {
-      reparsed = JSON.parse(text)
-    } catch (err) {
-      throw new Error(
-        `${file.path}: rewrite produced invalid JSON — ${err.message}; nothing written`,
-      )
-    }
-    const problems = validateDataFile(reparsed, file.path)
-    if (problems.length > 0) {
-      throw new Error(
-        `${file.path}: rewrite would not validate — ${problems.join('; ')}; nothing written`,
-      )
-    }
-    writeFileSync(file.path, text)
-    written += ids.length
+    const tally = updateOneFile(file, (id) => graded.get(keyOf(file.path, id)))
+    written += tally.written
+    survivors += tally.survivors
   }
+  return reportOutcome(written, survivors)
+}
+
+/** Rewrite one data file's MISMATCHes; report its SURVIVED entries and write nothing for them. */
+function updateOneFile(file, result) {
+  const data = loadDataFile(file)
+  const ids = data.mutations.map((m) => m.id).filter((id) => result(id)?.status === 'MISMATCH')
+  let survivors = 0
+  for (const id of data.mutations.map((m) => m.id)) {
+    if (result(id)?.status !== 'SURVIVED') continue
+    survivors++
+    reportSurvivor(file, id)
+  }
+  if (ids.length === 0) return { written: 0, survivors }
+  rewriteFile(file, data, ids, result)
+  return { written: ids.length, survivors }
+}
+
+/** 0 when something was written or there was nothing to do; 1 when a SURVIVED entry blocked it. */
+function reportOutcome(written, survivors) {
   if (written > 0) {
     console.error(
       `\n${written} entr${written === 1 ? 'y' : 'ies'} rewritten. REVIEW THE DIFF before committing —`,
@@ -959,9 +1006,12 @@ function modeRun(root, guard, scratch, onResult = null) {
     const problems = surveySuites(root, data, ids, committedSuite).problems
     if (problems.length > 0) throw new Error(problems.join('\n  '))
     console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
+    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
+    // mutation id — ids are unique within one file and do collide across files.
+    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
     for (const mut of data.mutations) {
       total++
-      const outcome = gradeOne({ root, data, mut, base, onResult })
+      const outcome = gradeOne({ root, data, mut, base, onResult: report })
       if (outcome === 'caught') caught++
       else if (outcome === 'bad') bad++
       else faults++

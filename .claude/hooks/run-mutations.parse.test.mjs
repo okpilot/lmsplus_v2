@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
-import { groupProblems, parseSuite, replaceExpectRed } from './run-mutations.mjs'
+import { groupProblems, parseSuite, renderExpectRed, replaceExpectRed } from './run-mutations.mjs'
 
 test('a marker directly above a test names that test', () => {
   const parsed = parseSuite("// GROUP: alpha\ntest('behaves', () => {})\n")
@@ -353,4 +353,44 @@ test('every expectRed in the repo re-renders to the bytes already on disk', () =
     }
   }
   assert.ok(arrays > 100, `expected the real corpus, saw ${arrays} arrays`)
+})
+
+// --- renderExpectRed boundary -----------------------------------------------
+// The 100-column limit is biome's formatter.lineWidth. `hasComma` adds 1 to the
+// width sum, so the comma shifts the single-line/multi-line boundary by exactly
+// one column.  These two tests pin both the `<=` comparison and the `hasComma`
+// term: removing either makes one of the pair green while the other goes red.
+
+test('fits one line when the total is exactly 100 columns without a trailing comma', () => {
+  // MUTATION: change `<=` to `<` in the renderExpectRed width guard -> 100-col
+  // output switches to multi-line even though it fits the budget.
+  // indent(6) + EXPECT_KEY(13) + oneLine(81) + comma(0) = 100
+  const indent = '      '
+  const name = 'a'.repeat(77) // oneLine = '["' + 77 + '"]' = 81 chars
+  const result = renderExpectRed(indent, [name], false)
+  assert.equal(result, `${indent}"expectRed": ["${name}"]`)
+})
+
+test('switches to multi-line when a trailing comma pushes the total past 100', () => {
+  // MUTATION: delete `(hasComma ? 1 : 0)` from the width sum -> comma-present
+  // output stays on one line instead of being split, corrupting the format that
+  // biome would rewrite at commit time.
+  // indent(6) + EXPECT_KEY(13) + oneLine(81) + comma(1) = 101 > 100
+  const indent = '      '
+  const name = 'a'.repeat(77)
+  const result = renderExpectRed(indent, [name], true)
+  assert.match(result, /"expectRed": \[\n/)
+})
+
+// --- scanStringArrayEnd via replaceExpectRed --------------------------------
+
+test('a test name containing ] is not mistaken for the array close', () => {
+  // MUTATION: remove the `if (inString)` guard in scanStringArrayEnd -> a `]`
+  // inside a quoted string triggers the early-return, corrupting the splice.
+  //
+  // `scanStringArrayEnd` is called on the EXISTING array text, so the fixture
+  // must already hold a name with `]` — rewriting it exercises the guard.
+  const withBracket = ONE_LINE.replace('["one"]', '["step [1] passes"]')
+  const out = replaceExpectRed(withBracket, 'alpha', ['updated'])
+  assert.deepEqual(JSON.parse(out).mutations[0].expectRed, ['updated'])
 })

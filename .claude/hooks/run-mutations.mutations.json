@@ -667,6 +667,18 @@
       "expectRed": [
         "an expectRed that is not a flat array of strings is refused rather than spliced"
       ]
+    },
+    {
+      "id": "update-expected-keys-by-id-alone",
+      "find": "  const keyOf = (file, id) => `${file}\\u0000${id}`",
+      "replace": "  const keyOf = (_file, id) => `${id}`",
+      "expectRed": ["__DERIVE__"]
+    },
+    {
+      "id": "dirty-gate-blind-to-untracked",
+      "find": "['status', '--porcelain', '--untracked-files=all', '--', data.target, ...data.suites],",
+      "replace": "['status', '--porcelain', '--', data.target, ...data.suites],",
+      "expectRed": ["__DERIVE__"]
     }
   ],
   "notEncoded": [
