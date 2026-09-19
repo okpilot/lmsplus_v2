@@ -2267,9 +2267,19 @@ wired into no stage, so the figure that refuted the check is re-derivable rather
 **Evidence.** The class — `all|every|never|always|only|none|exactly`, or a bare ratio — warns on
 60 of the 120 non-merge commits ending at `41aabab9`. R0b-1's detector was abandoned at 18% as
 almost all noise. A warning firing on every second commit is ignored, and an ignored check reads
-as coverage while providing none. It does catch the shape it was derived from: `0cbadf11` lost
-"does NOT catch **every** citation" and gained "catches **only** ~80% of citations". So the
-sub-shape is real and the class reaches it — along with most of the window.
+as coverage while providing none.
+
+The instance the class was derived from is not in the window and could not be: it is a pre-squash
+commit reachable from no ref, surviving as a loose object in one clone. `0cbadf11` is the squash
+carrying that work, and it does warn — but on lines unrelated to any claim correction, in
+`.claude/commands/automerge.md` and `docs/decisions.md`. Read them with `--sha 0cbadf11 --verbose`
+rather than from a quotation here: the matched line in `docs/decisions.md` is long enough that two
+reviewers reading it named two different substrings of it.
+
+That is a second and independent reason the approach does not hold. This defect happens BETWEEN a
+PR's commits, and squash-merge collapses those into a net diff where the correction pair is
+usually gone. Measured against squashed history the detector largely cannot see the shape it
+exists to find, and warns anyway.
 
 The endpoint is pinned because it has to be. A window ending at `HEAD` slides forward on every
 commit, so an unpinned figure stops re-deriving the moment the next commit lands — which is how
@@ -2284,6 +2294,7 @@ decision.
 **Not decided here.** Whether a NARROWED class clears — a proximity bound between the removed and
 added lines, or a shared-context requirement — is a separate question needing its own measurement.
 `check-prose-claims.mjs` needed three narrowings before it was usable, so the shape is precedented;
-the bar is the same one applied here, and the same script measures it.
+the bar is the same one applied here, and the same script measures it. Any narrowed variant
+inherits the squash problem above — narrowing lowers the noise, it does not make the pair visible.
 
 Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --head 41aabab9`.
