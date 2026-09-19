@@ -15,7 +15,7 @@
  */
 
 import type { getAdminClient } from '../../helpers/supabase'
-import { createFixtureTracker, type FixtureTracker } from './cleanup'
+import { cleanupFixtures, createFixtureTracker, type FixtureTracker } from './cleanup'
 import { E2E_REDTEAM_UNAUTH_COMMENT_MARKER } from './seed-markers'
 import { pickSubjectWithQuestions } from './seed-quiz'
 import { seedRedTeamUsers } from './seed-users'
@@ -28,7 +28,8 @@ export type UnauthFixtures = {
   victimUserId: string
   knownSubjectId: string
   knownTopicId: string
-  /** Existing session id used as a plausible attack input (not seeded here). */
+  /** A real session id used as a plausible attack input. Falls back to
+   *  `knownVictimSessionId` when the DB carries no pre-existing session. */
   knownSessionId: string
   knownQuestionId: string
   /**
@@ -60,11 +61,9 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
   const picked = await pickSubjectWithQuestions(adminClient, { orgId: seed.orgId })
   const { knownSessionId, knownQuestionId } = await lookupSeedIds(adminClient, seed.orgId)
 
-  await seedVictimOwnedRows(adminClient, { victimUserId, knownQuestionId }, tracker)
-
-  const knownVictimSessionId = await seedVictimCompletedSession(
+  const knownVictimSessionId = await seedTrackedRows(
     adminClient,
-    { orgId: seed.orgId, subjectId: picked.subjectId, topicId: picked.topicId },
+    { ...picked, orgId: seed.orgId, victimUserId, knownQuestionId },
     tracker,
   )
 
@@ -73,10 +72,43 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
     victimUserId,
     knownSubjectId: picked.subjectId,
     knownTopicId: picked.topicId,
-    knownSessionId,
+    // A clean DB has no pre-existing session — fall back, never invent an id.
+    knownSessionId: knownSessionId ?? knownVictimSessionId,
     knownQuestionId,
     knownVictimSessionId,
     tracker,
+  }
+}
+
+/**
+ * Seed every TRACKED row behind one failure boundary. The spec-level caller
+ * receives `tracker` only once `seedUnauthFixtures` resolves, so a throw
+ * part-way leaves seeded rows with nothing able to clean them — clean them
+ * here before rethrowing.
+ */
+async function seedTrackedRows(
+  adminClient: AdminClient,
+  ids: {
+    victimUserId: string
+    knownQuestionId: string
+    orgId: string
+    subjectId: string
+    topicId: string
+  },
+  tracker: FixtureTracker,
+): Promise<string> {
+  try {
+    await seedVictimOwnedRows(adminClient, ids, tracker)
+    return await seedVictimCompletedSession(adminClient, ids, tracker)
+  } catch (e) {
+    try {
+      await cleanupFixtures(adminClient, tracker)
+    } catch (cleanupErr) {
+      // Logged, never rethrown — it must not mask the seeding failure.
+      const msg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)
+      console.error(`[unauth seed] cleanup after failed seed: ${msg}`)
+    }
+    throw e
   }
 }
 
@@ -87,7 +119,7 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
 async function lookupSeedIds(
   adminClient: AdminClient,
   orgId: string,
-): Promise<{ knownSessionId: string; knownQuestionId: string }> {
+): Promise<{ knownSessionId: string | undefined; knownQuestionId: string }> {
   const { data: sessions, error: sessionsErr } = await adminClient
     .from('quiz_sessions')
     .select('id')
@@ -109,7 +141,7 @@ async function lookupSeedIds(
   if (!knownQuestionId) throw new Error('unauth seed: no active question found')
 
   return {
-    knownSessionId: sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001',
+    knownSessionId: sessions?.[0]?.id,
     knownQuestionId,
   }
 }

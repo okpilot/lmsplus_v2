@@ -86,7 +86,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Branch scope cited via unstable tracker-row IDs — several resolved wrong | 1 | 2026-09-08 | WATCHING — cite Issue-Type text instead. Detail: topic file |
 | Rename-blind `--name-only` pathspec derives a security-path floor or exemption | 2 | 2026-09-08 | PROMOTED — fixed to `--name-status -M`. Topic file. |
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo | 1 | 2026-09-08 | WATCHING — Bash residual hole. Detail: topic file |
-| doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 6 | 2026-09-18 | RULE CANDIDATE (6). Same root: agent treats own context (memory OR dispatch prompt) as factual over grepping the artifact. chore/link-guard-claims: recommendation grounded in "own memory of prior reader confusion" not a text defect. Detail: cross-agent-lessons.md |
+| doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 6 | 2026-09-18 | RULE CANDIDATE (6). Agent treats own context as factual over grepping the artifact. Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
 | Commit message claims file 'already carries/has X' when X landed same commit | 4 | 2026-09-16 | RULE CANDIDATE (4) → §10, verify via `git show HEAD~1:<path>` |
 | Commit-message count computed pre-edit; own edits make it stale on arrival | 7 | 2026-09-17 | PROMOTED → §10 cl.7. Recurred four times post. Detail: topic file |
@@ -94,10 +94,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Orchestrator's own SKIP-with-reason rests on a wrong stated premise, reversed by an external reviewer round | 1 | 2026-09-10 | WATCHING. Detail: topic file |
 | Regex→hand-parser rewrite of a blocking gate: fix commit's own corpus-diff claim is insufficient | 2 | 2026-09-13 | RULE CANDIDATE (2). Detail: topic file |
 | Concurrent agent-Bash mutation transiently modifies a tracked file; unrelated agent reports it | 1 | 2026-09-13 | WATCHING — 3rd Bash-hole materialization. Topic file |
-| MUTATION: comment overclaims which mechanisms the test pins | 10 | 2026-09-18 | PROMOTED → code-style.md §7. Post-promotion recurrence x4. Unlinked MUTATION: comment (validate-mutation-group-refs). Rule text present; gap is hand-authoring discipline. Detail: cross-agent-lessons.md |
+| MUTATION: comment overclaims which mechanisms the test pins | 10 | 2026-09-18 | PROMOTED → code-style.md §7. Post-promotion recurrence x4. Detail: cross-agent-lessons.md |
 | Tracker row written against staged/draft code state — corrected before commit lands | 1 | 2026-09-14 | WATCHING. Detail: topic file |
 | Fix to gate stage-1 changes input shape, breaking stage-2's assumption | 1 | 2026-09-14 | WATCHING. Detail: cross-agent-lessons.md |
-| Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence: 2 stale find anchors (chore/validate-mutation-group-refs); biome-reformat anchor gap (fix/harden-fixture-spawn-helpers). |
+| Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence ×2. |
 | Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. RESOLVED-WATCH 2026-09-16 (10 clean dispatches). Topic file. |
 | Orchestrator excludes a known-drift-prone rule-mirror from a sweep on an unverified claim | 1 | 2026-09-15 | WATCHING — false "has Read access" claim. Topic file. |
 | Single-line grep false-negative on text present but line-wrapped in a YAML block scalar | 1 | 2026-09-15 | WATCHING — distinct from paraphrase-blindness. Topic file. |
@@ -113,31 +113,35 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Config field silently disables entire config when maxLength exceeded — no diagnostic | 1 | 2026-09-15 | WATCHING — `b0ea0d58`. Topic file. |
 | Trailing tag comment on a SHA-pinned GH Action doesn't match the resolved commit | 3 | 2026-09-16 | RULE CANDIDATE (3). Topic file. |
 | Pin's tag comment correct at authorship, drifts false when upstream tag is repointed later | 1 | 2026-09-16 | WATCHING — needs re-run/scheduled check. Topic file. |
-| `vi.mock` targets an exact specifier; a migrated import path leaves it silently inert | 1 | 2026-09-16 | WATCHING — `ac213f98` Sentry move, proved by mutation. Detail: cross-agent-lessons.md |
-| `pnpm.overrides` pin forces a package below a DIFFERENT dependent's declared range, unnoticed | 1 | 2026-09-16 | WATCHING — `ac213f98` undici/jsdom, SKIPPED (harmless). Detail: cross-agent-lessons.md |
-| `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 3 | 2026-09-18 | RULE CANDIDATE (3) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. Third mechanism: `--update-baseline` writes whole JSON through `JSON.stringify`, same side-effect. |
+| `vi.mock` targets an exact specifier; a migrated import path leaves it silently inert | 1 | 2026-09-16 | WATCHING — `ac213f98` Sentry move, proved by mutation. Detail: cross-agent-lessons. |
+| `pnpm.overrides` pin forces a package below a DIFFERENT dependent's declared range, unnoticed | 1 | 2026-09-16 | WATCHING — `ac213f98` undici/jsdom, SKIPPED (harmless). Detail: cross-agent-lessons. |
+| `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 3 | 2026-09-18 | RULE CANDIDATE (3) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. |
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | impl-critic measures function length declaration-to-next-declaration, sweeping following JSDoc into count | 1 | 2026-09-16 | WATCHING — `827c363b`. Log and watch. |
-| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 13 | 2026-09-18 | RULE CANDIDATE (13). 8 under-specified sets + ownerfor case found by harness (chore/validate-mutation-group-refs). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md "expectRed cascade". |
-| `expectRed` member reddens via an earlier unrelated assertion — named mechanism never reached | 3 | 2026-09-18 | WATCHING. chore/encode-file-size-guard-test-claims, 3 instances in one data file. Inverse of code-style.md §7: the test DOES go red, just not for the mechanism its membership implies — its FIRST assertion fails first. Distinct from row 97: the overclaim is in the expectRed SET, not in a comment. Remedy applied: a note stating what the membership does NOT cover. |
-| run-mutations.mjs grades committed HEAD, not the worktree | 1 | 2026-09-18 | WATCHING. An uncommitted test rename read as "never went red" while the observed set listed the OLD title; trusting it would have reverted a CORRECT entry. Commit before running the harness — a red result on an uncommitted tree is not evidence. |
-| doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). Row-109 remedy (demand artifact) did not prevent this. feat/prose-path-guard `a4ecd165`. |
+| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 13 | 2026-09-18 | RULE CANDIDATE (13). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md |
+| `expectRed` member reddens via an earlier unrelated assertion — named mechanism never reached | 3 | 2026-09-18 | WATCHING. Test goes red via earlier assertion; mechanism never reached. NOT row 97 (overclaim in SET not comment). |
+| run-mutations.mjs grades committed HEAD, not the worktree | 1 | 2026-09-18 | WATCHING. Commit before running; stale worktree gives wrong verdict. |
+| doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). |
 | git flags/options placed AFTER `--`, treated as pathspecs — git narrows silently, wrong conclusion drawn | 2 | 2026-09-16 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
-| Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING — f431ea74: insights.md audit excluded .claude/hooks/, claiming this prevented fail-open; exclusion was itself the fail-open. Fixed. |
-| Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. Pure duplication. Fixed. |
-| CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 called them "literals". Pass 1 was correct. CR's fix was also wrong. |
-| `--diff-merges=<format>` implies `-p`; output misread as commit suppression | 1 | 2026-09-16 | WATCHING — f431ea74: prescribed without `--no-patch`; hits buried under patches, misread as suppression by impl-critic then orchestrator. Distinct from row 123. |
-| Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — `chore/record-mechanical-lever` round 1; spec with no tasks.md is not all-`[x]` (done); active vs draft boundary unspecified in mirror table. Log and watch. |
-| Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING — `chore/encode-file-size-guard-claims`: notEncoded fixture carried `claim`, so deleting `!isNonEmptyString(n.claim)` half stayed green (other conjuncts covered it). Test-writer caught it. Log and watch. |
+| Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING — f431ea74: insights.md audit excluded .claude/hooks/, claiming this... |
+| Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. |
+| CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 call... |
+| `--diff-merges=<format>` implies `-p`; output misread as commit suppression | 1 | 2026-09-16 | WATCHING — use `--no-patch`. Log and watch. |
+| Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — active vs draft boundary unspecified. Log and watch. |
+| Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING — test-writer caught it. Log and watch. |
 | `--coverage` gap denominator rises when a new test carries its own MUTATION: comment | 1 | 2026-09-18 | WATCHING — `chore/encode-retracted-phrase-claims`. Detail: topic file |
-| Orchestrator propagates a numeric claim from an agent's review report into a committed artifact without re-deriving | 2 | 2026-09-18 | RULE CANDIDATE (2). fix/integration-fixture-isolation: n=52 from semantic-reviewer round-1 report embedded as "~50 draws" in code comment (true=26). Prior: "11 titles" from Explore agent (true=9). Detail: topic file |
+| Orchestrator propagates a numeric claim from an agent's review report into a committed artifact without re-deriving | 2 | 2026-09-18 | RULE CANDIDATE (2). Detail: topic file |
 | `grep -cF` under this shell's ugrep wrapper misparses a multi-line pattern (newline read as OR) | 1 | 2026-09-18 | WATCHING — env tooling trap, use python3 str.count. Detail: topic file |
 | Compound shell command's exit code is its LAST stage's — a trailing `grep -c` on zero matches masks a passing run as failed | 1 | 2026-09-18 | WATCHING — env tooling trap. Detail: topic file |
 | Marker continuation line ending in comma swallows next unrelated parser token as ids | 1 | 2026-09-18 | WATCHING — chore/validate-mutation-group-refs. Log and watch. |
-| New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — fix/harden-fixture-spawn-helpers. `assertUsable` read `r.error` before `r.status`. Log and watch. |
-| Wall-clock `expect(Date.now() - start).toBeLessThan(N)` used as non-vacuity guard for a test mechanism — flake-prone on loaded CI | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: semantic-reviewer + test-writer flagged; fixed with `vi.useFakeTimers`. Log and watch. |
-| Orchestrator derives red-team trigger from semantic intent ("only tests") instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: 11 files under `apps/web/app/app/quiz/actions/**` matched the trigger set; rule in agent-workflow.md is adequate; lapse, not a rule gap. Log and watch. |
-| Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 2 | 2026-09-19 | RULE CANDIDATE (2). fix/db-integration-fixture-isolation + test/non-vacuous-integration-negatives. Rule exists in §1; being skipped. Needs plan-critic or impl-critic checklist entry. |
+| New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — `assertUsable` read `r.error` before `r.status`. Log and watch. |
+| Wall-clock timer as non-vacuity guard — flake-prone on CI | 1 | 2026-09-18 | WATCHING — fixed with `vi.useFakeTimers`. Log and watch. |
+| Orchestrator derives red-team trigger from semantic intent instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — lapse, not a rule gap. Log and watch. |
+| Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 2 | 2026-09-19 | RULE CANDIDATE (2). Rule exists in §1; being skipped. Needs plan-critic/impl-critic checklist entry. |
+| Canonical rule file stale behind its own mirror — `.coderabbit.yaml` held correct text, `code-style.md` §7 was behind | 1 | 2026-09-19 | WATCHING — fix/redteam-seed-atomicity. |
+| Spy/mock assertion vacuous about content — `.toHaveBeenCalled()` without argument check | 1 | 2026-09-19 | WATCHING — fix/redteam-seed-atomicity, CR-local. |
+| Orchestrator reads only first page of flat PR comments endpoint, reports partial count, pushes on it | 1 | 2026-09-19 | WATCHING. Count reconciled 2→1: the branch run scored the PR #1315 event twice — once directly, once via `feedback-read-every-review-thread`, whose `originSessionId` is that same session. One event. Promote on the next DISTINCT branch. Target when promoted: agent-workflow.md. |
+| Orchestrator/plan-critic reasons to a specific DB error code without executing — local-grant drift invalidates the reasoning | 1 | 2026-09-19 | WATCHING — 42501 reasoned; P0001 actual (RAISE); fix-local-grants.sql re-gran... |
 
 ## Durable knowledge (cross-agent)
 
@@ -148,10 +152,11 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - Compaction history: 2026-09-01/02/13/15/16 batches → archive/topic file.
 - WHY-clause falsity: explanatory sentences are less-verified than facts (row 60). Check WHY clauses first on doc-only commits.
 - SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
-- File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
-- POSITIVE (`fix/db-integration-fixture-isolation`, 2026-09-18): Clean 2-round loop. Row 118→3 (`--update-baseline` JSON.stringify rewrite, caught pre-commit). Row 41→64 (false count in §1 amendment). Row 82→7 (template vs. resolved comparison). New WATCHING: Plan Validation wc-l skip.
-- `test/non-vacuous-integration-negatives` (2026-09-19): 3 rounds, ceiling. Row 140→RULE CANDIDATE (wc-l skip, 2nd instance). Row 22→7 (function-cap masked by file-cap green). Row 41→65 (§10 cl.8 correction→new false claim, round 3). 4-reviewer convergence on vacuous negative in anti-vacuity branch: reliability signal, no rule gap.
-- Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
+- File-deletion-falsifies-mirror (2026-09-17): deleting a .sh hook leaves the mirror-sync table claiming it fires. Log and watch.
+- POSITIVE (fix/db-integration-fixture-isolation, 2026-09-18): 2-round clean loop. Rows 118/41/82 incremented. New WATCHING: Plan Validation wc-l skip.
+- test/non-vacuous-integration-negatives (2026-09-19): 3-round ceiling. Rows 140/22/41 incremented. 4-reviewer convergence on vacuous negative: reliability signal.
+- POSITIVE (fix/redteam-seed-atomicity, 2026-09-19): 2-round clean loop. test-writer caught 2 cleanup-logic gaps via mutation proof. Cloud CR on parent (#1315) raised 9 findings post-ceiling: validates split rule. New RULE CANDIDATE: orchestrator partial PR-page read (count=2, row 143). 4 new WATCHING rows (141-144).
+- Remaining bullets: topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers
 

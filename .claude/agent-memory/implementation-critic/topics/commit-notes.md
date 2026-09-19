@@ -1118,3 +1118,15 @@ Data + memory only. All four factual claims in the new `notEncoded` entry verifi
 4. Leaked dir is empty (worktree add failed → nothing populated); unique mkdtemp name prevents collision; disk-full would produce exit 2, not a wrong verdict. Bound holds. TRUE.
 
 code-reviewer memory delta: `gradeOne` is 22L, `modeRun` is 34L — verified against the working tree. `63eb9e37` commit message confirms extraction. TRUE.
+
+### redteam seed atomicity (2026-09-19, fix/redteam-seed-atomicity)
+
+4-item plan, all 4 implemented cleanly. 0 findings.
+
+- Item 1: `seedTrackedRows` extracted; inner cleanup catch logs, never rethrows; outer `throw e` fires on both paths. Masking risk absent. ✓
+- Item 2: sentinel UUID removed; `lookupSeedIds` returns `string | undefined`; coalesces to `knownVictimSessionId` (always a `string`). `UnauthFixtures.knownSessionId` stays `string`. ✓
+- Item 3: `discardSeedSession` throws; `AggregateError([e, discardErr], e.message)` composed; test asserts both. ✓
+- Item 4: `question_comments` → `.delete()` in cleanup.ts; `buildRecordingChain` pins the verb in the test. ✓
+- Amendments: sentinel test updated to `VICTIM_SESSION_ID`; assertion uses `/not authenticated|permission denied/i` regex. ✓
+- Commit message "seed-e2e.ts seeds no quiz_sessions" VERIFIED (grep returns 0 matches).
+- Commit message "376 passed / 1 skipped" — tasks.md attributes this to `ed6c4ba4` (master parent), commit message is bare. Minor claim-precision gap (no SHA), not a false claim.

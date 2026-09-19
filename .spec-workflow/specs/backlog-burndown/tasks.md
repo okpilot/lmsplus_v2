@@ -275,6 +275,14 @@ Ordering and contents in the artifact above. Not started.
 - [ ] W10 admin polish — PR 35 (#1223+#854+#888) · PR 36 (#720+#894) · PR 37 (#1033+#1040) · PR 38 (#542)
 - [ ] W11 large / decision-gated — PR 39 (#1165) · PR 40 (#1026) · PR 41 (#1106) · PR 42 (#558) · PR 43 (#403)
 
+## Red-team seeding follow-up — DONE (PR #1316)
+
+- [x] `seedUnauthFixtures` seeds every tracked row behind one failure boundary; a partial seed is
+      cleaned before the error rethrows.
+- [x] `lookupSeedIds` no longer fabricates `knownSessionId` — it falls back to the session
+      `seedVictimCompletedSession` creates.
+- [x] `cleanupFixtures` hard-deletes `question_comments`, per `docs/database.md` §3.
+
 ## Open decisions blocking scheduled work
 
 - [ ] #1216 Part 3 exam blueprint — gates PR 19

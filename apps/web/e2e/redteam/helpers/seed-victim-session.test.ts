@@ -163,18 +163,24 @@ describe('seedVictimCompletedSession', () => {
     expect(calls[3]?.args).toEqual(['id'])
   })
 
-  it('surfaces the submit failure even when the discard itself errors', async () => {
+  it('keeps both the submit failure and the discard failure observable', async () => {
     setupCommonMocks()
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom.mockReturnValueOnce(buildChain({ data: null, error: { message: 'discard failed' } }))
 
     mockRpc
       .mockResolvedValueOnce({ data: 'sess-ok', error: null })
       .mockResolvedValueOnce({ data: null, error: { message: 'submit RPC error' } })
 
-    await expect(seedVictimCompletedSession(adminMock, IDS, tracker)).rejects.toThrow(
-      /batch_submit_quiz failed.*submit RPC error/,
-    )
-    expect(errorSpy).toHaveBeenCalled()
+    const err = (await seedVictimCompletedSession(adminMock, IDS, tracker).catch(
+      (e: unknown) => e,
+    )) as AggregateError
+
+    // `message` stays the submit failure's, so callers matching on it keep working.
+    expect(err).toBeInstanceOf(AggregateError)
+    expect(err.message).toMatch(/batch_submit_quiz failed.*submit RPC error/)
+    // The discard failure is composed in, not swallowed: without it the next run
+    // hits `another_session_active` with no explanation of why.
+    expect(err.errors).toHaveLength(2)
+    expect((err.errors[1] as Error).message).toMatch(/failed to discard session.*discard failed/)
   })
 })

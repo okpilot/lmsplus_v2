@@ -10,7 +10,7 @@
  *   quiz_sessions         → soft-delete (deleted_at = now())  FK-parent
  *   internal_exam_codes   → soft-delete (deleted_at = now())  FK-parent
  *   flagged_questions     → soft-delete (deleted_at = now())  FK-parent
- *   question_comments     → soft-delete (deleted_at = now())  FK-parent
+ *   question_comments     → HARD delete  (docs/database.md §3 explicit exception)
  *   user_consents         → HARD delete  (append-only, no deleted_at column)
  *   users                 → restore deleted_at = null  (seed users kept active)
  *
@@ -135,18 +135,17 @@ export async function cleanupFixtures(admin: AdminClient, tracker: FixtureTracke
     }
   }
 
-  // ── question_comments → soft-delete ───────────────────────────────────────
+  // ── question_comments → HARD delete (docs/database.md §3) ─────────────────
   if (tracker.comments.size > 0) {
     try {
       const { data, error } = await admin
         .from('question_comments')
-        .update({ deleted_at: now })
+        .delete()
         .in('id', Array.from(tracker.comments))
-        .is('deleted_at', null)
         .select('id')
       if (error) throw new Error(`cleanupFixtures question_comments: ${error.message}`)
       if ((data?.length ?? 0) > 0) {
-        console.log(`[cleanup] soft-deleted ${data?.length} question_comment(s)`)
+        console.log(`[cleanup] deleted ${data?.length} question_comment(s)`)
       }
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
