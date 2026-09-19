@@ -143,6 +143,16 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
   })
 
   test('unauthenticated client sees 0 rows from question_comments', async () => {
+    // Non-vacuous: confirm the seeded victim comment exists via the admin client.
+    const { data: adminRows, error: adminErr } = await adminClient
+      .from('question_comments')
+      .select('id')
+      .eq('user_id', victimUserId)
+      .is('deleted_at', null)
+      .limit(1)
+    expect(adminErr).toBeNull()
+    expect((adminRows ?? []).length).toBeGreaterThan(0)
+
     const { data, error } = await unauthClient.from('question_comments').select('*').limit(10)
 
     expect(error).toBeNull() // RLS returns empty, not an error

@@ -115,7 +115,13 @@ describe('RLS: tenant isolation', () => {
     )
     if (sessionStartError)
       throw new Error(`start_quiz_session failed: ${sessionStartError.message}`)
-    sessionAId = newSessionId as string
+    // start_quiz_session can return null with no error; without this guard the
+    // failure surfaces as an opaque student_responses insert error below.
+    if (typeof newSessionId !== 'string')
+      throw new Error(
+        `start_quiz_session returned a non-string id: ${JSON.stringify(newSessionId)}`,
+      )
+    sessionAId = newSessionId
 
     // Seed a student_response for studentA so the cross-org isolation test (test 3)
     // has a real row to protect. Cleanup is handled by cleanupTestData via organization_id.
@@ -203,10 +209,15 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA quiz sessions', async () => {
-    // Positive control: studentA (orgA) can see the session seeded in beforeAll.
-    const { data: dataA, error: errorA } = await studentAClient.from('quiz_sessions').select('id')
-    expect(errorA).toBeNull()
-    expect(dataA?.length).toBeGreaterThan(0)
+    // Positive control via service role, matching the questions/student_responses tests
+    // above: a self-read regression in quiz_sessions RLS would otherwise redden the control
+    // rather than the negative below, making the failure signal ambiguous.
+    const { data: adminData, error: adminError } = await admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('id', sessionAId)
+    expect(adminError).toBeNull()
+    expect(adminData?.length).toBeGreaterThan(0)
 
     // Negative: orgB student is blocked by RLS.
     const { data, error } = await studentBClient
@@ -255,8 +266,9 @@ describe('RLS: tenant isolation', () => {
     // Positive control: the query must return at least one row so the set-size check is non-vacuous.
     expect(data?.length).toBeGreaterThan(0)
     const actorIds = new Set((data ?? []).map((r) => r.actor_id))
-    // All rows share a single actor_id (the student's own) — RLS enforces actor_id = auth.uid().
-    expect(actorIds.size).toBe(1)
+    // Rows carry exactly the requester's actor_id — RLS enforces actor_id = auth.uid().
+    // Pinning the identity, not just the set size: size === 1 passes for ANY single actor.
+    expect(Array.from(actorIds)).toEqual([studentAId])
   })
 
   it('instructor can read audit events in own org', async () => {
