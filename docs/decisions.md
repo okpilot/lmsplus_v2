@@ -2302,13 +2302,12 @@ inherits the squash problem above — narrowing lowers the noise, it does not ma
 
 Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --head 41aabab9`.
 
-## Decision 77: CR-local is retired; the built-in `/code-review` skill replaces it, in every round (2026-09-19)
+## Decision 77: CR-local is retired; the built-in `/code-review` skill takes its round-1 slot (2026-09-19)
 
 **Decision.** The CodeRabbit local CLI leaves the pre-push review gate and the rules corpus. Round 1
 stays SIX: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and
 `code-review (skill)` — the built-in `/code-review` skill, run on **opus** in an isolated worktree,
-dispatched as a subagent and never invoked by the orchestrator. It runs in EVERY round, not only
-round 1 (see Scope). Supersedes Decision
+dispatched as a subagent and never invoked by the orchestrator. Supersedes Decision
 74's round-1 membership; 74's yield evidence stands. Cloud CodeRabbit is untouched and remains the
 authoritative external gate.
 
@@ -2327,14 +2326,20 @@ That run settles both halves: a local reviewer on the SAME engine as the authori
 paying for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one
 missed.
 
-**Scope of the new member — EVERY round, on measurement.** Round 1 only was the conservative
-default, carried over from Decision 74's 58%/19%/11% decay, which was measured on CR-local and
-never on this skill. The widening criterion was registered before the data: widen if round 2
-surfaces a validated ISSUE the other two reviewers miss. Round 2 of THIS branch, run against the
-round-1 fixup, returned four in-range ISSUEs from this member and none from code-reviewer or
-semantic-reviewer — semantic-reviewer positively marked two of the affected sections `[GOOD]`.
-Three of the four originated in the round-1 fixup itself. Yield decay did not hold on a fixup diff,
-which is the case the round-1 default rested on.
+**Scope of the new member — ROUND 1, with the widening measured and deliberately held.** Decision
+74's 58%/19%/11% decay was measured on CR-local, never on this skill, so round 1 was a default
+rather than a result. A criterion was registered before the data: widen if round 2 surfaces a
+validated ISSUE the other two reviewers miss. Round 2 of THIS branch returned four in-range ISSUEs
+from this member and none from code-reviewer or semantic-reviewer, three of them originating in the
+round-1 fixup itself. The criterion was met — yield decay does not hold on a fixup diff, which is
+the case the round-1 default rested on.
+
+**The widening is nonetheless NOT taken here.** Round scope is restated across the roster's
+mirrors, so changing it costs a hand-sync of every one; the attempt produced six mirror-desync
+findings in the round that followed and none about the change itself. It is taken as a one-line
+data edit once the roster is single-sourced. Operationally the member may be dispatched in later
+rounds meanwhile; this clause governs the documented roster, which follows the mechanism rather
+than leading it.
 
 **Not a pipeline agent.** `.claude/pipeline.test.mjs` asserts bidirectional closure between
 `pipeline.json` `agents` and the files in `.claude/agents/`, plus a hardcoded core roster. A skill
