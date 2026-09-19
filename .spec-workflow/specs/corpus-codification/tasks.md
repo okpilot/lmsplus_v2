@@ -455,6 +455,26 @@ falsifiable rather than an opinion.
 
 Sizes W3: the fraction decides whether the reshape is a menu reorder or a load-bearing gate.
 
+**W1 starts from these four, not from a survey — the round-1 roster of `code-review (skill)`
+(Decision 77, 2026-09-19). Each is prose today and nothing checks any of it. Precedents are in
+the tree; verify each before building on it.**
+
+| Claim now in prose | Precedent to extend | Derive the precedent with |
+|---|---|---|
+| member 6 runs **opus** | `pipeline.json` `modelLiteralSites` already asserts a model literal at a path for the security-auditor | `python3 -c "import json;print(json.load(open('.claude/pipeline.json'))['modelLiteralSites'])"` |
+| round 1 is SIX, and who they are | `pipeline.json` agent rows carry `role: "gate-round"`; `pipeline.test.mjs` asserts that set. The GAP is the prose mirrors, which nothing compares against the data | `grep -n 'gate-round\|EXPECTED_CORE' .claude/pipeline.test.mjs` |
+| no retired reviewer named as current | falls out of the roster check for free — a retired member is simply absent from the data | — |
+| orchestrator never invokes the skill directly | `settings.json` `PreToolUse` matchers are tool-name regexes (`Bash`, `Edit\|Write` today), so a `Skill` matcher is plausible — **UNVERIFIED**: whether the hook payload distinguishes orchestrator from subagent is unknown. Probe before planning on it | `python3 -c "import json;print(json.load(open('.claude/settings.json'))['hooks']['PreToolUse'])"` |
+
+**D1 survives all four.** Member 6 stays OUT of `agents` — a skill has no `.claude/agents/*.md`
+file and the closure assertion would break. A separate top-level key carries its `model` / `role` /
+`isolation` without joining that assertion.
+
+**One claim is NOT mechanizable and must not be counted as if it were:** the member's report opens
+with its provenance (`pwd`, HEAD, inline-vs-forked). That lives in an agent's terminal message,
+which never reaches the repo, so no hook can see it. It is the orchestrator's read or it is
+unverified — the honest JUDGMENT row.
+
 ### W2 — wire the enforcers that exist and gate nothing
 
 Derive the state; do not trust this list:

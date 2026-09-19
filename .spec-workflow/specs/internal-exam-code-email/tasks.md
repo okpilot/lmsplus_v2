@@ -2,7 +2,7 @@
 
 > Status: implemented — PR #904 open, all CI checks green, awaiting manual eval + merge.
 > Post-commit suite (code-reviewer, semantic-reviewer ×2 incl. PR-sweep, doc-updater, test-writer,
-> red-team, learner) + cloud-CR run; all findings resolved.
+> red-team, learner) + 4 CR-local rounds + cloud-CR run; all findings resolved.
 > Follow-ups: #902 (red-team E2E), #903 (learner rule promotions).
 
 ## DB (Stream A)
@@ -28,5 +28,5 @@
 - [x] check-types, lint, 3919 unit tests green
 - [x] plan-critic (plan) + spec QA + implementation-critic (staged) run, findings folded in
 - [x] post-commit suite + PR-sweep semantic review; all CRITICAL/ISSUE resolved
-- [x] /fullpush → pushed → PR #904 (all CI green incl. migration/red-team/integration)
+- [x] /fullpush (CR-local, 4 rounds) → pushed → PR #904 (all CI green incl. migration/red-team/integration)
 - [ ] manual eval (send a real code email) → merge  (awaiting user)

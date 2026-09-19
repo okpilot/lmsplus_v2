@@ -2187,7 +2187,9 @@ their own memory deltas: those deltas land in the branch diff, the next round re
 review produces a fixup that writes more of them. The exclusion is what makes the loop terminate.
 
 **Rounds.** Round 1 dispatches implementation-critic, code-reviewer, semantic-reviewer, doc-updater,
-test-writer and CR-local in ONE parallel batch. Round 2+ is code-reviewer + semantic-reviewer +
+test-writer and CR-local in ONE parallel batch. *(Round-1 membership superseded 2026-09-19 by
+Decision 77: CR-local is retired; `code-review (skill)` takes its slot.)* Round 2+ is
+code-reviewer + semantic-reviewer +
 CR-local — doc-updater and test-writer produce rather than gate. *(Round-2+ membership superseded
 2026-09-17 by Decision 74: CR-local is round 1 only, so rounds 2+ are code-reviewer +
 semantic-reviewer. Everything else here is unchanged.)* Each round pools every validated
@@ -2304,13 +2306,14 @@ Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --h
 
 **Decision.** The CodeRabbit local CLI leaves the pre-push review gate and the rules corpus. Round 1
 stays SIX: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and
-`code-review (skill)` — the built-in `/code-review` skill, dispatched forked. Supersedes Decision
+`code-review (skill)` — the built-in `/code-review` skill, run on **opus** in an isolated worktree,
+dispatched as a subagent and never invoked by the orchestrator. Supersedes Decision
 74's round-1 membership; 74's yield evidence stands. Cloud CodeRabbit is untouched and remains the
 authoritative external gate.
 
 **Evidence.** A blind run of the skill over #1315's range (`4125cd1f...a23638c8`), in an isolated
 worktree with no PR or `gh` access, reproduced every Major finding cloud CR raised on that PR and
-added findings cloud CR did not — an unordered `.limit(1)`, a stale migration citation, and a
+added five cloud CR did not, among them an unordered `.limit(1)`, a stale migration citation, and a
 discard test whose `buildChain` Proxy made it pass with the mechanism removed. That single run
 settles both halves: a local reviewer running the SAME engine as the authoritative one was paying
 for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one missed.
@@ -2331,9 +2334,13 @@ has no agent-definition file, so declaring it would break both assertions. CR-lo
 `pipeline.json` for the same reason. `pipeline.json` and `pipeline.test.mjs` are unchanged, and that
 test passing untouched is the proof.
 
-**Forked dispatch reports as prose.** `ReportFindings` may be unavailable in a forked worktree; the
-findings then arrive in the agent's terminal message. Recorded so a future run does not read a
-missing tool as a failed gate. Observed behaviour, not a contract.
+**Dispatch traps, both found by the member's first gate run.** The isolated worktree is cut at
+`origin/master`, NOT at the branch tip, so `git diff origin/master...HEAD` resolves to ZERO paths
+inside it while the branch carries commits — and the gate aborts only on a non-zero exit code,
+never on an empty result, so the member returns clean having read nothing. Pass the branch tip
+explicitly and abort on an empty range. Separately, `ReportFindings` may be unavailable in a forked
+worktree; the findings then arrive as prose in the agent's terminal message. Observed behaviour,
+not a contract.
 
 **Consequence.** `agent-coderabbit-local.md` is RENAMED to `agent-coderabbit.md`, not deleted — its
 § Verify Before Acting claim-shape table and its Common Pitfalls describe how CodeRabbit errs, and

@@ -14,7 +14,7 @@ Runs on every push to an open PR. Nothing local invokes it and no internal round
 
 ## Apply-vs-Defer
 
-The triage table below decides class; verdict is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER needs ALL three: ≥30 LOC, separate concern, a design decision the PR doesn't establish. Two budgets bind, both checked before merge:
+The triage table below decides class; verdict is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER needs ALL three: ≥30 LOC, separate concern, a design decision the PR doesn't establish. Two budgets bind, both checked before push:
 - **VOLUME** — 0-2 deferrals per PR; 3+ means re-triaging every survivor and naming them in the push summary.
 - **RATIO** — `filed > 0 AND filed >= closed` (every issue the branch author created after the merge-base, whatever its origin) → re-triage, or claim first-illumination or a `red-team-gap` justification (each naming the vector ID or spec path it covers) in the PR's `## Deferred` section. A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, judged on the ordinary ones alone.
 

@@ -33,7 +33,7 @@ Two directions:
 
 The only thing that reliably caught either was **executing a command against source**. Prose review
 did not: five fail-opens in an eight-line bash snippet survived four internal agents and were found
-by running it.
+by CR-local and by running it.
 
 ## 3. Measured evidence (2026-08-25)
 
