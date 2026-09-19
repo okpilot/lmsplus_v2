@@ -10,15 +10,22 @@
 // deleted is unfalsifiable. This is that probe, committed, so any reader can re-run it and
 // get a number rather than a sentence.
 //
-// Usage:  node .claude/hooks/measure-quantifier-swap.mjs [--commits <N>] [--sha <sha>] [--verbose]
+// Usage:  node .claude/hooks/measure-quantifier-swap.mjs [--commits <N>] [--head <sha>]
+//         node .claude/hooks/measure-quantifier-swap.mjs --sha <sha> [--verbose]
+//
+// `--head` pins the window's endpoint. The default HEAD slides forward on every commit, so a
+// figure recorded anywhere without a pinned endpoint stops re-deriving the moment the next
+// commit lands — including the commit that records it.
 //
 // Bounds: a commit WARNING here means one file lost a line matching the detection class
 // (an absolute quantifier or a bare ratio) and gained another matching line of the same
 // class, in the same commit — a pairing worth a human re-read, nothing more. It cannot tell
 // whether the ADDED claim is true, whether the REMOVED one was false, or whether the two
 // even describe the same fact; it only flags that a re-verify-worthy pairing occurred. It
-// does not replay the completed-spec exclusion, does not skip merge commits under `--sha`,
-// and — like its siblings — does not evaluate merge commits in the `--commits` window.
+// does not replay the completed-spec exclusion, and — like its siblings — does not evaluate
+// merge commits: the `--commits` window passes `--no-merges`, and `--sha` REJECTS a merge
+// rather than grading it, because a combined diff omits a path matching a parent and would
+// report the commit as examined and clean.
 
 import { execFileSync } from 'node:child_process'
 import { argv, exit } from 'node:process'
@@ -48,6 +55,12 @@ export const RATIO_RE = /\d+\s*(\/|of)\s*\d+/
 
 export function quantifierHits(line) {
   return QUANT_RE.test(line) || RATIO_RE.test(line)
+}
+
+/** Parent SHAs of one commit. A merge has more than one; its combined diff omits a path
+ *  matching a parent, so grading one would silently report it as examined and clean. */
+function parentsOf(sha) {
+  return gitText(['rev-list', '--parents', '-n', '1', sha]).trim().split(/\s+/).slice(1)
 }
 
 /** Every corpus path this commit touches. `--root` lets the root commit resolve like any
@@ -87,6 +100,7 @@ function parseArgs(args) {
   let commitsGiven = false
   let verbose = false
   let sha = null
+  let head = null
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === '--commits') {
       commits = Number(args[i + 1])
@@ -101,12 +115,17 @@ function parseArgs(args) {
       sha = args[i + 1]
       if (!sha) throw new Error('--sha needs a value')
       i += 1
+    } else if (args[i] === '--head') {
+      head = args[i + 1]
+      if (!head) throw new Error('--head needs a value')
+      i += 1
     } else {
       throw new Error(`unknown argument ${JSON.stringify(args[i])}`)
     }
   }
   if (sha && commitsGiven) throw new Error('--sha and --commits are mutually exclusive')
-  return { commits, verbose, sha }
+  if (sha && head) throw new Error('--sha and --head are mutually exclusive')
+  return { commits, verbose, sha, head }
 }
 
 function reportVerbose(hits) {
@@ -122,10 +141,15 @@ function reportVerbose(hits) {
 }
 
 export function main(args) {
-  const { commits, verbose, sha } = parseArgs(args)
+  const { commits, verbose, sha, head } = parseArgs(args)
+  if (sha && parentsOf(sha).length > 1) {
+    throw new Error(
+      '--sha does not accept a merge commit: its combined diff hides parent-specific changes',
+    )
+  }
   const shas = sha
     ? [sha]
-    : gitText(['rev-list', '--no-merges', '-n', String(commits), 'HEAD'])
+    : gitText(['rev-list', '--no-merges', '-n', String(commits), head ?? 'HEAD'])
         .split('\n')
         .filter(Boolean)
 

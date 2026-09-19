@@ -120,9 +120,9 @@ awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
   .claude/agent-memory/learner/MEMORY.md
 ```
 
-The command above prints the qualifying rows with their counts. The largest is *a fix commit
-correcting §10 violations introduces fresh §10 violations.* The learner's verdict on the branch
-that produced Decision 73: *the gap is execution, not missing rule text.*
+The command above prints the qualifying rows with their counts; pipe it through `sort -rn` and
+take the top row to select the largest. The learner's verdict on the branch that produced
+Decision 73: *the gap is execution, not missing rule text.*
 
 No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
 the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
@@ -492,22 +492,16 @@ What has actually caught an instance: `check-retracted-phrase.mjs` (the cross-fi
 `run-mutations.mjs` reporting a SURVIVED entry. Nothing caught the coherent-but-false replacement
 sentence. That residue is not decidable in general; the encodable subsets are.
 
-**MEASURED — Decision 76.** The quantifier-swap subset is refuted on its own numbers: the class
-as the learner derived it warns on over half the recent window, against the abandoned R0b-1
-detector's noise rate. It does reach its motivating instance, so the sub-shape is real and the
-class finds it — it finds most other commits too. `.claude/hooks/measure-quantifier-swap.mjs` is
-committed; re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120`. The row
-stays RULE CANDIDATE. A NARROWED class is a separate question with its own measurement.
+**MEASURED — the quantifier-swap subset is refuted. See Decision 76 in `docs/decisions.md`**,
+which carries the evidence, the pinned derivation command and the verdict. The row stays
+RULE CANDIDATE.
 
 - [x] Enumerate the class from history first, do not design from the rule text. Derive the
       candidate commits: `git log --oneline --all --grep='^fix(' -- .claude/ docs/` crossed with
       commits whose own follow-up retracted a claim they introduced. Classify each into
       mechanically-detectable vs judgment-only, and record the split — the ratio decides whether a
       guard is worth building at all.
-      DONE: split recorded in Decision 76. Detectable — quantifier swap (measured, refuted),
-      sibling survivor (already `check-retracted-phrase.mjs`), commit-message counts (item 4).
-      Judgment-only — the correction whose own new mechanism is false, which is the dominant
-      shape and has no syntactic signature.
+      DONE: the detectable/judgment-only split is recorded in Decision 76.
 - [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
       hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
       (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying

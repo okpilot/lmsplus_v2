@@ -2265,11 +2265,15 @@ resolves it. `.claude/hooks/measure-quantifier-swap.mjs` ships as a committed me
 wired into no stage, so the figure that refuted the check is re-derivable rather than asserted.
 
 **Evidence.** The class — `all|every|never|always|only|none|exactly`, or a bare ratio — warns on
-50.8% of the last 120 non-merge commits as of this entry. R0b-1's detector was abandoned at 18%
-as almost all noise. A warning firing on every second commit is ignored, and an ignored check
-reads as coverage while providing none. It does catch its motivating instance (`33c8ff79`, which
-lost "does NOT catch **every** citation" and gained "catches **only** ~80% of citations"), so the
-sub-shape is real and the class does reach it — it reaches 60 other commits too.
+60 of the 120 non-merge commits ending at `41aabab9`. R0b-1's detector was abandoned at 18% as
+almost all noise. A warning firing on every second commit is ignored, and an ignored check reads
+as coverage while providing none. It does catch the shape it was derived from: `0cbadf11` lost
+"does NOT catch **every** citation" and gained "catches **only** ~80% of citations". So the
+sub-shape is real and the class reaches it — along with most of the window.
+
+The endpoint is pinned because it has to be. A window ending at `HEAD` slides forward on every
+commit, so an unpinned figure stops re-deriving the moment the next commit lands — which is how
+this entry's first draft was already false when it was written.
 
 **Consequence.** The dominant sub-shape of that row is a correction whose own new mechanism is
 false, which has no syntactic signature; the reachable sub-shapes are the quantifier swap refuted
@@ -2282,4 +2286,4 @@ added lines, or a shared-context requirement — is a separate question needing 
 `check-prose-claims.mjs` needed three narrowings before it was usable, so the shape is precedented;
 the bar is the same one applied here, and the same script measures it.
 
-Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120`.
+Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --head 41aabab9`.
