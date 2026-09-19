@@ -110,14 +110,17 @@
       "id": "narrow-mutation-grep",
       "find": "const n = (lines[i].match(/MUTATION:/g) ?? []).length",
       "replace": "const n = (lines[i].match(/\\/\\/ MUTATION:/g) ?? []).length",
-      "expectRed": ["__DERIVE__"],
+      "expectRed": [
+        "counts a claim written mid-line after other prose",
+        "counts every claim on a line, not one per claiming line"
+      ],
       "note": "Re-anchored from the dead `countMutationClaims` onto `scanClaims`, the counter `--coverage` actually reads. The mechanism differs: `scanClaims` filters to lines opening with `//` FIRST, so the mid-line fixture must keep that opener or the claim is never counted at all and the mutation reports SURVIVED."
     },
     {
       "id": "claims-add-n-not-one",
       "find": "ownerFor(i, i).claims += n",
       "replace": "ownerFor(i, i).claims += 1",
-      "expectRed": ["__DERIVE__"]
+      "expectRed": ["counts every claim on a line, not one per claiming line"]
     },
     {
       "id": "no-target-check",
@@ -530,7 +533,12 @@
       "id": "ownerfor-always-header",
       "find": "    if (k === -1 || indentOf(lines[anchor]) <= indentOf(lines[testLines[k]])) return header\n    return tests[k]",
       "replace": "    return header",
-      "expectRed": ["a marker written inside a body names the test it sits in, not the next one"]
+      "expectRed": [
+        "a marker written inside a body names the test it sits in, not the next one",
+        "counts a claim written mid-line after other prose",
+        "counts every claim on a line, not one per claiming line"
+      ],
+      "note": "superset: the two claim-counting fixtures also write their comment INSIDE a test body, so attributing every owner to the header strips their claims off the test as well."
     },
     {
       "id": "ownerfor-reaches-past-the-body",
