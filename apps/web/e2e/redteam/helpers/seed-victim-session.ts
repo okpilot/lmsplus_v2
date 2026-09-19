@@ -12,6 +12,7 @@ import { createAuthenticatedClient } from './redteam-client'
 import { VICTIM_EMAIL, VICTIM_PASSWORD } from './seed-users'
 
 type AdminClient = ReturnType<typeof getAdminClient>
+type RpcResult = { data: unknown; error: { message: string } | null }
 
 /**
  * Seed a completed quick_quiz flow for the victim so quiz_sessions,
@@ -29,23 +30,7 @@ export async function seedVictimCompletedSession(
   tracker: FixtureTracker,
 ): Promise<string> {
   const victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-  const seedQuestionIds = await fetchActiveQuestionIds(adminClient, {
-    orgId: ids.orgId,
-    subjectId: ids.subjectId,
-    topicId: ids.topicId,
-    limit: 1,
-  })
-  const { data: seedSessionId, error: startErr } = await victimClient.rpc('start_quiz_session', {
-    p_mode: 'quick_quiz',
-    p_subject_id: ids.subjectId,
-    p_topic_id: ids.topicId,
-    p_question_ids: seedQuestionIds,
-  })
-  if (startErr || !seedSessionId || typeof seedSessionId !== 'string') {
-    throw new Error(
-      `unauth seed: start_quiz_session failed: ${startErr?.message ?? 'non-string id'}`,
-    )
-  }
+  const seedSessionId = await startVictimSession(adminClient, victimClient, ids)
   tracker.sessions.add(seedSessionId)
 
   try {
@@ -62,6 +47,32 @@ export async function seedVictimCompletedSession(
     // later run. Soft-delete clears the guard's `deleted_at IS NULL` term.
     await discardSeedSession(adminClient, seedSessionId)
     throw e
+  }
+  return seedSessionId
+}
+
+/** Start the victim's quick_quiz session and return its id, guarding the RPC's untyped return. */
+async function startVictimSession(
+  adminClient: AdminClient,
+  victimClient: { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<RpcResult> },
+  ids: { orgId: string; subjectId: string; topicId: string },
+): Promise<string> {
+  const seedQuestionIds = await fetchActiveQuestionIds(adminClient, {
+    orgId: ids.orgId,
+    subjectId: ids.subjectId,
+    topicId: ids.topicId,
+    limit: 1,
+  })
+  const { data: seedSessionId, error: startErr } = await victimClient.rpc('start_quiz_session', {
+    p_mode: 'quick_quiz',
+    p_subject_id: ids.subjectId,
+    p_topic_id: ids.topicId,
+    p_question_ids: seedQuestionIds,
+  })
+  if (startErr || !seedSessionId || typeof seedSessionId !== 'string') {
+    throw new Error(
+      `unauth seed: start_quiz_session failed: ${startErr?.message ?? 'non-string id'}`,
+    )
   }
   return seedSessionId
 }

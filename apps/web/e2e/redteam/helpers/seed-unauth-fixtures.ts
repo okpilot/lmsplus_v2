@@ -59,24 +59,49 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
   const seed = await seedRedTeamUsers()
   const victimUserId = seed.victimUserId
   const picked = await pickSubjectWithQuestions(adminClient, { orgId: seed.orgId })
-  const knownSubjectId = picked.subjectId
-  const knownTopicId = picked.topicId
+  const { knownSessionId, knownQuestionId } = await lookupSeedIds(adminClient, seed.orgId)
 
+  await seedVictimOwnedRows(adminClient, { victimUserId, knownQuestionId }, tracker)
+
+  const knownVictimSessionId = await seedVictimCompletedSession(
+    adminClient,
+    { orgId: seed.orgId, subjectId: picked.subjectId, topicId: picked.topicId },
+    tracker,
+  )
+
+  return {
+    orgId: seed.orgId,
+    victimUserId,
+    knownSubjectId: picked.subjectId,
+    knownTopicId: picked.topicId,
+    knownSessionId,
+    knownQuestionId,
+    knownVictimSessionId,
+    tracker,
+  }
+}
+
+/**
+ * Resolve an existing session id (a plausible attack input, not seeded here) and
+ * the question every victim-owned fixture row below attaches to.
+ */
+async function lookupSeedIds(
+  adminClient: AdminClient,
+  orgId: string,
+): Promise<{ knownSessionId: string; knownQuestionId: string }> {
   const { data: sessions, error: sessionsErr } = await adminClient
     .from('quiz_sessions')
     .select('id')
     .limit(1)
   if (sessionsErr) throw new Error(`beforeAll: quiz_sessions lookup failed: ${sessionsErr.message}`)
-  const knownSessionId = sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001'
 
-  // Same filters as fetchActiveQuestionIds: the question_comments insert and the
-  // flagged_questions upsert below attach victim rows to this id, and
-  // server-action-unauth-table-reads.spec.ts re-reads it with `.is('deleted_at', null)`
-  // as its non-vacuity control — a soft-deleted or inactive pick fails that control.
+  // Same filters as fetchActiveQuestionIds: server-action-unauth-table-reads.spec.ts
+  // re-reads this id with `.is('deleted_at', null)` as its non-vacuity control, so a
+  // soft-deleted or inactive pick fails that control.
   const { data: questions, error: questionsErr } = await adminClient
     .from('questions')
     .select('id')
-    .eq('organization_id', seed.orgId)
+    .eq('organization_id', orgId)
     .eq('status', 'active')
     .is('deleted_at', null)
     .limit(1)
@@ -84,11 +109,24 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
   const knownQuestionId = questions?.[0]?.id
   if (!knownQuestionId) throw new Error('unauth seed: no active question found')
 
-  // Seed victim-owned rows so the anon SELECT tests prove RLS blocks
-  // EXISTING data (not mere table emptiness). These are self-contained — they
-  // do not rely on any other spec's seeding or execution order. Cleaned up in
-  // afterAll via the returned tracker. (Soft-delete keeps them queryable by
-  // id/PK for teardown.)
+  return {
+    knownSessionId: sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001',
+    knownQuestionId,
+  }
+}
+
+/**
+ * Seed victim-owned rows so the anon SELECT tests prove RLS blocks EXISTING data
+ * rather than mere table emptiness. Self-contained — no dependence on another
+ * spec's seeding or execution order. Cleaned up in afterAll via `tracker`
+ * (soft-delete keeps the rows queryable by id/PK for teardown).
+ */
+async function seedVictimOwnedRows(
+  adminClient: AdminClient,
+  ids: { victimUserId: string; knownQuestionId: string },
+  tracker: FixtureTracker,
+): Promise<void> {
+  const { victimUserId, knownQuestionId } = ids
   const { data: comment, error: commentErr } = await adminClient
     .from('question_comments')
     .insert({
@@ -112,21 +150,4 @@ export async function seedUnauthFixtures(adminClient: AdminClient): Promise<Unau
     )
   if (flagErr) throw new Error(`unauth seed: failed to seed flagged_question: ${flagErr.message}`)
   tracker.flags.add(`${victimUserId}::${knownQuestionId}`)
-
-  const knownVictimSessionId = await seedVictimCompletedSession(
-    adminClient,
-    { orgId: seed.orgId, subjectId: knownSubjectId, topicId: knownTopicId },
-    tracker,
-  )
-
-  return {
-    orgId: seed.orgId,
-    victimUserId,
-    knownSubjectId,
-    knownTopicId,
-    knownSessionId,
-    knownQuestionId,
-    knownVictimSessionId,
-    tracker,
-  }
 }
