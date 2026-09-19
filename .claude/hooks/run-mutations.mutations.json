@@ -80,10 +80,11 @@
         "a skipped child does not make its failing parent look like an aggregate",
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set"
       ],
-      "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
+      "note": "Inverting the core filter reddens every parseTap case. Every name it reddens is listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
     {
       "id": "no-survived-branch",
@@ -91,7 +92,8 @@
       "replace": "",
       "expectRed": [
         "reports SURVIVED when nothing went red at all",
-        "--update-expected writes nothing for a SURVIVED entry and says why"
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten"
       ]
     },
     {
@@ -208,6 +210,7 @@
         "refuses an ambiguous anchor that occurs twice",
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set"
@@ -476,6 +479,7 @@
         "grades every mutation after a stale-anchor fault, not just those before it",
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set"
@@ -607,6 +611,7 @@
         "takes --update-expected together with --guard, which is an option and not a mode",
         "--update-expected rewrites a MISMATCH from the set actually observed",
         "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
         "a name the suite reddened twice is written once",
         "--update-expected refuses to grade when a declared suite is uncommitted",
         "--update-expected refuses a staged but not yet committed change",
@@ -628,7 +633,10 @@
       "id": "update-expected-writes-survivor",
       "find": "=== 'MISMATCH')",
       "replace": "!== 'CAUGHT')",
-      "expectRed": ["--update-expected writes nothing for a SURVIVED entry and says why"]
+      "expectRed": [
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten"
+      ]
     },
     {
       "id": "update-expected-skips-dedupe",
@@ -695,6 +703,13 @@
       "find": "['status', '--porcelain', '--untracked-files=all', '--', data.target, ...data.suites],",
       "replace": "['status', '--porcelain', '--', data.target, ...data.suites],",
       "expectRed": ["--update-expected refuses a declared suite that was never committed"]
+    },
+    {
+      "id": "update-expected-rewrite-buries-survivor",
+      "find": "    return survivors > 0 ? 1 : 0",
+      "replace": "    return 0",
+      "expectRed": ["a survivor still fails the run when another entry was rewritten"],
+      "note": "A batch can hold both a rewrite and a survivor. Returning 0 on any write reports the survivor as success, contradicting modeRun, which exits 1 for the same entry."
     }
   ],
   "notEncoded": [
