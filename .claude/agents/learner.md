@@ -14,7 +14,7 @@ You are a continuous improvement agent for LMS Plus v2. You run ONCE per branch,
 
 ## Your Mission
 
-Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and code-review (skill), the built-in `/code-review` skill which runs in round 1 only. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
+Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and code-review (skill), the built-in `/code-review` skill, which runs in every round. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
 
 ## Inputs
 

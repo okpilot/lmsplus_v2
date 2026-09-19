@@ -101,7 +101,7 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage and the learner's counts.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs six concurrently — this is the gate's sharpest edge. The collision set is FIVE: `code-review (skill)` is dispatched read-only into an isolated worktree, and that exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs six concurrently — this is the gate's sharpest edge. The collision set is FIVE: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
@@ -118,8 +118,8 @@ Execute ▼ commit freely — a commit triggers NOTHING
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
          + test-writer + code-review (skill) — ONE parallel batch, all on the
          branch diff.  code-review (skill) is the built-in /code-review skill,
-         dispatched forked, round 1 only.
-ROUND 2+ code-reviewer + semantic-reviewer — code-review (skill) is ROUND 1 ONLY
+         dispatched as a subagent in an isolated worktree on opus, every round.
+ROUND 2+ code-reviewer + semantic-reviewer + code-review (skill)
          (doc-updater and test-writer PRODUCE, they do not gate — re-run one only
           when the fixup added surface it has not seen)
     ▼

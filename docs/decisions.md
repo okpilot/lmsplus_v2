@@ -2302,31 +2302,39 @@ inherits the squash problem above — narrowing lowers the noise, it does not ma
 
 Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120 --head 41aabab9`.
 
-## Decision 77: CR-local is retired; the built-in `/code-review` skill takes its round-1 slot (2026-09-19)
+## Decision 77: CR-local is retired; the built-in `/code-review` skill replaces it, in every round (2026-09-19)
 
 **Decision.** The CodeRabbit local CLI leaves the pre-push review gate and the rules corpus. Round 1
 stays SIX: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and
 `code-review (skill)` — the built-in `/code-review` skill, run on **opus** in an isolated worktree,
-dispatched as a subagent and never invoked by the orchestrator. Supersedes Decision
+dispatched as a subagent and never invoked by the orchestrator. It runs in EVERY round, not only
+round 1 (see Scope). Supersedes Decision
 74's round-1 membership; 74's yield evidence stands. Cloud CodeRabbit is untouched and remains the
 authoritative external gate.
 
 **Evidence.** A blind run of the skill over #1315's range (`4125cd1f...a23638c8`), in an isolated
-worktree with no PR or `gh` access, reproduced every Major finding cloud CR raised on that PR and
-added five cloud CR did not, among them an unordered `.limit(1)`, a stale migration citation, and a
-discard test whose `buildChain` Proxy made it pass with the mechanism removed. That single run
-settles both halves: a local reviewer running the SAME engine as the authoritative one was paying
-for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one missed.
-Re-derive both sides:
+worktree, reproduced every Major finding cloud CR raised on that PR and added further findings cloud
+CR did not — among them an unordered `.limit(1)`, a stale migration citation, and a discard test
+whose `buildChain` Proxy made it pass with the mechanism removed. No total is stated for the
+additions: the run is not deterministic, so no command re-derives that count. The cloud side is
+derivable, and only that side:
 
 ```bash
-gh api graphql -f query='query{repository(owner:"okpilot",name:"lmsplus_v2"){pullRequest(number:1315){reviewThreads(first:100){totalCount nodes{path isResolved}}}}}'
-# and re-run the skill against the same range
+gh api "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'
 ```
 
-**Scope of the new member.** Round 1 only. Decision 74's 58%/19%/11% decay was measured on CR-local,
-and no equivalent run exists for this skill — round 1 is the conservative default, not a measured
-result. Widening it needs its own measurement.
+That run settles both halves: a local reviewer on the SAME engine as the authoritative one was
+paying for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one
+missed.
+
+**Scope of the new member — EVERY round, on measurement.** Round 1 only was the conservative
+default, carried over from Decision 74's 58%/19%/11% decay, which was measured on CR-local and
+never on this skill. The widening criterion was registered before the data: widen if round 2
+surfaces a validated ISSUE the other two reviewers miss. Round 2 of THIS branch, run against the
+round-1 fixup, returned four in-range ISSUEs from this member and none from code-reviewer or
+semantic-reviewer — semantic-reviewer positively marked two of the affected sections `[GOOD]`.
+Three of the four originated in the round-1 fixup itself. Yield decay did not hold on a fixup diff,
+which is the case the round-1 default rested on.
 
 **Not a pipeline agent.** `.claude/pipeline.test.mjs` asserts bidirectional closure between
 `pipeline.json` `agents` and the files in `.claude/agents/`, plus a hardcoded core roster. A skill
