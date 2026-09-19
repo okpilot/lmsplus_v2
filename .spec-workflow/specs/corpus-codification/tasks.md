@@ -181,10 +181,8 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
       harness that rewrites its own expectations launders them. Re-derive the current pressure
       with `node .claude/hooks/run-mutations.mjs` and count the MISMATCHes.
       **Using it on a NEW entry** — write `"expectRed": ["__DERIVE_a3f91c7e__"]` and run
-      `--update-expected [--guard <basename>]`. `validateDataFile` requires a non-empty array whose
-      every entry is a non-empty string — which the sentinel is, so it reaches `compareResult`,
-      MISMATCHes, and the observed set is spliced in as TEXT. `grep -n '__DERIVE_a3f91c7e__' .claude/hooks/*.mutations.json` must be empty
-      before commit.
+      `--update-expected [--guard <basename>]`. Then
+      `grep -n '__DERIVE_a3f91c7e__' .claude/hooks/*.mutations.json` must be empty before commit.
       **What it refuses.** It will not run at all while the target or a declared suite is
       uncommitted: the grading run reads HEAD, so the set written would be the old one. It
       never writes for a SURVIVED entry, whose observed set is empty — that is a defect in the
