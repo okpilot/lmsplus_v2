@@ -19,7 +19,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE. |
 | DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE |
 | Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE |
-| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 6 | 2026-09-01 | RULE CANDIDATE (6) — needs broadening. |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 7 | 2026-09-19 | RULE CANDIDATE (7) — needs broadening. File-cap green masks function-cap violation; need independent check. |
 | `vi.spyOn` spy restore hygiene gap (spy leaks across tests on assertion failure) | 2 | 2026-06-20 | RULE CANDIDATE. |
 | CLAUDE.md QA-pipeline section drifts when lefthook.yml changes | 3 | 2026-09-14 | RULE CANDIDATE (3). |
 | Test-file split drops a test-branch guard or condition during the move | 2 | 2026-06-23 | RULE CANDIDATE. |
@@ -38,7 +38,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
 | Plan prose states unverified content-item count that | 4 | 2026-09-18 | RULE CANDIDATE (4) → §10 cl.2 addendum. Surface extends beyond plan.md |
-| Fix commit correcting §10 violations introduces fresh §10 | 64 | 2026-09-18 | RULE CANDIDATE (64). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 65 | 2026-09-19 | RULE CANDIDATE (65). Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -137,7 +137,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | New helper ships the exact defect class it was written to fix — first caller catches what 15 synthetic tests missed | 1 | 2026-09-18 | WATCHING — fix/harden-fixture-spawn-helpers. `assertUsable` read `r.error` before `r.status`. Log and watch. |
 | Wall-clock `expect(Date.now() - start).toBeLessThan(N)` used as non-vacuity guard for a test mechanism — flake-prone on loaded CI | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: semantic-reviewer + test-writer flagged; fixed with `vi.useFakeTimers`. Log and watch. |
 | Orchestrator derives red-team trigger from semantic intent ("only tests") instead of mechanical glob of changed paths | 1 | 2026-09-18 | WATCHING — fix/integration-fixture-isolation: 11 files under `apps/web/app/app/quiz/actions/**` matched the trigger set; rule in agent-workflow.md is adequate; lapse, not a rule gap. Log and watch. |
-| Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 1 | 2026-09-18 | WATCHING — fix/db-integration-fixture-isolation. §1 mandates `wc -l` every file planned to grow; +1 import hit 9 baselined files. Log and watch. |
+| Plan Validation skips required `wc -l` growth check — over-cap baselined files re-crossed at pre-commit | 2 | 2026-09-19 | RULE CANDIDATE (2). fix/db-integration-fixture-isolation + test/non-vacuous-integration-negatives. Rule exists in §1; being skipped. Needs plan-critic or impl-critic checklist entry. |
 
 ## Durable knowledge (cross-agent)
 
@@ -150,6 +150,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
 - File-deletion-falsifies-mirror (count=1, 2026-09-17): Deleting `post-commit-reminder.sh` left the Rule-Mirror Sync table claiming a .sh hook fires at commit time — false the moment the hook was gone. Caught round 1. Log and watch.
 - POSITIVE (`fix/db-integration-fixture-isolation`, 2026-09-18): Clean 2-round loop. Row 118→3 (`--update-baseline` JSON.stringify rewrite, caught pre-commit). Row 41→64 (false count in §1 amendment). Row 82→7 (template vs. resolved comparison). New WATCHING: Plan Validation wc-l skip.
+- `test/non-vacuous-integration-negatives` (2026-09-19): 3 rounds, ceiling. Row 140→RULE CANDIDATE (wc-l skip, 2nd instance). Row 22→7 (function-cap masked by file-cap green). Row 41→65 (§10 cl.8 correction→new false claim, round 3). 4-reviewer convergence on vacuous negative in anti-vacuity branch: reliability signal, no rule gap.
 - Remaining bullets (positive signals, open ambiguities, per-branch notes): topics/cross-agent-lessons.md, search "Durable-knowledge bullets relocated".
 
 ## Topic pointers
