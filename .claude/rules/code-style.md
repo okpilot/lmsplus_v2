@@ -687,8 +687,9 @@ Any cleanup helper with **2+ distinct steps** must isolate each in its own `try/
 Complements Biome's `noUnsafeFinally` (bans `throw` in `finally`) — this governs cross-step isolation. Single-step cleanups are exempt.
 ### Paginated Fetch Needs a Caller-Level Page-Error Test
 Any caller of `fetchAllRows` (or a `.range()` pagination helper) needs a co-located test asserting a **page-fetch error after a successful count** propagates: mock the count to succeed non-zero and the first page to return `{ data: null, error }` (real helper), or mock `fetchAllRows` to return `{ data: [], error }` (mocked dependency). Assert the caller surfaces the error. A null payload with no error is equally an error — `fetchAllRows` rejects it as a count/page disagreement rather than passing it as an empty page. Guards against a silently-truncated result that looks complete (e.g. a GDPR export missing rows with no signal).
-### Red-Team Isolation/Negative Assertions Must Be Non-Vacuous
-A red-team test asserting a **negative** (`.not.toContain(victim)`, empty cross-tenant result, unmodified row) must first assert the **protected state genuinely exists** — otherwise the negative passes vacuously on an empty collection.
+### Isolation/Negative Assertions Must Be Non-Vacuous
+ANY test asserting a **negative** (`.not.toContain(victim)`, empty cross-tenant result, unmodified row, `toHaveLength(0)`) must first assert the **protected state genuinely exists** — otherwise the negative passes vacuously on an empty collection. Scope is every tier: red-team specs, `*.integration.test.ts`, and unit tests. See also *Integration-Test Negative Assertions Must Be Reachable* below for reachability conditions beyond empty-collection vacuity.
+- **`.every()` / `.some()` on a possibly-empty array:** `[].every(pred)` is `true` for ANY predicate. An `.every()` following an assertion that the same array is empty can never fail — delete it, or guard it with a `length > 0` assertion first.
 - **Isolation:** assert the attacker's own result is non-empty AND/OR the victim's row exists via service-role client, so "0 rows" proves RLS rejection, not an empty table.
 - **State-flip/no-op:** read the protected value before the blocked mutation, assert unchanged after, and confirm the row existed first.
 ```ts
