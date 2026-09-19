@@ -146,12 +146,12 @@ Enumerate against the ref, before editing; a worktree mid-sweep reports its own 
 
 **RETIRE CR-local entirely** — user decision 2026-09-19, superseding Decision 74's round-1
 scoping. Round 1 keeps six members: `code-review (skill)` — the built-in `/code-review` skill,
-dispatched as a subagent in an isolated worktree on opus — takes the vacated slot, and runs in
-every round (Decision 77). Cloud CodeRabbit stays until the subscription lapses, so
+dispatched as a subagent in an isolated worktree on opus — takes the vacated slot, round 1 only
+(Decision 77). Cloud CodeRabbit stays until the subscription lapses, so
 `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope. Driver: a blind
 `/code-review` run over #1315's range, in an isolated worktree, matched all four of cloud CR's
 Major findings and raised further ones it did not. Derive the cloud side, the only derivable half:
-`gh api "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'`.
+`gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'` — `--paginate` is load-bearing: the endpoint pages at 30 and exits 0 on a truncated list.
 
 Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
 deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:

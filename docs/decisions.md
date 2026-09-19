@@ -2319,8 +2319,10 @@ additions: the run is not deterministic, so no command re-derives that count. Th
 derivable, and only that side:
 
 ```bash
-gh api "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'
+gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'
 ```
+
+`--paginate` is load-bearing: the endpoint pages at 30 and exits 0 on a truncated list.
 
 That run settles both halves: a local reviewer on the SAME engine as the authoritative one was
 paying for a correlated read, and a reviewer on a DIFFERENT engine reached what the correlated one
@@ -2328,18 +2330,18 @@ missed.
 
 **Scope of the new member — ROUND 1, with the widening measured and deliberately held.** Decision
 74's 58%/19%/11% decay was measured on CR-local, never on this skill, so round 1 was a default
-rather than a result. A criterion was registered before the data: widen if round 2 surfaces a
-validated ISSUE the other two reviewers miss. Round 2 of THIS branch returned four in-range ISSUEs
-from this member and none from code-reviewer or semantic-reviewer, three of them originating in the
-round-1 fixup itself. The criterion was met — yield decay does not hold on a fixup diff, which is
-the case the round-1 default rested on.
+rather than a result. The criterion — widen if round 2 surfaces a validated ISSUE the
+other two reviewers miss — was fixed before that round was dispatched, in session and not in the
+tree: this paragraph is its only record, and nothing in the repo can corroborate the sequencing.
+Round 2 of THIS branch returned four in-range ISSUEs from this member and none from code-reviewer
+or semantic-reviewer, three of them originating in the round-1 fixup itself. The criterion was met
+— yield decay did not hold on that fixup diff, which is the case the round-1 default rested on. One
+diff, one round: not established for fixup diffs generally.
 
 **The widening is nonetheless NOT taken here.** Round scope is restated across the roster's
-mirrors, so changing it costs a hand-sync of every one; the attempt produced six mirror-desync
-findings in the round that followed and none about the change itself. It is taken as a one-line
-data edit once the roster is single-sourced. Operationally the member may be dispatched in later
-rounds meanwhile; this clause governs the documented roster, which follows the mechanism rather
-than leading it.
+mirrors, so changing it costs a hand-sync of every one; of the seven findings the round that
+followed returned, six were mirror desync from that hand-sync and none concerned the change
+itself. It is taken as a one-line data edit once the roster is single-sourced.
 
 **Not a pipeline agent.** `.claude/pipeline.test.mjs` asserts bidirectional closure between
 `pipeline.json` `agents` and the files in `.claude/agents/`, plus a hardcoded core roster. A skill
