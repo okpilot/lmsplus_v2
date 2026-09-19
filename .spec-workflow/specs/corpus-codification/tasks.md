@@ -117,12 +117,11 @@ already exists. Derive the current set:
 
 ```bash
 awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
-  .claude/agent-memory/learner/MEMORY.md
+  .claude/agent-memory/learner/MEMORY.md | sort -rn
 ```
 
-Five rows cleared 10 as of 2026-09-17, the largest at 55: *a fix commit correcting §10 violations
-introduces fresh §10 violations.* The learner's verdict on the branch that produced Decision 73:
-*the gap is execution, not missing rule text.*
+Largest count first. The learner's verdict on the branch that produced
+Decision 73: *the gap is execution, not missing rule text.*
 
 No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
 the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
@@ -147,6 +146,37 @@ Enumerate against the ref, before editing; a worktree mid-sweep reports its own 
 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
+
+## PARKED as of 2026-09-19 — nothing here is scheduled; each needs a user decision or a non-repo action
+
+Not a backlog, and not a derivable set — a snapshot. Two of these items exist in no other
+artifact, which is why they are written out. An item leaves this list by being decided, not by
+ageing.
+
+- **§10 cl.3 widening — awaiting the user.** cl.3 greps the retracted STRING; the proposal is to
+  widen it to the retracted CLAIM. The learner row that motivates it is RULE CANDIDATE and still
+  climbing, and no enforcer covers it — `check-retracted-phrase.mjs` cannot see a paraphrase
+  (`agent-workflow.md § Rule-Mirror Sync` records paraphrase-blindness as OPEN). Derive the count:
+  ```bash
+  awk -F'|' '/section\/mirror\/arithmetic/ {print $2, $3}' .claude/agent-memory/learner/MEMORY.md
+  ```
+- **Learner rows awaiting promotion.** Route any promotion to a RULES PR — never onto a migration
+  or security branch, which drags rule prose through a prod-deploy gate. The command below prints
+  the whole RULE CANDIDATE set, not a shortlist; pick from it by count. Cite a row by its TEXT — a
+  row's line number is unstable across curation
+  (`.claude/agent-memory/learner/topics/cross-agent-lessons.md:1455`).
+  ```bash
+  awk -F'|' '/RULE CANDIDATE/ {printf "%3d  %s\n", $3, $2}' .claude/agent-memory/learner/MEMORY.md | sort -rn
+  ```
+- **#1204 — prod NOTAM answer key diverges from the repo.** `import-vfr-rt-content.ts
+  --sync-content` owed. Source `.env.remote` first; `--force-remote` alone does not retarget the
+  importer at prod.
+- **`/app/internal-exam` spot-check owed.** PR #1257 changed `answered_count` retroactively and
+  applied to prod 2026-09-06; the surface has not been looked at since.
+
+**MEMORY.md compaction is CLOSED, and leaves no artifact here.** That file lives outside the
+repository, under the Claude config directory — it is not committable from this repo, so its state
+is not derivable from this tree and no commit records it.
 
 ## Slice 2 — enforce the rules that keep the system maintainable (NEXT)
 
@@ -463,17 +493,24 @@ What has actually caught an instance: `check-retracted-phrase.mjs` (the cross-fi
 `run-mutations.mjs` reporting a SURVIVED entry. Nothing caught the coherent-but-false replacement
 sentence. That residue is not decidable in general; the encodable subsets are.
 
-- [ ] Enumerate the class from history first, do not design from the rule text. Derive the
+**MEASURED — the quantifier-swap subset is refuted. See Decision 76 in `docs/decisions.md`**,
+which carries the evidence, the pinned derivation command and the verdict. The row stays
+RULE CANDIDATE.
+
+- [x] Enumerate the class from history first, do not design from the rule text. Derive the
       candidate commits: `git log --oneline --all --grep='^fix(' -- .claude/ docs/` crossed with
       commits whose own follow-up retracted a claim they introduced. Classify each into
       mechanically-detectable vs judgment-only, and record the split — the ratio decides whether a
       guard is worth building at all.
+      DONE: the detectable/judgment-only split is recorded in Decision 76.
 - [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
-      hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
+      hook. Lead (a) is unverified; lead (b) is a measured no-go: (a) a commit whose message declares a correction
       (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying
       derivation command anywhere in the hunk; (b) a `+` line reinstating a token the SAME commit
       retracts elsewhere — the intra-commit companion to `check-retracted-phrase.mjs`, which today
       only sees the replacement hunk.
+      SETTLED for lead (b): trigger named, false-positive cost measured, verdict no-go
+      (Decision 76).
 - [ ] Whatever ships is encoded in `<guard>.mutations.json` and graded by `run-mutations.mjs`
       before it is wired into `lefthook.yml` — a guard the harness does not grade is the thing this
       programme exists to prevent.
