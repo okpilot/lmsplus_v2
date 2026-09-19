@@ -106,7 +106,7 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('questions').select('*').limit(10)
+    const { data, error } = await unauthClient.from('questions').select('id').limit(10)
     expect(error).toBeNull()
     expect(data?.length ?? 0).toBe(0)
   })
@@ -163,7 +163,7 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     // Non-vacuous (code-style.md §7): first confirm via the admin client that the
     // seeded victim flag row is actually there — otherwise 0 rows for anon could
     // mean the table is simply empty, not that RLS is blocking.
-    // RLS policy (mig 044/050): FOR SELECT USING (student_id = auth.uid()).
+    // RLS policy (mig 050): FOR SELECT USING (student_id = auth.uid()).
     // An anon client has auth.uid() = NULL → student_id = NULL is always false → 0 rows.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('flagged_questions')
@@ -217,16 +217,10 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(error?.code).toBe('42501')
   })
 
-  // Hermetic cleanup (code-style.md §7): soft-delete seeded comment + flag rows.
-  // Preserve the original swallow-and-log contract — a teardown failure here
-  // must not turn a green run into a suite failure (these are low-stakes setup
-  // fixtures). The seeding specs that own isolation fixtures keep the stricter
-  // throw contract; this anon-probe spec does not.
+  // Hermetic cleanup (code-style.md §7): a teardown failure FAILS the suite.
+  // The tracked rows are shared-project state; swallowing the error leaks them
+  // into every later spec in the same run.
   test.afterAll(async () => {
-    try {
-      await cleanupFixtures(adminClient, tracker)
-    } catch (e) {
-      console.error(`[unauth cleanup] ${e instanceof Error ? e.message : String(e)}`)
-    }
+    await cleanupFixtures(adminClient, tracker)
   })
 })

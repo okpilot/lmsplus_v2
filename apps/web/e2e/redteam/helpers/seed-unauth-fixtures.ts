@@ -1,11 +1,10 @@
 /**
  * Shared seeding helper for the unauthenticated red-team specs.
  *
- * Both `server-action-unauthenticated.spec.ts` (RPC vectors + BJ) and
- * `server-action-unauth-table-reads.spec.ts` (Direct table SELECT vectors)
- * call `seedUnauthFixtures` in their own `beforeAll`. Each invocation
- * creates independent fixture rows and returns its own `tracker` for
- * `afterAll` cleanup via `cleanupFixtures`.
+ * Each caller invokes `seedUnauthFixtures` in its own `beforeAll`. Each
+ * invocation creates independent fixture rows and returns its own `tracker`
+ * for `afterAll` cleanup via `cleanupFixtures`. Derive the current callers:
+ *   git grep -n 'seedUnauthFixtures' -- apps/web/e2e/redteam
  *
  * ONE row is shared rather than per-invocation: the `flagged_questions`
  * upsert keys on `(student_id, question_id)`, so every invocation targets the
@@ -46,7 +45,7 @@ export type UnauthFixtures = {
 }
 
 /**
- * Seed the fixtures needed by both unauthenticated red-team specs and return
+ * Seed the fixtures needed by the unauthenticated red-team specs and return
  * the resolved ids plus a `FixtureTracker` pre-populated with the seeded rows.
  *
  * Callers must call `cleanupFixtures(adminClient, tracker)` in their `afterAll`.

@@ -96,7 +96,7 @@ beforeEach(() => {
 
 describe('seedUnauthFixtures', () => {
   describe('happy path', () => {
-    it('returns the expected UnauthFixtures shape with real ids from DB and helper mocks', async () => {
+    it('returns the seeded identifiers and a cleanup tracker', async () => {
       setupCommonMocks()
 
       mockFrom

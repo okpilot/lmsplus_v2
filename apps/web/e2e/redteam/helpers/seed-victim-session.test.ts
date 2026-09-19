@@ -47,6 +47,29 @@ function buildChain(returnValue: unknown): unknown {
   })
 }
 
+type ChainCall = { method: string; args: unknown[] }
+
+/**
+ * buildChain variant that records every chained call, so a test can assert the
+ * WHOLE operation (update payload, filters, select) rather than only the table.
+ */
+function buildRecordingChain(returnValue: unknown, calls: ChainCall[]): unknown {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (...args: unknown[]) => {
+        calls.push({ method: String(prop), args })
+        return buildRecordingChain(returnValue, calls)
+      }
+    },
+  })
+}
+
 type AdminClient = ReturnType<typeof getAdminClient>
 const adminMock = { from: mockFrom } as unknown as AdminClient
 const IDS = { orgId: 'org-id', subjectId: 'subject-id', topicId: 'topic-id' }
@@ -113,9 +136,12 @@ describe('seedVictimCompletedSession', () => {
     )
   })
 
-  it('discards the half-seeded session when batch_submit_quiz fails', async () => {
+  it('soft-deletes exactly the half-seeded session when batch_submit_quiz fails', async () => {
     setupCommonMocks()
-    mockFrom.mockReturnValueOnce(buildChain({ data: [{ id: 'sess-ok' }], error: null })) // discard
+    const calls: ChainCall[] = []
+    mockFrom.mockReturnValueOnce(
+      buildRecordingChain({ data: [{ id: 'sess-ok' }], error: null }, calls),
+    )
 
     mockRpc
       .mockResolvedValueOnce({ data: 'sess-ok', error: null })
@@ -129,6 +155,12 @@ describe('seedVictimCompletedSession', () => {
     // the tracker — every later run would then hit `another_session_active`.
     expect(mockFrom).toHaveBeenCalledTimes(1)
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+    // Assert the WHOLE discard: a table-only assertion passes on a no-op chain.
+    expect(calls.map((c) => c.method)).toEqual(['update', 'eq', 'is', 'select'])
+    expect(calls[0]?.args[0]).toMatchObject({ deleted_at: expect.any(String) })
+    expect(calls[1]?.args).toEqual(['id', 'sess-ok'])
+    expect(calls[2]?.args).toEqual(['deleted_at', null])
+    expect(calls[3]?.args).toEqual(['id'])
   })
 
   it('surfaces the submit failure even when the discard itself errors', async () => {
