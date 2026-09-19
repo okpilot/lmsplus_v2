@@ -64,6 +64,10 @@
 
 Agreed with the user 2026-09-09. The order is the argument; do not reorder by "biggest number".
 
+**§ Slice 6 — single-source the corpus is RANKED ABOVE every item in this list** (user directive
+2026-09-19). It has its own internal order, and that order is load-bearing: its § ORDER section
+explains why each step makes the next one safe. Start there.
+
 1. ~~**R0b-1 retracted-phrase check**~~ — **DONE** (Decision 66). Landed at `commit-msg`, not
    pre-commit: its only escape hatch is a `Retracted-ok:` trailer, and that is the sole stage
    holding both the message and the staged index. The "~40 lines" estimate here was wrong by an
@@ -669,3 +673,150 @@ RULE CANDIDATE.
       programme exists to prevent.
 - [ ] Close the tracker row to PROMOTED only once the enforcer is graded green, not when the hook
       is written.
+
+---
+
+## Slice 6 — single-source the corpus (RANKED ABOVE the remaining BUILD ORDER items)
+
+User directive 2026-09-19, after the `docs/schedule-cr-local-retirement` gate spent all three
+rounds on one class of defect. Absorbs the mirror half of Slice 5 W1. **Order is the substance of
+this slice — building the steps out of order makes the corpus worse, not better. Read § ORDER
+before picking anything up.**
+
+### The defect class
+
+A fact that already HAS a data home, re-typed as prose in many files. Every copy is hand-maintained,
+none is executed, and they drift independently. Derive the size — never quote a figure here, these
+move:
+
+```bash
+p=':(exclude).claude/agent-memory'
+git grep -l -F "implementation-critic" -- ':/*.md' "$p" | wc -l          # gate roster
+git grep -l -F "apps/web/app/app/quiz/actions" -- ':/*.md' "$p" | wc -l  # securityPaths
+git grep -l -F "':(exclude).claude/agent-memory'" -- ':/*.md' "$p" | wc -l  # the range incantation
+git grep -l -E "ceiling 3|3-round ceiling|Ceiling 3" -- ':/*.md' "$p" | wc -l
+```
+
+Upper bounds: each list mixes live restatements with historical records and legitimate pointers.
+Triage into those three classes is the work, not a preliminary to it. Editing a historical record
+as though it were a live mirror is the failure round 1 of that branch committed.
+
+### Why they are re-typed — the cause, which decides the order
+
+1. **The author generates, it does not look up.** Writing a doc about the gate emits the roster from
+   context. "The six in `.claude/pipeline.json`" reads as underspecified at generation time;
+   enumerating reads as complete. Every document about a thing re-types the thing.
+2. **Zero cost at write time.** The next restatement passes every hook. The bill arrives only when
+   the claim changes.
+3. **The corpus is its own style guide.** Existing restatements are worked examples, and
+   `agent-workflow.md § Plan Validation`'s pattern scan points the next author at them.
+4. **A real but small structural cause.** Context injection is selective: a subagent gets its own
+   definition plus injected rules, not `.claude/pipeline.json`. For `.coderabbit.yaml`,
+   `.claude/hooks/run-security-auditor.sh` and `package.json`, inlining is forced. This explains a
+   small minority — derive which, do not assume a site is in this class.
+5. **Deletion has burned us, addition never visibly has.** Every recorded corpus-cut loss was a
+   deleted word that BOUNDED a rule. Asymmetric feedback, pointing the wrong way.
+
+**Consequence: deleting the copies without a write-time refusal only resets the clock.** Cause 1 is
+a property of the author, not a lapse. This is why the guard precedes the deletion.
+
+### Precedent — this arc has already completed once
+
+`.claude/hooks/check-prose-claims.mjs` header records it: the caps "had already been copied into
+nine hand-maintained places once, which is why they became data at all", and then a guard was built
+to refuse re-typing them. `.claude/limits.json` finished all four steps. `.claude/pipeline.json`
+became data and never got the guard — confirm with
+`grep -c "pipeline.json" .claude/hooks/check-prose-claims.mjs`.
+
+### The rule
+
+**Every fact has exactly one home. Where a second copy is unavoidable it is GENERATED or
+BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a permitted form: it
+is what defeats every literal checker, and `agent-workflow.md § Rule-Mirror Sync` already records
+paraphrase-blindness as OPEN.
+
+### ORDER — each step exists to make the next one safe
+
+- [ ] **6.0 — descope the widening from `docs/schedule-cr-local-retirement` and ship it.** Six of
+      its seven round-3 findings exist only because a scope change reached the canonical rule and
+      not its mirrors; descoping makes them moot rather than deferred. The widening returns at 6.5
+      as a one-line data edit. *Nothing else in this slice is blocked behind that branch.*
+- [ ] **6.1 — measure before building.** A calibration script over N commits: for each candidate
+      detector, how often would it have fired, and what share of firings are noise.
+      `measure-prose-claims.mjs`, `measure-prose-paths.mjs` and `measure-quantifier-swap.mjs` are
+      the pattern to copy. R0b-1's detector was refuted by measurement before a line was written —
+      18% of commits blocked, almost all noise, and it missed its own motivating instance. A
+      blocking guard with a bad detector gets bypassed, which is worse than no guard.
+- [ ] **6.2 — data layer.** `kind: "agent" | "skill"` in `.claude/pipeline.json`;
+      `.claude/pipeline.test.mjs` skips the `.claude/agents/<name>.md` closure assertion for
+      `kind: skill`; register the skill member. Decision 77 records the closure assertion as the
+      reason the member cannot be data — it is a schema we own, not a constraint. Promote the
+      range incantation and the round ceiling to data in the same file. **No prose touched in this
+      step** — it must be provable in isolation.
+- [ ] **6.3 — guard, ADVISORY and baselined.** `check-prose-claims.mjs` extended to
+      `.claude/pipeline.json`'s sets, same ratchet and baseline shape it already uses for
+      `.claude/limits.json`. Baseline every existing restatement so no commit is blocked. Advisory
+      only. **Never ship this blocking on day one** — the baseline is large and the noise rate is
+      unmeasured until 6.1 reports.
+- [ ] **6.4 — flip to blocking** once 6.1's noise rate justifies it. State the rate in the commit.
+- [ ] **6.5 — conversion, ONE claim per PR, smallest first.** Fewest sites first, to prove the
+      pattern on a diff that can be reviewed; the roster is the largest and the one the gate itself
+      reads, so it goes LAST — converting it mid-programme changes the rules the reviewers are
+      reading while they review. Each PR: triage every hit into restatement / historical record /
+      pointer, convert only restatements, shrink the baseline by exactly what it converted. The
+      widening rides the roster PR as a data edit.
+- [ ] **6.6 — forced-inline consumers: generate or assert, never hand-maintain.** `.coderabbit.yaml`,
+      `.claude/hooks/run-security-auditor.sh`, `package.json`, and the security-auditor checklist.
+      `.claude/pipeline.json` `modelLiteralSites` already ASSERTS one such literal — generalise
+      that, or generate the file and fail CI when the committed copy differs from the generated one.
+- [ ] **6.7 — discovery, for claims nobody registered.** 6.2-6.6 protect only facts someone thought
+      to register. A shingle detector — every ~12-word span appearing in 2+ corpus files, ratcheted
+      — catches duplication without knowing what the claim is. Same ramp: measure, baseline,
+      advisory, blocking. Under § The rule a duplicated span must sit inside a marked mirror block
+      or be deleted, so "duplicated text" IS the violation and the detector needs no semantics.
+
+### Hook surfaces — which layer belongs where
+
+Derive the wiring from `.claude/settings.json` and `lefthook.yml`, not from this list.
+
+| Surface | Blocks? | Use |
+|---|---|---|
+| `PreToolUse` | yes | wrong for drift — mid-sweep inconsistency is legitimate |
+| `PostToolUse` | no | same, too noisy per-edit |
+| `Stop` | no | **advisory working-tree drift report.** The tightest feedback an LLM author gets: damage lands in the worktree many turns before any commit, and `Stop` fires at the "step done" boundary. Must be fast and must never fail the response — `.claude/hooks/on-stop.sh` already has that shape |
+| lefthook `pre-commit` | yes | the real gate |
+| CI | yes | backstop against a local bypass |
+
+git `post-commit` is the wrong reach for this: the commit already exists, so the only remedy it can
+offer is a second commit — and a correction commit is the highest-defect-density commit we produce.
+
+### Residual — NAMED, because a green exit code that implies coverage it lacks is the defect
+
+**A novel paraphrase of an unregistered fact, sharing no literal span with its twin.** No mechanical
+detector reaches it. `check-retracted-phrase.mjs` is the cautionary case: it mechanises §10 cl.3's
+"grep the retracted phrase repo-wide" and its tokeniser takes numbers and filenames only — named
+for phrases, blind to them. **Every guard in this slice prints its own residual class.**
+
+The human-layer mitigation is measured, not hoped for: on that branch's round 3 the
+semantic-reviewer found every finding the opus member found, plus one nobody else did, after its
+dispatch required a `[GOOD]` to carry an ISSUE's evidentiary burden and to state what its anchor
+would NOT have matched. Round 2, without that clause, it returned zero and certified the defective
+section `[GOOD]`.
+
+### Definition of done — so "removed" is testable rather than asserted
+
+For each registered claim, a `git grep` of its values across the corpus returns only pointers,
+marked mirror blocks and historical records; the shingle baseline holds only marked blocks. Both in
+CI, both ratcheted so neither can silently regrow.
+
+### Re-investigate before resuming
+
+- Re-derive every count in this slice; all four commands above are cheap.
+- `.claude/hooks/check-mirror-sync.mjs` answers "is this clause byte-identical in all N files".
+  It is NOT wired into `lefthook.yml` and it does NOT apply to paraphrased mirrors — it reports
+  divergence for legitimately different phrasings, so wiring it as-is produces noise, not a catch.
+  It becomes useful the moment § The rule is enforced, because then mirrors ARE byte-identical.
+- Exclusion in any sweep must be PATH-anchored (`git grep -- ':(exclude)<path>'`), never a text
+  filter on the output. `| grep -v agent-memory` silently drops every line quoting the gate's own
+  range incantation — which is precisely the set of lines under review. This cost two separate
+  incomplete sweeps on that branch and was hit independently by a third agent in the same session.
