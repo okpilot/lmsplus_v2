@@ -120,9 +120,9 @@ awk -F'|' '/RULE CANDIDATE/ && $3+0 >= 10 {printf "%3d  %s\n", $3, $2}' \
   .claude/agent-memory/learner/MEMORY.md
 ```
 
-Five rows cleared 10 as of 2026-09-17, the largest at 55: *a fix commit correcting §10 violations
-introduces fresh §10 violations.* The learner's verdict on the branch that produced Decision 73:
-*the gap is execution, not missing rule text.*
+The command above prints the qualifying rows with their counts. The largest is *a fix commit
+correcting §10 violations introduces fresh §10 violations.* The learner's verdict on the branch
+that produced Decision 73: *the gap is execution, not missing rule text.*
 
 No enforcer covers them. `check-retracted-phrase.mjs` matches STRINGS, so a paraphrase passes it —
 the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
@@ -492,17 +492,30 @@ What has actually caught an instance: `check-retracted-phrase.mjs` (the cross-fi
 `run-mutations.mjs` reporting a SURVIVED entry. Nothing caught the coherent-but-false replacement
 sentence. That residue is not decidable in general; the encodable subsets are.
 
-- [ ] Enumerate the class from history first, do not design from the rule text. Derive the
+**MEASURED — Decision 76.** The quantifier-swap subset is refuted on its own numbers: the class
+as the learner derived it warns on over half the recent window, against the abandoned R0b-1
+detector's noise rate. It does reach its motivating instance, so the sub-shape is real and the
+class finds it — it finds most other commits too. `.claude/hooks/measure-quantifier-swap.mjs` is
+committed; re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120`. The row
+stays RULE CANDIDATE. A NARROWED class is a separate question with its own measurement.
+
+- [x] Enumerate the class from history first, do not design from the rule text. Derive the
       candidate commits: `git log --oneline --all --grep='^fix(' -- .claude/ docs/` crossed with
       commits whose own follow-up retracted a claim they introduced. Classify each into
       mechanically-detectable vs judgment-only, and record the split — the ratio decides whether a
       guard is worth building at all.
+      DONE: split recorded in Decision 76. Detectable — quantifier swap (measured, refuted),
+      sibling survivor (already `check-retracted-phrase.mjs`), commit-message counts (item 4).
+      Judgment-only — the correction whose own new mechanism is false, which is the dominant
+      shape and has no syntactic signature.
 - [ ] For each detectable subset, name the trigger and the false-positive cost BEFORE writing a
       hook. Two leads, neither yet verified: (a) a commit whose message declares a correction
       (`fix(`, `correct`, `retract`) and whose diff adds a claim sentence with no accompanying
       derivation command anywhere in the hunk; (b) a `+` line reinstating a token the SAME commit
       retracts elsewhere — the intra-commit companion to `check-retracted-phrase.mjs`, which today
       only sees the replacement hunk.
+      SETTLED for lead (b): trigger named, false-positive cost measured, verdict no-go
+      (Decision 76). Lead (a) remains unverified.
 - [ ] Whatever ships is encoded in `<guard>.mutations.json` and graded by `run-mutations.mjs`
       before it is wired into `lefthook.yml` — a guard the harness does not grade is the thing this
       programme exists to prevent.

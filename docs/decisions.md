@@ -2256,3 +2256,30 @@ subtraction are deleted; the two naming specific tests are linked by markers ins
 retires a broken measurement rather than lowering a real one.
 
 Re-derive with `node .claude/hooks/run-mutations.mjs --coverage`, which is the enforcer.
+
+## Decision 76: the quantifier-swap check is refuted by its own measurement (2026-09-19)
+
+**Decision.** Do not build the quantifier-swap check on the detection class as derived. The
+learner's highest-count `RULE CANDIDATE` row stays `RULE CANDIDATE`; nothing here promotes or
+resolves it. `.claude/hooks/measure-quantifier-swap.mjs` ships as a committed measurement tool,
+wired into no stage, so the figure that refuted the check is re-derivable rather than asserted.
+
+**Evidence.** The class — `all|every|never|always|only|none|exactly`, or a bare ratio — warns on
+50.8% of the last 120 non-merge commits as of this entry. R0b-1's detector was abandoned at 18%
+as almost all noise. A warning firing on every second commit is ignored, and an ignored check
+reads as coverage while providing none. It does catch its motivating instance (`33c8ff79`, which
+lost "does NOT catch **every** citation" and gained "catches **only** ~80% of citations"), so the
+sub-shape is real and the class does reach it — it reaches 60 other commits too.
+
+**Consequence.** The dominant sub-shape of that row is a correction whose own new mechanism is
+false, which has no syntactic signature; the reachable sub-shapes are the quantifier swap refuted
+here, the sibling survivor already covered by `check-retracted-phrase.mjs`, and counts in commit
+messages, which is BUILD ORDER item 4 and unaffected. No enforcer for this row follows from this
+decision.
+
+**Not decided here.** Whether a NARROWED class clears — a proximity bound between the removed and
+added lines, or a shared-context requirement — is a separate question needing its own measurement.
+`check-prose-claims.mjs` needed three narrowings before it was usable, so the shape is precedented;
+the bar is the same one applied here, and the same script measures it.
+
+Re-derive with `node .claude/hooks/measure-quantifier-swap.mjs --commits 120`.
