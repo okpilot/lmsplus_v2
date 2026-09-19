@@ -83,7 +83,7 @@ Static/structural findings do not need one.
 ```
 CODE REVIEW — [branch] round [N] — [timestamp]
 Files changed: N | Lines added: N | Lines removed: N
-  ← derive all three, never count from reading:
+  ← never count from reading:
     git diff --numstat origin/master...HEAD -- . ':(exclude).claude/agent-memory' | awk '{a+=$1;d+=$2;f++} END{print f, a, d}'
 
 BLOCKING: [count]
