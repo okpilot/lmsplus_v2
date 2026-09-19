@@ -77,7 +77,10 @@
         "does not count a TODO-directive failure as a red test",
         "reads a test point written without the \"-\" separator",
         "a skipped test is not counted as a red test",
-        "a skipped child does not make its failing parent look like an aggregate"
+        "a skipped child does not make its failing parent look like an aggregate",
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a name the suite reddened twice is written once"
       ],
       "note": "Inverting the core filter reddens every parseTap case. All six are listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
@@ -85,7 +88,10 @@
       "id": "no-survived-branch",
       "find": "  if (actual.length === 0) return { status: 'SURVIVED', missing: expected, unexpected: [] }\n",
       "replace": "",
-      "expectRed": ["reports SURVIVED when nothing went red at all"]
+      "expectRed": [
+        "reports SURVIVED when nothing went red at all",
+        "--update-expected writes nothing for a SURVIVED entry and says why"
+      ]
     },
     {
       "id": "superset-is-caught",
@@ -195,9 +201,13 @@
       "find": "  if (count !== 1) {",
       "replace": "  if (count !== 2) {",
       "expectRed": [
+        "grades every mutation after a stale-anchor fault, not just those before it",
         "accepts an anchor that occurs exactly once",
         "refuses an ambiguous anchor that occurs twice",
-        "grades every mutation after a stale-anchor fault, not just those before it"
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a normal run never writes to the data file",
+        "a name the suite reddened twice is written once"
       ],
       "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -206,12 +216,13 @@
       "find": "    mode: modes.length === 0 ? 'run' : modes[0].slice(2),",
       "replace": "    mode: modes.length === 0 ? 'list' : modes[0].slice(2),",
       "expectRed": [
-        "defaults to the run mode with no flags",
-        "reads the value of the --scratch option",
         "grades every mutation after a stale-anchor fault, not just those before it",
         "exits 2 when a batch carries both a fault and a survivor, not 1",
         "refuses to report success when there was nothing at all to grade",
-        "a dangling GROUP id committed but not on disk still stops the grading run"
+        "a dangling GROUP id committed but not on disk still stops the grading run",
+        "defaults to the run mode with no flags",
+        "reads the value of the --scratch option",
+        "a normal run never writes to the data file"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -220,10 +231,11 @@
       "find": "      opts[a.slice(2)] = value\n      i++",
       "replace": "      opts[a.slice(2)] = value",
       "expectRed": [
-        "reads the value of an option flag",
-        "reads the value of the --scratch option",
         "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
-        "reports the claim sites a suite carries and the entries excused from encoding"
+        "reports the claim sites a suite carries and the entries excused from encoding",
+        "reads the value of an option flag",
+        "takes --update-expected together with --guard, which is an option and not a mode",
+        "reads the value of the --scratch option"
       ],
       "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
     },
@@ -454,7 +466,13 @@
       "id": "spawn-timeout-option-shrunk",
       "find": "      timeout: SUITE_TIMEOUT_MS,\n",
       "replace": "      timeout: 1,\n",
-      "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
+      "expectRed": [
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a normal run never writes to the data file",
+        "a name the suite reddened twice is written once"
+      ],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
     },
     {
@@ -572,9 +590,88 @@
       "find": "\n    .split('\\n')\n    .map((l) => l.replace(/\\r$/, ''))",
       "replace": ".split('\\n')",
       "expectRed": ["a suite written with CRLF line endings still yields its markers"]
+    },
+    {
+      "id": "update-expected-not-a-mode",
+      "find": "const MODE_FLAGS = new Set(['--list', '--coverage', '--update-expected'])",
+      "replace": "const MODE_FLAGS = new Set(['--list', '--coverage'])",
+      "expectRed": [
+        "reads --update-expected as a mode",
+        "takes --update-expected together with --guard, which is an option and not a mode",
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a name the suite reddened twice is written once",
+        "--update-expected refuses to grade when a declared suite is uncommitted"
+      ]
+    },
+    {
+      "id": "update-expected-writes-on-normal-run",
+      "find": "  if (parsed.mode === 'update-expected') {",
+      "replace": "  if (parsed.mode !== 'coverage' && parsed.mode !== 'list') {",
+      "expectRed": [
+        "a dangling GROUP id committed but not on disk still stops the grading run",
+        "a normal run never writes to the data file"
+      ]
+    },
+    {
+      "id": "update-expected-writes-survivor",
+      "find": "=== 'MISMATCH')",
+      "replace": "!== 'CAUGHT')",
+      "expectRed": ["--update-expected writes nothing for a SURVIVED entry and says why"]
+    },
+    {
+      "id": "update-expected-skips-dedupe",
+      "find": "observed: [...new Set(res.failed)]",
+      "replace": "observed: res.failed",
+      "expectRed": ["a name the suite reddened twice is written once"]
+    },
+    {
+      "id": "update-expected-grades-dirty-tree",
+      "find": "    if (dirty.length > 0) {",
+      "replace": "    if (dirty.length > 1e9) {",
+      "expectRed": ["--update-expected refuses to grade when a declared suite is uncommitted"]
+    },
+    {
+      "id": "render-always-multi-line",
+      "find": "(hasComma ? 1 : 0) <= JSON_LINE_WIDTH",
+      "replace": "(hasComma ? 1 : 0) < 0",
+      "expectRed": [
+        "rewriting an expectRed leaves every other byte of the file alone",
+        "the comma after expectRed survives a rewrite",
+        "a multi-line expectRed collapses back to one line when the names fit",
+        "every expectRed in the repo re-renders to the bytes already on disk",
+        "--update-expected rewrites a MISMATCH from the set actually observed"
+      ]
+    },
+    {
+      "id": "render-drops-json-escaping",
+      "find": "  const q = (n) => JSON.stringify(n)",
+      "replace": "  const q = (n) => `\"${n}\"`",
+      "expectRed": [
+        "a quote inside a test name is escaped the way the data files already write it",
+        "every expectRed in the repo re-renders to the bytes already on disk"
+      ]
+    },
+    {
+      "id": "expectred-id-count-unchecked",
+      "find": "  if (count > 1) {",
+      "replace": "  if (count > 1e9) {",
+      "expectRed": ["__DERIVE__"]
+    },
+    {
+      "id": "array-scan-accepts-any-char",
+      "find": "    if (c === ' ' || c === '\\t' || c === '\\r' || c === '\\n' || c === ',') {",
+      "replace": "    if (true) {",
+      "expectRed": [
+        "an expectRed that is not a flat array of strings is refused rather than spliced"
+      ]
     }
   ],
   "notEncoded": [
+    {
+      "claim": "MUTATION: replace the read-back `validateDataFile(reparsed, file.path)` in `modeUpdateExpected` with an empty problem list \u2192 a rewrite that does not validate is written anyway.",
+      "why": "No input reaches it. Only a MISMATCH is rewritten and a MISMATCH always carries a non-empty observed set, so the one rule `validateDataFile` would catch cannot fire; and `scanStringArrayEnd` refuses every array it cannot splice cleanly, so the `JSON.parse` cannot fail either. The read-back is defence in depth against a future splice bug, not a branch any present input takes. Encoding it would report SURVIVED and read as coverage."
+    },
     {
       "claim": "MUTATION: make parseTap throw whenever `failed` is empty → SURVIVED becomes an exit-2 harness fault and is never reported.",
       "why": "The break is the ADDITION of a throw, not the removal or alteration of existing text, so there is no unique `find` anchor for it. The find/replace schema expresses deletions and substitutions of code that is present; an insertion at an arbitrary point is not addressable without an anchor that says nothing about the mechanism."

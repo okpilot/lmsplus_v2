@@ -806,7 +806,7 @@ export function replaceExpectRed(text, id, names) {
   }
   if (count > 1) {
     throw new Error(
-      `${id} occurs ${count} times — \`validateDataFile\` forbids a duplicate id, so the extra is text inside another field (a \`note\` quoting it); nothing written`,
+      `${id} occurs ${count} times in the data file text — refusing to edit an ambiguous entry; nothing written`,
     )
   }
   const entryStart = text.indexOf(idAnchor)

@@ -297,6 +297,15 @@ test('an id that appears nowhere is refused by name, and nothing is returned', (
   assert.throws(() => replaceExpectRed(ONE_LINE, 'missing', ['x']), /no entry missing/)
 })
 
+test('two entries sharing an id are refused rather than editing whichever comes first', () => {
+  // `validateDataFile` rejects a duplicate id on load, so the grading path cannot reach this.
+  // `replaceExpectRed` is exported and text-level, and splicing the first of two silently edits
+  // an entry the caller did not name.
+  const entry = ONE_LINE.slice(ONE_LINE.indexOf('    {'), ONE_LINE.indexOf('\n  ]'))
+  const doubled = ONE_LINE.replace(entry, `${entry},\n${entry}`)
+  assert.throws(() => replaceExpectRed(doubled, 'alpha', ['x']), /alpha occurs 2 times/)
+})
+
 test('an id quoted inside a note is not mistaken for a second entry', () => {
   const quoted = ONE_LINE.replace('"kept"', '"see \\"id\\": \\"alpha\\" above"')
   const out = replaceExpectRed(quoted, 'alpha', ['x'])
