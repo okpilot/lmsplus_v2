@@ -763,12 +763,17 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a p
      count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1.
   3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer,
      which does not exist yet. Hard split, full Rule-Mirror Sync.
-  4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
-     set: assert the named script appears in one of the THREE wiring surfaces Decision 78's
-     derivation reads — `lefthook.yml`, `.github/workflows/ci.yml`, `.claude/settings.json`.
-     Decision 78 carries the derivation; run it before assuming the list is short. A guard
-     whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape reads as
-     coverage while gating nothing.
+  4. **An `Enforcer` entry naming a script that is wired to no stage.** Assert the named script
+     is invoked at a gating stage. Scan `.claude/hooks/` across all THREE extensions — `.mjs`,
+     `.sh`, `.js` — and all THREE wiring surfaces — `lefthook.yml`, `.github/workflows/ci.yml`,
+     `.claude/settings.json`: `run-security-auditor.sh` is wired in lefthook, `guard-bash.js` and
+     `review-gate.js` only via `settings.json` `PreToolUse`, so a narrower scan cannot answer this
+     for a `.sh` or `.js` enforcer. Exclude `*.test.*` and `*.testkit.*` — they are not guards. A
+     guard whose only appearance is its own `*.test.mjs` step is UNWIRED: that shape reads as
+     coverage while gating nothing. TWO residuals a name-match cannot reach, both fail-open: a
+     filename that is a prefix of a different wired filename reads as wired, and a name occurring
+     in a comment or a test-only step proves occurrence, never a gating stage. Parsing executable
+     command entries is what closes the second; measure its noise rate first.
   5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
      behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
      **May honestly resolve to `NONE — cannot`.** A hook cannot observe whether an agent ran.
@@ -886,10 +891,8 @@ detector reaches it. `check-retracted-phrase.mjs` is the cautionary case: it mec
 "grep the retracted phrase repo-wide" and its tokeniser takes numbers and filenames only — named
 for phrases, blind to them. **Every guard in this slice prints its own residual class.**
 
-The human-layer mitigation is measured: a semantic-reviewer dispatch requiring a `[GOOD]` to carry
-an ISSUE's evidentiary burden and to state what its anchor would NOT have matched found every
-finding the opus member found, plus one nobody else did. Without that clause the same reviewer
-returned zero and certified the defective section `[GOOD]`.
+The human-layer mitigation: a `[GOOD]` finding carries the same evidentiary burden as an ISSUE and
+must state what its anchor would NOT have matched — `.claude/rules/agent-semantic-reviewer.md`.
 
 ### Definition of done — so "removed" is testable rather than asserted
 

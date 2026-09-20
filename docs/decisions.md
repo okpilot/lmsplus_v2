@@ -64,7 +64,7 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
   *(Both bullets above are SUPERSEDED: format moved to Lefthook `biome-check`, and test and verify
   left the Stop hook entirely — `on-stop.sh` is the toast alone. See
-  `### Claude Code Config Structure`. Left unedited as a dated record of what was decided.)*
+  `### Claude Code Config Structure`.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
 ### MCPs (confirmed 2026-03-11)
@@ -2398,8 +2398,7 @@ nothing. Detecting that set is guard candidate 4 in
 `.spec-workflow/specs/corpus-codification/tasks.md` — build it there, not as prose here.
 
 **Ships as a RATCHET, never a gate.** Baseline every existing rule clause; require the disposition
-only on new ones. Enforced retroactively it blocks the repo on day one, gets bypassed, and then
-reads as coverage — R0b-1's failure exactly.
+only on new ones.
 
 **This decision cannot yet satisfy itself, and says so rather than pretending.** No enforcer exists
 for "every rule clause names an enforcer", so it lands as measure-then-enforce with

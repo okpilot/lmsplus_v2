@@ -1162,3 +1162,88 @@ code-reviewer memory delta: `gradeOne` is 22L, `modeRun` is 34L — verified aga
 - Amendments: sentinel test updated to `VICTIM_SESSION_ID`; assertion uses `/not authenticated|permission denied/i` regex. ✓
 - Commit message "seed-e2e.ts seeds no quiz_sessions" VERIFIED (grep returns 0 matches).
 - Commit message "376 passed / 1 skipped" — tasks.md attributes this to `ed6c4ba4` (master parent), commit message is bare. Minor claim-precision gap (no SHA), not a false claim.
+
+## Row detail archived from MEMORY.md 2026-09-20 (over-budget trim)
+
+### Doc **or code comment** describes behavior the authority (migration body, RLS PO (row detail, trimmed 23)
+
+| Doc **or code comment** describes behavior the authority (migration body, RLS POLICY, CHECK constraint, or CONTENT CORPUS) contradicts | 2026-06-06 | 26 | 2026-09-20 | PROMOTED → code-style §10. **26th (2026-09-20, `docs/single-source-corpus-plan`): corpus-codification spec's PR 0 description said "refreshed `backlog-burndown` figures" while the backlog-burndown diff explicitly states "as-of figures themselves are deliberately NOT refreshed here". The spec PR description and the implementation directly contradicted. Fix: reword to "added a note to backlog-burndown about SATURATED" or similar non-"refreshed" language.** **A comment JUSTIFYING a gap is the highest-value claim to falsify. 19th: docs/decisions.md Decision 70 said `check-prose-claims.mjs` "blocks only a cap value restated in prose" — the hook header at line 13 names THREE exit-1 conditions: new prose claim, stale baseline row, or unusable waiver. The word "only" falsified by the hook's own source. 20th: test comment said "8 commits (b0ea0d58..68b03052)" — two-dot range gives 7, not 8; correct notation is `b0ea0d58^..68b03052`. A range NOTATION in a comment is a claim; `git rev-list --count` is the check. 21st: SPEC_PREFIX JSDoc in check-prose-paths.mjs (R0-PATH) stated "77 of the 101 residual hits" when `node measure-prose-paths.mjs` returns 103 — §10 cl.7, count taken before the commit's own 5 new corpus files were added, stale on arrival. Fix: drop the numeral, keep the derivation command already present on the same line. 22nd, SAME commit, caught post-commit by code-reviewer: the `prosePathLines` JSDoc in the same file stated "4 of the 24 tokens on the binding surface" — 4 is right and 24 is the distinct-prose-LINE count, tokens being 26, so the units were mixed. Counted separately from the 21st: different JSDoc, different defect (unit confusion, not staleness), and it survived the fix to the 21st, which is the §10 cl.5 point — re-deriving the claim you are suspicious of does not re-derive its neighbour.** 18th: docs/database.md said "a bucket-name-only grep misses [import-questions.ts]" — false justification in a claim-hygiene doc. **25th (2026-09-19, `docs/parked-and-next-work`): Decision 76 states `50.8%` when `node .claude/hooks/measure-quantifier-swap.mjs --commits 120` from HEAD returns `60 (50.0%)` — the figure was authored before the commit's own 2 non-merge commits shifted the measurement window. A percentage in a Decision entry is a claim; re-derive it AFTER staging to confirm it still holds.** Instances 15-16 → tracker-archive. †
+
+### Rule REDEFINED in one surface, siblings left restating the old definition (row detail, trimmed 27)
+
+| Rule REDEFINED in one surface, siblings left restating the old definition | 2026-07-23 | 10 | 2026-09-19 | RULE CANDIDATE. **Sharpest tell: the commit EDITED one clause of a sentence and left the adjacent clause stating the old rule.** **8th: a per-APPLY→per-ROUND sweep fixed two rules files but missed `.claude/agents/learner.md` — same text, agent-definition file.** **9th (2026-09-17, `chore/pre-push-review-gate`): D6 threshold "across different commits"→"across different ROUNDS or BRANCHES" applied in `agent-learner.md`+`agents/learner.md` but missed `automerge.md:31` (plan listed it explicitly). Same root: grep the plan's file list, not the extension.** **10th (2026-09-19, `test/non-vacuous-integration-negatives`): code-style.md §7 widened from "a red-team test" to "ANY test" across all tiers, but `.coderabbit.yaml` line 764 path instruction was not extended to the `packages/db/src/__integration__/**` path — the non-vacuous negatives rule still only appears under the redteam spec glob.** Scope a mirror grep by CLAIM, never by extension. Instances 6-7 → tracker-archive. †
+
+### Claim-correction commit introduces a NEW wrong count/label/ENUMERATION (row detail, trimmed 30)
+
+| Claim-correction commit introduces a NEW wrong count/label/ENUMERATION | 2026-08-15 | 16 | 2026-09-18 | RULE CANDIDATE. Re-derive the SET; **de-quantify** rather than patch the numeral. **14th: cited `docs/security.md` §11 for multiple-permissive RLS — that's §3, a cross-file numbering leak. Cite the rule TITLE, never a cross-file number.** **15th: `agent-test-writer.md`/`test-writer.md` new rule stated "44 single-element arrays" — `grep -cE '\[ *"[^"]*" *\]' .claude/hooks/check-prose-paths.mutations.json` returns 43.** **16th: Decision 75 stated "48 markers across 4 of 15 suites" — `grep -c '^\s*// GROUP:' .claude/hooks/*.test.mjs` gives 52 markers across 5 suites (16 total), because `run-mutations.parse.test.mjs`'s 4 GROUP markers were added in the same commit but counted before they were written.** Instances 6–13 → tracker-archive. †
+
+### Index MUTATES mid-review — the artifact I was handed is not the artifact I repor (row detail, trimmed 33)
+
+| Index MUTATES mid-review — the artifact I was handed is not the artifact I report on | 2026-08-19 | 5 | 2026-08-20 | RULE CANDIDATE. **Pin each blob `sha1sum` at both ends, compare SHAs not mtimes (`git status` stat-refresh moves mtime with no content change).** **5th: a file was re-staged BETWEEN `git diff --staged` and `git show :<path>` — read every finding's line from `git show :<path>`, never the diff hunk.** Detail → tracker-archive. |
+
+### `git show --stat <sha> -- <path>` absolute claim in rules text is false for MERG (row detail, trimmed 36)
+
+| `git show --stat <sha> -- <path>` absolute claim in rules text is false for MERGE commits | 2026-09-06 | 1 | 2026-09-06 | RESOLVED. Merge commits use combined diff (files appear only if differing from ALL parents), so path-filtered `--stat` on a merge reads EMPTY even when the merge brought the file in (demonstrated on a real repo merge + a throwaway repro). APPLIED in `2b8adecf`: rule now prescribes `--diff-merges=first-parent` for merges. |
+
+### Hook-addition commit updates ALL named registration surfaces EXCEPT `.spec-workf (row detail, trimmed 37)
+
+| Hook-addition commit updates ALL named registration surfaces EXCEPT `.spec-workflow/steering/tech.md`, which explicitly enumerates commit-msg gates by name | 2026-09-14 | 1 | 2026-09-14 | RESOLVED. The pattern DID occur — surfaces were updated and `tech.md` was missed — so the count stands. NOTE the two-step fix, because the first step was described falsely: `ff562c9f` only EXTENDED the enumeration (a third gate plus a pointer) while the tracker claimed it had made the entry DEFER like pre-commit. code-reviewer caught that on the next commit. The real deferral — gate names removed, pointer only — landed after. A neighbouring "a second gate" count in the same file was stale too and is fixed. Rule-Mirror Sync table: `.spec-workflow/steering/**` is ALWAYS live. |
+
+### A commit that reformats a line targeted by a `*.mutations.json` anchor breaks ev (row detail, trimmed 38)
+
+| A commit that reformats a line targeted by a `*.mutations.json` anchor breaks every anchor containing that line — the data file is not part of the commit's own test suite and the break is silent until the harness next runs | 2026-09-14 | 1 | 2026-09-14 | WATCHING. `run-mutations.mutations.json` entries `todo-counts-as-red` and `invert-failed-filter` each anchored the old one-liner form of parseTap's filter; this commit reformatted it to multi-line. NEW entry `mutations-not-array-allowed` authored in this commit also has count=0 because its find includes `\n  } else {` but the code it sits adjacent to gained an `else if` branch in the same commit. All three confirmed by `python3 source.count(find)` → 0. Fix: when editing a line that any data file targets, grep all `*.mutations.json` for the find string and update anchors in the same commit. |
+
+### A test file's per-test MUTATION comment claims the test pins a mechanism the SAM (row detail, trimmed 39)
+
+| A test file's per-test MUTATION comment claims the test pins a mechanism the SAME file's preamble lists as NOT PINNABLE — contradictory in the same commit | 2026-09-14 | 1 | 2026-09-14 | RESOLVED before the commit landed — and the row itself then went false, which is the more useful lesson. It described the STAGED draft: a test named `two paths differing only in an invalid byte stay distinct` claiming "This is the case that pins the decode" while the preamble listed that decode as unpinnable. Both were corrected pre-commit (the test is now `a near-identical sibling path is not mistaken for the edited file` and states it does NOT pin the decode), so the row froze as a present-tense claim about code that no longer exists — semantic-reviewer found the quoted phrase returns zero matches. A future reader acting on it would have deleted a correct disclaimer. Write tracker rows about the COMMITTED state, or transition them when the finding is fixed. Broader pattern from this branch: FOUR MUTATION comments overclaimed what their test pins (three mine, one found by test-writer, one of them here) — a mutation comment is prose and rots like any other. |
+
+### Block comment written to explain WHY a case is tested only via one mechanism the (row detail, trimmed 40)
+
+| Block comment written to explain WHY a case is tested only via one mechanism then a second test (proving the case reachable via the OTHER mechanism) is added in the SAME commit without updating the comment | 2026-09-14 | 1 | 2026-09-14 | WATCHING. `run-mutations.spawn.test.mjs`: block comment said "the no-data-files case is unreachable even via spawn"; the third test in the same commit proved it IS reachable. The author noted the comment was wrong, added the third test, and did not retract the false sentence. Exact shape of the §10 cl.3 pattern: a block was edited (the third test added below it) without re-reading and correcting the claim the block started with. |
+
+### Additional row detail archived from MEMORY.md 2026-09-20 (second trim pass)
+
+**Row 28 — RELATIVE commit reference in a durable rules file:** 2nd: the FIX kept "the previous
+commit on this branch". 3rd: agent-workflow.md added "this PR also introduced" when the SAME
+paragraph already correctly used "#1254" one sentence earlier — the relative form is the anomaly.
+
+**Row 29 — GUARD/CEILING makes a claim unreachable:** 3rd: `test.describe.configure({ mode:
+'serial' })` pinned declaration order but ALSO skips every test after the first failure
+(Playwright types L3638), falsifying a mutation-check split recorded in the SAME diff.
+`mode: 'default'` pins order with no skip cascade. Instances 1–2 → tracker-archive.
+
+**Row 34 — Fingerprint pre-order walk not injective:** Oracle `programFingerprint`: `[[a],b]` ≡
+`[[a,b]]`, `f(g(a),b)` ≡ `f(g(a,b))`, `if(a){f()}\ng()` ≡ `if(a){f()\ng()}` — 4,689 collisions in
+a 33k brute force. `acc.push(')')` after the child walk fixes all of them.
+
+**Row 40 — Block comment WHY-claim outdated by a sibling test in the same commit:**
+`run-mutations.spawn.test.mjs`: block comment said "the no-data-files case is unreachable even via
+spawn"; the third test in the same commit proved it IS reachable. The author noted the comment was
+wrong, added the third test, and did not retract the false sentence.
+
+**Row 35 — New deferred-validation error code:** agent-critic.md + agent-workflow.md cited `42804`
+(datatype_mismatch) alongside `42702` (explicitly in §5(c)) as "invisible to a clean
+`supabase db reset`". `42702` is canonically documented; `42804` is not. If confirmed, add to §5.
+
+**Row 13 — Gate keyed on a PARTIAL identity:** 2nd: 3 P3_MC files share one bank+topic+
+question_type scope, so one file's `--replace` soft-deleted the other two (16 rows, exit 0).
+
+**Row 14 — Docstring rationale contradicted by an inline comment in the SAME commit:** 3rd: two
+docblocks named the old call, both still substantively TRUE — a correctness read misses them.
+
+**Row 15 — Test's "outside oracle" co-modifiable with the value it checks:** `pipeline.test.mjs`
+`tracked`-vs-`full`: co-narrowing both to one pathspec keeps them equal, 92/92 green. Comment's
+"cannot narrow" claim contradicts its own next sentence.
+
+**Row 23 (26th instance detail):** a PR description's "refreshed" claim contradicted the sibling
+diff's own "deliberately NOT refreshed" statement (docs/single-source-corpus-plan, 2026-09-20).
+Full 1st-25th instance history remains in the pre-2026-09-20 MEMORY.md via `git log -p`.
+
+**Row 30 (17th instance detail):** commit `32dedc8c` message stated "Branch: 339 -> 298 in review
+scope"; `git diff --shortstat origin/master...32dedc8c^ -- . ':(exclude).claude/agent-memory'`
+gives 340 insertions, not 339 — off-by-one on the BEFORE figure. AFTER figure (298) verified
+correct.
+
+**Row 25 — Doc asserts issue CLOSED while GitHub reports OPEN:** Hazard: a squash drops the
+`Closes #N` trailer and the claim is false permanently. Prefer "closed by this branch". Authority
+is GitHub, not a sibling file.

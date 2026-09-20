@@ -70,6 +70,7 @@
 | Doc prose names wrong mode/flag for a command's output (Decision 78 `--coverage`/`--list`). Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — run the exact invocation before trusting the description |
 | A fixup correcting a false bucket assignment swaps in the WRONG replacement. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — verify EACH source doc at origin/master |
 | A fixup's own commit-subject matches the pattern its retained prose-count describes, invalidating that count on arrival. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — re-run the cited command AFTER drafting the commit title, not before |
+| A decision doc cites a PRIOR decision's failure mode as precedent for a design choice, but mischaracterizes what actually happened (Decision 78 attributes "enforced retroactively, blocked the repo, got bypassed" to R0b-1, which was actually rejected by REPLAY MEASUREMENT before ever shipping — Decision 76 states the true mechanism two entries earlier in the same file). Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — before trusting a "X's failure exactly" precedent citation, re-read the cited decision's OWN account of what happened |
 
 ## Durable knowledge
 
