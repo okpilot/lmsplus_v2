@@ -268,14 +268,9 @@ Ordering and contents in the artifact above. Not started.
       — both commands anchor on `^|` to stay inside the table; a bare `grep -c 'RULE CANDIDATE'` returns 58,
       picking up a prose bullet that cross-references code-reviewer's tracker.
       count>=3 (24): `grep '^|' .claude/agent-memory/learner/MEMORY.md | grep -oE 'RULE CANDIDATE \(([0-9]+)\)' | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
-      **`SATURATED` changes what these literals COUNT, which is not staleness.** Once
-      `corpus-codification` PR 2 lands, a row whose rule text already exists leaves `RULE CANDIDATE`
-      for the new terminal state, so both commands above start returning smaller numbers for a
-      reason unrelated to promotion work being done. Re-read them against the state set in
-      `.claude/pipeline.json` at that point, not against the figures above. The as-of figures
-      themselves are deliberately NOT refreshed here — `agent-doc-updater.md` exempts stale
-      inventory counts from DRIFT and forbids re-deriving one in passing; they are as-of-pinned
-      and internally consistent, so the exemption applies.
+      **After `corpus-codification` PR 2 both commands count a SMALLER set** — a row whose rule
+      text already exists leaves `RULE CANDIDATE` for a terminal state. Derive the state set from
+      `.claude/pipeline.json` then, not from the figures above; those are as-of-pinned.
       Several are long past the count=2 promotion threshold. Each promotion also owes the
       Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget
       the mirror set, not just the rule edit.

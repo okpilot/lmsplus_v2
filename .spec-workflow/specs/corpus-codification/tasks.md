@@ -65,8 +65,7 @@
 Agreed with the user 2026-09-09. The order is the argument; do not reorder by "biggest number".
 
 **§ Slice 6 — single-source the corpus is RANKED ABOVE every item in this list** (user directive
-2026-09-19). It has its own internal order, and that order is load-bearing: its § ORDER section
-explains why each step makes the next one safe. Start there.
+2026-09-19). Read its § ORDER section first.
 
 1. ~~**R0b-1 retracted-phrase check**~~ — **DONE** (Decision 66). Landed at `commit-msg`, not
    pre-commit: its only escape hatch is a `Retracted-ok:` trailer, and that is the sole stage
@@ -502,14 +501,6 @@ the tree; verify each before building on it.**
 | orchestrator never invokes the skill directly | `settings.json` `PreToolUse` matchers are tool-name regexes (`Bash`, `Edit\|Write` today), so a `Skill` matcher is plausible — **UNVERIFIED**: whether the hook payload distinguishes orchestrator from subagent is unknown. Probe before planning on it | `python3 -c "import json;print(json.load(open('.claude/settings.json'))['hooks']['PreToolUse'])"` |
 
 **~~D1 survives all four.~~ SUPERSEDED 2026-09-20 by § Slice 6 item 6.2 — read that, not this.**
-D1 said member 6 stays OUT of `agents` on its own top-level key, because a skill has no
-`.claude/agents/*.md` file and the closure assertion would break. 6.2 keeps ONE roster and makes the
-closure assertion conditional on `kind: "agent" | "skill"` instead: a separate key splits round-1
-membership across two places, so anything deriving that membership has to read both — the exact
-duplication this programme exists to remove. The closure assertion is a schema we own, not a
-constraint we are handed.
-Left in place rather than deleted because `§ Spec-as-context` makes an ACTIVE spec authoritative
-over chat history, and a reader reaching §W1 first would otherwise build the superseded design.
 
 **One claim is NOT mechanizable and must not be counted as if it were:** the member's report opens
 with its provenance (`pwd`, HEAD, inline-vs-forked). That lives in an agent's terminal message,
@@ -745,12 +736,7 @@ as though it were a live mirror is the failure round 1 of that branch committed.
 **Consequence: deleting the copies without a write-time refusal only resets the clock.** Cause 1 is
 a property of the author, not a lapse. This is why the guard precedes the deletion.
 
-### Precedent — this arc has already completed once
-
-`.claude/hooks/check-prose-claims.mjs` header records it: the caps "had already been copied into
-nine hand-maintained places once, which is why they became data at all", and then a guard was built
-to refuse re-typing them. `.claude/limits.json` finished all four steps. `.claude/pipeline.json`
-became data and never got the guard — confirm with
+`check-prose-claims.mjs` guards `.claude/limits.json` and not `.claude/pipeline.json` — confirm with
 `grep -c "pipeline.json" .claude/hooks/check-prose-claims.mjs`.
 
 ### The rule
@@ -843,15 +829,13 @@ paraphrase-blindness as OPEN.
          Hard split, full Rule-Mirror Sync — Slice 5 W3 already carries that split for the same
          reason.
       4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
-         set: assert the named script appears in `lefthook.yml` or `.github/workflows/ci.yml`.
+         set: assert the named script appears in one of the THREE wiring surfaces Decision 78's
+         derivation reads — `lefthook.yml`, `.github/workflows/ci.yml`, `.claude/settings.json`.
          Decision 78 carries the derivation; run it before assuming the list is short, and note
          that a guard whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape
          reads as coverage while gating nothing.
-      5. **plan-critic not run before execution on a multi-file change.** Registered because it was
-         VIOLATED producing this very PR, not on theory: the orchestrator went from approval
-         straight to editing five files, having said one turn earlier that the redraft needed its
-         own run. `CLAUDE.md` gates Execute behind validate → plan-critic → approve with no size
-         exemption, and no enforcer covers it.
+      5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
+         behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
          **Hardest of the five, and it may honestly resolve to `NONE — cannot`.** A hook cannot
          observe whether an agent ran. The only tractable shape is commit-time — a commit touching
          N+ files referencing a plan or spec item — and that needs 6.1's measure step first,

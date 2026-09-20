@@ -50,10 +50,6 @@ re-derive per slice rather than quoting it.
 
 ### Secondary metric — ROUNDS-TO-CLEAN per PR (added 2026-09-20)
 
-The primary metric says whether the corpus is shrinking. It says nothing about whether producing
-that shrink is getting cheaper, and the conversion step (6.5) is explicitly one claim per PR — so
-cost per PR is what decides whether the remaining distance is affordable.
-
 ```bash
 git log --format='%s' origin/master..HEAD | grep -cE 'round-[0-9]+ fixup'
 ```

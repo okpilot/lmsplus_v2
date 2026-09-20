@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Runs after every Claude response (Stop event).
-# Shows Windows toast notification. Formatting is handled by Lefthook pre-commit
-# (`biome-check`). Tests are NOT: lefthook.yml comments the pre-commit test step out and
-# says so on the line above it — the unit suite runs at /fullpush, the full suite in CI.
+# Shows Windows toast notification.
 set -euo pipefail
 
 # Windows toast notification

@@ -2375,10 +2375,8 @@ check — or an explicit `Enforcer: NONE — <why>`. Three outcomes, never two: 
 **measure-then-enforce**, or **delete the rule**. Without the third branch an unenforceable rule
 has no exit and stays as decoration, which is the condition this decision exists to end.
 
-**Order is measure → enforce → change, not enforce → change.** Decision 76 is the standing
-counterexample: a detector designed before measurement was refuted at roughly half the commits in
-its window. A guard built on a hypothesis encodes the wrong invariant and then reads as coverage
-while providing none — strictly worse than no guard, because it stops anyone looking.
+**Order is measure → enforce → change, not enforce → change.** A guard built on a hypothesis
+encodes the wrong invariant and then reads as coverage while providing none.
 
 **Scope: invariants that can silently regress.** Not every edit. A one-off correction that cannot
 recur needs no enforcer; a rule new code can violate does. Applied to this decision's own PR: the
@@ -2423,8 +2421,12 @@ THREE wiring surfaces and THREE extensions, all load-bearing. An earlier form of
 in lefthook) or `guard-bash.js` / `review-gate.js` (wired via `settings.json` `PreToolUse`), so it
 could not answer this question at all for a `.sh` or `.js` enforcer. The `case` line is load-bearing
 too: without it the list returns `*.testkit.*` helpers, which are not guards, and each reads as a
-defect. Known residual: `grep -qF` matches a SUBSTRING, so a guard whose filename is a prefix of a
-different WIRED filename would read as wired. None in the current hook set — re-check when adding one.
+defect. TWO known residuals, both fail-open. (1) `grep -qF` matches a SUBSTRING: a guard whose
+filename is a prefix of a different WIRED filename reads as wired — none in the current hook set,
+re-check when adding one. (2) It matches RAW TEXT, proving the name OCCURS, never that the script
+runs at a gating stage — a mention in a comment or a test-only step suppresses `UNWIRED` on its own.
+Confirm a match is a command, not prose:
+`grep -nF <basename> lefthook.yml .github/workflows/ci.yml .claude/settings.json`.
 
 Read the output as two classes, because it does NOT separate them for you. The `measure-*.mjs`
 scripts are deliberately unwired and are not enforcers. `check-mirror-sync.mjs` is an
