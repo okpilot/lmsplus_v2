@@ -61,9 +61,8 @@ added this metric: the command returns 2 while the loop ran 3 rounds and then to
 edit. Requires the convention that every pooled fixup subject contains `round-N fixup`; the number
 is meaningless on a branch that did not follow it.
 
-**Deliberately NOT the learner's row counts.** Those rise when detection improves as well as when
-defects increase — one dispatch clause took a reviewer from 0 findings to 7 on an unchanged
-artifact — so they cannot distinguish the two and are disqualified as a success measure.
+**Not the learner's row counts.** Those rise when detection improves as well as when defects
+increase, so they cannot distinguish the two.
 
 ## Requirements
 

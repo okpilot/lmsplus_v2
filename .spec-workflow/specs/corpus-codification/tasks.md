@@ -157,20 +157,8 @@ Major findings and raised further ones it did not. Derive the cloud side, the on
 `gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'` — `--paginate` is load-bearing (the endpoint pages at 30 and exits 0 on a truncated list) and the author filter keeps a human comment containing "major" out of the count.
 
 SWEPT 2026-09-20, in `dd0491cc` (PR #1320). Derive the set rather than quoting a figure:
-`git show --name-only --format= dd0491cc`. Of the three classes a grep cannot reach, named below,
-TWO required an edit — the guard's own worked example (`check-prose-paths.mjs`) and the executable
-mirror (`cr-local-plan-reminder.sh`, deleted). The reviewer COUNT needed none: the roster stayed at
-six, CR-local out and `code-review (skill)` in, so no "six reviewers" site was ever wrong. Verify
-with `git show dd0491cc --format= --stat -- <path>` per class. Two residuals, both CHECKED this session and both no-ops — recorded so neither
-is re-opened:
-- **The worktree copies of the deleted hook are not stragglers.** `.claude/worktrees/*` are live
-  git worktrees on other branches; verify with
-  `for b in <branch>; do git diff --quiet $(git merge-base origin/master $b) $b -- .claude/hooks/cr-local-plan-reminder.sh .claude/settings.json && echo "$b clean"; done`.
-  Both leave the hook and its wiring untouched since their merge-base, so master's deletion wins on
-  merge. Deleting from another branch's worktree would be the error.
-- **The sweep command below used a `| grep -v` text filter**, the anti-pattern § Re-investigate
-  names. Fixed to a pathspec. On today's corpus both forms return the same lines, so this was
-  LATENT, not a miss — do not record it as one.
+`git show --name-only --format= dd0491cc`; verify per class with
+`git show dd0491cc --format= --stat -- <path>`.
 
 Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
 deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:
@@ -694,10 +682,8 @@ RULE CANDIDATE.
 
 ## Slice 6 — single-source the corpus (RANKED ABOVE the remaining BUILD ORDER items)
 
-User directive 2026-09-19, after the `docs/schedule-cr-local-retirement` gate spent all three
-rounds on one class of defect. Absorbs the mirror half of Slice 5 W1. **Order is the substance of
-this slice — building the steps out of order makes the corpus worse, not better. Read § ORDER
-before picking anything up.**
+User directive 2026-09-19. Absorbs the mirror half of Slice 5 W1. Read § ORDER before picking
+anything up.
 
 ### The defect class
 
@@ -714,27 +700,7 @@ git grep -l -E "ceiling 3|3-round ceiling|Ceiling 3" -- ':/*.md' "$p" | wc -l
 ```
 
 Upper bounds: each list mixes live restatements with historical records and legitimate pointers.
-Triage into those three classes is the work, not a preliminary to it. Editing a historical record
-as though it were a live mirror is the failure round 1 of that branch committed.
-
-### Why they are re-typed — the cause, which decides the order
-
-1. **The author generates, it does not look up.** Writing a doc about the gate emits the roster from
-   context. "The six in `.claude/pipeline.json`" reads as underspecified at generation time;
-   enumerating reads as complete. Every document about a thing re-types the thing.
-2. **Zero cost at write time.** The next restatement passes every hook. The bill arrives only when
-   the claim changes.
-3. **The corpus is its own style guide.** Existing restatements are worked examples, and
-   `agent-workflow.md § Plan Validation`'s pattern scan points the next author at them.
-4. **A real but small structural cause.** Context injection is selective: a subagent gets its own
-   definition plus injected rules, not `.claude/pipeline.json`. For `.coderabbit.yaml`,
-   `.claude/hooks/run-security-auditor.sh` and `package.json`, inlining is forced. This explains a
-   small minority — derive which, do not assume a site is in this class.
-5. **Deletion has burned us, addition never visibly has.** Every recorded corpus-cut loss was a
-   deleted word that BOUNDED a rule. Asymmetric feedback, pointing the wrong way.
-
-**Consequence: deleting the copies without a write-time refusal only resets the clock.** Cause 1 is
-a property of the author, not a lapse. This is why the guard precedes the deletion.
+Triage into those three classes is the work, not a preliminary to it.
 
 `check-prose-claims.mjs` guards `.claude/limits.json` and not `.claude/pipeline.json` — confirm with
 `grep -c "pipeline.json" .claude/hooks/check-prose-claims.mjs`.
@@ -742,34 +708,24 @@ a property of the author, not a lapse. This is why the guard precedes the deleti
 ### The rule
 
 **Every fact has exactly one home. Where a second copy is unavoidable it is GENERATED or
-BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a permitted form: it
-is what defeats every literal checker, and `agent-workflow.md § Rule-Mirror Sync` already records
-paraphrase-blindness as OPEN.
+BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a permitted form:
+`agent-workflow.md § Rule-Mirror Sync` records paraphrase-blindness as OPEN.
 
-### ORDER — each step exists to make the next one safe
+### ORDER
 
 - [x] **6.0 — descope the widening and ship the CR-local retirement.** Merged `dd0491cc` (PR #1320).
-- [ ] **6.0b — REPAIR THE LEARNER FIRST. Moved to the front on evidence, 2026-09-20.**
-      The learner decides what this programme builds next, and it currently cannot. Three faults:
+      The widening returns at 6.5 as a one-line data edit.
+- [ ] **6.0b — REPAIR THE LEARNER FIRST.** Three faults:
       (a) the index sits at the injection cap, so the next run's writes are silently invisible;
-      (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state —
-          every one met the 2-occurrence bar and was buried;
+      (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state;
       (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
           forever. (c) is the live defect; (b) is thinner than it looks — see § Findings.
 
-      **THIS WHOLE SEQUENCE SCORES ZERO ON THE PRIMARY METRIC, BY DESIGN.** None of the four PRs
-      deletes an injected line: PR 0 is plan and decision, PR 1 adds a hook and tests, PR 2 is a
-      data edit plus mirrors, PR 3 touches agent-memory, which is not in the metric. Recorded so a
-      later reader does not read four merged PRs against a flat number as failure. 6.0b repairs the
-      instrument that decides what to build; the lines come out at 6.5 and Slice 3. Re-derive the
-      metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
-      `requirements.md`, and track cost with the secondary metric recorded there.
+      **No PR in this sequence deletes an injected line** — the lines come out at 6.5 and Slice 3.
+      Re-derive the metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
+      `requirements.md`; track cost with the secondary metric recorded there.
 
       **FOUR PRs, in this order (user directive 2026-09-20). The guard PRECEDES the curation.**
-      Curating buried rows without a write-time refusal only resets the clock — § Why they are
-      re-typed, cause 1, governs tracker rows exactly as it governs prose. The curation then
-      becomes the guard's first real test; a guard built afterwards would only ever have run
-      against a tree already cleaned by hand.
 
       Derive every figure. The PARSE is part of the claim, because three parses disagree:
       ```bash
@@ -782,24 +738,11 @@ paraphrase-blindness as OPEN.
       **`/^\|/` is load-bearing.** Without it the count picks up a pasted grep-output line that is
       itself row-shaped, so `-F'|'` cannot tell it from a row. A bare `grep -c` over-counts much
       further — rows in other states quote the phrase in their status prose.
-      `backlog-burndown/tasks.md` already anchors correctly and documents the same trap: this block
-      was stale behind its own sibling, and that sibling's own figures are now stale too.
 
-      **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`, which already
-      carries the Slice 6 commits, unpushed. The corrected awk above; the `SWEPT` marker on the
-      CR-local retirement block in BUILD ORDER, in the form its Decision 74 predecessor uses;
-      an annotation on the `backlog-burndown` figures recording that `SATURATED` changes what the
-      state literals COUNT — the figures themselves are deliberately NOT refreshed, per
-      `agent-doc-updater.md`'s inventory-count exemption. Plus a false-claim sweep across four LIVE
-      FILES (`docs/decisions.md` carries three of the lines). They did NOT all carry the same claim:
-      **`on-stop.sh` ALONE said tests run at LEFTHOOK PRE-COMMIT**; `docs/decisions.md`,
-      `docs/setup-audit.md` and `docs/plan.md`'s pipeline diagram all said they run at STOP. So no
-      copied-from story fits — the Stop hook was stripped to a toast, `on-stop.sh`'s header was
-      rewritten to a DIFFERENT wrong claim, and the doc sites kept the original one, which had been
-      true under the dated 2026-03-11 decision. Neither mechanism holds now: `lefthook.yml` comments
-      the pre-commit test step out and says so on the line above it, and `on-stop.sh`'s body is the
-      toast alone. **Derive per file rather than trusting this sentence** — two earlier versions of
-      it were wrong in two different ways:
+      **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`. The corrected awk
+      above; the `SWEPT` marker on the CR-local retirement block in BUILD ORDER; the `SATURATED`
+      annotation on the `backlog-burndown` figures; a false-claim sweep over the four files that
+      stated where formatting and tests run. Derive per file:
       ```bash
       for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do
         echo "== $f"
@@ -807,75 +750,65 @@ paraphrase-blindness as OPEN.
       done
       ```
       **Pinned to `dd0491cc`, not `origin/master`** — the branch-point is the state being described,
-      and `origin/master` advances the moment this merges, at which point the command stops
-      answering the question it was written for. **`-i` is load-bearing:** the text says `Stop` and
-      `Lefthook`, so a case-sensitive run returns nothing for two of the four files and reads as a
-      refutation. **The pattern is deliberately broad and the reader must filter:** `decisions.md`
-      returns seven hits, of which THREE (63, 140, 145) carry the claim — the rest are an unchecked
-      TODO, two `--silent` narratives, and one match on "stops the test from running".
-      Plus
-      **Decision 78** — enforcement before change — and the guard candidates below. No code.
+      and `origin/master` advances the moment this merges. **`-i` is load-bearing:** the text says
+      `Stop` and `Lefthook`, so a case-sensitive run returns nothing for two of the four files and
+      reads as a refutation. The pattern is deliberately broad — filter the hits.
+      Plus **Decision 78** and the guard candidates below. No code.
 
       **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to
       blocking.** Decision 78 governs; `Enforcer: NONE` means CANNOT, never DID NOT.
       1. **Tracker invariants** → PR 1, `check-tracker-invariants.mjs`. Measured need: the index
          sits at its cap and three other agents' archives hold non-terminal rows.
       2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Learner row at
-         count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1 —
-         different detector, different corpus, different noise profile; bundling it with (1) lets
-         one bad measurement taint both.
-      3. **A rule clause landing with no `Enforcer` disposition.** This is Decision 78's own
-         enforcer and it does not exist yet, which is why 78 ships as measure-then-enforce.
-         Hard split, full Rule-Mirror Sync — Slice 5 W3 already carries that split for the same
-         reason.
+         count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1.
+      3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer,
+         which does not exist yet. Hard split, full Rule-Mirror Sync.
       4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
          set: assert the named script appears in one of the THREE wiring surfaces Decision 78's
          derivation reads — `lefthook.yml`, `.github/workflows/ci.yml`, `.claude/settings.json`.
-         Decision 78 carries the derivation; run it before assuming the list is short, and note
-         that a guard whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape
-         reads as coverage while gating nothing.
+         Decision 78 carries the derivation; run it before assuming the list is short. A guard
+         whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape reads as
+         coverage while gating nothing.
       5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
          behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
-         **Hardest of the five, and it may honestly resolve to `NONE — cannot`.** A hook cannot
-         observe whether an agent ran. The only tractable shape is commit-time — a commit touching
-         N+ files referencing a plan or spec item — and that needs 6.1's measure step first,
-         because the obvious detector plausibly fires on most mechanical multi-file commits — a
-         PREDICTION, unmeasured, and exactly the shape Decision 76 refuted. Under Decision
-         78 a `NONE` here is a legitimate outcome PROVIDED it says so out loud rather than being
-         left unstated.
+         **May honestly resolve to `NONE — cannot`.** A hook cannot observe whether an agent ran.
+         The only tractable shape is commit-time — a commit touching N+ files referencing a plan or
+         spec item — and that needs 6.1's measure step first: the obvious detector plausibly fires
+         on most mechanical multi-file commits, a PREDICTION, unmeasured. Under Decision 78 a
+         `NONE` is a legitimate outcome PROVIDED it says so out loud.
+
       **PR 1 — the guard, ALONE.** `check-tracker-invariants.mjs` + tests + baseline, wired
       pre-commit and CI, ratcheted like `check-file-size-guard.mjs`. No prose, no rule change, no
-      curation — provable in isolation, as 6.2 requires of a data layer.
+      curation — provable in isolation.
       **The state vocabulary ships as DATA in `.claude/pipeline.json`, never hardcoded in the
-      guard.** That is what makes PR 2 a one-line edit rather than a guard rewrite, and it is this
-      programme's own thesis applied to its own enforcer.
-      Invariants — structural, not prose-semantic. That is the class which enforces cleanly;
-      prose-semantic detectors are the class Decision 76 and R0b-1 both refuted by measurement:
+      guard.**
+      Invariants — structural, not prose-semantic:
       index under both caps · every status field opens with a state present in the data · no row
       vanishes between commits · a non-terminal row in an archive sits under a section marked a
       budget relocation · `PROMOTED → <location>` resolves.
       The first four are `wc`/parse/git-derivable and need no calibration. The fifth does: a
       location is often a section reference (`§10 cl.8`), not a path, so measure its noise rate
-      before wiring it — 6.1's bar applies to this guard too.
+      before wiring it.
       Baseline existing violations, so nothing is blocked today and only NEW ones are refused.
+
       **PR 2 — `SATURATED` + mirror sync + Decision 79.** Terminal state: the rule text exists and
       the pattern is behavioural, so the count has stopped being evidence and the row stops
       incrementing. A new mechanism the text does not cover starts a NEW row at 1. Shrinks PR 1's
       baseline by exactly what it fixes.
-      **PR 3 — the curation, which TESTS the guard.** Index back under the cap; the genuinely
-      unpromoted patterns restored CONDENSED, one line each pointing at its archive row — restoring
-      verbatim does NOT fit, those rows carry narrative status prose many times a live row's size.
-      Corrects two false header contracts. Carries the `[x]` on this item.
 
-      **Findings that must survive a context clear.** Each carries its own basis; re-derive
-      rather than trusting the sentence, and note the last is an ARGUMENT, not a measurement:
+      **PR 3 — the curation, which TESTS the guard.** Index back under the cap; the genuinely
+      unpromoted patterns restored CONDENSED, one line each pointing at its archive row — verbatim
+      does not fit. Corrects two false header contracts. Carries the `[x]` on this item.
+
+      **Findings that must survive a context clear.** Each carries its own basis; re-derive rather
+      than trusting the sentence.
       - **`RULE EXISTS` is a state in USE and defined nowhere.**
         `git grep -n "RULE EXISTS" -- '.claude/rules' '.claude/agents' 'CLAUDE.md'` returns nothing,
         while learner archive rows carry it. PR 1's closed vocabulary must adopt or migrate it, or
         it fails those rows.
       - **`.claude/commands/insights.md` is a state-set mirror**, and the set it names is not the
-        canonical one. An Explore sweep classified it a POINTER: the enumeration sits at the far end
-        of one very long line, past where a truncated read stops. plan-critic caught it.
+        canonical one. The enumeration sits at the far end of one very long line, past where a
+        truncated read stops.
       - **`agent-memory.md` already forbids this and misses by one word** — it binds
         "**auto-curation** drop a tracker row to save space". The archive's own section headings
         attribute these relocations to deliberate budget curation inside named learner cycles,
@@ -886,58 +819,33 @@ paraphrase-blindness as OPEN.
         it explicitly rather than silently overwriting it.
       - **"count increments only for a DISTINCT mechanism" is not mechanically checkable.** No
         parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and
-        keep it as judgment: a rule asserted as enforced but unenforced is the defect this slice
-        exists to remove.
-      - **An attribution across N sites was got wrong TWICE before being got right — record the
-        SHAPE, not a new rule.** The same fact ("which files claimed tests run where") was stated
-        wrongly in the PR 0 description, wrongly again in the round-1 fixup that corrected it, and
-        correctly only on the third attempt. Same evidence available each time. The difference was
-        the COMMAND SHAPE: attempts 1-2 ran greps to confirm a story already held; attempt 3 printed
-        each file's value separately and read the table. Adjacent to §10 cl.2 (enumerate → derive),
-        widened from "enumerating a set" to "attributing a property ACROSS a set" — a widening
-        CANDIDATE for the learner to count, deliberately NOT written as a rule here, because the
-        row it belongs to is past 76 and its rule text already exists.
-        It is also the strongest available evidence for `SATURATED`: the rule was violated twice by
-        the author applying it, inside the PR arguing the count no longer carries information.
+        keep it as judgment.
       - **The buried set is THIN.** Triage each archived candidate into: covered by existing rule
         text / live under other wording / genuinely unpromoted. Only the third class is restored
         and it was by far the smallest. A delegated triage found no high-count pattern buried, with
         four of its coverage verdicts spot-checked against source; re-run it rather than trusting
         that. The real signal is the LIVE tracker recurring THROUGH text that already exists —
         fault (c), not fault (b).
-- [ ] ~~**6.0 — descope the widening from `docs/schedule-cr-local-retirement` and ship it.**~~ Six of
-      its seven round-3 findings exist only because a scope change reached the canonical rule and
-      not its mirrors; descoping makes them moot rather than deferred. The widening returns at 6.5
-      as a one-line data edit. *Nothing else in this slice is blocked behind that branch.*
 - [ ] **6.1 — measure before building.** A calibration script over N commits: for each candidate
       detector, how often would it have fired, and what share of firings are noise.
       `measure-prose-claims.mjs`, `measure-prose-paths.mjs` and `measure-quantifier-swap.mjs` are
-      the pattern to copy. R0b-1's detector was refuted by measurement before a line was written —
-      18% of commits blocked, almost all noise, and it missed its own motivating instance. A
-      blocking guard with a bad detector gets bypassed, which is worse than no guard.
+      the pattern to copy.
 - [ ] **6.2 — data layer.** **Supersedes Slice 5's D1, which says member 6 stays OUT of
-      `pipeline.json` `agents` and takes a separate top-level key.** Two designs for one mechanism,
-      written hours apart; this is the one to build. A separate key splits the roster across two
-      places, so anything deriving round-1 membership must read both — the duplication this
-      programme exists to remove. Keep ONE roster and make the closure assertion conditional:
-      `kind: "agent" | "skill"` in `.claude/pipeline.json`;
+      `pipeline.json` `agents` and takes a separate top-level key.** Keep ONE roster and make the
+      closure assertion conditional: `kind: "agent" | "skill"` in `.claude/pipeline.json`;
       `.claude/pipeline.test.mjs` skips the `.claude/agents/<name>.md` closure assertion for
-      `kind: skill`; register the skill member. Decision 77 records the closure assertion as the
-      reason the member cannot be data — it is a schema we own, not a constraint. Promote the
-      range incantation and the round ceiling to data in the same file. **No prose touched in this
-      step** — it must be provable in isolation.
+      `kind: skill`; register the skill member. Promote the range incantation and the round ceiling
+      to data in the same file. **No prose touched in this step** — it must be provable in
+      isolation.
 - [ ] **6.3 — guard, ADVISORY and baselined.** `check-prose-claims.mjs` extended to
       `.claude/pipeline.json`'s sets, same ratchet and baseline shape it already uses for
       `.claude/limits.json`. Baseline every existing restatement so no commit is blocked. Advisory
-      only. **Never ship this blocking on day one** — the baseline is large and the noise rate is
-      unmeasured until 6.1 reports.
+      only. **Never ship this blocking on day one** — the noise rate is unmeasured until 6.1
+      reports.
 - [ ] **6.4 — flip to blocking** once 6.1's noise rate justifies it. State the rate in the commit.
-- [ ] **6.5 — conversion, ONE claim per PR, smallest first.** Fewest sites first, to prove the
-      pattern on a diff that can be reviewed; the roster is the largest and the one the gate itself
-      reads, so it goes LAST — converting it mid-programme changes the rules the reviewers are
-      reading while they review. Each PR: triage every hit into restatement / historical record /
-      pointer, convert only restatements, shrink the baseline by exactly what it converted. The
-      widening rides the roster PR as a data edit.
+- [ ] **6.5 — conversion, ONE claim per PR, fewest sites first; the roster LAST.** Each PR: triage
+      every hit into restatement / historical record / pointer, convert only restatements, shrink
+      the baseline by exactly what it converted. The widening rides the roster PR as a data edit.
 - [ ] **6.6 — forced-inline consumers: generate or assert, never hand-maintain.** `.coderabbit.yaml`,
       `.claude/hooks/run-security-auditor.sh`, `package.json`, and the security-auditor checklist.
       `.claude/pipeline.json` `modelLiteralSites` already ASSERTS one such literal — generalise
@@ -945,19 +853,11 @@ paraphrase-blindness as OPEN.
 - [ ] **6.7 — discovery, for claims nobody registered.** 6.2-6.6 protect only facts someone thought
       to register. A shingle detector — every ~12-word span appearing in 2+ corpus files, ratcheted
       — catches duplication without knowing what the claim is. Same ramp: measure, baseline,
-      advisory, blocking. Under § The rule a duplicated span must sit inside a marked mirror block
-      or be deleted, so "duplicated text" IS the violation and the detector needs no semantics.
-- [ ] **6.8 — RUN the corpus's commands. Planned from the start, built last.**
-      This programme replaces prose with derivations, and nothing executes them. A stale paragraph
-      misleads a reader; a broken command carries MORE authority because it looks checkable, and
-      it fails silently or returns a wrong number. 6.5 is the step that multiplies them, so the
-      runner must exist before the conversion volume does.
-      **Motivating instance, 2026-09-20:** cloud CR proposed replacing a working `gh api` call with
-      one using `--slurp`, a flag that does not exist on the installed `gh` — adopting it would
-      have committed a command that exits non-zero. Caught by running both forms, by nothing else.
+      advisory, blocking.
+- [ ] **6.8 — RUN the corpus's commands. Planned from the start, built last.** 6.5 multiplies the
+      derivations, so the runner must exist before the conversion volume does.
       Shape: derivation blocks are opt-in marked; a runner executes each in a throwaway worktree,
-      never the main tree, and asserts EXIT 0. Precedent is `.claude/hooks/run-mutations.mjs`,
-      which already grades encoded claims.
+      never the main tree, and asserts EXIT 0. Precedent is `.claude/hooks/run-mutations.mjs`.
       **Bounds, stated because a green run must not imply more than it checks:**
       exit 0 is not correctness — it catches a nonexistent flag, a deleted path, a broken pipeline,
       not a command whose answer drifted. Do NOT assert stated output values: pinning a number
@@ -977,8 +877,7 @@ Derive the wiring from `.claude/settings.json` and `lefthook.yml`, not from this
 | lefthook `pre-commit` | yes | the real gate |
 | CI | yes | backstop against a local bypass |
 
-git `post-commit` is the wrong reach for this: the commit already exists, so the only remedy it can
-offer is a second commit — and a correction commit is the highest-defect-density commit we produce.
+git `post-commit` is the wrong reach for this: the only remedy it can offer is a second commit.
 
 ### Residual — NAMED, because a green exit code that implies coverage it lacks is the defect
 
@@ -987,11 +886,10 @@ detector reaches it. `check-retracted-phrase.mjs` is the cautionary case: it mec
 "grep the retracted phrase repo-wide" and its tokeniser takes numbers and filenames only — named
 for phrases, blind to them. **Every guard in this slice prints its own residual class.**
 
-The human-layer mitigation is measured, not hoped for: on that branch's round 3 the
-semantic-reviewer found every finding the opus member found, plus one nobody else did, after its
-dispatch required a `[GOOD]` to carry an ISSUE's evidentiary burden and to state what its anchor
-would NOT have matched. Round 2, without that clause, it returned zero and certified the defective
-section `[GOOD]`.
+The human-layer mitigation is measured: a semantic-reviewer dispatch requiring a `[GOOD]` to carry
+an ISSUE's evidentiary burden and to state what its anchor would NOT have matched found every
+finding the opus member found, plus one nobody else did. Without that clause the same reviewer
+returned zero and certified the defective section `[GOOD]`.
 
 ### Definition of done — so "removed" is testable rather than asserted
 
@@ -1008,5 +906,4 @@ CI, both ratcheted so neither can silently regrow.
   It becomes useful the moment § The rule is enforced, because then mirrors ARE byte-identical.
 - Exclusion in any sweep must be PATH-anchored (`git grep -- ':(exclude)<path>'`), never a text
   filter on the output. `| grep -v agent-memory` silently drops every line quoting the gate's own
-  range incantation — which is precisely the set of lines under review. This cost two separate
-  incomplete sweeps on that branch and was hit independently by a third agent in the same session.
+  range incantation — which is precisely the set of lines under review.
