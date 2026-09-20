@@ -773,7 +773,19 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a p
      coverage while gating nothing. TWO residuals a name-match cannot reach, both fail-open: a
      filename that is a prefix of a different wired filename reads as wired, and a name occurring
      in a comment or a test-only step proves occurrence, never a gating stage. Parsing executable
-     command entries is what closes the second; measure its noise rate first.
+     command entries is what closes the second; measure its noise rate first. Confirm a match is a
+     command and not prose with
+     `grep -nF <basename> lefthook.yml .github/workflows/ci.yml .claude/settings.json`.
+
+     ```bash
+     for f in .claude/hooks/*.mjs .claude/hooks/*.sh .claude/hooks/*.js; do
+       case "$f" in *.test.*|*.testkit.*) continue;; esac   # test helpers are not guards
+       [ -e "$f" ] || continue
+       grep -qF "$(basename "$f")" \
+         lefthook.yml .github/workflows/ci.yml .claude/settings.json || echo "UNWIRED $f"
+     done
+     ```
+
      **Expected non-guards — these are SUPPOSED to be unwired and must not read as defects:**
      `measure-*.mjs` are deliberately unwired, and `check-mirror-sync.mjs` is orchestrator-invoked,
      not stage-wired.
@@ -894,8 +906,10 @@ detector reaches it. `check-retracted-phrase.mjs` is the cautionary case: it mec
 "grep the retracted phrase repo-wide" and its tokeniser takes numbers and filenames only — named
 for phrases, blind to them. **Every guard in this slice prints its own residual class.**
 
-The human-layer mitigation: a `[GOOD]` finding carries the same evidentiary burden as an ISSUE and
-must state what its anchor would NOT have matched — `.claude/rules/agent-semantic-reviewer.md`.
+The human-layer mitigation is a DISPATCH clause, not a rule: require a `[GOOD]` to carry an ISSUE's
+evidentiary burden and to state what its anchor would NOT have matched. NOT yet in
+`agent-semantic-reviewer.md`, whose severity table still reads `GOOD — no action needed`; promoting
+it there is a rule change with its own mirror sweep.
 
 ### Definition of done — so "removed" is testable rather than asserted
 
