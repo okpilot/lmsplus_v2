@@ -60,7 +60,7 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
-- **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
+- **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (Windows toast; no-op on Linux — #1322)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
@@ -137,12 +137,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              format on Stop, test on Stop, notify on Stop
+│                              notify on Stop
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
 │   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
-│   └── on-stop.sh           ← Stop: biome format + vitest
+│   └── on-stop.sh           ← Stop: Windows toast, no-op on Linux (#1322)
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
 │   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project

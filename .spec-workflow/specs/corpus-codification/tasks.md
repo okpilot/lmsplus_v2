@@ -725,8 +725,8 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
 3. **A rule clause landing with no `Enforcer` disposition.** Ships as a RATCHET, never a gate:
    baseline existing clauses, require the disposition only on new ones. Hard split,
    full Rule-Mirror Sync.
-4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** Line 526 above
-   grades an entry by a SCRIPT PATH (`run-mutations.mjs`); a wired-stage reading says the entry names
+4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** The `run-mutations.mjs — wired nowhere`
+   entry above grades an entry by a SCRIPT PATH; a wired-stage reading says the entry names
    the STAGE. Both cannot hold. No tracker carries an `Enforcer` column yet, so a guard built now
    scans an empty set and exits clean — the fail-open shape. Settle which artifact the entry names,
    and confirm the column exists, before building.
