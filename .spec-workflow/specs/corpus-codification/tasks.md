@@ -737,7 +737,25 @@ paraphrase-blindness as OPEN.
 
 ### ORDER — each step exists to make the next one safe
 
-- [ ] **6.0 — descope the widening from `docs/schedule-cr-local-retirement` and ship it.** Six of
+- [x] **6.0 — descope the widening and ship the CR-local retirement.** Merged `dd0491cc` (PR #1320).
+- [ ] **6.0b — REPAIR THE LEARNER FIRST. This moved to the front on evidence, 2026-09-20.**
+      The learner decides what this programme builds next, and it currently cannot.
+      Derive its state before starting: `wc -lc .claude/agent-memory/learner/MEMORY.md` against the
+      hard 25600-byte injection cap, and
+      `awk -F'|' 'NF>4 {st=$5; gsub(/^ +/,"",st); if (st ~ /^RULE CANDIDATE/) n++} END{print n+0}' .claude/agent-memory/learner/topics/tracker-archive.md`
+      — match the STATUS FIELD, not the line. A `grep -c "RULE CANDIDATE"` over-counts: many rows
+      in other states quote the phrase in their status prose. That grep reported 172 where the
+      field-wise count is 146, and the learner's own report shipped the over-counting form.
+      Three faults, each blocking prioritisation:
+      (a) the index is at the cap, so the next run's writes are silently invisible;
+      (b) the archive holds RULE CANDIDATE rows moved for SPACE, not for reaching a terminal state
+          — every one met the 2-occurrence promotion bar and was buried;
+      (c) a row whose rule text ALREADY EXISTS cannot leave RULE CANDIDATE, so it increments
+          forever. The "fix commit introduces fresh §10 violations" row is the case; it passed 76.
+      Fix: add the `SATURATED` state agreed 2026-09-19 (rule written, pattern behavioural, tracking
+      for measurement only), curate to terminal-rows-only, and audit which archived candidates were
+      buried rather than resolved. Until this lands, any ranking of 6.1-6.8 is guesswork.
+- [ ] ~~**6.0 — descope the widening from `docs/schedule-cr-local-retirement` and ship it.**~~ Six of
       its seven round-3 findings exist only because a scope change reached the canonical rule and
       not its mirrors; descoping makes them moot rather than deferred. The widening returns at 6.5
       as a one-line data edit. *Nothing else in this slice is blocked behind that branch.*
@@ -747,7 +765,12 @@ paraphrase-blindness as OPEN.
       the pattern to copy. R0b-1's detector was refuted by measurement before a line was written —
       18% of commits blocked, almost all noise, and it missed its own motivating instance. A
       blocking guard with a bad detector gets bypassed, which is worse than no guard.
-- [ ] **6.2 — data layer.** `kind: "agent" | "skill"` in `.claude/pipeline.json`;
+- [ ] **6.2 — data layer.** **Supersedes Slice 5's D1, which says member 6 stays OUT of
+      `pipeline.json` `agents` and takes a separate top-level key.** Two designs for one mechanism,
+      written hours apart; this is the one to build. A separate key splits the roster across two
+      places, so anything deriving round-1 membership must read both — the duplication this
+      programme exists to remove. Keep ONE roster and make the closure assertion conditional:
+      `kind: "agent" | "skill"` in `.claude/pipeline.json`;
       `.claude/pipeline.test.mjs` skips the `.claude/agents/<name>.md` closure assertion for
       `kind: skill`; register the skill member. Decision 77 records the closure assertion as the
       reason the member cannot be data — it is a schema we own, not a constraint. Promote the
@@ -774,6 +797,23 @@ paraphrase-blindness as OPEN.
       — catches duplication without knowing what the claim is. Same ramp: measure, baseline,
       advisory, blocking. Under § The rule a duplicated span must sit inside a marked mirror block
       or be deleted, so "duplicated text" IS the violation and the detector needs no semantics.
+- [ ] **6.8 — RUN the corpus's commands. Planned from the start, built last.**
+      This programme replaces prose with derivations, and nothing executes them. A stale paragraph
+      misleads a reader; a broken command carries MORE authority because it looks checkable, and
+      it fails silently or returns a wrong number. 6.5 is the step that multiplies them, so the
+      runner must exist before the conversion volume does.
+      **Motivating instance, 2026-09-20:** cloud CR proposed replacing a working `gh api` call with
+      one using `--slurp`, a flag that does not exist on the installed `gh` — adopting it would
+      have committed a command that exits non-zero. Caught by running both forms, by nothing else.
+      Shape: derivation blocks are opt-in marked; a runner executes each in a throwaway worktree,
+      never the main tree, and asserts EXIT 0. Precedent is `.claude/hooks/run-mutations.mjs`,
+      which already grades encoded claims.
+      **Bounds, stated because a green run must not imply more than it checks:**
+      exit 0 is not correctness — it catches a nonexistent flag, a deleted path, a broken pipeline,
+      not a command whose answer drifted. Do NOT assert stated output values: pinning a number
+      re-introduces the staleness that shipping the command was meant to remove. Network-dependent
+      commands (`gh api`) need their own tag and must not fail the run offline or rate-limited.
+      An unmarked illustrative snippet is out of scope by construction.
 
 ### Hook surfaces — which layer belongs where
 
