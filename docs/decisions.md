@@ -2319,7 +2319,7 @@ additions: the run is not deterministic, so no command re-derives that count. Th
 derivable, and only that side:
 
 ```bash
-gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'
+gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'
 ```
 
 `--paginate` is load-bearing: the endpoint pages at 30 and exits 0 on a truncated list.

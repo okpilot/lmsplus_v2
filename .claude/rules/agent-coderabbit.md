@@ -86,7 +86,7 @@ branch — the same path as red-team and coderabbit-sync (`agent-learner.md`).
 
 ## Common Pitfalls Observed
 
-Patterns cloud CR catches that our internal agents do not — an open list; add as new ones surface.
+Patterns observed triaging cloud CR — findings it catches that our internal agents miss, and its own failure modes. An open list; add as new ones surface.
 
 1. **Service-role cleanup discarding `.select('id')` result.** §5 requires logging on
    `data?.length > 0` even where zero rows is valid.
