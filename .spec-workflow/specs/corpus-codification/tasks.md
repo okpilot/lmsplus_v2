@@ -806,7 +806,19 @@ paraphrase-blindness as OPEN.
       the pre-commit test step out and says so on the line above it, and `on-stop.sh`'s body is the
       toast alone. **Derive per file rather than trusting this sentence** — two earlier versions of
       it were wrong in two different ways:
-      `for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do echo "== $f"; git show origin/master:"$f" | grep -niE 'stop.{0,40}(biome|vitest|test)|lefthook pre-commit'; done`
+      ```bash
+      for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do
+        echo "== $f"
+        git show dd0491cc:"$f" | grep -niE 'stop.{0,40}(biome|vitest|test)|lefthook pre-commit'
+      done
+      ```
+      **Pinned to `dd0491cc`, not `origin/master`** — the branch-point is the state being described,
+      and `origin/master` advances the moment this merges, at which point the command stops
+      answering the question it was written for. **`-i` is load-bearing:** the text says `Stop` and
+      `Lefthook`, so a case-sensitive run returns nothing for two of the four files and reads as a
+      refutation. **The pattern is deliberately broad and the reader must filter:** `decisions.md`
+      returns seven hits, of which THREE (63, 140, 145) carry the claim — the rest are an unchecked
+      TODO, two `--silent` narratives, and one match on "stops the test from running".
       Plus
       **Decision 78** — enforcement before change — and the guard candidates below. No code.
 
