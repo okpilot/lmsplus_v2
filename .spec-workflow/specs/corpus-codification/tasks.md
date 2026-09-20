@@ -140,8 +140,9 @@ code-reviewer's suppression list); a NARRATIVE of past sessions does not.
 
 Carried into this audit, unresolved here: `RESOLVED-WATCH` is defined as "still worth watching" yet
 `/insights` archives it to a topic file, and only `MEMORY.md` is injected — so archiving ends the
-watch. Forbidding it needs a verdict for compound rows (`PROMOTED … RESOLVED-WATCH`) and a sweep of
-the rows already archived. Derive both:
+watch. The verdict is written (`insights.md`, and `agent-memory.md § Tracker state machine`). What is
+OPEN is the sweep of rows already archived, and compound rows (`PROMOTED … RESOLVED-WATCH`), which
+the verdict does not cover. Derive the set:
 `grep -c 'RESOLVED-WATCH' .claude/agent-memory/*/topics/tracker-archive.md`
 
 Blast radius is the risk: memory deletion is irreversible and the gate cannot see it. Each candidate
@@ -766,3 +767,10 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
    `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill, committed
    under `git add -A` over a path the gate excludes. Derive from `git diff --numstat` per commit;
    flag a deletion above the threshold whose bytes land nowhere.
+8. **`check-prose-claims.mjs` contradicts itself. OPEN — a defect to fix, not a guard to build.**
+   `--update-baseline` writes `.claude/commands/insights.md@0f665d4d157d4847`; the next plain run
+   reports that exact row as describing no live claim. The repair tool cannot produce a state the
+   gate accepts, so editing a baselined line can wedge a blocking pre-commit hook. Reproduced twice
+   on `fix/learner-tracker-termination`. Green at HEAD, so it blocks nothing today. Stale worktree
+   copies are ruled out — their `insights.md` hashes to `5bd4bddfca3a3747`, not the disputed key.
+   Repro: edit a baselined line, run the guard, run `--update-baseline`, run the guard again.
