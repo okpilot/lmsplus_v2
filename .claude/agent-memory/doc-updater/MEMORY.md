@@ -7,137 +7,23 @@
 
 - No tracker table yet — doc-updater adds one only once a doc-drift pattern recurs ≥2× (per `.claude/rules/agent-memory.md`).
 - The binding scope rules (cross-reference audit, steering drift, severity escalation) live in `.claude/rules/agent-doc-updater.md` — this file holds only the doc-sync recipes.
-- When a rules file POINTS to an agent file for content ("the protocol is in `.claude/agents/<name>.md`"), verify the SPECIFIC content the pointer names actually EXISTS at the target after any movement/refactor. A pointer and its target can drift apart across commits, each internally consistent (pointer says "it's there", destination says "I have all of it") but jointly FALSE. Per-commit review cannot catch this; PR-level semantic sweep does. Instance (2026-09-07): agent-test-writer.md pointer said "full OPEN set of bypasses"; when the set was moved out of the rules file, three illustrations were deleted but NOT added to the agent file — the rule and the agent files were each reviewed independently and passed, the pointer became a lie, and only the PR-level sweep caught it by reading both. Restoration of the target (commit 565a819f) made the pointer true again.
-- **Prose-paths guard mirror scope (2026-09-16):** When the prose-paths guard's detection pattern widens (e.g. to add unpaired placeholder detection), the `.coderabbit.yaml` description of false-positive classes must be updated to match. The pattern change is in the guard's classify() function logic; the CodeRabbit config describes what IR PASSES are known false positives. Both must describe the same classes. Commit 4714a817 widened the pattern; commit 3846352f updated the mirror at `.coderabbit.yaml:314` to replace "`<placeholder>`" with "placeholder — paired `<name>`, or an unpaired `<` / `>`". The guard's header does not enumerate false-positive classes — it defers to the classify() function, which is self-documenting via its branch tests. Only the `.coderabbit.yaml` mirror is narrative-prose and needed updating.
-- **Section name changes in agent-workflow.md (2026-09-17, #1298):** "## Post-Implementation Pipeline Order" became "## Pre-Push Review Gate", "## Pre-Push PR Sweep" was deleted/folded. Cross-reference audit: search for old section names to catch dangling references.
-- **Spec-only entries: research conclusions do not need mirroring** (2026-09-17, chore/record-mechanical-lever). A spec-only change recording a research finding (e.g., the corpus-codification spec documenting what PR #1301 revealed about recurring learner patterns) is not itself a decision, decision change, or schema change. It requires NO updates to `docs/decisions.md`, `docs/database.md`, or `CLAUDE.md` — the finding informs FUTURE work but does not restructure current work. An old task reference (the obsolete `chore/coderabbit-mirror-cl8` branch entry) being replaced is safe; nothing binds to it elsewhere in the repo.
-- **Decision 74 documentation (2026-09-17, chore/record-mechanical-lever):** Decision 74 records CR-local's move to round 1 only. This required updates to all binding gate mechanics docs: `docs/plan.md` (round 2+ clause + learner input), `CLAUDE.md` (round 2+ + learner), `.spec-workflow/steering/tech.md` (code-review stage description), `.claude/rules/agent-workflow.md` (round 2+ diagram), `.claude/rules/agent-coderabbit.md` (trigger, handling, DO/NEVER), `.claude/rules/agent-learner.md` (learner input), `.claude/agents/learner.md` (mission, inputs, report format). Decision 73's body carries an annotation `*(Round-2+ membership superseded 2026-09-17 by Decision 74: ...)*` in house style (compare other Decision-N annotations in the file — they use parentheses + italics). ALL docs previously checked and VERIFIED IN BRANCH as accurate; no edits needed.
-- **Agent-memory topic files are NOT public docs** (2026-09-18, fix/integration-fixture-isolation). A stale reference in `.claude/agent-memory/*/topics/*.md` (e.g., test-writer's durable-knowledge describing the fixture pattern) needs updating when the implementation changes, even though it is not a binding public doc. These files guide future agent work and carry embedded recipes — if they contradict the committed code, a reader (human or agent) will mistrust the codebase or act on false premises. Pattern: integration-fixture-isolation changed from `Date.now()` to `fixtureSuffix()` helper in all 26 integration test files + added a new module with unit tests; the test-writer memory file still documented the old pattern. Update required: `.claude/agent-memory/test-writer/topics/durable-knowledge.md` line 71 § App-layer integration test setup pattern.
-- **countMutationClaims function deleted (2026-09-19, feat/corpus-b3-encode-retracted-phrase):** The `countMutationClaims` function was deleted from `.claude/hooks/run-mutations.mjs` (lines 165-175 in origin/master); its unit tests were re-homed to test the `scanClaims` function in `.claude/hooks/run-mutations.parse.test.mjs`. Decision 68 in `docs/decisions.md` at line 1996 names `countMutationClaims` in explanation of `notEncoded` entry split — this reference is now stale and must be removed. The logic it explains (that the counting function counts bare MUTATION tokens including prose) is still correct but the function name is gone. Ditto `.claude/agent-memory/implementation-critic/topics/commit-notes.md` line 244 (agent-memory scope, note separately from binding doc edits).
+- When a rules file POINTS to an agent file for content, verify the SPECIFIC content exists at the target after movement/refactor (instance 2026-09-07: pointer became a lie when target was deleted).
+- **Prose-paths guard mirror scope (2026-09-16):** When the guard's detection pattern widens, `.coderabbit.yaml` false-positive description must match. Commit 4714a817 widened pattern; 3846352f updated mirror at `.coderabbit.yaml:314`.
+- **Section name changes in agent-workflow.md (2026-09-17):** "## Post-Implementation Pipeline Order" → "## Pre-Push Review Gate". Cross-reference audit for dangling refs.
+- **SATURATED state and RULE EXISTS retirement (2026-09-20):** Learner tracker adds `SATURATED` (rule text exists, recurrence is behavioral). `RULE EXISTS` token retires to `SATURATED`. Four docs updated terminal-state lists. No steering drift. Spec commands verified (headroom OK at 166L/24KB, RULE CANDIDATE count 219, bash-bypass confirmed). Stop-hook 4 locations fixed; no 5th surface found.
 
-## Recipes
+## Recipes (abbreviated — full versions in comments above or .claude/rules/agent-doc-updater.md)
 
-### Migration reveals an undocumented structural constraint
-1. Add it to `docs/database.md` § Migration Rules as a numbered rule with a clear explanation; include example syntax where relevant (e.g. `DROP FUNCTION IF EXISTS` before `CREATE OR REPLACE` when the return type changes).
-2. No changes to `plan.md`, `decisions.md`, or `security.md` if the migration itself was already documented as complete.
-3. Bump the `docs/database.md` footer timestamp.
+- Migration reveals constraint → add to `docs/database.md` § Migration Rules
+- RPC superseded → mark old `(DEPRECATED)`, add new section, record Decision
+- Playwright E2E → mark phase complete in `docs/plan.md`, update test counts
+- Commit corrects false comment rationale → search docs for same false claim (instance: mc-content gate, 2026-08-18)
+- Doc says issue deferred but branch closes it → grep docs for that issue #, update prose
+- Claim re-typed unchanged in reflowed block → re-derive from source, not re-read (instance: generate-agent-files.js byte-for-byte claim, 2026-09-02)
+- CI gate added → audit `CLAUDE.md` §QA-pipeline for ambiguity (instance: unit test clarity, 2026-09-06)
+- Async pipeline clarified → verify `docs/plan.md` diagram and `CLAUDE.md` state async clearly, check steering docs
+- Rule concept renamed → grep for old term across `.claude/rules/*.md`, `.claude/agents/*.md`, `.claude/commands/*.md`; old term survives ONLY in historical passages
+- Rule file changed → bump footer to commit date; widen footer sweep beyond single-commit scope
+- Memory-only commits → audit binding docs for stale COUNT citations via grep
 
-### RPC superseded / deprecated by a newer one
-1. `docs/database.md` § RPC summary table — mark the old RPC `(DEPRECATED — use <new_rpc>)`; list the new RPC separately with its purpose.
-2. RPC detail sections — add a deprecation header to the old RPC's section; document the new RPC in full (parameters, behavior, atomicity guarantees).
-3. `docs/decisions.md` — record the deprecation as a CONFIRMED DECISION section, explaining the problem the new RPC solves (atomicity, partial-failure risk, etc.).
-4. Bump footer timestamps in both `docs/database.md` and `docs/decisions.md`, noting the reason.
-
-### Internal hook / utility extraction (not a breaking API change)
-- No doc updates needed when the hook/util is an internal implementation detail.
-- Document only if it becomes public API or is reused across multiple features.
-
-### RETURNS TABLE widened + sibling RPC added to a family (e.g. migs 118–121 Phase 2)
-1. RPC naming/summary table — update the changed RPC's one-liner to mention the new column count and new behavior; add the new sibling RPC as a separate entry.
-2. RPC detail section (changed RPC) — replace the `RETURNS TABLE` signature block; explain the structural reason for DROP+CREATE (RETURNS TABLE is not signature-compatible with CREATE OR REPLACE); document new columns + stripping guarantees; document any new security gate added (active-user gate, etc.).
-3. Insert a new RPC detail section for the sibling (new RPC) after its closest family member; include guard set, §15 carve-out if applicable, parameter list, return shape, and signature (no full body needed).
-4. §3 carve-out list ("Other functions sharing this carve-out") — add the new sibling to the list.
-5. Bulk dispatcher refactored (per-type helpers) — update the dispatcher's key-behavior bullets and SQL body; document internal helpers with REVOKE EXECUTE FROM PUBLIC in the key-behavior section; note Decision reference.
-6. Footer timestamp — prepend the new update entry.
-- Do NOT edit `.spec-workflow/steering/*.md` directly; flag any drift as DRIFT finding.
-
-### Playwright E2E tests added
-1. `docs/plan.md` — mark the relevant phase complete; list the new specs, helpers (Mailpit, Supabase), and scripts (`pnpm e2e`, `e2e:ui`, `e2e:headed`); update the status line and footer.
-2. `MEMORY.md` — keep the Tests summary count accurate (unit + integration + E2E); note any newly configured tooling (e.g. `@playwright/test`).
-3. Files to check: `apps/web/playwright.config.ts`, `apps/web/e2e/`, `apps/web/package.json` (new scripts), `pnpm-lock.yaml` (new dep).
-
-### A commit corrects a false rationale in a code comment (code-style.md §10 class)
-`plan.md`/`decisions.md` narrative sections sometimes COPY a code comment's justification for a
-gate/rule verbatim (e.g. "why this validator exists"). When a commit rewrites that comment because
-the original justification was FALSE (not just reworded — actually wrong), grep the doc prose for
-the same false claim's distinctive phrase, not just the file/rule name — the doc copy goes stale
-silently because the doc-diff itself never touches it (the false claim was in the CODE COMMENT, not
-in the doc, when it was first written). Fix the doc to state the corrected rationale, matching the
-new comment's reasoning, not just its conclusion. Instance (2026-08-18, `chore/part3-audit-followup`):
-`mc-content.ts`'s comment justified the MC key-balance gate with "guessable without reading a
-stem" — false, because the graded draw shuffles options `ORDER BY random()`. The commit rewrote the
-comment to the correct rationale (content-quality + admin-editor mis-render hazard); `docs/plan.md`
-carried the same false phrase in its "Why the MC pools have an enforced key-balance gate" callout,
-untouched by that commit's diff. count=1 (WATCHING) — promote the general check ("did a
-rationale-correcting commit leave a doc copy of the old rationale behind") if it recurs.
-
-### A doc line says an issue is "deferred"/"open" and the SAME branch closes it
-A `Closes #N` trailer in this branch's own commits does not retroactively fix a `plan.md`/
-`decisions.md` line elsewhere that still narrates `#N` as open/deferred — `gh issue view N` shows it
-OPEN until merge, so don't rely on issue state to catch this; grep `docs/plan.md`/`docs/decisions.md`
-for every issue number a `Closes #N` trailer in the branch's commits touches, and update any prose
-that characterizes that issue as open. Instance: `chore/part3-audit-followup` closed #1194 (recorded
-as resolved via new Decision 57), but `docs/plan.md`'s dated "Open: ... deferred ... #1194 ..." line
-was untouched by the branch's diff and still read as if #1194 were an open deferral.
-
-### Claim re-typed unchanged in a reflowed block (code-style.md §10 clause 5)
-A claim copied verbatim into a reflowed paragraph/comment block arrives on a `+` line but reads as
-already-reviewed text, slipping the one review most likely to catch it (diff-scoped or impl-critic
-opening the cited source file without suspicion). When a diff re-types a block unchanged, every claim
-it contains that a source file can answer (e.g., "function X does Y") must be re-derived from that
-source, not re-read. Instance (2026-09-02, `18757ddf`): `CLAUDE.md`'s claim about `generate-agent-files.js`
-comparing "byte-for-byte" — false, the actual code folds line endings — survived four passes because
-it was re-typed verbatim in a reflowed paragraph while impl-critic had the file open but verified a
-different claim.
-
-### CI gate addition / mechanical guard wiring (infrastructure change)
-When a commit adds a new CI gate (e.g., pipeline.test.mjs spec invariant), it triggers the
-`lefthook.yml` / `ci.yml` change rule. Audit CLAUDE.md § QA-pipeline for ambiguity about "Unit tests":
-the phrase "Unit tests deliberately excluded — full suite runs in CI" meant the full VITEST suite is
-excluded from pre-commit hooks but runs in CI. NOW that the CI lint job runs 8 hook/agent unit tests
-(check-soft-delete-guard.test.mjs + 7 others), the phrase is ambiguous — readers may infer NO unit tests
-run in pre-commit (true) and by implication only the vitest suite runs in CI (false, 8 more run there).
-**Fix: clarify that CI runs unit tests for mechanical guards and agent-access-control validation,
-separate from the full Vitest suite.** Add the phrase like "along with unit tests for mechanical guards
-and agent-access-control invariants" to the pre-commit description. Decisions: no entry needed —
-infrastructure, not project architecture. Instance: 2026-09-06 (commit `29cd8d0f`, #1256).
-
-### Async/notification-based pipeline clarification (agent behavior / infrastructure change)
-When a commit clarifies async behavior of agents or redefines "cycle complete" (e.g. dispatch returns immediately, notifying later; agents run in BACKGROUND, not synchronously), audit `docs/plan.md` pipeline diagram and `CLAUDE.md` post-commit section for accuracy.
-1. Verify the diagram clearly states ASYNC dispatch and notification, not sequential running order.
-2. Verify all agents are listed correctly (including semantic-reviewer if it was omitted before).
-3. Verify the learner's input sources are documented (the core agents on fixup commits).
-4. Check `.spec-workflow/steering/tech.md` — if it claims "4 post-commit agents run sequentially" or similar, flag as DRIFT; if it says "4 post-commit agents" without claiming synchronicity, no update needed.
-5. No decision entry needed — this is infrastructure clarification, not a new decision.
-
-### Decision section with renamed concept + deprecation mirrors (e.g. Decision 61)
-When a decision documents a renamed concept that is also mirrored in rule files / agent definitions:
-1. Verify all mirrors were updated in the same commit: grep the commit diff for the old term (e.g. "consecutive-clean") across `.claude/rules/*.md`, `.claude/agents/*.md`, `.claude/commands/*.md`.
-2. For historical/explanatory residue: the old term survives ONLY in passages explaining the history, never as a current rule statement. Verify each survivor is in a section marked "Why this is not" or "Until [date]" or similar.
-3. Cross-check: verify the new term (e.g. "minimum-rounds") appears in all the places the old term was removed.
-4. Validate the factual claims in Decision X by reading the referenced source files (not paraphrasing).
-5. Footnote: commit messages claiming "N instances survive" should be spot-checked — count them post-commit to verify. Minor discrepancies (N vs N+1) in commit prose don't affect doc accuracy if all instances are indeed in historical contexts.
-
-### Rule files updated in a commit must have their footers bumped
-When a commit substantially changes rule files (`.claude/rules/*.md`), the footer `*Last updated: YYYY-MM-DD*` in each modified file must be updated to the commit date. A stale footer signals to future readers that the file is outdated, causing them to distrust or re-verify current content. Found: 2026-09-06 commit d58572c8 updated agent-critic.md and agent-test-writer.md but left footers at 2026-08-25 and 2026-08-19 respectively.
-
-### Multi-file footer sweep: widen beyond the diff (2026-09-07)
-When doc-updater flags stale footers on a narrow diff scope (one commit), the orchestrator widens the sweep to the entire branch. Not all files changed on a branch appear in a single commit's diff. Found: commit d58572c8 touched 2 rule files with stale footers; on the full branch these were 7. The 7th (implementation-critic.md) has a DATED CHAIN footer (parenthetical continuation of entry dates), not the plain form — a first regex pass matched 6 files in plain form and reported completion; the chain-form survivor nearly escaped. Pattern: a detection that matches most instances and silently skips odd ones (different syntax) is a FALSE-CLEAN signal. Also applies to docs/plan.md and docs/decisions.md, which use running-log footers but still need bumping when the file is modified on the branch. When a Decision's body is substantially changed and the footer's summary of that decision is now inaccurate, the footer text itself must be rewritten (not just the date) to match the new body. Decision 61, modified 2026-09-07: the body clarified "different stated reason" (two routes to the same fix); the footer said "for the same reason" and needed both date bump + text rewrite.
-
-### Memory-only commits (agent-memory-scope exemption)
-
-A commit touching ONLY `.claude/agent-memory/**` runs under the docs-only exemption (skips implementation-critic). When such a commit reconciles tracker counts, audit binding docs to prevent stale figure citations.
-
-**Scope:** Search for any binding doc quoting the reconciled COUNT (the old figure). Binding docs: `docs/*.md`, `.claude/rules/*.md`, `CLAUDE.md` (not memory files, not steering docs).
-
-**Search method:** Grep for the specific number or row name changed by the commit. Use `grep -n '<number>\|<phrase>'` commands and paste results. Never hand-count; always run a grep command to derive the count.
-
-**Example (abcb1188, 2026-09-16):** Commit reconciles learner row "git flags/options placed AFTER `--`" from count=3→2 (reason: only two instances evidenced; three was fed without derivation). Search binding docs for any citation to count=3 for this row. Command: `grep -rn 'git.*flag\|after.*--.*count.*3' docs/*.md .claude/rules/*.md CLAUDE.md`. Result: zero instances quote this row at count=3. A different doc quotes "Promoted at count=3 (2026-09-16, feat/prose-path-guard)" but that refers to extent-quantifiers rule, not the git-flags row. Memory file caps: derive, never quote — `wc -lc .claude/agent-memory/<agent>/MEMORY.md` against the 200-line / 25 KB injection caps. This example originally quoted a byte figure that was wrong (row 109, instance 4). **NO DOC EDIT NEEDED.**
-
-- **Mutation-encoding progression (corpus-codification) — ongoing (2026-09-17 through 2026-09-19):** The `.spec-workflow/specs/corpus-codification/tasks.md` task documents mutation encoding progress per data file. **MILESTONES:** `chore/validate-mutation-group-refs` eliminated the gap measurement entirely — `--coverage` now prints: claim sites (total `// MUTATION:` comment occurrences in comment lines only), linked (those attached to a `// GROUP:` marker), encoded (mutations in the data file), and dangling ids (GROUP markers naming no mutation, which aborts `--run`). `chore/encode-file-size-guard-test-claims` brought `check-file-size-guard.mutations.json` to zero unencoded claims. `check-prose-claims.mutations.json` was already at 0, `check-prose-paths.json` now at 0. **CURRENT (feat/corpus-b3-encode-retracted-phrase, 2026-09-19):** `check-retracted-phrase` now has 65 claim sites all linked by GROUP markers (0 unlinked), 61 encoded mutations, 1 declared not-encodable (confirmed via `node .claude/hooks/run-mutations.mjs --coverage`). Task stays `[ ]` — `run-mutations.json` still carries unencoded sites.
-
-- **--coverage / GROUP: binding change (2026-09-18, chore/validate-mutation-group-refs):** `// GROUP: <id>, <id>` markers now mechanically link prose claims to their mutations. `--coverage` aborts non-zero and `--run` aborts (no grading) on a dangling id. `--coverage` deleted: prints `sites` / `linked` / `encoded` / `problems` separately; no longer subtracts to produce a gap. Any doc claiming `--coverage` reports a gap or "claims nobody encoded" is now false. **Found instance:** `.claude/rules/agent-learner.md` line 37 claimed `--coverage` reports "claims nobody encoded, which is what `--coverage` reports". Corrected in this session (see edits below).
-
-- **Linking claims to mutations via GROUP markers (2026-09-18, chore/link-guard-claims):** Branch adds `// GROUP: <id>` markers to every `// MUTATION:` comment in check-file-size-guard and check-retracted-phrase test suites, linking each claim to the mutations that grade it. Adds two `notEncoded` rows for tone_instructions mutations that cannot be encoded (they edit .coderabbit.yaml, not the test file target). Extracts check-file-size-guard.trailer.test.mjs as a new suite (same-commit extraction trigger per code-style.md §1). Adds corresponding CI step to .github/workflows/ci.yml. Implements Decision 75 (GROUP markers as the checked link). No rule changes, no decisions needed. Task "Encode the MUTATION: comment, or declare it unencodable" already marked [x] in corpus-codification spec; no update needed.
-
-- **Spawn testkit helpers (2026-09-18, chore/record-mechanical-lever / #1303):** Branch adds `.claude/hooks/spawn.testkit.mjs` (shared spawn-verdict helpers: `assertUsable`, `runNode`, `verdictOf`) and corresponding test + mutations. Not a new CI gate — it's a shared helper used by existing guard suite tests (check-commit-claims, check-file-size-guard, etc.). **Design judgment:** spawn helper does NOT interpret exit codes (status-vs-no-verdict only) because exit 2 means "could not run" in some guards and "BLOCK (success)" in others. Implementation detail, no decisions.md entry needed. No CLAUDE.md §QA-pipeline update needed — this adds a unit test for a shared helper, not a new CI gate. All GROUP markers link to mutations.json IDs; no verification failures.
-
-- **Baseline policy amendment (2026-09-18):** code-style.md §1 limits-policy mirrors in docs/decisions.md Decision 65 + steering/structure.md updated.
-- [Non-vacuous negatives scope expansion](topics/non-vacuous-negatives-scope-expansion.md) — 2026-09-19, test/non-vacuous-integration-negatives.
-- **Hard-delete exception scope in code-style.md §7 (2026-09-19, fix/redteam-seed-atomicity):** The E2E Spec Hermiticity rule §7 item 4 describes the hard-delete exception narrowly: "hard-delete-by-design tables with no `deleted_at` and no FK children (e.g. `quiz_drafts`)" — a technical condition about missing columns. However, `question_comments` is hard-delete-by-design per `docs/database.md` §3 for a policy reason ("low audit value"), and it HAS `deleted_at`. The `.coderabbit.yaml` E2E block correctly states the broader scope: "hard-delete-by-design tables ... DOCUMENTED as hard-delete-by-design in docs/database.md §3 (quiz_drafts, exam_config_distributions, question_comments)", noting that question_comments HAS the column but is still hard-delete-by-policy and "§3 is the authority". The rule's exception description should be expanded to reference §3 and clarify that technical missing-column cases (quiz_drafts, exam_config_distributions) are one type; policy-documented cases like question_comments are another. No contradiction; scope needs widening for clarity.
-- **--update-expected mode documentation (2026-09-19, feat/corpus-update-expected):** Branch adds new mode to `.claude/hooks/run-mutations.mjs` but does NOT update the file's Usage header comment. The header (lines 13-17 in the current file) documents `--list`, `--coverage`, and the default `--run` mode, but omits `--update-expected`. The corpus-codification spec task was updated to `[x]` with accurate body text. CI change is just adding a test file to an existing step (not a new gate, no CLAUDE.md audit needed). Steering docs have no mutation-harness mentions, no drift.
-- **Measurement-script pattern: Decision 76 as precedent (2026-09-19, docs/parked-and-next-work):** Branch adds `.claude/hooks/measure-quantifier-swap.mjs`, a committed measurement tool wired into NO stage. It is not a gate — not in `lefthook.yml`, `ci.yml`, or `.claude/pipeline.json`. Decision 76 records its measurement result and decides NOT to build the check. This follows the Decision 65/67 pattern where measurements ship as scripts (not prose numbers) so they're re-derivable. A measurement script is mentioned in the Decision body that cites it as authoritative for re-derivation, but does not need binding-doc changes when added — it's an implementation artifact, not architecture. Similar to `measure-prose-claims.mjs` and `measure-prose-paths.mjs`, which are only mentioned in the Decisions they support.
-
-*Last updated: 2026-09-19*
-
-Recent audits (2026-09-14 through 2026-09-19): Decision 66/73/74 calibration and documentation, commit-msg gate mirrors, false-positive lists, memory-only binding audits, test-count inventory checks, waiver-residue references, section-name drift, CR-local round-membership, mutation-encoding premise and gap progression, GROUP marker linking, baseline-policy mirrors, mutation claim deletion. See git log for detail.
+*Last updated: 2026-09-20*

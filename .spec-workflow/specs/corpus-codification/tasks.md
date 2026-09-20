@@ -688,16 +688,20 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
 
 - [x] **6.0 — CR-local retirement.** Merged `dd0491cc` (PR #1320).
 - [x] **6.0b — learner termination.** `SATURATED` added to the tracker state machine; the
-      undocumented `RULE EXISTS` token migrated to it; 7 terminal rows relocated, index back under
-      the injection cap. Derive headroom: `wc -lc .claude/agent-memory/learner/MEMORY.md`.
+      undocumented `RULE EXISTS` token migrated to it; 7 terminal rows relocated out of the
+      injected index. Derive headroom: `wc -lc .claude/agent-memory/learner/MEMORY.md`.
 - [ ] **6.0c — triage the remaining `RULE CANDIDATE` rows.** Needs judgment per row, not a regex: a
       status citing a rule location does not say whether the rule EXISTS there or BELONGS there.
-      Derive the live count:
+      Derive the count, index and archive separately:
       ```bash
-      awk -F'|' '/^\|/ && NF>4 {s=$(NF-1); if ($NF ~ /[A-Za-z]/) s=$NF
-        gsub(/^[ \t]+|[ \t]+$/,"",s); if (s ~ /^RULE CANDIDATE/) n++} END{print n+0}' \
-        .claude/agent-memory/learner/MEMORY.md .claude/agent-memory/learner/topics/tracker-archive.md
+      for f in .claude/agent-memory/learner/MEMORY.md \
+               .claude/agent-memory/learner/topics/tracker-archive.md; do
+        printf '%4s  %s\n' "$(awk -F'|' '/^\|/ && NF>4 {s=$(NF-1); if ($NF ~ /[A-Za-z]/) s=$NF
+          gsub(/^[ \t]+|[ \t]+$/,"",s); if (s ~ /^RULE CANDIDATE/) n++} END{print n+0}' "$f")" "$f"
+      done
       ```
+      Only the index rows are live; archive rows are historical snapshots and some restate a
+      pattern a later row supersedes.
 - [ ] **6.1 — measure before building.** Guard candidates below ship through a measure step, never
       straight to blocking. Decision 78 governs.
 
@@ -714,4 +718,4 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
 5. **A tracker row whose count exceeds the promotion threshold with no terminal state.**
 6. **Bash writes bypass `review-gate.js`** — `.claude/settings.json` routes `Bash` to
    `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:
-   `grep -c "review-gate.json" .claude/hooks/guard-bash.js`
+   `grep -c "review-gate.json" .claude/hooks/guard-bash.js || true`  # 0 matches exits 1

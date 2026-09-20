@@ -19,7 +19,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 - Let the learner edit agent definition files (`.claude/agents/*.md`) directly — propose changes and let the orchestrator review.
 - Skip the learner because "nothing interesting happened." Run it on every branch. Absence of findings is itself data.
 ## What The Learner Tracks
-- Issue frequency table: pattern name, first seen, count, last seen, status (watching/rule-proposed/rule-added)
+- Issue frequency table: pattern name, first seen, count, last seen, status (tokens: `agent-memory.md` § Tracker state machine)
 - Lessons per session: what went wrong, what got fixed, what changed
 - Positive signals: patterns that stopped recurring after a fix
 - False positive tracking: findings that turned out to be wrong

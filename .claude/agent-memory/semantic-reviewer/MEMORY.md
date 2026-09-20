@@ -7,7 +7,7 @@
 ## Recurring Issues Tracker
 
 > Only patterns that recurred ≥2× as distinct mechanisms are tracked. Count increments on a distinct occurrence, never a re-mention. Rows transition state, never deleted.
-> Terminal-state rows (PROMOTED/RESOLVED/RESOLVED-WATCH/FALSE POSITIVE) are relocated verbatim to [tracker-archive](topics/tracker-archive.md) — retained, still counted, not deleted. Live rows below are the active (WATCHING / RULE CANDIDATE) set.
+> Terminal-state rows (PROMOTED/SATURATED/RESOLVED/RESOLVED-WATCH/FALSE POSITIVE) are relocated verbatim to [tracker-archive](topics/tracker-archive.md) — retained, still counted, not deleted. Live rows below are the active (WATCHING / RULE CANDIDATE) set.
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|

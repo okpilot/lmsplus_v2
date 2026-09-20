@@ -62,8 +62,9 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
 - **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
-  *(Both bullets above are SUPERSEDED: format moved to Lefthook `biome-check`, and test and verify
-  left the Stop hook entirely — `on-stop.sh` is the toast alone. See
+  *(The `Stop (format + test + verify + notify)` clause above and the Format-on-Stop bullet are
+  SUPERSEDED: format moved to Lefthook `biome-check`, test and verify left the Stop hook entirely —
+  `on-stop.sh` is the toast alone. The PreToolUse half is live. See
   `### Claude Code Config Structure`.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
@@ -353,6 +354,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
 
 > Updated 2026-07-11: run-test-writer.sh was removed — the test-writer runs as an Agent-tool subagent and verifies its own tests per .claude/rules/agent-test-writer.md; the pnpm-test safety net lives in that flow.
+> Updated 2026-09-20: the `--silent` bullet is moot — `on-stop.sh` runs no tests at all.
 
 ---
 
