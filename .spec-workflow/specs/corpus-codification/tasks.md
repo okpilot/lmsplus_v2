@@ -119,6 +119,34 @@ Evidence: on `fix/learner-tracker-termination` five review rounds proposed zero 
 asked what could be deleted and returned Decision 78 in full plus the 21,713-byte `doc-updater`
 memory loss of `8091d3b4` that no round had seen. Both went in `e4d375d8`.
 
+**NEXT+1 — agent-memory audit** (user directive, 2026-09-21). Audit the whole `memory: project`
+apparatus. Default verdict is DELETE; a file survives only on a stated argument. What does not
+survive is erased and mechanically prevented from returning — remove `memory: project` from the
+frontmatter, and guard that no `.claude/agent-memory/<agent>/` exists for an agent without the key.
+
+Settle first, because it decides the rest: how many rules in `.claude/rules/` were promoted FROM a
+tracker count, versus written directly? Derive with `git log -S` over the rule files against each
+row's first-seen date. Near zero means the trackers never produced their one intended output.
+
+Evidence: `8091d3b4` lost 21,713 bytes of `doc-updater/MEMORY.md` and no round noticed across five
+rounds. Round 6 found three false rows in memory, one recording a TRUE finding as refuted. Round 7
+found a row whose own line numbers pointed away from the defect it existed to prevent, which is why
+three regressions survived the sweep. The gate's diff scope excludes `.claude/agent-memory/**`, so
+nothing audits the artifact every promotion decision reads.
+
+Proposed cut, to be argued per file rather than assumed: a lookup TABLE survives
+(`red-team/topics/attack-surface.md` — IDs collide without it; test-writer's mock patterns;
+code-reviewer's suppression list); a NARRATIVE of past sessions does not.
+
+Carried into this audit, unresolved here: `RESOLVED-WATCH` is defined as "still worth watching" yet
+`/insights` archives it to a topic file, and only `MEMORY.md` is injected — so archiving ends the
+watch. Forbidding it needs a verdict for compound rows (`PROMOTED … RESOLVED-WATCH`) and a sweep of
+the rows already archived. Derive both:
+`grep -c 'RESOLVED-WATCH' .claude/agent-memory/*/topics/tracker-archive.md`
+
+Blast radius is the risk: memory deletion is irreversible and the gate cannot see it. Each candidate
+gets a blast-radius agent — the second clause of the parked `rules/delete-verdict` PR.
+
 **BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
 Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
@@ -725,8 +753,8 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
 3. **A rule clause landing with no `Enforcer` disposition.** Ships as a RATCHET, never a gate:
    baseline existing clauses, require the disposition only on new ones. Hard split,
    full Rule-Mirror Sync.
-4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** The `run-mutations.mjs — wired nowhere`
-   entry above grades an entry by a SCRIPT PATH; a wired-stage reading says the entry names
+4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** The `` `.claude/hooks/run-mutations.mjs` — wired nowhere `` entry
+   above grades an entry by a SCRIPT PATH; a wired-stage reading says the entry names
    the STAGE. Both cannot hold. No tracker carries an `Enforcer` column yet, so a guard built now
    scans an empty set and exits clean — the fail-open shape. Settle which artifact the entry names,
    and confirm the column exists, before building.

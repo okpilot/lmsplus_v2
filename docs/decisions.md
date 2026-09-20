@@ -61,7 +61,7 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
 - **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (Windows toast; no-op on Linux — #1322)
-- **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
+- **Stop, not PostToolUse** — avoids "files changed" context bloat. The hook formats nothing (#1322).
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
 ### MCPs (confirmed 2026-03-11)
@@ -137,7 +137,7 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              notify on Stop
+│                              Stop: toast, no-op on Linux (#1322)
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
@@ -349,6 +349,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `test-writer.md` prompt updated: "Always run tests you wrote. Never leave broken tests."
 - `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
 
+> Updated 2026-09-21: the `--silent` bullet is moot — `on-stop.sh` runs no tests at all (#1322).
 > Updated 2026-07-11: run-test-writer.sh was removed — the test-writer runs as an Agent-tool subagent and verifies its own tests per .claude/rules/agent-test-writer.md; the pnpm-test safety net lives in that flow.
 
 ---
