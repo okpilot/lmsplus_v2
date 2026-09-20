@@ -774,6 +774,9 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a p
      filename that is a prefix of a different wired filename reads as wired, and a name occurring
      in a comment or a test-only step proves occurrence, never a gating stage. Parsing executable
      command entries is what closes the second; measure its noise rate first.
+     **Expected non-guards — these are SUPPOSED to be unwired and must not read as defects:**
+     `measure-*.mjs` are deliberately unwired, and `check-mirror-sync.mjs` is orchestrator-invoked,
+     not stage-wired.
   5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
      behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
      **May honestly resolve to `NONE — cannot`.** A hook cannot observe whether an agent ran.
