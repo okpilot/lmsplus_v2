@@ -48,23 +48,6 @@ buried among thousands of lines a machine should be doing.
 Estimated landing: **~1,550 injected lines** (from the measured total above). ESTIMATE, not a measurement —
 re-derive per slice rather than quoting it.
 
-### Secondary metric — ROUNDS-TO-CLEAN per PR (added 2026-09-20)
-
-```bash
-git log --format='%s' origin/master..HEAD | grep -cE 'round-[0-9]+ fixup'
-```
-
-**It is a LOWER BOUND, not the round count**, and the bound is exact only when the loop stops
-clean: it counts rounds that PRODUCED a pooled fixup. A round that finds nothing produces no
-commit, and an edit landing after the ceiling is not a round's fixup at all. Requires the
-convention that every pooled fixup subject contains `round-N fixup`; the number is meaningless on
-a branch that did not follow it. **State no measured value here** — a commit whose own subject
-matches the pattern changes the answer, so any figure written into this file is falsified by the
-commit that writes it. Run the command.
-
-**Not the learner's row counts.** Those rise when detection improves as well as when defects
-increase, so they cannot distinguish the two.
-
 ## Requirements
 
 R1. A rule that is mechanically checkable MUST be a check, not prose.

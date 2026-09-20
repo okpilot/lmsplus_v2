@@ -714,156 +714,156 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a p
 ### ORDER
 
 - [x] **6.0 — descope the widening and ship the CR-local retirement.** Merged `dd0491cc` (PR #1320).
-      The widening returns at 6.5 as a one-line data edit.
+  The widening returns at 6.5 as a one-line data edit.
 - [ ] **6.0b — REPAIR THE LEARNER FIRST.** Three faults:
-      (a) the index sits at the injection cap, so the next run's writes are silently invisible;
-      (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state;
-      (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
-          forever. (c) is the live defect; (b) is thinner than it looks — see the findings below.
+  (a) the index sits at the injection cap, so the next run's writes are silently invisible;
+  (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state;
+  (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
+      forever. (c) is the live defect; (b) is thinner than it looks — see the findings below.
 
-      **No PR in this sequence deletes an injected line** — the lines come out at 6.5 and Slice 3.
-      Re-derive the metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
-      `requirements.md`; track cost with the secondary metric recorded there.
+  **No PR in this sequence deletes an injected line** — the lines come out at 6.5 and Slice 3.
+  Re-derive the metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
+  `requirements.md`.
 
-      **FOUR PRs, in this order (user directive 2026-09-20). The guard PRECEDES the curation.**
+  **FOUR PRs, in this order (user directive 2026-09-20). The guard PRECEDES the curation.**
 
-      Derive every figure. The PARSE is part of the claim, because three parses disagree:
-      ```bash
-      L=.claude/agent-memory/learner/MEMORY.md
-      A=.claude/agent-memory/learner/topics/tracker-archive.md
-      wc -lc $L   # against the hard 25600-byte / 200-line cap; the BYTE cap binds first
-      awk -F'|' '/^\|/ && NF>4 {st=$5; gsub(/^ +/,"",st); if (st ~ /^RULE CANDIDATE/) n++} END{print n+0}' $A
-      for f in .claude/agent-memory/*/MEMORY.md; do printf '%7s %s\n' "$(wc -c <"$f")" "$f"; done
-      ```
-      **`/^\|/` is load-bearing.** Without it the count picks up a pasted grep-output line that is
-      itself row-shaped, so `-F'|'` cannot tell it from a row. A bare `grep -c` over-counts much
-      further — rows in other states quote the phrase in their status prose.
+  Derive every figure. The PARSE is part of the claim, because three parses disagree:
+  ```bash
+  L=.claude/agent-memory/learner/MEMORY.md
+  A=.claude/agent-memory/learner/topics/tracker-archive.md
+  wc -lc $L   # against the injection cap in agent-memory.md; the BYTE cap binds first
+  awk -F'|' '/^\|/ && NF>4 {st=$5; gsub(/^ +/,"",st); if (st ~ /^RULE CANDIDATE/) n++} END{print n+0}' $A
+  for f in .claude/agent-memory/*/MEMORY.md; do printf '%7s %s\n' "$(wc -c <"$f")" "$f"; done
+  ```
+  **`/^\|/` is load-bearing.** Without it the count picks up a pasted grep-output line that is
+  itself row-shaped, so `-F'|'` cannot tell it from a row. A bare `grep -c` over-counts much
+  further — rows in other states quote the phrase in their status prose.
 
-      **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`. The corrected awk
-      above; the `SWEPT` marker on the CR-local retirement block in BUILD ORDER; the `SATURATED`
-      annotation on the `backlog-burndown` figures; a false-claim sweep over the four files that
-      stated where formatting and tests run. Derive per file:
-      ```bash
-      for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do
-        echo "== $f"
-        git show dd0491cc:"$f" | grep -niE 'stop.{0,40}(biome|vitest|test)|lefthook pre-commit'
-      done
-      ```
-      **Pinned to `dd0491cc`, not `origin/master`** — the branch-point is the state being described,
-      and `origin/master` advances the moment this merges. **`-i` is load-bearing:** the text says
-      `Stop` and `Lefthook`, so a case-sensitive run returns nothing for two of the four files and
-      reads as a refutation. The pattern is deliberately broad — filter the hits.
-      Plus **Decision 78** and the guard candidates below. No code.
+  **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`. The corrected awk
+  above; the `SWEPT` marker on the CR-local retirement block in BUILD ORDER; the `SATURATED`
+  annotation on the `backlog-burndown` figures; a false-claim sweep over the four files that
+  stated where formatting and tests run. Derive per file:
+  ```bash
+  for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do
+    echo "== $f"
+    git show dd0491cc:"$f" | grep -niE 'stop.{0,40}(biome|vitest|test)|lefthook pre-commit'
+  done
+  ```
+  **Pinned to `dd0491cc`, not `origin/master`** — the branch-point is the state being described,
+  and `origin/master` advances the moment this merges. **`-i` is load-bearing:** the text says
+  `Stop` and `Lefthook`, so a case-sensitive run returns nothing for two of the four files and
+  reads as a refutation. The pattern is deliberately broad — filter the hits.
+  Plus **Decision 78** and the guard candidates below. No code.
 
-      **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to
-      blocking.** Decision 78 governs; `Enforcer: NONE` means CANNOT, never DID NOT.
-      1. **Tracker invariants** → PR 1, `check-tracker-invariants.mjs`. Measured need: the index
-         sits at its cap and three other agents' archives hold non-terminal rows.
-      2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Learner row at
-         count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1.
-      3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer,
-         which does not exist yet. Hard split, full Rule-Mirror Sync.
-      4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
-         set: assert the named script appears in one of the THREE wiring surfaces Decision 78's
-         derivation reads — `lefthook.yml`, `.github/workflows/ci.yml`, `.claude/settings.json`.
-         Decision 78 carries the derivation; run it before assuming the list is short. A guard
-         whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape reads as
-         coverage while gating nothing.
-      5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
-         behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
-         **May honestly resolve to `NONE — cannot`.** A hook cannot observe whether an agent ran.
-         The only tractable shape is commit-time — a commit touching N+ files referencing a plan or
-         spec item — and that needs 6.1's measure step first: the obvious detector plausibly fires
-         on most mechanical multi-file commits, a PREDICTION, unmeasured. Under Decision 78 a
-         `NONE` is a legitimate outcome PROVIDED it says so out loud.
+  **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to
+  blocking.** Decision 78 governs; `Enforcer: NONE` means CANNOT, never DID NOT.
+  1. **Tracker invariants** → PR 1, `check-tracker-invariants.mjs`. Measured need: the index
+     sits at its cap and three other agents' archives hold non-terminal rows.
+  2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Learner row at
+     count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1.
+  3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer,
+     which does not exist yet. Hard split, full Rule-Mirror Sync.
+  4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
+     set: assert the named script appears in one of the THREE wiring surfaces Decision 78's
+     derivation reads — `lefthook.yml`, `.github/workflows/ci.yml`, `.claude/settings.json`.
+     Decision 78 carries the derivation; run it before assuming the list is short. A guard
+     whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape reads as
+     coverage while gating nothing.
+  5. **plan-critic not run before execution on a multi-file change.** `CLAUDE.md` gates Execute
+     behind validate → plan-critic → approve with no size exemption; no enforcer covers it.
+     **May honestly resolve to `NONE — cannot`.** A hook cannot observe whether an agent ran.
+     The only tractable shape is commit-time — a commit touching N+ files referencing a plan or
+     spec item — and that needs 6.1's measure step first: the obvious detector plausibly fires
+     on most mechanical multi-file commits, a PREDICTION, unmeasured. Under Decision 78 a
+     `NONE` is a legitimate outcome PROVIDED it says so out loud.
 
-      **PR 1 — the guard, ALONE.** `check-tracker-invariants.mjs` + tests + baseline, wired
-      pre-commit and CI, ratcheted like `check-file-size-guard.mjs`. No prose, no rule change, no
-      curation — provable in isolation.
-      **The state vocabulary ships as DATA in `.claude/pipeline.json`, never hardcoded in the
-      guard.**
-      Invariants — structural, not prose-semantic:
-      index under both caps · every status field opens with a state present in the data · no row
-      vanishes between commits · a non-terminal row in an archive sits under a section marked a
-      budget relocation · `PROMOTED → <location>` resolves.
-      The first four are `wc`/parse/git-derivable and need no calibration. The fifth does: a
-      location is often a section reference (`§10 cl.8`), not a path, so measure its noise rate
-      before wiring it.
-      Baseline existing violations, so nothing is blocked today and only NEW ones are refused.
+  **PR 1 — the guard, ALONE.** `check-tracker-invariants.mjs` + tests + baseline, wired
+  pre-commit and CI, ratcheted like `check-file-size-guard.mjs`. No prose, no rule change, no
+  curation — provable in isolation.
+  **The state vocabulary ships as DATA in `.claude/pipeline.json`, never hardcoded in the
+  guard.**
+  Invariants — structural, not prose-semantic:
+  index under both caps · every status field opens with a state present in the data · no row
+  vanishes between commits · a non-terminal row in an archive sits under a section marked a
+  budget relocation · `PROMOTED → <location>` resolves.
+  The first four are `wc`/parse/git-derivable and need no calibration. The fifth does: a
+  location is often a section reference (`§10 cl.8`), not a path, so measure its noise rate
+  before wiring it.
+  Baseline existing violations, so nothing is blocked today and only NEW ones are refused.
 
-      **PR 2 — `SATURATED` + mirror sync + Decision 79.** Terminal state: the rule text exists and
-      the pattern is behavioural, so the count has stopped being evidence and the row stops
-      incrementing. A new mechanism the text does not cover starts a NEW row at 1. Shrinks PR 1's
-      baseline by exactly what it fixes.
+  **PR 2 — `SATURATED` + mirror sync + Decision 79.** Terminal state: the rule text exists and
+  the pattern is behavioural, so the count has stopped being evidence and the row stops
+  incrementing. A new mechanism the text does not cover starts a NEW row at 1. Shrinks PR 1's
+  baseline by exactly what it fixes.
 
-      **PR 3 — the curation, which TESTS the guard.** Index back under the cap; the genuinely
-      unpromoted patterns restored CONDENSED, one line each pointing at its archive row — verbatim
-      does not fit. Corrects two false header contracts. Carries the `[x]` on this item.
+  **PR 3 — the curation, which TESTS the guard.** Index back under the cap; the genuinely
+  unpromoted patterns restored CONDENSED, one line each pointing at its archive row — verbatim
+  does not fit. Corrects two false header contracts. Carries the `[x]` on this item.
 
-      **Findings that must survive a context clear.** Each carries its own basis; re-derive rather
-      than trusting the sentence.
-      - **`RULE EXISTS` is a state in USE and defined nowhere.**
-        `git grep -n "RULE EXISTS" -- '.claude/rules' '.claude/agents' 'CLAUDE.md'` returns nothing,
-        while learner archive rows carry it. PR 1's closed vocabulary must adopt or migrate it, or
-        it fails those rows.
-      - **`.claude/commands/insights.md` is a state-set mirror**, and the set it names is not the
-        canonical one. The enumeration sits at the far end of one very long line, past where a
-        truncated read stops.
-      - **`agent-memory.md` already forbids this and misses by one word** — it binds
-        "**auto-curation** drop a tracker row to save space". The archive's own section headings
-        attribute these relocations to deliberate budget curation inside named learner cycles,
-        which that subject does not cover. Fix the clause; do not add a rule. (Whether ANY
-        relocation was native auto-curation is untested — the headings are the evidence, and
-        native curation does prune `MEMORY.md`.)
-      - **Decision 76 and the learner's tracker disagree** on that row's state. Decision 79 resolves
-        it explicitly rather than silently overwriting it.
-      - **"count increments only for a DISTINCT mechanism" is not mechanically checkable.** No
-        parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and
-        keep it as judgment.
-      - **The buried set is THIN.** Triage each archived candidate into: covered by existing rule
-        text / live under other wording / genuinely unpromoted. Only the third class is restored
-        and it was by far the smallest. A delegated triage found no high-count pattern buried, with
-        four of its coverage verdicts spot-checked against source; re-run it rather than trusting
-        that. The real signal is the LIVE tracker recurring THROUGH text that already exists —
-        fault (c), not fault (b).
+  **Findings that must survive a context clear.** Each carries its own basis; re-derive rather
+  than trusting the sentence.
+  - **`RULE EXISTS` is a state in USE and defined nowhere.**
+    `git grep -n "RULE EXISTS" -- '.claude/rules' '.claude/agents' 'CLAUDE.md'` returns nothing,
+    while learner archive rows carry it. PR 1's closed vocabulary must adopt or migrate it, or
+    it fails those rows.
+  - **`.claude/commands/insights.md` is a state-set mirror**, and the set it names is not the
+    canonical one. The enumeration sits at the far end of one very long line, past where a
+    truncated read stops.
+  - **`agent-memory.md` already forbids this and misses by one word** — it binds
+    "**auto-curation** drop a tracker row to save space". The archive's own section headings
+    attribute these relocations to deliberate budget curation inside named learner cycles,
+    which that subject does not cover. Fix the clause; do not add a rule. (Whether ANY
+    relocation was native auto-curation is untested — the headings are the evidence, and
+    native curation does prune `MEMORY.md`.)
+  - **Decision 76 and the learner's tracker disagree** on that row's state. Decision 79 resolves
+    it explicitly rather than silently overwriting it.
+  - **"count increments only for a DISTINCT mechanism" is not mechanically checkable.** No
+    parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and
+    keep it as judgment.
+  - **The buried set is THIN.** Triage each archived candidate into: covered by existing rule
+    text / live under other wording / genuinely unpromoted. Only the third class is restored
+    and it was by far the smallest. A delegated triage found no high-count pattern buried, with
+    four of its coverage verdicts spot-checked against source; re-run it rather than trusting
+    that. The real signal is the LIVE tracker recurring THROUGH text that already exists —
+    fault (c), not fault (b).
 - [ ] **6.1 — measure before building.** A calibration script over N commits: for each candidate
-      detector, how often would it have fired, and what share of firings are noise.
-      `measure-prose-claims.mjs`, `measure-prose-paths.mjs` and `measure-quantifier-swap.mjs` are
-      the pattern to copy.
+  detector, how often would it have fired, and what share of firings are noise.
+  `measure-prose-claims.mjs`, `measure-prose-paths.mjs` and `measure-quantifier-swap.mjs` are
+  the pattern to copy.
 - [ ] **6.2 — data layer.** **Supersedes Slice 5's D1, which says member 6 stays OUT of
-      `pipeline.json` `agents` and takes a separate top-level key.** Keep ONE roster and make the
-      closure assertion conditional: `kind: "agent" | "skill"` in `.claude/pipeline.json`;
-      `.claude/pipeline.test.mjs` skips the `.claude/agents/<name>.md` closure assertion for
-      `kind: skill`; register the skill member. Promote the range incantation and the round ceiling
-      to data in the same file. **No prose touched in this step** — it must be provable in
-      isolation.
+  `pipeline.json` `agents` and takes a separate top-level key.** Keep ONE roster and make the
+  closure assertion conditional: `kind: "agent" | "skill"` in `.claude/pipeline.json`;
+  `.claude/pipeline.test.mjs` skips the `.claude/agents/<name>.md` closure assertion for
+  `kind: skill`; register the skill member. Promote the range incantation and the round ceiling
+  to data in the same file. **No prose touched in this step** — it must be provable in
+  isolation.
 - [ ] **6.3 — guard, ADVISORY and baselined.** `check-prose-claims.mjs` extended to
-      `.claude/pipeline.json`'s sets, same ratchet and baseline shape it already uses for
-      `.claude/limits.json`. Baseline every existing restatement so no commit is blocked. Advisory
-      only. **Never ship this blocking on day one** — the noise rate is unmeasured until 6.1
-      reports.
+  `.claude/pipeline.json`'s sets, same ratchet and baseline shape it already uses for
+  `.claude/limits.json`. Baseline every existing restatement so no commit is blocked. Advisory
+  only. **Never ship this blocking on day one** — the noise rate is unmeasured until 6.1
+  reports.
 - [ ] **6.4 — flip to blocking** once 6.1's noise rate justifies it. State the rate in the commit.
 - [ ] **6.5 — conversion, ONE claim per PR, fewest sites first; the roster LAST.** Each PR: triage
-      every hit into restatement / historical record / pointer, convert only restatements, shrink
-      the baseline by exactly what it converted. The widening rides the roster PR as a data edit.
+  every hit into restatement / historical record / pointer, convert only restatements, shrink
+  the baseline by exactly what it converted. The widening rides the roster PR as a data edit.
 - [ ] **6.6 — forced-inline consumers: generate or assert, never hand-maintain.** `.coderabbit.yaml`,
-      `.claude/hooks/run-security-auditor.sh`, `package.json`, and the security-auditor checklist.
-      `.claude/pipeline.json` `modelLiteralSites` already ASSERTS one such literal — generalise
-      that, or generate the file and fail CI when the committed copy differs from the generated one.
+  `.claude/hooks/run-security-auditor.sh`, `package.json`, and the security-auditor checklist.
+  `.claude/pipeline.json` `modelLiteralSites` already ASSERTS one such literal — generalise
+  that, or generate the file and fail CI when the committed copy differs from the generated one.
 - [ ] **6.7 — discovery, for claims nobody registered.** 6.2-6.6 protect only facts someone thought
-      to register. A shingle detector — every ~12-word span appearing in 2+ corpus files, ratcheted
-      — catches duplication without knowing what the claim is. Same ramp: measure, baseline,
-      advisory, blocking.
+  to register. A shingle detector — every ~12-word span appearing in 2+ corpus files, ratcheted
+  — catches duplication without knowing what the claim is. Same ramp: measure, baseline,
+  advisory, blocking.
 - [ ] **6.8 — RUN the corpus's commands. Planned from the start, built last.** 6.5 multiplies the
-      derivations, so the runner must exist before the conversion volume does.
-      Shape: derivation blocks are opt-in marked; a runner executes each in a throwaway worktree,
-      never the main tree, and asserts EXIT 0. Precedent is `.claude/hooks/run-mutations.mjs`.
-      **Bounds, stated because a green run must not imply more than it checks:**
-      exit 0 is not correctness — it catches a nonexistent flag, a deleted path, a broken pipeline,
-      not a command whose answer drifted. Do NOT assert stated output values: pinning a number
-      re-introduces the staleness that shipping the command was meant to remove. Network-dependent
-      commands (`gh api`) need their own tag and must not fail the run offline or rate-limited.
-      An unmarked illustrative snippet is out of scope by construction.
+  derivations, so the runner must exist before the conversion volume does.
+  Shape: derivation blocks are opt-in marked; a runner executes each in a throwaway worktree,
+  never the main tree, and asserts EXIT 0. Precedent is `.claude/hooks/run-mutations.mjs`.
+  **Bounds, stated because a green run must not imply more than it checks:**
+  exit 0 is not correctness — it catches a nonexistent flag, a deleted path, a broken pipeline,
+  not a command whose answer drifted. Do NOT assert stated output values: pinning a number
+  re-introduces the staleness that shipping the command was meant to remove. Network-dependent
+  commands (`gh api`) need their own tag and must not fail the run offline or rate-limited.
+  An unmarked illustrative snippet is out of scope by construction.
 
 ### Hook surfaces — which layer belongs where
 

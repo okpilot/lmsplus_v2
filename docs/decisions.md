@@ -2374,18 +2374,15 @@ them.
 check — or an explicit `Enforcer: NONE — <why>`. Three outcomes, never two: **enforce**,
 **measure-then-enforce**, or **delete the rule**.
 
-**Order is measure → enforce → change, not enforce → change.** A guard built on a hypothesis
-encodes the wrong invariant and then reads as coverage while providing none.
+**Order is measure → enforce → change, not enforce → change.**
 
 **Scope: invariants that can silently regress.** Not every edit. A one-off correction that cannot
 recur needs no enforcer; a rule new code can violate does.
 
 **`NONE` means CANNOT, never DID NOT.** `notEncoded` in the `*.mutations.json` files is the model:
 `run-mutations.mjs` REJECTS an entry lacking a non-empty `claim` and `why`, so the reason is
-mandatory rather than customary. Surfacing is weaker, and worth stating exactly: `--list` prints
-each `claim` for `notEncoded` entries (for encoded mutations it prints the id); `--coverage` prints
-only the COUNT per file; `why` prints under neither, so it is readable only in the data file.
-Derive with `node .claude/hooks/run-mutations.mjs --coverage` and `--list`.
+mandatory rather than customary. `why` is readable only in the data file. Derive with
+`node .claude/hooks/run-mutations.mjs --coverage` and `--list`.
 
 **A `NONE` WILL be reviewed by four mechanisms, three mechanical — designed state, not present
 state. The tracker guard is PR 1 of this sequence; the write-time check and the ratchet for THIS
@@ -2395,32 +2392,10 @@ is ratcheted and re-read at `/insights`, because "unenforceable" expires when to
 a `NONE` whose pattern keeps recurring in the learner tracker escalates to guard-candidate on its
 own. The fourth is what makes the set self-correcting instead of a registry nobody reopens.
 
-**An `Enforcer` entry names a WIRED STAGE, never a script path.** A guard that exists and is wired
-to nothing enforces nothing, and the worst shape is a guard whose TEST runs in CI: it reads as
-coverage while gating nothing. Derive the current set rather than trusting a list —
-```bash
-for f in .claude/hooks/*.mjs .claude/hooks/*.sh .claude/hooks/*.js; do
-  case "$f" in *.test.*|*.testkit.*) continue;; esac   # test helpers are not guards
-  [ -e "$f" ] || continue
-  grep -qF "$(basename "$f")" \
-    lefthook.yml .github/workflows/ci.yml .claude/settings.json || echo "UNWIRED $f"
-done
-```
-THREE wiring surfaces and THREE extensions, all load-bearing: `run-security-auditor.sh` is wired in
-lefthook, `guard-bash.js` and `review-gate.js` via `settings.json` `PreToolUse`, so a narrower form
-cannot answer this for a `.sh` or `.js` enforcer. The `case` line is load-bearing too: without it
-the list returns `*.testkit.*` helpers, which are not guards. TWO known residuals, both fail-open. (1) `grep -qF` matches a SUBSTRING: a guard whose
-filename is a prefix of a different WIRED filename reads as wired — none in the current hook set,
-re-check when adding one. (2) It matches RAW TEXT, proving the name OCCURS, never that the script
-runs at a gating stage — a mention in a comment or a test-only step suppresses `UNWIRED` on its own.
-Confirm a match is a command, not prose:
-`grep -nF <basename> lefthook.yml .github/workflows/ci.yml .claude/settings.json`.
-
-Read the output as two classes, because it does NOT separate them for you. The `measure-*.mjs`
-scripts are deliberately unwired and are not enforcers. `check-mirror-sync.mjs` is an
-orchestrator-invoked utility, not a stage-wired guard — and it is the cautionary case this clause
-exists for, since its TEST runs in CI while the guard itself gates nothing. No noise rate is claimed
-for the eventual check: measure it before wiring, per 6.1.
+**An `Enforcer` entry names a WIRED STAGE, never a script path.** A guard wired to nothing enforces
+nothing; the worst shape is a guard whose TEST runs in CI, which reads as coverage while gating
+nothing. Detecting that set is guard candidate 4 in
+`.spec-workflow/specs/corpus-codification/tasks.md` — build it there, not as prose here.
 
 **Ships as a RATCHET, never a gate.** Baseline every existing rule clause; require the disposition
 only on new ones. Enforced retroactively it blocks the repo on day one, gets bypassed, and then
