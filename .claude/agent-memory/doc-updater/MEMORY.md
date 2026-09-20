@@ -128,6 +128,7 @@ A commit touching ONLY `.claude/agent-memory/**` runs under the docs-only exempt
 - **Decision 78 documentation (2026-09-20, PR 0):** Enforcement-before-change rule; references Decision 76 counterexample; establishes `Enforcer:` disposition; forward-references Decision 79 (not yet written). No cross-ref issues. ✓
 - **Lefthook pre-commit false claim fixed (2026-09-20, PR 0):** Three sites corrected; no fourth live site found; CLAUDE.md §QA-pipeline accurate; steering drift check clean. ✓
 - **Backlog-burndown inventory figures deliberately stale (2026-09-20, PR 0):** SATURATED state (PR 2) changes measurement; exempt under agent-doc-updater.md inventory exemption. ✓
+- **Stop hook misdescription fixed (2026-09-20):** Round 1 fixup corrected docs/plan.md Automation Pipeline diagram — removed stale claims that Stop hook runs biome format and vitest (both false). Hook is PowerShell toast only. Verified against: on-stop.sh (toast, no format/test), lefthook.yml (format is pre-commit biome-check, test is commented out), .claude/pipeline.json (authoritative hook list). Cross-checked mirrors: docs/setup-audit.md line 56 ✓, docs/decisions.md Decision 13 & 17 ✓, CLAUDE.md § QA-pipeline does NOT mention Stop hook (correct — Stop is Claude Code config, not project QA).
 
 *Last updated: 2026-09-20*
 
