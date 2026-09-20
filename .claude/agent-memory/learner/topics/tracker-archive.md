@@ -1020,3 +1020,19 @@ PR #1185 CodeRabbit fixup: added a per-row `isQuestionCountRow` predicate to `fe
 | Coherent-but-false claim survives active same-paragraph edits across 3 same-day commits | 1 | 2026-09-02 | PROMOTED → §10 cl.3+cl.5 (`18757ddf`). Detail: topic file |
 | Rename-blind `--name-only` pathspec derives a security-path floor or exemption | 2 | 2026-09-08 | PROMOTED — fixed to `--name-status -M`. Topic file. |
 | doc-updater writes DATED JOURNAL ENTRY into own MEMORY.md | 1 | 2026-09-19 | FALSE POSITIVE — claim originated in the orchestrator's dispatch prompt, not derived. The file's durable-knowledge list is dated bullets throughout; doc-updater added ONE bullet in place plus two in-place updates. `agent-memory.md` bans an appended dated session-log SECTION, not a dated bullet in an existing list. |
+
+## Relocated 2026-09-20 — TERMINAL-state rows (PROMOTED), not a budget curation
+
+Moved because `PROMOTED` is terminal and `agent-memory.md` sends terminal rows here — NOT for
+space, which is the distinction § 6.0b fault (b) is about. Six of the seven carry continuing
+post-promotion recurrence and are the `SATURATED` candidates; they keep their counts.
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| Fix commit correcting §10 violations introduces fresh §10 | 76 | 2026-09-20 | PROMOTED → §10 cl.8 (rule already written). Pattern persists — 5 rounds this branch. Propose SATURATED state in agent-memory.md for "rule written, behavioral, irreducible". Detail: topic file |
+| Correct advice with invented rationale (false WHY) | 10 | 2026-09-17 | PROMOTED → § Finding Validation. Post-promotion recurrence. Topic file. |
+| Verification evidence answers a different proposition — real check, wrong question | 12 | 2026-09-20 | PROMOTED → code-style.md §7 (proposed). Post-promotion recurrence ×2 (rounds 1+2 this branch: semantic-reviewer [GOOD] anchored on model-tier token, missed dispatch-shape clause). Topic file. |
+| Commit-message count computed pre-edit; own edits make it stale on arrival | 7 | 2026-09-17 | PROMOTED → §10 cl.7. Recurred four times post. Detail: topic file |
+| MUTATION: comment overclaims which mechanisms the test pins | 10 | 2026-09-18 | PROMOTED → code-style.md §7. Post-promotion recurrence x4. Detail: cross-agent-lessons.md |
+| Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence ×2. |
+| Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. RESOLVED-WATCH 2026-09-16 (10 clean dispatches). Topic file. |
