@@ -37,8 +37,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Status/error-posture change leaves a sibling spec | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation |
 | Post-commit gates miss new site violating a promoted §7 | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Proposed verification command silently verifies nothing | 7 | 2026-09-15 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
-| Plan prose states unverified content-item count that | 5 | 2026-09-19 | PROMOTED → agent-workflow.md § Delegation Protocol (dispatch surface); §10 cl.7 holds the prose surface |
-| Fix commit correcting §10 violations introduces fresh §10 | 71 | 2026-09-19 | RULE CANDIDATE (71) — §10 cl.8 prose is the lever; mechanical enforcer refuted (Decision 76: 50% FP rate). Detail: topic file |
+| Fix commit correcting §10 violations introduces fresh §10 | 76 | 2026-09-20 | PROMOTED → §10 cl.8 (rule already written). Pattern persists — 5 rounds this branch. Propose SATURATED state in agent-memory.md for "rule written, behavioral, irreducible". Detail: topic file |
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file. |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -60,13 +59,10 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Post-cycle agent-memory delta written but not committed before push — caught only by pre-push sweep | 3 | 2026-08-20 | RULE CANDIDATE (3) |
 | Derivation query replacing an open-set enumeration is unverified before publish | 3 | 2026-09-15 | RULE CANDIDATE (3) → §10 cl.2 addendum. Detail: topic file |
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence |
-| Doc-updater reports 1 stale claim; whole-block read finds more | 4 | 2026-09-16 | PROMOTED → `agent-doc-updater.md` § DO. Recurred f431ea74: missed 3 Decision-69 refs. Detail: topic file |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
 | Corrected claim partially retracted — old wording persists elsewhere | 15 | 2026-09-17 | RULE CANDIDATE (15). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
-| Subagent asserts a verification/write it did not perform | 17 | 2026-09-15 | PROMOTED → § Finding Validation. Topic file. |
 | Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 32 | 2026-09-18 | RULE CANDIDATE (32). Detail: topic file |
-| Coherent-but-false claim survives active same-paragraph edits across 3 same-day commits | 1 | 2026-09-02 | PROMOTED → §10 cl.3+cl.5 (`18757ddf`). Detail: topic file |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING. Log and watch |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
 | Unverified superlative/rank asserted about tracker data without re-deriving | 2 | 2026-08-30 | RULE CANDIDATE (2) |
@@ -79,12 +75,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | (8 count=1 WATCHING rows from 2026-09-02, pre-18757ddf, relocated) | — | 2026-09-02 | see tracker-archive.md "Live-table snapshot relocated 2026-09-02 (batch 4)" |
 | Implementation-critic outright omitted pre-commit, no stated exemption — run post-hoc, found sound | 1 | 2026-09-06 | WATCHING — distinct from row 632. Log and watch |
 | Agent's own auto-injected rules-file copy is stale mid-session | 2 | 2026-09-06 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol. Detail: topic file |
-| Verification evidence answers a different proposition — real check, wrong question | 10 | 2026-09-19 | PROMOTED → code-style.md §7 (proposed). Topic file. |
+| Verification evidence answers a different proposition — real check, wrong question | 12 | 2026-09-20 | PROMOTED → code-style.md §7 (proposed). Post-promotion recurrence ×2 (rounds 1+2 this branch: semantic-reviewer [GOOD] anchored on model-tier token, missed dispatch-shape clause). Topic file. |
 | Sweep regex matches canonical form, silently skips alternative form | 2 | 2026-09-18 | RULE CANDIDATE (2). TEST_LINE_RE missed test.each/it.skip/.only — chore/validate-mutation-group-refs. Detail: topic file |
 | Consistency check verifies A against B with no independent anchor — co-removing both passes clean | 4 | 2026-09-08 | RULE CANDIDATE → §7, draft in topic file |
 | Agent's Bash-run destructive git cmd destroys ANOTHER agent's concurrent uncommitted work | 1 | 2026-09-08 | WATCHING — Bash hole. Topic file. |
 | Branch scope cited via unstable tracker-row IDs — several resolved wrong | 1 | 2026-09-08 | WATCHING — cite Issue-Type text instead. Detail: topic file |
-| Rename-blind `--name-only` pathspec derives a security-path floor or exemption | 2 | 2026-09-08 | PROMOTED — fixed to `--name-status -M`. Topic file. |
 | `cd` into a stale/removed worktree fails silently, write lands in the real repo | 1 | 2026-09-08 | WATCHING — Bash residual hole. Detail: topic file |
 | doc-updater proposal echoes an example from its OWN dispatch prompt as a literal citation | 6 | 2026-09-18 | RULE CANDIDATE (6). Agent treats own context as factual over grepping the artifact. Detail: cross-agent-lessons.md |
 | Ratchet/baseline keyed on PATH not content — content-swap or rename escapes it | 2 | 2026-09-09 | RULE CANDIDATE (2). Detail: cross-agent-lessons.md |
@@ -100,7 +95,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Mutation-harness anchor orphaned by cosmetic reformat — exits 2 grading nothing | 4 | 2026-09-18 | PROMOTED → test-writer.md § Mutation-check. Post-promotion recurrence ×2. |
 | Agent terminal message self-referential with no prior report body delivered | 9 | 2026-09-16 | PROMOTED → § Delegation Protocol. RESOLVED-WATCH 2026-09-16 (10 clean dispatches). Topic file. |
 | Orchestrator excludes a known-drift-prone rule-mirror from a sweep on an unverified claim | 1 | 2026-09-15 | WATCHING — false "has Read access" claim. Topic file. |
-| Single-line grep false-negative on text present but line-wrapped in a YAML block scalar | 1 | 2026-09-15 | WATCHING — distinct from paraphrase-blindness. Topic file. |
+| Single-line grep false-negative on text present but line-wrapped mid-phrase | 2 | 2026-09-20 | RULE CANDIDATE (2). YAML block scalar (2026-09-15) + prose mid-phrase wrap (2026-09-20, docs/schedule-cr-local-retirement). Topic file. |
 | Documented suppression/exemption cannot self-expire (diff-scanner can't count its retiring condition) | 1 | 2026-09-15 | WATCHING (#1282 deferred). Detail: cross-agent-lessons.md |
 | semantic-reviewer bounds out a §10 cl.2 violation as "refinement" — CR-local catches it same round | 1 | 2026-09-15 | WATCHING — classification-boundary gap. Detail: cross-agent-lessons.md |
 | Reviewer proposes max-scope remedy; split reveals a cheap in-scope mitigation the reviewer missed | 1 | 2026-09-15 | WATCHING — 6753ad76 CR-local round 3. Topic file. |
@@ -143,10 +138,12 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Orchestrator reads only first page of flat PR comments endpoint, reports partial count, pushes on it | 1 | 2026-09-19 | WATCHING. Count reconciled 2→1: the branch run scored the PR #1315 event twice — once directly, once via `feedback-read-every-review-thread`, whose `originSessionId` is that same session. One event. Promote on the next DISTINCT branch. Target when promoted: agent-workflow.md. |
 | Orchestrator/plan-critic reasons to a specific DB error code without executing — local-grant drift invalidates the reasoning | 1 | 2026-09-19 | WATCHING — 42501 reasoned; P0001 actual (RAISE); fix-local-grants.sql re-gran... |
 | semantic-reviewer reports wrong file count in review header (checked 3 on 9-file diff, 5 on 10-file diff) | 2 | 2026-09-19 | RULE CANDIDATE (2, rounds 1+3 same branch). Agent must derive via `git diff --name-only ... \| wc -l`, not from reading. |
-| doc-updater writes DATED JOURNAL ENTRY into own MEMORY.md | 1 | 2026-09-19 | FALSE POSITIVE — claim originated in the orchestrator's dispatch prompt, not derived. The file's durable-knowledge list is dated bullets throughout; doc-updater added ONE bullet in place plus two in-place updates. `agent-memory.md` bans an appended dated session-log SECTION, not a dated bullet in an existing list. |
 | RULE 0 prose in spec tasks.md entry caught by CR-local | 1 | 2026-09-19 | WATCHING — parallelisation entry trimmed to its derivations. Log and watch. |
 | Orchestrator misses a plan-stated doc edit during execution | 1 | 2026-09-19 | WATCHING — doc-updater caught Usage block omission that was explicitly in the approved plan. Log and watch. |
 | Cited SHA resolves locally but is a loose object — invisible on fresh clone / after gc | 1 | 2026-09-19 | WATCHING — `33c8ff79` (docs/parked-and-next-work) passed `git rev-parse --verify` locally; not reachable from any ref. |
+| Scope excluded by output-text filter (`grep -v`) not by path, silently drops lines quoting the excluded string | 3 | 2026-09-20 | RULE CANDIDATE (3) — twice by orchestrator, once by reviewer self-catching. Exclusion must be a `':(exclude)<path>'` pathspec, not `\| grep -v <string>`. |
+| Reviewer validates a PAST finding against a LATER commit state, calls it false positive | 1 | 2026-09-20 | WATCHING — docs/schedule-cr-local-retirement: 3 real findings dismissed as FP by reading post-fix HEAD. Finding-validation table already requires naming the commit state; gap is enforcement. |
+| `check-retracted-phrase.mjs` tokeniser matches numbers and filenames only — phrase-blind beyond those tokens | 1 | 2026-09-20 | WATCHING — distinct from row 112 (deletion-bypass). Phrases without numbers or filenames pass unchecked. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -164,6 +161,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - feat/corpus-b3-encode-retracted-phrase (2026-09-19): round 3 clean. Row 82 → 8. Row 145 → 2 RULE CANDIDATE. Row 121 → 14.
 - feat/corpus-update-expected (2026-09-19): round 3 clean. Row 82 → 10 PROMOTED §7. Row 120 → 2. Row 41 → 68 (2 fresh §10 in correction context). Row 40 → 5. New WATCHING: orchestrator misses plan-stated doc edit.
 - docs/parked-and-next-work (2026-09-19): round 3 clean (ceiling hit, round 3 had 0 findings). Row 41 → 71 (3 fresh §10 in correction context; Decision 76 refutes mechanical enforcer: 50% FP rate). Row 129 → 2 RULE CANDIDATE. Row 141 → 2 RULE CANDIDATE. New WATCHING: loose-SHA citation (row 149).
+- docs/schedule-cr-local-retirement (2026-09-20): post-split pass 3 clean. Row 41 → 76 → PROMOTED §10 cl.8 (rule existed; propose SATURATED state in agent-memory.md). Row 82 → 12. Row 103 → 2 RULE CANDIDATE. Rows 150-152 new WATCHING. [GOOD]-gate mitigation (dispatch prompt requiring anchor non-match scope) reduced round-3 false positives from 2 to 0. FINDING: 172 RULE CANDIDATE rows confirmed in tracker-archive.md — far above the ~55 rough estimate; each is a pattern at promotion bar buried in the archive.
 - Remaining bullets: topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers

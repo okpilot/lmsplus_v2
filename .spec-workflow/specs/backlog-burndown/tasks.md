@@ -179,7 +179,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       honoured); `agent-workflow.md`'s footer described only the a0e01943 changes, omitting both
       `--limit 200` and the step-scoping; and the rule presented the ARTIFACT figure 8 as the
       filed count while its own command yields 9, with the divergence list omitting 9 entirely.
-- [ ] Pre-push review gate rounds on `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — CR-local is a member of round 1 only; stop on the first round with no APPLY-worthy finding, ceiling 3
+- [ ] Pre-push review gate rounds on `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — stop on the first round with no APPLY-worthy finding, ceiling 3
 - [ ] learner on the branch, once, after the loop
 - [ ] coderabbit-sync (rules changed → mandatory trigger), once, after the learner
 - [ ] `/fullpush` gates
@@ -239,9 +239,10 @@ Ordering and contents in the artifact above. Not started.
       and report-only was a convention nothing enforced, so an agent write could silently clobber
       an orchestrator edit; `tools:` frontmatter now closes the ACCIDENTAL path (test-writer is the
       only Write/Edit holder). Not a sandbox: every agent keeps `Bash`, and `memory: project` still
-      auto-grants each agent Read/Write/Edit on its OWN memory dir. Also: CR-local
-      findings become learner input, reviewer definitions require an `EVIDENCE:` line on runtime
-      claims, and the consecutive-clean floor becomes CR-local's extend-by-one (Decision 61).
+      auto-grants each agent Read/Write/Edit on its OWN memory dir. Also: CR-local findings become
+      learner input, reviewer definitions require an `EVIDENCE:` line on runtime claims, and the
+      consecutive-clean floor becomes CR-local's extend-by-one (Decision 61 — both superseded:
+      Decision 73 stops on the first clean round, Decision 77 retired CR-local).
       ⚠️ The `tools:` enforcement is INERT until a session restart — agent definitions snapshot at
       session start. CONFIRM next session; a tracker that stops updating is the only signal.
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)

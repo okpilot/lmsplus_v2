@@ -112,13 +112,9 @@ jobs:
         run: node --test .claude/hooks/spawn.testkit.test.mjs
 
       # A test nothing runs certifies its mechanism unconditionally — the same
-      # defect as code-style.md §7 one level up. These three were maintained but
-      # unwired; all pass as of 2026-09-02. Enumerate with
+      # defect as code-style.md §7 one level up. Enumerate with
       #   find .claude .github -name '*.test.sh' -o -name '*.test.mjs'
       # and check each against this file + lefthook.yml before adding another.
-      - name: CR-local plan reminder — unit test
-        run: bash .claude/hooks/cr-local-plan-reminder.test.sh
-
       - name: Bash guard — unit test
         run: node --test .claude/hooks/guard-bash.test.mjs
 

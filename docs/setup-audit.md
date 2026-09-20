@@ -49,11 +49,10 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `packages/db/tsconfig.json` — extends base
 - `packages/ui/tsconfig.json` — extends react-library
 
-### Claude Code Setup (20 files) — excellent
+### Claude Code Setup
 - `.mcp.json` — MCP servers (Supabase, Context7, shadcn, SonarQube)
 - `.claude/hooks/guard-bash.js` — PreToolUse Bash: blocks 9 dangerous patterns
 - `.claude/hooks/review-gate.js` — PreToolUse Edit/Write: blocks edits while reviewer findings open
-- `.claude/hooks/cr-local-plan-reminder.sh` — PostToolUse Bash: crlocal reminder
 - `.claude/hooks/on-stop.sh` — Stop: biome format + vitest + Windows toast
 - `.claude/agents/code-reviewer.md` — sonnet, pre-push review gate, read-only
 - `.claude/agents/security-auditor.md` — sonnet, pre-push, blocking on CRITICAL/HIGH

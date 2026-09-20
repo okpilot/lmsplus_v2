@@ -140,9 +140,44 @@ done
 
 An unplanned grep reached 14 files. A delegated impact analysis against the pre-change ref found
 the rest, and the gate's own rounds found two more. The classes a grep cannot reach: the `.sh`
-executable mirror (`cr-local-plan-reminder.sh` PRINTS the reviewer list to the operator), a
+executable mirror (`cr-local-plan-reminder.sh`, since DELETED, PRINTED the reviewer list), a
 steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
 Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
+
+**RETIRE CR-local entirely** — user decision 2026-09-19, superseding Decision 74's round-1
+scoping. Round 1 keeps six members: `code-review (skill)` — the built-in `/code-review` skill,
+dispatched as a subagent in an isolated worktree on opus — takes the vacated slot, round 1 only
+(Decision 77). `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope.
+EVIDENCE: a blind
+`/code-review` run over #1315's range, in an isolated worktree, matched all four of cloud CR's
+Major findings and raised further ones it did not. Derive the cloud side, the only derivable half:
+`gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'` — `--paginate` is load-bearing (the endpoint pages at 30 and exits 0 on a truncated list) and the author filter keeps a human comment containing "major" out of the count.
+
+Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
+deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:
+
+```bash
+grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
+  --include="*.md" --include="*.yml" --include="*.json" --include="*.sh" --include="*.mjs" . \
+  | grep -v node_modules | grep -v '.claude/worktrees/' | grep -v '.claude/agent-memory/'
+```
+
+`docs/decisions.md` is HISTORY, as is any spec with no open task — derive that set rather than
+assuming last time's: `for f in .spec-workflow/specs/*/tasks.md; do grep -q '^- \[ \]' "$f" || echo "$f"; done`. Decision 74 happened. Leave them.
+
+**Three classes the grep above cannot reach** — the Decision 74 sweep's lesson, applying again:
+1. **The reviewer COUNT.** Every "six reviewers" site is invisible to a `CR-local` grep. Derive:
+   `grep -rniE '\bsix\b' CLAUDE.md .claude/rules .claude/commands`.
+2. **A guard's own worked example.** `check-prose-paths.mjs` names the rules file being deleted in
+   a source comment; the deletion makes that comment false (§10).
+3. **The executable mirror.** `cr-local-plan-reminder.sh` PRINTED the round's reviewer list to the
+   operator and was wired in `.claude/settings.json`. Not `.md`, so a doc-shaped sweep missed it.
+
+Checked clean: no `limits.json` or `prose-claims.json` baseline row covers a deletion target.
+Open before editing: whether `ci.yml`'s hits are the local CLI or the cloud app.
+
+**THEN: Slice 5 — make R1 binding at runtime.** Ranked above the remaining numbered items
+(user directive 2026-09-19); the CR-local retirement above ships first. Detail in § Slice 5.
 
 **Owed once PR #1301 merges:** `lefthook install`, to drop the `.git/hooks/post-commit` shim the
 removed stage leaves behind. Exits 0 if skipped.
@@ -384,6 +419,124 @@ Full plan drafted 2026-09-09. All three are one shape — build a shared harness
   grandfathered file at all would fail CI. Both observed instances are already closed by the
   exact line-count match plus blocking on a stale row. Residual and ACCEPTED: a different file
   at the same path with a coincidentally identical line count inherits the old allowance.
+
+## Slice 5 — make R1 binding at runtime (the generator, not the output)
+
+Ranked above the remaining BUILD ORDER items, user directive 2026-09-19. The CR-local retirement
+ships first.
+
+**R1 governs this programme's slices, not the running system.** Nothing binds an agent to it while
+new rules are being written, so the corpus refills at whatever rate review produces findings. Every
+other slice cleans output. This one changes the rate.
+
+Three derivations established the gap. Re-run them rather than quoting a figure:
+
+```bash
+# rule sections in the injected corpus
+grep -h "^#\{2,\} " .claude/rules/*.md CLAUDE.md | wc -l
+
+# ...of those, the ones naming a mechanical enforcer (lexical, so an OVER-count)
+awk '/^##+ /{cur=FILENAME": "FNR; next}
+     cur!="" && /\.claude\/hooks\/|biome\.json|[Ss]onar[Cc]loud|ci\.yml|lefthook/{if(!p[cur]++) print cur}' \
+  .claude/rules/*.md CLAUDE.md | wc -l
+
+# agent definitions whose proposal vocabulary reaches a guard at all — FILE-wise:
+# the line-wise form double-counts a file carrying two such lines
+grep -rn -E "propos|recommend" .claude/agents/*.md | grep -E "hook|guard|enforcer" \
+  | cut -d: -f1 | sort -u | wc -l
+
+# every `.claude/hooks/<name>.(mjs|sh|js)` path the rules name, tested against disk.
+# OUT OF REACH: a hook the rules name by BARE basename — diff the basenames of an
+# unqualified grep against this one to derive that set.
+grep -rhoE '\.claude/hooks/[A-Za-z0-9._-]+\.(mjs|sh|js)' .claude/rules/*.md CLAUDE.md \
+  | sort -u | while read -r p; do [ -e "$p" ] || echo "MISSING: $p"; done
+```
+
+The last command prints nothing: no rule names a fully-qualified enforcer path that is missing
+from disk. The gap is un-built mechanism, not rot. Every command here is line-oriented and misses a term split across lines.
+
+### W1 — measure the mechanizable fraction (FIRST)
+
+Classify every rule section ENFORCED / MECHANIZABLE / JUDGMENT. Ship a data file plus a derivation,
+never a prose table: a per-section list in Markdown is the artifact this programme deletes, and it
+goes stale on the next heading edit.
+
+**A MECHANIZABLE row MUST name its trigger predicate** — the string, AST shape or file-pair a guard
+would match. No statable predicate, no MECHANIZABLE. That is what keeps the classification
+falsifiable rather than an opinion.
+
+Sizes W3: the fraction decides whether the reshape is a menu reorder or a load-bearing gate.
+
+**W1 starts from these four, not from a survey — the round-1 roster of `code-review (skill)`
+(Decision 77, 2026-09-19). Each is prose today and nothing checks any of it. Precedents are in
+the tree; verify each before building on it.**
+
+| Claim now in prose | Precedent to extend | Derive the precedent with |
+|---|---|---|
+| member 6 runs **opus** | `pipeline.json` `modelLiteralSites` already asserts a model literal at a path for the security-auditor | `python3 -c "import json;print(json.load(open('.claude/pipeline.json'))['modelLiteralSites'])"` |
+| round 1 is SIX, and who they are | `pipeline.json` agent rows carry `role: "gate-round"`; `pipeline.test.mjs` asserts that set. The GAP is the prose mirrors, which nothing compares against the data | `grep -n 'gate-round\|EXPECTED_CORE' .claude/pipeline.test.mjs` |
+| no retired reviewer named as current | falls out of the roster check for free — a retired member is simply absent from the data | — |
+| orchestrator never invokes the skill directly | `settings.json` `PreToolUse` matchers are tool-name regexes (`Bash`, `Edit\|Write` today), so a `Skill` matcher is plausible — **UNVERIFIED**: whether the hook payload distinguishes orchestrator from subagent is unknown. Probe before planning on it | `python3 -c "import json;print(json.load(open('.claude/settings.json'))['hooks']['PreToolUse'])"` |
+
+**D1 survives all four.** Member 6 stays OUT of `agents` — a skill has no `.claude/agents/*.md`
+file and the closure assertion would break. A separate top-level key carries its `model` / `role` /
+`isolation` without joining that assertion.
+
+**One claim is NOT mechanizable and must not be counted as if it were:** the member's report opens
+with its provenance (`pwd`, HEAD, inline-vs-forked). That lives in an agent's terminal message,
+which never reaches the repo, so no hook can see it. It is the orchestrator's read or it is
+unverified — the honest JUDGMENT row.
+
+### W2 — wire the enforcers that exist and gate nothing
+
+Derive the state; do not trust this list:
+
+```bash
+grep -n "run-mutations\|check-mirror-sync\|check-commit-claims" lefthook.yml .github/workflows/ci.yml
+```
+
+- `.claude/hooks/check-commit-claims.mjs` — wired at commit-msg, CI runs only its test. Add the
+  guard step over the PR's commits. Small, independent, can land anytime.
+- `.claude/hooks/check-mirror-sync.mjs` — wired nowhere, and it takes a clause substring as an
+  argument, so it cannot gate blanket. Needs an anchor-deriving mode first: a feature, not wiring.
+- `.claude/hooks/run-mutations.mjs` — wired nowhere. One worktree per mutation, sequential, so it
+  cannot be pre-commit. Needs either the parallelisation already queued in Slice 4+ or a
+  diff-scoped mode grading only mutations whose guard changed.
+
+### W3 — give the promotion path a mechanical destination
+
+Four decision points, each routing to prose today:
+
+1. `.claude/rules/agent-workflow.md` § Pre-push gate — the terminal-state set is closed and carries
+   no mechanization disposition.
+2. `.claude/agents/learner.md` § Take Action — the menu is `ONE of` five, four of them prose files;
+   the fifth reaches only what Biome already implements.
+3. `.claude/rules/agent-learner.md` § When To Apply Rule Changes — mechanical checkability is a
+   quality test applied to prose, not a route to a check.
+4. `.claude/rules/agent-learner.md` § Sweep On Rule Promotion — its one mention of a mechanical
+   enforcer is conditional on one already existing, and names no alternative.
+
+Plus two tracker changes: an `Enforcer` column (`name`, or `NONE` with a reason), and
+post-promotion recurrence escalating a row to guard-candidate. The tracker already RECORDS
+recurrence after a prose promotion and acts on none of it.
+
+**Hard split, its own PR** — touches the most-mirrored files in the corpus. Full Rule-Mirror Sync.
+
+**W3 adds prose in order to reduce prose**, which is the defect one level up. It ships only with
+both: its own enforcer — a tracker row reaching PROMOTED with no `Enforcer` entry fails, graded by
+`.claude/hooks/run-mutations.mjs` like any other guard — and a success metric, the fraction of the
+next promotions landing as a guard, measured rather than asserted.
+
+### W4 — enforcers by count
+
+Unchanged. BUILD ORDER already orders these by the learner's counts. W3 makes this the pipeline's
+default output rather than a separate programme.
+
+### Order
+
+W2's commit-claims step is independent. Otherwise W1, then W3, then W4 continues: W1 before W3
+because the reshape's wording depends on the size of the problem, W3 before more W4 because fixing
+the generator precedes cleaning the output.
 
 ## Slice 3 — archaeology deletion (DONE, PR #1299 / `86f642780`)
 
