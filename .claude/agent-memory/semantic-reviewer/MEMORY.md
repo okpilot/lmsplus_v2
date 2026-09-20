@@ -1,7 +1,7 @@
 # Semantic Reviewer — Memory
 
 > Native subagent memory index. Tracker first, durable knowledge second, topic pointers last.
-> Update rows/bullets IN PLACE. No session logs — git holds history (pre-migration body: `git show 2e87c3e6:.claude/agent-memory/semantic-reviewer/patterns.md`; `git log` after).
+> Update rows/bullets IN PLACE. No session logs — git holds history.
 > Scope: logic / security / RLS / query-correctness at CodeRabbit depth. Style & file-size belong to code-reviewer — don't overlap.
 
 ## Recurring Issues Tracker
@@ -12,8 +12,6 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|
 | Client terminal path never calls a Server Action to end the DB session → orphaned `quiz_sessions` row | 2026-04 | 3 | 2026-04-13 | RULE CANDIDATE — every terminal path MUST end/delete its DB row |
-| Pre-commit guard reads WORKTREE while git commits the INDEX (check-file-size-guard predecessor) | 2026 | 1 | 2026-09-16 | RESOLVED → [tracker-archive](topics/tracker-archive.md) — VERIFY in every NEW pre-commit guard |
-| Cross-surface answer-oracle (Study Mode `get_study_questions` shared MC pool) | 2026-06-26 | 1 | 2026-06-27 | RESOLVED-WATCH → [tracker-archive](topics/tracker-archive.md) |
 | Stale test comment describes a removed guard/code path — passes for the wrong reason, invites wrong re-addition (5 instances) | 2026-04 | 5 | 2026-06-09 | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Test mock string drift: test mocks the ACTION (not the RPC), echoes its own stale value on rename → passes silently | 2026-04-26 | 2 | 2026-04 | WATCHING — on string rename, grep `.test.ts` for old string |
 | Prop added to a type/Props but never forwarded to the consuming component. Detail → [durable-catches](topics/durable-catches.md) | 2026 | 3 | 2026 | WATCHING — verify ≥1 call site passes real data |
@@ -23,12 +21,10 @@
 | Unstable function reference in a `useEffect`/`useMemo` dep array re-runs effect unexpectedly | 2026 | 2 | 2026-04-13 | WATCHING — wrap in `useCallback` or a ref |
 | Client timer initialized at mount shows more time than server has (mount latency: nav+fetch+render) | 2026 | 2 | 2026-04 | WATCHING — fix = return `started_at` from start RPC, thread through SessionData. Escalate to ISSUE on next occurrence |
 | Storage converter (`toSessionData`) drops new fields added to the target type but not the source type | 2026 | 2 | 2026-04 | WATCHING — audit ALL producers (`readSessionHandoff`, `toSessionData`) |
-| Two-fixture non-vacuity (idempotency / fallback-coincidence) | 2026-06-04 | 2 | 2026-07-03 | PROMOTED → code-style.md §7; [tracker-archive](topics/tracker-archive.md) |
 | JSONB option-predicate drift: `!o.correct` (falsy) vs `o.correct !== true` — silently accepts undefined as "not correct" | 2026-06-19 | 1 | 2026-06-19 | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Cross-org isolation test vacuity: empty attacker-org result satisfies `not.toContain`/0-rows trivially without an admin-verified victim row | 2026-06-04 | 2 | 2026-06-13 | RULE CANDIDATE → [durable-catches](topics/durable-catches.md) |
 | `.single()` in E2E audit row metadata read — throws PGRST116/406, inconsistent with sibling helpers' `data?.[0]` | 2026-06-04 | 1 | 2026-06-04 | WATCHING → [durable-catches](topics/durable-catches.md) |
 | Cross-org isolation test: seed filters by subject_id but call passes p_topic_id too — topic JOIN guard fires first, wrong-reason error branch | 2026-06-04 | 1 | 2026-06-04 | WATCHING → [durable-catches](topics/durable-catches.md) |
-| dialog_fill practice grader partial-answer false-correct | 2026-06-21 | 1 | 2026-06-21 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
 | BEFORE INSERT trigger + admin seed with no question_type filter — future-inserter hazard if dialog_fill lands in a seeded org | 2026-06-24 | 1 | 2026-06-24 | WATCHING → [vfr-rt-review-notes](topics/vfr-rt-review-notes.md) |
 | `expect()` inside `try` before `result=...` can leave a security-proof assertion unreached on infra failure | 2026-06-25 | 2 | 2026-07-02 | RULE CANDIDATE → [durable-catches](topics/durable-catches.md) |
 | Test cleanup hard-deletes `quiz_sessions` on wrong "no FK children" justification — table-level soft-delete rule applies regardless (2 files, PR #1006) | 2026-06-26 | 1 | 2026-06-26 | WATCHING → [durable-catches](topics/durable-catches.md) |
@@ -53,11 +49,8 @@
 | RPC idempotent-replay branch returns ANOTHER request's row id; caller uses it as a teardown target | 2026-08-07 | 1 | 2026-08-07 | WATCHING — a replay-derived id needs a `created` flag before scoped teardown |
 | Agent-memory frozen-dir policy added to multiple memories but a topic file retained "grep both dirs" | 2026-07-11 | 1 | 2026-07-11 | WATCHING — on a dir-policy change, grep ALL agent-memory topic files, not just MEMORY.md |
 | New content class excluded from ONE surface, not its aggregate siblings — KPIs shift silently | 2026-08-11 | 1 | 2026-08-11 | WATCHING → [tracker-archive](topics/tracker-archive.md#vfr-rt-part-1-content-import--2026-08-11-1abdb50d7bbcadd3) |
-| Task item claims a literal marker (e.g. `SATURATED`) was added to a sibling file; grep finds none — described, not applied | 2026-09-20 | 1 | 2026-09-20 | WATCHING — grep the literal marker before trusting an "the `X` annotation" claim |
 | Comment names a rule/symbol a LATER commit retired — a PARTIAL edit is the tell. Detail → [prose-guards](topics/prose-guards-and-migration-numbering.md) | 2026-08-15 | 25 | 2026-09-17 | RULE CANDIDATE → **PROMOTE**: grep tree-wide, re-verify by diff |
-| Parser regex mis-classification: `TEST_LINE_RE` missed `test.each(`/`it.skip(`/`it.only(`/`test.only(`, so GROUP: markers above them land on the header | 2026-09-18 | 1 | 2026-09-18 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
-| GROUP: multi-line continuation greedy-swallow consumes unrelated human prose as ids | 2026-09-18 | 1 | 2026-09-18 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
-| Unmeasured numeric claim in commit prose, never grep'd, wrong every time. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-06 | 11 | 2026-09-19 | RULE CANDIDATE — `grep -c`/`git log -S` before writing a count |
+| Unmeasured numeric claim in commit prose, never grep'd, wrong every time. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-06 | 12 | 2026-09-20 | RULE CANDIDATE — `grep -c`/`git log -S` before writing a count |
 | Local-clock date stamped while UTC is still the PRIOR day. Detail → [prose-guards](topics/prose-guards-and-migration-numbering.md#local-clock-0200-date-stamped-while-utc-is-still-the-prior-day) | 2026-08-19 | 1 | 2026-08-19 | WATCHING |
 | Rule-mirror sweep closes N-1 of N; Nth fix left UNCOMMITTED. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-08-19 | 2 | 2026-08-20 | RULE CANDIDATE — read the COMMIT, never the checkout |
 | NULL natural key escapes a PARTIAL unique index. Detail → [tracker-archive](topics/tracker-archive.md#vfr-rt-part-1-content-import--2026-08-11-1abdb50d7bbcadd3) | 2026-08-11 | 1 | 2026-08-11 | WATCHING — validate non-null first |
@@ -69,18 +62,14 @@
 | Verified WHEN a mechanic arrived, not whether one preceded it. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 1 | 2026-09-07 | WATCHING |
 | Evidence block verifies the WRONG proposition. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 4 | 2026-09-19 | WATCHING — verify the evidence block proves the stated claim, not a related one |
 | Protocol split: examples removed from rules file, not added to agent file. Detail → [durable-catches](topics/durable-catches.md#2026-09-08-relocated-rows) | 2026-09-07 | 1 | 2026-09-07 | WATCHING |
-| Pipeline test proved spec↔disk closure but no anchor for non-agent hook commands | 2026-09-07 | 1 | 2026-09-07 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
-| `addedText.includes(token)` substring false-exoneration in a mechanical guard | 2026-09-14 | 1 | 2026-09-14 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
-| Commit message count wrong on the rule sweep being promoted (65 vs 63 MUTATION comments — two different valid questions) | 2026-09-14 | 1 | 2026-09-14 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
 | MUTATION comment claims N flags independently redden a test when only 1 does. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-14 | 1 | 2026-09-14 | WATCHING — verify mutation claims by patching a scratch copy |
 | Non-vacuity comment attributes guarantee to explicit fixture write when `withRepo` already provides it. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-16 | 1 | 2026-09-16 | WATCHING — SUGGESTION-level |
-| False count IN A NEW FILE introduced by the commit fixing false counts — verify counts in files just written, not only in existing ones | 2026-09-14 | 2 | 2026-09-15 | PROMOTED → code-style.md §10 cl.7. |
-| Decision record omits a scope narrowing the FIX COMMIT's own message discloses — Decision 70 vs b944f177 | 2026-09-15 | 1 | 2026-09-15 | RESOLVED → [tracker-archive](topics/tracker-archive.md) |
 | `git status --porcelain` w/o `--untracked-files=all` silenced by `status.showUntrackedFiles=no`. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-19 | 1 | 2026-09-19 | WATCHING — add the flag to every such guard |
 | Verification command shipped in prose produces unrelated regex matches; prose does not warn about noise. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — note "output includes unrelated matches" |
 | Decision narrative claims a criterion "registered before the data" but it first appears in the SAME commit as the data. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — diff the prior commit before accepting a pre-registration claim |
 | Doc prose names wrong mode/flag for a command's output (Decision 78 `--coverage`/`--list`). Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — run the exact invocation before trusting the description |
 | A fixup correcting a false bucket assignment swaps in the WRONG replacement. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — verify EACH source doc at origin/master |
+| A fixup's own commit-subject matches the pattern its retained prose-count describes, invalidating that count on arrival. Detail → [durable-catches](topics/durable-catches.md) | 2026-09-20 | 1 | 2026-09-20 | WATCHING — re-run the cited command AFTER drafting the commit title, not before |
 
 ## Durable knowledge
 
