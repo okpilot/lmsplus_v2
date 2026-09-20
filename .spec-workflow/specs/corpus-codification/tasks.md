@@ -771,6 +771,14 @@ paraphrase-blindness as OPEN.
       (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
           forever. (c) is the live defect; (b) is thinner than it looks — see § Findings.
 
+      **THIS WHOLE SEQUENCE SCORES ZERO ON THE PRIMARY METRIC, BY DESIGN.** None of the four PRs
+      deletes an injected line: PR 0 is plan and decision, PR 1 adds a hook and tests, PR 2 is a
+      data edit plus mirrors, PR 3 touches agent-memory, which is not in the metric. Recorded so a
+      later reader does not read four merged PRs against a flat number as failure. 6.0b repairs the
+      instrument that decides what to build; the lines come out at 6.5 and Slice 3. Re-derive the
+      metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
+      `requirements.md`, and track cost with the secondary metric recorded there.
+
       **FOUR PRs, in this order (user directive 2026-09-20). The guard PRECEDES the curation.**
       Curating buried rows without a write-time refusal only resets the clock — § Why they are
       re-typed, cause 1, governs tracker rows exactly as it governs prose. The curation then

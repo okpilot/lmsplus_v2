@@ -48,6 +48,27 @@ buried among thousands of lines a machine should be doing.
 Estimated landing: **~1,550 injected lines** (from the measured total above). ESTIMATE, not a measurement —
 re-derive per slice rather than quoting it.
 
+### Secondary metric — ROUNDS-TO-CLEAN per PR (added 2026-09-20)
+
+The primary metric says whether the corpus is shrinking. It says nothing about whether producing
+that shrink is getting cheaper, and the conversion step (6.5) is explicitly one claim per PR — so
+cost per PR is what decides whether the remaining distance is affordable.
+
+```bash
+git log --format='%s' origin/master..HEAD | grep -cE 'round-[0-9]+ fixup'
+```
+
+**It is a LOWER BOUND, not the round count**, and the bound is exact only when the loop stops
+clean: it counts rounds that PRODUCED a pooled fixup. A round that finds nothing produces no commit,
+and an edit landing after the ceiling is not a round's fixup at all. Measured on the branch that
+added this metric: the command returns 2 while the loop ran 3 rounds and then took one post-ceiling
+edit. Requires the convention that every pooled fixup subject contains `round-N fixup`; the number
+is meaningless on a branch that did not follow it.
+
+**Deliberately NOT the learner's row counts.** Those rise when detection improves as well as when
+defects increase — one dispatch clause took a reviewer from 0 findings to 7 on an unchanged
+artifact — so they cannot distinguish the two and are disqualified as a success measure.
+
 ## Requirements
 
 R1. A rule that is mechanically checkable MUST be a check, not prose.
