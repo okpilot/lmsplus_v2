@@ -501,9 +501,15 @@ the tree; verify each before building on it.**
 | no retired reviewer named as current | falls out of the roster check for free — a retired member is simply absent from the data | — |
 | orchestrator never invokes the skill directly | `settings.json` `PreToolUse` matchers are tool-name regexes (`Bash`, `Edit\|Write` today), so a `Skill` matcher is plausible — **UNVERIFIED**: whether the hook payload distinguishes orchestrator from subagent is unknown. Probe before planning on it | `python3 -c "import json;print(json.load(open('.claude/settings.json'))['hooks']['PreToolUse'])"` |
 
-**D1 survives all four.** Member 6 stays OUT of `agents` — a skill has no `.claude/agents/*.md`
-file and the closure assertion would break. A separate top-level key carries its `model` / `role` /
-`isolation` without joining that assertion.
+**~~D1 survives all four.~~ SUPERSEDED 2026-09-20 by § Slice 6 item 6.2 — read that, not this.**
+D1 said member 6 stays OUT of `agents` on its own top-level key, because a skill has no
+`.claude/agents/*.md` file and the closure assertion would break. 6.2 keeps ONE roster and makes the
+closure assertion conditional on `kind: "agent" | "skill"` instead: a separate key splits round-1
+membership across two places, so anything deriving that membership has to read both — the exact
+duplication this programme exists to remove. The closure assertion is a schema we own, not a
+constraint we are handed.
+Left in place rather than deleted because `§ Spec-as-context` makes an ACTIVE spec authoritative
+over chat history, and a reader reaching §W1 first would otherwise build the superseded design.
 
 **One claim is NOT mechanizable and must not be counted as if it were:** the member's report opens
 with its provenance (`pwd`, HEAD, inline-vs-forked). That lives in an agent's terminal message,
@@ -788,9 +794,15 @@ paraphrase-blindness as OPEN.
       **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`, which already
       carries the Slice 6 commits, unpushed. The corrected awk above; the `SWEPT` marker on the
       CR-local retirement block in BUILD ORDER, in the form its Decision 74 predecessor uses;
-      refreshed `backlog-burndown` figures; the false "tests run at Lefthook pre-commit" claim in
-      `docs/setup-audit.md` AND in `.claude/hooks/on-stop.sh`, which is where it was copied from
-      (`lefthook.yml` commented the test step out and says so on the line above it). Plus
+      an annotation on the `backlog-burndown` figures recording that `SATURATED` changes what the
+      state literals COUNT — the figures themselves are deliberately NOT refreshed, per
+      `agent-doc-updater.md`'s inventory-count exemption. Plus a false-claim sweep across four LIVE
+      sites, which were NOT all the same claim and are not known to share an origin: `on-stop.sh`
+      and `docs/decisions.md`'s config block asserted tests run at LEFTHOOK PRE-COMMIT, while
+      `docs/setup-audit.md` and `docs/plan.md`'s pipeline diagram asserted they run at STOP. Those
+      two assertions contradict each other, so no copied-from story fits; `lefthook.yml` comments
+      the pre-commit test step out and says so on the line above it, and `on-stop.sh`'s body is the
+      toast alone. Plus
       **Decision 78** — enforcement before change — and the guard candidates below. No code.
 
       **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to

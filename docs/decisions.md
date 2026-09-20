@@ -62,7 +62,8 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
 - **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
-  *(superseded: format moved to Lefthook `biome-check` and tests left the Stop hook entirely — see
+  *(Both bullets above are SUPERSEDED: format moved to Lefthook `biome-check`, and test and verify
+  left the Stop hook entirely — `on-stop.sh` is the toast alone. See
   `### Claude Code Config Structure`. Left unedited as a dated record of what was decided.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
@@ -2388,15 +2389,18 @@ item that gets a guard. The rule reproduces the triage reached independently, wh
 evidence offered that it is calibrated rather than merely strict.
 
 **`NONE` means CANNOT, never DID NOT.** `notEncoded` in the `*.mutations.json` files is the working
-precedent — each entry carries a `claim` and a `why`, and `run-mutations.mjs --coverage` prints
-them, so the set is surfaced rather than buried. Derive its size rather than quoting one:
-`node .claude/hooks/run-mutations.mjs --coverage`. The failure mode is already recorded here: on
+precedent — `run-mutations.mjs` REJECTS a `notEncoded` entry lacking a non-empty `claim` and `why`
+(the validator, not a convention), so the reason is mandatory rather than merely customary.
+Surfacing is weaker than that and worth stating exactly: `--list` prints each `claim`; `--coverage`
+prints only the COUNT per file; `why` prints under neither, so it is readable only in the data file.
+Derive the size with `node .claude/hooks/run-mutations.mjs --coverage` and the claims with `--list`. The failure mode is already recorded here: on
 PR #1309 (`ba5095d3`) the unlinked claims in one suite were deliberately NOT declared `notEncoded`,
 because they could be encoded and declaring them would have been the false claim. No count is given:
 re-derive with `--coverage` rather than trusting a figure recalled from a prior session.
 
 **A `NONE` WILL be reviewed by four mechanisms, three mechanical — designed state, not present
-state; the guard and the ratchet are PR 1-3 of this sequence.** A bare one fails at write time; a
+state. The tracker guard is PR 1 of this sequence; the write-time check and the ratchet for THIS
+rule are guard candidate 3, deferred to their own hard-split PR and not scheduled here.** A bare one fails at write time; a
 NEW one in a branch diff is printed and takes a terminal disposition in the pooled triage; the set
 is ratcheted and re-read at `/insights`, because "unenforceable" expires when tooling changes; and
 a `NONE` whose pattern keeps recurring in the learner tracker escalates to guard-candidate on its
@@ -2406,16 +2410,25 @@ own. The fourth is what makes the set self-correcting instead of a registry nobo
 to nothing enforces nothing, and the worst shape is a guard whose TEST runs in CI: it reads as
 coverage while gating nothing. Derive the current set rather than trusting a list —
 ```bash
-for f in .claude/hooks/*.mjs; do
-  case "$f" in *.test.mjs|*.testkit.mjs) continue;; esac   # test helpers are not guards
-  grep -qF "$(basename "$f")" lefthook.yml .github/workflows/ci.yml || echo "UNWIRED $f"
+for f in .claude/hooks/*.mjs .claude/hooks/*.sh .claude/hooks/*.js; do
+  case "$f" in *.test.*|*.testkit.*) continue;; esac   # test helpers are not guards
+  [ -e "$f" ] || continue
+  grep -qF "$(basename "$f")" \
+    lefthook.yml .github/workflows/ci.yml .claude/settings.json || echo "UNWIRED $f"
 done
 ```
-The `case` line is load-bearing: without it the list also returns `*.testkit.mjs` helpers, which are
-not guards, and every one of them reads as a defect. The `measure-*.mjs` scripts it does report are
-deliberately unwired and are NOT enforcers — that is the distinction an `Enforcer` entry has to
-carry, and why "a script exists" cannot be the test. Mechanically checkable at ~zero noise: assert
-the named script appears in `lefthook.yml` or `.github/workflows/ci.yml`.
+THREE wiring surfaces and THREE extensions, all load-bearing. An earlier form of this command globbed
+`*.mjs` and read only `lefthook.yml` and `ci.yml`; it could not see `run-security-auditor.sh` (wired
+in lefthook) or `guard-bash.js` / `review-gate.js` (wired via `settings.json` `PreToolUse`), so it
+could not answer this question at all for a `.sh` or `.js` enforcer. The `case` line is load-bearing
+too: without it the list returns `*.testkit.*` helpers, which are not guards, and each reads as a
+defect.
+
+Read the output as two classes, because it does NOT separate them for you. The `measure-*.mjs`
+scripts are deliberately unwired and are not enforcers. `check-mirror-sync.mjs` is an
+orchestrator-invoked utility, not a stage-wired guard — and it is the cautionary case this clause
+exists for, since its TEST runs in CI while the guard itself gates nothing. No noise rate is claimed
+for the eventual check: measure it before wiring, per 6.1.
 
 **Ships as a RATCHET, never a gate.** Baseline every existing rule clause; require the disposition
 only on new ones. Enforced retroactively it blocks the repo on day one, gets bypassed, and then

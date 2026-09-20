@@ -1039,9 +1039,9 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 
 ```
 Claude finishes responding
-    → [Stop hook] biome format changed files
-    → [Stop hook] vitest run affected tests
-    → [Stop hook] PowerShell toast notification
+    → [Stop hook] PowerShell toast notification — and nothing else. Formatting is
+      Lefthook pre-commit (`biome-check`); no test runner fires at Stop. See
+      `.claude/hooks/on-stop.sh`, whose body is the toast alone.
 
 git commit
     → [Lefthook pre-commit] mechanical guards, BLOCKING. NOT unit tests — those run in
