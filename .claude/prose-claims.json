@@ -1,7 +1,7 @@
 {
   "_": "Prose restatements of a .claude/limits.json cap, grandfathered. SHRINK-ONLY: enforced by .claude/hooks/check-prose-claims.mjs, whose ENFORCEMENT path never writes this file — only the human-invoked --update-baseline does, via updateBaseline(). Keys are <path>@<sha256-16 of the trimmed claim line>, so a row goes stale the moment its line is edited. Regenerate with `node .claude/hooks/check-prose-claims.mjs --update-baseline` and REVIEW THE DIFF — a `+` line is a new prose restatement being accepted.",
   "claims": {
-    ".claude/commands/insights.md@5bd4bddfca3a3747": "- **Memory budget**: run `wc -lc .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over **200 lines OR over 25 K...",
+    ".claude/commands/insights.md@9565cb8997c9436b": "- **Memory budget**: run `wc -lc .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over **200 lines OR over 25 K...",
     ".claude/hooks/check-file-size-guard.directive.test.mjs@0f1417e36ee481fb": "// MUTATION: restore `/^\\s*['\"]use server['\"]/m` → this matches and a 200-line utility takes",
     ".claude/hooks/check-file-size-guard.directive.test.mjs@627822f1602ced60": "// would answer false, handing a real Server Action the 200-line utility cap — the direction",
     ".claude/hooks/check-file-size-guard.directive.test.mjs@949f53d564b0da4a": "// the 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did",

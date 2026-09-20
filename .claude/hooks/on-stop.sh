@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs after every Claude response (Stop event).
-# Shows Windows toast notification. Formatting and tests are handled by Lefthook pre-commit.
+# Shows Windows toast notification.
 set -euo pipefail
 
 # Windows toast notification

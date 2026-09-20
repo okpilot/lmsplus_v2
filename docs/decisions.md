@@ -62,6 +62,9 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
 - **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
+  *(Both bullets above are SUPERSEDED: format moved to Lefthook `biome-check`, and test and verify
+  left the Stop hook entirely — `on-stop.sh` is the toast alone. See
+  `### Claude Code Config Structure`.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
 ### MCPs (confirmed 2026-03-11)
@@ -137,12 +140,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              format on Stop, test on Stop, notify on Stop
+│                              notify on Stop (format is Lefthook pre-commit; tests, CI)
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
 │   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
-│   └── on-stop.sh           ← Stop: biome format + vitest
+│   └── on-stop.sh           ← Stop: Windows toast only
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
 │   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project
@@ -2364,3 +2367,44 @@ both still bind for the cloud reviewer. Cloud CR findings land after the gate ha
 reach a LATER branch's learner run, on the same terms as red-team and coderabbit-sync. The new
 member runs pre-push, so its findings are ordinary input to the learner of the branch that produced
 them.
+
+## Decision 78: a change that establishes a silently-regressable invariant ships with its enforcer (2026-09-20)
+
+**Decision.** Before a change lands, the invariant it establishes or relies on gets a mechanical
+check — or an explicit `Enforcer: NONE — <why>`. Three outcomes, never two: **enforce**,
+**measure-then-enforce**, or **delete the rule**.
+
+**Order is measure → enforce → change, not enforce → change.**
+
+**Scope: invariants that can silently regress.** Not every edit. A one-off correction that cannot
+recur needs no enforcer; a rule new code can violate does.
+
+**`NONE` means CANNOT, never DID NOT.** `notEncoded` in the `*.mutations.json` files is the model:
+`run-mutations.mjs` REJECTS an entry lacking a non-empty `claim` and `why`, so the reason is
+mandatory rather than customary. `why` is readable only in the data file. Derive with
+`node .claude/hooks/run-mutations.mjs --coverage` and `--list`.
+
+**A `NONE` WILL be reviewed by four mechanisms, three mechanical — designed state, not present
+state. The tracker guard is PR 1 of this sequence; the write-time check and the ratchet for THIS
+rule are guard candidate 3, deferred to their own hard-split PR and not scheduled here.** A bare one fails at write time; a
+NEW one in a branch diff is printed and takes a terminal disposition in the pooled triage; the set
+is ratcheted and re-read at `/insights`, because "unenforceable" expires when tooling changes; and
+a `NONE` whose pattern keeps recurring in the learner tracker escalates to guard-candidate on its
+own. The fourth is what makes the set self-correcting instead of a registry nobody reopens.
+
+**An `Enforcer` entry names a WIRED STAGE, never a script path.** Detecting that set is guard
+candidate 4 in `.spec-workflow/specs/corpus-codification/tasks.md`.
+
+**Ships as a RATCHET, never a gate.** Baseline every existing rule clause; require the disposition
+only on new ones.
+
+**This decision cannot yet satisfy itself, and says so rather than pretending.** No enforcer exists
+for "every rule clause names an enforcer", so it lands as measure-then-enforce with
+`Enforcer: NONE — measurement pending`, tracked in `.spec-workflow/specs/corpus-codification/`.
+Written into `CLAUDE.md` as a bare binding clause it would violate itself on arrival.
+
+**Consequence.** Making it binding touches `CLAUDE.md`, `agent-workflow.md § Plan Validation` and
+the full Rule-Mirror Sync set, so it is a hard split into its own PR — the same reason Slice 5 W3
+already carries. Until that lands, the write-time, review-time and recurrence mechanisms apply to
+NEW clauses only and the ratchet cannot run. The risk to watch is ritual compliance; the measurable
+antidote is W3's metric, the fraction of new clauses landing with a real enforcer.

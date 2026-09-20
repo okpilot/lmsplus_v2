@@ -669,3 +669,49 @@ RULE CANDIDATE.
       programme exists to prevent.
 - [ ] Close the tracker row to PROMOTED only once the enforcer is graded green, not when the hook
       is written.
+
+## Slice 6 — single-source the corpus (user directive 2026-09-19)
+
+A fact that already HAS a data home, re-typed as prose in many files. Derive the size — these move:
+
+```bash
+p=':(top,exclude).claude/agent-memory'   # :(top,…) is cwd-invariant
+git grep -l -F "implementation-critic" -- ':/*.md' "$p" | wc -l          # gate roster
+git grep -l -F "apps/web/app/app/quiz/actions" -- ':/*.md' "$p" | wc -l  # securityPaths
+git grep -l -E "ceiling 3|3-round ceiling|Ceiling 3" -- ':/*.md' "$p" | wc -l
+```
+
+Upper bounds: each list mixes live restatements with historical records and legitimate pointers.
+
+**The rule.** Every fact has exactly one home. An unavoidable second copy is GENERATED or
+BYTE-IDENTICAL-AND-HASHED, never hand-written.
+
+- [x] **6.0 — CR-local retirement.** Merged `dd0491cc` (PR #1320).
+- [x] **6.0b — learner termination.** `SATURATED` added to the tracker state machine; the
+      undocumented `RULE EXISTS` token migrated to it; 7 terminal rows relocated, index back under
+      the injection cap. Derive headroom: `wc -lc .claude/agent-memory/learner/MEMORY.md`.
+- [ ] **6.0c — triage the remaining `RULE CANDIDATE` rows.** Needs judgment per row, not a regex: a
+      status citing a rule location does not say whether the rule EXISTS there or BELONGS there.
+      Derive the live count:
+      ```bash
+      awk -F'|' '/^\|/ && NF>4 {s=$(NF-1); if ($NF ~ /[A-Za-z]/) s=$NF
+        gsub(/^[ \t]+|[ \t]+$/,"",s); if (s ~ /^RULE CANDIDATE/) n++} END{print n+0}' \
+        .claude/agent-memory/learner/MEMORY.md .claude/agent-memory/learner/topics/tracker-archive.md
+      ```
+- [ ] **6.1 — measure before building.** Guard candidates below ship through a measure step, never
+      straight to blocking. Decision 78 governs.
+
+### Guard candidates
+
+1. **Tracker invariants** — `check-tracker-invariants.mjs`. Note `→` in a status cell is usually a
+   state-to-rule-location POINTER, not a transition; a strip-at-the-arrow parse drops live rows.
+2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Syntactic, enforceable.
+3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer. Hard split,
+   full Rule-Mirror Sync.
+4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** `decisions.md`
+   says an `Enforcer` entry names a WIRED STAGE, never a script path; this candidate hunts a script.
+   Settle which artifact the entry names first.
+5. **A tracker row whose count exceeds the promotion threshold with no terminal state.**
+6. **Bash writes bypass `review-gate.js`** — `.claude/settings.json` routes `Bash` to
+   `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:
+   `grep -c "review-gate.json" .claude/hooks/guard-bash.js`

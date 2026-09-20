@@ -1039,8 +1039,6 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 
 ```
 Claude finishes responding
-    → [Stop hook] biome format changed files
-    → [Stop hook] vitest run affected tests
     → [Stop hook] PowerShell toast notification
 
 git commit
