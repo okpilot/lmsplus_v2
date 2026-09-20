@@ -704,18 +704,21 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
       Only the index rows are live; archive rows are historical snapshots and some restate a
       pattern a later row supersedes.
 - [ ] **6.1 — measure before building.** Guard candidates below ship through a measure step, never
-      straight to blocking. Decision 78 governs.
+      straight to blocking. Order is measure → enforce → change.
 
 ### Guard candidates
 
 1. **Tracker invariants** — `check-tracker-invariants.mjs`. Note `→` in a status cell is usually a
    state-to-rule-location POINTER, not a transition; a strip-at-the-arrow parse drops live rows.
 2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Syntactic, enforceable.
-3. **A rule clause landing with no `Enforcer` disposition.** Decision 78's own enforcer. Hard split,
+3. **A rule clause landing with no `Enforcer` disposition.** Ships as a RATCHET, never a gate:
+   baseline existing clauses, require the disposition only on new ones. Hard split,
    full Rule-Mirror Sync.
-4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** `decisions.md`
-   says an `Enforcer` entry names a WIRED STAGE, never a script path; this candidate hunts a script.
-   Settle which artifact the entry names first.
+4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** Line 526 above
+   grades an entry by a SCRIPT PATH (`run-mutations.mjs`); a wired-stage reading says the entry names
+   the STAGE. Both cannot hold. No tracker carries an `Enforcer` column yet, so a guard built now
+   scans an empty set and exits clean — the fail-open shape. Settle which artifact the entry names,
+   and confirm the column exists, before building.
 5. **A tracker row whose count exceeds the promotion threshold with no terminal state.**
 6. **Bash writes bypass `review-gate.js`** — `.claude/settings.json` routes `Bash` to
    `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:

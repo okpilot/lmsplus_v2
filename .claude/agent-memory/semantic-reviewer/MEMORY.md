@@ -102,7 +102,7 @@
 ### Process → [durable-catches](topics/durable-catches.md)
 
 ## Topic pointers
-- [tracker-archive](topics/tracker-archive.md) — relocated verbatim terminal-state tracker rows (PROMOTED/RESOLVED/FALSE POSITIVE), still counted.
+- [tracker-archive](topics/tracker-archive.md) — relocated verbatim terminal-state tracker rows (PROMOTED/SATURATED/RESOLVED/RESOLVED-WATCH/FALSE POSITIVE), still counted.
 - [durable-catches](topics/durable-catches.md) — relocated durable bullets (#948): Security-gate, Test-quality, Process, Query/data correctness, React/Next.js correctness.
 - [pr-697-phase-a](topics/pr-697-phase-a.md) — PR-level sweep findings for #697 Phase A: cross-commit doc drift in the `complete_overdue_exam_session` detail section.
 - [vfr-rt-review-notes](topics/vfr-rt-review-notes.md) — VFR-RT (#697) do-not-flag facts: `complete_overdue/empty` mode guards include `vfr_rt_exam` (mig 102), `normalize_answer` apply-order, PG17 `NULLS NOT DISTINCT`, `ON CONFLICT DO NOTHING` on `student_responses`.

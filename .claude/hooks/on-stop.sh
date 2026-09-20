@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Runs after every Claude response (Stop event).
-# Calls powershell.exe for a toast. Absent on this host, so this is a no-op — #1322.
+# Shows Windows toast notification. Formatting and tests are handled by Lefthook pre-commit.
 set -euo pipefail
 
+# Windows toast notification
 powershell.exe -NonInteractive -NoProfile -Command "
   \$xml = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
   \$template = [Windows.UI.Notifications.ToastTemplateType]::ToastText01
