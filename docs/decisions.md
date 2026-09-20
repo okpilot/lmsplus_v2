@@ -2391,7 +2391,8 @@ evidence offered that it is calibrated rather than merely strict.
 **`NONE` means CANNOT, never DID NOT.** `notEncoded` in the `*.mutations.json` files is the working
 precedent — `run-mutations.mjs` REJECTS a `notEncoded` entry lacking a non-empty `claim` and `why`
 (the validator, not a convention), so the reason is mandatory rather than merely customary.
-Surfacing is weaker than that and worth stating exactly: `--list` prints each `claim`; `--coverage`
+Surfacing is weaker than that and worth stating exactly: `--list` prints each `claim` FOR
+`notEncoded` ENTRIES (for encoded mutations it prints the id instead); `--coverage`
 prints only the COUNT per file; `why` prints under neither, so it is readable only in the data file.
 Derive the size with `node .claude/hooks/run-mutations.mjs --coverage` and the claims with `--list`. The failure mode is already recorded here: on
 PR #1309 (`ba5095d3`) the unlinked claims in one suite were deliberately NOT declared `notEncoded`,
@@ -2422,7 +2423,8 @@ THREE wiring surfaces and THREE extensions, all load-bearing. An earlier form of
 in lefthook) or `guard-bash.js` / `review-gate.js` (wired via `settings.json` `PreToolUse`), so it
 could not answer this question at all for a `.sh` or `.js` enforcer. The `case` line is load-bearing
 too: without it the list returns `*.testkit.*` helpers, which are not guards, and each reads as a
-defect.
+defect. Known residual: `grep -qF` matches a SUBSTRING, so a guard whose filename is a prefix of a
+different WIRED filename would read as wired. None in the current hook set — re-check when adding one.
 
 Read the output as two classes, because it does NOT separate them for you. The `measure-*.mjs`
 scripts are deliberately unwired and are not enforcers. `check-mirror-sync.mjs` is an

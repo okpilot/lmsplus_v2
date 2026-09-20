@@ -797,12 +797,17 @@ paraphrase-blindness as OPEN.
       an annotation on the `backlog-burndown` figures recording that `SATURATED` changes what the
       state literals COUNT — the figures themselves are deliberately NOT refreshed, per
       `agent-doc-updater.md`'s inventory-count exemption. Plus a false-claim sweep across four LIVE
-      sites, which were NOT all the same claim and are not known to share an origin: `on-stop.sh`
-      and `docs/decisions.md`'s config block asserted tests run at LEFTHOOK PRE-COMMIT, while
-      `docs/setup-audit.md` and `docs/plan.md`'s pipeline diagram asserted they run at STOP. Those
-      two assertions contradict each other, so no copied-from story fits; `lefthook.yml` comments
+      FILES (`docs/decisions.md` carries three of the lines). They did NOT all carry the same claim:
+      **`on-stop.sh` ALONE said tests run at LEFTHOOK PRE-COMMIT**; `docs/decisions.md`,
+      `docs/setup-audit.md` and `docs/plan.md`'s pipeline diagram all said they run at STOP. So no
+      copied-from story fits — the Stop hook was stripped to a toast, `on-stop.sh`'s header was
+      rewritten to a DIFFERENT wrong claim, and the doc sites kept the original one, which had been
+      true under the dated 2026-03-11 decision. Neither mechanism holds now: `lefthook.yml` comments
       the pre-commit test step out and says so on the line above it, and `on-stop.sh`'s body is the
-      toast alone. Plus
+      toast alone. **Derive per file rather than trusting this sentence** — two earlier versions of
+      it were wrong in two different ways:
+      `for f in .claude/hooks/on-stop.sh docs/decisions.md docs/setup-audit.md docs/plan.md; do echo "== $f"; git show origin/master:"$f" | grep -niE 'stop.{0,40}(biome|vitest|test)|lefthook pre-commit'; done`
+      Plus
       **Decision 78** — enforcement before change — and the guard candidates below. No code.
 
       **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to
@@ -879,6 +884,17 @@ paraphrase-blindness as OPEN.
         parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and
         keep it as judgment: a rule asserted as enforced but unenforced is the defect this slice
         exists to remove.
+      - **An attribution across N sites was got wrong TWICE before being got right — record the
+        SHAPE, not a new rule.** The same fact ("which files claimed tests run where") was stated
+        wrongly in the PR 0 description, wrongly again in the round-1 fixup that corrected it, and
+        correctly only on the third attempt. Same evidence available each time. The difference was
+        the COMMAND SHAPE: attempts 1-2 ran greps to confirm a story already held; attempt 3 printed
+        each file's value separately and read the table. Adjacent to §10 cl.2 (enumerate → derive),
+        widened from "enumerating a set" to "attributing a property ACROSS a set" — a widening
+        CANDIDATE for the learner to count, deliberately NOT written as a rule here, because the
+        row it belongs to is past 76 and its rule text already exists.
+        It is also the strongest available evidence for `SATURATED`: the rule was violated twice by
+        the author applying it, inside the PR arguing the count no longer carries information.
       - **The buried set is THIN.** Triage each archived candidate into: covered by existing rule
         text / live under other wording / genuinely unpromoted. Only the third class is restored
         and it was by far the smallest. A delegated triage found no high-count pattern buried, with
