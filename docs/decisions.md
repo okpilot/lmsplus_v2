@@ -141,7 +141,7 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              notify on Stop (format is Lefthook pre-commit; tests, CI)
+│                              notify on Stop (format is Lefthook pre-commit; tests, /fullpush 4)
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)

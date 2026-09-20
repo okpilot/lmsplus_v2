@@ -25,7 +25,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 - False positive tracking: findings that turned out to be wrong
 ## When To Apply Rule Changes
 The learner proposes, the orchestrator decides. Apply a change when:
-1. The pattern has 2+ occurrences across different ROUNDS or different BRANCHES (not just different files in one round). A branch produces at most three pooled fixup commits, so a commit-keyed threshold would throttle promotion.
+1. The pattern has 2+ occurrences across different ROUNDS or different BRANCHES (not just different files in one round), and the row is not `SATURATED` — that state means the rule text already exists, so its count is a frequency record and not promotion evidence. A branch produces at most three pooled fixup commits, so a commit-keyed threshold would throttle promotion.
 2. The proposed rule is specific enough to be mechanically checked.
 3. The rule doesn't conflict with existing documented exceptions.
 4. The change is in the right place (Biome for formatting, code-style.md for structure, security.md for security).

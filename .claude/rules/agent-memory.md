@@ -16,8 +16,7 @@
 ## Tracker state machine — rows are NEVER deleted
 A tracker row records a recurring pattern and its frequency. Rows **transition state**, never removed. Count increments only for a **distinct** mechanism/occurrence. States: `WATCHING` → (count reaches 2) → `RULE CANDIDATE` → (rule written) → `PROMOTED → <rule location>`; also `WATCHING`/`RULE CANDIDATE` → `RESOLVED` (fix proven, stops recurring), `RESOLVED-WATCH` (resolved but still worth watching), or `FALSE POSITIVE` (not a real issue). `RULE CANDIDATE` or `PROMOTED` → `SATURATED` when the
 rule text ALREADY EXISTS and the recurrence is behavioral, so no rule change can reduce it —
-terminal, and the count keeps incrementing as a frequency record but stops being evidence for
-promotion.
+terminal, and the count stops being evidence for promotion.
 Tracker columns vary by agent — read by header name, not position, before editing. A recurrence that proves a count was mis-attributed fixes the count and notes the reconciliation in the row.
 > Tracker requirement: **code-reviewer** — `.claude/agents/code-reviewer.md`, `## Recurring Issues Tracker`. **learner** — `.claude/rules/agent-learner.md`.
 ## Memory Discipline — update IN PLACE, never append
