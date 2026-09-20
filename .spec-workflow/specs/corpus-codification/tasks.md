@@ -108,6 +108,17 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 
 **Item 6 ran first** (user directive, 2026-09-16) and is DONE. Measured against PR #1295, the guard-building PR that prompted #1298: 14 commits vs 29, 7 review-driven fixups vs 21, 0 code defects vs ~8. Deletion is the only change shape whose review cost falls as the change grows.
 
+**NEXT — deletion verdict rules** (user directive, 2026-09-20). Two clauses in
+`agent-workflow.md § Apply-vs-Defer Discipline`, plus the Rule-Mirror Sync set. Own PR, ~20 lines:
+1. A fourth verdict beside APPLY / DEFER / SKIP: **DELETE the subject.** All three existing verdicts
+   preserve the text, so a true-but-unnecessary line is CLEAN and survives every round.
+2. A deletion candidate gets a blast-radius agent as standard cost, not an exception. Grep cannot
+   prove nothing references a thing — `agent-workflow.md § Rule-Mirror Sync` records
+   paraphrase-blindness as OPEN.
+Evidence: on `fix/learner-tracker-termination` five review rounds proposed zero deletions; one agent
+asked what could be deleted and returned Decision 78 in full plus the 21,713-byte `doc-updater`
+memory loss of `8091d3b4` that no round had seen. Both went in `e4d375d8`.
+
 **BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
 Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
@@ -723,3 +734,7 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
 6. **Bash writes bypass `review-gate.js`** — `.claude/settings.json` routes `Bash` to
    `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:
    `grep -c "review-gate.json" .claude/hooks/guard-bash.js || true`  # 0 matches exits 1
+7. **A commit shrinking a tracked file past a threshold with no matching addition elsewhere.**
+   `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill, committed
+   under `git add -A` over a path the gate excludes. Derive from `git diff --numstat` per commit;
+   flag a deletion above the threshold whose bytes land nowhere.
