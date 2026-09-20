@@ -147,8 +147,8 @@ Enumerate against the ref, before editing; a worktree mid-sweep reports its own 
 **RETIRE CR-local entirely** — user decision 2026-09-19, superseding Decision 74's round-1
 scoping. Round 1 keeps six members: `code-review (skill)` — the built-in `/code-review` skill,
 dispatched as a subagent in an isolated worktree on opus — takes the vacated slot, round 1 only
-(Decision 77). Cloud CodeRabbit stays until the subscription lapses, so
-`.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope. Driver: a blind
+(Decision 77). `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope.
+EVIDENCE: a blind
 `/code-review` run over #1315's range, in an isolated worktree, matched all four of cloud CR's
 Major findings and raised further ones it did not. Derive the cloud side, the only derivable half:
 `gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'` — `--paginate` is load-bearing (the endpoint pages at 30 and exits 0 on a truncated list) and the author filter keeps a human comment containing "major" out of the count.
@@ -440,11 +440,18 @@ awk '/^##+ /{cur=FILENAME": "FNR; next}
      cur!="" && /\.claude\/hooks\/|biome\.json|[Ss]onar[Cc]loud|ci\.yml|lefthook/{if(!p[cur]++) print cur}' \
   .claude/rules/*.md CLAUDE.md | wc -l
 
-# agent definitions whose proposal vocabulary reaches a guard at all
-grep -rn -E "propos|recommend" .claude/agents/*.md | grep -cE "hook|guard|enforcer"
+# agent definitions whose proposal vocabulary reaches a guard at all — FILE-wise:
+# the line-wise form double-counts a file carrying two such lines
+grep -rn -E "propos|recommend" .claude/agents/*.md | grep -E "hook|guard|enforcer" \
+  | cut -d: -f1 | sort -u | wc -l
+
+# every enforcer path the rules name, tested against disk
+grep -rhoE '\.claude/hooks/[A-Za-z0-9._-]+\.(mjs|sh|js)' .claude/rules/*.md CLAUDE.md \
+  | sort -u | while read -r p; do [ -e "$p" ] || echo "MISSING: $p"; done
 ```
 
-No rule names an enforcer missing from disk. The gap is un-built mechanism, not rot.
+The last command prints nothing: no rule names an enforcer missing from disk. The gap is un-built
+mechanism, not rot. Every command here is line-oriented and misses a term split across lines.
 
 ### W1 — measure the mechanizable fraction (FIRST)
 
