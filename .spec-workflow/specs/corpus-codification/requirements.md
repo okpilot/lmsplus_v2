@@ -57,8 +57,7 @@ git log --format='%s' origin/master..HEAD | grep -cE 'round-[0-9]+ fixup'
 **It is a LOWER BOUND, not the round count**, and the bound is exact only when the loop stops
 clean: it counts rounds that PRODUCED a pooled fixup. A round that finds nothing produces no commit,
 and an edit landing after the ceiling is not a round's fixup at all. Measured on the branch that
-added this metric: the command returns 2 while the loop ran 3 rounds and then took one post-ceiling
-edit. Requires the convention that every pooled fixup subject contains `round-N fixup`; the number
+added this metric: the command returns 2 while the loop ran 3 rounds. Requires the convention that every pooled fixup subject contains `round-N fixup`; the number
 is meaningless on a branch that did not follow it.
 
 **Not the learner's row counts.** Those rise when detection improves as well as when defects

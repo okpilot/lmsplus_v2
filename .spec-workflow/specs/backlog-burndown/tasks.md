@@ -269,7 +269,7 @@ Ordering and contents in the artifact above. Not started.
       picking up a prose bullet that cross-references code-reviewer's tracker.
       count>=3 (24): `grep '^|' .claude/agent-memory/learner/MEMORY.md | grep -oE 'RULE CANDIDATE \(([0-9]+)\)' | grep -oE '[0-9]+' | awk '$1>=3' | wc -l`
       **After `corpus-codification` PR 2 both commands count a SMALLER set** — a row whose rule
-      text already exists leaves `RULE CANDIDATE` for a terminal state. Derive the state set from
+      text already exists leaves `RULE CANDIDATE` for `SATURATED`. Derive the state set from
       `.claude/pipeline.json` then, not from the figures above; those are as-of-pinned.
       Several are long past the count=2 promotion threshold. Each promotion also owes the
       Sweep-On-Rule-Promotion pass AND the downstream-enforcer sync (`agent-learner.md`), so budget

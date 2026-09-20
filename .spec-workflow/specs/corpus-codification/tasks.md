@@ -719,7 +719,7 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.** A paraphrased mirror is not a p
       (a) the index sits at the injection cap, so the next run's writes are silently invisible;
       (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state;
       (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
-          forever. (c) is the live defect; (b) is thinner than it looks — see § Findings.
+          forever. (c) is the live defect; (b) is thinner than it looks — see the findings below.
 
       **No PR in this sequence deletes an injected line** — the lines come out at 6.5 and Slice 3.
       Re-derive the metric with `wc -l CLAUDE.md .claude/rules/*.md | tail -1` against the goal in
