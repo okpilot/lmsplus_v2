@@ -140,7 +140,7 @@ done
 
 An unplanned grep reached 14 files. A delegated impact analysis against the pre-change ref found
 the rest, and the gate's own rounds found two more. The classes a grep cannot reach: the `.sh`
-executable mirror (`cr-local-plan-reminder.sh` PRINTED the reviewer list to the operator), a
+executable mirror (`cr-local-plan-reminder.sh`, since DELETED, PRINTED the reviewer list), a
 steering paraphrase (`later rounds the three that gate`), and a DRAFT spec outside the diff.
 Enumerate against the ref, before editing; a worktree mid-sweep reports its own edits back.
 
@@ -151,7 +151,7 @@ dispatched as a subagent in an isolated worktree on opus — takes the vacated s
 `.coderabbit.yaml`, `coderabbit.md` and `replycoderabbit.md` are NOT in scope. Driver: a blind
 `/code-review` run over #1315's range, in an isolated worktree, matched all four of cloud CR's
 Major findings and raised further ones it did not. Derive the cloud side, the only derivable half:
-`gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.body | test("major"; "i"))] | length'` — `--paginate` is load-bearing: the endpoint pages at 30 and exits 0 on a truncated list.
+`gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'` — `--paginate` is load-bearing (the endpoint pages at 30 and exits 0 on a truncated list) and the author filter keeps a human comment containing "major" out of the count.
 
 Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
 deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:
@@ -162,7 +162,8 @@ grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
   | grep -v node_modules | grep -v '.claude/worktrees/' | grep -v '.claude/agent-memory/'
 ```
 
-`docs/decisions.md` and every all-`[x]` spec are HISTORY — Decision 74 happened. Leave them.
+`docs/decisions.md` is HISTORY, as is any spec with no open task — derive that set rather than
+assuming last time's: `for f in .spec-workflow/specs/*/tasks.md; do grep -q '^- \[ \]' "$f" || echo "$f"; done`. Decision 74 happened. Leave them.
 
 **Three classes the grep above cannot reach** — the Decision 74 sweep's lesson, applying again:
 1. **The reviewer COUNT.** Every "six reviewers" site is invisible to a `CR-local` grep. Derive:

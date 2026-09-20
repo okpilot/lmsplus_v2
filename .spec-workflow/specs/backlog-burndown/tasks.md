@@ -241,7 +241,8 @@ Ordering and contents in the artifact above. Not started.
       only Write/Edit holder). Not a sandbox: every agent keeps `Bash`, and `memory: project` still
       auto-grants each agent Read/Write/Edit on its OWN memory dir. Also: CR-local findings become
       learner input, reviewer definitions require an `EVIDENCE:` line on runtime claims, and the
-      consecutive-clean floor becomes CR-local's extend-by-one (Decision 61).
+      consecutive-clean floor becomes CR-local's extend-by-one (Decision 61 — both superseded:
+      Decision 73 stops on the first clean round, Decision 77 retired CR-local).
       ⚠️ The `tools:` enforcement is INERT until a session restart — agent definitions snapshot at
       session start. CONFIRM next session; a tracker that stops updating is the only signal.
 - [ ] W3 session lifecycle — PR 8 (#1209+#1212+#1123+#1211) · PR 9 (#1205) · PR 10 (#548+#1012)
