@@ -141,8 +141,9 @@ code-reviewer's suppression list); a NARRATIVE of past sessions does not.
 Carried into this audit, unresolved here: `RESOLVED-WATCH` is defined as "still worth watching" yet
 `/insights` archives it to a topic file, and only `MEMORY.md` is injected — so archiving ends the
 watch. The verdict is written (`insights.md`, and `agent-memory.md § Tracker state machine`). What is
-OPEN is the sweep of rows already archived, and compound rows (`PROMOTED … RESOLVED-WATCH`), which
-the verdict does not cover. Derive the set:
+OPEN is the sweep of rows already archived. Compound rows (`PROMOTED … RESOLVED-WATCH`) ARE covered:
+`agent-memory.md § Tracker state machine` archives them and opens a new `WATCHING` row where the
+watch must continue. Derive the set:
 `grep -c 'RESOLVED-WATCH' .claude/agent-memory/*/topics/tracker-archive.md`
 
 Blast radius is the risk: memory deletion is irreversible and the gate cannot see it. Each candidate
