@@ -445,13 +445,15 @@ awk '/^##+ /{cur=FILENAME": "FNR; next}
 grep -rn -E "propos|recommend" .claude/agents/*.md | grep -E "hook|guard|enforcer" \
   | cut -d: -f1 | sort -u | wc -l
 
-# every enforcer path the rules name, tested against disk
+# every `.claude/hooks/<name>.(mjs|sh|js)` path the rules name, tested against disk.
+# OUT OF REACH: a hook the rules name by BARE basename — diff the basenames of an
+# unqualified grep against this one to derive that set.
 grep -rhoE '\.claude/hooks/[A-Za-z0-9._-]+\.(mjs|sh|js)' .claude/rules/*.md CLAUDE.md \
   | sort -u | while read -r p; do [ -e "$p" ] || echo "MISSING: $p"; done
 ```
 
-The last command prints nothing: no rule names an enforcer missing from disk. The gap is un-built
-mechanism, not rot. Every command here is line-oriented and misses a term split across lines.
+The last command prints nothing: no rule names a fully-qualified enforcer path that is missing
+from disk. The gap is un-built mechanism, not rot. Every command here is line-oriented and misses a term split across lines.
 
 ### W1 — measure the mechanizable fraction (FIRST)
 
