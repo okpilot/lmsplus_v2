@@ -696,8 +696,9 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
       ```bash
       for f in .claude/agent-memory/learner/MEMORY.md \
                .claude/agent-memory/learner/topics/tracker-archive.md; do
-        printf '%4s  %s\n' "$(awk -F'|' '/^\|/ && NF>4 {s=$(NF-1); if ($NF ~ /[A-Za-z]/) s=$NF
-          gsub(/^[ \t]+|[ \t]+$/,"",s); if (s ~ /^RULE CANDIDATE/) n++} END{print n+0}' "$f")" "$f"
+        printf '%4s  %s\n' "$(awk '/^\|/{t=$0; gsub(/\\\|/,"\001",t); n=split(t,f,"|")
+          if(n>4){s=f[n-1]; if(f[n] ~ /[A-Za-z]/) s=f[n]
+          gsub(/^[ \t]+|[ \t]+$/,"",s); if(s ~ /^RULE CANDIDATE/) c++}} END{print c+0}' "$f")" "$f"
       done
       ```
       Only the index rows are live; archive rows are historical snapshots and some restate a

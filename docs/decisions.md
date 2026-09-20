@@ -64,7 +64,7 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
   *(The `Stop (format + test + verify + notify)` clause above and the Format-on-Stop bullet are
   SUPERSEDED: format moved to Lefthook `biome-check`, test and verify left the Stop hook entirely —
-  `on-stop.sh` is the toast alone. The PreToolUse half is live. See
+  `on-stop.sh` calls powershell.exe, absent on this host — a no-op (#1322). The PreToolUse half is live. See
   `### Claude Code Config Structure`.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
@@ -141,12 +141,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              notify on Stop (format is Lefthook pre-commit; tests, /fullpush 4)
+│                              Stop no-op (format is Lefthook pre-commit; tests, /fullpush 4)
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
 │   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
-│   └── on-stop.sh           ← Stop: Windows toast only
+│   └── on-stop.sh           ← Stop: no-op (powershell.exe absent, #1322)
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
 │   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project
