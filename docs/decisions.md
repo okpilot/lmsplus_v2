@@ -62,6 +62,8 @@ Post-commit review agents (code-reviewer, semantic-reviewer, doc-updater, test-w
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
 - **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
+  *(superseded: format moved to Lefthook `biome-check` and tests left the Stop hook entirely — see
+  `### Claude Code Config Structure`. Left unedited as a dated record of what was decided.)*
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
 ### MCPs (confirmed 2026-03-11)
@@ -137,12 +139,12 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              format on Stop, test on Stop, notify on Stop
+│                              notify on Stop (format is Lefthook pre-commit; tests, CI)
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
 │   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
 │   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
-│   └── on-stop.sh           ← Stop: biome format + vitest
+│   └── on-stop.sh           ← Stop: Windows toast only
 ├── agents/
 │   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
 │   ├── semantic-reviewer.md ← sonnet, deep logic/security review, memory: project
@@ -2364,3 +2366,68 @@ both still bind for the cloud reviewer. Cloud CR findings land after the gate ha
 reach a LATER branch's learner run, on the same terms as red-team and coderabbit-sync. The new
 member runs pre-push, so its findings are ordinary input to the learner of the branch that produced
 them.
+
+## Decision 78: a change that establishes a silently-regressable invariant ships with its enforcer (2026-09-20)
+
+**Decision.** Before a change lands, the invariant it establishes or relies on gets a mechanical
+check — or an explicit `Enforcer: NONE — <why>`. Three outcomes, never two: **enforce**,
+**measure-then-enforce**, or **delete the rule**. Without the third branch an unenforceable rule
+has no exit and stays as decoration, which is the condition this decision exists to end.
+
+**Order is measure → enforce → change, not enforce → change.** Decision 76 is the standing
+counterexample: a detector designed before measurement was refuted at roughly half the commits in
+its window. A guard built on a hypothesis encodes the wrong invariant and then reads as coverage
+while providing none — strictly worse than no guard, because it stops anyone looking.
+
+**Scope: invariants that can silently regress.** Not every edit. A one-off correction that cannot
+recur needs no enforcer; a rule new code can violate does. Applied to this decision's own PR: the
+`SWEPT` marker and the false pre-commit claim are one-off corrections and take no guard; the stale
+inventory figures were LEFT UNTOUCHED under `agent-doc-updater.md`'s exemption, so they are not
+corrections at all; and the `grep -v` exclusion can recur, is already a tracker row, and is the one
+item that gets a guard. The rule reproduces the triage reached independently, which is the only
+evidence offered that it is calibrated rather than merely strict.
+
+**`NONE` means CANNOT, never DID NOT.** `notEncoded` in the `*.mutations.json` files is the working
+precedent — each entry carries a `claim` and a `why`, and `run-mutations.mjs --coverage` prints
+them, so the set is surfaced rather than buried. Derive its size rather than quoting one:
+`node .claude/hooks/run-mutations.mjs --coverage`. The failure mode is already recorded here: on
+PR #1309 (`ba5095d3`) the unlinked claims in one suite were deliberately NOT declared `notEncoded`,
+because they could be encoded and declaring them would have been the false claim. No count is given:
+re-derive with `--coverage` rather than trusting a figure recalled from a prior session.
+
+**A `NONE` WILL be reviewed by four mechanisms, three mechanical — designed state, not present
+state; the guard and the ratchet are PR 1-3 of this sequence.** A bare one fails at write time; a
+NEW one in a branch diff is printed and takes a terminal disposition in the pooled triage; the set
+is ratcheted and re-read at `/insights`, because "unenforceable" expires when tooling changes; and
+a `NONE` whose pattern keeps recurring in the learner tracker escalates to guard-candidate on its
+own. The fourth is what makes the set self-correcting instead of a registry nobody reopens.
+
+**An `Enforcer` entry names a WIRED STAGE, never a script path.** A guard that exists and is wired
+to nothing enforces nothing, and the worst shape is a guard whose TEST runs in CI: it reads as
+coverage while gating nothing. Derive the current set rather than trusting a list —
+```bash
+for f in .claude/hooks/*.mjs; do
+  case "$f" in *.test.mjs|*.testkit.mjs) continue;; esac   # test helpers are not guards
+  grep -qF "$(basename "$f")" lefthook.yml .github/workflows/ci.yml || echo "UNWIRED $f"
+done
+```
+The `case` line is load-bearing: without it the list also returns `*.testkit.mjs` helpers, which are
+not guards, and every one of them reads as a defect. The `measure-*.mjs` scripts it does report are
+deliberately unwired and are NOT enforcers — that is the distinction an `Enforcer` entry has to
+carry, and why "a script exists" cannot be the test. Mechanically checkable at ~zero noise: assert
+the named script appears in `lefthook.yml` or `.github/workflows/ci.yml`.
+
+**Ships as a RATCHET, never a gate.** Baseline every existing rule clause; require the disposition
+only on new ones. Enforced retroactively it blocks the repo on day one, gets bypassed, and then
+reads as coverage — R0b-1's failure exactly.
+
+**This decision cannot yet satisfy itself, and says so rather than pretending.** No enforcer exists
+for "every rule clause names an enforcer", so it lands as measure-then-enforce with
+`Enforcer: NONE — measurement pending`, tracked in `.spec-workflow/specs/corpus-codification/`.
+Written into `CLAUDE.md` as a bare binding clause it would violate itself on arrival.
+
+**Consequence.** Making it binding touches `CLAUDE.md`, `agent-workflow.md § Plan Validation` and
+the full Rule-Mirror Sync set, so it is a hard split into its own PR — the same reason Slice 5 W3
+already carries. Until that lands, the write-time, review-time and recurrence mechanisms apply to
+NEW clauses only and the ratchet cannot run. The risk to watch is ritual compliance; the measurable
+antidote is W3's metric, the fraction of new clauses landing with a real enforcer.

@@ -157,13 +157,32 @@ EVIDENCE: a blind
 Major findings and raised further ones it did not. Derive the cloud side, the only derivable half:
 `gh api --paginate "repos/okpilot/lmsplus_v2/pulls/1315/comments" --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("major"; "i")))] | length'` — `--paginate` is load-bearing (the endpoint pages at 30 and exits 0 on a truncated list) and the author filter keeps a human comment containing "major" out of the count.
 
+SWEPT 2026-09-20, in `dd0491cc` (PR #1320). Derive the set rather than quoting a figure:
+`git show --name-only --format= dd0491cc`. Of the three classes a grep cannot reach, named below,
+TWO required an edit — the guard's own worked example (`check-prose-paths.mjs`) and the executable
+mirror (`cr-local-plan-reminder.sh`, deleted). The reviewer COUNT needed none: the roster stayed at
+six, CR-local out and `code-review (skill)` in, so no "six reviewers" site was ever wrong. Verify
+with `git show dd0491cc --format= --stat -- <path>` per class. Two residuals, both CHECKED this session and both no-ops — recorded so neither
+is re-opened:
+- **The worktree copies of the deleted hook are not stragglers.** `.claude/worktrees/*` are live
+  git worktrees on other branches; verify with
+  `for b in <branch>; do git diff --quiet $(git merge-base origin/master $b) $b -- .claude/hooks/cr-local-plan-reminder.sh .claude/settings.json && echo "$b clean"; done`.
+  Both leave the hook and its wiring untouched since their merge-base, so master's deletion wins on
+  merge. Deleting from another branch's worktree would be the error.
+- **The sweep command below used a `| grep -v` text filter**, the anti-pattern § Re-investigate
+  names. Fixed to a pathspec. On today's corpus both forms return the same lines, so this was
+  LATENT, not a miss — do not record it as one.
+
 Enumerate the surfaces; do not work from a list written here. A path list goes stale on the first
 deletion, and prose naming a deleted path is exactly what `check-prose-paths.mjs` blocks:
 
 ```bash
-grep -rniE "cr-local|crlocal|coderabbit-local|coderabbit review" \
-  --include="*.md" --include="*.yml" --include="*.json" --include="*.sh" --include="*.mjs" . \
-  | grep -v node_modules | grep -v '.claude/worktrees/' | grep -v '.claude/agent-memory/'
+git grep -niE "cr-local|crlocal|coderabbit-local|coderabbit review" \
+  -- '*.md' '*.yml' '*.json' '*.sh' '*.mjs' \
+     ':(exclude).claude/agent-memory' ':(exclude).claude/worktrees'
+# Path-anchored, never `| grep -v <path>`: a text filter drops every line that QUOTES the
+# excluded path, which is exactly the set a gate-scope sweep is looking for. node_modules
+# needs no exclusion here — git grep only reads tracked files.
 ```
 
 `docs/decisions.md` is HISTORY, as is any spec with no open task — derive that set rather than
@@ -769,7 +788,40 @@ paraphrase-blindness as OPEN.
       **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`, which already
       carries the Slice 6 commits, unpushed. The corrected awk above; the `SWEPT` marker on the
       CR-local retirement block in BUILD ORDER, in the form its Decision 74 predecessor uses;
-      refreshed `backlog-burndown` figures. No code.
+      refreshed `backlog-burndown` figures; the false "tests run at Lefthook pre-commit" claim in
+      `docs/setup-audit.md` AND in `.claude/hooks/on-stop.sh`, which is where it was copied from
+      (`lefthook.yml` commented the test step out and says so on the line above it). Plus
+      **Decision 78** — enforcement before change — and the guard candidates below. No code.
+
+      **GUARD CANDIDATES — registered here, built through 6.1's measure step, never straight to
+      blocking.** Decision 78 governs; `Enforcer: NONE` means CANNOT, never DID NOT.
+      1. **Tracker invariants** → PR 1, `check-tracker-invariants.mjs`. Measured need: the index
+         sits at its cap and three other agents' archives hold non-terminal rows.
+      2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Learner row at
+         count 3, no enforcer. Syntactic, so it is in the enforceable class. Own PR after PR 1 —
+         different detector, different corpus, different noise profile; bundling it with (1) lets
+         one bad measurement taint both.
+      3. **A rule clause landing with no `Enforcer` disposition.** This is Decision 78's own
+         enforcer and it does not exist yet, which is why 78 ships as measure-then-enforce.
+         Hard split, full Rule-Mirror Sync — Slice 5 W3 already carries that split for the same
+         reason.
+      4. **An `Enforcer` entry naming a script that is wired to no stage.** The cheapest of the
+         set: assert the named script appears in `lefthook.yml` or `.github/workflows/ci.yml`.
+         Decision 78 carries the derivation; run it before assuming the list is short, and note
+         that a guard whose only appearance is its own `*.test.mjs` step is UNWIRED — that shape
+         reads as coverage while gating nothing.
+      5. **plan-critic not run before execution on a multi-file change.** Registered because it was
+         VIOLATED producing this very PR, not on theory: the orchestrator went from approval
+         straight to editing five files, having said one turn earlier that the redraft needed its
+         own run. `CLAUDE.md` gates Execute behind validate → plan-critic → approve with no size
+         exemption, and no enforcer covers it.
+         **Hardest of the five, and it may honestly resolve to `NONE — cannot`.** A hook cannot
+         observe whether an agent ran. The only tractable shape is commit-time — a commit touching
+         N+ files referencing a plan or spec item — and that needs 6.1's measure step first,
+         because the obvious detector plausibly fires on most mechanical multi-file commits — a
+         PREDICTION, unmeasured, and exactly the shape Decision 76 refuted. Under Decision
+         78 a `NONE` here is a legitimate outcome PROVIDED it says so out loud rather than being
+         left unstated.
       **PR 1 — the guard, ALONE.** `check-tracker-invariants.mjs` + tests + baseline, wired
       pre-commit and CI, ratcheted like `check-file-size-guard.mjs`. No prose, no rule change, no
       curation — provable in isolation, as 6.2 requires of a data layer.
@@ -785,7 +837,7 @@ paraphrase-blindness as OPEN.
       location is often a section reference (`§10 cl.8`), not a path, so measure its noise rate
       before wiring it — 6.1's bar applies to this guard too.
       Baseline existing violations, so nothing is blocked today and only NEW ones are refused.
-      **PR 2 — `SATURATED` + mirror sync + Decision 78.** Terminal state: the rule text exists and
+      **PR 2 — `SATURATED` + mirror sync + Decision 79.** Terminal state: the rule text exists and
       the pattern is behavioural, so the count has stopped being evidence and the row stops
       incrementing. A new mechanism the text does not cover starts a NEW row at 1. Shrinks PR 1's
       baseline by exactly what it fixes.
@@ -809,7 +861,7 @@ paraphrase-blindness as OPEN.
         which that subject does not cover. Fix the clause; do not add a rule. (Whether ANY
         relocation was native auto-curation is untested — the headings are the evidence, and
         native curation does prune `MEMORY.md`.)
-      - **Decision 76 and the learner's tracker disagree** on that row's state. Decision 78 resolves
+      - **Decision 76 and the learner's tracker disagree** on that row's state. Decision 79 resolves
         it explicitly rather than silently overwriting it.
       - **"count increments only for a DISTINCT mechanism" is not mechanically checkable.** No
         parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and

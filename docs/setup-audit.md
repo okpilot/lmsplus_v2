@@ -53,7 +53,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `.mcp.json` — MCP servers (Supabase, Context7, shadcn, SonarQube)
 - `.claude/hooks/guard-bash.js` — PreToolUse Bash: blocks 9 dangerous patterns
 - `.claude/hooks/review-gate.js` — PreToolUse Edit/Write: blocks edits while reviewer findings open
-- `.claude/hooks/on-stop.sh` — Stop: Windows toast only (formatting and tests are Lefthook pre-commit)
+- `.claude/hooks/on-stop.sh` — Stop: Windows toast only (formatting is Lefthook pre-commit; tests are not — see `lefthook.yml`)
 - `.claude/agents/code-reviewer.md` — sonnet, pre-push review gate, read-only
 - `.claude/agents/security-auditor.md` — sonnet, pre-push, blocking on CRITICAL/HIGH
 - `.claude/agents/test-writer.md` — sonnet, writes Vitest tests
