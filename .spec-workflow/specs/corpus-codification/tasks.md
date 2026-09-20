@@ -119,7 +119,7 @@ Evidence: on `fix/learner-tracker-termination` five review rounds proposed zero 
 asked what could be deleted and returned Decision 78 in full plus the 21,713-byte `doc-updater`
 memory loss of `8091d3b4` that no round had seen. Both went in `e4d375d8`.
 
-**NEXT+1 — agent-memory audit** (user directive, 2026-09-21). Audit the whole `memory: project`
+**NEXT+1 — agent-memory audit** (user directive, 2026-09-20). Audit the whole `memory: project`
 apparatus. Default verdict is DELETE; a file survives only on a stated argument. What does not
 survive is erased and mechanically prevented from returning — remove `memory: project` from the
 frontmatter, and guard that no `.claude/agent-memory/<agent>/` exists for an agent without the key.
@@ -767,10 +767,3 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
    `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill, committed
    under `git add -A` over a path the gate excludes. Derive from `git diff --numstat` per commit;
    flag a deletion above the threshold whose bytes land nowhere.
-8. **`check-prose-claims.mjs` contradicts itself. OPEN — a defect to fix, not a guard to build.**
-   `--update-baseline` writes `.claude/commands/insights.md@0f665d4d157d4847`; the next plain run
-   reports that exact row as describing no live claim. The repair tool cannot produce a state the
-   gate accepts, so editing a baselined line can wedge a blocking pre-commit hook. Reproduced twice
-   on `fix/learner-tracker-termination`. Green at HEAD, so it blocks nothing today. Stale worktree
-   copies are ruled out — their `insights.md` hashes to `5bd4bddfca3a3747`, not the disputed key.
-   Repro: edit a baselined line, run the guard, run `--update-baseline`, run the guard again.
