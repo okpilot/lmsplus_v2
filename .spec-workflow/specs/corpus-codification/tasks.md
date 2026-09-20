@@ -738,23 +738,89 @@ paraphrase-blindness as OPEN.
 ### ORDER — each step exists to make the next one safe
 
 - [x] **6.0 — descope the widening and ship the CR-local retirement.** Merged `dd0491cc` (PR #1320).
-- [ ] **6.0b — REPAIR THE LEARNER FIRST. This moved to the front on evidence, 2026-09-20.**
-      The learner decides what this programme builds next, and it currently cannot.
-      Derive its state before starting: `wc -lc .claude/agent-memory/learner/MEMORY.md` against the
-      hard 25600-byte injection cap, and
-      `awk -F'|' 'NF>4 {st=$5; gsub(/^ +/,"",st); if (st ~ /^RULE CANDIDATE/) n++} END{print n+0}' .claude/agent-memory/learner/topics/tracker-archive.md`
-      — match the STATUS FIELD, not the line. A `grep -c "RULE CANDIDATE"` over-counts: many rows
-      in other states quote the phrase in their status prose. That grep reported 172 where the
-      field-wise count is 146, and the learner's own report shipped the over-counting form.
-      Three faults, each blocking prioritisation:
-      (a) the index is at the cap, so the next run's writes are silently invisible;
-      (b) the archive holds RULE CANDIDATE rows moved for SPACE, not for reaching a terminal state
-          — every one met the 2-occurrence promotion bar and was buried;
-      (c) a row whose rule text ALREADY EXISTS cannot leave RULE CANDIDATE, so it increments
-          forever. The "fix commit introduces fresh §10 violations" row is the case; it passed 76.
-      Fix: add the `SATURATED` state agreed 2026-09-19 (rule written, pattern behavioural, tracking
-      for measurement only), curate to terminal-rows-only, and audit which archived candidates were
-      buried rather than resolved. Until this lands, any ranking of 6.1-6.8 is guesswork.
+- [ ] **6.0b — REPAIR THE LEARNER FIRST. Moved to the front on evidence, 2026-09-20.**
+      The learner decides what this programme builds next, and it currently cannot. Three faults:
+      (a) the index sits at the injection cap, so the next run's writes are silently invisible;
+      (b) the archive holds non-terminal rows moved for SPACE, not for reaching a terminal state —
+          every one met the 2-occurrence bar and was buried;
+      (c) a row whose rule text ALREADY EXISTS cannot leave `RULE CANDIDATE`, so it increments
+          forever. (c) is the live defect; (b) is thinner than it looks — see § Findings.
+
+      **FOUR PRs, in this order (user directive 2026-09-20). The guard PRECEDES the curation.**
+      Curating buried rows without a write-time refusal only resets the clock — § Why they are
+      re-typed, cause 1, governs tracker rows exactly as it governs prose. The curation then
+      becomes the guard's first real test; a guard built afterwards would only ever have run
+      against a tree already cleaned by hand.
+
+      Derive every figure. The PARSE is part of the claim, because three parses disagree:
+      ```bash
+      L=.claude/agent-memory/learner/MEMORY.md
+      A=.claude/agent-memory/learner/topics/tracker-archive.md
+      wc -lc $L   # against the hard 25600-byte / 200-line cap; the BYTE cap binds first
+      awk -F'|' '/^\|/ && NF>4 {st=$5; gsub(/^ +/,"",st); if (st ~ /^RULE CANDIDATE/) n++} END{print n+0}' $A
+      for f in .claude/agent-memory/*/MEMORY.md; do printf '%7s %s\n' "$(wc -c <"$f")" "$f"; done
+      ```
+      **`/^\|/` is load-bearing.** Without it the count picks up a pasted grep-output line that is
+      itself row-shaped, so `-F'|'` cannot tell it from a row. A bare `grep -c` over-counts much
+      further — rows in other states quote the phrase in their status prose.
+      `backlog-burndown/tasks.md` already anchors correctly and documents the same trap: this block
+      was stale behind its own sibling, and that sibling's own figures are now stale too.
+
+      **PR 0 — plan + owed spec items.** Branch `docs/single-source-corpus-plan`, which already
+      carries the Slice 6 commits, unpushed. The corrected awk above; the `SWEPT` marker on the
+      CR-local retirement block in BUILD ORDER, in the form its Decision 74 predecessor uses;
+      refreshed `backlog-burndown` figures. No code.
+      **PR 1 — the guard, ALONE.** `check-tracker-invariants.mjs` + tests + baseline, wired
+      pre-commit and CI, ratcheted like `check-file-size-guard.mjs`. No prose, no rule change, no
+      curation — provable in isolation, as 6.2 requires of a data layer.
+      **The state vocabulary ships as DATA in `.claude/pipeline.json`, never hardcoded in the
+      guard.** That is what makes PR 2 a one-line edit rather than a guard rewrite, and it is this
+      programme's own thesis applied to its own enforcer.
+      Invariants — structural, not prose-semantic. That is the class which enforces cleanly;
+      prose-semantic detectors are the class Decision 76 and R0b-1 both refuted by measurement:
+      index under both caps · every status field opens with a state present in the data · no row
+      vanishes between commits · a non-terminal row in an archive sits under a section marked a
+      budget relocation · `PROMOTED → <location>` resolves.
+      The first four are `wc`/parse/git-derivable and need no calibration. The fifth does: a
+      location is often a section reference (`§10 cl.8`), not a path, so measure its noise rate
+      before wiring it — 6.1's bar applies to this guard too.
+      Baseline existing violations, so nothing is blocked today and only NEW ones are refused.
+      **PR 2 — `SATURATED` + mirror sync + Decision 78.** Terminal state: the rule text exists and
+      the pattern is behavioural, so the count has stopped being evidence and the row stops
+      incrementing. A new mechanism the text does not cover starts a NEW row at 1. Shrinks PR 1's
+      baseline by exactly what it fixes.
+      **PR 3 — the curation, which TESTS the guard.** Index back under the cap; the genuinely
+      unpromoted patterns restored CONDENSED, one line each pointing at its archive row — restoring
+      verbatim does NOT fit, those rows carry narrative status prose many times a live row's size.
+      Corrects two false header contracts. Carries the `[x]` on this item.
+
+      **Findings that must survive a context clear.** Each carries its own basis; re-derive
+      rather than trusting the sentence, and note the last is an ARGUMENT, not a measurement:
+      - **`RULE EXISTS` is a state in USE and defined nowhere.**
+        `git grep -n "RULE EXISTS" -- '.claude/rules' '.claude/agents' 'CLAUDE.md'` returns nothing,
+        while learner archive rows carry it. PR 1's closed vocabulary must adopt or migrate it, or
+        it fails those rows.
+      - **`.claude/commands/insights.md` is a state-set mirror**, and the set it names is not the
+        canonical one. An Explore sweep classified it a POINTER: the enumeration sits at the far end
+        of one very long line, past where a truncated read stops. plan-critic caught it.
+      - **`agent-memory.md` already forbids this and misses by one word** — it binds
+        "**auto-curation** drop a tracker row to save space". The archive's own section headings
+        attribute these relocations to deliberate budget curation inside named learner cycles,
+        which that subject does not cover. Fix the clause; do not add a rule. (Whether ANY
+        relocation was native auto-curation is untested — the headings are the evidence, and
+        native curation does prune `MEMORY.md`.)
+      - **Decision 76 and the learner's tracker disagree** on that row's state. Decision 78 resolves
+        it explicitly rather than silently overwriting it.
+      - **"count increments only for a DISTINCT mechanism" is not mechanically checkable.** No
+        parser decides whether two occurrences share a mechanism. Drop it as an enforceable rule and
+        keep it as judgment: a rule asserted as enforced but unenforced is the defect this slice
+        exists to remove.
+      - **The buried set is THIN.** Triage each archived candidate into: covered by existing rule
+        text / live under other wording / genuinely unpromoted. Only the third class is restored
+        and it was by far the smallest. A delegated triage found no high-count pattern buried, with
+        four of its coverage verdicts spot-checked against source; re-run it rather than trusting
+        that. The real signal is the LIVE tracker recurring THROUGH text that already exists —
+        fault (c), not fault (b).
 - [ ] ~~**6.0 — descope the widening from `docs/schedule-cr-local-retirement` and ship it.**~~ Six of
       its seven round-3 findings exist only because a scope change reached the canonical rule and
       not its mirrors; descoping makes them moot rather than deferred. The widening returns at 6.5
