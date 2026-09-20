@@ -908,8 +908,8 @@ for phrases, blind to them. **Every guard in this slice prints its own residual 
 
 The human-layer mitigation is a DISPATCH clause, not a rule: require a `[GOOD]` to carry an ISSUE's
 evidentiary burden and to state what its anchor would NOT have matched. NOT yet in
-`agent-semantic-reviewer.md`, whose severity table still reads `GOOD — no action needed`; promoting
-it there is a rule change with its own mirror sweep.
+`agent-semantic-reviewer.md`, whose severity table reads
+`GOOD | Positive pattern worth noting | Acknowledge in summary. No action needed.`
 
 ### Definition of done — so "removed" is testable rather than asserted
 
