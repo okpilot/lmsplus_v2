@@ -47,29 +47,29 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Sibling-parity test-coverage gap found via it() | 2 | 2026-08-18 | RULE CANDIDATE |
 | Inline comment enumerating sibling files/call-sites by | 2 | 2026-08-17 | RULE CANDIDATE |
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE |
-| §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4) |
+| §10 violations (non-DB form) cluster in content/authoring commit | 5 | 2026-09-20 | RULE CANDIDATE (5) |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2) |
 | Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4) |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Self-invalidating relative reference in durable rules/doc file | 4 | 2026-09-16 | RULE CANDIDATE (4) |
 | Verification gate's pass condition is empty result — fails open on malformed input | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
-| Mirror sweep scoped by file extension, not claim phrase — misses .ts hits | 4 | 2026-09-08 | RULE CANDIDATE (4). Detail: topic file |
+| Mirror sweep scoped by file extension, not claim phrase — misses .ts hits | 5 | 2026-09-20 | RULE CANDIDATE (5). Detail: topic file |
 | Post-cycle agent-memory delta written but not committed before push — caught only by pre-push sweep | 3 | 2026-08-20 | RULE CANDIDATE (3) |
 | Derivation query replacing an open-set enumeration is unverified before publish | 3 | 2026-09-15 | RULE CANDIDATE (3) → §10 cl.2 addendum. Detail: topic file |
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) — any stage-then-edit sequence |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
-| Corrected claim partially retracted — old wording persists elsewhere | 15 | 2026-09-17 | RULE CANDIDATE (15). Detail: cross-agent-lessons.md |
+| Corrected claim partially retracted — old wording persists elsewhere | 18 | 2026-09-20 | RULE CANDIDATE (18). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
-| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 32 | 2026-09-18 | RULE CANDIDATE (32). Detail: topic file |
+| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 38 | 2026-09-20 | RULE CANDIDATE (38). Detail: topic file |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING. Log and watch |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
 | Unverified superlative/rank asserted about tracker data without re-deriving | 2 | 2026-08-30 | RULE CANDIDATE (2) |
 | Mocked-Supabase test assertion vacuous about a chain-builder ARGUMENT | 2 | 2026-08-30 | RULE CANDIDATE (2) → code-style.md §7 |
 | File brought exactly to its size cap, re-crossed by a same-commit fix | 2 | 2026-08-30 | RULE CANDIDATE (2) → agent-code-reviewer.md |
 | Test title pins a silent-fallback/coercion defect as intended, inverted only when fixed | 3 | 2026-09-18 | RULE CANDIDATE (3) → code-style.md §7 |
-| Quantified claim re a live/open data source goes stale post-write | 2 | 2026-09-02 | RULE CANDIDATE (2) → §10: pin to a commit SHA |
+| Quantified claim re a live/open data source goes stale post-write | 3 | 2026-09-20 | RULE CANDIDATE (3) → §10 cl.7: verification commands must pin a commit SHA, not a moving ref (origin/master) |
 | CLAUDE.md docs-only exemption path list omits `.spec-workflow/specs/*/tasks.md` | 2 | 2026-09-02 | RULE CANDIDATE (2) → add to CLAUDE.md docs-only list |
-| Orchestrator drafts its own unverified "because X"/attribution claim in comment prose | 4 | 2026-09-01 | RULE CANDIDATE (4). Detail: topic file |
+| Orchestrator drafts its own unverified "because X"/attribution claim in comment prose | 5 | 2026-09-20 | RULE CANDIDATE (5). Detail: topic file |
 | (8 count=1 WATCHING rows from 2026-09-02, pre-18757ddf, relocated) | — | 2026-09-02 | see tracker-archive.md "Live-table snapshot relocated 2026-09-02 (batch 4)" |
 | Implementation-critic outright omitted pre-commit, no stated exemption — run post-hoc, found sound | 1 | 2026-09-06 | WATCHING — distinct from row 632. Log and watch |
 | Agent's own auto-injected rules-file copy is stale mid-session | 2 | 2026-09-06 | RULE CANDIDATE (2) → agent-workflow.md § Delegation Protocol. Detail: topic file |
@@ -137,6 +137,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Scope excluded by output-text filter (`grep -v`) not by path, silently drops lines quoting the excluded string | 3 | 2026-09-20 | RULE CANDIDATE (3) — twice by orchestrator, once by reviewer self-catching. Exclusion must be a `':(exclude)<path>'` pathspec, not `\| grep -v <string>`. |
 | Reviewer validates a PAST finding against a LATER commit state, calls it false positive | 1 | 2026-09-20 | WATCHING — docs/schedule-cr-local-retirement: 3 real findings dismissed as FP by reading post-fix HEAD. Finding-validation table already requires naming the commit state; gap is enforcement. |
 | `check-retracted-phrase.mjs` tokeniser matches numbers and filenames only — phrase-blind beyond those tokens | 1 | 2026-09-20 | WATCHING — distinct from row 112 (deletion-bypass). Phrases without numbers or filenames pass unchecked. Log and watch. |
+| Author drops `-i` from own grep verification — briefly reads false clean result | 1 | 2026-09-20 | WATCHING — `docs/single-source-corpus-plan` post-ceiling. Case-sensitivity flag is load-bearing on mixed-case corpora. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -155,6 +156,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - feat/corpus-update-expected (2026-09-19): round 3 clean. Row 82 → 10 PROMOTED §7. Row 120 → 2. Row 41 → 68 (2 fresh §10 in correction context). Row 40 → 5. New WATCHING: orchestrator misses plan-stated doc edit.
 - docs/parked-and-next-work (2026-09-19): round 3 clean (ceiling hit, round 3 had 0 findings). Row 41 → 71 (3 fresh §10 in correction context; Decision 76 refutes mechanical enforcer: 50% FP rate). Row 129 → 2 RULE CANDIDATE. Row 141 → 2 RULE CANDIDATE. New WATCHING: loose-SHA citation (row 149).
 - docs/schedule-cr-local-retirement (2026-09-20): post-split pass 3 clean. Row 41 → 76 → PROMOTED §10 cl.8 (rule existed; propose SATURATED state in agent-memory.md). Row 82 → 12. Row 103 → 2 RULE CANDIDATE. Rows 150-152 new WATCHING. [GOOD]-gate mitigation (dispatch prompt requiring anchor non-match scope) reduced round-3 false positives from 2 to 0. FINDING: 172 RULE CANDIDATE rows confirmed in tracker-archive.md — far above the ~55 rough estimate; each is a pattern at promotion bar buried in the archive.
+- docs/single-source-corpus-plan (2026-09-20): ceiling (3 rounds). Row 61→18 (+3: paraphrase survivor, both sides of superseded D1, one-of-two supersession note). Row 63→38 (+6: 5 false claims in Decision 78 / PR desc + 1 wrong correction of finding 8). Row 70→3 → RULE CANDIDATE (verification command pinned moving ref origin/master). Row 72→5 (unsupported "copied from" attribution). Row 50→5, Row 56→5. New WATCHING: grep -i dropped in author's own verification. §10 cl.8 fired 3× post-promotion on this branch — each wrong correction introduced a new wrong claim about the same derivation command; counted as 3 distinct increments to row 63. POSITIVE: [GOOD]-gate held — 0 unevidenced GOODs R1, 3 fully-evidenced ones R2. Pre-commit:gate defect ratio 3:9 on a pure docs PR: gate catches 3× what author self-check finds.
 - Remaining bullets: topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers
