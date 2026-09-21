@@ -19,13 +19,13 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 - Let the learner edit agent definition files (`.claude/agents/*.md`) directly — propose changes and let the orchestrator review.
 - Skip the learner because "nothing interesting happened." Run it on every branch. Absence of findings is itself data.
 ## What The Learner Tracks
-- Issue frequency table: pattern name, first seen, count, last seen, status (watching/rule-proposed/rule-added)
+- Issue frequency table: pattern name, first seen, count, last seen, status (tokens: `agent-memory.md` § Tracker state machine)
 - Lessons per session: what went wrong, what got fixed, what changed
 - Positive signals: patterns that stopped recurring after a fix
 - False positive tracking: findings that turned out to be wrong
 ## When To Apply Rule Changes
 The learner proposes, the orchestrator decides. Apply a change when:
-1. The pattern has 2+ occurrences across different ROUNDS or different BRANCHES (not just different files in one round). A branch produces at most three pooled fixup commits, so a commit-keyed threshold would throttle promotion.
+1. The pattern has 2+ occurrences across different ROUNDS or different BRANCHES (not just different files in one round), and the row is not `SATURATED` — that state means the rule text already exists, so its count is a frequency record and not promotion evidence. A branch produces at most three pooled fixup commits, so a commit-keyed threshold would throttle promotion.
 2. The proposed rule is specific enough to be mechanically checked.
 3. The rule doesn't conflict with existing documented exceptions.
 4. The change is in the right place (Biome for formatting, code-style.md for structure, security.md for security).

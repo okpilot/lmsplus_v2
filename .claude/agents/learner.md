@@ -69,7 +69,7 @@ For each pattern found, recommend ONE of:
 
 Update `.claude/agent-memory/learner/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` — **never append a dated session entry** (history lives in git):
 - Increment the matching Issue Frequency Tracker row's count and update its `Last Seen`; add a new row only if no existing row matches (grep `topics/tracker-archive.md` first to avoid duplicating an archived pattern).
-- Transition row states (`WATCHING → RULE CANDIDATE → PROMOTED/RESOLVED/FALSE POSITIVE`); never delete a row.
+- Transition row states (`WATCHING → RULE CANDIDATE → PROMOTED`; `WATCHING` or `RULE CANDIDATE` → `RESOLVED`/`RESOLVED-WATCH`/`FALSE POSITIVE`; `RULE CANDIDATE` or `PROMOTED` → `SATURATED`); never delete a row.
 - Fold any durable cross-agent lesson or false-positive into the existing bullets/topic files, editing in place rather than stacking new entries.
 
 ## Output Format

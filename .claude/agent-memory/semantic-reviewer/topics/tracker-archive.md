@@ -1,6 +1,6 @@
 # Semantic Reviewer — Tracker Archive
 
-> Terminal-state tracker rows (PROMOTED / RESOLVED / RESOLVED-WATCH / FALSE POSITIVE) relocated VERBATIM from MEMORY.md to keep the auto-injected index under the 25 KB / 200-line budget. Rows are retained, not deleted — counts and statuses are unchanged. See `.claude/rules/agent-memory.md`.
+> Terminal-state tracker rows (PROMOTED / SATURATED / RESOLVED / FALSE POSITIVE) relocated VERBATIM from MEMORY.md to keep the auto-injected index under the 25 KB / 200-line budget. Rows are retained, not deleted — counts and statuses are unchanged. See `.claude/rules/agent-memory.md`.
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|

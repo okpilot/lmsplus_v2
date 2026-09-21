@@ -108,6 +108,47 @@ Agreed with the user 2026-09-09. The order is the argument; do not reorder by "b
 
 **Item 6 ran first** (user directive, 2026-09-16) and is DONE. Measured against PR #1295, the guard-building PR that prompted #1298: 14 commits vs 29, 7 review-driven fixups vs 21, 0 code defects vs ~8. Deletion is the only change shape whose review cost falls as the change grows.
 
+**NEXT — deletion verdict rules** (user directive, 2026-09-20). Two clauses in
+`agent-workflow.md § Apply-vs-Defer Discipline`, plus the Rule-Mirror Sync set. Own PR, ~20 lines:
+1. A fourth verdict beside APPLY / DEFER / SKIP: **DELETE the subject.** All three existing verdicts
+   preserve the text, so a true-but-unnecessary line is CLEAN and survives every round.
+2. A deletion candidate gets a blast-radius agent as standard cost, not an exception. Grep cannot
+   prove nothing references a thing — `agent-workflow.md § Rule-Mirror Sync` records
+   paraphrase-blindness as OPEN.
+Evidence: on `fix/learner-tracker-termination` five review rounds proposed zero deletions; one agent
+asked what could be deleted and returned Decision 78 in full plus the 21,713-byte `doc-updater`
+memory loss of `8091d3b4` that no round had seen. Both went in `e4d375d8`.
+
+**NEXT+1 — agent-memory audit** (user directive, 2026-09-20). Audit the whole `memory: project`
+apparatus. Default verdict is DELETE; a file survives only on a stated argument. What does not
+survive is erased and mechanically prevented from returning — remove `memory: project` from the
+frontmatter, and guard that no `.claude/agent-memory/<agent>/` exists for an agent without the key.
+
+Settle first, because it decides the rest: how many rules in `.claude/rules/` were promoted FROM a
+tracker count, versus written directly? Derive with `git log -S` over the rule files against each
+row's first-seen date. Near zero means the trackers never produced their one intended output.
+
+Evidence: `8091d3b4` lost 21,713 bytes of `doc-updater/MEMORY.md` and no round noticed across five
+rounds. Round 6 found three false rows in memory, one recording a TRUE finding as refuted. Round 7
+found a row whose own line numbers pointed away from the defect it existed to prevent, which is why
+three regressions survived the sweep. The gate's diff scope excludes `.claude/agent-memory/**`, so
+nothing audits the artifact every promotion decision reads.
+
+Proposed cut, to be argued per file rather than assumed: a lookup TABLE survives
+(`red-team/topics/attack-surface.md` — IDs collide without it; test-writer's mock patterns;
+code-reviewer's suppression list); a NARRATIVE of past sessions does not.
+
+Carried into this audit, unresolved here: `RESOLVED-WATCH` is defined as "still worth watching" yet
+`/insights` archives it to a topic file, and only `MEMORY.md` is injected — so archiving ends the
+watch. The verdict is written (`insights.md`, and `agent-memory.md § Tracker state machine`). What is
+OPEN is the sweep of rows already archived. Compound rows (`PROMOTED … RESOLVED-WATCH`) ARE covered:
+`agent-memory.md § Tracker state machine` archives them and opens a new `WATCHING` row where the
+watch must continue. Derive the set:
+`grep -c 'RESOLVED-WATCH' .claude/agent-memory/*/topics/tracker-archive.md`
+
+Blast radius is the risk: memory deletion is irreversible and the gate cannot see it. Each candidate
+gets a blast-radius agent — the second clause of the parked `rules/delete-verdict` PR.
+
 **BEFORE any remaining item: issue #1298** (user directive, 2026-09-17) — CLOSED by Decision 73.
 Then item 4, and the `MUTATION:` comment duplication in slice 2.
 
@@ -669,3 +710,61 @@ RULE CANDIDATE.
       programme exists to prevent.
 - [ ] Close the tracker row to PROMOTED only once the enforcer is graded green, not when the hook
       is written.
+
+## Slice 6 — single-source the corpus (user directive 2026-09-19)
+
+A fact that already HAS a data home, re-typed as prose in many files. Derive the size — these move:
+
+```bash
+p=':(top,exclude).claude/agent-memory'   # :(top,…) is cwd-invariant
+git grep -l -F "implementation-critic" -- ':/*.md' "$p" | wc -l          # gate roster
+git grep -l -F "apps/web/app/app/quiz/actions" -- ':/*.md' "$p" | wc -l  # securityPaths
+git grep -l -E "ceiling 3|3-round ceiling|Ceiling 3" -- ':/*.md' "$p" | wc -l
+```
+
+Upper bounds: each list mixes live restatements with historical records and legitimate pointers.
+
+**The rule.** Every fact has exactly one home. An unavoidable second copy is GENERATED or
+BYTE-IDENTICAL-AND-HASHED, never hand-written.
+
+- [x] **6.0 — CR-local retirement.** Merged `dd0491cc` (PR #1320).
+- [x] **6.0b — learner termination.** `SATURATED` added to the tracker state machine; the
+      undocumented `RULE EXISTS` token migrated to it; 7 terminal rows relocated out of the
+      injected index. Derive headroom: `wc -lc .claude/agent-memory/learner/MEMORY.md`.
+- [ ] **6.0c — triage the remaining `RULE CANDIDATE` rows.** Needs judgment per row, not a regex: a
+      status citing a rule location does not say whether the rule EXISTS there or BELONGS there.
+      Derive the count, index and archive separately:
+      ```bash
+      for f in .claude/agent-memory/learner/MEMORY.md \
+               .claude/agent-memory/learner/topics/tracker-archive.md; do
+        printf '%4s  %s\n' "$(awk '/^\|/{t=$0; gsub(/\\\|/,"\001",t); n=split(t,f,"|")
+          if(n>4){s=f[n-1]; if(f[n] ~ /[A-Za-z]/) s=f[n]
+          gsub(/^[ \t]+|[ \t]+$/,"",s); if(s ~ /^RULE CANDIDATE/) c++}} END{print c+0}' "$f")" "$f"
+      done
+      ```
+      Only the index rows are live; archive rows are historical snapshots and some restate a
+      pattern a later row supersedes.
+- [ ] **6.1 — measure before building.** Guard candidates below ship through a measure step, never
+      straight to blocking. Order is measure → enforce → change.
+
+### Guard candidates
+
+1. **Tracker invariants** — `check-tracker-invariants.mjs`. Note `→` in a status cell is usually a
+   state-to-rule-location POINTER, not a transition; a strip-at-the-arrow parse drops live rows.
+2. **`grep -v` used where a `':(exclude)<path>'` pathspec is required.** Syntactic, enforceable.
+3. **A rule clause landing with no `Enforcer` disposition.** Ships as a RATCHET, never a gate:
+   baseline existing clauses, require the disposition only on new ones. Hard split,
+   full Rule-Mirror Sync.
+4. **An `Enforcer` entry naming a script wired to no stage. OPEN — do not build.** The `` `.claude/hooks/run-mutations.mjs` — wired nowhere `` entry
+   above grades an entry by a SCRIPT PATH; a wired-stage reading says the entry names
+   the STAGE. Both cannot hold. No tracker carries an `Enforcer` column yet, so a guard built now
+   scans an empty set and exits clean — the fail-open shape. Settle which artifact the entry names,
+   and confirm the column exists, before building.
+5. **A tracker row whose count exceeds the promotion threshold with no terminal state.**
+6. **Bash writes bypass `review-gate.js`** — `.claude/settings.json` routes `Bash` to
+   `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:
+   `grep -c "review-gate.json" .claude/hooks/guard-bash.js`  # prints 0, exits 1
+7. **A commit shrinking a tracked file past a threshold with no matching addition elsewhere.**
+   `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill. Derive
+   from `git diff --numstat` per commit; flag a deletion above the threshold whose bytes land
+   nowhere.
