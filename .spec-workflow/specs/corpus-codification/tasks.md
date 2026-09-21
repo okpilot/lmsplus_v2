@@ -765,6 +765,6 @@ BYTE-IDENTICAL-AND-HASHED, never hand-written.
    `guard-bash.js`, which does not read `.claude/review-gate.json`. Confirm:
    `grep -c "review-gate.json" .claude/hooks/guard-bash.js`  # prints 0, exits 1
 7. **A commit shrinking a tracked file past a threshold with no matching addition elsewhere.**
-   `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill, committed
-   under `git add -A` over a path the gate excludes. Derive from `git diff --numstat` per commit;
-   flag a deletion above the threshold whose bytes land nowhere.
+   `8091d3b4` cut `doc-updater/MEMORY.md` 24549 → 2836 bytes with no `topics/` spill. Derive
+   from `git diff --numstat` per commit; flag a deletion above the threshold whose bytes land
+   nowhere.
