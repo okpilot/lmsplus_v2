@@ -201,6 +201,7 @@ jobs:
           .claude/hooks/run-mutations.spawn.test.mjs
           .claude/hooks/run-mutations.parse.test.mjs
           .claude/hooks/run-mutations.write.test.mjs
+          .claude/hooks/run-mutations.staged.test.mjs
 
       # Budget, not a guess: this job measured 7m56s in run 35345067470, and the mutation count
       # only grows. (`--list` is not the count — it prints notEncoded entries too.)

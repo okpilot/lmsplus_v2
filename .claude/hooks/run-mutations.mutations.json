@@ -4,7 +4,8 @@
     ".claude/hooks/run-mutations.test.mjs",
     ".claude/hooks/run-mutations.spawn.test.mjs",
     ".claude/hooks/run-mutations.parse.test.mjs",
-    ".claude/hooks/run-mutations.write.test.mjs"
+    ".claude/hooks/run-mutations.write.test.mjs",
+    ".claude/hooks/run-mutations.staged.test.mjs"
   ],
   "mutations": [
     {
@@ -82,7 +83,8 @@
         "--update-expected writes nothing for a SURVIVED entry and says why",
         "a survivor still fails the run when another entry was rewritten",
         "a name the suite reddened twice is written once",
-        "two data files sharing a mutation id each get their own observed set"
+        "two data files sharing a mutation id each get their own observed set",
+        "a --staged run grades a file that is only staged, not committed"
       ],
       "note": "Inverting the core filter reddens every parseTap case. Every name it reddens is listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
@@ -93,7 +95,8 @@
       "expectRed": [
         "reports SURVIVED when nothing went red at all",
         "--update-expected writes nothing for a SURVIVED entry and says why",
-        "a survivor still fails the run when another entry was rewritten"
+        "a survivor still fails the run when another entry was rewritten",
+        "a --staged run grades a file that is only staged, not committed"
       ]
     },
     {
@@ -213,7 +216,8 @@
         "a survivor still fails the run when another entry was rewritten",
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
-        "two data files sharing a mutation id each get their own observed set"
+        "two data files sharing a mutation id each get their own observed set",
+        "a --staged run grades a file that is only staged, not committed"
       ],
       "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -228,7 +232,11 @@
         "a dangling GROUP id committed but not on disk still stops the grading run",
         "defaults to the run mode with no flags",
         "reads the value of the --scratch option",
-        "a normal run never writes to the data file"
+        "a normal run never writes to the data file",
+        "accepts --staged alone, with no mode flag",
+        "a --staged run grades a file that is only staged, not committed",
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -241,9 +249,11 @@
         "reports the claim sites a suite carries and the entries excused from encoding",
         "reads the value of an option flag",
         "takes --update-expected together with --guard, which is an option and not a mode",
-        "reads the value of the --scratch option"
+        "reads the value of the --scratch option",
+        "a --staged run grades a file that is only staged, not committed",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
       ],
-      "note": "expectRed WIDENED TWICE, both times because a test added later in the same branch also reddens under this break — 2026-09-16, then the coverage-gap test on 2026-09-17. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
+      "note": "expectRed WIDENED THREE TIMES, each time because a test added later in the same branch also reddens under this break — 2026-09-16, the coverage-gap test on 2026-09-17, then the staged-data-file test on 2026-09-21. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
     },
     {
       "id": "option-no-value-ok",
@@ -449,8 +459,8 @@
     },
     {
       "id": "drop-fault-isolation",
-      "find": "  let res\n  try {\n    res = runMutation({ root, data, mut, base })\n  } catch (err) {\n    console.log(`  FAULT     ${mut.id}`)\n    console.log(`    ${err.message}`)\n    return 'fault'\n  }\n",
-      "replace": "  const res = runMutation({ root, data, mut, base })\n",
+      "find": "  let res\n  try {\n    res = runMutation({ root, data, mut, base, ref })\n  } catch (err) {\n    console.log(`  FAULT     ${mut.id}`)\n    console.log(`    ${err.message}`)\n    return 'fault'\n  }\n",
+      "replace": "  const res = runMutation({ root, data, mut, base, ref })\n",
       "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
       "note": "Without the catch the first fault unwinds to main()'s handler and the summary is never printed."
     },
@@ -482,7 +492,8 @@
         "a survivor still fails the run when another entry was rewritten",
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
-        "two data files sharing a mutation id each get their own observed set"
+        "two data files sharing a mutation id each get their own observed set",
+        "a --staged run grades a file that is only staged, not committed"
       ],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
     },
@@ -500,6 +511,10 @@
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
         "a continuation line that is not an id list ends the marker instead of joining it",
         "a suite written with CRLF line endings still yields its markers",
+        "a CONTROL: red marker directly above a test marks it red",
+        "a CONTROL: green marker directly above a test marks it green",
+        "CONTROL: and GROUP: markers stacked above one test both attach to it",
+        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -510,6 +525,8 @@
       "expectRed": [
         "a claim in a multi-line comment block belongs to the test below it",
         "a continuation line that is not an id list ends the marker instead of joining it",
+        "CONTROL: and GROUP: markers stacked above one test both attach to it",
+        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -556,7 +573,9 @@
       "replace": "    while (j < lines.length && !TEST_LINE_RE.test(lines[j])) j++",
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
-        "a claim separated from every test by code belongs to the file, not to a test"
+        "a claim separated from every test by code belongs to the file, not to a test",
+        "a CONTROL marker written inside a body names the test it sits in, not the next one",
+        "a CONTROL marker separated from every test by code belongs to the header, not a test"
       ]
     },
     {
@@ -574,7 +593,8 @@
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
         "counts a claim written mid-line after other prose",
-        "counts every claim on a line, not one per claiming line"
+        "counts every claim on a line, not one per claiming line",
+        "a CONTROL marker written inside a body names the test it sits in, not the next one"
       ],
       "note": "superset: the two claim-counting fixtures also write their comment INSIDE a test body, so attributing every owner to the header strips their claims off the test as well."
     },
@@ -586,7 +606,7 @@
     },
     {
       "id": "run-validates-the-working-tree",
-      "find": "surveySuites(root, data, ids, committedSuite).problems",
+      "find": "surveySuites(root, data, ids, readSuite).problems",
       "replace": "surveySuites(root, data, ids).problems",
       "expectRed": ["a dangling GROUP id committed but not on disk still stops the grading run"]
     },
@@ -626,7 +646,10 @@
       "replace": "  if (parsed.mode !== 'coverage' && parsed.mode !== 'list') {",
       "expectRed": [
         "a dangling GROUP id committed but not on disk still stops the grading run",
-        "a normal run never writes to the data file"
+        "a --staged run grades a file that is only staged, not committed",
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a normal run never writes to the data file",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
       ]
     },
     {
@@ -710,11 +733,55 @@
       "replace": "    return 0",
       "expectRed": ["a survivor still fails the run when another entry was rewritten"],
       "note": "A batch can hold both a rewrite and a survivor. Returning 0 on any write reports the survivor as success, contradicting modeRun, which exits 1 for the same entry."
+    },
+    {
+      "id": "staged-run-grades-the-index",
+      "find": "git(['worktree', 'add', '--detach', wt, ref], root)",
+      "replace": "git(['worktree', 'add', '--detach', wt, 'HEAD'], root)",
+      "expectRed": ["a --staged run grades a file that is only staged, not committed"],
+      "note": "Hardcoding HEAD here makes `--staged` a no-op for the ref: the worktree never sees a staged-only file, so `runMutation` faults with \"cannot read target\" instead of grading the index."
+    },
+    {
+      "id": "staged-run-scopes-to-touched-files",
+      "find": "return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged))",
+      "replace": "return loaded.filter(({ file, data }) => !touchesStaged(root, file, data, staged))",
+      "expectRed": [
+        "a --staged run grades a file that is only staged, not committed",
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+      ],
+      "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too)."
+    },
+    {
+      "id": "touchesstaged-always-in-scope",
+      "find": "return paths.some((p) => staged.has(relPath(root, p)))",
+      "replace": "return true",
+      "expectRed": [
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "touchesStaged matches on the data file itself, its target, or a suite"
+      ],
+      "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too."
+    },
+    {
+      "id": "staged-rejects-other-modes",
+      "find": "  if (opts.staged && modes.length > 0) {\n    return {\n      error: '--staged only applies to a plain run (no --list, --coverage or --update-expected)',\n    }\n  }\n",
+      "replace": "",
+      "expectRed": ["rejects --staged combined with a mode flag"],
+      "note": "Without this guard `--staged --coverage` silently proceeds into a mode the ref/scope machinery was never built for."
+    },
+    {
+      "id": "staged-run-reads-data-file-at-index",
+      "find": ".map((file) => ({ file, data: loadDataFileAt(root, file, ref) }))",
+      "replace": ".map((file) => ({ file, data: loadDataFile(file) }))",
+      "expectRed": [
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+      ],
+      "note": "loadScoped's staged branch falls back to reading the data file straight off disk, so an unstaged edit sitting on top of the staged/committed copy gets graded instead of what --staged is supposed to see."
     }
   ],
   "notEncoded": [
     {
-      "claim": "MUTATION: replace the read-back `validateDataFile(reparsed, file.path)` in `modeUpdateExpected` with an empty problem list \u2192 a rewrite that does not validate is written anyway.",
+      "claim": "MUTATION: replace the read-back `validateDataFile(reparsed, file.path)` in `modeUpdateExpected` with an empty problem list → a rewrite that does not validate is written anyway.",
       "why": "No input reaches it. Only a MISMATCH is rewritten and a MISMATCH always carries a non-empty observed set, so the one rule `validateDataFile` would catch cannot fire; and `scanStringArrayEnd` refuses every array it cannot splice cleanly, so the `JSON.parse` cannot fail either. The read-back is defence in depth against a future splice bug, not a branch any present input takes. Encoding it would report SURVIVED and read as coverage."
     },
     {

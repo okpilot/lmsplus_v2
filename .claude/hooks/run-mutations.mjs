@@ -16,7 +16,16 @@
 //         node .claude/hooks/run-mutations.mjs --coverage       claim sites vs encoded mutations
 //         node .claude/hooks/run-mutations.mjs --update-expected rewrite every MISMATCHed
 //                                                               `expectRed` from what went red
+//         node .claude/hooks/run-mutations.mjs --staged         grade the INDEX, not HEAD —
+//                                                               scoped to data files that touch
+//                                                               what is staged (plain run only)
 //         [--scratch <dir>]                                     where worktrees are made
+//
+// `--staged` exists because a pre-commit gate built on the plain run grades the last COMMIT: a
+// file only staged, not yet committed, reports NO VERDICT rather than a result. It builds a
+// commit of the INDEX tree without moving HEAD or touching the worktree (`git write-tree` +
+// `git commit-tree -p HEAD`), grades THAT, and narrows to the data files whose target, suites,
+// or own path are actually staged.
 //
 // Exit:   0 = every encoded mutation was CAUGHT
 //         1 = at least one SURVIVED or MISMATCHed — a finding about the TESTS
@@ -60,6 +69,8 @@ const SUITE_TIMEOUT_MS = 120_000
 /** Mode flags. Options (`--guard`, `--scratch`) take a value and are NOT modes. */
 const MODE_FLAGS = new Set(['--list', '--coverage', '--update-expected'])
 const OPTION_FLAGS = new Set(['--guard', '--scratch'])
+/** Boolean flags: present or absent, never take a value. */
+const BOOLEAN_FLAGS = new Set(['--staged'])
 
 const DATA_SUFFIX = '.mutations.json'
 
@@ -168,6 +179,8 @@ export function compareResult(expectRed, failedNames) {
 const TEST_LINE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(/
 /** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */
 const GROUP_MARKER_RE = /^\s*\/\/ GROUP: (.*)$/
+/** `// CONTROL: red` or `// CONTROL: green` — marks a test as a spawned guard control. */
+const CONTROL_MARKER_RE = /^\s*\/\/ CONTROL: (red|green)\s*$/
 /** Any comment line. A marker's id list continues onto one of these while it ends with a comma. */
 const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
 /** A marker continues onto a comment line only while that line is itself an id list. */
@@ -204,13 +217,16 @@ function readMarker(lines, i, m) {
 }
 
 /**
- * Read one suite's claim sites and `GROUP:` markers.
+ * Read one suite's claim sites, `GROUP:` markers, and `CONTROL:` markers.
  *
- * Returns `{ header: { claims, groups }, tests: [{ line, groups, claims }] }`, `line` 1-based.
+ * Returns `{ header: { claims, groups, controls }, tests: [{ line, groups, claims, controls }] }`,
+ * `line` 1-based. `controls` is an array of `'red'|'green'`, one entry per `CONTROL:` marker
+ * attached to that test — normally zero or one, but a malformed suite can stack several.
  *
  * ATTACHMENT. A marker sitting directly above a `test(` names that test; a marker inside a body
  * names the test it is written in, not the next one. So the lookahead skips blanks and comments
- * and asks what the marker actually precedes — an assertion means the enclosing test.
+ * and asks what the marker actually precedes — an assertion means the enclosing test. `CONTROL:`
+ * shares this rule with `GROUP:` (`ownerFor` is one function, reused by both scans).
  *
  * CLAIMS. Only `MUTATION:` on a COMMENT line is a claim. The token also appears in test titles and
  * in string fixtures, where it is the harness's own subject matter rather than an assertion about
@@ -226,8 +242,8 @@ export function parseSuite(text) {
   lines.forEach((l, i) => {
     if (TEST_LINE_RE.test(l)) testLines.push(i)
   })
-  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0 }))
-  const header = { claims: 0, groups: [] }
+  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0, controls: [] }))
+  const header = { claims: 0, groups: [], controls: [] }
 
   /**
    * The test a comment belongs to. `from` is its last line, `anchor` its first.
@@ -245,6 +261,7 @@ export function parseSuite(text) {
   }
 
   const markerLines = scanMarkers(lines, ownerFor)
+  for (const i of scanControls(lines, ownerFor)) markerLines.add(i)
   scanClaims(lines, markerLines, ownerFor)
   return { header, tests }
 }
@@ -260,6 +277,24 @@ function scanMarkers(lines, ownerFor) {
     ownerFor(last, i).groups.push(...ids)
   }
   return markerLines
+}
+
+/**
+ * Attach every `CONTROL:` marker to its owner. Returns the line numbers the markers occupy.
+ *
+ * Single-line only — unlike `GROUP:`, a control marker never continues onto the next comment
+ * line, so `ownerFor(i, i)` reads correctly: the marker's only line is both its anchor and its
+ * last line.
+ */
+function scanControls(lines, ownerFor) {
+  const controlLines = new Set()
+  for (let i = 0; i < lines.length; i++) {
+    const m = CONTROL_MARKER_RE.exec(lines[i])
+    if (!m) continue
+    controlLines.add(i)
+    ownerFor(i, i).controls.push(m[1])
+  }
+  return controlLines
 }
 
 /** Count every `MUTATION:` claim onto its owner. A marker line is never also a claim line. */
@@ -393,10 +428,10 @@ export function assertSingleOccurrence(source, find, id) {
   return count
 }
 
-/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch }`. */
+/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch, staged }`. */
 export function parseArgs(args) {
   const modes = []
-  const opts = { guard: null, scratch: null }
+  const opts = { guard: null, scratch: null, staged: false }
   for (let i = 0; i < args.length; i++) {
     const a = args[i]
     if (!a.startsWith('--')) {
@@ -406,6 +441,10 @@ export function parseArgs(args) {
     }
     if (MODE_FLAGS.has(a)) {
       modes.push(a)
+      continue
+    }
+    if (BOOLEAN_FLAGS.has(a)) {
+      opts[a.slice(2)] = true
       continue
     }
     if (OPTION_FLAGS.has(a)) {
@@ -426,10 +465,19 @@ export function parseArgs(args) {
   if (new Set(modes).size > 1) {
     return { error: `${[...new Set(modes)].join(' and ')} are separate modes — run one` }
   }
+  // `--staged` picks the ref the plain run grades against; the other modes (`--list`, `--coverage`,
+  // `--update-expected`) have no ref-dependent behavior to redirect, so combining it with one is a
+  // request that names a mechanism the mode never consults — refuse rather than silently ignore it.
+  if (opts.staged && modes.length > 0) {
+    return {
+      error: '--staged only applies to a plain run (no --list, --coverage or --update-expected)',
+    }
+  }
   return {
     mode: modes.length === 0 ? 'run' : modes[0].slice(2),
     guard: opts.guard,
     scratch: opts.scratch,
+    staged: opts.staged,
   }
 }
 
@@ -455,16 +503,37 @@ function dataFiles(root) {
     .map((f) => ({ basename: f.slice(0, -DATA_SUFFIX.length), path: join(dir, f) }))
 }
 
-function loadDataFile(file) {
+/** Parse and validate one data file's already-read text, errors tagged with `file.path`. */
+function parseDataFile(text, file) {
   let obj
   try {
-    obj = JSON.parse(readFileSync(file.path, 'utf8'))
+    obj = JSON.parse(text)
   } catch (err) {
     throw new Error(`${file.path}: unreadable or malformed JSON — ${err.message}`)
   }
   const problems = validateDataFile(obj, file.path)
   if (problems.length > 0) throw new Error(problems.join('\n  '))
   return obj
+}
+
+function loadDataFile(file) {
+  return parseDataFile(readFileSync(file.path, 'utf8'), file)
+}
+
+/**
+ * `file`'s content AT `ref`'s tree — never the working tree — so a `--staged` run grades the
+ * INDEXED `find`/`replace`/`expectRed`, not an unstaged-only edit sitting on top of it. Returns
+ * null when `file` has no copy in that tree (untracked, or removed from the index): a data file
+ * that isn't itself staged must not be graded as though it were.
+ */
+function loadDataFileAt(root, file, ref) {
+  let text
+  try {
+    text = git(['show', `${ref}:${relPath(root, file.path)}`], root)
+  } catch {
+    return null
+  }
+  return parseDataFile(text, file)
 }
 
 /**
@@ -478,6 +547,41 @@ function scratchBase(root, requested) {
     throw new Error(`--scratch must be outside the repository (got ${base} under ${root})`)
   }
   return base
+}
+
+// ---------------------------------------------------------------- --staged: ref and scope
+
+/** A commit of the INDEX tree, without moving HEAD or touching the worktree. */
+function indexCommit(root) {
+  const tree = git(['write-tree'], root).trim()
+  return git(['commit-tree', tree, '-p', 'HEAD', '-m', 'index'], root).trim()
+}
+
+/** Root-relative POSIX paths currently staged. */
+function stagedPaths(root) {
+  const out = git(['diff', '--cached', '--name-only', '-z'], root)
+  return new Set(out.split('\u0000').filter(Boolean))
+}
+
+/** `p` (absolute or root-relative) as a root-relative POSIX path. */
+export function relPath(root, p) {
+  const abs = isAbsolute(p) ? p : join(root, p)
+  return abs
+    .slice(root.length + 1)
+    .split(sep)
+    .join('/')
+}
+
+/** Whether `file`'s own path, `data.target`, or any `data.suites` entry is in `staged`. */
+export function touchesStaged(root, file, data, staged) {
+  const paths = [file.path, data.target, ...data.suites]
+  return paths.some((p) => staged.has(relPath(root, p)))
+}
+
+/** Data files whose target/suites/own path is actually staged — everything else is a no-op. */
+function filterByStagedScope(root, loaded) {
+  const staged = stagedPaths(root)
+  return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged))
 }
 
 /**
@@ -524,10 +628,10 @@ export function assertSpawnUsable(mutId, r, timeoutMs) {
  * is a documented bypass class in `.claude/agents/test-writer.md` — it keeps the mutated code
  * on disk while the primary repo's status, HEAD and stash list are all blind to it.
  */
-function runMutation({ root, data, mut, base }) {
+function runMutation({ root, data, mut, base, ref }) {
   const wt = mkdtempSync(join(base, 'run-mutations-'))
   try {
-    git(['worktree', 'add', '--detach', wt, 'HEAD'], root)
+    git(['worktree', 'add', '--detach', wt, ref], root)
     const targetPath = join(wt, data.target)
     let source
     try {
@@ -633,12 +737,14 @@ function workingTreeSuite(root, suite) {
 }
 
 /**
- * Suite text at HEAD — the tree the grading run executes. Validating the working tree instead
- * would split the two halves of one gate: an unstaged marker fix would hide a dangling id in the
- * committed suite, and an unstaged dangling one would block a run that is valid as committed.
+ * Suite text at `ref` — HEAD normally, or the synthetic index commit under `--staged` — the tree
+ * the grading run executes. Validating the working tree instead would split the two halves of one
+ * gate: an unstaged marker fix would hide a dangling id in the committed suite, and an unstaged
+ * dangling one would block a run that is valid as committed.
  */
-function committedSuite(root, suite) {
-  return isAbsolute(suite) ? readFileSync(suite, 'utf8') : git(['show', `HEAD:${suite}`], root)
+function committedSuiteAt(ref) {
+  return (root, suite) =>
+    isAbsolute(suite) ? readFileSync(suite, 'utf8') : git(['show', `${ref}:${suite}`], root)
 }
 
 /** 4 params: the reader is the tree being surveyed, not data — `--coverage` and `--run` differ. */
@@ -701,10 +807,10 @@ function modeCoverage(root, guard) {
  * and both mean the same thing about the RUN, which is why they share a verdict — but a reader
  * told only about recipes will go audit a data file that is fine.
  */
-function gradeOne({ root, data, mut, base, onResult }) {
+function gradeOne({ root, data, mut, base, ref, onResult }) {
   let res
   try {
-    res = runMutation({ root, data, mut, base })
+    res = runMutation({ root, data, mut, base, ref })
   } catch (err) {
     console.log(`  FAULT     ${mut.id}`)
     console.log(`    ${err.message}`)
@@ -943,7 +1049,12 @@ function modeUpdateExpected(root, guard, scratch) {
   // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
   const keyOf = (file, id) => `${file}\u0000${id}`
   const graded = new Map()
-  const runExit = modeRun(root, guard, scratch, (r) => graded.set(keyOf(r.file, r.id), r))
+  const runExit = modeRun({
+    root,
+    guard,
+    scratch,
+    onResult: (r) => graded.set(keyOf(r.file, r.id), r),
+  })
   if (runExit === 2) {
     console.error('\n✖ a mutation could not be graded — NO VERDICT, nothing written.')
     return 2
@@ -992,16 +1103,55 @@ function reportOutcome(written, survivors) {
 }
 
 /**
- * Grade every mutation of every selected data file.
- *
- * Four parameters, each a distinct role (`code-style.md` §3, infrastructure exception):
- * @param root       repository root; every git call and every path resolves against it
- * @param guard      basename selecting ONE data file, or falsy for all of them
- * @param scratch    where throwaway worktrees are made
- * @param onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
- *                   null for a plain run. Never called for a fault, which has no observed set.
+ * Every selected data file's `{ file, data }`, at `ref`, staged-scoped when `staged`. Under
+ * `--staged`, a file with no copy at `ref` (untracked, or removed from the index) is dropped —
+ * `loadDataFileAt` returns null for it — before `filterByStagedScope` ever sees it.
  */
-function modeRun(root, guard, scratch, onResult = null) {
+function loadScoped(root, files, ref, staged) {
+  if (!staged) return files.map((file) => ({ file, data: loadDataFile(file) }))
+  const loaded = files
+    .map((file) => ({ file, data: loadDataFileAt(root, file, ref) }))
+    .filter(({ data }) => data !== null)
+  return filterByStagedScope(root, loaded)
+}
+
+/** Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total. */
+function gradeScoped(scoped, { root, base, ref, readSuite, onResult }) {
+  let caught = 0
+  let bad = 0
+  let faults = 0
+  let total = 0
+  for (const { file, data } of scoped) {
+    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
+    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
+    const ids = new Set(data.mutations.map((m) => m.id))
+    const problems = surveySuites(root, data, ids, readSuite).problems
+    if (problems.length > 0) throw new Error(problems.join('\n  '))
+    console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
+    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
+    // mutation id — ids are unique within one file and do collide across files.
+    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
+    for (const mut of data.mutations) {
+      total++
+      const outcome = gradeOne({ root, data, mut, base, ref, onResult: report })
+      if (outcome === 'caught') caught++
+      else if (outcome === 'bad') bad++
+      else faults++
+    }
+  }
+  return { caught, bad, faults, total }
+}
+
+/**
+ * Grade every mutation of every selected data file.
+ * @param opts.root       repository root; every git call and every path resolves against it
+ * @param opts.guard      basename selecting ONE data file, or falsy for all of them
+ * @param opts.scratch    where throwaway worktrees are made
+ * @param opts.onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
+ *                        null for a plain run. Never called for a fault, which has no observed set.
+ * @param opts.staged     grade the INDEX instead of HEAD, scoped to data files touching what is staged
+ */
+function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
     // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
@@ -1011,29 +1161,19 @@ function modeRun(root, guard, scratch, onResult = null) {
     throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
   }
   const base = scratchBase(root, scratch)
-  let caught = 0
-  let bad = 0
-  let faults = 0
-  let total = 0
-  for (const file of files) {
-    const data = loadDataFile(file)
-    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
-    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
-    const ids = new Set(data.mutations.map((m) => m.id))
-    const problems = surveySuites(root, data, ids, committedSuite).problems
-    if (problems.length > 0) throw new Error(problems.join('\n  '))
-    console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
-    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
-    // mutation id — ids are unique within one file and do collide across files.
-    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
-    for (const mut of data.mutations) {
-      total++
-      const outcome = gradeOne({ root, data, mut, base, onResult: report })
-      if (outcome === 'caught') caught++
-      else if (outcome === 'bad') bad++
-      else faults++
-    }
+  const ref = staged ? indexCommit(root) : 'HEAD'
+  const scoped = loadScoped(root, files, ref, staged)
+  if (scoped.length === 0) {
+    console.log('\nnothing staged touches a data file, its target, or a suite — nothing to grade')
+    return 0
   }
+  const { caught, bad, faults, total } = gradeScoped(scoped, {
+    root,
+    base,
+    ref,
+    readSuite: committedSuiteAt(ref),
+    onResult,
+  })
   console.log(
     `\n${total} mutations run, ${caught} caught, ${bad} survived-or-mismatched, ${faults} could not be graded`,
   )
@@ -1049,7 +1189,7 @@ export function main(args) {
   if (parsed.error) {
     console.error(`✖ mutation harness: ${parsed.error} — BLOCKING`)
     console.error(
-      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--guard <basename>] [--scratch <dir>]',
+      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--staged] [--guard <basename>] [--scratch <dir>]',
     )
     // Said here, not only in the file header, because the people who need it are authoring
     // `<guard>.mutations.json` and will never open this source file.
@@ -1067,7 +1207,7 @@ export function main(args) {
   if (parsed.mode === 'update-expected') {
     return modeUpdateExpected(root, parsed.guard, parsed.scratch)
   }
-  return modeRun(root, parsed.guard, parsed.scratch)
+  return modeRun({ root, guard: parsed.guard, scratch: parsed.scratch, staged: parsed.staged })
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {

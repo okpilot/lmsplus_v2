@@ -275,7 +275,7 @@ test('refuses an ambiguous anchor that occurs twice', () => {
 test('defaults to the run mode with no flags', () => {
   // MUTATION: default `mode` to 'list' → the bare command prints ids and exits 0 without running
   // a single mutation, which is indistinguishable from a fully caught run.
-  assert.deepEqual(parseArgs([]), { mode: 'run', guard: null, scratch: null })
+  assert.deepEqual(parseArgs([]), { mode: 'run', guard: null, scratch: null, staged: false })
 })
 
 test('reads the value of an option flag', () => {
@@ -285,6 +285,7 @@ test('reads the value of an option flag', () => {
     mode: 'coverage',
     guard: 'check-x',
     scratch: null,
+    staged: false,
   })
 })
 
@@ -293,6 +294,7 @@ test('reads --update-expected as a mode', () => {
     mode: 'update-expected',
     guard: null,
     scratch: null,
+    staged: false,
   })
 })
 
@@ -301,6 +303,7 @@ test('takes --update-expected together with --guard, which is an option and not 
     mode: 'update-expected',
     guard: 'run-mutations',
     scratch: null,
+    staged: false,
   })
 })
 
@@ -414,6 +417,7 @@ test('reads the value of the --scratch option', () => {
     mode: 'run',
     guard: null,
     scratch: '/tmp/my-scratch',
+    staged: false,
   })
 })
 
