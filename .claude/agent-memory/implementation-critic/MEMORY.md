@@ -39,7 +39,8 @@
 | A commit that reformats a line targeted by a `*.mutations.json` anchor breaks every anchor containing that line | 2026-09-14 | 1 | 2026-09-14 | WATCHING. Fix: when editing a line any data file targets, grep all `*.mutations.json` for the find string and update anchors in the same commit. |
 | A test file's per-test MUTATION comment claims a mechanism the SAME file's preamble lists as NOT PINNABLE | 2026-09-14 | 1 | 2026-09-14 | RESOLVED. Write tracker rows about the COMMITTED state, or transition them when the finding is fixed. |
 | Block comment written to explain WHY a case is tested only via one mechanism, then a second test proving otherwise is added in the SAME commit without updating the comment | 2026-09-14 | 1 | 2026-09-14 | WATCHING. §10 cl.3: a block edited (test added below it) without re-reading the claim it started with. |
-| Mutation `note` in `*.mutations.json` not updated when its `replace` value is changed in the same commit | 2026-09-21 | 1 | 2026-09-21 | WATCHING. `positional-allowed` in `run-mutations.mutations.json`: `replace` changed to `return { i }` (silent accept) but `note` still says "swaps the message rather than the behaviour". A note describes the SPECIFIC mutation; updating `replace` without updating `note` is the §10 cl.8 shape. |
+| Mutation `note` in `*.mutations.json` not updated when its `replace` value is changed in the same commit | 2026-09-21 | 1 | 2026-09-21 | RESOLVED. `positional-allowed` note was corrected in round-2 fixup `3f609574`. |
+| Two `// MUTATION:` comments above a test but `// GROUP:` only names one mutation ID | 2026-09-22 | 1 | 2026-09-22 | WATCHING. `run-mutations.staged.test.mjs:194-199`: two MUTATION comments describe `touchesstaged-always-in-scope` AND `staged-run-scopes-to-touched-files`, but GROUP only lists the latter. Grading is unaffected; `--coverage` exits 0. Add both IDs when multiple MUTATION comments share one GROUP. |
 
 ## Durable knowledge
 

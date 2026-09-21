@@ -54,8 +54,10 @@
 //   - `expectRed` is compared as an EXACT SET. A mutation that reddens a superset of the named
 //     tests is reported MISMATCH, not CAUGHT — §7 calls a comment naming fewer tests than it
 //     actually breaks "under-specific", and silently passing it would launder that defect;
-//   - the worktree is built from HEAD, so an UNCOMMITTED edit to a target or a suite is not what
-//     gets graded. The run measures the committed tree; that is what a commit message claims about.
+//   - the worktree is built from HEAD by default, so an UNCOMMITTED edit to a target or a suite is
+//     not what gets graded. The run measures the committed tree; that is what a commit message
+//     claims about. `--staged` is the stated exception: it builds the worktree from a commit made
+//     of the INDEX, so there the staged edit IS what gets graded and an unstaged one still is not.
 
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -519,13 +521,30 @@ function loadDataFile(file) {
  * GRADED is `filterByStagedScope`'s question, not this one.
  */
 function loadDataFileAt(root, file, ref) {
-  const rel = relPath(root, file.path)
-  // Existence is its own question, asked with its own command. A catch around `git show` would
-  // read EVERY failure — an index lock, a corrupt object, git off PATH — as "not staged", and
-  // silently drop that guard from the run while the run still exits 0.
-  if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0) return null
-  const text = git(['show', `${ref}:${rel}`], root)
+  const text = blobAt(root, ref, file.path)
+  if (text === null) return null
   return parseDataFile(text, file)
+}
+
+/**
+ * `path`'s content at `ref`, or null when that path is simply not in that tree.
+ *
+ * Existence is its own question, asked with its own command: a catch around `git show` would read
+ * EVERY failure — an index lock, a corrupt object, git off PATH — as "not staged", silently drop
+ * that guard from the run, and still exit 0. `git cat-file -e <ref>:<path>` cannot carry the
+ * distinction either — it exits 128 BOTH for a path absent from a valid tree and for a ref that
+ * does not resolve, so one unresolvable ref would empty the scope and report nothing to grade.
+ * `ls-tree` separates them: exit 0 with empty output is absence, a non-zero exit is a fault.
+ */
+export function blobAt(root, ref, path) {
+  const rel = relPath(root, path)
+  const probe = spawnSync('git', ['ls-tree', ref, '--', rel], { cwd: root, encoding: 'utf8' })
+  if (probe.status !== 0) {
+    const why = (probe.stderr || '').trim() || `git ls-tree exited ${probe.status}`
+    throw new Error(`cannot read ${rel} at ${ref}: ${why}`)
+  }
+  if (probe.stdout.trim() === '') return null
+  return git(['show', `${ref}:${rel}`], root)
 }
 
 /**
@@ -569,6 +588,12 @@ function stagedPaths(root) {
 /** `p` (absolute or root-relative) as a root-relative POSIX path. */
 export function relPath(root, p) {
   const abs = isAbsolute(p) ? p : join(root, p)
+  // A path outside `root` would `.slice()` into a silently wrong string — and every caller feeds
+  // the result to `staged.has(...)`, where a wrong string is indistinguishable from "not staged".
+  // Scope would narrow with no diagnostic, so this faults instead.
+  if (abs !== root && !abs.startsWith(root + sep)) {
+    throw new Error(`path escapes the repo root: ${p} (root ${root})`)
+  }
   return abs
     .slice(root.length + 1)
     .split(sep)
@@ -619,12 +644,7 @@ export function touchesStaged(root, file, data, staged, readAt = null) {
 /** Data files whose target/suites/own path is actually staged — everything else is a no-op. */
 function filterByStagedScope(root, loaded, ref) {
   const staged = stagedPaths(root)
-  const readAt = (suite) => {
-    const rel = relPath(root, suite)
-    if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0)
-      return null
-    return git(['show', `${ref}:${rel}`], root)
-  }
+  const readAt = (suite) => blobAt(root, ref, suite)
   return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged, readAt))
 }
 

@@ -13,7 +13,8 @@
 // `run-mutations.write.test.mjs` use.
 //
 // Every case with a `// MUTATION:` comment is pinned by a `// GROUP:` marker into
-// `run-mutations.mutations.json`; a few smoke tests carry neither and claim no coverage.
+// `run-mutations.mutations.json` — `--coverage` is the check, not this sentence; a few smoke
+// tests carry neither and claim no coverage.
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -196,7 +197,7 @@ const stagedScopeRun = runNode(
 // MUTATION: invert `filterByStagedScope`'s filter predicate (`touchesStaged` → `!touchesStaged`) →
 // scope-a (which DOES touch staged) is excluded and scope-b (which does NOT) is included instead —
 // the opposite of what is staged.
-// GROUP: staged-run-scopes-to-touched-files
+// GROUP: staged-run-scopes-to-touched-files, touchesstaged-always-in-scope
 test('a staged run scopes to data files that touch what is staged, not every file on disk', () => {
   assert.match(
     stagedScopeRun.stdout,
@@ -277,7 +278,7 @@ test('a --staged run grades the data file as staged, not an unstaged-only edit s
 // MUTATION: delete `filterByStagedScope`'s `git cat-file -e` existence probe (let `git show` run
 // unguarded) → scoping a guard whose suite has no copy at the ref throws out of the filter, so an
 // unrelated guard with a missing suite aborts the whole run instead of being scoped out of it.
-// GROUP: staged-scope-probe-removed
+// GROUP: blobat-absent-returns-null
 test('a guard whose suite is absent at the ref is scoped out, not a fault', () => {
   const { dir, g } = newRepo('rm-staged-missing-')
   for (const letter of ['e', 'f']) {
@@ -314,10 +315,11 @@ test('a guard whose suite is absent at the ref is scoped out, not a fault', () =
 // as null and filtered out; the scoped list is empty and the run exits 0 instead.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-// MUTATION: delete the `git cat-file -e` existence probe from `loadDataFileAt` (let `git show`
-// run unguarded) → when the data file is absent from the index commit, `git show` throws rather
+// MUTATION: delete the `git ls-tree` existence probe from `blobAt` (let `git show` run
+// unguarded) → when the data file is absent from the index commit, `git show` throws rather
 // than returning null, so the run faults with exit 2 instead of gracefully dropping the file and
 // printing the "nothing staged touches" message.
+// GROUP: blobat-absent-returns-null
 test('a data file on disk but absent from the index is dropped without faulting the run', () => {
   const { dir, g } = newRepo('rm-staged-absent-df-')
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
@@ -347,6 +349,7 @@ test('a data file on disk but absent from the index is dropped without faulting 
 // MUTATION: change the `return 0` in `modeRun`'s `scoped.length === 0` branch to `return 2` →
 // a staged set touching no guard exits 2 ("NO VERDICT") instead of 0, blocking the pre-commit
 // gate on any commit that doesn't touch a guarded file, which is the common case.
+// GROUP: staged-empty-scope-exits-zero
 test('a --staged run exits 0 when no staged file touches any data file, target, or suite', () => {
   const { dir, g } = newRepo('rm-staged-noscope-')
   writeFileSync(join(dir, 'ns.mjs'), 'export const ns = 1\n')
@@ -377,6 +380,7 @@ test('a --staged run exits 0 when no staged file touches any data file, target, 
 // MUTATION: change the error message in `indexCommit`'s `commit-tree` catch block so it no
 // longer contains "unborn HEAD" → the user sees a generic error and cannot tell that the repo
 // needs an initial commit before `--staged` can be used.
+// GROUP: staged-unborn-head-diagnostic
 test('reports a diagnostic when HEAD is unborn under --staged', () => {
   // No commits — HEAD is unborn. `selectFiles` reads the filesystem so a staged-only data file
   // is still visible to it; `indexCommit` is reached, `write-tree` succeeds, `commit-tree -p
@@ -398,6 +402,7 @@ test('reports a diagnostic when HEAD is unborn under --staged', () => {
 // MUTATION: change the error message in `indexCommit`'s `write-tree` catch block so it no longer
 // contains "unresolved merge conflicts" → the user sees a generic git error and cannot tell the
 // index is in a conflicted state.
+// GROUP: staged-unmerged-index-diagnostic
 test('reports a diagnostic when the index has unresolved conflicts under --staged', () => {
   // Build a repo where two branches edit the same file differently, then merge to leave the index
   // in a conflicted state. `git write-tree` refuses an index with unmerged entries, and the catch

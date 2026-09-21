@@ -767,6 +767,7 @@
         "touchesStaged matches on the data file itself, its target, or a suite",
         "a suite is in scope when a file it reads by literal path is the only staged file",
         "a suite is in scope when a helper it imports is the only staged file",
+        "touchesStaged returns false when readAt returns null for all suites",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a --staged run exits 0 when no staged file touches any data file, target, or suite"
@@ -815,18 +816,20 @@
       "expectRed": ["a suite is in scope when a helper it imports is the only staged file"]
     },
     {
-      "id": "staged-scope-probe-removed",
-      "find": "    if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0)\n      return null",
-      "replace": "    if (false) return null",
-      "expectRed": ["a guard whose suite is absent at the ref is scoped out, not a fault"]
-    },
-    {
-      "id": "staged-data-file-absent-probe",
-      "find": "  if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0) return null\n  const text = git(['show', `${ref}:${rel}`], root)",
-      "replace": "  const text = git(['show', `${ref}:${rel}`], root)",
+      "id": "blobat-absent-returns-null",
+      "find": "  if (probe.stdout.trim() === '') return null\n  return git(['show', `${ref}:${rel}`], root)",
+      "replace": "  return git(['show', `${ref}:${rel}`], root)",
       "expectRed": [
+        "blobAt returns null for a path absent from an otherwise valid tree",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a data file on disk but absent from the index is dropped without faulting the run"
       ]
+    },
+    {
+      "id": "blobat-fault-is-not-absence",
+      "find": "  if (probe.status !== 0) {\n    const why = (probe.stderr || '').trim() || `git ls-tree exited ${probe.status}`\n    throw new Error(`cannot read ${rel} at ${ref}: ${why}`)\n  }",
+      "replace": "  if (probe.status !== 0) return null",
+      "expectRed": ["blobAt throws on an unresolvable ref rather than reporting the path absent"]
     },
     {
       "id": "staged-empty-scope-exits-zero",
@@ -855,6 +858,46 @@
       "replace": "    return false",
       "expectRed": [
         "a suite is in scope when a file it reads by literal path is the only staged file"
+      ]
+    },
+    {
+      "id": "namedpaths-backtick-quote",
+      "find": "  const re = /['\"`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"`]/g",
+      "replace": "  const re = /['\"]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"]/g",
+      "expectRed": ["namedPaths extracts a backtick-quoted path literal without a substitution"]
+    },
+    {
+      "id": "namedpaths-slash-required",
+      "find": "  const re = /['\"`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"`]/g",
+      "replace": "  const re = /['\"`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)*)['\"`]/g",
+      "expectRed": [
+        "namedPaths collects repo-relative path literals and skips bare module specifiers",
+        "namedPaths extracts a backtick-quoted path literal without a substitution",
+        "namedPaths extracts a double-quoted path literal",
+        "namedPaths rejects a single-segment name with no path separator"
+      ]
+    },
+    {
+      "id": "touchesstaged-null-readat",
+      "find": "    if (text === null) return false\n",
+      "replace": "",
+      "expectRed": [
+        "touchesStaged returns false when readAt returns null for all suites",
+        "a guard whose suite is absent at the ref is scoped out, not a fault"
+      ]
+    },
+    {
+      "id": "namedpaths-double-quote",
+      "find": "  const re = /['\"`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"`]/g",
+      "replace": "  const re = /['`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['`]/g",
+      "expectRed": ["namedPaths extracts a double-quoted path literal"]
+    },
+    {
+      "id": "relpath-escape-guard",
+      "find": "  if (abs !== root && !abs.startsWith(root + sep)) {\n    throw new Error(`path escapes the repo root: ${p} (root ${root})`)\n  }\n",
+      "replace": "",
+      "expectRed": [
+        "relPath throws on a path outside the repo root rather than returning a wrong string"
       ]
     }
   ],
