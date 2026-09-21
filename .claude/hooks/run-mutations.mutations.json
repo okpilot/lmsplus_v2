@@ -230,20 +230,21 @@
         "exits 2 when a batch carries both a fault and a survivor, not 1",
         "refuses to report success when there was nothing at all to grade",
         "a dangling GROUP id committed but not on disk still stops the grading run",
-        "defaults to the run mode with no flags",
-        "reads the value of the --scratch option",
-        "a normal run never writes to the data file",
         "accepts --staged alone, with no mode flag",
         "a --staged run grades a file that is only staged, not committed",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
-        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "defaults to the run mode with no flags",
+        "reads the value of the --scratch option",
+        "a normal run never writes to the data file"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
     {
       "id": "option-no-consume",
-      "find": "      opts[a.slice(2)] = value\n      i++",
-      "replace": "      opts[a.slice(2)] = value",
+      "find": "  opts[a.slice(2)] = value\n  return { i: i + 1 }",
+      "replace": "  opts[a.slice(2)] = value\n  return { i }",
       "expectRed": [
         "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
         "reports the claim sites a suite carries and the entries excused from encoding",
@@ -253,12 +254,12 @@
         "a --staged run grades a file that is only staged, not committed",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
       ],
-      "note": "expectRed WIDENED THREE TIMES, each time because a test added later in the same branch also reddens under this break — 2026-09-16, the coverage-gap test on 2026-09-17, then the staged-data-file test on 2026-09-21. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. Any test asserting run-mutations' own OUTPUT joins this set; expect the next one to widen it again."
+      "note": "Any test asserting run-mutations' own OUTPUT reddens under this break and joins the set. A superset here means the claim was under-specific (§7); exact-set comparison is what surfaces it. Widen rather than trim — `--update-expected` writes the set actually observed."
     },
     {
       "id": "option-no-value-ok",
-      "find": "      if (value === undefined || value.startsWith('--')) {",
-      "replace": "      if (false) {",
+      "find": "  if (value === undefined || value.startsWith('--')) return { error: `${a} requires a value` }",
+      "replace": "  if (false) return { error: `${a} requires a value` }",
       "expectRed": ["blocks an option flag given with no value"],
       "note": "`opts.guard` becomes undefined, selectFiles reads that as \"no guard\", and the run silently widens to every data file."
     },
@@ -270,14 +271,14 @@
     },
     {
       "id": "unknown-flag-ignored",
-      "find": "    return { error: `unknown flag ${a}` }",
-      "replace": "    continue",
+      "find": "  if (!OPTION_FLAGS.has(a)) return { error: `unknown flag ${a}` }",
+      "replace": "  if (!OPTION_FLAGS.has(a)) return { i }",
       "expectRed": ["blocks an unknown flag"]
     },
     {
       "id": "positional-allowed",
-      "find": "      return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }",
-      "replace": "      return { error: `unknown flag ${a}` }",
+      "find": "    return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }",
+      "replace": "    return { i }",
       "expectRed": ["blocks a bare positional argument"],
       "note": "Deleting the branch outright still errors, via the unknown-flag path — so the test asserts the MESSAGE. This entry swaps the message rather than the behaviour for exactly that reason."
     },
@@ -648,8 +649,9 @@
         "a dangling GROUP id committed but not on disk still stops the grading run",
         "a --staged run grades a file that is only staged, not committed",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
-        "a normal run never writes to the data file",
-        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a normal run never writes to the data file"
       ]
     },
     {
@@ -743,22 +745,25 @@
     },
     {
       "id": "staged-run-scopes-to-touched-files",
-      "find": "return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged))",
-      "replace": "return loaded.filter(({ file, data }) => !touchesStaged(root, file, data, staged))",
+      "find": "  return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged, readAt))",
+      "replace": "  return loaded.filter(({ file, data }) => !touchesStaged(root, file, data, staged, readAt))",
       "expectRed": [
         "a --staged run grades a file that is only staged, not committed",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
-        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault"
       ],
       "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too)."
     },
     {
       "id": "touchesstaged-always-in-scope",
-      "find": "return paths.some((p) => staged.has(relPath(root, p)))",
-      "replace": "return true",
+      "find": "  if (paths.some((p) => staged.has(relPath(root, p)))) return true",
+      "replace": "  if (true) return true",
       "expectRed": [
+        "touchesStaged matches on the data file itself, its target, or a suite",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
-        "touchesStaged matches on the data file itself, its target, or a suite"
+        "a suite is in scope when a helper it imports is the only staged file",
+        "a guard whose suite is absent at the ref is scoped out, not a fault"
       ],
       "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too."
     },
@@ -777,6 +782,32 @@
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
       ],
       "note": "loadScoped's staged branch falls back to reading the data file straight off disk, so an unstaged edit sitting on top of the staged/committed copy gets graded instead of what --staged is supposed to see."
+    },
+    {
+      "id": "boolean-flag-not-recognized",
+      "find": "  if (BOOLEAN_FLAGS.has(a)) {\n    opts[a.slice(2)] = true\n    return { i }\n  }",
+      "replace": "  if (false) {\n    opts[a.slice(2)] = true\n    return { i }\n  }",
+      "expectRed": [
+        "rejects --staged combined with a mode flag",
+        "accepts --staged alone, with no mode flag",
+        "a --staged run grades a file that is only staged, not committed",
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault"
+      ],
+      "note": "Dropping the BOOLEAN_FLAGS.has(a) branch makes --staged fall through to the unknown-flag error path, so every caller that passes --staged exits 2 with a usage error instead of grading the index."
+    },
+    {
+      "id": "touchesstaged-no-import-hop",
+      "find": "  if (!readAt) return false\n  return data.suites.some((suite) => {",
+      "replace": "  if (!readAt) return false\n  if (true) return false\n  return data.suites.some((suite) => {",
+      "expectRed": ["a suite is in scope when a helper it imports is the only staged file"]
+    },
+    {
+      "id": "staged-scope-probe-removed",
+      "find": "    if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0)\n      return null",
+      "replace": "    if (false) return null",
+      "expectRed": ["a guard whose suite is absent at the ref is scoped out, not a fault"]
     }
   ],
   "notEncoded": [

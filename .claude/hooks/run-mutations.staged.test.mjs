@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { parseArgs, relPath, touchesStaged } from './run-mutations.mjs'
+import { localImports, parseArgs, relPath, touchesStaged } from './run-mutations.mjs'
 import { runNode } from './spawn.testkit.mjs'
 
 // Absolute path to the harness itself — needed so a subprocess invoked with a DIFFERENT cwd can
@@ -49,6 +49,37 @@ const gitRunner = (dir) => (args) => {
 
 const fixedGreenSuite = (title) =>
   `process.stdout.write('TAP version 13\\n1..1\\nok 1 - ${title}\\n')\n`
+
+/** A throwaway repo with git identity configured. Returns its path and a git runner bound to it. */
+function newRepo(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  const g = gitRunner(dir)
+  g(['init', '-q', '.'])
+  g(['config', 'user.email', 'test@test'])
+  g(['config', 'user.name', 'test'])
+  return { dir, g }
+}
+
+/** Write `.claude/hooks/<base>.mutations.json` with one mutation whose expectRed never fires. */
+function writeGuard(dir, base, target) {
+  mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+  const letter = target.replace(/\.mjs$/, '')
+  writeFileSync(
+    join(dir, '.claude', 'hooks', `${base}.mutations.json`),
+    JSON.stringify({
+      target,
+      suites: [`${letter}.test.mjs`],
+      mutations: [
+        {
+          id: `touch-${letter}`,
+          find: `export const ${letter} = 1`,
+          replace: `export const ${letter} = 2`,
+          expectRed: ['a-test-that-never-fires'],
+        },
+      ],
+    }),
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // touchesStaged — the scope predicate
@@ -80,12 +111,15 @@ test('relPath renders an absolute path under root as root-relative POSIX', () =>
 // MUTATION: delete the `opts.staged && modes.length > 0` guard in `parseArgs` → `--staged
 // --coverage` silently proceeds into coverage mode instead of refusing an unsupported combination
 // the rest of the harness was never built to grade.
-// GROUP: staged-rejects-other-modes
+// GROUP: staged-rejects-other-modes, boolean-flag-not-recognized
 test('rejects --staged combined with a mode flag', () => {
   assert.match(parseArgs(['--staged', '--coverage']).error, /--staged only applies to a plain run/)
   assert.match(parseArgs(['--list', '--staged']).error, /--staged only applies to a plain run/)
 })
 
+// MUTATION: drop the `BOOLEAN_FLAGS.has(a)` block in `parseArgs` → `--staged` is treated as an
+// unknown flag, so any invocation passing `--staged` exits 2 with a usage error instead of running.
+// GROUP: boolean-flag-not-recognized
 test('accepts --staged alone, with no mode flag', () => {
   const parsed = parseArgs(['--staged'])
   assert.equal(parsed.error, undefined)
@@ -101,31 +135,12 @@ test('accepts --staged alone, with no mode flag', () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 function buildStagedOnlyRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'rm-staged-idx-'))
-  const g = gitRunner(dir)
-  g(['init', '-q', '.'])
-  g(['config', 'user.email', 'test@test'])
-  g(['config', 'user.name', 'test'])
+  const { dir, g } = newRepo('rm-staged-idx-')
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
-  writeFileSync(join(dir, 'target.mjs'), 'export const x = 1\n')
-  writeFileSync(join(dir, 'suite.test.mjs'), fixedGreenSuite('placeholder'))
-  g(['add', 'target.mjs', 'suite.test.mjs'])
-  mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-  writeFileSync(
-    join(dir, '.claude', 'hooks', 'idx-fixture.mutations.json'),
-    JSON.stringify({
-      target: 'target.mjs',
-      suites: ['suite.test.mjs'],
-      mutations: [
-        {
-          id: 'stage-only-target',
-          find: 'export const x = 1',
-          replace: 'export const x = 2',
-          expectRed: ['a-test-that-never-fires'],
-        },
-      ],
-    }),
-  )
+  writeFileSync(join(dir, 'target.mjs'), 'export const target = 1\n')
+  writeFileSync(join(dir, 'target.test.mjs'), fixedGreenSuite('placeholder'))
+  g(['add', 'target.mjs', 'target.test.mjs'])
+  writeGuard(dir, 'idx-fixture', 'target.mjs')
   // The data file itself is staged too — a real "add a new guard" commit stages the guard, its
   // suite AND its data file together. loadDataFileAt reads this file's content from the INDEX,
   // so it must actually be in the index for the run below to find it there.
@@ -151,7 +166,7 @@ test('a --staged run grades a file that is only staged, not committed', () => {
     /cannot read target/,
     `stdout:\n${stagedIdxRun.stdout}\nstderr:\n${stagedIdxRun.stderr}`,
   )
-  assert.match(stagedIdxRun.stdout, /stage-only-target/, `stdout:\n${stagedIdxRun.stdout}`)
+  assert.match(stagedIdxRun.stdout, /touch-target/, `stdout:\n${stagedIdxRun.stdout}`)
   assert.match(stagedIdxRun.stdout, /SURVIVED/, `stdout:\n${stagedIdxRun.stdout}`)
 })
 
@@ -163,58 +178,16 @@ test('a --staged run grades a file that is only staged, not committed', () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 function buildStagedScopeRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'rm-staged-scope-'))
-  const g = gitRunner(dir)
-  g(['init', '-q', '.'])
-  g(['config', 'user.email', 'test@test'])
-  g(['config', 'user.name', 'test'])
-  writeFileSync(join(dir, 'a.mjs'), 'export const a = 1\n')
-  writeFileSync(join(dir, 'a.test.mjs'), fixedGreenSuite('a-ok'))
-  writeFileSync(join(dir, 'b.mjs'), 'export const b = 1\n')
-  writeFileSync(join(dir, 'b.test.mjs'), fixedGreenSuite('b-ok'))
-  mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-  writeFileSync(
-    join(dir, '.claude', 'hooks', 'scope-a.mutations.json'),
-    JSON.stringify({
-      target: 'a.mjs',
-      suites: ['a.test.mjs'],
-      mutations: [
-        {
-          id: 'touch-a',
-          find: 'export const a = 1',
-          replace: 'export const a = 2',
-          expectRed: ['a-test-that-never-fires'],
-        },
-      ],
-    }),
-  )
-  writeFileSync(
-    join(dir, '.claude', 'hooks', 'scope-b.mutations.json'),
-    JSON.stringify({
-      target: 'b.mjs',
-      suites: ['b.test.mjs'],
-      mutations: [
-        {
-          id: 'touch-b',
-          find: 'export const b = 1',
-          replace: 'export const b = 2',
-          expectRed: ['a-test-that-never-fires'],
-        },
-      ],
-    }),
-  )
+  const { dir, g } = newRepo('rm-staged-scope-')
+  for (const letter of ['a', 'b']) {
+    writeFileSync(join(dir, `${letter}.mjs`), `export const ${letter} = 1\n`)
+    writeFileSync(join(dir, `${letter}.test.mjs`), fixedGreenSuite(`${letter}-ok`))
+    writeGuard(dir, `scope-${letter}`, `${letter}.mjs`)
+  }
   // Both guards, TRACKED, committed at HEAD — same as any pre-existing guard the branch doesn't
   // touch. loadDataFileAt reads a data file's content from the INDEX, which mirrors HEAD for any
   // file this commit leaves alone, so an untouched guard's data file is still gradable.
-  g([
-    'add',
-    'a.mjs',
-    'a.test.mjs',
-    'b.mjs',
-    'b.test.mjs',
-    '.claude/hooks/scope-a.mutations.json',
-    '.claude/hooks/scope-b.mutations.json',
-  ])
+  g(['add', '-A'])
   g(['commit', '-q', '-m', 'init'])
   // Stage a change to a.mjs only — b.mjs is untouched, so it must stay out of scope.
   writeFileSync(join(dir, 'a.mjs'), 'export const a = 1\nexport const a2 = 2\n')
@@ -277,11 +250,7 @@ function buildDataFileFixture(id) {
 }
 
 function buildStagedDataDivergesRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'rm-staged-diverge-'))
-  const g = gitRunner(dir)
-  g(['init', '-q', '.'])
-  g(['config', 'user.email', 'test@test'])
-  g(['config', 'user.name', 'test'])
+  const { dir, g } = newRepo('rm-staged-diverge-')
   writeFileSync(join(dir, 'd.mjs'), 'export const d = 1\n')
   writeFileSync(join(dir, 'd.test.mjs'), fixedGreenSuite('d-ok'))
   mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
@@ -317,4 +286,66 @@ const stagedDivergeRun = runNode(
 test('a --staged run grades the data file as staged, not an unstaged-only edit sitting on top', () => {
   assert.match(stagedDivergeRun.stdout, /committed-id/, `stdout:\n${stagedDivergeRun.stdout}`)
   assert.doesNotMatch(stagedDivergeRun.stdout, /unstaged-id/, `stdout:\n${stagedDivergeRun.stdout}`)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// localImports and the one-hop scope reach
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+test('localImports resolves relative specifiers against the importer, and skips bare ones', () => {
+  const text = [
+    "import { a } from './kit.mjs'",
+    "import { b } from '../up/kit.mjs'",
+    "const c = await import('./dyn.mjs')",
+    "import assert from 'node:assert/strict'",
+  ].join('\n')
+  assert.deepEqual(localImports('/repo', '/repo/hooks/x.test.mjs', text), [
+    'hooks/kit.mjs',
+    'up/kit.mjs',
+    'hooks/dyn.mjs',
+  ])
+})
+
+// MUTATION: delete `touchesStaged`'s import-hop branch (`return false` before it) → a commit
+// staging only a shared testkit matches no data file's own path, target or suite, so the run
+// grades nothing and exits 0 while the edit can redden every suite importing it.
+// GROUP: touchesstaged-no-import-hop
+test('a suite is in scope when a helper it imports is the only staged file', () => {
+  const root = '/repo'
+  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
+  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
+  const readAt = () => "import { kit } from './kit.mjs'\n"
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt), true)
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/other.mjs']), readAt), false)
+})
+
+// MUTATION: delete `filterByStagedScope`'s `git cat-file -e` existence probe (let `git show` run
+// unguarded) → scoping a guard whose suite has no copy at the ref throws out of the filter, so an
+// unrelated guard with a missing suite aborts the whole run instead of being scoped out of it.
+// GROUP: staged-scope-probe-removed
+test('a guard whose suite is absent at the ref is scoped out, not a fault', () => {
+  const { dir, g } = newRepo('rm-staged-missing-')
+  for (const letter of ['e', 'f']) {
+    writeFileSync(join(dir, `${letter}.mjs`), `export const ${letter} = 1\n`)
+    writeGuard(dir, `probe-${letter}`, `${letter}.mjs`)
+  }
+  // e.test.mjs exists; f.test.mjs is named by probe-f's data file but committed nowhere. Only
+  // e.mjs is staged, so probe-f is out of scope — reaching its missing suite at all is the defect.
+  writeFileSync(join(dir, 'e.test.mjs'), fixedGreenSuite('e-ok'))
+  g(['add', '-A'])
+  g(['commit', '-q', '-m', 'init'])
+  writeFileSync(join(dir, 'e.mjs'), 'export const e = 1\nexport const e2 = 2\n')
+  g(['add', 'e.mjs'])
+  const run = runNode(
+    'harness --staged with an out-of-scope guard missing its suite',
+    [HARNESS, '--staged'],
+    {
+      cwd: dir,
+      env: envWithoutTestContext,
+    },
+  )
+  const out = `${run.stdout}${run.stderr}`
+  assert.doesNotMatch(out, /does not exist in/, out)
+  assert.match(out, /touch-e/, out)
+  assert.doesNotMatch(out, /touch-f/, out)
 })

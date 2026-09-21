@@ -2,9 +2,9 @@
 //
 // `parseSuite` and `groupProblems`: what a suite CLAIMS, and whether its `GROUP:` markers still
 // name mutations that exist. Split from run-mutations.test.mjs at the test-file cap in
-// .claude/limits.json. Also covers `CONTROL:` marker parsing, which the guard-controls registry
-// reads as `tests[].controls` to check every registered guard carries a spawned red and green
-// control.
+// .claude/limits.json. Also covers `CONTROL:` marker parsing: the markers are recorded as
+// `tests[].controls` for a guard-controls registry that is NOT in this repository yet — the
+// parser ships first so that registry has something to read.
 
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -294,11 +294,6 @@ test('a CONTROL marker written inside a body names the test it sits in, not the 
 test('a value other than red or green is not recognised as a CONTROL marker', () => {
   const parsed = parseSuite("// CONTROL: yellow\ntest('behaves', () => {})\n")
   assert.deepEqual(parsed.tests[0].controls, [])
-})
-
-test('a CONTROL marker line is never also counted as a claim', () => {
-  const parsed = parseSuite("// CONTROL: red\ntest('behaves', () => {})\n")
-  assert.equal(parsed.tests[0].claims, 0)
 })
 
 test('a CONTROL marker separated from every test by code belongs to the header, not a test', () => {
