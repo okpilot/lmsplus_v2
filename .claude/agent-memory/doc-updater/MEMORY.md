@@ -118,13 +118,13 @@ When doc-updater flags stale footers on a narrow diff scope (one commit), the or
 
 A commit touching ONLY `.claude/agent-memory/**` runs under the docs-only exemption (skips implementation-critic). When such a commit reconciles tracker counts, audit binding docs to prevent stale figure citations.
 
-**Scope:** Search for any binding doc quoting the reconciled COUNT (the old figure). Binding docs: `docs/*.md`, `.claude/rules/*.md`, `CLAUDE.md` (not memory files, not steering docs).
+**Scope:** Search for any binding doc quoting the reconciled COUNT (the old figure). Binding docs: `docs/*.md`, `claude/rules/*.md`, `CLAUDE.md` (not memory files, not steering docs).
 
 **Search method:** Grep for the specific number or row name changed by the commit. Use `grep -n '<number>\|<phrase>'` commands and paste results. Never hand-count; always run a grep command to derive the count.
 
 **Example (abcb1188, 2026-09-16):** Commit reconciles learner row "git flags/options placed AFTER `--`" from count=3→2 (reason: only two instances evidenced; three was fed without derivation). Search binding docs for any citation to count=3 for this row. Command: `grep -rn 'git.*flag\|after.*--.*count.*3' docs/*.md .claude/rules/*.md CLAUDE.md`. Result: zero instances quote this row at count=3. A different doc quotes "Promoted at count=3 (2026-09-16, feat/prose-path-guard)" but that refers to extent-quantifiers rule, not the git-flags row. Memory file caps: derive, never quote — `wc -lc .claude/agent-memory/<agent>/MEMORY.md` against the 200-line / 25 KB injection caps. This example originally quoted a byte figure that was wrong (row 109, instance 4). **NO DOC EDIT NEEDED.**
 
-- Mutation harness progression: GROUP markers (2026-09-18), `--update-expected` mode (2026-09-19), `--staged` mode (2026-09-21, #1325). Documentation in hook header only; `docs/decisions.md` Decision 67 remains accurate (default `--run` still grades HEAD).
+- Mutation harness progression: GROUP markers (2026-09-18), `--update-expected` mode (2026-09-19), `--staged` mode + `CONTROL:` markers (2026-09-21, #1325). Documentation in hook header only; `docs/decisions.md` Decision 67 remains accurate (default `--run` still grades HEAD). New exit-0 branch added for empty staged sets (not a harness error). Commit `60037901` (round 1) + current `3162464a` (round 2). **VERIFIED:** no new public decisions; no steering drift; no doc edits needed beyond hook header (already documented inline).
 
 *Last updated: 2026-09-21*
 

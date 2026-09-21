@@ -182,8 +182,6 @@ export function compareResult(expectRed, failedNames) {
 const TEST_LINE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(/
 /** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */
 const GROUP_MARKER_RE = /^\s*\/\/ GROUP: (.*)$/
-/** `// CONTROL: red` or `// CONTROL: green` — marks a test as a spawned guard control. */
-const CONTROL_MARKER_RE = /^\s*\/\/ CONTROL: (red|green)\s*$/
 /** Any comment line. A marker's id list continues onto one of these while it ends with a comma. */
 const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
 /** A marker continues onto a comment line only while that line is itself an id list. */
@@ -220,16 +218,13 @@ function readMarker(lines, i, m) {
 }
 
 /**
- * Read one suite's claim sites, `GROUP:` markers, and `CONTROL:` markers.
+ * Read one suite's claim sites and `GROUP:` markers.
  *
- * Returns `{ header: { claims, groups, controls }, tests: [{ line, groups, claims, controls }] }`,
- * `line` 1-based. `controls` is an array of `'red'|'green'`, one entry per `CONTROL:` marker
- * attached to that test — normally zero or one, but a malformed suite can stack several.
+ * Returns `{ header: { claims, groups }, tests: [{ line, groups, claims }] }`, `line` 1-based.
  *
  * ATTACHMENT. A marker sitting directly above a `test(` names that test; a marker inside a body
  * names the test it is written in, not the next one. So the lookahead skips blanks and comments
- * and asks what the marker actually precedes — an assertion means the enclosing test. `CONTROL:`
- * shares this rule with `GROUP:` (`ownerFor` is one function, reused by both scans).
+ * and asks what the marker actually precedes — an assertion means the enclosing test.
  *
  * CLAIMS. Only `MUTATION:` on a COMMENT line is a claim. The token also appears in test titles and
  * in string fixtures, where it is the harness's own subject matter rather than an assertion about
@@ -245,8 +240,8 @@ export function parseSuite(text) {
   lines.forEach((l, i) => {
     if (TEST_LINE_RE.test(l)) testLines.push(i)
   })
-  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0, controls: [] }))
-  const header = { claims: 0, groups: [], controls: [] }
+  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0 }))
+  const header = { claims: 0, groups: [] }
 
   /**
    * The test a comment belongs to. `from` is its last line, `anchor` its first.
@@ -264,7 +259,6 @@ export function parseSuite(text) {
   }
 
   const markerLines = scanMarkers(lines, ownerFor)
-  scanControls(lines, ownerFor)
   scanClaims(lines, markerLines, ownerFor)
   return { header, tests }
 }
@@ -280,21 +274,6 @@ function scanMarkers(lines, ownerFor) {
     ownerFor(last, i).groups.push(...ids)
   }
   return markerLines
-}
-
-/**
- * Attach every `CONTROL:` marker to its owner. Returns the line numbers the markers occupy.
- *
- * Single-line only — unlike `GROUP:`, a control marker never continues onto the next comment
- * line, so `ownerFor(i, i)` reads correctly: the marker's only line is both its anchor and its
- * last line.
- */
-function scanControls(lines, ownerFor) {
-  for (let i = 0; i < lines.length; i++) {
-    const m = CONTROL_MARKER_RE.exec(lines[i])
-    if (!m) continue
-    ownerFor(i, i).controls.push(m[1])
-  }
 }
 
 /** Count every `MUTATION:` claim onto its owner. A marker line is never also a claim line. */
@@ -535,8 +514,9 @@ function loadDataFile(file) {
 /**
  * `file`'s content AT `ref`'s tree — never the working tree — so a `--staged` run grades the
  * INDEXED `find`/`replace`/`expectRed`, not an unstaged-only edit sitting on top of it. Returns
- * null when `file` has no copy in that tree (untracked, or removed from the index): a data file
- * that isn't itself staged must not be graded as though it were.
+ * null ONLY when `file` has no entry in that tree at all — untracked, or `git rm --cached`-ed.
+ * A committed file the commit leaves alone still has an entry, so it still loads; whether it is
+ * GRADED is `filterByStagedScope`'s question, not this one.
  */
 function loadDataFileAt(root, file, ref) {
   const rel = relPath(root, file.path)
@@ -605,8 +585,22 @@ export function localImports(root, from, text) {
 }
 
 /**
+ * Repo-relative paths a suite NAMES as a string literal. A file a suite reads directly —
+ * `readFileSync('.claude/limits.json')` — is a graded input that no import hop can see, so
+ * without this a commit staging only that file grades nothing and exits 0. Over-inclusion is
+ * harmless: a literal naming nothing simply matches nothing staged.
+ *
+ * Bounded to LITERALS. A computed path (a template with a substitution, a joined variable) names
+ * nothing this can read, exactly as `localImports` cannot follow a computed specifier.
+ */
+export function namedPaths(text) {
+  const re = /['"`]([A-Za-z0-9._][\w.-]*(?:\/[\w.-]+)+)['"`]/g
+  return [...text.matchAll(re)].map((m) => m[1])
+}
+
+/**
  * Whether `file`'s own path, `data.target`, any `data.suites` entry, or a helper a suite imports
- * is in `staged`. The import hop is load-bearing: a shared testkit is named by no data file, so
+ * names or imports is in `staged`. The import hop is load-bearing: a shared testkit is named by no data file, so
  * without it a commit staging ONLY that helper grades nothing and exits 0 — while the edit can
  * redden every suite importing it.
  */
@@ -616,7 +610,9 @@ export function touchesStaged(root, file, data, staged, readAt = null) {
   if (!readAt) return false
   return data.suites.some((suite) => {
     const text = readAt(suite)
-    return text !== null && localImports(root, suite, text).some((i) => staged.has(i))
+    if (text === null) return false
+    if (localImports(root, suite, text).some((i) => staged.has(i))) return true
+    return namedPaths(text).some((named) => staged.has(named))
   })
 }
 
@@ -1212,7 +1208,9 @@ function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
   const ref = staged ? indexCommit(root) : 'HEAD'
   const scoped = loadScoped(root, files, ref, staged)
   if (scoped.length === 0) {
-    console.log('\nnothing staged touches a data file, its target, or a suite — nothing to grade')
+    console.log(
+      '\nnothing staged touches a data file, its target, a suite, or a path a suite names — nothing to grade',
+    )
     return 0
   }
   const { caught, bad, faults, total } = gradeScoped(scoped, {

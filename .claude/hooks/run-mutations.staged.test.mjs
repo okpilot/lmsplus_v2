@@ -17,12 +17,12 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { localImports, parseArgs, relPath, touchesStaged } from './run-mutations.mjs'
+import { parseArgs } from './run-mutations.mjs'
 import { runNode } from './spawn.testkit.mjs'
 
 // Absolute path to the harness itself — needed so a subprocess invoked with a DIFFERENT cwd can
@@ -50,9 +50,18 @@ const gitRunner = (dir) => (args) => {
 const fixedGreenSuite = (title) =>
   `process.stdout.write('TAP version 13\\n1..1\\nok 1 - ${title}\\n')\n`
 
+// Every fixture repo this file builds, removed when the run ends. Without this each execution
+// leaves its repos under tmpdir() — and the file is a `suites` entry, so the harness re-runs it
+// once per graded mutation.
+const fixtureDirs = []
+after(() => {
+  for (const dir of fixtureDirs) rmSync(dir, { recursive: true, force: true })
+})
+
 /** A throwaway repo with git identity configured. Returns its path and a git runner bound to it. */
 function newRepo(prefix) {
   const dir = mkdtempSync(join(tmpdir(), prefix))
+  fixtureDirs.push(dir)
   const g = gitRunner(dir)
   g(['init', '-q', '.'])
   g(['config', 'user.email', 'test@test'])
@@ -80,29 +89,6 @@ function writeGuard(dir, base, target) {
     }),
   )
 }
-
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-// touchesStaged — the scope predicate
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-test('touchesStaged matches on the data file itself, its target, or a suite', () => {
-  const root = '/repo'
-  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
-  const data = {
-    target: '.claude/hooks/x.mjs',
-    suites: ['.claude/hooks/x.test.mjs'],
-    mutations: [],
-  }
-  assert.equal(touchesStaged(root, file, data, new Set(['.claude/hooks/x.mjs'])), true)
-  assert.equal(touchesStaged(root, file, data, new Set(['.claude/hooks/x.test.mjs'])), true)
-  assert.equal(touchesStaged(root, file, data, new Set(['.claude/hooks/x.mutations.json'])), true)
-  assert.equal(touchesStaged(root, file, data, new Set(['.claude/hooks/unrelated.mjs'])), false)
-})
-
-test('relPath renders an absolute path under root as root-relative POSIX', () => {
-  assert.equal(relPath('/repo', '/repo/.claude/hooks/x.mjs'), '.claude/hooks/x.mjs')
-  assert.equal(relPath('/repo', '.claude/hooks/x.mjs'), '.claude/hooks/x.mjs')
-})
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // parseArgs — --staged
@@ -288,37 +274,6 @@ test('a --staged run grades the data file as staged, not an unstaged-only edit s
   assert.doesNotMatch(stagedDivergeRun.stdout, /unstaged-id/, `stdout:\n${stagedDivergeRun.stdout}`)
 })
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-// localImports and the one-hop scope reach
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-test('localImports resolves relative specifiers against the importer, and skips bare ones', () => {
-  const text = [
-    "import { a } from './kit.mjs'",
-    "import { b } from '../up/kit.mjs'",
-    "const c = await import('./dyn.mjs')",
-    "import assert from 'node:assert/strict'",
-  ].join('\n')
-  assert.deepEqual(localImports('/repo', '/repo/hooks/x.test.mjs', text), [
-    'hooks/kit.mjs',
-    'up/kit.mjs',
-    'hooks/dyn.mjs',
-  ])
-})
-
-// MUTATION: delete `touchesStaged`'s import-hop branch (`return false` before it) → a commit
-// staging only a shared testkit matches no data file's own path, target or suite, so the run
-// grades nothing and exits 0 while the edit can redden every suite importing it.
-// GROUP: touchesstaged-no-import-hop
-test('a suite is in scope when a helper it imports is the only staged file', () => {
-  const root = '/repo'
-  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
-  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
-  const readAt = () => "import { kit } from './kit.mjs'\n"
-  assert.equal(touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt), true)
-  assert.equal(touchesStaged(root, file, data, new Set(['hooks/other.mjs']), readAt), false)
-})
-
 // MUTATION: delete `filterByStagedScope`'s `git cat-file -e` existence probe (let `git show` run
 // unguarded) → scoping a guard whose suite has no copy at the ref throws out of the filter, so an
 // unrelated guard with a missing suite aborts the whole run instead of being scoped out of it.
@@ -348,4 +303,140 @@ test('a guard whose suite is absent at the ref is scoped out, not a fault', () =
   assert.doesNotMatch(out, /does not exist in/, out)
   assert.match(out, /touch-e/, out)
   assert.doesNotMatch(out, /touch-f/, out)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --staged: data file absent from the index is dropped rather than faulting the run
+//
+// Fixture: one data file that exists on disk but was never staged or committed. Its target is
+// staged, so without the existence probe `loadDataFileAt` would call `git show` directly, which
+// throws on a missing object — aborting the run with exit 2. With the probe the file is returned
+// as null and filtered out; the scoped list is empty and the run exits 0 instead.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// MUTATION: delete the `git cat-file -e` existence probe from `loadDataFileAt` (let `git show`
+// run unguarded) → when the data file is absent from the index commit, `git show` throws rather
+// than returning null, so the run faults with exit 2 instead of gracefully dropping the file and
+// printing the "nothing staged touches" message.
+test('a data file on disk but absent from the index is dropped without faulting the run', () => {
+  const { dir, g } = newRepo('rm-staged-absent-df-')
+  g(['commit', '-q', '--allow-empty', '-m', 'init'])
+  writeFileSync(join(dir, 'abs.mjs'), 'export const abs = 1\n')
+  writeFileSync(join(dir, 'abs.test.mjs'), fixedGreenSuite('abs-ok'))
+  writeGuard(dir, 'absent-df', 'abs.mjs')
+  // Stage target and suite but NOT the data file — it lives only on disk.
+  g(['add', 'abs.mjs', 'abs.test.mjs'])
+  const run = runNode(
+    'harness --staged with data file absent from index',
+    [HARNESS, '--staged', '--guard', 'absent-df'],
+    { cwd: dir, env: envWithoutTestContext },
+  )
+  assert.equal(run.status, 0, `stderr:\n${run.stderr}`)
+  assert.match(run.stdout, /nothing staged touches/, run.stdout)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --staged: empty scope exits 0, not 2
+//
+// Fixture: one committed guard. Only an unrelated file is staged — nothing that touches the
+// guard's data file, target, or suite. Under --staged this is a commit the harness has no claim
+// to grade, and the exit must be 0, not 2 (which would wrongly block the pre-commit gate on every
+// commit that does not touch a guarded file).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// MUTATION: change the `return 0` in `modeRun`'s `scoped.length === 0` branch to `return 2` →
+// a staged set touching no guard exits 2 ("NO VERDICT") instead of 0, blocking the pre-commit
+// gate on any commit that doesn't touch a guarded file, which is the common case.
+test('a --staged run exits 0 when no staged file touches any data file, target, or suite', () => {
+  const { dir, g } = newRepo('rm-staged-noscope-')
+  writeFileSync(join(dir, 'ns.mjs'), 'export const ns = 1\n')
+  writeFileSync(join(dir, 'ns.test.mjs'), fixedGreenSuite('ns-ok'))
+  writeGuard(dir, 'no-scope', 'ns.mjs')
+  writeFileSync(join(dir, 'unrelated.txt'), 'hello\n')
+  g(['add', '-A'])
+  g(['commit', '-q', '-m', 'init'])
+  writeFileSync(join(dir, 'unrelated.txt'), 'changed\n')
+  g(['add', 'unrelated.txt'])
+  const run = runNode('harness --staged with no guard in scope exits 0', [HARNESS, '--staged'], {
+    cwd: dir,
+    env: envWithoutTestContext,
+  })
+  assert.equal(run.status, 0, `stderr:\n${run.stderr}`)
+  assert.match(run.stdout, /nothing staged touches/, run.stdout)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// --staged: indexCommit diagnostics for unborn HEAD and unresolved merge conflicts
+//
+// Both paths are in `indexCommit` and are NOT exported, so they need spawn-level tests against a
+// real repo whose git state forces the failing command. The diagnostic message is part of what the
+// test pins: a mutation that strips the key phrase makes the `match` assertion fail while the exit
+// code stays 2, so exit-code-only assertions would miss it.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// MUTATION: change the error message in `indexCommit`'s `commit-tree` catch block so it no
+// longer contains "unborn HEAD" → the user sees a generic error and cannot tell that the repo
+// needs an initial commit before `--staged` can be used.
+test('reports a diagnostic when HEAD is unborn under --staged', () => {
+  // No commits — HEAD is unborn. `selectFiles` reads the filesystem so a staged-only data file
+  // is still visible to it; `indexCommit` is reached, `write-tree` succeeds, `commit-tree -p
+  // HEAD` fails, and the catch emits the "unborn HEAD?" diagnostic.
+  const { dir, g } = newRepo('rm-staged-unborn-')
+  writeFileSync(join(dir, 'ub.mjs'), 'export const ub = 1\n')
+  writeFileSync(join(dir, 'ub.test.mjs'), fixedGreenSuite('ub-ok'))
+  writeGuard(dir, 'unborn-guard', 'ub.mjs')
+  g(['add', 'ub.mjs', 'ub.test.mjs', '.claude/hooks/unborn-guard.mutations.json'])
+  const run = runNode(
+    'harness --staged with unborn HEAD exits 2 with diagnostic',
+    [HARNESS, '--staged', '--guard', 'unborn-guard'],
+    { cwd: dir, env: envWithoutTestContext },
+  )
+  assert.equal(run.status, 2, `stderr:\n${run.stderr}`)
+  assert.match(run.stderr, /unborn HEAD/, `stderr:\n${run.stderr}`)
+})
+
+// MUTATION: change the error message in `indexCommit`'s `write-tree` catch block so it no longer
+// contains "unresolved merge conflicts" → the user sees a generic git error and cannot tell the
+// index is in a conflicted state.
+test('reports a diagnostic when the index has unresolved conflicts under --staged', () => {
+  // Build a repo where two branches edit the same file differently, then merge to leave the index
+  // in a conflicted state. `git write-tree` refuses an index with unmerged entries, and the catch
+  // wraps that failure in the "unresolved merge conflicts?" diagnostic.
+  const { dir, g } = newRepo('rm-staged-conflicts-')
+  mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+  writeFileSync(
+    join(dir, '.claude', 'hooks', 'cflt-guard.mutations.json'),
+    JSON.stringify({
+      target: 'cflt.mjs',
+      suites: ['cflt.test.mjs'],
+      mutations: [{ id: 'cflt-touch', find: 'x = 1', replace: 'x = 2', expectRed: ['never'] }],
+    }),
+  )
+  writeFileSync(join(dir, 'cflt.mjs'), 'const x = 1\n')
+  writeFileSync(join(dir, 'cflt.test.mjs'), fixedGreenSuite('cflt-ok'))
+  writeFileSync(join(dir, 'conflict.txt'), 'original\n')
+  g(['add', '-A'])
+  g(['commit', '-q', '-m', 'init'])
+  const mainBranch = g(['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim()
+  g(['checkout', '-q', '-b', 'side'])
+  writeFileSync(join(dir, 'conflict.txt'), 'side version\n')
+  g(['add', 'conflict.txt'])
+  g(['commit', '-q', '-m', 'side change'])
+  g(['checkout', '-q', mainBranch])
+  writeFileSync(join(dir, 'conflict.txt'), 'main version\n')
+  g(['add', 'conflict.txt'])
+  g(['commit', '-q', '-m', 'main change'])
+  // Merge creates unresolved conflicts in the index; it exits non-zero so we cannot use g().
+  spawnSync('git', ['merge', 'side', '--no-ff', '--no-edit'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: testEnv,
+  })
+  const run = runNode(
+    'harness --staged with unresolved merge conflicts exits 2 with diagnostic',
+    [HARNESS, '--staged', '--guard', 'cflt-guard'],
+    { cwd: dir, env: envWithoutTestContext },
+  )
+  assert.equal(run.status, 2, `stderr:\n${run.stderr}`)
+  assert.match(run.stderr, /unresolved merge conflict/, `stderr:\n${run.stderr}`)
 })

@@ -321,8 +321,9 @@ test('blocks an unknown flag', () => {
 
 test('blocks a bare positional argument', () => {
   // MUTATION: delete the positional branch → `-list` (one hyphen) falls through to the
-  // unknown-flag branch, which is still an error but names the wrong fault. The assertion is on
-  // the MESSAGE for exactly that reason; asserting only that `error` is set would not go red.
+  // unknown-flag branch, which is still an error but names the wrong fault, so the assertion is
+  // on the MESSAGE. The encoded `positional-allowed` entry breaks it the other way — accepting
+  // the positional, leaving no `error` at all — and the same assertion catches both.
   assert.match(parseArgs(['-list']).error, /unexpected argument/)
 })
 

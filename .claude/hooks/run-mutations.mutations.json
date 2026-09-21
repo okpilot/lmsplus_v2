@@ -5,7 +5,8 @@
     ".claude/hooks/run-mutations.spawn.test.mjs",
     ".claude/hooks/run-mutations.parse.test.mjs",
     ".claude/hooks/run-mutations.write.test.mjs",
-    ".claude/hooks/run-mutations.staged.test.mjs"
+    ".claude/hooks/run-mutations.staged.test.mjs",
+    ".claude/hooks/run-mutations.scope.test.mjs"
   ],
   "mutations": [
     {
@@ -235,6 +236,10 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "reports a diagnostic when HEAD is unborn under --staged",
+        "reports a diagnostic when the index has unresolved conflicts under --staged",
         "defaults to the run mode with no flags",
         "reads the value of the --scratch option",
         "a normal run never writes to the data file"
@@ -248,11 +253,14 @@
       "expectRed": [
         "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
         "reports the claim sites a suite carries and the entries excused from encoding",
+        "a --staged run grades a file that is only staged, not committed",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a data file on disk but absent from the index is dropped without faulting the run",
+        "reports a diagnostic when HEAD is unborn under --staged",
+        "reports a diagnostic when the index has unresolved conflicts under --staged",
         "reads the value of an option flag",
         "takes --update-expected together with --guard, which is an option and not a mode",
-        "reads the value of the --scratch option",
-        "a --staged run grades a file that is only staged, not committed",
-        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+        "reads the value of the --scratch option"
       ],
       "note": "Any test asserting run-mutations' own OUTPUT reddens under this break and joins the set. A superset here means the claim was under-specific (§7); exact-set comparison is what surfaces it. Widen rather than trim — `--update-expected` writes the set actually observed."
     },
@@ -280,7 +288,7 @@
       "find": "    return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }",
       "replace": "    return { i }",
       "expectRed": ["blocks a bare positional argument"],
-      "note": "Deleting the branch outright still errors, via the unknown-flag path — so the test asserts the MESSAGE. This entry swaps the message rather than the behaviour for exactly that reason."
+      "note": "`return { i }` accepts the positional silently, so `parseArgs(['-list'])` carries no `error` at all and the assertion throws on undefined. DELETING the branch instead still errors, via the unknown-flag path with a different message — which is why the test asserts the wording rather than merely that `error` is set."
     },
     {
       "id": "usage-error-exits-1",
@@ -512,10 +520,6 @@
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
         "a continuation line that is not an id list ends the marker instead of joining it",
         "a suite written with CRLF line endings still yields its markers",
-        "a CONTROL: red marker directly above a test marks it red",
-        "a CONTROL: green marker directly above a test marks it green",
-        "CONTROL: and GROUP: markers stacked above one test both attach to it",
-        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -526,8 +530,6 @@
       "expectRed": [
         "a claim in a multi-line comment block belongs to the test below it",
         "a continuation line that is not an id list ends the marker instead of joining it",
-        "CONTROL: and GROUP: markers stacked above one test both attach to it",
-        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -574,9 +576,7 @@
       "replace": "    while (j < lines.length && !TEST_LINE_RE.test(lines[j])) j++",
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
-        "a claim separated from every test by code belongs to the file, not to a test",
-        "a CONTROL marker written inside a body names the test it sits in, not the next one",
-        "a CONTROL marker separated from every test by code belongs to the header, not a test"
+        "a claim separated from every test by code belongs to the file, not to a test"
       ]
     },
     {
@@ -594,8 +594,7 @@
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
         "counts a claim written mid-line after other prose",
-        "counts every claim on a line, not one per claiming line",
-        "a CONTROL marker written inside a body names the test it sits in, not the next one"
+        "counts every claim on a line, not one per claiming line"
       ],
       "note": "superset: the two claim-counting fixtures also write their comment INSIDE a test body, so attributing every owner to the header strips their claims off the test as well."
     },
@@ -651,6 +650,10 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "reports a diagnostic when HEAD is unborn under --staged",
+        "reports a diagnostic when the index has unresolved conflicts under --staged",
         "a normal run never writes to the data file"
       ]
     },
@@ -751,7 +754,8 @@
         "a --staged run grades a file that is only staged, not committed",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
-        "a guard whose suite is absent at the ref is scoped out, not a fault"
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
       ],
       "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too)."
     },
@@ -761,9 +765,11 @@
       "replace": "  if (true) return true",
       "expectRed": [
         "touchesStaged matches on the data file itself, its target, or a suite",
-        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a suite is in scope when a file it reads by literal path is the only staged file",
         "a suite is in scope when a helper it imports is the only staged file",
-        "a guard whose suite is absent at the ref is scoped out, not a fault"
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
       ],
       "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too."
     },
@@ -779,7 +785,8 @@
       "find": ".map((file) => ({ file, data: loadDataFileAt(root, file, ref) }))",
       "replace": ".map((file) => ({ file, data: loadDataFile(file) }))",
       "expectRed": [
-        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top"
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a data file on disk but absent from the index is dropped without faulting the run"
       ],
       "note": "loadScoped's staged branch falls back to reading the data file straight off disk, so an unstaged edit sitting on top of the staged/committed copy gets graded instead of what --staged is supposed to see."
     },
@@ -793,14 +800,18 @@
         "a --staged run grades a file that is only staged, not committed",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
-        "a guard whose suite is absent at the ref is scoped out, not a fault"
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "reports a diagnostic when HEAD is unborn under --staged",
+        "reports a diagnostic when the index has unresolved conflicts under --staged"
       ],
       "note": "Dropping the BOOLEAN_FLAGS.has(a) branch makes --staged fall through to the unknown-flag error path, so every caller that passes --staged exits 2 with a usage error instead of grading the index."
     },
     {
       "id": "touchesstaged-no-import-hop",
-      "find": "  if (!readAt) return false\n  return data.suites.some((suite) => {",
-      "replace": "  if (!readAt) return false\n  if (true) return false\n  return data.suites.some((suite) => {",
+      "find": "    if (localImports(root, suite, text).some((i) => staged.has(i))) return true",
+      "replace": "    if (false) return true",
       "expectRed": ["a suite is in scope when a helper it imports is the only staged file"]
     },
     {
@@ -808,6 +819,43 @@
       "find": "    if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0)\n      return null",
       "replace": "    if (false) return null",
       "expectRed": ["a guard whose suite is absent at the ref is scoped out, not a fault"]
+    },
+    {
+      "id": "staged-data-file-absent-probe",
+      "find": "  if (spawnSync('git', ['cat-file', '-e', `${ref}:${rel}`], { cwd: root }).status !== 0) return null\n  const text = git(['show', `${ref}:${rel}`], root)",
+      "replace": "  const text = git(['show', `${ref}:${rel}`], root)",
+      "expectRed": [
+        "a data file on disk but absent from the index is dropped without faulting the run"
+      ]
+    },
+    {
+      "id": "staged-empty-scope-exits-zero",
+      "find": "    )\n    return 0\n  }\n  const { caught, bad, faults, total } = gradeScoped(scoped, {",
+      "replace": "    )\n    return 2\n  }\n  const { caught, bad, faults, total } = gradeScoped(scoped, {",
+      "expectRed": [
+        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
+      ]
+    },
+    {
+      "id": "staged-unborn-head-diagnostic",
+      "find": "--staged needs a commit to parent from (unborn HEAD?):",
+      "replace": "--staged cannot build a commit from the index here:",
+      "expectRed": ["reports a diagnostic when HEAD is unborn under --staged"]
+    },
+    {
+      "id": "staged-unmerged-index-diagnostic",
+      "find": "--staged cannot grade this index (unresolved merge conflicts?):",
+      "replace": "--staged cannot proceed with the current index:",
+      "expectRed": ["reports a diagnostic when the index has unresolved conflicts under --staged"]
+    },
+    {
+      "id": "touchesstaged-no-named-paths",
+      "find": "    return namedPaths(text).some((named) => staged.has(named))",
+      "replace": "    return false",
+      "expectRed": [
+        "a suite is in scope when a file it reads by literal path is the only staged file"
+      ]
     }
   ],
   "notEncoded": [
